@@ -1,0 +1,7 @@
+{
+    "emmet.extensionsPath": [
+        ""
+    ],
+    "terminal.integrated.suggest.cdPath": "absolute",
+    "workbench.editor.limit.enabled": false
+}

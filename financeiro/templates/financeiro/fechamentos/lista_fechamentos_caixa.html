@@ -1,0 +1,102 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %}
+
+{% block title %}Lista de Fechamentos de Caixa - {{ organizacao.nome_fantasia }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Lista de Fechamentos de Caixa</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item active">Fechamentos de Caixa</li>
+    </ol>
+
+    {# Mensagens do sistema #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {# Botão Criar Novo - Apenas para quem pode editar #}
+    {% if can_edit_finance %}
+    <div class="mb-3">
+        <a href="{% url 'financeiro:criar_fechamento_caixa' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Criar Novo Fechamento</a>
+    </div>
+    {% endif %}
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-archive me-1"></i>
+            Fechamentos Registrados
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Igreja</th>
+                            <th>Período</th>
+                            <th>Data do Fechamento</th>
+                            <th class="text-end">Total Entradas</th>
+                            <th class="text-end">Total Saídas</th>
+                            <th class="text-end">Saldo Final</th>
+                            <th>Status</th>
+                            <th>Ações</th> {# Deixamos o cabeçalho Ações sempre visível, mas os botões dentro serão condicionais #}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fechamento in fechamentos %}
+                        <tr>
+                            <td>{{ fechamento.igreja.nome_igreja|default:"-" }}</td>
+                            <td>{{ fechamento.data_inicio|date:"d/m/y" }} a {{ fechamento.data_fim|date:"d/m/y" }}</td>
+                            <td>{{ fechamento.data_fechamento|date:"d/m/Y H:i" }}</td>
+                            <td class="text-end">R$ {{ fechamento.total_entradas|floatformat:"2"|intcomma }}</td>
+                            <td class="text-end">R$ {{ fechamento.total_saidas|floatformat:"2"|intcomma }}</td>
+                            <td class="text-end {% if fechamento.saldo_final >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                R$ {{ fechamento.saldo_final|floatformat:"2"|intcomma }}
+                            </td>
+                            <td>
+                                <span class="badge {% if fechamento.status == 'fechado' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
+                                    {{ fechamento.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'financeiro:detalhe_fechamento_caixa' fechamento.pk %}" class="btn btn-info btn-sm" title="Ver Detalhes">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                    
+                                {% if can_edit_finance and fechamento.status == 'fechado' %}
+                                <form action="{% url 'financeiro:reabrir_fechamento_caixa' fechamento.pk %}" method="post" class="d-inline ms-1" onsubmit="return confirm('Tem certeza que deseja reabrir este caixa? As transações associadas voltarão a ficar abertas e este registro de fechamento será excluído.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-warning btn-sm" title="Reabrir Caixa">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                    
+                                <a href="{% url 'financeiro:relatorio_financeiro_mensal' fechamento.pk %}" class="btn btn-outline-secondary btn-sm ms-1" title="Gerar Relatório" target="_blank">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center"> {# Colspan ajustado para 8 colunas #}
+                                Nenhum fechamento de caixa encontrado.
+                                {% if can_edit_finance %}
+                                    <a href="{% url 'financeiro:criar_fechamento_caixa' %}" class="ms-2">Criar um novo?</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

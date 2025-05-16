@@ -1,0 +1,150 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %}
+{% load l10n %}
+
+{% block title %}{{ titulo_pagina|default:"Confirmar Fechamento de Caixa" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Confirmar Fechamento de Caixa" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_fechamentos_caixa' %}">Fechamentos de Caixa</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:criar_fechamento_caixa' %}">Criar</a></li>
+        <li class="breadcrumb-item active">Confirmar</li>
+    </ol>
+
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">Atenção!</h4>
+        <p>Confira os dados abaixo. Ao confirmar, as receitas e despesas listadas serão marcadas como <strong>fechadas</strong> e não poderão ser editadas ou excluídas (a menos que o caixa seja reaberto).</p>
+        <hr>
+        <p class="mb-0">Certifique-se de que todas as transações do período foram lançadas corretamente.</p>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-check-circle me-1"></i>
+            Resumo do Fechamento para: <strong>{{ igreja_selecionada.nome_igreja }}</strong>
+            (Período: {{ data_inicio|date:"d/m/Y" }} a {{ data_fim|date:"d/m/Y" }})
+        </div>
+        <div class="card-body">
+
+            {% if observacoes %}
+            <div class="mb-3">
+                <strong>Observações:</strong>
+                <p class="text-muted">{{ observacoes|linebreaksbr }}</p>
+            </div>
+            {% endif %}
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="card text-center h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-success">Total Entradas</h5>
+                            <p class="card-text fs-4 fw-bold">R$ {{ total_entradas|floatformat:2|intcomma }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                     <div class="card text-center h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">Total Saídas</h5>
+                            <p class="card-text fs-4 fw-bold">R$ {{ total_saidas|floatformat:2|intcomma }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                     <div class="card text-center h-100 {% if saldo_final >= 0 %}border-primary{% else %}border-warning{% endif %}">
+                        <div class="card-body">
+                            <h5 class="card-title {% if saldo_final >= 0 %}text-primary{% else %}text-warning{% endif %}">Saldo do Período</h5>
+                            <p class="card-text fs-4 fw-bold">R$ {{ saldo_final|floatformat:2|intcomma }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            {# Listagem de Receitas a serem fechadas #}
+            <h5 class="mt-4">Receitas a serem incluídas ({{ receitas.count }})</h5>
+            {% if receitas %}
+            <div class="table-responsive mb-3" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Categoria</th>
+                            <th>Membro/Origem</th>
+                            <th class="text-end">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receita in receitas %}
+                        <tr>
+                            <td>{{ receita.data|date:"d/m/y" }}</td>
+                            <td>{{ receita.get_categoria_display }}</td>
+                            <td>{% if receita.membro %}{{ receita.membro.nome|truncatechars:30 }}{% else %}Anônimo{% endif %}</td>
+                            <td class="text-end">R$ {{ receita.valor|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Nenhuma receita aberta encontrada neste período.</p>
+            {% endif %}
+
+            {# Listagem de Despesas a serem fechadas #}
+            <h5 class="mt-4">Despesas a serem incluídas ({{ despesas.count }})</h5>
+             {% if despesas %}
+             <div class="table-responsive mb-3" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Categoria</th>
+                            <th>Descrição</th>
+                            <th class="text-end">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for despesa in despesas %}
+                        <tr>
+                            <td>{{ despesa.data|date:"d/m/y" }}</td>
+                            <td>{{ despesa.categoria.nome|default:"N/A" }}</td>
+                            <td>{{ despesa.descricao|truncatechars:40 }}</td>
+                            <td class="text-end">R$ {{ despesa.valor|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Nenhuma despesa aberta encontrada neste período.</p>
+            {% endif %}
+
+            <hr>
+
+            {# Formulário de Confirmação #}
+            {% if can_edit_finance %}
+
+            <form method="post" action="{% url 'financeiro:finalizar_fechamento_caixa' %}">
+                {% csrf_token %}
+                {# Campos hidden para passar os dados para a view de finalização #}
+                <input type="hidden" name="igreja_id" value="{{ igreja_selecionada.pk }}">
+                <input type="hidden" name="data_inicio" value="{{ data_inicio|date:'Y-m-d' }}">
+                <input type="hidden" name="data_fim" value="{{ data_fim|date:'Y-m-d' }}">
+                <input type="hidden" name="observacoes" value="{{ observacoes }}">
+
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-check-circle me-1"></i> Confirmar e Fechar Caixa Definitivamente
+                </button>
+                <a href="{% url 'financeiro:criar_fechamento_caixa' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+            {% else %}
+                <a href="{% url 'financeiro:criar_fechamento_caixa' %}" class="btn btn-secondary">Voltar</a>
+                <p class="mt-3 text-danger">Você não tem permissão para confirmar este fechamento.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

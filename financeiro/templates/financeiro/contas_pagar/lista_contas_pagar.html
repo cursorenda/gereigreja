@@ -1,0 +1,169 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %} {# Para intcomma #}
+{% load l10n %} {# Para datas localizadas #}
+
+{% block title %}Contas a Pagar - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Contas a Pagar</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item active">Contas a Pagar</li>
+    </ol>
+
+    {# Mensagens #}
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-file-invoice-dollar me-1"></i>
+            Lista de Contas a Pagar
+        </div>
+        <div class="card-body">
+            {# Formulário de Filtro #}
+            <form method="GET" action="{% url 'financeiro:lista_contas_pagar' %}" class="row g-3 mb-4 align-items-end">
+                <div class="col-md-4">
+                    <label for="searchQuery" class="form-label">Buscar Descrição/Doc/Fornecedor:</label>
+                    <input type="text" class="form-control form-control-sm" id="searchQuery" name="q" value="{{ current_q|default:'' }}">
+                </div>
+                <div class="col-md-2">
+                     <label for="statusFiltro" class="form-label">Status:</label>
+                     <select name="status" id="statusFiltro" class="form-select form-select-sm">
+                         <option value="TODOS" {% if current_status == 'TODOS' %}selected{% endif %}>Todos</option>
+                         {% for val, disp in status_choices %}
+                            <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ disp }}</option>
+                         {% endfor %}
+                     </select>
+                </div>
+                 <div class="col-md-2">
+                    <label for="vencInicio" class="form-label">Venc. Início:</label>
+                    <input type="date" class="form-control form-control-sm" id="vencInicio" name="venc_inicio" value="{{ current_venc_inicio|default:'' }}">
+                </div>
+                 <div class="col-md-2">
+                    <label for="vencFim" class="form-label">Venc. Fim:</label>
+                    <input type="date" class="form-control form-control-sm" id="vencFim" name="venc_fim" value="{{ current_venc_fim|default:'' }}">
+                </div>
+                 <div class="col-md-3">
+                     <label for="igrejaFiltro" class="form-label">Igreja:</label>
+                     <select name="igreja" id="igrejaFiltro" class="form-select form-select-sm">
+                         <option value="">Todas</option>
+                         {% for ig in igrejas_org %}
+                            <option value="{{ ig.pk }}" {% if current_igreja == ig.pk|stringformat:"s" %}selected{% endif %}>{{ ig.nome_igreja }}</option>
+                         {% endfor %}
+                     </select>
+                </div>
+                 <div class="col-md-3">
+                     <label for="fornecedorFiltro" class="form-label">Fornecedor:</label>
+                     <select name="fornecedor" id="fornecedorFiltro" class="form-select form-select-sm">
+                         <option value="">Todos</option>
+                         {% for forn in fornecedores_org %}
+                            <option value="{{ forn.pk }}" {% if current_fornecedor == forn.pk|stringformat:"s" %}selected{% endif %}>{{ forn.nome }}</option>
+                         {% endfor %}
+                     </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Filtrar</button>
+                    <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-sm btn-outline-warning ms-1" title="Limpar Filtros"><i class="fas fa-times"></i></a>
+                </div>
+                {% if can_edit_finance %}
+                 <div class="col-auto ms-auto"> {# Botão Adicionar à direita #}
+                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Adicionar Conta/Parcela</a>
+                </div>
+                {% endif %}
+            </form>
+
+            {# Tabela de Contas a Pagar #}
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Vencimento</th>
+                            <th>Fornecedor</th>
+                            <th>Descrição</th>
+                            <th>Igreja</th>
+                            <th class="text-end">Valor (R$)</th>
+                            <th>Status</th>
+                            {% if can_edit_finance %}
+                            <th class="text-center">Ações</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for conta in contas %}
+                        <tr class="
+                            {% if conta.status == 'PAG' %}table-success {# Contas pagas em verde #}
+                            {% elif conta.status == 'VEN' %}table-danger fw-bold {# Contas com status Vencida em vermelho e negrito #}
+                            {% elif conta.status == 'CAN' %}table-secondary text-muted text-decoration-line-through
+                            {% elif conta.is_vencida %}table-warning fw-bold{# Contas Pendentes mas vencidas em amarelo e negrito #}{% endif %}
+                        ">
+                            <td>{{ conta.data_vencimento|date:"d/m/Y" }}</td>
+                            <td>{{ conta.fornecedor.nome|truncatechars:25 }}</td>
+                            <td>{{ conta.descricao|truncatechars:40 }}</td>
+                            <td>{{ conta.igreja.nome_igreja|truncatechars:20 }}</td>
+                            <td class="text-end">{{ conta.valor|floatformat:2|intcomma }}</td>
+                            <td>
+                                <span class="badge
+                                    {% if conta.status == 'PAG' %}bg-success
+                                    {% elif conta.status == 'VEN' %}bg-danger
+                                    {% elif conta.status == 'CAN' %}bg-secondary
+                                    {% elif conta.status == 'PEN' %}bg-primary
+                                    {% else %}bg-info{% endif %}">
+                                    {{ conta.get_status_display }}
+                                </span>
+                                {% if conta.is_vencida and conta.status == 'PEN' %}
+                                    <span class="badge bg-danger">Vencida!</span>
+                                {% endif %}
+                            </td>
+
+                            {% if can_edit_finance %}
+                            <td class="text-center">
+                                {# Botão Pagar só aparece se Pendente ou Vencida #}
+                                {% if conta.status == 'PEN' or conta.status == 'VEN' %}
+                                <a href="{% url 'financeiro:registrar_pagamento_conta_pagar' conta.pk %}" class="btn btn-success btn-sm me-1" title="Registrar Pagamento">
+                                    <i class="fas fa-dollar-sign"></i> Pagar
+                                </a>
+                                {% endif %}
+                            
+                                {# Botão Editar só aparece se Pendente ou Vencida #}
+                                {% if conta.status == 'PEN' or conta.status == 'VEN' %}
+                                <a href="{% url 'financeiro:editar_conta_pagar' conta.pk %}" class="btn btn-primary btn-sm me-1" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                            
+                                {# Botão Detalhes sempre aparece #}
+                                <a href="{% url 'financeiro:detalhe_conta_pagar' conta.pk %}" class="btn btn-info btn-sm me-1" title="Ver Detalhes">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            
+                                {# Botão Cancelar só aparece se Pendente ou Vencida #}
+                                {% if conta.status == 'PEN' or conta.status == 'VEN' %}
+                                <form action="{% url 'financeiro:cancelar_conta_pagar' conta.pk %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja CANCELAR esta conta a pagar?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Cancelar Conta">
+                                        <i class="fas fa-times-circle"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if can_edit_finance %}7{% else %}6{% endif %}" class="text-center">
+                                Nenhuma conta a pagar encontrada com os filtros aplicados.
+                                {% if can_edit_finance %}
+                                    <a href="{% url 'financeiro:criar_conta_pagar' %}" class="ms-2">Adicionar uma nova?</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {# Adicionar Paginação se usar ListView #}
+        </div>
+    </div>
+</div>
+{% endblock content %}

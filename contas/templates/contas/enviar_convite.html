@@ -1,0 +1,58 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina|default:"Convidar Usuário" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Convidar Usuário" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'contas:lista_usuarios' %}">Gerenciar Usuários</a></li>
+        <li class="breadcrumb-item active">Convidar</li>
+    </ol>
+
+    {# Mensagens #}
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-user-plus me-1"></i>
+            Convidar Usuário para {{ organizacao.nome_fantasia }}
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">Digite o endereço de e-mail da pessoa que você deseja convidar para se juntar à sua organização. Um link de convite será gerado (o envio por e-mail será implementado futuramente).</p>
+
+            <form method="post">
+                {% csrf_token %}
+
+                {# Exibir erros gerais do formulário #}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
+
+                {# Renderizar campo de email #}
+                <div class="mb-3">
+                    <label for="{{ form.email_convidado.id_for_label }}" class="form-label">{{ form.email_convidado.label }}:</label>
+                    {{ form.email_convidado }} {# Renderiza o input com widget definido no form #}
+                    {% if form.email_convidado.errors %}
+                        <div class="invalid-feedback d-block"> {# Mostra o erro específico do campo #}
+                            {{ form.email_convidado.errors|striptags }}
+                        </div>
+                    {% endif %}
+                    {% if form.email_convidado.help_text %}
+                        <div class="form-text">{{ form.email_convidado.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-1"></i> Gerar Convite
+                </button>
+                <a href="{% url 'contas:lista_usuarios' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

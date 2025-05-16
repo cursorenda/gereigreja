@@ -1,0 +1,79 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ titulo_pagina|default:"Contas Bancárias/Caixas" }} - {{ organizacao.nome_fantasia|default:"GereIgreja" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Contas Bancárias/Caixas" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item active">{{ titulo_pagina|default:"Contas Bancárias/Caixas" }}</li>
+    </ol>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-university me-1"></i>
+            Lista de Contas Bancárias/Caixas
+            {% if can_edit_finance %}
+            <a href="{% url 'financeiro:criar_conta_bancaria' %}" class="btn btn-primary btn-sm float-end">
+                <i class="fas fa-plus"></i> Nova Conta/Caixa
+            </a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if contas_bancarias %}
+            <div class="table-responsive">
+                <table id="datatablesSimple" class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Igreja</th>
+                            <th>Nome/Identificação</th>
+                            <th>Tipo</th>
+                            <th>Instituição Bancária</th>
+                            <th>Agência</th>
+                            <th>Conta</th>
+                            <th class="text-end">Saldo Inicial</th>
+                            <th class="text-end">Saldo Atual</th> {# Nova Coluna #}
+                            {% if can_edit_finance %}<th>Ações</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for conta in contas_bancarias %}
+                        <tr>
+                            <td>{{ conta.igreja.nome_igreja }}</td>
+                            <td>{{ conta.nome_identificacao }}</td>
+                            <td>{{ conta.get_tipo_display }}</td>
+                            <td>{{ conta.instituicao_bancaria|default_if_none:"" }}</td>
+                            <td>{{ conta.agencia|default_if_none:"" }}</td>
+                            <td>{{ conta.conta|default_if_none:"" }}</td>
+                            <td class="text-end">R$ {{ conta.saldo_inicial|intcomma }}</td>
+                            <td class="text-end">R$ {{ conta.saldo_atual|intcomma }}</td> {# Exibe o Saldo Atual #}
+                            {% if can_edit_finance %}
+                            <td>
+                                <a href="{% url 'financeiro:editar_conta_bancaria' conta.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Editar"><i class="fas fa-edit"></i></a>
+                                <a href="{% url 'financeiro:excluir_conta_bancaria' conta.pk %}" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="fas fa-trash"></i></a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p>Nenhuma conta bancária/caixa cadastrada para as igrejas que você tem acesso.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

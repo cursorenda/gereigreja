@@ -1,0 +1,76 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina|default:"Editar Acessos" }}{% endblock %} {# Título Atualizado #}
+
+{% block content %}
+<div class="container-fluid px-4">
+    {# Título Atualizado #}
+    <h1 class="mt-4">{{ titulo_pagina|default:"Editar Acessos" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'contas:lista_usuarios' %}">Gerenciar Usuários</a></li>
+        {# Título Atualizado #}
+        <li class="breadcrumb-item active">Editar Acessos: {{ usuario_alvo.get_full_name }}</li>
+    </ol>
+
+    {# Mensagens #}
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-user-shield me-1"></i> {# Ícone atualizado #}
+            {# Título Atualizado #}
+            Atribuir Papéis e Permissões para <strong>{{ usuario_alvo.get_full_name }}</strong> ({{ usuario_alvo.email }})
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                {# Erros gerais #}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
+
+                {# Campo Grupos (Papéis) #}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ form.grupos.label }}:</label>
+                    <div class="form-check">
+                        {{ form.grupos }}
+                    </div>
+                    {% if form.grupos.errors %}
+                        <div class="invalid-feedback d-block">{{ form.grupos.errors|striptags }}</div>
+                    {% endif %}
+                    {% if form.grupos.help_text %}
+                        <div class="form-text">{{ form.grupos.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+
+                <hr> {# Separador #}
+
+                {# --- NOVO CAMPO IGREJAS PERMITIDAS --- #}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ form.igrejas_permitidas.label }}:</label>
+                    <div class="form-check"> {# Usar form-check pode não ser ideal para muitos checkboxes, mas mantém consistência #}
+                        {{ form.igrejas_permitidas }} {# Renderiza checkboxes para igrejas #}
+                    </div>
+                     {% if form.igrejas_permitidas.errors %}
+                        <div class="invalid-feedback d-block">{{ form.igrejas_permitidas.errors|striptags }}</div>
+                    {% endif %}
+                    {% if form.igrejas_permitidas.help_text %}
+                        <div class="form-text">{{ form.igrejas_permitidas.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+                {# --- FIM NOVO CAMPO --- #}
+
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Salvar Acessos {# Texto do botão atualizado #}
+                </button>
+                <a href="{% url 'contas:lista_usuarios' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}

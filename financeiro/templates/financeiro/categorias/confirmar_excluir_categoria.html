@@ -1,0 +1,38 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Confirmar Exclusão - Categoria{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Confirmar Exclusão</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_categorias_despesa' %}">Categorias de Despesa</a></li>
+        <li class="breadcrumb-item active">Confirmar Exclusão</li>
+    </ol>
+
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">Atenção! Exclusão Permanente!</h4>
+        <p>Você está prestes a excluir permanentemente a categoria de despesa:</p>
+        <p class="fs-5 fw-bold">"{{ categoria.nome }}"</p>
+        <hr>
+        <p class="mb-0">Esta ação não pode ser desfeita. Tem certeza que deseja continuar?</p>
+         {# Adicionar aviso se a categoria estiver em uso (se implementado na view) #}
+         {# {% if categoria_em_uso %}
+             <p class="mt-2 fw-bold">Aviso: Esta categoria está sendo utilizada em lançamentos e não pode ser excluída.</p>
+         {% endif %} #}
+    </div>
+
+    <form method="post"> {# Action vazia submete para a mesma URL (excluir) #}
+        {% csrf_token %}
+        {# Não permitir exclusão se estiver em uso (se implementado na view) #}
+        {# {% if not categoria_em_uso %} #}
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash-alt me-1"></i> Sim, Excluir Permanentemente
+            </button>
+        {# {% endif %} #}
+        <a href="{% url 'financeiro:lista_categorias_despesa' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+
+</div>
+{% endblock content %}

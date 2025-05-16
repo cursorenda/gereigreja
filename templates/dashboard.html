@@ -1,0 +1,246 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ titulo_pagina|default:"Dashboard da Igreja" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Dashboard da Igreja" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    {% if permissao_negada %}
+        {# Mensagem de permissão negada já é tratada pelo _messages.html se você usou messages.warning #}
+    {% else %}
+        {# --- CARDS DE RESUMO --- #}
+        <div class="row">
+            <!-- Card Total de Membros Ativos -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-primary text-white mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Membros Ativos</div>
+                                <div class="h5 mb-0 font-weight-bold">{{ total_membros_dashboard|intcomma }}</div>
+                            </div>
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-white stretched-link" href="{% url 'secretaria:lista_membros' %}">Ver Detalhes</a>
+                        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Novos Membros (Últimos 30 dias) -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-success text-white mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Novos Membros (30d)</div>
+                                <div class="h5 mb-0 font-weight-bold">{{ novos_membros_30_dias|intcomma }}</div>
+                            </div>
+                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-white stretched-link" href="#">Ver Detalhes</a>
+                        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Aniversariantes do Mês -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-info text-white mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Aniversariantes do Mês</div>
+                                <div class="h5 mb-0 font-weight-bold">{{ aniversariantes_mes_atual_count|intcomma }}</div>
+                            </div>
+                            <i class="fas fa-birthday-cake fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-white stretched-link" href="#">Ver Detalhes</a>
+                        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Média de Idade -->
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-warning text-dark mb-4"> {# text-dark para melhor contraste com bg-warning #}
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Média de Idade (Ativos)</div>
+                                <div class="h5 mb-0 font-weight-bold">{{ media_idade_membros|intcomma }} anos</div>
+                            </div>
+                            <i class="fas fa-child fa-2x text-gray-500"></i> {# text-gray-500 para contraste #}
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex align-items-center justify-content-between">
+                        <a class="small text-dark stretched-link" href="#">Ver Detalhes</a>
+                        <div class="small text-dark"><i class="fas fa-angle-right"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {# --- FIM CARDS DE RESUMO --- #}
+
+        {# --- GRÁFICOS --- #}
+        <div class="row">
+            <div class="col-xl-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-pie me-1"></i>
+                        Membros por Status
+                    </div>
+                    <div class="card-body" style="height: 350px;"><canvas id="statusChart"></canvas></div>
+                </div>
+            </div>
+            <div class="col-xl-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-venus-mars me-1"></i>
+                        Membros por Gênero
+                    </div>
+                    <div class="card-body" style="height: 350px;"><canvas id="generoChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-12"> {# Gráfico de Faixa Etária ocupando a linha toda #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar me-1"></i>
+                        Membros por Faixa Etária
+                    </div>
+                    <div class="card-body" style="height: 350px;"><canvas id="faixaEtariaChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        {# --- FIM GRÁFICOS --- #}
+
+        {# --- TABELA DE PRÓXIMOS ANIVERSARIANTES --- #}
+        {% if aniversariantes_proximos %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-gift me-1"></i>
+                Próximos Aniversariantes (Ativos)
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Data de Nascimento</th>
+                                <th>Igreja</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for membro_aniv in aniversariantes_proximos %}
+                            <tr>
+                                <td>{{ membro_aniv.nome }}</td>
+                                <td>{{ membro_aniv.nascimento|date:"d/m" }}</td>
+                                <td>{{ membro_aniv.igreja.nome_igreja|default:"N/A" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {# --- FIM TABELA --- #}
+    {% endif %} {# Fim do if not permissao_negada #}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        if (typeof Chart === 'undefined') {
+            console.error("Chart.js library not loaded.");
+            return;
+        }
+
+        // Dados do Status
+        const statusData = JSON.parse('{{ status_data_json|escapejs|default:"[]" }}');
+        const statusLabels = statusData.map(item => item.status);
+        const statusTotals = statusData.map(item => item.total);
+        const statusCtx = document.getElementById('statusChart');
+        if (statusCtx && statusLabels.length > 0) {
+            new Chart(statusCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{ label: 'Membros', data: statusTotals, borderWidth: 1 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+            });
+        } else if(statusCtx) {
+            statusCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de status para exibir.</p>';
+        }
+
+        // Dados do Gênero
+        const generoData = JSON.parse('{{ genero_data_json|escapejs|default:"[]" }}');
+        const generoLabels = generoData.map(item => item.genero);
+        const generoTotals = generoData.map(item => item.total);
+        const generoCtx = document.getElementById('generoChart');
+        if (generoCtx && generoLabels.length > 0) {
+            new Chart(generoCtx.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: generoLabels,
+                    datasets: [{ label: 'Membros', data: generoTotals, borderWidth: 1 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+            });
+        } else if(generoCtx) {
+            generoCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de gênero para exibir.</p>';
+        }
+
+        // Dados da Faixa Etária
+        const faixaEtariaData = JSON.parse('{{ faixa_etaria_data_json|escapejs|default:"[]" }}');
+        const faixaEtariaLabels = faixaEtariaData.map(item => item.faixa_etaria);
+        const faixaEtariaTotals = faixaEtariaData.map(item => item.total);
+        const faixaEtariaCtx = document.getElementById('faixaEtariaChart');
+        if (faixaEtariaCtx && faixaEtariaLabels.length > 0) {
+            new Chart(faixaEtariaCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: faixaEtariaLabels,
+                    datasets: [{ label: 'Nº de Membros', data: faixaEtariaTotals, borderWidth: 1 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        } else if(faixaEtariaCtx) {
+            faixaEtariaCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de faixa etária para exibir.</p>';
+        }
+
+    } catch (e) {
+        console.error("Erro ao renderizar gráficos do dashboard:", e);
+        // Adicionar mensagens de erro nos divs dos gráficos se necessário
+        const statusCtxErr = document.getElementById('statusChart');
+        if(statusCtxErr) statusCtxErr.parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de status.</p>';
+        const generoCtxErr = document.getElementById('generoChart');
+        if(generoCtxErr) generoCtxErr.parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de gênero.</p>';
+        const faixaEtariaCtxErr = document.getElementById('faixaEtariaChart');
+        if(faixaEtariaCtxErr) faixaEtariaCtxErr.parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de faixa etária.</p>';
+    }
+});
+</script>
+{% endblock %}

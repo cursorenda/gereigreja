@@ -1,0 +1,116 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina|default:"Criar Fechamento de Caixa" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Criar Fechamento de Caixa" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_fechamentos_caixa' %}">Fechamentos de Caixa</a></li>
+        <li class="breadcrumb-item active">Criar</li>
+    </ol>
+
+   
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-calendar-plus me-1"></i>
+            Selecionar Período e Igreja
+        </div>
+        <div class="card-body">
+            <form method="post"> {# Action vazia submete para a mesma URL #}
+                {% csrf_token %}
+
+                {# ---- SUBSTITUA O BLOCO non_field_errors POR ESTE ---- #}
+                {% if form.non_field_errors %}
+                    <div style="border: 2px solid red; padding: 10px; color: red; margin-bottom: 15px; background-color: #fdd;">
+                        <strong>Erros Gerais do Formulário:</strong>
+                        <ul>
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                {% else %}
+                    {# Opcional: Adicionar isso para confirmar que o bloco foi avaliado e não havia erros #}
+                    <!-- DEBUG: No non_field_errors found -->
+                {% endif %}
+                {# ---- FIM DA SUBSTITUIÇÃO ---- #}
+
+
+                 {# Exibir erros ocultos (hidden fields), se houver #}
+                 {% for hidden_field in form.hidden_fields %}
+                    {% if hidden_field.errors %}
+                        <div class="alert alert-danger" role="alert">
+                            Erros no campo oculto {{ hidden_field.name }}:
+                            {% for error in hidden_field.errors %}
+                                {{ error }}{% if not forloop.last %}<br>{% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {# Renderizar campos manualmente para exibir erros específicos #}
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
+                        {{ form.igreja }} {# Renderiza o widget <select> #}
+                        {% if form.igreja.errors %}
+                            <div class="invalid-feedback d-block"> {# Mostra o erro específico do campo #}
+                                {{ form.igreja.errors|striptags }}
+                            </div>
+                        {% endif %}
+                        {% if form.igreja.help_text %}
+                            <div class="form-text">{{ form.igreja.help_text|safe }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.data_inicio.id_for_label }}" class="form-label">{{ form.data_inicio.label }}:</label>
+                        {{ form.data_inicio }} {# Renderiza o widget <input type="date"> #}
+                        {% if form.data_inicio.errors %}
+                            <div class="invalid-feedback d-block"> {# Mostra o erro específico do campo #}
+                                {{ form.data_inicio.errors|striptags }}
+                            </div>
+                        {% endif %}
+                        {% if form.data_inicio.help_text %}
+                            <div class="form-text">{{ form.data_inicio.help_text|safe }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.data_fim.id_for_label }}" class="form-label">{{ form.data_fim.label }}:</label>
+                        {{ form.data_fim }} {# Renderiza o widget <input type="date"> #}
+                        {% if form.data_fim.errors %}
+                            <div class="invalid-feedback d-block"> {# Mostra o erro específico do campo #}
+                                {{ form.data_fim.errors|striptags }}
+                            </div>
+                        {% endif %}
+                        {% if form.data_fim.help_text %}
+                            <div class="form-text">{{ form.data_fim.help_text|safe }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.observacoes.id_for_label }}" class="form-label">{{ form.observacoes.label }}:</label>
+                        {{ form.observacoes }} {# Renderiza o widget <textarea> #}
+                        {% if form.observacoes.errors %}
+                            <div class="invalid-feedback d-block"> {# Mostra o erro específico do campo #}
+                                {{ form.observacoes.errors|striptags }}
+                            </div>
+                        {% endif %}
+                        {% if form.observacoes.help_text %}
+                            <div class="form-text">{{ form.observacoes.help_text|safe }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-calculator me-1"></i> Calcular e Fechar Caixa
+                </button>
+                <a href="{% url 'financeiro:lista_fechamentos_caixa' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Confirmar Exclusão - Igreja{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Confirmar Exclusão</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'configuracao:lista_igrejas' %}">Gerenciar Igrejas</a></li>
+        <li class="breadcrumb-item active">Confirmar Exclusão</li>
+    </ol>
+
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">Atenção! Exclusão Permanente!</h4>
+        <p>Você está prestes a excluir permanentemente a igreja:</p>
+        <p class="fs-5 fw-bold">"{{ igreja.nome_igreja }}"</p>
+        <hr>
+        <p class="mb-0">Esta ação não pode ser desfeita e só é permitida se não houver membros ou registros financeiros associados a esta igreja. Tem certeza que deseja continuar?</p>
+    </div>
+
+    <form method="post"> {# Action vazia submete para a mesma URL (excluir) #}
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash-alt me-1"></i> Sim, Excluir Permanentemente
+        </button>
+        <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+
+</div>
+{% endblock content %}

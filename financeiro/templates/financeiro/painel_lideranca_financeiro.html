@@ -1,0 +1,449 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %}
+{% load l10n %}
+{% load static %} {# Adicionado para carregar Chart.js se não estiver no base #}
+
+{% block title %}{{ titulo_dashboard|default:"Painel de Liderança Financeira" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_dashboard|default:"Painel de Liderança Financeira" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item active">Liderança</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    {% if erro_painel %}
+        <div class="alert alert-danger" role="alert">
+            Ocorreu um erro ao carregar os dados do painel de liderança. Por favor, tente novamente mais tarde.
+        </div>
+    {% elif nenhuma_igreja %}
+        <div class="alert alert-warning" role="alert">
+            Nenhuma igreja encontrada para visualização neste painel. Verifique as permissões ou associações de igrejas.
+        </div>
+    {% else %}
+        {# Formulários de Filtro (Igreja/Regional e Período) #}
+        <div class="row mb-3">
+
+            <div class="col-md-6"> {# Coluna para o filtro de Igreja/Regional #}
+                <form method="get" id="filtroIgrejaForm" class="d-flex gap-2">
+                    {# Manter o filtro de período existente ao submeter o filtro de igreja #}
+                    <input type="hidden" name="periodo_filtro" value="{{ periodo_filtro_selecionado }}">
+                    <div class="input-group input-group-sm">
+                        <label class="input-group-text" for="igreja_filtro_select_lider">Igreja/Regional:</label>
+                        <select name="igreja_filtro" id="igreja_filtro_select_lider" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>Toda a Rede</option>
+                            {% for igreja_opt in igrejas_permitidas_filtro %}
+                                <option value="{{ igreja_opt.pk }}" {% if igreja_id_filtro_selecionado == igreja_opt.pk|stringformat:"s" %}selected{% endif %}>{{ igreja_opt.nome_igreja }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-6"> {# Coluna para o filtro de Período #}
+                 <form method="get" id="filtroPeriodoForm" class="d-flex gap-2 justify-content-md-end"> {# Alinhar à direita em telas médias+ #}
+                    {# Manter o filtro de igreja existente ao submeter o filtro de período #}
+                    <input type="hidden" name="igreja_filtro" value="{{ igreja_id_filtro_selecionado|default:'' }}">
+                    <div class="input-group input-group-sm w-auto"> {# w-auto para não ocupar toda a largura #}
+                        <label class="input-group-text" for="periodo_filtro_select_lider">Período:</label>
+
+
+
+
+
+                        <select name="periodo_filtro" id="periodo_filtro_select_lider" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="geral" {% if periodo_filtro_selecionado == 'geral' %}selected{% endif %}>Geral</option>
+                            <option value="ano_atual" {% if periodo_filtro_selecionado == 'ano_atual' %}selected{% endif %}>Ano Atual</option>
+                            <option value="mes_anterior" {% if periodo_filtro_selecionado == 'mes_anterior' %}selected{% endif %}>Mês Anterior</option>
+                            <option value="mes_atual" {% if periodo_filtro_selecionado == 'mes_atual' %}selected{% endif %}>Mês Atual</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {# Cards de Resumo Consolidado #}
+        <div class="row">
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-success text-white shadow mb-4">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Total Receitas ({{ titulo_filtro_periodo }})</div>
+                            <div class="h5 mb-0 font-weight-bold">R$ {{ total_receitas_lideranca|floatformat:2|intcomma }}</div>
+                        </div>
+                        <i class="fas fa-hand-holding-usd fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4 col-md-6">
+                <div class="card bg-danger text-white shadow mb-4">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Total Despesas ({{ titulo_filtro_periodo }})</div>
+                            <div class="h5 mb-0 font-weight-bold">R$ {{ total_despesas_lideranca|floatformat:2|intcomma }}</div>
+                        </div>
+                        <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-4 col-md-6">
+                <div class="card {% if saldo_geral_lideranca >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %} shadow mb-4">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Saldo Consolidado ({{ titulo_filtro_periodo }})</div>
+                            <div class="h5 mb-0 font-weight-bold">R$ {{ saldo_geral_lideranca|floatformat:2|intcomma }}</div>
+                        </div>
+                        <i class="fas fa-balance-scale fa-2x {% if saldo_geral_lideranca >= 0 %}text-gray-300{% else %}text-gray-500{% endif %}"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# --- GRÁFICOS (Comparativos e Distribuição de Despesas) --- #}
+        {% if allowed_churches_count > 1 %} {# Só mostra gráficos comparativos se houver mais de uma igreja #}
+        <div class="row mt-4">
+            <div class="col-xl-6"> {# Chart for Receitas por Igreja #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar me-1"></i>
+                        Receitas por Igreja ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body" style="height: 350px;">
+                        <canvas id="receitasPorIgrejaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+             <div class="col-xl-6"> {# Chart for Despesas por Igreja #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar me-1"></i>
+                        Despesas por Igreja ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body" style="height: 350px;">
+                        <canvas id="despesasPorIgrejaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-4">
+             <div class="col-xl-6"> {# Chart for Saldo por Igreja #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar me-1"></i>
+                        Saldo por Igreja ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body" style="height: 350px;">
+                        <canvas id="saldoPorIgrejaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-6"> {# Chart for Distribuição de Despesas (ao lado do Saldo) #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-pie me-1"></i>
+                        Distribuição de Despesas por Categoria ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body" style="height: 350px;">
+                        <canvas id="gastosPorCategoriaLiderancaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        {% else %}
+             <div class="alert alert-info mt-4" role="alert">
+                {% if igreja_id_filtro_selecionado and titulo_igreja_filtro != "Consolidado" %}
+                    <h4 class="alert-heading">Visualizando Dados de: {{ titulo_igreja_filtro }}</h4>
+                    <p>Os gráficos comparativos entre igrejas e os rankings não são exibidos ao visualizar uma única igreja/regional. Os totais e a distribuição de despesas por categoria (se houver dados) exibidos nesta página referem-se especificamente a <strong>{{ titulo_igreja_filtro }}</strong>.</p>
+                {% else %}
+                    <h4 class="alert-heading">Informação sobre Gráficos Comparativos</h4>
+                    <p>Para visualizar gráficos comparativos e rankings, sua rede precisa ter mais de uma igreja/regional com dados no período selecionado, ou você precisa ter mais de uma igreja associada à sua liderança. Atualmente, os dados consolidados referem-se a uma única entidade ou a um conjunto que não permite comparação direta entre múltiplas unidades.</p>
+                {% endif %}</div>
+        {% endif %}
+
+        {# --- FIM GRÁFICOS --- #}
+
+        {# --- GRÁFICO DE GASTOS POR CATEGORIA (Quando é individual e não mostrado acima) --- #}
+        {% if allowed_churches_count <= 1 %}
+
+        <div class="row mt-4">
+            <div class="col-xl-6"> {# Ou col-xl-12 para ocupar a linha toda se preferir #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-pie me-1"></i>
+                        Distribuição de Despesas por Categoria ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body" style="height: 350px;">
+                        <canvas id="gastosPorCategoriaLiderancaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        {# --- RANKINGS --- #}
+        {% if allowed_churches_count > 1 %} {# Só mostra rankings se houver mais de uma igreja #}
+        <div class="row mt-4"> {# Usando row mt-4 para espaçar dos gráficos #}
+            {# Ranking Top Receitas #}
+            <div class="col-xl-4 col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-trophy me-1"></i>
+                        Top 5 Igrejas por Receita ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body">
+                        {% if ranking_top_receitas %}
+                        <ul class="list-group list-group-flush">
+                            {% for item in ranking_top_receitas %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ forloop.counter }}. {{ item.igreja.nome_igreja|truncatechars:25 }}
+                                <span class="badge bg-success rounded-pill">R$ {{ item.total_receitas|floatformat:2|intcomma }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">Sem dados de receita para ranking no período.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# Ranking Top Saldo Positivo #}
+            <div class="col-xl-4 col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-star me-1"></i>
+                        Top 5 Igrejas por Saldo Positivo ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body">
+                         {% if ranking_top_saldo_positivo %}
+                        <ul class="list-group list-group-flush">
+                            {% for item in ranking_top_saldo_positivo %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ forloop.counter }}. {{ item.igreja.nome_igreja|truncatechars:25 }}
+                                <span class="badge bg-primary rounded-pill">R$ {{ item.saldo|floatformat:2|intcomma }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">Sem dados de saldo positivo para ranking no período.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# Ranking Saldo Negativo #}
+            <div class="col-xl-4 col-md-12"> {# Ocupa 12 colunas em telas médias para baixo #}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                        Igrejas com Saldo Negativo ({{ titulo_filtro_periodo }})
+                    </div>
+                    <div class="card-body">
+                        {% if ranking_saldo_negativo %}
+                        <ul class="list-group list-group-flush">
+                            {% for item in ranking_saldo_negativo %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center text-danger"> {# Destaca em vermelho #}
+                                {{ item.igreja.nome_igreja|truncatechars:25 }}
+                                <span class="badge bg-danger rounded-pill">R$ {{ item.saldo|floatformat:2|intcomma }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">Nenhuma igreja com saldo negativo no período.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {# --- FIM RANKINGS --- #}
+
+    {% endif %} {# Fim do if que verifica erro_painel ou nenhuma_igreja #}
+</div> {# Fim do container-fluid px-4 #}
+{% endblock %}
+
+{% block extra_js %}
+{# Incluir Chart.js #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{# Assumindo que Chart.js já está carregado pelo base_com_menu.html ou staticfiles #}
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const compLabels = JSON.parse('{{ grafico_comparativo_labels_json|escapejs|default:"[]" }}');
+        const compReceitasData = JSON.parse('{{ grafico_comparativo_receitas_data_json|escapejs|default:"[]" }}');
+        const compDespesasData = JSON.parse('{{ grafico_comparativo_despesas_data_json|escapejs|default:"[]" }}');
+        const compSaldosData = JSON.parse('{{ grafico_comparativo_saldos_data_json|escapejs|default:"[]" }}');
+
+        // Dados para o gráfico de distribuição de despesas por categoria
+        const gastosCatLabels = JSON.parse('{{ grafico_gastos_cat_labels_json|escapejs|default:"[]" }}');
+        const gastosCatValores = JSON.parse('{{ grafico_gastos_cat_valores_json|escapejs|default:"[]" }}');
+        const gastosCatPercentuais = JSON.parse('{{ grafico_gastos_cat_percentuais_json|escapejs|default:"[]" }}');
+
+
+        // Verificar se Chart.js foi carregado antes de tentar usá-lo
+        if (typeof Chart === 'undefined') {
+             console.error("Chart.js library not loaded. Cannot render charts.");
+             // As mensagens de erro no catch block já cobrem isso, mas é bom logar aqui.
+             return; // Interrompe a execução do script se Chart.js não estiver disponível
+        }
+
+        // Renderiza gráficos comparativos (Receitas, Despesas, Saldo) se houver labels
+        if (compLabels.length > 0) {
+
+            // Gráfico Comparativo de Receitas por Igreja
+            const receitasPorIgrejaCtx = document.getElementById('receitasPorIgrejaChart');
+            if (receitasPorIgrejaCtx) { // Verifica se o elemento canvas existe
+                if (compLabels.length > 0) { // Verifica se há labels (igrejas)
+                    new Chart(receitasPorIgrejaCtx.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: compLabels,
+                            datasets: [{
+                                label: 'Receitas',
+                                data: compReceitasData,
+                                backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                    });
+                } else {
+                    receitasPorIgrejaCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de receitas por igreja para exibir no período.</p>';
+                }
+            }
+
+            // Gráfico Comparativo de Despesas por Igreja
+            const despesasPorIgrejaCtx = document.getElementById('despesasPorIgrejaChart');
+            if (despesasPorIgrejaCtx) { // Verifica se o elemento canvas existe
+                if (compLabels.length > 0) { // Verifica se há labels (igrejas)
+                    new Chart(despesasPorIgrejaCtx.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: compLabels,
+                            datasets: [{
+                                label: 'Despesas',
+                                data: compDespesasData,
+                                backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                    });
+                } else {
+                    despesasPorIgrejaCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de despesas por igreja para exibir no período.</p>';
+                }
+            }
+
+            // Gráfico Comparativo de Saldo por Igreja
+            const saldoPorIgrejaCtx = document.getElementById('saldoPorIgrejaChart');
+            if (saldoPorIgrejaCtx) { // Verifica se o elemento canvas existe
+                if (compSaldosData.length > 0) {
+                    new Chart(saldoPorIgrejaCtx.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: compLabels,
+                            datasets: [{
+                                label: 'Saldo',
+                                data: compSaldosData,
+                                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                    });
+                } else {
+                    saldoPorIgrejaCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de saldo por igreja para exibir no período.</p>';
+                }
+            }
+        } else {
+             console.log("Sem dados de igrejas para gráficos comparativos.");
+             const receitasChartDiv = document.getElementById('receitasPorIgrejaChart');
+             if (receitasChartDiv) receitasChartDiv.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de receitas por igreja para exibir no período.</p>';
+
+             const despesasChartDiv = document.getElementById('despesasPorIgrejaChart');
+             if (despesasChartDiv) despesasChartDiv.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de despesas por igreja para exibir no período.</p>';
+
+             const saldoChartDiv = document.getElementById('saldoPorIgrejaChart');
+             if (saldoChartDiv) saldoChartDiv.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de saldo por igreja para exibir no período.</p>';
+        }
+
+        // Renderiza Gráfico de Distribuição de Despesas por Categoria (Liderança) se houver dados
+        const gastosPorCategoriaLiderancaCtx = document.getElementById('gastosPorCategoriaLiderancaChart');
+        if (gastosPorCategoriaLiderancaCtx) {
+            if (gastosCatLabels.length > 0) {
+                new Chart(gastosPorCategoriaLiderancaCtx.getContext('2d'), {
+                    type: 'doughnut', // ou 'pie'
+                    data: {
+                        labels: gastosCatLabels,
+                        datasets: [{
+                            label: 'Total Gasto',
+                            data: gastosCatValores,
+                            backgroundColor: [ // Adicione mais cores se necessário
+                                'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+                                'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
+                                'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
+                                'rgba(199, 199, 199, 0.7)', 'rgba(83, 102, 255, 0.7)',
+                                'rgba(40, 167, 69, 0.7)', 'rgba(220, 53, 69, 0.7)'
+                            ],
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) { label += ': '; }
+                                        if (context.parsed !== null) {
+                                            const valor = context.raw;
+                                            const percentual = gastosCatPercentuais[context.dataIndex]; // Usa o percentual calculado na view
+                                            label += 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + percentual + '%)';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                gastosPorCategoriaLiderancaCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de despesas por categoria para exibir no período.</p>';
+            }
+        }
+
+
+    } catch (e) {
+        console.error("Erro ao processar dados para gráficos de liderança:", e);
+        // Adicionar mensagens de erro específicas para cada gráfico se o canvas existir
+        const receitasChartDiv = document.getElementById('receitasPorIgrejaChart');
+        if (receitasChartDiv) receitasChartDiv.parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de receitas por igreja.</p>';
+
+        const despesasChartDiv = document.getElementById('despesasPorIgrejaChart');
+        if (despesasChartDiv) despesasChartDiv.parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de despesas por igreja.</p>';
+
+        const saldoChartDiv = document.getElementById('saldoPorIgrejaChart');
+        if (saldoChartDiv) saldoChartDiv.parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de saldo por igreja.</p>';
+
+        const gastosCatChartDiv = document.getElementById('gastosPorCategoriaLiderancaChart');
+        if (gastosCatChartDiv) gastosCatChartDiv.parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de distribuição de despesas.</p>';
+    }
+});
+</script>
+{% endblock %}

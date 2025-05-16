@@ -1,0 +1,225 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina|default:"Gerenciar Usuários e Convites" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Gerenciar Usuários e Convites" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Gerenciar Usuários e Convites</li>
+    </ol>
+
+    {# Mensagens #}
+    {% include 'partials/_messages.html' %}
+
+
+
+
+
+    {# --- CARD USUÁRIOS EXISTENTES --- #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-users me-1"></i>
+            Usuários da Organização: {{ organizacao.nome_fantasia }} ({{ usuarios.count }})
+            <a href="{% url 'contas:enviar_convite' %}" class="btn btn-success btn-sm float-end">
+                <i class="fas fa-user-plus me-1"></i> Convidar Novo Usuário
+            </a>
+        </div>
+        <div class="card-body">
+            {% if usuarios %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>E-mail / Login</th>
+                                <th>Status</th>
+                                <th>Admin da Org?</th>
+                                <th>Papéis (Grupos)</th> {# <-- NOVA COLUNA #}
+                                <th>Igrejas Permitidas</th> {# <-- NOVA COLUNA #}
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usuario_item in usuarios %} {# Renomeado para evitar conflito com 'user' do request #}
+                            <tr>
+                                <td>{{ usuario_item.get_full_name|default:"-" }}</td>
+                                <td>{{ usuario_item.email }}</td>
+                                <td>
+                                    {% if usuario_item.is_active %}
+                                        <span class="badge bg-success">Ativo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inativo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if usuario_item == organizacao.administrador_principal %}
+                                        <i class="fas fa-crown text-warning" title="Administrador Principal"></i> Sim
+                                    {% else %}
+                                        Não
+                                    {% endif %}
+                                </td>
+                                {# --- EXIBIR GRUPOS --- #}
+                                <td>
+                                    {% for group in usuario_item.groups.all %}
+                                        <span class="badge bg-info me-1">{{ group.name }}</span>
+                                    {% empty %}
+                                        <span class="text-muted fst-italic">Nenhum</span>
+                                    {% endfor %}
+                                </td>
+                                {# --- FIM EXIBIR GRUPOS --- #}
+                                
+                                
+                                {# --- EXIBIR IGREJAS PERMITIDAS --- #}
+                                <td>
+                                    {# Acessa as igrejas através do perfil do usuário #}
+                                    {% with igrejas=usuario_item.perfil.igrejas_permitidas.all %}
+                                        {% if igrejas %}
+                                            {% for igreja in igrejas %}
+                                                <span class="badge bg-light text-dark border me-1 mb-1">{{ igreja.nome_igreja }}</span>
+                                            {% endfor %}
+                                        {% else %}
+
+                                            {# Se não há igrejas específicas, verifica o grupo #}
+                                            {# --- CORREÇÃO AQUI --- #}
+                                            
+                                            
+                                            
+                                            {% with is_admin_org=False %} {# Variável temporária para controle #}
+                                                {% for group in usuario_item.groups.all %}
+                                                    {% if group.name == 'Admin Organizacao' %}
+                                                        {% with is_admin_org=True %}{% endwith %} {# Marca como True se encontrar #}
+                                                    {% endif %}
+                                                {% endfor %}
+
+                                                {# Exibe o texto baseado na variável de controle #}
+                                                {% if is_admin_org %}
+                                                    <span class="text-muted fst-italic">(Toda Org)</span>
+                                                {% else %}
+                                                    <span class="text-muted fst-italic">Nenhuma</span>
+                                                {% endif %}
+                                            {% endwith %}
+                                            {# --- FIM DA CORREÇÃO --- #}
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+                                {# --- FIM EXIBIR IGREJAS --- #}
+                                
+                                
+                                
+                                <td>
+                                    
+                                    {# Em contas/lista_usuarios.html, dentro da coluna Ações do loop de usuários #}
+                                    
+                                    {# --- BOTÃO EDITAR PAPÉIS (ATIVADO) --- #}
+                                    {# Só mostra se não for o próprio usuário E não for o admin principal #}
+                                    {% if usuario_item != request.user and usuario_item != organizacao.administrador_principal %}
+                                        <a href="{% url 'contas:editar_papeis_usuario' usuario_item.pk %}" class="btn btn-secondary btn-sm" title="Editar Papéis de {{ usuario_item.get_full_name }}">
+                                            <i class="fas fa-user-tag"></i> Editar Papéis
+                                        </a>
+                                    {% else %}
+                                        {# Opcional: Mostrar algo para o admin principal ou para si mesmo #}
+                                        {# <span class="text-muted fst-italic small">N/A</span> #}
+                                    {% endif %}
+                                    {# --- FIM BOTÃO --- #}
+                                    
+                                    
+                                    
+                                    
+                                    {# --- FORMULÁRIO PARA ATIVAR/DESATIVAR USUÁRIO --- #}
+                                    {# Só mostra se não for o próprio usuário E não for o admin principal #}
+                                    {% if usuario_item != request.user and usuario_item != organizacao.administrador_principal %}
+                                        <form action="{% url 'contas:alternar_status_usuario' usuario_item.pk %}" method="post" class="d-inline-block ms-1 mt-1" onsubmit="return confirm('Tem certeza que deseja {% if usuario_item.is_active %}desativar{% else %}ativar{% endif %} o usuário {{ usuario_item.get_full_name }}?');">
+                                            {% csrf_token %}
+                                            {# Botão muda de cor e texto dependendo do status atual #}
+                                            {% if usuario_item.is_active %}
+                                                <button type="submit" class="btn btn-warning btn-sm" title="Desativar Usuário">
+                                                    <i class="fas fa-user-slash"></i> Desativar
+                                                </button>
+                                            {% else %}
+                                                 <button type="submit" class="btn btn-success btn-sm" title="Ativar Usuário">
+                                                    <i class="fas fa-user-check"></i> Ativar
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                    {% endif %}
+                                    {# --- FIM FORMULÁRIO --- #}
+                                    
+                                    
+    
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-center text-muted">Nenhum usuário encontrado para esta organização.</p>
+            {% endif %}
+        </div>
+    </div>
+    {# --- FIM CARD USUÁRIOS EXISTENTES --- #}
+    
+
+
+
+
+
+    {# --- NOVO CARD: CONVITES PENDENTES --- #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-envelope-open-text me-1"></i>
+            Convites Pendentes ({{ convites_pendentes.count }})
+        </div>
+        <div class="card-body">
+            {% if convites_pendentes %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th>E-mail Convidado</th>
+                                <th>Enviado por</th>
+                                <th>Data do Convite</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for convite in convites_pendentes %}
+                            <tr>
+                                <td>{{ convite.email_convidado }}</td>
+                                <td>{{ convite.remetente.get_full_name|default:convite.remetente.username }}</td>
+                                <td>{{ convite.data_criacao|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">{{ convite.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    {# Botão Reenviar (ainda desabilitado) #}
+                                    <button class="btn btn-info btn-sm disabled" title="Reenviar Convite (Breve)">
+                                        <i class="fas fa-redo"></i> <span class="badge bg-secondary ms-1">Breve</span>
+                                    </button>
+                                
+                                    {# --- FORMULÁRIO PARA CANCELAR CONVITE --- #}
+                                    <form action="{% url 'contas:cancelar_convite' convite.pk %}" method="post" class="d-inline-block ms-1" onsubmit="return confirm('Tem certeza que deseja cancelar este convite para {{ convite.email_convidado }}? Esta ação não pode ser desfeita.');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger btn-sm" title="Cancelar Convite">
+                                            <i class="fas fa-times-circle"></i> Cancelar
+                                        </button>
+                                    </form>
+                                    {# --- FIM FORMULÁRIO --- #}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-center text-muted">Nenhum convite pendente encontrado.</p>
+            {% endif %}
+        </div>
+    </div>
+    {# --- FIM NOVO CARD --- #}
+
+</div>
+{% endblock content %}

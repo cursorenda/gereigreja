@@ -1,0 +1,116 @@
+{% load financeiro_tags %} {# Carrega nossos templatetags personalizados #}
+{% load secretaria_tags %} {# Carrega os templatetags da secretaria #}
+
+<div class="sb-sidenav-menu">
+    <div class="nav">
+        <div class="sb-sidenav-menu-heading">Principal</div>
+        <a class="nav-link" href="{% url 'secretaria:index' %}"> {# URL da view index do app secretaria #}
+            <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
+            Home
+        </a>
+        <a class="nav-link" href="{% url 'secretaria:dashboard' %}"> {# URL da view dashboard do app secretaria #}
+            <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
+            Dashboard
+        </a>
+
+        <div class="sb-sidenav-menu-heading">Secretaria</div>
+        <a class="nav-link" href="{% url 'secretaria:lista_membros' %}"> {# URL da view lista_membros do app secretaria #}
+            <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
+            Membros
+        </a>
+
+        {# Link para o Painel de Liderança Secretaria (Condicional) #}
+        {% user_is_secretaria_leader_tag request.user as can_see_lideranca_secretaria %}
+        {% if can_see_lideranca_secretaria %}
+        <a class="nav-link" href="{% url 'secretaria:painel_lideranca_secretaria' %}">
+            <div class="sb-nav-link-icon"><i class="fas fa-users-cog"></i></div> {# Ícone para liderança de membros #}
+            Liderança Secretaria
+        </a>
+        {% endif %}
+
+       
+
+        {# --- SEÇÃO FINANCEIRO --- #}
+        <div class="sb-sidenav-menu-heading">Financeiro</div>
+        <a class="nav-link" href="{% url 'financeiro:painel_financeiro' %}">
+            <div class="sb-nav-link-icon"><i class="fas fa-landmark"></i></div> {# Ícone alterado #}
+            Painel Financeiro
+        </a>
+
+        </a>
+
+        {# Link para o Painel de Liderança Financeira (Condicional) #}
+        {% user_is_finance_leader request.user as can_see_lideranca_financeira %}
+        {% if can_see_lideranca_financeira %}
+        <a class="nav-link" href="{% url 'financeiro:painel_lideranca_financeiro' %}">
+            <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div> {# Ícone de sitemap ou similar #}
+            Liderança Financeira
+        </a>
+        {% endif %}
+
+        {# Submenu Lançamentos #}
+        <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLancamentos" aria-expanded="false" aria-controls="collapseLancamentos">
+            <div class="sb-nav-link-icon"><i class="fas fa-exchange-alt"></i></div>
+            Lançamentos
+            <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+        </a>
+        <div class="collapse" id="collapseLancamentos" aria-labelledby="headingLancamentos" data-bs-parent="#sidenavAccordion">
+            <nav class="sb-sidenav-menu-nested nav">
+                <a class="nav-link" href="{% url 'financeiro:lista_receitas' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-arrow-alt-circle-down text-success"></i></div>
+                    Receitas
+                </a>
+                <a class="nav-link" href="{% url 'financeiro:lista_despesas' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-arrow-alt-circle-up text-danger"></i></div>
+                    Despesas
+                </a>
+            </nav>
+        </div>
+
+        {# Submenu Contas a Pagar #}
+        <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseContasPagar" aria-expanded="false" aria-controls="collapseContasPagar">
+            <div class="sb-nav-link-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+            Contas a Pagar
+            <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+        </a>
+        <div class="collapse" id="collapseContasPagar" aria-labelledby="headingContasPagar" data-bs-parent="#sidenavAccordion">
+            <nav class="sb-sidenav-menu-nested nav">
+                <a class="nav-link" href="{% url 'financeiro:lista_contas_pagar' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-list-alt"></i></div>
+                    Obrigações
+                </a>
+                <a class="nav-link" href="{% url 'financeiro:lista_fornecedores' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-truck"></i></div>
+                    Fornecedores
+                </a>
+            </nav>
+        </div>
+
+        {# Submenu Gerenciar Financeiro #}
+        <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseGerenciarFinanceiro" aria-expanded="false" aria-controls="collapseGerenciarFinanceiro">
+            <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
+            Gerenciar
+            <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+        </a>
+        <div class="collapse" id="collapseGerenciarFinanceiro" aria-labelledby="headingGerenciarFinanceiro" data-bs-parent="#sidenavAccordion">
+            <nav class="sb-sidenav-menu-nested nav">
+                <a class="nav-link" href="{% url 'financeiro:lista_categorias_despesa' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-tags"></i></div>
+                    Categorias de Despesa
+                </a>
+                <a class="nav-link" href="{% url 'financeiro:lista_fechamentos_caixa' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-archive"></i></div> {# Ícone alterado #}
+                    Fechamentos de Caixa
+                </a>
+                {# Adicionar link para Contas Bancárias aqui quando implementado #}
+                <a class="nav-link" href="{% url 'financeiro:lista_contas_bancarias' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-university"></i></div>
+                    Contas Bancárias
+                </a>
+            </nav>
+        </div>
+        {# --- FIM SEÇÃO FINANCEIRO --- #}
+
+       
+    </div>
+</div>

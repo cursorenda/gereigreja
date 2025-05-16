@@ -1,0 +1,94 @@
+{% extends 'base.html' %} {# Ou base_com_menu.html se preferir #}
+{% load static %}
+
+{% block title %}{{ titulo_pagina|default:"Complete seu Cadastro" }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">
+                        Convite para {{ convite.organizacao.nome_fantasia }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-center text-muted mb-4">
+                        Você foi convidado por {{ convite.remetente.get_full_name|default:convite.remetente.username }} para se juntar à organização.
+                        <br>Seu e-mail: <strong>{{ convite.email_convidado }}</strong>
+                        <br>Complete seu cadastro abaixo definindo seu nome e uma senha.
+                    </p>
+
+                    {# Mensagens de erro do servidor (se houver) #}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message|safe }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {# Exibir erros gerais do formulário (non_field_errors) #}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}{% if not forloop.last %}<br>{% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post"> {# Action vazia submete para a mesma URL (com o token) #}
+                        {% csrf_token %}
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3 mb-md-0">
+                                    {{ form.primeiro_nome }}
+                                    <label for="{{ form.primeiro_nome.id_for_label }}">{{ form.primeiro_nome.label }}</label>
+                                </div>
+                                 {% if form.primeiro_nome.errors %}<div class="invalid-feedback d-block">{{ form.primeiro_nome.errors|striptags }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.ultimo_nome }}
+                                    <label for="{{ form.ultimo_nome.id_for_label }}">{{ form.ultimo_nome.label }}</label>
+                                </div>
+                                 {% if form.ultimo_nome.errors %}<div class="invalid-feedback d-block">{{ form.ultimo_nome.errors|striptags }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3 mb-md-0">
+                                    {{ form.senha }}
+                                    <label for="{{ form.senha.id_for_label }}">{{ form.senha.label }}</label>
+                                </div>
+                                 {% if form.senha.errors %}<div class="invalid-feedback d-block">{{ form.senha.errors|striptags }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating mb-3 mb-md-0">
+                                    {{ form.confirmar_senha }}
+                                    <label for="{{ form.confirmar_senha.id_for_label }}">{{ form.confirmar_senha.label }}</label>
+                                </div>
+                                 {% if form.confirmar_senha.errors %}<div class="invalid-feedback d-block">{{ form.confirmar_senha.errors|striptags }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mt-4 mb-0">
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-block">Criar Conta e Aceitar Convite</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center py-3">
+                    {# Opcional: Link para login se ele perceber que já tem conta #}
+                    <div class="small"><a href="{% url 'login' %}?next={% url 'contas:aceitar_convite' token=convite.token %}">Já tem uma conta? Faça login</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

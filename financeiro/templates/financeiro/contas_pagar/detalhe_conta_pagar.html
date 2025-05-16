@@ -1,0 +1,129 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %}
+{% load l10n %}
+
+{% block title %}Detalhes Conta: {{ conta.descricao|truncatechars:30 }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Detalhes da Conta a Pagar</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_contas_pagar' %}">Contas a Pagar</a></li>
+        <li class="breadcrumb-item active">Detalhes</li>
+    </ol>
+
+    {# Mensagens #}
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-info-circle me-1"></i>
+            Informações da Conta/Parcela
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Descrição:</dt>
+                <dd class="col-sm-9">{{ conta.descricao }}</dd>
+
+                <dt class="col-sm-3">Fornecedor:</dt>
+                <dd class="col-sm-9">{{ conta.fornecedor.nome }}</dd>
+
+                <dt class="col-sm-3">Igreja Responsável:</dt>
+                <dd class="col-sm-9">{{ conta.igreja.nome_igreja }}</dd>
+
+                <dt class="col-sm-3">Categoria:</dt>
+                <dd class="col-sm-9">{{ conta.categoria.nome|default:"N/A" }}</dd>
+
+                {# Adicionar Centro de Custo se usar #}
+
+                <dt class="col-sm-3">Nº Documento:</dt>
+                <dd class="col-sm-9">{{ conta.numero_documento|default:"N/A" }}</dd>
+
+                <dt class="col-sm-3">Valor Previsto:</dt>
+                <dd class="col-sm-9">R$ {{ conta.valor|floatformat:2|intcomma }}</dd>
+
+                <dt class="col-sm-3">Data Emissão:</dt>
+                <dd class="col-sm-9">{{ conta.data_emissao|date:"d/m/Y" }}</dd>
+
+                <dt class="col-sm-3">Data Vencimento:</dt>
+                <dd class="col-sm-9">{{ conta.data_vencimento|date:"d/m/Y" }}</dd>
+
+                <dt class="col-sm-3">Status:</dt>
+                <dd class="col-sm-9">
+                    <span class="badge
+                        {% if conta.status == 'PAG' %}bg-success
+                        {% elif conta.status == 'VEN' %}bg-danger
+                        {% elif conta.status == 'CAN' %}bg-secondary
+                        {% elif conta.status == 'PEN' %}bg-primary
+                        {% else %}bg-info{% endif %}">
+                        {{ conta.get_status_display }}
+                    </span>
+                     {% if conta.is_vencida and conta.status == 'PEN' %}
+                        <span class="badge bg-danger ms-1">Vencida!</span>
+                    {% endif %}
+                </dd>
+
+                {% if conta.observacoes %}
+                <dt class="col-sm-3">Observações:</dt>
+                <dd class="col-sm-9">{{ conta.observacoes|linebreaksbr }}</dd>
+                {% endif %}
+
+                <dt class="col-sm-3">Criado por:</dt>
+                <dd class="col-sm-9">{{ conta.usuario_criacao.get_full_name|default:conta.usuario_criacao.username|default:"Sistema" }} em {{ conta.data_criacao|date:"d/m/Y H:i" }}</dd>
+
+                <dt class="col-sm-3">Última Atualização:</dt>
+                <dd class="col-sm-9">{{ conta.data_atualizacao|date:"d/m/Y H:i" }}</dd>
+
+            </dl>
+
+            {# --- SEÇÃO DE PAGAMENTO (Só mostra se status for Paga) --- #}
+            {% if conta.status == 'PAG' %}
+                <hr>
+                <h5 class="mt-3"><i class="fas fa-check-circle text-success me-1"></i> Detalhes do Pagamento</h5>
+                <dl class="row">
+                    <dt class="col-sm-3">Data Pagamento:</dt>
+                    <dd class="col-sm-9">{{ conta.data_pagamento|date:"d/m/Y" }}</dd>
+
+                    <dt class="col-sm-3">Valor Pago:</dt>
+                    <dd class="col-sm-9">R$ {{ conta.valor_pago|floatformat:2|intcomma }}</dd>
+
+                    {% if conta.juros_multa > 0 %}
+                    <dt class="col-sm-3">Juros/Multa:</dt>
+                    <dd class="col-sm-9 text-danger">R$ {{ conta.juros_multa|floatformat:2|intcomma }}</dd>
+                    {% endif %}
+
+                    {% if conta.desconto > 0 %}
+                    <dt class="col-sm-3">Desconto:</dt>
+                    <dd class="col-sm-9 text-success">R$ {{ conta.desconto|floatformat:2|intcomma }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Conta de Saída:</dt>
+                    <dd class="col-sm-9">{{ conta.conta_debito|default:"N/A" }}</dd>
+
+                    <dt class="col-sm-3">Forma Pagamento:</dt>
+                    <dd class="col-sm-9">{{ conta.get_forma_pagamento_display|default:"N/A" }}</dd>
+
+                    {% if conta.comprovante %}
+                    <dt class="col-sm-3">Comprovante:</dt>
+                    <dd class="col-sm-9"><a href="{{ conta.comprovante.url }}" target="_blank"><i class="fas fa-paperclip"></i> Ver/Baixar Comprovante</a></dd>
+                    {% endif %}
+                </dl>
+            {% endif %}
+            {# --- FIM SEÇÃO DE PAGAMENTO --- #}
+
+        </div> {# Fim card-body #}
+        <div class="card-footer">
+            <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar para Lista
+            </a>
+            {# Botão Editar só aparece se tiver permissão E se Pendente ou Vencida #}
+            {% if can_edit_finance and conta.status == 'PEN' or can_edit_finance and conta.status == 'VEN' %}
+            <a href="{% url 'financeiro:editar_conta_pagar' conta.pk %}" class="btn btn-primary ms-2">
+                <i class="fas fa-edit"></i> Editar Conta
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock content %}

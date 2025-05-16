@@ -1,0 +1,204 @@
+body {
+    font-family: sans-serif;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 80%;
+    max-width: 700px;
+    margin: 20px auto;
+    border: 1px solid #ccc;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 1.5em;
+}
+
+.logo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo img {
+    max-width: 80px;
+    height: auto;
+}
+
+.header-title {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-bottom: 0.5em;
+    text-align: center; /* Center the title */
+}
+
+.header-subtitle {
+    margin-bottom: 0.3em;
+    text-align: center; /* Center the subtitle */
+}
+
+.info-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center; /* Vertically align items */
+    margin-bottom: 0.5em;
+}
+
+.info-line label {
+    margin-right: 0.5em;
+    font-weight: bold;
+    flex-shrink: 0; /* Prevents label from shrinking too much */
+}
+
+.info-line input[type="text"] {
+    border: none;
+    border-bottom: 1px dotted #000;
+    width: 15em; /* Adjust width as needed */
+    outline: none;
+    padding: 0;
+    font-size: 1em;
+    flex-grow: 1; /* Allows input to take up remaining space */
+    background-color: transparent; /* Remove gray background */
+}
+
+.section-title {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin: 1em 0 0.5em 0;
+    background-color: #ccc;
+    padding: 0.2em;
+    line-height: 1.2;
+    height: 25px;
+    width: 100%;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1em; /* Add some space below tables */
+}
+
+td {
+    padding: 0.2em 0;
+    border-bottom: 1px dotted #000;
+    display: flex;
+    justify-content: space-between;
+}
+
+.currency {
+    text-align: right;
+}
+
+.currency input[type="text"] {
+    width: 5em;
+    border: none;
+    border-bottom: 1px dotted #000;
+    outline: none;
+    text-align: right;
+    background-color: transparent; /* Remove gray background */
+}
+
+.summary {
+    margin-top: 1.5em;
+    margin-bottom: 3em;
+}
+
+.summary div {
+    margin-bottom: .2em;
+}
+
+.signatures {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 3em;
+    margin-bottom: 3em;
+}
+
+.signature-line {
+    border-top: 1px solid #000;
+    width: 40%;
+    text-align: center;
+    padding-top: 0.5em;
+}
+
+.statement {
+    margin-top: 2em;
+    margin-bottom: 2em;
+}
+
+.statement p,
+.statement div {
+    margin-bottom: 0.8em;
+}
+
+.statement-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.8em;
+}
+
+.statement input[type="text"] {
+    width: auto;
+    border: none;
+    border-bottom: 1px dotted black;
+    background-color: transparent; /* Remove gray background */
+}
+
+.statement .place-date {
+    display: flex;
+    justify-content: space-between;
+}
+
+.statement .place-date input[type="text"] {
+    width: 25%;
+    background-color: transparent; /* Remove gray background */
+}
+
+.italic-obs {
+    font-style: italic;
+    font-size: 0.8em;
+    text-align: center;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 1.5em;
+    position: relative; /* Adiciona position: relative ao contêiner */
+}
+
+.logo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%; /* Garante que as logos ocupem toda a largura */
+}
+
+.logo img {
+    max-width: 80px;
+    height: auto;
+}
+
+.report-title {
+    background-color: #ccc;
+    text-align: center;
+    font-weight: bold;
+    padding: 0.3em 0; /* Ajuste o padding conforme necessário */
+    margin-top: 0.5em;
+    height: 1em; /* Ajuste a altura conforme necessário */
+    width: 100%;
+    position: absolute; /* Adiciona position: absolute ao título */
+    top: 100%; /* Posiciona abaixo das logos */
+    left: 0; /* Alinha à esquerda */
+    z-index: -1; /* Posiciona atrás das logos */
+    margin-bottom: 0; /* Adiciona a margem inferior */
+}
+.spacer {
+    height: 1em; /* Adjust the height as needed */
+}
+

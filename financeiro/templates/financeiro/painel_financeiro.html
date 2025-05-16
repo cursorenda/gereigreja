@@ -1,0 +1,548 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %}
+{% load l10n %}
+
+{% block title %}{{ titulo_dashboard }}{% endblock %} {# Título dinâmico #}
+
+{% block content %}
+<div class="container-fluid px-4">
+    {# --- TÍTULO E FILTROS --- #}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2"> {# Usar flex-wrap e gap #}
+        <h1 class="mt-4 mb-0 me-3">{{ titulo_dashboard }}</h1> {# Título dinâmico #}
+
+        {# Formulário dos Filtros (agrupados) #}
+        <form method="get" class="d-flex flex-wrap gap-2"> {# Formulário flexível #}
+            {# Filtro de Igreja #}
+            <div class="input-group input-group-sm w-auto">
+                <label class="input-group-text" for="igreja_filtro_select">Igreja:</label>
+                <select name="igreja_filtro" id="igreja_filtro_select" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>Toda a Organização</option>
+                    {% for igreja_opt in igrejas_org %}
+                    <option value="{{ igreja_opt.pk }}" {% if igreja_id_filtro_selecionado == igreja_opt.pk|stringformat:"s" %}selected{% endif %}>{{ igreja_opt.nome_igreja }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# Filtro de Período #}
+            <div class="input-group input-group-sm w-auto">
+                <label class="input-group-text" for="periodo_filtro_select">Totais:</label>
+                <select name="periodo_filtro" id="periodo_filtro_select" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="geral" {% if periodo_filtro_selecionado == 'geral' %}selected{% endif %}>Geral</option>
+                    <option value="aberto" {% if periodo_filtro_selecionado == 'aberto' %}selected{% endif %}>Em Aberto</option>
+                    <option value="ano_atual" {% if periodo_filtro_selecionado == 'ano_atual' %}selected{% endif %}>Ano Atual</option>
+                </select>
+            </div>
+        </form>
+    </div>
+    {# --- FIM TÍTULO E FILTROS --- #}
+
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Financeiro</a></li>
+        <li class="breadcrumb-item active">Visão Geral</li>
+    </ol>
+
+    {# Mensagens #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {# Cards de Resumo #}
+    <div class="row">
+        <div class="col-xl-4 col-md-6">
+
+            <div class="card bg-success text-white shadow mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Receitas ({{ titulo_filtro_periodo }})</div>
+                        <div class="h5 mb-0 font-weight-bold">R$ {{ total_receitas|floatformat:2|intcomma }}</div>
+                    </div>
+                    <i class="fas fa-hand-holding-usd fa-2x text-gray-300"></i>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between py-1">
+                    <a class="small text-white stretched-link" href="{% url 'financeiro:lista_receitas' %}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                </div>
+
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+
+            <div class="card bg-danger text-white shadow mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Despesas ({{ titulo_filtro_periodo }})</div>
+                        <div class="h5 mb-0 font-weight-bold">R$ {{ total_despesas|floatformat:2|intcomma }}</div>
+                    </div>
+                    <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between py-1">
+                    <a class="small text-white stretched-link" href="{% url 'financeiro:lista_despesas' %}">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                              
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card {% if saldo_geral >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %} shadow mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Saldo ({{ titulo_filtro_periodo }})</div>
+                        <div class="h5 mb-0 font-weight-bold">R$ {{ saldo_geral|floatformat:2|intcomma }}</div>
+                    </div>
+                    <i class="fas fa-balance-scale fa-2x {% if saldo_geral >= 0 %}text-gray-300{% else %}text-gray-500{% endif %}"></i>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between py-1">
+                    <span class="small {% if saldo_geral >= 0 %}text-white{% else %}text-dark{% endif %}">Período Selecionado</span>
+                    <div class="small {% if saldo_geral >= 0 %}text-white{% else %}text-dark{% endif %}"><i class="fas fa-info-circle"></i></div>
+                </div>
+            </div>
+        </div>
+    </div> {# FECHA A PRIMEIRA LINHA DE 3 CARDS DE RESUMO #}
+
+
+    {# --- SEGUNDA LINHA DE CARDS: Saldo Mês Atual e Contas a Pagar --- #}
+    <div class="row mt-0"> {# mt-0 ou ajuste conforme necessário, já que a linha de cima tem mb-4 nos cards #}
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-info text-white shadow mb-4">
+
+
+                
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Saldo Mês Atual</div>
+                        <div class="h5 mb-0 font-weight-bold">R$ {{ saldo_mes|floatformat:2|intcomma }}</div>
+                    </div>
+                    <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between py-1">
+                    <span class="small text-white">Mês Corrente</span>
+                    <div class="small text-white"><i class="fas fa-info-circle"></i></div>
+
+                </div>
+            </div>
+
+            </div>
+        <div class="col-xl-4 col-md-6">
+
+            <div class="card bg-warning text-dark shadow mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Contas Pendentes</div>
+                        <div class="h5 mb-0 font-weight-bold">R$ {{ total_contas_pendentes|floatformat:2|intcomma }}</div>
+                    </div>
+                    <i class="fas fa-hourglass-half fa-2x text-gray-500"></i>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between py-1">
+                    <a class="small text-dark stretched-link" href="{% url 'financeiro:lista_contas_pagar' %}?status=PEN">Ver Detalhes</a>
+                    <div class="small text-dark"><i class="fas fa-angle-right"></i></div>
+
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="card bg-dark text-white shadow mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Contas Vencidas</div>
+                        <div class="h5 mb-0 font-weight-bold">R$ {{ total_contas_vencidas|floatformat:2|intcomma }}</div>
+                    </div>
+
+
+                    <i class="fas fa-calendar-times fa-2x text-gray-300"></i>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between py-1">
+                    <a class="small text-white stretched-link" href="{% url 'financeiro:lista_contas_pagar' %}?status=VEN">Ver Detalhes</a>
+                    <div class="small text-white"><i class="fas fa-angle-right"></i></div>
+                
+                
+                </div>
+            </div>
+        </div>
+    </div>  
+
+    {# Listas de Últimas Transações #}
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-arrow-down me-1"></i>
+                    Últimas 5 Receitas {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                </div>
+                <div class="card-body">
+                    {% if ultimas_receitas %}
+                        <ul class="list-group list-group-flush">
+                            {% for receita in ultimas_receitas %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        {{ receita.data|date:"d/m/y" }} -
+                                        {% if receita.membro %}
+                                            {% if receita.membro.user %}
+                                                {% if receita.membro.user.get_full_name %}
+                                                    {{ receita.membro.user.get_full_name|truncatechars:20 }}
+                                                {% elif receita.membro.user.first_name %}
+                                                    {{ receita.membro.user.first_name|truncatechars:20 }}
+                                                {% else %}
+                                                    {{ receita.membro.user.username|truncatechars:20 }}
+                                                {% endif %}
+                                            {% else %}
+                                                {{ receita.membro.nome_completo|default:receita.membro.nome|default:receita.membro.pk|default:"Membro S/ Usuário"|truncatechars:20 }}
+                                            {% endif %}
+                                        {% else %}
+                                            Anônimo ({{ receita.get_categoria_display }})
+                                        {% endif %}
+                                        {% if not igreja_selecionada %}
+                                            <small class="text-muted d-block">Igreja: {{ receita.igreja.nome_igreja|truncatechars:25 }}</small>
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge bg-success rounded-pill">R$ {{ receita.valor|floatformat:2|intcomma }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Nenhuma receita recente {% if igreja_selecionada %}para esta igreja{% else %}na organização{% endif %}.</p>
+                    {% endif %}
+                    <div class="text-end mt-2">
+                        <a href="{% url 'financeiro:lista_receitas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}" class="btn btn-sm btn-outline-primary">Ver Todas Receitas</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+             <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-arrow-up me-1"></i>
+                    Últimas 5 Despesas {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                </div>
+                <div class="card-body">
+                     {% if ultimas_despesas %}
+                        <ul class="list-group list-group-flush">
+                            {% for despesa in ultimas_despesas %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                     <span>
+                                        {{ despesa.data|date:"d/m/y" }} -
+                                        {% if despesa.categoria %}
+                                            {{ despesa.categoria.nome|truncatechars:25 }}
+                                        {% else %}
+                                            {{ despesa.descricao|truncatechars:25 }}
+                                        {% endif %}
+                                        {% if not igreja_selecionada %}
+                                             <small class="text-muted d-block">Igreja: {{ despesa.igreja.nome_igreja|truncatechars:25 }}</small>
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge bg-danger rounded-pill">R$ {{ despesa.valor|floatformat:2|intcomma }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Nenhuma despesa recente {% if igreja_selecionada %}para esta igreja{% else %}na organização{% endif %}.</p>
+                    {% endif %}
+                     <div class="text-end mt-2">
+                        <a href="{% url 'financeiro:lista_despesas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}" class="btn btn-sm btn-outline-primary">Ver Todas Despesas</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- SALDOS DAS CONTAS BANCÁRIAS/CAIXAS --- #}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-university me-1"></i>
+                    Saldos das Contas/Caixas Ativas
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                </div>
+                <div class="card-body">
+                    {% if contas_bancarias_painel %}
+                        <div class="list-group list-group-flush">
+                            {% for conta in contas_bancarias_painel %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        {{ conta.nome_identificacao }}
+                                        {% if not igreja_selecionada and conta.igreja %}
+                                            <small class="text-muted d-block">Igreja: {{ conta.igreja.nome_igreja|truncatechars:30 }}</small>
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge {% if conta.saldo_atual >= 0 %}bg-primary{% else %}bg-danger{% endif %} rounded-pill fs-6">
+                                        R$ {{ conta.saldo_atual|floatformat:2|intcomma }}
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Nenhuma conta bancária/caixa ativa encontrada {% if igreja_selecionada %}para esta igreja{% else %}para as igrejas permitidas na organização{% endif %}.</p>
+                    {% endif %}
+                    {% if can_edit_finance %}
+                    <div class="text-end mt-2">
+                        <a href="{% url 'financeiro:lista_contas_bancarias' %}" class="btn btn-sm btn-outline-secondary">Gerenciar Contas</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {# --- FIM DOS Saldos das contas --- #}
+
+    {# --- GRÁFICOS --- #}
+    {# --- PRIMEIRA LINHA DE GRÁFICOS --- #}
+    <div class="row mt-4">
+        <div class="col-xl-6"> {# Movimentação Mensal #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Movimentação Mensal (Últimos 12 Meses)
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="movimentacaoMensalChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6"> {# Dizimistas Únicos por Mês #}
+            <div class="card mb-4">
+
+                <div class="card-header">
+                    <i class="fas fa-users me-1"></i>
+                    Dizimistas Únicos por Mês (Últimos 12 Meses)
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="dizimistasMensalChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- SEGUNDA LINHA DE GRÁFICOS --- #}
+    <div class="row mt-4">
+        <div class="col-xl-4"> {# Categorias de Receita #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Receitas por Categoria ({{ titulo_filtro_periodo }})
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="categoriasReceitaChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4"> {# Categorias de Despesa #}
+            <div class="card mb-4">
+
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-1"></i>
+                    Despesas por Categoria ({{ titulo_filtro_periodo }})
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                </div>
+                <div class="card-body" style="height: 350px;">
+                    <canvas id="categoriasDespesaChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4"> {# Movimentação por Fechamentos de Caixa #}
+
+               <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-archive me-1"></i>
+                Movimentação por Fechamentos de Caixa (Últimos 6)
+                {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+            </div>
+            <div class="card-body" style="height: 350px;">
+                <canvas id="movimentacaoFechamentosChart"></canvas>
+            </div>
+        </div>        
+    </div>
+</div>
+    {# --- FIM DAS LINHAS DE GRÁFICOS --- #}
+
+
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+{# Incluir Chart.js se ainda não estiver no base_com_menu.html ou se quiser garantir #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const mesesLabels = JSON.parse('{{ grafico_mensal_labels_json|escapejs }}');
+        const receitasData = JSON.parse('{{ grafico_receitas_data_json|escapejs }}');
+        const despesasData = JSON.parse('{{ grafico_despesas_data_json|escapejs }}');
+        const saldosData = JSON.parse('{{ grafico_saldos_data_json|escapejs }}');
+        const dizimistasData = JSON.parse('{{ grafico_dizimistas_data_json|escapejs }}');
+        // Dados para o novo gráfico de categorias de receita
+        const catRecLabels = JSON.parse('{{ grafico_cat_rec_labels_json|escapejs }}');
+        const catRecValores = JSON.parse('{{ grafico_cat_rec_valores_json|escapejs }}');
+        const catDespLabels = JSON.parse('{{ grafico_cat_desp_labels_json|escapejs }}');
+        const catDespValores = JSON.parse('{{ grafico_cat_desp_valores_json|escapejs }}');
+        // Dados para o novo gráfico de fechamentos
+        const fechLabels = JSON.parse('{{ grafico_fech_labels_json|escapejs }}');
+        const fechReceitasData = JSON.parse('{{ grafico_fech_receitas_data_json|escapejs }}');
+        const fechDespesasData = JSON.parse('{{ grafico_fech_despesas_data_json|escapejs }}');
+        const fechSaldosData = JSON.parse('{{ grafico_fech_saldos_data_json|escapejs }}');
+
+
+        // Gráfico de Movimentação Mensal
+        const movimentacaoCtx = document.getElementById('movimentacaoMensalChart');
+        if (movimentacaoCtx && mesesLabels.length > 0) {
+            new Chart(movimentacaoCtx.getContext('2d'), {
+                type: 'bar', // Tipo base como barra
+                data: {
+                    labels: mesesLabels,
+                    datasets: [
+                        {
+                            label: 'Receitas',
+                            data: receitasData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Despesas',
+                            data: despesasData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Saldo Líquido',
+                            data: saldosData,
+                            type: 'line', // Saldo como linha
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        } else if (movimentacaoCtx) {
+            movimentacaoCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de movimentação mensal para exibir.</p>';
+        }
+
+        // Gráfico de Dizimistas Únicos por Mês
+        const dizimistasCtx = document.getElementById('dizimistasMensalChart');
+        if (dizimistasCtx && mesesLabels.length > 0) {
+            new Chart(dizimistasCtx.getContext('2d'), {
+                type: 'line', // Ou 'bar'
+                data: { labels: mesesLabels, datasets: [{ label: 'Dizimistas Únicos', data: dizimistasData, borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)', fill: true, tension: 0.1 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        } else if (dizimistasCtx) {
+            dizimistasCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de dizimistas para exibir.</p>';
+        }
+
+        // Gráfico de Categorias de Receita
+        const categoriasReceitaCtx = document.getElementById('categoriasReceitaChart');
+        if (categoriasReceitaCtx && catRecLabels.length > 0) {
+            new Chart(categoriasReceitaCtx.getContext('2d'), {
+                type: 'doughnut', // Ou 'pie'
+                data: {
+                    labels: catRecLabels,
+                    datasets: [{
+                        label: 'Total Arrecadado',
+                        data: catRecValores,
+                        backgroundColor: [ // Adicione ou ajuste cores conforme necessário
+                            'rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)', 'rgba(255, 206, 86, 0.7)',
+                            'rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)',
+                            'rgba(199, 199, 199, 0.7)', 'rgba(83, 102, 255, 0.7)'
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+            });
+        } else if (categoriasReceitaCtx) {
+            categoriasReceitaCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de receitas por categoria para exibir.</p>';
+        }
+
+        // Gráfico de Categorias de Despesa
+        const categoriasDespesaCtx = document.getElementById('categoriasDespesaChart');
+        if (categoriasDespesaCtx && catDespLabels.length > 0) {
+            new Chart(categoriasDespesaCtx.getContext('2d'), {
+                type: 'doughnut', // Ou 'pie'
+                data: {
+                    labels: catDespLabels,
+                    datasets: [{
+                        label: 'Total Gasto',
+                        data: catDespValores,
+                        backgroundColor: [ // Adicione mais cores se tiver muitas categorias
+                            'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)', 'rgba(83, 102, 255, 0.7)'
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+            });
+        } else if (categoriasDespesaCtx) {
+            categoriasDespesaCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de despesas por categoria para exibir.</p>';
+        }
+
+        // Gráfico de Movimentação por Fechamentos de Caixa
+        const movimentacaoFechCtx = document.getElementById('movimentacaoFechamentosChart');
+        if (movimentacaoFechCtx && fechLabels.length > 0) {
+            new Chart(movimentacaoFechCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: fechLabels,
+                    datasets: [
+                        {
+                            label: 'Receitas',
+                            data: fechReceitasData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Despesas',
+                            data: fechDespesasData,
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Saldo Líquido',
+                            data: fechSaldosData,
+                            type: 'line',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        } else if (movimentacaoFechCtx) {
+            movimentacaoFechCtx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados de fechamentos de caixa para exibir.</p>';
+        }
+
+
+
+
+    } catch (e) {
+        console.error("Erro ao processar dados para gráficos financeiros:", e);
+        if (document.getElementById('movimentacaoMensalChart')) document.getElementById('movimentacaoMensalChart').parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de movimentação.</p>';
+        if (document.getElementById('dizimistasMensalChart')) document.getElementById('dizimistasMensalChart').parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de dizimistas.</p>';
+        if (document.getElementById('categoriasReceitaChart')) document.getElementById('categoriasReceitaChart').parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de categorias de receita.</p>';
+        if (document.getElementById('categoriasDespesaChart')) document.getElementById('categoriasDespesaChart').parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de categorias.</p>';
+        if (document.getElementById('movimentacaoFechamentosChart')) document.getElementById('movimentacaoFechamentosChart').parentNode.innerHTML = '<p class="text-danger text-center p-3">Erro ao carregar gráfico de fechamentos.</p>';
+
+    }
+});
+</script>
+{% endblock %}

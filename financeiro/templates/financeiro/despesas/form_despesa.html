@@ -1,0 +1,103 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %}
+
+{% block title %}{{ titulo_pagina|default:"Despesa" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Despesa" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_despesas' %}">Despesas</a></li>
+        <li class="breadcrumb-item active">{% if despesa %}Editar{% else %}Cadastrar{% endif %}</li>
+    </ol>
+
+     {% if despesa.pk %} {# Só mostra se estiver editando uma despesa existente #}
+    <div class="alert alert-warning" role="alert">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        <strong>Atenção:</strong> Alterar o valor ou a conta/caixa de origem de uma despesa já salva <strong>não ajustará automaticamente</strong>
+        os saldos das contas/caixas envolvidas. Para corrigir saldos, considere excluir e recriar a despesa com os dados corretos
+        ou realizar um ajuste manual no saldo da conta/caixa.
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-edit me-1"></i>
+            Dados da Despesa
+        </div>
+        <div class="card-body">
+            <form method="post" action="{% if despesa %}{% url 'financeiro:editar_despesa' pk=despesa.pk %}{% else %}{% url 'financeiro:cadastrar_despesa' %}{% endif %}">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}{% if not forloop.last %}<br>{% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
+                        {# --- SIMPLIFICADO --- #}
+                        {{ form.igreja }}
+                        {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                     <div class="col-md-6 mb-3">
+                        <label for="{{ form.data.id_for_label }}" class="form-label">{{ form.data.label }}:</label>
+                        {# --- SIMPLIFICADO --- #}
+                        {{ form.data }}
+                        {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}:</label>
+                        {# --- SIMPLIFICADO --- #}
+                        {{ form.categoria }}
+                        {% if form.categoria.errors %}<div class="invalid-feedback d-block">{{ form.categoria.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                     <div class="col-md-6 mb-3">
+                        <label for="{{ form.valor.id_for_label }}" class="form-label">{{ form.valor.label }}:</label>
+                         <div class="input-group">
+                             <span class="input-group-text">R$</span>
+                             {# --- SIMPLIFICADO --- #}
+                            {{ form.valor }}
+                            {% if form.valor.errors %}<div class="invalid-feedback d-block">{{ form.valor.errors|striptags }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.descricao.id_for_label }}" class="form-label">{{ form.descricao.label }}:</label>
+                        {# --- SIMPLIFICADO --- #}
+                        {{ form.descricao }}
+                        {% if form.descricao.errors %}<div class="invalid-feedback d-block">{{ form.descricao.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.observacao.id_for_label }}" class="form-label">{{ form.observacao.label }}:</label>
+                        {# --- SIMPLIFICADO --- #}
+                        {{ form.observacao }}
+                        {% if form.observacao.errors %}<div class="invalid-feedback d-block">{{ form.observacao.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3"> {# Movido para uma nova linha para melhor layout com 2 colunas #}
+                        <label for="{{ form.conta_bancaria.id_for_label }}" class="form-label">{{ form.conta_bancaria.label }}:</label>
+                        {{ form.conta_bancaria }}
+                        {% if form.conta_bancaria.errors %}<div class="invalid-feedback d-block">{{ form.conta_bancaria.errors|striptags }}</div>{% endif %}
+                    </div>
+                    
+                </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                     <i class="fas fa-save me-1"></i> Salvar Despesa
+                </button>
+                <a href="{% url 'financeiro:lista_despesas' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

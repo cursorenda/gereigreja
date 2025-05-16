@@ -1,0 +1,227 @@
+{% extends 'base_com_menu.html' %}
+{% load static %} {# Certifique-se de carregar static se precisar de arquivos CSS/JS específicos aqui #}
+
+{% block title %}Configuração da Igreja{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Configurações da Igreja</h2>
+    <hr>
+
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            <strong>Por favor, corrija os erros abaixo:</strong>
+            {{ form.non_field_errors }}
+            <ul>
+                {% for field in form %}
+                    {% if field.errors %}
+                        <li>{{ field.label }}: {{ field.errors|striptags }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" action="{% url 'configuracao:editar_igreja' igreja_id=form.instance.pk %}">
+        {# O nome da URL e o parâmetro igreja_id são exemplos #}
+        {% csrf_token %}
+        ...
+    
+
+                
+
+
+
+         <!-- Seção 1: Informações Principais -->
+<fieldset class="mb-4 p-3 border rounded">
+    <legend class="w-auto px-2 h5">Informações da Igreja</legend>
+    <div class="row g-3"> {# INÍCIO DA LINHA #}
+
+        <div class="col-md-12"> 
+            <label for="{{ form.nome_igreja.id_for_label }}" class="form-label">{{ form.nome_igreja.label }}</label>
+            {{ form.nome_igreja }}
+            {% if form.nome_igreja.errors %}<div class="invalid-feedback d-block">{{ form.nome_igreja.errors|striptags }}</div>{% endif %}
+        </div>
+
+        <!-- Coluna Esquerda para Tipo de Igreja -->
+        <div class="col-md-6"> 
+            <label for="{{ form.tipo_igreja.id_for_label }}" class="form-label">{{ form.tipo_igreja.label }}</label> {# Label #}
+            {{ form.tipo_igreja }} {# Campo Select #}
+            {% if form.tipo_igreja.errors %}<div class="invalid-feedback d-block">{{ form.tipo_igreja.errors|striptags }}</div>{% endif %}
+        </div>
+
+        <!-- Coluna Direita para Igreja Superior -->
+        <div class="col-md-6"> 
+            <label for="{{ form.igreja_superior.id_for_label }}" class="form-label">{{ form.igreja_superior.label }}</label> {# Label #}
+            {{ form.igreja_superior }} {# Campo Select #}
+            {% if form.igreja_superior.errors %}<div class="invalid-feedback d-block">{{ form.igreja_superior.errors|striptags }}</div>{% endif %}
+        </div>
+
+    </div> {# FIM DA LINHA #}
+</fieldset>
+
+
+        <!-- Seção 2: Endereço -->
+        <fieldset class="mb-4 p-3 border rounded">
+            <legend class="w-auto px-2 h5">Endereço</legend>
+            <p class="text-muted small">Preencher o CEP pode ajudar a buscar o endereço (requer implementação de JavaScript).</p>
+            <div class="row g-3">
+                 <div class="col-md-4"> {# CEP primeiro, talvez menor #}
+                    <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}</label>
+                    {{ form.cep }}
+                    {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
+                </div>
+                 <div class="col-md-8"> {# Rua ao lado ou abaixo? Vamos colocar ao lado #}
+                    <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}</label>
+                    {{ form.rua }}
+                    {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="col-md-4"> {# Numero menor #}
+                    <label for="{{ form.numero.id_for_label }}" class="form-label">{{ form.numero.label }}</label>
+                    {{ form.numero }}
+                    {% if form.numero.errors %}<div class="invalid-feedback d-block">{{ form.numero.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="col-md-8"> {# Complemento maior #}
+                    <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}</label>
+                    {{ form.complemento }}
+                    {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
+                </div>
+                 <div class="col-md-6">
+                    <label for="{{ form.bairro.id_for_label }}" class="form-label">{{ form.bairro.label }}</label>
+                    {{ form.bairro }}
+                    {% if form.bairro.errors %}<div class="invalid-feedback d-block">{{ form.bairro.errors|striptags }}</div>{% endif %}
+                </div>
+                 <div class="col-md-6">
+                    <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}</label>
+                    {{ form.cidade }}
+                    {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
+                </div>
+                 <div class="col-md-6">
+                    <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}</label>
+                    {{ form.estado }}
+                    {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
+                </div>
+                 <div class="col-md-6">
+                    <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}</label>
+                    {{ form.pais }}
+                    {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Seção 3: Contatos e Documentos -->
+        <fieldset class="mb-4 p-3 border rounded">
+            <legend class="w-auto px-2 h5">Contatos e Documentos</legend>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}</label>
+                    {{ form.telefone }}
+                    {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.celular.id_for_label }}" class="form-label">{{ form.celular.label }}</label>
+                    {{ form.celular }}
+                    {% if form.celular.errors %}<div class="invalid-feedback d-block">{{ form.celular.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }}</label>
+                    {{ form.cnpj }}
+                    {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="col-md-12">
+                    <label for="{{ form.site.id_for_label }}" class="form-label">{{ form.site.label }}</label>
+                    {{ form.site }}
+                    {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Seção 4: Responsáveis -->
+        <fieldset class="mb-4 p-3 border rounded">
+            <legend class="w-auto px-2 h5">Responsáveis</legend>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.pastor_local.id_for_label }}" class="form-label">{{ form.pastor_local.label }}</label>
+                    {{ form.pastor_local }}
+                    {% if form.pastor_local.errors %}<div class="invalid-feedback d-block">{{ form.pastor_local.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.pastor_regional.id_for_label }}" class="form-label">{{ form.pastor_regional.label }}</label>
+                    {{ form.pastor_regional }}
+                    {% if form.pastor_regional.errors %}<div class="invalid-feedback d-block">{{ form.pastor_regional.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Seção 5: Outras Configurações -->
+        <fieldset class="mb-4 p-3 border rounded">
+            <legend class="w-auto px-2 h5">Outras Configurações</legend>
+            <div class="row g-3">
+                <div class="col-md-4"> {# Moeda menor #}
+                    <label for="{{ form.moeda.id_for_label }}" class="form-label">{{ form.moeda.label }}</label>
+                    {{ form.moeda }}
+                    {% if form.moeda.errors %}<div class="invalid-feedback d-block">{{ form.moeda.errors|striptags }}</div>{% endif %}
+                </div>
+                 <div class="col-md-12">
+                    <label for="{{ form.observacoes.id_for_label }}" class="form-label">{{ form.observacoes.label }}</label>
+                    {{ form.observacoes }}
+                    {% if form.observacoes.errors %}<div class="invalid-feedback d-block">{{ form.observacoes.errors|striptags }}</div>{% endif %}
+                </div>
+                 <div class="col-md-6">
+                    <label for="{{ form.logo1.id_for_label }}" class="form-label">{{ form.logo1.label }}</label>
+                    {{ form.logo1 }}
+                    {% if form.logo1.errors %}<div class="invalid-feedback d-block">{{ form.logo1.errors|striptags }}</div>{% endif %}
+                    {% if form.instance.logo1 %} {# Mostra a imagem atual se existir #}
+                        <img src="{{ form.instance.logo1.url }}" alt="Logo 1 Atual" class="img-thumbnail mt-2" style="max-height: 100px;">
+                    {% endif %}
+                </div>
+                 <div class="col-md-6">
+                    <label for="{{ form.logo2.id_for_label }}" class="form-label">{{ form.logo2.label }}</label>
+                    {{ form.logo2 }}
+                    {% if form.logo2.errors %}<div class="invalid-feedback d-block">{{ form.logo2.errors|striptags }}</div>{% endif %}
+                     {% if form.instance.logo2 %} {# Mostra a imagem atual se existir #}
+                        <img src="{{ form.instance.logo2.url }}" alt="Logo 2 Atual" class="img-thumbnail mt-2" style="max-height: 100px;">
+                    {% endif %}
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+             <button type="submit" class="btn btn-primary">Salvar Configurações</button>
+             {# Você pode adicionar um botão de cancelar se quiser #}
+             {# <a href="{% url 'alguma_outra_pagina' %}" class="btn btn-secondary">Cancelar</a> #}
+        </div>
+
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{# Se você tiver JavaScript para o CEP ou outras funcionalidades, adicione aqui #}
+<script>
+    // Exemplo: Adiciona a classe 'form-control' ou 'form-select' aos inputs/selects se não tiverem
+    // Isso pode não ser necessário se os widgets em forms.py já fizerem isso bem.
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        form.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]), select, textarea').forEach(function(el) {
+            if (el.tagName === 'SELECT' && !el.classList.contains('form-select')) {
+                el.classList.add('form-select');
+            } else if (el.tagName !== 'SELECT' && !el.classList.contains('form-control')) {
+                 el.classList.add('form-control');
+            }
+        });
+        // Estilo específico para file input
+         form.querySelectorAll('input[type=file]').forEach(function(el) {
+             if (!el.classList.contains('form-control')) {
+                 el.classList.add('form-control');
+             }
+         });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Bem-vindo(a) - {{ organizacao.nome }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+
+    {# --- MENSAGEM DE BOAS-VINDAS --- #}
+    <div class="row justify-content-center mb-4">
+        <div class="col-lg-10 text-center">
+            <h1 class="mt-4 mb-3 display-4">Bem-vindo(a), {{ user.get_full_name|default:user.username }}!</h1>
+            <p class="lead">Gerenciando a organização: <strong>{{ organizacao.nome }}</strong></p>
+            <hr class="w-50 mx-auto"> {# Linha horizontal mais curta #}
+        </div>
+    </div>
+
+    {# Mensagens (se houver alguma da view get_organizacao_or_error ou outras) #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {# --- LINKS RÁPIDOS EM CARDS --- #}
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="row row-cols-1 row-cols-md-3 g-4"> {# 1 coluna em telas pequenas, 3 em médias+ #}
+
+                {# Card para Dashboard #}
+                {# Assumindo que o dashboard é acessível a todos os usuários logados que chegam aqui #}
+                <div class="col">
+                    <a href="{% url 'secretaria:dashboard' %}" class="text-decoration-none"> {# Remover sublinhado do link #}
+                        <div class="card h-100 shadow-sm border-primary"> {# Adicionado shadow-sm #}
+                            <div class="card-body text-center">
+                                <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
+                                <h5 class="card-title">Dashboard</h5>
+                                <p class="card-text">Visão geral com gráficos e estatísticas.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                {# Card para Listar Membros #}
+                {% if can_view_membros %}
+                <div class="col">
+                    <a href="{% url 'secretaria:lista_membros' %}" class="text-decoration-none">
+                        <div class="card h-100 shadow-sm border-secondary">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users fa-3x text-secondary mb-3"></i>
+                                <h5 class="card-title">Listar Membros</h5>
+                                <p class="card-text">Consultar e gerenciar membros.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+
+                {# Card para Adicionar Membro #}
+                {% if can_edit_membros %}
+                <div class="col">
+                    <a href="{% url 'secretaria:cadastrar_membro' %}" class="text-decoration-none">
+                        <div class="card h-100 shadow-sm border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-user-plus fa-3x text-success mb-3"></i>
+                                <h5 class="card-title">Adicionar Membro</h5>
+                                <p class="card-text">Cadastrar um novo membro.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+
+                {# Card para Backup (apenas para superuser) #}
+                {% if user.is_superuser %}
+                <div class="col">
+                    <a href="{% url 'secretaria:backup_page' %}" class="text-decoration-none">
+                        <div class="card h-100 shadow-sm border-warning">
+                            <div class="card-body text-center">
+                                <i class="fas fa-database fa-3x text-warning mb-3"></i>
+                                <h5 class="card-title">Gerenciar Backups</h5>
+                                <p class="card-text">Fazer backup do banco de dados e arquivos.</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endif %}
+
+                {# Adicione outros links importantes aqui (ex: Eventos, Configurações) #}
+
+            </div> {# Fim da row de cards #}
+        </div> {# Fim da col-lg-10 #}
+    </div> {# Fim da row principal #}
+
+    {# --- INFORMAÇÕES RESUMIDAS (OPCIONAL) --- #}
+    {% if can_view_membros %}
+    <div class="row justify-content-center mt-5">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Informações Rápidas</h5>
+                    <p class="card-text">
+                        Total de membros ativos: <strong>{{ total_membros_ativos }}</strong><br>
+                        Novos membros no último mês: <strong>{{ novos_membros_ultimo_mes }}</strong><br>
+                        Próximo evento: <strong>{{ proximo_evento|default:"Nenhum evento próximo." }}</strong>
+                   </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div> {# Fim do container-fluid #}
+{% endblock content %}
+
+{# Não precisa de extra_js aqui, a menos que adicione algo específico #}

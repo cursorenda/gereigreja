@@ -1,0 +1,206 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina|default:"Gerenciar Igreja" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Gerenciar Igreja" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'configuracao:lista_igrejas' %}">Gerenciar Igrejas</a></li>
+        <li class="breadcrumb-item active">{{ igreja.nome_igreja|default:"Nova" }}</li>
+    </ol>
+
+    {# Mensagens #}
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-edit me-1"></i> Dados da Igreja
+        </div>
+        <div class="card-body">
+            {# Adicionar enctype para upload de logos #}
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="row">
+                    {# --- Identificação e Tipo --- #}
+                    <div class="col-md-8 mb-3">
+                        <label for="{{ form.nome_igreja.id_for_label }}" class="form-label">{{ form.nome_igreja.label }}:</label>
+                        {{ form.nome_igreja }}
+                        {% if form.nome_igreja.errors %}<div class="invalid-feedback d-block">{{ form.nome_igreja.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {# --- ADICIONADO TIPO IGREJA --- #}
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.tipo_igreja.id_for_label }}" class="form-label">{{ form.tipo_igreja.label }}:</label>
+                        {{ form.tipo_igreja }}
+                        {% if form.tipo_igreja.errors %}<div class="invalid-feedback d-block">{{ form.tipo_igreja.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {# --- ADICIONADO IGREJA SUPERIOR --- #}
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.igreja_superior.id_for_label }}" class="form-label">{{ form.igreja_superior.label }}:</label>
+                        {{ form.igreja_superior }}
+                        {% if form.igreja_superior.errors %}<div class="invalid-feedback d-block">{{ form.igreja_superior.errors|striptags }}</div>{% endif %}
+                        {% if form.igreja_superior.help_text %}
+                            <div class="form-text">{{ form.igreja_superior.help_text|safe }}</div>
+                        {% endif %}
+                    </div>
+                    {# --- FIM ADIÇÕES --- #}
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }}:</label>
+                        {{ form.cnpj }}
+                        {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-6 mb-3">
+                        <label for="{{ form.data_fundacao.id_for_label }}" class="form-label">{{ form.data_fundacao.label }}:</label>
+                        {{ form.data_fundacao }}
+                        {% if form.data_fundacao.errors %}<div class="invalid-feedback d-block">{{ form.data_fundacao.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    {# --- Endereço --- #}
+                    <hr class="my-3">
+                     <div class="col-md-4 mb-3">
+                        <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
+                        {{ form.cep }}
+                        {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-8 mb-3">
+                        <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
+                        {{ form.rua }}
+                        {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-4 mb-3">
+                        <label for="{{ form.numero.id_for_label }}" class="form-label">{{ form.numero.label }}:</label>
+                        {{ form.numero }}
+                        {% if form.numero.errors %}<div class="invalid-feedback d-block">{{ form.numero.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-8 mb-3">
+                        <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
+                        {{ form.complemento }}
+                        {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-4 mb-3">
+                        <label for="{{ form.bairro.id_for_label }}" class="form-label">{{ form.bairro.label }}:</label>
+                        {{ form.bairro }}
+                        {% if form.bairro.errors %}<div class="invalid-feedback d-block">{{ form.bairro.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-4 mb-3">
+                        <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
+                        {{ form.cidade }}
+                        {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-4 mb-3">
+                        <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
+                        {{ form.estado }}
+                        {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {# --- ADICIONADO PAIS --- #}
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
+                        {{ form.pais }}
+                        {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {# --- FIM ADIÇÃO --- #}
+
+                    {# --- Contato --- #}
+                    <hr class="my-3">
+                     <div class="col-md-6 mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-6 mb-3">
+                        <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
+                        {{ form.telefone }}
+                        {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {# --- ADICIONADO CELULAR E SITE --- #}
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.celular.id_for_label }}" class="form-label">{{ form.celular.label }}:</label>
+                        {{ form.celular }}
+                        {% if form.celular.errors %}<div class="invalid-feedback d-block">{{ form.celular.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.site.id_for_label }}" class="form-label">{{ form.site.label }}:</label>
+                        {{ form.site }}
+                        {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {# --- FIM ADIÇÕES --- #}
+
+                    {# --- Responsáveis --- #}
+                    <hr class="my-3">
+                    <div class="col-md-6 mb-3">
+                       <label for="{{ form.pastor_local.id_for_label }}" class="form-label">{{ form.pastor_local.label }}:</label>
+                       {{ form.pastor_local }}
+                       {% if form.pastor_local.errors %}<div class="invalid-feedback d-block">{{ form.pastor_local.errors|striptags }}</div>{% endif %}
+                       {% if form.pastor_local.help_text %}
+                           <div class="form-text">{{ form.pastor_local.help_text|safe }}</div>
+                       {% endif %}
+                   </div>
+                   {# --- ADICIONADO PASTOR REGIONAL --- #}
+                   <div class="col-md-6 mb-3">
+                       <label for="{{ form.pastor_regional.id_for_label }}" class="form-label">{{ form.pastor_regional.label }}:</label>
+                       {{ form.pastor_regional }}
+                       {% if form.pastor_regional.errors %}<div class="invalid-feedback d-block">{{ form.pastor_regional.errors|striptags }}</div>{% endif %}
+                   </div>
+                   {# --- FIM ADIÇÃO --- #}
+
+                   {# --- Outras Configurações --- #}
+                   <hr class="my-3">
+                   {# --- ADICIONADO MOEDA --- #}
+                   <div class="col-md-4 mb-3">
+                       <label for="{{ form.moeda.id_for_label }}" class="form-label">{{ form.moeda.label }}:</label>
+                       {{ form.moeda }}
+                       {% if form.moeda.errors %}<div class="invalid-feedback d-block">{{ form.moeda.errors|striptags }}</div>{% endif %}
+                   </div>
+                   {# --- FIM ADIÇÃO --- #}
+                   <div class="col-md-12 mb-3">
+                        <label for="{{ form.observacoes.id_for_label }}" class="form-label">{{ form.observacoes.label }}:</label>
+                        {{ form.observacoes }}
+                        {% if form.observacoes.errors %}<div class="invalid-feedback d-block">{{ form.observacoes.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {# --- ADICIONADO LOGOS --- #}
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.logo1.id_for_label }}" class="form-label">{{ form.logo1.label }}:</label>
+                        {{ form.logo1 }}
+                        {% if form.logo1.errors %}<div class="invalid-feedback d-block">{{ form.logo1.errors|striptags }}</div>{% endif %}
+                        {% if igreja.logo1 %} {# Mostrar logo atual se existir #}
+                            <div class="mt-2">
+                                <img src="{{ igreja.logo1.url }}" alt="Logo 1 Atual" style="max-height: 100px; max-width: 200px;">
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.logo2.id_for_label }}" class="form-label">{{ form.logo2.label }}:</label>
+                        {{ form.logo2 }}
+                        {% if form.logo2.errors %}<div class="invalid-feedback d-block">{{ form.logo2.errors|striptags }}</div>{% endif %}
+                         {% if igreja.logo2 %} {# Mostrar logo atual se existir #}
+                            <div class="mt-2">
+                                <img src="{{ igreja.logo2.url }}" alt="Logo 2 Atual" style="max-height: 100px; max-width: 200px;">
+                            </div>
+                        {% endif %}
+                    </div>
+                    {# --- FIM ADIÇÕES --- #}
+
+                </div> {# Fim da div.row #}
+
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Salvar Igreja
+                </button>
+                <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+{# ... (Scripts de máscara como estavam) ... #}
+{% endblock extra_js %}

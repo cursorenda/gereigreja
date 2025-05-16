@@ -1,0 +1,174 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %} {# Para formatar números com vírgula/ponto #}
+
+{% block title %}Lista de Receitas - {{ organizacao.nome_fantasia }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Lista de Receitas</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item active">Receitas</li>
+    </ol>
+
+    {# Mensagens do sistema #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message|safe }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {# Botão Cadastrar - Apenas para quem pode editar #}
+    {% if can_edit_finance %}
+    <div class="mb-3">
+        <a href="{% url 'financeiro:cadastrar_receita' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Cadastrar Nova Receita</a>
+    </div>
+    {% endif %}
+
+    {# Formulário de Filtros #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="data_inicio" class="form-label">Data de Início:</label>
+                    <input type="date" name="data_inicio" id="data_inicio" value="{{ request.GET.data_inicio|default_if_none:'' }}" class="form-control form-control-sm">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="data_fim" class="form-label">Data de Fim:</label>
+                    <input type="date" name="data_fim" id="data_fim" value="{{ request.GET.data_fim|default_if_none:'' }}" class="form-control form-control-sm">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="categoria" class="form-label">Categoria:</label>
+                    <select name="categoria" id="categoria" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        {% for cat_val, cat_disp in categorias_choices %}
+                            <option value="{{ cat_val }}" {% if cat_val == request.GET.categoria %}selected{% endif %}>{{ cat_disp }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="igreja" class="form-label">Igreja:</label>
+                    <select name="igreja" id="igreja" class="form-select form-select-sm">
+                        <option value="">Todas as Permitidas</option>
+                        {% for igreja_obj in igrejas_org %}
+                            <option value="{{ igreja_obj.pk }}" {% if igreja_obj.pk|stringformat:"s" == request.GET.igreja %}selected{% endif %}>{{ igreja_obj.nome_igreja }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="filtro_fechado" class="form-label">Status Lançamento:</label>
+                    <select name="fechado" id="filtro_fechado" class="form-select form-select-sm">
+                        <option value="false" {% if fechado_selecionado == 'false' %}selected{% endif %}>Aberto</option>
+                        <option value="true" {% if fechado_selecionado == 'true' %}selected{% endif %}>Fechado</option>
+                        <option value="todos" {% if fechado_selecionado == 'todos' %}selected{% endif %}>Todos</option>
+                    </select>
+                </div>
+
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-info btn-sm"><i class="fas fa-search"></i> Filtrar</button>
+                    <a href="{% url 'financeiro:lista_receitas' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eraser"></i> Limpar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Tabela de Receitas #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-hand-holding-usd me-1"></i>
+            Receitas Lançadas
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Data</th>
+                            <th>Igreja</th>
+                            <th>Membro/Origem</th>
+                            <th>Categoria</th>
+                            <th class="text-end">Valor (R$)</th>
+                            <th>Status</th>
+                            {% if can_edit_finance %}<th>Ações</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for receita in receitas %}
+                            <tr>
+                                <td>{{ receita.data|date:"d/m/Y" }}</td>
+                                <td>{{ receita.igreja.nome_igreja|default:"-" }}</td>
+                                <td>
+                                    {% if receita.membro %}
+                                        {% if receita.membro.user %} {# Verifica se o Membro tem um User associado #}
+                                            {% if receita.membro.user.get_full_name %}
+                                                {{ receita.membro.user.get_full_name }}
+                                            {% elif receita.membro.user.first_name %}
+                                                {{ receita.membro.user.first_name }} {{ receita.membro.user.last_name }}
+                                            {% else %}
+                                                {{ receita.membro.user.username }}
+                                            {% endif %}
+                                        {% else %}
+                                            {# Se o Membro existe mas não tem User, tenta exibir o nome do Membro (se houver) ou PK #}
+                                            {{ receita.membro.nome_completo|default:receita.membro.nome|default:receita.membro.pk|default:"Membro sem usuário" }}
+                                        {% endif %}
+                                    {% elif receita.observacao %}
+                                        {{ receita.observacao|truncatechars:30 }}
+                                    {% else %}
+                                        Anônimo/Outros
+                                    {% endif %}
+                                </td>
+                                <td>{{ receita.get_categoria_display }}</td>
+                                <td class="text-end">R$ {{ receita.valor|floatformat:2|intcomma }}</td>
+                                <td>
+                                    {% if receita.fechado %}
+                                        <span class="badge bg-secondary"><i class="fas fa-lock me-1"></i>Fechado</span>
+                                    {% else %}
+                                        <span class="badge bg-success"><i class="fas fa-lock-open me-1"></i>Aberto</span>
+                                    {% endif %}
+                                </td>
+                                {% if can_edit_finance %}
+                                <td>
+                                    {% if not receita.fechado %}
+                                        <a href="{% url 'financeiro:editar_receita' receita.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Editar">
+                                            <i class="fas fa-pencil-alt"></i>
+                                        </a>
+                                        <form action="{% url 'financeiro:excluir_receita' receita.pk %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir esta receita? Esta ação não pode ser desfeita.');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-muted small" title="Não é possível editar ou excluir receitas de caixas já fechados."><i class="fas fa-info-circle"></i> Bloqueado</span>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="{% if can_edit_finance %}7{% else %}6{% endif %}" class="text-center">
+                                    Nenhuma receita encontrada com os filtros aplicados.
+                                    {% if can_edit_finance %}
+                                        <a href="{% url 'financeiro:cadastrar_receita' %}" class="ms-2">Cadastrar uma nova?</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

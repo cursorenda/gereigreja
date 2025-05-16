@@ -1,0 +1,463 @@
+{% extends 'base_com_menu.html' %}
+{% load static %} {# Adicionado para consistência #}
+
+{% block title %}{{ titulo_pagina|default:"Cadastrar Novo Membro" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Cadastrar Novo Membro" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'lista_membros' %}">Lista de Membros</a></li>
+        <li class="breadcrumb-item active">Cadastrar</li>
+    </ol>
+
+    {# Mensagens do sistema #}
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-user-plus me-1"></i>
+            Dados do Novo Membro
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{% url 'cadastrar_membro' %}">
+                {% csrf_token %}
+
+                {% include "partials/_form_errors.html" with form=form %} {# Para erros non_field_errors #}
+
+                <div class="row">
+                    {# --- CAMPO IGREJA ADICIONADO --- #}
+                    <div class="col-md-6"> {# Ajustado para col-md-6 para melhor layout com status ao lado #}
+                        <div class="mb-3">
+                            <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
+                            {{ form.igreja }}
+                            {% if form.igreja.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.igreja.errors|striptags }}
+                                </div>
+                            {% endif %}
+                            {% if form.igreja.help_text %}
+                                <div class="form-text">{{ form.igreja.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {# --- FIM CAMPO IGREJA --- #}
+
+                    {# --- CAMPO STATUS ADICIONADO AO LADO DA IGREJA --- #}
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}:</label>
+                            {{ form.status }}
+                             {% if form.status.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.status.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.status.help_text %}
+                                <div class="form-text">{{ form.status.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-8"> {# Nome um pouco maior #}
+                        <div class="mb-3">
+                            <label for="{{ form.nome.id_for_label }}" class="form-label">{{ form.nome.label }}:</label>
+                            {{ form.nome }}
+                             {% if form.nome.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.nome.errors|striptags }}
+                                </div>
+                            {% endif %}
+                            {% if form.nome.help_text %}
+                                <div class="form-text">{{ form.nome.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4"> {# Apelido ao lado do nome #}
+                        <div class="mb-3">
+                            <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
+                            {{ form.apelido }}
+                            {% if form.apelido.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.apelido.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.apelido.help_text %}
+                                <div class="form-text">{{ form.apelido.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.cpf.id_for_label }}" class="form-label">{{ form.cpf.label }}:</label>
+                            {{ form.cpf }}
+                             {% if form.cpf.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.cpf.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.cpf.help_text %}
+                                <div class="form-text">{{ form.cpf.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.rg.id_for_label }}" class="form-label">{{ form.rg.label }}:</label>
+                            {{ form.rg }}
+                             {% if form.rg.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.rg.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.rg.help_text %}
+                                <div class="form-text">{{ form.rg.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.naturalidade.id_for_label }}" class="form-label">{{ form.naturalidade.label }}:</label>
+                            {{ form.naturalidade }}
+                             {% if form.naturalidade.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.naturalidade.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.naturalidade.help_text %}
+                                <div class="form-text">{{ form.naturalidade.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.nascimento.id_for_label }}" class="form-label">{{ form.nascimento.label }}:</label>
+                            {{ form.nascimento }}
+                             {% if form.nascimento.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.nascimento.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.nascimento.help_text %}
+                                <div class="form-text">{{ form.nascimento.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.genero.id_for_label }}" class="form-label">{{ form.genero.label }}:</label>
+                            {{ form.genero }}
+                             {% if form.genero.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.genero.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.genero.help_text %}
+                                <div class="form-text">{{ form.genero.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.estado_civil.id_for_label }}" class="form-label">{{ form.estado_civil.label }}:</label>
+                            {{ form.estado_civil }}
+                             {% if form.estado_civil.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.estado_civil.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.estado_civil.help_text %}
+                                <div class="form-text">{{ form.estado_civil.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.profissao.id_for_label }}" class="form-label">{{ form.profissao.label }}:</label>
+                            {{ form.profissao }}
+                             {% if form.profissao.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.profissao.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.profissao.help_text %}
+                                <div class="form-text">{{ form.profissao.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.escolaridade.id_for_label }}" class="form-label">{{ form.escolaridade.label }}:</label>
+                            {{ form.escolaridade }}
+                             {% if form.escolaridade.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.escolaridade.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.escolaridade.help_text %}
+                                <div class="form-text">{{ form.escolaridade.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.nome_pai.id_for_label }}" class="form-label">{{ form.nome_pai.label }}:</label>
+                            {{ form.nome_pai }}
+                             {% if form.nome_pai.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.nome_pai.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.nome_pai.help_text %}
+                                <div class="form-text">{{ form.nome_pai.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.nome_mae.id_for_label }}" class="form-label">{{ form.nome_mae.label }}:</label>
+                            {{ form.nome_mae }}
+                             {% if form.nome_mae.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.nome_mae.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.nome_mae.help_text %}
+                                <div class="form-text">{{ form.nome_mae.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                     <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
+                            {{ form.cep }}
+                             {% if form.cep.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.cep.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.cep.help_text %}
+                                <div class="form-text">{{ form.cep.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
+                            {{ form.pais }}
+                             {% if form.pais.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.pais.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.pais.help_text %}
+                                <div class="form-text">{{ form.pais.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
+                            {{ form.estado }}
+                             {% if form.estado.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.estado.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.estado.help_text %}
+                                <div class="form-text">{{ form.estado.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                     <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
+                            {{ form.cidade }}
+                             {% if form.cidade.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.cidade.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.cidade.help_text %}
+                                <div class="form-text">{{ form.cidade.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
+                            {{ form.bairro_distrito }}
+                             {% if form.bairro_distrito.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.bairro_distrito.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.bairro_distrito.help_text %}
+                                <div class="form-text">{{ form.bairro_distrito.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
+                            {{ form.rua }}
+                             {% if form.rua.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.rua.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.rua.help_text %}
+                                <div class="form-text">{{ form.rua.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
+                            {{ form.numero_casa }}
+                             {% if form.numero_casa.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.numero_casa.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.numero_casa.help_text %}
+                                <div class="form-text">{{ form.numero_casa.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
+                            {{ form.complemento }}
+                             {% if form.complemento.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.complemento.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.complemento.help_text %}
+                                <div class="form-text">{{ form.complemento.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
+                            {{ form.telefone }}
+                             {% if form.telefone.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.telefone.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.telefone.help_text %}
+                                <div class="form-text">{{ form.telefone.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.data_entrada.id_for_label }}" class="form-label">{{ form.data_entrada.label }}:</label>
+                            {{ form.data_entrada }}
+                             {% if form.data_entrada.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.data_entrada.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.data_entrada.help_text %}
+                                <div class="form-text">{{ form.data_entrada.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.conjuge.id_for_label }}" class="form-label">{{ form.conjuge.label }}:</label>
+                            {{ form.conjuge }}
+                             {% if form.conjuge.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.conjuge.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.conjuge.help_text %}
+                                <div class="form-text">{{ form.conjuge.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.data_casamento.id_for_label }}" class="form-label">{{ form.data_casamento.label }}:</label>
+                            {{ form.data_casamento }}
+                             {% if form.data_casamento.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.data_casamento.errors|striptags }}
+                                </div>
+                            {% endif %}
+                             {% if form.data_casamento.help_text %}
+                                <div class="form-text">{{ form.data_casamento.help_text|safe }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salvar Membro</button>
+                <a href="{% url 'lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{# Scripts JS para máscaras #}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+<script>
+    $(document).ready(function(){
+         // --- INÍCIO: LÓGICA PARA BUSCA DE CEP ---
+         $("#id_cep").blur(function() { // Evento blur é quando o campo perde o foco
+            var cep = $(this).val().replace(/\D/g, ''); // Remove caracteres não numéricos
+
+            if (cep.length == 8) { // Verifica se o CEP tem 8 dígitos
+                // Mostra um feedback de carregamento (opcional)
+                $("#id_rua").val("...");
+                $("#id_bairro_distrito").val("...");
+                $("#id_cidade").val("...");
+                $("#id_estado").val("...");
+                $("#id_pais").val("Brasil"); // Default para Brasil
+
+                // Consulta a API ViaCEP
+                $.getJSON("https://viacep.com.br/ws/" + cep + "/json/?callback=?", function(dados) {
+                    if (!("erro" in dados)) {
+                        // Atualiza os campos com os valores da API
+                        $("#id_rua").val(dados.logradouro);
+                        $("#id_bairro_distrito").val(dados.bairro);
+                        $("#id_cidade").val(dados.localidade);
+                        $("#id_estado").val(dados.uf);
+                        // Foca no campo número após preencher o endereço
+                        $("#id_numero_casa").focus();
+                    } else {
+                        // CEP não Encontrado ou erro
+                        alert("CEP não encontrado.");
+                        $("#id_rua").val("");
+                        $("#id_bairro_distrito").val("");
+                        $("#id_cidade").val("");
+                        $("#id_estado").val("");
+                    }
+                }).fail(function() {
+                    alert("Erro ao consultar o CEP. Verifique sua conexão ou tente novamente.");
+                    $("#id_rua").val("");
+                    $("#id_bairro_distrito").val("");
+                    $("#id_cidade").val("");
+                    $("#id_estado").val("");
+                });
+            } else if (cep.length > 0) {
+                // CEP inválido (não tem 8 dígitos)
+                // alert("Formato de CEP inválido."); // Opcional: pode ser irritante
+            }
+        });
+        // --- FIM: LÓGICA PARA BUSCA DE CEP ---
+ 
+    });
+</script>
+{% endblock %}

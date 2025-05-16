@@ -1,0 +1,45 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Backup{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Backup</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item active">Backup</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-database me-1"></i>
+            Backup
+        </div>
+        <div class="card-body">
+            <p>Escolha o tipo de backup que deseja realizar:</p>
+
+           <form method="POST" action="{% url 'secretaria:backup_page' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <input type="checkbox" name="backup_database" id="backup_database">
+                    <label for="backup_database">Backup do Banco de Dados</label>
+                </div>
+                <div class="mb-3">
+                    <input type="checkbox" name="backup_files" id="backup_files">
+                    <label for="backup_files">Backup dos Arquivos do Site</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Fazer Backup</button>
+            </form>
+
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message|safe }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

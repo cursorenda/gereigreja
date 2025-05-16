@@ -1,0 +1,85 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% block content %}
+    <h2>Cadastrar Receita</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            {{ form.data.label_tag }}
+            {{ form.data }}
+        </div>
+        <div class="form-group">
+            {{ form.membro.label_tag }}
+            {{ form.membro }}
+        </div>
+        <div class="form-group">
+            {{ form.valor.label_tag }}
+            {{ form.valor }}
+        </div>
+        <div class="form-group">
+            {{ form.categoria.label_tag }}
+            {{ form.categoria }}
+        </div>
+        <div class="form-group">
+            {{ form.forma_pgto.label_tag }}
+            {{ form.forma_pgto }}
+        </div>
+        <div class="form-group">
+            {{ form.observacao.label_tag }}
+            {{ form.observacao }}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+    </form>
+{% endblock %}
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    // Adiciona funcionalidade de busca aos campos de membro.
+    $(document).ready(function() {
+        $('#id_membro').select2({
+            ajax: {
+                url: '/secretaria/membros/buscar/',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        q: params.term, // Termo de pesquisa
+                        page: params.page || 1
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+
+                    return {
+                        results: data.results,
+                        pagination: {
+                            more: (params.page * 30) < data.total_count
+                        }
+                    };
+                },
+                cache: true
+            },
+            placeholder: 'Digite para Buscar o Membro',
+            minimumInputLength: 1,
+            templateResult: formatRepo,
+            templateSelection: formatRepoSelection
+        });
+
+        function formatRepo (repo) {
+            if (repo.loading) {
+                return repo.text;
+            }
+
+            return repo.text;
+        }
+
+        function formatRepoSelection (repo) {
+            return repo.text || repo.text;
+        }
+    });
+</script>
+{% endblock %}

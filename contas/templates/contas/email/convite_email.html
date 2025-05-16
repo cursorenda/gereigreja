@@ -1,0 +1,22 @@
+{% load i18n %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Convite para {{ organizacao.nome_fantasia }}</title>
+</head>
+<body>
+    <p>Olá,</p>
+
+    <p>Você foi convidado por <strong>{{ remetente.get_full_name|default:remetente.username }}</strong> para se juntar à organização <strong>"{{ organizacao.nome_fantasia }}"</strong> no sistema GereIgreja.</p>
+
+    <p>Para aceitar o convite e criar sua conta (ou associar sua conta existente), por favor clique no link abaixo:</p>
+
+    <p><a href="{{ accept_url }}">{{ accept_url }}</a></p>
+
+    <p>Se você não solicitou este convite ou não reconhece o remetente, por favor ignore este e-mail.</p>
+
+    <p>Obrigado,<br>
+    A equipe de {{ site_name }}</p> {# site_name vem do Sites Framework #}
+</body>
+</html>

@@ -1,0 +1,113 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina|default:"Editar Igreja" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'configuracao:lista_igrejas' %}">Gerenciar Igrejas</a></li>
+        <li class="breadcrumb-item active">Editar Igreja</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-church me-1"></i>
+            Formulário de Edição da Igreja
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                {# Renderizar campos do formulário. Você pode personalizar o layout aqui. #}
+                {# Exemplo simples: #}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.nome_igreja.id_for_label }}" class="form-label">{{ form.nome_igreja.label }}</label>
+                        {{ form.nome_igreja }}
+                        {% if form.nome_igreja.errors %}<div class="invalid-feedback d-block">{{ form.nome_igreja.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.tipo_igreja.id_for_label }}" class="form-label">{{ form.tipo_igreja.label }}</label>
+                        {{ form.tipo_igreja }}
+                        {% if form.tipo_igreja.errors %}<div class="invalid-feedback d-block">{{ form.tipo_igreja.errors|join:", " }}</div>{% endif %}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.igreja_superior.id_for_label }}" class="form-label">{{ form.igreja_superior.label }}</label>
+                        {{ form.igreja_superior }}
+                        {% if form.igreja_superior.help_text %}<div class="form-text">{{ form.igreja_superior.help_text|safe }}</div>{% endif %}
+                        {% if form.igreja_superior.errors %}<div class="invalid-feedback d-block">{{ form.igreja_superior.errors|join:", " }}</div>{% endif %}
+                    </div>
+                     <div class="col-md-6 mb-3">
+                        <label for="{{ form.data_fundacao.id_for_label }}" class="form-label">{{ form.data_fundacao.label }}</label>
+                        {{ form.data_fundacao }}
+                        {% if form.data_fundacao.errors %}<div class="invalid-feedback d-block">{{ form.data_fundacao.errors|join:", " }}</div>{% endif %}
+                    </div>
+                </div>
+                
+                <h5 class="mt-4">Endereço</h5>
+                <hr>
+                {# Campos de endereço aqui ... #}
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}</label>
+                        {{ form.cep }}
+                    </div>
+                     <div class="col-md-8 mb-3">
+                        <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}</label>
+                        {{ form.rua }}
+                    </div>
+                </div>
+                 {# ... mais campos de endereço ... #}
+
+
+                <h5 class="mt-4">Contato e Documentos</h5>
+                <hr>
+                {# Campos de contato aqui ... #}
+
+                <h5 class="mt-4">Responsáveis</h5>
+                <hr>
+                {# Campos de responsáveis aqui ... #}
+
+
+                <h5 class="mt-4">Configurações Financeiras Padrão</h5>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.conta_padrao_receitas.id_for_label }}" class="form-label">{{ form.conta_padrao_receitas.label }}</label>
+                        {{ form.conta_padrao_receitas }}
+                        {% if form.conta_padrao_receitas.help_text %}<div class="form-text">{{ form.conta_padrao_receitas.help_text|safe }}</div>{% endif %}
+                        {% if form.conta_padrao_receitas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_receitas.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.conta_padrao_despesas.id_for_label }}" class="form-label">{{ form.conta_padrao_despesas.label }}</label>
+                        {{ form.conta_padrao_despesas }}
+                        {% if form.conta_padrao_despesas.help_text %}<div class="form-text">{{ form.conta_padrao_despesas.help_text|safe }}</div>{% endif %}
+                        {% if form.conta_padrao_despesas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_despesas.errors|join:", " }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <h5 class="mt-4">Outras Informações</h5>
+                <hr>
+                {# Campos de observações, logos, etc. aqui ... #}
+                 <div class="mb-3">
+                    <label for="{{ form.observacoes.id_for_label }}" class="form-label">{{ form.observacoes.label }}</label>
+                    {{ form.observacoes }}
+                </div>
+
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

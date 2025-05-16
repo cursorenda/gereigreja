@@ -1,0 +1,245 @@
+{% load static %}
+{% load humanize %} {# Para intcomma, se usar #}
+{% load l10n %} {# Para formatação localizada #}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Financeiro Mensal - {{ fechamento.igreja.nome_igreja }}</title>
+    {# Ajuste os caminhos dos CSS se necessário #}
+    <link rel="stylesheet" href="{% static 'css/relatorio.css' %}">
+    <link rel="stylesheet" href="{% static 'css/header.css' %}">
+</head>
+<body>
+    <div class="container">
+        {# --- CABEÇALHO (Mantido como estava, pode ser dinamizado depois) --- #}
+        <div class="header-section">
+            <img src="{% static 'img/logo1.png' %}" alt="Logo 1">
+            <div class="header-info">
+                <div class="header-title">Ministério das Assembleias de Deus dos Vales</div>
+                <div class="header-subtitle">Rua Goiás, 145, B. Lourdes - CEP: 35.032-160 - Gov. Valadares/MG</div>
+                <div class="header-subtitle">madevales2022@gmail.com       CNPJ: 46.907.047/0001-34</div>
+            </div>
+            <img src="{% static 'img/logo2.png' %}" alt="Logo 2">
+        </div>
+
+        <div class="report-title">RELATÓRIO FINANCEIRO - MENSAL</div>
+
+        <table>
+            <tbody>
+                <tr>
+                    {# --- SEÇÃO DE INFORMAÇÕES DA IGREJA (Corrigida) --- #}
+                    <td colspan="2"> {# Ajustado colspan para 2 colunas principais #}
+                        <div class="info">
+                            <div class="info-line">
+                                <div class="info-line-left">
+                                    <label>MÊS DE REFERÊNCIA:</label> <span>{{ mes_nome }}</span>
+                                </div>
+                                <div class="info-line-right">
+                                    <label>ANO:</label> <span>{{ ano|stringformat:"d" }}</span>
+                                </div>
+                            </div>
+                            <div class="info-line">
+                                <div class="info-line-left">
+                                    {# Usar dados do objeto 'igreja' passado pela view #}
+                                    <label>CONGREGAÇÃO:</label> <span>{{ igreja.nome_igreja|default:"N/A" }}</span>
+                                </div>
+                                <div class="info-line-center">
+                                     {# Assumindo que o modelo Igreja tem esses campos #}
+                                    <label>BAIRRO:</label> <span>{{ igreja.bairro|default:"N/A" }}</span>
+                                </div>
+                            </div>
+                            <div class="info-line">
+                                <div class="info-line-left" style="width: 100%;"> {# Ocupa toda a linha #}
+                                    <label>ENDEREÇO:</label> <span>{{ igreja.rua|default:"" }}{% if igreja.numero %}, {{ igreja.numero }}{% endif %}{% if igreja.complemento %} - {{ igreja.complemento }}{% endif %}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    {# --- FIM SEÇÃO DE INFORMAÇÕES --- #}
+                </tr>
+                <tr>
+                    <th colspan="2" class="report-title">ENTRADAS</th> {# Ajustado colspan #}
+                </tr>
+                {# --- SEÇÃO DE ENTRADAS (Corrigida para usar totais_receitas_cat) --- #}
+                {% for categoria_nome, valor_total in totais_receitas_cat.items %}
+                <tr>
+                    <td class="label-text">
+                        <div class="line">
+                            <span class="label">{{ categoria_nome|upper }}:</span> {# Nome da categoria vindo do dict #}
+                            <span class="dot-leader"></span>
+                        </div>
+                    </td>
+                    <td class="currency">
+                        <div class="line">
+                            <span class="symbol">R$</span>
+                            <span class="value">{{ valor_total|floatformat:2 }}</span> {# Valor total vindo do dict #}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="2">Nenhuma categoria de receita encontrada.</td></tr>
+                {% endfor %}
+                {# --- FIM SEÇÃO DE ENTRADAS --- #}
+                <tr>
+                    {# --- TOTAL DE ENTRADAS (Mantido) --- #}
+                    <td class="label-text">
+                        <div class="line">
+                            <span class="label"><strong>TOTAL DE ENTRADAS:</strong></span>
+                            <span class="dot-leader"></span>
+                        </div>
+                    </td>
+                    <td class="currency">
+                        <div class="line">
+                            <strong>
+                            <span class="symbol">R$</span>
+                            <span class="value">{{ total_entradas|floatformat:2 }}</span>
+                            </strong>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <th colspan="2" class="report-title">SAÍDAS</th> {# Ajustado colspan #}
+                </tr>
+                 
+                {# --- SEÇÃO DE SAÍDAS (MODIFICADA para usar totais_despesas_cat_list) --- #}
+                {% for categoria_nome, valor_total in totais_despesas_cat_list %} {# Iterar sobre a LISTA #}
+                <tr>
+                    <td class="label-text">
+                        <div class="line">
+                            <span class="label">{{ categoria_nome|upper }}:</span> {# Primeiro item da tupla #}
+                            <span class="dot-leader"></span>
+                        </div>
+                    </td>
+                    <td class="currency">
+                        <div class="line">
+                            <span class="symbol">R$</span>
+                            <span class="value">{{ valor_total|floatformat:2 }}</span> {# Segundo item da tupla #}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                 <tr><td colspan="2">Nenhuma categoria de despesa definida para a organização.</td></tr>
+                {% endfor %}
+                {# --- FIM SEÇÃO DE SAÍDAS --- #}
+
+                <tr>
+                    {# --- TOTAL DE SAÍDAS (Mantido) --- #}
+                    <td class="label-text">
+                        <div class="line">
+                            <span class="label"><strong>TOTAL DAS SAÍDAS:</strong></span>
+                            <span class="dot-leader"></span>
+                        </div>
+                    </td>
+                    <td class="currency">
+                        <div class="line">
+                            <strong>
+                            <span class="symbol">R$</span>
+                            <span class="value">{{ total_saidas|floatformat:2 }}</span>
+                            </strong>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    {# --- RESUMO E ASSINATURAS (Mantido, mas ajustado colspan) --- #}
+                    <td colspan="2">
+                        <table class="resumo-assinaturas">
+                            <tr>
+                                <td class="resumo-container">
+                                    <table class="resumo-table">
+                                        <tr>
+                                            <th colspan="2" class="resumo-title">RESUMO</th>
+                                        </tr>
+                                        <tr>
+                                            <td>Entradas:</td>
+                                            <td class="text-right">
+                                                <div class="line">
+                                                    <span class="symbol">R$</span>
+                                                    <span class="dot-leader"></span>
+                                                    <span class="value">{{ total_entradas|floatformat:2 }}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Saídas:</td>
+                                            <td class="text-right">
+                                                <div class="line">
+                                                    <span class="symbol">R$</span>
+                                                    <span class="dot-leader"></span>
+                                                    <span class="value">{{ total_saidas|floatformat:2 }}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Líquido:</td>
+                                            <td class="text-right">
+                                                <div class="line">
+                                                    <span class="symbol">R$</span>
+                                                    <span class="dot-leader"></span>
+                                                    <span class="value">{{ valor_liquido|floatformat:2 }}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            {# Data atual vinda da view #}
+                                            <td colspan="2">Data de entrega do relatório: {{ data_atual }}</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                <td class="assinaturas-container">
+                                    <table class="assinaturas-table">
+                                        <tr>
+                                            <td>
+                                                <hr class="assinatura-line">
+                                                Assinatura do Tesoureiro
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <hr class="assinatura-line">
+                                                Assinatura do Pastor Local
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <hr class="assinatura-line">
+                                                Assinatura do Pastor Regional
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </tbody>
+             {# --- COMPROVANTE (Corrigido) --- #}
+            <tr>
+                {# --- LINHA PICOTADA ADICIONADA --- #}
+                <tr>
+                    <td colspan="2" style="padding: 5px 0;"> {# Adiciona um pouco de espaço vertical #}
+                        <hr style="border: none; border-top: 2px dotted #888; margin: 0;"> {# Linha pontilhada cinza #}
+                    </td>
+                </tr>
+                {# --- FIM LINHA PICOTADA --- #}
+
+                <th colspan="2" class="report-title comprovante-title">COMPROVANTE DE PRESTAÇÃO DE CONTAS</th> {# Ajustado colspan #}
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer-container">
+        <p class="report-text">
+            Recebemos nesta data o relatório financeiro Referente ao mês de: <span>{{ mes_nome }}/{{ ano|stringformat:"d" }}</span> da congregação: <span>{{ igreja.nome_igreja }}</span>.
+        </p>
+        <p class="report-text">
+            Contendo um saldo líquido de R$ <span>{{ valor_liquido|floatformat:2 }}</span> (<span>{{ valor_liquido_extenso }}</span>).
+        </p>
+        <div class="footer-signature">
+            {# Usar data_atual da view #}
+            <p>Governador Valadares, {{ data_atual }}</p>
+            <p>_____________________________<br>Assinatura Responsável</p>
+        </div>
+    </div>
+</body>
+</html>

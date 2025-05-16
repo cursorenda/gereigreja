@@ -1,0 +1,12 @@
+{% extends 'base_com_menu.html' %}
+
+from django import forms
+from .models import Despesa
+
+class DespesaForm(forms.ModelForm):
+    class Meta:
+        model = Despesa
+        fields = ['data', 'descricao', 'valor', 'categoria']
+        widgets = {
+            'data': forms.DateInput(attrs={'type': 'date'}),
+        }
