@@ -107,7 +107,7 @@ def lista_usuarios_org(request):
         if not request.user.groups.filter(name='Admin Organizacao').exists():
             messages.error(request, "Você não tem permissão para gerenciar usuários.")
             # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('index') # Ou 'dashboard'
+            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
         # --- FIM DA VERIFICAÇÃO ---
 
         usuarios_org = User.objects.filter(
@@ -148,7 +148,7 @@ def enviar_convite(request):
         if not request.user.groups.filter(name='Admin Organizacao').exists():
             messages.error(request, "Você não tem permissão para gerenciar usuários.")
             # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('index') # Ou 'dashboard'
+            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
         # --- FIM DA VERIFICAÇÃO ---
 
 
@@ -252,7 +252,7 @@ def aceitar_convite(request, token):
             except Exception as e:
                  logger.exception(f"Erro ao aceitar convite (logado) para {convite.email_convidado}, token {token}")
                  messages.error(request, f"Ocorreu um erro ao processar o convite: {e}")
-                 return redirect('index')
+                 return redirect('secretaria:index')
         else:
             messages.warning(request, "Você estava logado com outra conta. Por favor, faça login ou crie uma conta com o e-mail do convite.")
             logout(request)
@@ -324,7 +324,7 @@ def cancelar_convite(request, pk):
         if not request.user.groups.filter(name='Admin Organizacao').exists():
             messages.error(request, "Você não tem permissão para gerenciar usuários.")
             # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('index') # Ou 'dashboard'
+            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
         # --- FIM DA VERIFICAÇÃO ---
 
         convite = get_object_or_404(
@@ -435,7 +435,7 @@ def alternar_status_usuario_org(request, user_pk):
         if not request.user.groups.filter(name='Admin Organizacao').exists():
             messages.error(request, "Você não tem permissão para gerenciar usuários.")
             # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('index') # Ou 'dashboard'
+            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
         # --- FIM DA VERIFICAÇÃO ---
 
         usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__organizacao=organizacao)

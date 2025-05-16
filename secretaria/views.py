@@ -66,7 +66,7 @@ def get_organizacao_or_error(request):
     except Exception as e:
          logger.exception(f"Erro inesperado ao obter organização para usuário {request.user.username}")
          messages.error(request, f"Erro interno ao obter organização: {e}")
-         raise PermissionDenied("Erro interno ao obter organização.")
+         raise PermissionDenied("Erro interno ao obter organização.") # Mantido, pois é um erro de configuração do usuário/perfil
 # --- Fim função auxiliar ---
 
 

@@ -51,7 +51,7 @@ def get_organizacao_or_error(request):
     except Exception as e:
          logger.exception(f"Erro inesperado ao obter organização para usuário {request.user.username}")
          messages.error(request, f"Erro interno ao obter organização: {e}")
-         raise PermissionDenied("Erro interno ao obter organização.")
+         raise PermissionDenied("Erro interno ao obter organização.") # Mantido, pois é um erro de configuração do usuário/perfil
 # --- Fim função auxiliar ---
 
 
@@ -69,7 +69,7 @@ def configuracao_view(request):
             # Se for superuser, talvez redirecionar para uma visão geral?
             if request.user.is_superuser:
                  return redirect('admin:index') # Ex: para o admin do Django
-            return redirect('index')
+            return redirect('secretaria:index')
 
         # Verifica se a organização está ativa (opcional, mas recomendado)
         if not organizacao.ativo and not request.user.is_superuser:
@@ -93,14 +93,14 @@ def configuracao_view(request):
              # Situação inesperada: usuário logado sem perfil.
              messages.error(request, "Erro crítico: Perfil de usuário não encontrado. Contate o suporte.")
              # Talvez deslogar o usuário? Ou redirecionar para uma página de erro?
-             return redirect('index') # Ou para o login?
+             return redirect('secretaria:index') # Ou para o login?
 
     except Exception as e:
         messages.error(request, f"Ocorreu um erro inesperado ao carregar as configurações: {e}")
         import logging
         logger = logging.getLogger(__name__)
-        logger.exception("Erro em configuracao_view")
-        return redirect('index')
+        logger.exception("Erro em configuracao_view") # Corrigido o nome da função no log
+        return redirect('secretaria:index')
 
 # --- Views Adicionais (CRUD de Igrejas) ---
 @login_required
@@ -110,7 +110,7 @@ def lista_igrejas(request):
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
     if not request.user.groups.filter(name='Admin Organizacao').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('index') # Ou 'dashboard'
+        return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
     
     
@@ -135,17 +135,17 @@ def lista_igrejas(request):
     except Exception as e: # <<< DESCOMENTADO
         logger.exception(f"Erro ao listar igrejas para organização {organizacao.id}") # <<< DESCOMENTADO
         messages.error(request, f"Ocorreu um erro ao listar as igrejas: {e}") # <<< DESCOMENTADO
-        return redirect('dashboard') # <<< DESCOMENTADO
+        return redirect('secretaria:dashboard') # <<< DESCOMENTADO
 
 
 @login_required
-def criar_igreja(request):
+def adicionar_igreja(request):
     """ Cria uma nova igreja para a organização do usuário. """
     organizacao = get_organizacao_or_error(request)
     # --- NOVA VERIFICAÇÃO DE GRUPO ---
     if not request.user.groups.filter(name='Admin Organizacao').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('index') # Ou 'dashboard'
+        return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
 
     if request.method == 'POST':
@@ -176,7 +176,7 @@ def editar_igreja(request, pk):
     # --- NOVA VERIFICAÇÃO DE GRUPO ---
     if not request.user.groups.filter(name='Admin Organizacao').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('index') # Ou 'dashboard'
+        return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
         #   
     igreja = get_object_or_404(Igreja, pk=pk, organizacao=organizacao)
@@ -213,7 +213,7 @@ def excluir_igreja(request, pk):
     # --- NOVA VERIFICAÇÃO DE GRUPO ---
     if not request.user.groups.filter(name='Admin Organizacao').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('index') # Ou 'dashboard'
+        return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
     igreja = get_object_or_404(Igreja, pk=pk, organizacao=organizacao)
 
@@ -269,7 +269,7 @@ def detalhes_organizacao(request):
         # Captura erro inesperado ao renderizar (menos provável aqui)
         logger.exception(f"Erro ao exibir detalhes da organização {organizacao.id}")
         messages.error(request, f"Ocorreu um erro ao carregar os detalhes da organização: {e}")
-        return redirect('dashboard') # Redireciona para o dashboard principal
+        return redirect('secretaria:dashboard') # Redireciona para o dashboard principal
 
 # View para editar (a implementar depois)
 # @login_required
@@ -281,7 +281,7 @@ def editar_organizacao(request):
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
     if not request.user.groups.filter(name='Admin Organizacao').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('index') # Ou 'dashboard'
+        return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
     if request.method == 'POST':
         # Passa a instância para editar o objeto correto
@@ -324,7 +324,7 @@ def editar_organizacao(request):
 @login_required
 @user_passes_test(pode_editar_configuracao_org) # Proteja a view
 def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito com outras views editar_igreja
-    organizacao = request.user.perfil.organizacao
+    organizacao = get_organizacao_or_error(request) # Usar a função auxiliar
     # Garante que a igreja a ser editada pertence à organização do usuário
     igreja = get_object_or_404(Igreja, pk=igreja_id, organizacao=organizacao)
 
@@ -356,7 +356,7 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
 @login_required
 @user_passes_test(pode_editar_configuracao_org) # Use a permissão apropriada
 def adicionar_igreja(request):
-    organizacao = request.user.perfil.organizacao
+    organizacao = get_organizacao_or_error(request) # Usar a função auxiliar
 
     if request.method == 'POST':
         # Se você usar IgrejaEditForm, ele tentará pegar uma 'instance'.

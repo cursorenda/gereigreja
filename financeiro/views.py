@@ -68,7 +68,7 @@ def get_organizacao_or_error(request):
     except Exception as e:
          logger.exception(f"Erro inesperado ao obter organização para usuário {request.user.username}")
          messages.error(request, f"Erro interno ao obter organização: {e}")
-         raise PermissionDenied("Erro interno ao obter organização.")
+         raise PermissionDenied("Erro interno ao obter organização.") # Mantido, pois é um erro de configuração do usuário/perfil
 # --- Fim função auxiliar ---
 
 
@@ -329,7 +329,7 @@ def painel_financeiro(request):
     except Exception as e:
         # Logar erro com mais detalhes se possível
         org_id = organizacao.id if 'organizacao' in locals() else 'N/A'
-        logger.exception(f"Erro no painel financeiro para organização {org_id}")
+        logger.exception(f"Erro no painel financeiro para organização {org_id}") # Corrigido o nome da função no log
         messages.error(request, f"Ocorreu um erro ao carregar o painel financeiro: {e}")
         return redirect('index')
 

@@ -32,7 +32,7 @@
                      {% endif %}
                 </div>
                  <div class="col-auto ms-auto">
-                     <a href="{% url 'configuracao:criar_igreja' %}" class="btn btn-success"><i class="fas fa-plus"></i> Adicionar Igreja</a>
+                     <a href="{% url 'configuracao:adicionar_igreja' %}" class="btn btn-success"><i class="fas fa-plus"></i> Adicionar Igreja</a>
                 </div>
             </form>
 
@@ -56,7 +56,7 @@
                             <td>{{ igreja.pastor_local|default:"-" }}</td>
                             <td>{{ igreja.telefone|default:"-" }}</td>
                             <td>
-                                <a href="{% url 'configuracao:editar_igreja' igreja.pk %}" class="btn btn-primary btn-sm" title="Editar">
+                                <a href="{% url 'configuracao:editar_igreja_config' igreja.pk %}" class="btn btn-primary btn-sm" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 {# Formulário de Exclusão #}
