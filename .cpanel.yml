@@ -1,0 +1,28 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/gerei1/gereigreja.site/
+    # A linha abaixo copia os arquivos do repositório para o diretório de deploy.
+    # Verifique se isso é necessário ou se o cPanel já faz o checkout no DEPLOYPATH.
+    # Se o seu repositório já está no DEPLOYPATH, esta linha pode não ser necessária ou pode ser adaptada.
+    # - /bin/cp -R * $DEPLOYPATH 
+
+    # Comandos a serem executados APÓS o código ser atualizado no DEPLOYPATH
+    # Estes comandos precisam ser executados dentro do seu ambiente virtual.
+    # A forma exata de fazer isso no .cpanel.yml pode variar.
+    # Esta é uma tentativa, pode precisar de ajustes ou ser feita manualmente se não funcionar.
+    # Se o cPanel não ativar o virtualenv automaticamente, esses comandos podem falhar.
+    - >
+      source /home/gerei1/virtualenv/gereigreja.site/3.11/bin/activate &&
+      echo "--- Instalando dependências ---" &&
+      pip install -r $DEPLOYPATH/requirements.txt &&
+      echo "--- Executando migrações ---" &&
+      python $DEPLOYPATH/manage.py migrate --noinput &&
+      echo "--- Coletando arquivos estáticos ---" &&
+      python $DEPLOYPATH/manage.py collectstatic --noinput &&
+      echo "--- Tarefas de deploy concluídas ---"
+
+    # Para reiniciar o Phusion Passenger, criar/atualizar o arquivo restart.txt
+    # O cPanel pode ter uma forma mais elegante de fazer isso.
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
