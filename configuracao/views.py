@@ -7,13 +7,34 @@ from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import Http404
+from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseRedirect
 from django.db.models import Q # Para buscas
 import logging
-from .models import Igreja, Organizacao, PerfilUsuario # Certifique-se que PerfilUsuario está importado
-from .forms import IgrejaForm,OrganizacaoEditForm # Importe os forms necessários
+from .models import Igreja, Organizacao, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionado Plano e AssinaturaOrganizacao
+from .forms import IgrejaForm, OrganizacaoEditForm, IgrejaEditForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
+from django.urls import reverse
+# Ajuste o import de get_allowed_churches_for_user se você a moveu para core.utils
+from financeiro.utils import get_allowed_churches_for_user # Importar para set_active_church
+
+from core.utils import get_organizacao_or_error # Importar de core.utils
+from .models import AtualizacaoSistema
+
+
+from django.utils import timezone # Movido para o topo do arquivo ou garantir que está importado
+from datetime import timedelta # Movido para o topo do arquivo ou garantir que está importado
+
+from core.decorators import verificar_assinatura_valida # Ou o caminho correto
+from .forms import UserEditForm, PerfilUsuarioEditForm
+
+
+@login_required
+@verificar_assinatura_valida # Nosso novo decorator
+def minha_view_protegida(request):
+    organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
+    # ... resto da view ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,33 +47,7 @@ def pode_editar_configuracao_org(user):
     return user.groups.filter(name='Admin Organizacao').exists() # ou outra lógica
 
 
-def get_organizacao_or_error(request):
-    """
-    Obtém a organização do usuário logado.
-    Levanta PermissionDenied se não autenticado, superuser, ou erro de perfil.
-    Levanta Http404 se o perfil não tem organização associada.
-    Retorna o objeto Organizacao em caso de sucesso.
-    """
-    if not request.user.is_authenticated:
-        raise PermissionDenied("Usuário não autenticado.")
-    try:
-        if request.user.is_superuser:
-             messages.info(request, "Superusuários devem usar o painel Admin para secretaria global.")
-             raise PermissionDenied("Superusuário não acessa esta área.")
-        perfil = request.user.perfil
-        organizacao = perfil.organizacao
-        if not organizacao:
-            messages.error(request, "Seu usuário não está associado a nenhuma organização.")
-            raise Http404("Organização não encontrada para o usuário.")
-        return organizacao
-    except PerfilUsuario.DoesNotExist:
-        messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
-        raise PermissionDenied("Perfil de usuário não encontrado.")
-    except Exception as e:
-         logger.exception(f"Erro inesperado ao obter organização para usuário {request.user.username}")
-         messages.error(request, f"Erro interno ao obter organização: {e}")
-         raise PermissionDenied("Erro interno ao obter organização.") # Mantido, pois é um erro de configuração do usuário/perfil
-# --- Fim função auxiliar ---
+## A função get_organizacao_or_error foi movida para core.utils.py ##
 
 
 # --- View Principal de Configuração (Lista Igrejas) ---
@@ -336,6 +331,8 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
             return redirect('configuracao:lista_igrejas') # Ou para onde você quiser redirecionar
         else:
             messages.error(request, "Erro ao atualizar os dados da igreja. Verifique os campos.")
+            print("ERROS NO FORMULÁRIO IgrejaEditForm:", form.errors.as_json()) # <--- ADICIONE ESTA LINHA
+
     else:
         form = IgrejaEditForm(instance=igreja, organizacao=organizacao)
 
@@ -344,13 +341,13 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
         'igreja': igreja,
         'titulo_pagina': f"Editar Igreja: {igreja.nome_igreja}"
     }
-    return render(request, 'configuracao/igreja/editar_igreja_config.html', context) # Caminho do template atualizado
+    return render(request, 'configuracao/igrejas/editar_igreja_config.html', context) # Ajustado para 'igrejas' no plural
 
 
 # Adicione esta view ao seu c:\Gereigreja\configuracao\views.py
 # Certifique-se de importar IgrejaEditForm (ou um IgrejaCreateForm se preferir)
 # e outras dependências como login_required, user_passes_test, messages, redirect, etc.
-# from .forms import IgrejaEditForm # Ou um formulário específico para criação
+# from django.utils import timezone # Adicionado para gerenciar_assinatura
 # from .utils import pode_editar_configuracao_org (ou uma permissão similar)
 
 @login_required
@@ -364,7 +361,7 @@ def adicionar_igreja(request):
         # Você pode criar um IgrejaCreateForm que não exija 'instance'
         # ou adaptar o IgrejaEditForm para lidar com criação.
         # Por simplicidade, vamos assumir que IgrejaEditForm pode ser usado para criar se instance=None
-        form = IgrejaEditForm(request.POST, request.FILES, organizacao=organizacao) # Removido instance=igreja
+        form = IgrejaForm(request.POST, request.FILES, organizacao=organizacao) # Usando IgrejaForm para criação
         if form.is_valid():
             nova_igreja = form.save(commit=False)
             nova_igreja.organizacao = organizacao # Garante que a organização está definida
@@ -376,10 +373,293 @@ def adicionar_igreja(request):
     else:
         form = IgrejaEditForm(organizacao=organizacao) # Formulário vazio para criação
 
-    context = {
-        'form': form,
-        'titulo_pagina': "Adicionar Nova Igreja"
-    }
-    # Você precisará de um template para adicionar igreja, ex: 'configuracao/igreja/adicionar_igreja.html'
-    return render(request, 'configuracao/igreja/adicionar_igreja.html', context)
 
+    context = { # Corrigido: 'form' deve ser o objeto do formulário
+        'form': form, # Corrigido
+        'titulo_pagina': "Adicionar Nova Igreja",
+        'organizacao': organizacao # Adicionado para o template ter acesso
+    }
+   
+    # Você precisará de um template para adicionar igreja, ex: 'configuracao/igreja/adicionar_igreja.html'
+    return render(request, 'configuracao/igrejas/form_igreja.html', context) # Reutilizando form_igreja.html
+
+
+
+@login_required
+def gerenciar_assinatura(request):
+    """
+    Permite ao administrador da organização visualizar os planos disponíveis,
+    ver sua assinatura atual e escolher/alterar um plano.
+    """
+    # organizacao = get_organizacao_or_error(request) # REMOVER ESTA LINHA
+
+    # Obter a organização diretamente do perfil do usuário,
+    # permitindo acesso mesmo que a organização esteja inativa.
+    organizacao = None
+    if hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.organizacao:
+        organizacao = request.user.perfil.organizacao
+    else:
+        # Este caso não deveria ocorrer para um usuário logado com perfil,
+        # mas é uma segurança.
+        messages.error(request, "Não foi possível identificar sua organização. Por favor, contate o suporte.")
+        return redirect('login') # Redireciona para login ou página de erro
+
+    # Se a organização existe, mas não está ativa, exibe uma mensagem de aviso, mas continua
+    if not organizacao.ativo:
+        messages.warning(request, f"Sua organização '{organizacao.nome_fantasia}' ainda não está ativa. Você pode configurar sua assinatura enquanto aguarda a aprovação do sistema.")
+    assinatura_atual = None
+    try:
+        assinatura_atual = organizacao.assinatura # Usando o related_name='assinatura'
+    except AssinaturaOrganizacao.DoesNotExist:
+        # Se não existe, pode ser uma organização nova que não passou pela lógica de atribuição
+        # ou uma que ainda não escolheu um plano.
+        pass
+    except AttributeError: # Caso o related_name 'assinatura' não exista por algum motivo
+        logger.warning(f"Organização {organizacao.id} não possui o atributo 'assinatura'. Verifique o related_name no modelo AssinaturaOrganizacao.")
+
+     # Tenta criar assinatura gratuita se elegível e não tiver nenhuma, e o plano gratuito estiver ativo
+    if not assinatura_atual and organizacao.verificar_elegibilidade_plano_gratuito():
+        try:
+            plano_gratuito = Plano.objects.get(nome='gratuito', ativo=True) # Verifica se o plano gratuito está ativo
+            assinatura_atual, criada = AssinaturaOrganizacao.objects.get_or_create(
+                organizacao=organizacao,
+                defaults={
+                    'plano': plano_gratuito,
+                    'data_inicio': timezone.now(),
+                    'status': 'gratuita'
+                }
+            )
+            if criada:
+                messages.info(request, "Seu plano gratuito foi ativado.")
+        except Plano.DoesNotExist:
+            logger.warning("Plano 'gratuito' ativo não encontrado para atribuição automática.")
+
+    # Planos ativos, excluindo o "gratuito" se a organização não for elegível ou se já tiver um plano pago
+    planos_disponiveis = Plano.objects.filter(ativo=True).exclude(nome='gratuito').order_by('preco')
+    mostrar_opcao_cortesia = False
+
+    if request.method == 'POST':
+        plano_id_selecionado = request.POST.get('plano_id')
+        if not plano_id_selecionado:
+            messages.error(request, "Nenhum plano foi selecionado.")
+            return redirect('configuracao:gerenciar_assinatura')
+
+        try:
+            plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
+             # --- LÓGICA PARA ATIVAR CORTESIA ---
+            if request.POST.get('ativar_cortesia') == 'true':
+                if assinatura_atual and assinatura_atual.status == 'vencida' and not assinatura_atual.is_periodo_cortesia_valido():
+                    # Poderia adicionar uma lógica para limitar a concessão de cortesia (ex: uma vez)
+                    assinatura_atual.periodo_cortesia_ativo = True
+                    assinatura_atual.data_inicio_cortesia = timezone.now()
+                    assinatura_atual.save()
+                    messages.success(request, "Período de cortesia de 3 dias ativado! Você pode usar o sistema normalmente.")
+                    return redirect('configuracao:gerenciar_assinatura')
+                else:
+                    messages.error(request, "Não foi possível ativar o período de cortesia no momento.")
+            # --- FIM LÓGICA CORTESIA ---
+            else: # Processamento normal de escolha de plano
+                plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
+
+                # Lógica de "pagamento" (simulada por enquanto)
+                data_inicio_nova_assinatura = timezone.now()
+                data_fim_nova_assinatura = data_inicio_nova_assinatura + timedelta(days=plano_escolhido.duracao_dias)
+
+            
+
+            if assinatura_atual:
+                # Atualiza a assinatura existente
+                assinatura_atual.plano = plano_escolhido
+                assinatura_atual.data_inicio = data_inicio_nova_assinatura
+                assinatura_atual.data_fim = data_fim_nova_assinatura
+                assinatura_atual.status = 'ativa' # Simula pagamento confirmado
+                # assinatura_atual.id_transacao_gateway = "simulado_xyz" # Exemplo
+                assinatura_atual.save()
+                messages.success(request, f"Sua assinatura foi atualizada para o plano {plano_escolhido.get_nome_display()}!")
+            else:
+                # Cria uma nova assinatura
+                AssinaturaOrganizacao.objects.create(
+                    organizacao=organizacao,
+                    plano=plano_escolhido,
+                    data_inicio=data_inicio_nova_assinatura,
+                    data_fim=data_fim_nova_assinatura,
+                    status='ativa', # Simula pagamento confirmado
+                    # id_transacao_gateway = "simulado_abc" # Exemplo
+                )
+                messages.success(request, f"Você assinou o plano {plano_escolhido.get_nome_display()}!")
+            return redirect('configuracao:gerenciar_assinatura')
+
+        except Plano.DoesNotExist:
+            messages.error(request, "O plano selecionado não é válido ou não está mais disponível.")
+        except Exception as e:
+            logger.error(f"Erro ao processar escolha de plano para organização {organizacao.id}: {e}")
+            messages.error(request, "Ocorreu um erro ao processar sua solicitação. Tente novamente.")
+        return redirect('configuracao:gerenciar_assinatura')
+    
+    # Lógica para mostrar opção de cortesia no GET
+    if assinatura_atual and assinatura_atual.status == 'vencida' and \
+       not assinatura_atual.is_periodo_cortesia_valido():
+        mostrar_opcao_cortesia = True
+
+    aviso_vencimento_proximo = False
+    dias_para_vencer = None
+    if assinatura_atual and assinatura_atual.data_fim and assinatura_atual.status == 'ativa':
+        dias_para_vencer_calc = (assinatura_atual.data_fim - timezone.now()).days
+        if 0 <= dias_para_vencer_calc <= 7: # Se vence nos próximos 7 dias
+            aviso_vencimento_proximo = True
+            dias_para_vencer = dias_para_vencer_calc
+
+
+    context = {
+        'organizacao': organizacao,
+        'assinatura_atual': assinatura_atual,
+        'planos_disponiveis': planos_disponiveis,
+        'titulo_pagina': "Gerenciar Assinatura",
+        'aviso_vencimento_proximo': aviso_vencimento_proximo,
+        'dias_para_vencer': dias_para_vencer,
+        'mostrar_opcao_cortesia': mostrar_opcao_cortesia,    }
+
+    return render(request, 'configuracao/assinatura/gerenciar_assinatura.html', context)
+
+# Adicionar ao final de c:\Gereigreja\configuracao\views.py
+
+@login_required
+def set_active_church(request):
+    if request.method == 'POST':
+        igreja_id_selecionada_str = request.POST.get('igreja_id_selector') # Nome do campo no formulário do seletor
+
+        if not request.user.is_authenticated or not hasattr(request.user, 'perfil') or not request.user.perfil:
+            messages.error(request, "Você precisa estar logado e ter um perfil para selecionar uma igreja.")
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('secretaria:dashboard')))
+
+        if igreja_id_selecionada_str:
+            if igreja_id_selecionada_str == "todas": # Opção para limpar a seleção
+                if 'igreja_ativa_id' in request.session:
+                    del request.session['igreja_ativa_id']
+                messages.info(request, "Visualização consolidada (todas as igrejas permitidas) ativada.")
+            else:
+                try:
+                    igreja_id_int = int(igreja_id_selecionada_str)
+                    # Verificar se o usuário tem permissão para esta igreja
+                    allowed_churches = get_allowed_churches_for_user(request.user) # Função agora está no escopo
+                    igreja_selecionada_obj = allowed_churches.get(pk=igreja_id_int)
+                    
+                    request.session['igreja_ativa_id'] = igreja_selecionada_obj.pk
+                    request.session.modified = True # Garante que a sessão seja salva
+                    messages.success(request, f"Contexto alterado para a igreja: {igreja_selecionada_obj.nome_igreja}.")
+                
+                except (ValueError, TypeError): # TypeError se igreja_id_selecionada_str não for conversível para int
+                    messages.error(request, "ID de igreja inválido.")
+                except Igreja.DoesNotExist:
+                    messages.error(request, "Igreja selecionada inválida ou não permitida.")
+                except Exception as e:
+                    logger.error(f"Erro ao definir igreja ativa para usuário {request.user.username} (ID: {request.user.id}): {e}")
+                    messages.error(request, "Ocorreu um erro ao tentar alterar o contexto da igreja.")
+        else:
+            # Se nenhum ID for enviado (ou for vazio), pode ser interpretado como limpar a seleção
+            if 'igreja_ativa_id' in request.session:
+                del request.session['igreja_ativa_id']
+            messages.info(request, "Contexto de igreja removido. Visualizando dados de todas as igrejas permitidas.")
+
+    # Redirecionar para a página anterior ou para o dashboard
+    redirect_url = request.META.get('HTTP_REFERER', reverse('secretaria:dashboard')) # Ajuste 'secretaria:dashboard' se necessário
+    return HttpResponseRedirect(redirect_url)
+
+
+@login_required
+def lista_atualizacoes_sistema(request):
+    """
+    Exibe uma lista de todas as atualizações do sistema que foram publicadas.
+    """
+    # Apenas para garantir que o usuário está em uma organização válida,
+    # embora as atualizações sejam globais para o sistema.
+    try:
+        get_organizacao_or_error(request) # Valida a organização do usuário
+    except Exception: # Se get_organizacao_or_error levantar PermissionDenied ou Http404
+        # Você pode decidir se quer permitir acesso mesmo sem organização
+        # ou redirecionar para o login/página de erro.
+        # Por enquanto, vamos permitir, pois as atualizações são do sistema.
+        pass
+
+
+    atualizacoes = AtualizacaoSistema.objects.filter(publicado=True).order_by('-data_publicacao', '-versao')
+    
+    context = {
+        'atualizacoes': atualizacoes,
+        'titulo_pagina': "Novidades e Atualizações do Sistema",
+    }
+    return render(request, 'configuracao/lista_atualizacoes.html', context)
+
+# --- NOVA VIEW PARA MEU PERFIL ---
+@login_required
+def meu_perfil(request):
+    """
+    Exibe e permite a edição do perfil do usuário logado.
+    """
+    # Tenta obter o PerfilUsuario associado ao usuário logado
+    try:
+        perfil_usuario = request.user.perfil
+    except PerfilUsuario.DoesNotExist:
+        # Caso o perfil não exista por algum motivo (improvável se o sistema estiver consistente)
+        # Você pode criar um perfil aqui ou redirecionar/mostrar um erro.
+        # Por simplicidade, vamos assumir que o perfil deve existir.
+        messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
+        return redirect('secretaria:index') # Ou outra página apropriada
+
+    # Aqui você pode adicionar lógica para um formulário de edição do perfil, se desejar.
+    # Por enquanto, apenas exibiremos os dados.
+
+    context = {
+        'perfil_usuario': perfil_usuario,
+        'usuario': request.user,
+        'titulo_pagina': "Meu Perfil",
+    }
+    return render(request, 'configuracao/perfil/meu_perfil.html', context) # Crie este template
+# --- FIM NOVA VIEW ---
+
+# --- NOVA VIEW PARA EDITAR MEU PERFIL ---
+@login_required
+def editar_meu_perfil(request):
+    """
+    Permite ao usuário logado editar seus dados básicos e do perfil.
+    """
+    user = request.user
+    try:
+        perfil_usuario = user.perfil
+    except PerfilUsuario.DoesNotExist:
+        messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
+        return redirect('configuracao:meu_perfil') # Redireciona de volta para a página de visualização
+
+    if request.method == 'POST':
+        # request.FILES é necessário para o upload da foto_perfil
+        user_form = UserEditForm(request.POST, instance=user)
+        perfil_form = PerfilUsuarioEditForm(request.POST, request.FILES, instance=perfil_usuario)
+
+        if user_form.is_valid() and perfil_form.is_valid():
+            try:
+                with transaction.atomic(): # Garante que ambas as alterações sejam salvas ou nenhuma
+                    user_form.save()
+                    perfil_form.save()
+                messages.success(request, 'Seu perfil foi atualizado com sucesso!')
+                return redirect('configuracao:meu_perfil') # Redireciona para a página de visualização do perfil
+            except Exception as e:
+                logger.error(f"Erro ao salvar edição do perfil para usuário {user.username}: {e}")
+                messages.error(request, "Ocorreu um erro ao salvar seu perfil. Tente novamente.")
+        else:
+            # Se um ou ambos os formulários forem inválidos
+            if not user_form.is_valid():
+                messages.error(request, 'Por favor, corrija os erros no formulário de dados da conta.')
+            if not perfil_form.is_valid():
+                messages.error(request, 'Por favor, corrija os erros no formulário de dados do perfil.')
+
+    else: # GET request
+        user_form = UserEditForm(instance=user)
+        perfil_form = PerfilUsuarioEditForm(instance=perfil_usuario)
+
+    context = {
+        'user_form': user_form,
+        'perfil_form': perfil_form,
+        'titulo_pagina': "Editar Meu Perfil",
+    }
+    return render(request, 'configuracao/perfil/editar_meu_perfil.html', context) # Crie este template
+# --- FIM NOVA VIEW ---

@@ -1,54 +1,46 @@
 Resumo do Projeto:
 
-Objetivo Principal: Uma breve descrição do que o Gereigreja faz (ex: "Sistema de gestão eclesiástica para administrar organizações, igrejas, membros e finanças").
-Tecnologias Chave: (ex: Django, Python, Bootstrap, Chart.js, etc.).
-Estrutura de Diretórios Principal:
+Objetivo Principal: Sistema de gestão eclesiástica para administrar organizações, igrejas, membros e finanças.
 
-A saída do comando tree -L 2 seu_diretorio_raiz_do_projeto (ou tree -L 3 se necessário) ajuda muito a visualizar a organização. Por exemplo:
-plaintext
-Gereigreja/
-├── Gereigreja/         # Diretório do projeto Django
-│   ├── settings.py
-│   └── urls.py
-├── secretaria/      # App
-│   ├── models.py
-│   ├── views.py
-│   └── urls.py
-├── financeiro/         # App
-│   ├── models.py
-│   ├── views.py
-│   └── urls.py
-├── configuracao/       # App
-│   ├── models.py
-│   ├── views.py
-│   └── urls.py
-├── contas/             # App
-│   ├── models.py
-│   ├── views.py
-│   └── urls.py
-├── templates/          # Templates globais
-│   └── base_com_menu.html
-└── manage.py
-settings.py (Seção INSTALLED_APPS):
+Tecnologias Chave (Versões Atuais):
+- Python: 3.11.9 (no servidor de hospedagem)
+- Django: 3.2.25 (escolhido pela compatibilidade com o PostgreSQL 10.23 da hospedagem, mas atualmente usando SQLite3 na hospedagem)
+- Banco de Dados (Hospedagem): SQLite3 (configurado em `settings.py`)
+- Banco de Dados (Desenvolvimento Local): SQLite3
+- Servidor de Aplicação (Hospedagem): Gunicorn (conforme `requirements.txt`, provável uso pela hospedagem)
+- Servidor Web (Hospedagem): (Ex: Apache ou Nginx - a ser confirmado com a BrasilLinkHost)
+- Bibliotecas Python Principais: Whitenoise (para arquivos estáticos), Pillow (para imagens), num2words, GitPython (conforme `requirements.txt`).
+- Frontend: (Ex: Bootstrap, Chart.js, JavaScript personalizado - a ser detalhado conforme o projeto)
 
-Apenas a lista de INSTALLED_APPS para eu saber quais apps estão ativos.
-urls.py Principal do Projeto:
+Ambiente de Hospedagem:
+- Provedor: BrasilLinkHost
+- Endereço IP do Servidor: 199.167.147.66
+- Sistema Operacional do Servidor: (Provavelmente Linux - a ser confirmado com a BrasilLinkHost)
+- Versão do Python no Servidor: 3.11.9
+- Versão do PostgreSQL Disponível no Servidor: 10.23 (motivo pelo qual o Django foi ajustado para 3.2.25, embora SQLite3 esteja em uso)
+- Gerenciamento de Ambiente Python no Servidor: virtualenv (localizado em `/home/gerei1/virtualenv/gereigreja.site/3.11/`)
+- Acesso ao Terminal no Servidor: Via SSH ou interface "Execute python script" no painel de controle da hospedagem.
+- Configuração de Domínio (DNS): Domínio `gereigreja.site` registrado na GoDaddy, com nameservers (`ns1.brasillinkhost.com.br`, `ns2.brasillinkhost.com.br`, etc.) apontando para a BrasilLinkHost.
 
-O conteúdo do arquivo urls.py que fica no diretório principal do seu projeto Django (ex: c:\Gereigreja\Gereigreja\urls.py).
-models.py de Cada App:
+Estrutura de Diretórios Principal (Exemplo):
 
-Este é um dos pontos mais cruciais, pois define a estrutura dos seus dados. Inclua o conteúdo completo de:
-c:\Gereigreja\secretaria\models.py
-c:\Gereigreja\financeiro\models.py
-c:\Gereigreja\configuracao\models.py
-c:\Gereigreja\contas\models.py
-urls.py de Cada App (se existirem e forem relevantes):
 
-O conteúdo de:
-c:\Gereigreja\secretaria\urls.py
-c:\Gereigreja\financeiro\urls.py
-c:\Gereigreja\configuracao\urls.py
-c:\Gereigreja\contas\urls.py
-Template Base Principal (ex: base_com_menu.html):
+`settings.py` (Seção `INSTALLED_APPS`):
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django.contrib.humanize',
+    'django.contrib.sites',
+    'whitenoise.runserver_nostatic',
 
-Se você tiver um template base que define a estrutura principal das suas páginas, o conteúdo dele é útil.
+    # Seus Apps
+    'secretaria',
+    'financeiro',
+    'configuracao',
+    'contas',
+]

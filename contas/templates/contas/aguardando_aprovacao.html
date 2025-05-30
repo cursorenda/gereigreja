@@ -1,0 +1,57 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">{{ titulo_pagina }}</h4>
+                </div>
+                <div class="card-body text-center">
+                    <p class="lead">Olá, {{ request.user.get_full_name|default:request.user.username }}!</p>
+                    <p>O registro da sua organização "<strong>{{ organizacao.nome_fantasia }}</strong>" foi concluído com sucesso.</p>
+                    <p>No momento, ela está aguardando a aprovação de um administrador do sistema GereIgreja.</p>
+                    <p>Você será notificado por e-mail assim que sua organização for ativada.</p>
+                    <hr>
+                    <p class="mb-1">Enquanto isso, você pode:</p>
+                    <ul class="list-unstyled">
+                        <li>
+                            <a href="{% url 'configuracao:meu_perfil' %}" class="btn btn-sm btn-outline-primary my-1">
+                                <i class="fas fa-user-edit me-1"></i>Ver/Editar Meu Perfil
+                            </a>
+                        </li>
+                        {% if organizacao.assinatura %}
+                            <li>
+                                <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-sm btn-outline-info my-1">
+                                    <i class="fas fa-credit-card me-1"></i>Verificar Assinatura
+                                </a>
+                            </li>
+                        {% elif not organizacao.verificar_elegibilidade_plano_gratuito %}
+                             <li>
+                                <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-sm btn-outline-success my-1">
+                                    <i class="fas fa-file-signature me-1"></i>Configurar Assinatura
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                    <p class="mt-3">
+                        <a href="{% url 'logout' %}" class="btn btn-sm btn-secondary" onclick="event.preventDefault(); document.getElementById('logout-form-aguardando').submit();">
+                            <i class="fas fa-sign-out-alt me-1"></i>Sair
+                        </a>
+                    </p>
+                    <form id="logout-form-aguardando" method="post" action="{% url 'logout' %}" style="display: none;">
+                        {% csrf_token %}
+                    </form>
+                </div>
+                <div class="card-footer text-muted small">
+                    Em caso de dúvidas, entre em contato com o suporte.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

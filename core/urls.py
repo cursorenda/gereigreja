@@ -12,7 +12,8 @@ urlpatterns = [
     path('financeiro/', include(('financeiro.urls', 'financeiro'), namespace='financeiro')),
     path('eventos/', include(('eventos.urls', 'eventos'), namespace='eventos')),
     path('comunicacao/', include(('comunicacao.urls', 'comunicacao'), namespace='comunicacao')),
-    path('configuracao/', include(('configuracao.urls','configuracao'), namespace='configuracao')),
+    path('configuracao/', include('configuracao.urls')),
+
     path('accounts/', include('django.contrib.auth.urls')), # Inclui as URLs padrão de autenticação do Django, incluindo password_reset
     path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'), #Exemplo usando a view padrão do Django
     path('contas/', include('contas.urls', namespace='contas')),

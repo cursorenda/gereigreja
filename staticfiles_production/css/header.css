@@ -1,0 +1,86 @@
+/* Estilos do Cabeçalho */
+.header-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    width: 100%;
+    max-width: 100%; /* Garante que não exceda a largura do container */
+
+}
+
+
+
+
+.header-section img:first-child { /* Seleciona a primeira imagem */
+    margin-left: 50px; /* Adiciona margem à esquerda */
+    max-width: 100px;
+    height: auto;
+    display: block;
+}
+
+.header-section img:last-child { /* Seleciona a última imagem */
+    margin-right: 30px; /* Adiciona margem à direita */
+    max-width: 100px;
+    height: auto;
+    display: block;
+}
+
+
+
+
+
+
+
+
+
+
+
+/*.header-section img {
+    max-width: 100px; 
+    height: auto;
+    display: block;
+}*/
+
+/*.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Adiciona um espaço entre os logos 
+}
+
+.logo img {
+    max-width: 80px; 
+    height: auto; 
+    display: block;
+} */
+
+
+
+.header-info {
+    text-align: center;
+    flex-grow: 1; /* Permite que o header-info ocupe o espaço disponível */
+}
+
+.header-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+
+}
+
+.header-subtitle {
+    font-size: 1.2em;
+    margin-bottom: 0.5em;
+}
+.report-title {
+    background-color: #ccc;
+    text-align: center;
+    font-weight: bold;
+    padding: 0.1em 0;
+    margin-top: 0.5em;
+    height: auto;
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 1.3em;
+
+}

@@ -6,7 +6,7 @@
 <div class="container-fluid px-4">
     <h1 class="mt-4">{{ titulo_pagina|default:"Gerenciar Igreja" }}</h1>
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="{% url 'configuracao:lista_igrejas' %}">Gerenciar Igrejas</a></li>
         <li class="breadcrumb-item active">{{ igreja.nome_igreja|default:"Nova" }}</li>
     </ol>
@@ -43,7 +43,7 @@
                         {% if form.tipo_igreja.errors %}<div class="invalid-feedback d-block">{{ form.tipo_igreja.errors|striptags }}</div>{% endif %}
                     </div>
                     {# --- ADICIONADO IGREJA SUPERIOR --- #}
-                    <div class="col-md-12 mb-3">
+                    <div class="col-md-12 mb-3" id="container_igreja_superior"> {# ID adicionado aqui #}
                         <label for="{{ form.igreja_superior.id_for_label }}" class="form-label">{{ form.igreja_superior.label }}:</label>
                         {{ form.igreja_superior }}
                         {% if form.igreja_superior.errors %}<div class="invalid-feedback d-block">{{ form.igreja_superior.errors|striptags }}</div>{% endif %}
@@ -203,4 +203,38 @@
 
 {% block extra_js %}
 {# ... (Scripts de máscara como estavam) ... #}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tipoIgrejaSelect = document.getElementById('{{ form.tipo_igreja.id_for_label }}');
+    const igrejaSuperiorContainer = document.getElementById('container_igreja_superior'); // Usando o ID que adicionamos
+    const igrejaSuperiorSelect = document.getElementById('{{ form.igreja_superior.id_for_label }}');
+
+    function toggleIgrejaSuperiorField() {
+        if (!tipoIgrejaSelect || !igrejaSuperiorContainer || !igrejaSuperiorSelect) {
+            // console.warn('Campos tipo_igreja ou igreja_superior não encontrados para manipulação dinâmica.');
+            return;
+        }
+
+        const tipoSelecionado = tipoIgrejaSelect.value;
+        if (tipoSelecionado === 'sede' || tipoSelecionado === 'independente') {
+            igrejaSuperiorContainer.style.display = 'none';
+            igrejaSuperiorSelect.value = ''; // Limpa a seleção do campo igreja_superior
+            // Opcional: desabilitar o campo para que não seja enviado se visível por algum motivo
+            // igrejaSuperiorSelect.disabled = true;
+        } else {
+            igrejaSuperiorContainer.style.display = ''; // Mostra o campo (remove o display:none)
+            // igrejaSuperiorSelect.disabled = false;
+        }
+    }
+
+    if (tipoIgrejaSelect) {
+        // Chama a função ao carregar a página para o caso de um valor já estar selecionado
+        toggleIgrejaSuperiorField();
+        // Adiciona o listener para o evento 'change'
+        tipoIgrejaSelect.addEventListener('change', toggleIgrejaSuperiorField);
+    }
+});
+</script>
+
 {% endblock extra_js %}

@@ -1,0 +1,64 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load markdown_extras %}
+
+{% block title %}{{ titulo_pagina }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="pagetitle">
+        <h1>{{ titulo_pagina }}</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Início</a></li>
+                <li class="breadcrumb-item active">Novidades do Sistema</li>
+            </ol>
+        </nav>
+    </div><!-- End Page Title -->
+
+    <section class="section">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Confira as últimas melhorias e funcionalidades</h5>
+
+                        {% if atualizacoes %}
+                            {% for atualizacao in atualizacoes %}
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        {{ atualizacao.titulo }}
+                                        {% if atualizacao.versao %}
+                                            <span class="badge bg-primary rounded-pill ms-2">v{{ atualizacao.versao }}</span>
+                                        {% endif %}
+                                    </h5>
+                                    <small class="text-muted">Publicado em: {{ atualizacao.data_publicacao|date:"d/m/Y" }}</small>
+                                </div>
+                                <div class="card-body py-3">
+                                    {# Renderizando o conteúdo com o filtro markdown e safe para permitir HTML #}
+                                    {{ atualizacao.conteudo|markdown|safe }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="alert alert-info" role="alert">
+                            Nenhuma atualização do sistema foi publicada ainda.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+/* Estilo opcional para o conteúdo da atualização se não estiver usando Markdown */
+/* Se o markdown já estiliza <p>, este pode não ser necessário ou pode ser ajustado */
+.card-body .card-body p { /* Seletor mais específico para parágrafos dentro do conteúdo da atualização */
+    margin-bottom: 1rem;
+}
+</style>
+
+{% endblock %}

@@ -81,6 +81,7 @@ class MembroForm(forms.ModelForm):
         organizacao = kwargs.pop('organizacao', None) # Organização do usuário logado
         user = kwargs.pop('user', None) # Usuário logado
         allowed_churches = kwargs.pop('allowed_churches', None) # Igrejas permitidas para o usuário
+        igreja_inicial_param = kwargs.pop('igreja_inicial', None) # Novo parâmetro para igreja ativa
         super().__init__(*args, **kwargs)
 
         # Filtra o queryset de 'igreja'
@@ -94,6 +95,10 @@ class MembroForm(forms.ModelForm):
         else:
              # Se não houver organização (erro?), não mostra nenhuma igreja
              self.fields['igreja'].queryset = Igreja.objects.none()
+        # Pré-seleciona e desabilita a igreja se uma igreja_inicial_param for passada e válida
+        if igreja_inicial_param and self.fields['igreja'].queryset.filter(pk=igreja_inicial_param.pk).exists():
+            self.initial['igreja'] = igreja_inicial_param
+            self.fields['igreja'].disabled = True
 
        
         # Como Tiposstatus é global (não ligado à organização no models.py),

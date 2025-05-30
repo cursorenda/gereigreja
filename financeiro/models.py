@@ -64,6 +64,24 @@ class Despesas(models.Model):
         related_name='despesas_associadas', # Nome do related_name alterado para evitar conflito
         verbose_name="Conta/Caixa de Origem"
     )
+
+     # --- NOVOS CAMPOS PARA INTEGRAÇÃO COM CONTAS A PAGAR ---
+    origem_conta_pagar = models.ForeignKey(
+        'ContaPagar',
+        on_delete=models.SET_NULL, # Se a conta a pagar for excluída, a despesa permanece mas perde o vínculo direto
+        null=True, blank=True,
+        related_name='despesa_gerada',
+        verbose_name="Origem (Conta a Pagar)",
+        help_text="Conta a Pagar que originou esta despesa, se aplicável."
+    )
+    usuario_registro_pagamento = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True, blank=True, # Quem registrou o pagamento que gerou esta despesa
+        related_name='despesas_registradas_via_pagamento',
+        verbose_name="Pagamento Registrado por"
+    )
+    # --- FIM NOVOS CAMPOS ---
+
     def __str__(self):
         return self.descricao
 

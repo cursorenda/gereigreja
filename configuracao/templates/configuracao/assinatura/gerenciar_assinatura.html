@@ -1,0 +1,145 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %} {# Para formatar números, se necessário #}
+{% load configuracao_tags %} {# Carrega suas custom template tags, se tiver o add_timedelta_days #}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">{{ titulo_pagina }}</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-file-signature me-1"></i>
+            Sua Assinatura Atual
+        </div>
+        <div class="card-body">
+            {% if assinatura_atual %}
+                <p><strong>Cortesia válida até:</strong> {{ assinatura_atual.data_inicio_cortesia|add_timedelta_days:3|date:"d/m/Y H:i" }}</p>
+
+                <p><strong>Plano:</strong> {{ assinatura_atual.plano.get_nome_display|default:"N/D" }}</p>
+                
+                {% if assinatura_atual.is_periodo_cortesia_valido %}
+                    <p><strong>Status:</strong> <span class="badge bg-info">Período de Cortesia Ativo</span></p>
+                    <p><strong>Cortesia iniciada em:</strong> {{ assinatura_atual.data_inicio_cortesia|date:"d/m/Y H:i" }}</p>
+                    <p><strong>Cortesia válida por:</strong> 3 dias a partir do início.</p>
+                    {% if assinatura_atual.status == 'vencida' %}
+                        <p class="text-muted small">(Sua assinatura original do plano {{ assinatura_atual.plano.get_nome_display }} está vencida, mas a cortesia permite o uso.)</p>
+                    {% endif %}
+                {% else %}
+                    <p><strong>Status:</strong> <span class="badge bg-{% if assinatura_atual.status == 'ativa' or assinatura_atual.status == 'gratuita' %}success{% elif assinatura_atual.status == 'pendente_pagamento' %}warning{% else %}danger{% endif %}">{{ assinatura_atual.get_status_display }}</span></p>
+                {% endif %}
+
+                <p><strong>Válida de (Plano):</strong> {{ assinatura_atual.data_inicio|date:"d/m/Y H:i" }}</p>
+                {% if assinatura_atual.data_fim %}
+                    <p><strong>Válida até (Plano):</strong> {{ assinatura_atual.data_fim|date:"d/m/Y H:i" }}</p>
+                {% else %}
+                    {% if assinatura_atual.status == 'gratuita' %}
+                        <p><strong>Válida até (Plano):</strong> Indeterminado (Plano Gratuito)</p>
+                    {% endif %}
+                {% endif %}
+
+                {% if aviso_vencimento_proximo and not assinatura_atual.is_periodo_cortesia_valido %}
+                    <div class="alert alert-warning mt-2" role="alert">
+                        Atenção! Sua assinatura {% if dias_para_vencer == 0 %}vence hoje{% elif dias_para_vencer == 1 %}vence amanhã{% else %}vence em {{ dias_para_vencer }} dias{% endif %}. Considere renovar seu plano.
+                    </div>
+                {% endif %}
+
+                {% if assinatura_atual.plano.nome == 'gratuito' and not organizacao.verificar_elegibilidade_plano_gratuito and not assinatura_atual.is_periodo_cortesia_valido %}
+                    <div class="alert alert-warning mt-2" role="alert">
+                        Atenção: Sua organização não parece mais ser elegível para o plano gratuito. Considere atualizar seu plano.
+                    </div>
+                {% endif %}
+            {% else %}
+                <p>Você ainda não possui uma assinatura ativa ou selecionou um plano.</p>
+                
+                {% if not assinatura_atual and organizacao.verificar_elegibilidade_plano_gratuito %}
+                    <div class="alert alert-info mt-2">
+                        Sua organização parece ser elegível para o plano gratuito. Se ele não foi atribuído automaticamente, isso pode ocorrer após a aprovação da sua organização ou cadastro da primeira igreja.
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {% if mostrar_opcao_cortesia %}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <i class="fas fa-gift me-1"></i>
+            Oportunidade: Período de Cortesia
+        </div>
+        <div class="card-body">
+            <h4 class="card-title">Assinatura Vencida</h4>
+            <p>Notamos que sua assinatura está vencida. Entendemos que imprevistos acontecem!</p>
+            <p>Gostaria de ativar um <strong>período de cortesia de 3 dias</strong> para continuar usando o sistema normalmente enquanto regulariza seu pagamento?</p>
+            <hr>
+            <form method="POST" class="mb-0">
+                {% csrf_token %}
+                <input type="hidden" name="ativar_cortesia" value="true">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check-circle me-2"></i>Sim, ativar 3 dias de cortesia
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-tags me-1"></i>
+            Escolha ou Altere seu Plano
+        </div>
+        <div class="card-body">
+            {% if planos_disponiveis %}
+                <p>Selecione um dos planos abaixo para sua organização:</p>
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row">
+                        {% for plano in planos_disponiveis %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="card-title mb-0">{{ plano.get_nome_display }}</h5>
+                                </div>
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-subtitle mb-2 text-muted">R$ {{ plano.preco|floatformat:2|intcomma }} /
+                                        {% if plano.nome == 'mensal' %}
+                                            mês
+                                        {% elif plano.nome == 'trimestral' %}
+                                            trimestre
+                                        {% elif plano.nome == 'anual' %}
+                                            ano
+                                        {% else %}
+                                            {{ plano.get_nome_display|lower }}
+                                        {% endif %}
+                                    </h6>
+                                    <p class="card-text flex-grow-1">{{ plano.descricao|default:"Sem descrição detalhada."|linebreaksbr }}</p>
+                                    <p class="card-text"><small class="text-muted">Duração: {{ plano.duracao_dias }} dias</small></p>
+                                    <button type="submit" name="plano_id" value="{{ plano.id }}" class="btn btn-success mt-auto">
+                                        {% if assinatura_atual and assinatura_atual.plano.id == plano.id and assinatura_atual.status == 'ativa' %}
+                                            <i class="fas fa-sync-alt me-2"></i>Renovar/Manter Plano
+                                        {% elif assinatura_atual and assinatura_atual.plano.id == plano.id %}
+                                            <i class="fas fa-play-circle me-2"></i>Reativar Plano
+                                        {% else %}
+                                            <i class="fas fa-check me-2"></i>Escolher Plano
+                                        {% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </form>
+            {% else %}
+                <p>Não há planos pagos disponíveis no momento. Se você acredita que isso é um erro, entre em contato com o suporte.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock content %}

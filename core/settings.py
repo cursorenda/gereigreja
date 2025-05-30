@@ -1,22 +1,30 @@
 from pathlib import Path
 import os
+from dotenv import load_dotenv # pip install python-dotenv
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env') # Carrega as variáveis do arquivo .env
+
 # BASE_DIR / 'secretaria' / 'templates'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-r$cs+v_ad_nqusa5-_=ig)sn^*g*c5^ey&t#_$xkn36=pwr@52'
+# Em produção, carregue de uma variável de ambiente. Gere uma nova chave forte.
+# Ex: no painel da hospedagem, defina DJANGO_SECRET_KEY='sua-nova-chave-super-secreta-aqui'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-r$cs+v_ad_nqusa5-_=ig)sn^*g*c5^ey&t#_$xkn36=pwr@52') # Fallback apenas para desenvolvimento local
+
+# Em produção, carregue de uma variável de ambiente. Gere uma nova chave forte.
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Em produção, defina a variável de ambiente DJANGO_DEBUG='False' no painel da hospedagem.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Será True se DJANGO_DEBUG='True' ou não definida, False se DJANGO_DEBUG='False'
 
-ALLOWED_HOSTS = []
-
-# Application definition
+# ALLOWED_HOSTS deve conter os domínios/IPs que servirão sua aplicação.
+ALLOWED_HOSTS = ['gereigreja.site', 'www.gereigreja.site', '199.167.147.66', 'localhost', '127.0.0.1']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -27,6 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize', # <<< ADICIONE ESTA LINHA
     'django.contrib.sites', # <<< ADICIONAR SE NÃO EXISTIR
+    'whitenoise.runserver_nostatic', # Adicionar Whitenoise (útil até mesmo em dev sem DEBUG=True para estáticos)
 
 
     # Seus Apps
@@ -39,13 +48,15 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Adicionar Whitenoise aqui
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'secretaria.middleware.DisableCacheMiddleware',  # Adicione esta linha
+    'core.middleware.ActiveChurchMiddleware', # Adicionado nosso middleware
+    'secretaria.middleware.DisableCacheMiddleware',  # Remova a linha comentada se esta é a ativa. Avalie a necessidade em produção.
 
 ]
 
@@ -55,9 +66,8 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'templates')
 
-            #BASE_DIR / 'templates',  # Diretório de templates na raiz
+            BASE_DIR / 'templates',  # Usando pathlib para consistência
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -72,9 +82,9 @@ TEMPLATES = [
 ]
 
 STATIC_URL = 'static/'
-#STATICFILES_DIRS = [BASE_DIR / 'static']
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [BASE_DIR / 'static'] # Usando pathlib para consistência
+STATIC_ROOT = BASE_DIR / 'staticfiles_production' # Usando pathlib
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' # Para Whitenoise
 
 
 WSGI_APPLICATION = 'core.wsgi.application'
@@ -82,12 +92,19 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+#DATABASES = {
+    #'default': {
+    #    'ENGINE': 'django.db.backends.sqlite3',
+    #    'NAME': BASE_DIR / 'db.sqlite3',
+    #   # 'NAME': BASE_DIR / 'bdmembros.db db.sqlite3',
+   #}
+#}
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-       # 'NAME': BASE_DIR / 'bdmembros.db db.sqlite3',
-   }
+        'NAME': BASE_DIR / 'db.sqlite3',  # ou o nome do seu arquivo sqlite
+    }
 }
 
 # Password validation
@@ -113,7 +130,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # core/settings.py
 LANGUAGE_CODE = 'pt-br'
-USE_L10N = True
+# USE_L10N = True # Obsoleto no Django 4.0+. True é o comportamento padrão se USE_I18N = True.
 USE_I18N = True
 USE_THOUSAND_SEPARATOR = True
 # Opcional, mas explícito para pt-br:
@@ -140,8 +157,12 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': 'debug.log',
+            'class': 'logging.handlers.RotatingFileHandler', # Melhor para produção
+            'filename': BASE_DIR / 'logs' / 'django_errors.log', # Centralize os logs. Crie a pasta 'logs'.
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose', # Adicionar um formatador
+
         },
     },
     'loggers': {
@@ -151,12 +172,20 @@ LOGGING = {
             'propagate': True,
         },
     },
+
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
 }
+
 
 # ... (outras configurações) ...
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = BASE_DIR / 'media' # Usando pathlib
 
 
 LOGIN_URL = '/accounts/login/' # URL para onde @login_required redireciona (já está funcionando)
@@ -167,12 +196,30 @@ LOGOUT_REDIRECT_URL = '/' # URL para onde o usuário vai APÓS fazer logout (opc
 
 # Configuração de E-mail (Usando Brevo/Sendinblue SMTP)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp-relay.brevo.com'  # Ou smtp-relay.sendinblue.com
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True  # Usar TLS (recomendado para porta 587)
-EMAIL_HOST_USER = 'cursorenda@gmail.com'  # <<< SUBSTITUA PELO SEU EMAIL BREVO
-EMAIL_HOST_PASSWORD = 'xsmtpsib-cfb0a4c4c63c5919662db2720a70a7953d6b9435da5c61f1570c445e8602aa6d-zWd5Uctx3R8E1XKC'  # <<< SUBSTITUA PELA CHAVE SMTP QUE VOCÊ COPIOU
-DEFAULT_FROM_EMAIL = 'cursorenda@gmail.com' # <<< SUBSTITUA por um email verificado como remetente no Brevo (idealmente do seu domínio)
+EMAIL_HOST = 'mail.gereigreja.site'  # Ou smtp-relay.sendinblue.com
+EMAIL_PORT = 465                     # Porta 465 geralmente usa SSL
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False  # Usar TLS (recomendado para porta 587)
+
+# Carregue de variáveis de ambiente em produção
+EMAIL_HOST_USER = 'nao-responda@gereigreja.site'
+# A linha abaixo tenta ler a variável de ambiente 'GEREIGREJA_EMAIL_PASSWORD'.
+# Se não encontrar, e você estiver em DEBUG=True (localmente), pode usar uma senha padrão para teste.
+# NUNCA deixe uma senha real como padrão se DEBUG=False.
+EMAIL_HOST_PASSWORD = os.environ.get('GEREIGREJA_EMAIL_PASSWORD')
+
+# Para desenvolvimento local, se você ainda não configurou a variável de ambiente
+# e precisa testar, você pode temporariamente fazer:
+# if DEBUG and not EMAIL_HOST_PASSWORD:
+#     EMAIL_HOST_PASSWORD = 'sua_senha_real_para_teste_local'
+# Verifique se a senha foi carregada, especialmente em produção
+if not DEBUG and not EMAIL_HOST_PASSWORD:
+    raise ValueError("A variável de ambiente GEREIGREJA_EMAIL_PASSWORD não está configurada para produção.")
+
+
+DEFAULT_FROM_EMAIL = 'GereIgreja <nao-responda@gereigreja.site>' # E-mail que aparecerá como remetente
+SERVER_EMAIL = DEFAULT_FROM_EMAIL # Para e-mails de erro do servidor (enviados para ADMINS)
+ADMINS = [('sr. Júlio ', 'juliobsouza24@gmail.com')] # E-mail para onde o Django envia erros críticos
 
 SITE_ID = 1
 

@@ -2902,3 +2902,38 @@ Traceback (most recent call last):
     'allowed_churches_count': churches_for_queries.count(), # Corrigido: usar churches_for_queries.count()
                               ^^^^^^^^^^^^^^^^^^^^
 NameError: name 'churches_for_queries' is not defined
+Erro inesperado ao obter organização para usuário clarice@gmail.com
+Traceback (most recent call last):
+  File "C:\Gereigreja\financeiro\views.py", line 68, in get_organizacao_or_error
+    raise PermissionDenied(f"Organização '{organizacao.nome_fantasia}' inativa.")
+django.core.exceptions.PermissionDenied: Organização 'Assembleia de Deus Ministerio dos Vales' inativa.
+Erro inesperado ao obter organização para usuário clarice@gmail.com
+Traceback (most recent call last):
+  File "C:\Gereigreja\financeiro\views.py", line 68, in get_organizacao_or_error
+    raise PermissionDenied(f"Organização '{organizacao.nome_fantasia}' inativa.")
+django.core.exceptions.PermissionDenied: Organização 'Assembleia de Deus Ministerio dos Vales' inativa.
+Erro inesperado ao obter organização para usuário clarice@gmail.com
+Traceback (most recent call last):
+  File "C:\Gereigreja\financeiro\views.py", line 68, in get_organizacao_or_error
+    raise PermissionDenied(f"Organização '{organizacao.nome_fantasia}' inativa.")
+django.core.exceptions.PermissionDenied: Organização 'Assembleia de Deus Ministerio dos Vales' inativa.
+Erro inesperado ao obter organização para usuário clarice@gmail.com
+Traceback (most recent call last):
+  File "C:\Gereigreja\financeiro\views.py", line 68, in get_organizacao_or_error
+    raise PermissionDenied(f"Organização '{organizacao.nome_fantasia}' inativa.")
+django.core.exceptions.PermissionDenied: Organização 'Assembleia de Deus Ministerio dos Vales' inativa.
+Erro inesperado ao obter organização para usuário clarice@gmail.com
+Traceback (most recent call last):
+  File "C:\Gereigreja\financeiro\views.py", line 68, in get_organizacao_or_error
+    raise PermissionDenied(f"Organização '{organizacao.nome_fantasia}' inativa.")
+django.core.exceptions.PermissionDenied: Organização 'Assembleia de Deus Ministerio dos Vales' inativa.
+Erro inesperado ao obter organização para usuário clarice@gmail.com
+Traceback (most recent call last):
+  File "C:\Gereigreja\financeiro\views.py", line 68, in get_organizacao_or_error
+    raise PermissionDenied(f"Organização '{organizacao.nome_fantasia}' inativa.")
+django.core.exceptions.PermissionDenied: Organização 'Assembleia de Deus Ministerio dos Vales' inativa.
+Erro inesperado ao obter organização para usuário clarice@gmail.com
+Traceback (most recent call last):
+  File "C:\Gereigreja\financeiro\views.py", line 68, in get_organizacao_or_error
+    raise PermissionDenied(f"Organização '{organizacao.nome_fantasia}' inativa.")
+django.core.exceptions.PermissionDenied: Organização 'Assembleia de Deus Ministerio dos Vales' inativa.

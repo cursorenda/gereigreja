@@ -20,6 +20,7 @@ from django.db.models import Sum, Q
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 
 from .utils import has_finance_view_permission, has_finance_edit_permission, get_allowed_churches_for_user, is_finance_leader, is_admin_org # Importar is_admin_org
+from core.utils import get_organizacao_or_error # Importar de core.utils
 
 # --- FIM IMPORT ---
 from decimal import Decimal # Import Decimal
@@ -29,6 +30,14 @@ from datetime import date, datetime, timedelta # Adicionar timedelta aqui
 from num2words import num2words
 from django.db import transaction # Adicionar import para transações atômicas
 import json # Adicionar esta linha
+from django.urls import reverse
+from core.decorators import verificar_assinatura_valida # Ou o caminho correto
+
+@login_required
+@verificar_assinatura_valida # Nosso novo decorator
+def minha_view_protegida(request):
+    organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
+    # ... resto da view ...
 
 
 
@@ -42,68 +51,54 @@ except locale.Error:
     locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252') # Fallback para Windows
 logger = logging.getLogger(__name__)
 
-# --- Função auxiliar para obter organização (copiada/adaptada de secretaria) ---
-def get_organizacao_or_error(request):
-    """
-    Obtém a organização do usuário logado.
-    Levanta PermissionDenied se não autenticado, superuser, ou erro de perfil.
-    Levanta Http404 se o perfil não tem organização associada.
-    Retorna o objeto Organizacao em caso de sucesso.
-    """
-    if not request.user.is_authenticated:
-        raise PermissionDenied("Usuário não autenticado.")
-    try:
-        if request.user.is_superuser:
-             messages.info(request, "Superusuários devem usar o painel Admin para secretaria global.")
-             raise PermissionDenied("Superusuário não acessa esta área.")
-        perfil = request.user.perfil
-        organizacao = perfil.organizacao
-        if not organizacao:
-            messages.error(request, "Seu usuário não está associado a nenhuma organização.")
-            raise Http404("Organização não encontrada para o usuário.")
-        return organizacao
-    except PerfilUsuario.DoesNotExist:
-        messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
-        raise PermissionDenied("Perfil de usuário não encontrado.")
-    except Exception as e:
-         logger.exception(f"Erro inesperado ao obter organização para usuário {request.user.username}")
-         messages.error(request, f"Erro interno ao obter organização: {e}")
-         raise PermissionDenied("Erro interno ao obter organização.") # Mantido, pois é um erro de configuração do usuário/perfil
-# --- Fim função auxiliar ---
+
+## A função get_organizacao_or_error foi movida para core.utils.py ##
 
 
 @login_required
 @user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Protege a view
-def painel_financeiro(request):
+def painel_financeiro(request): # Esta view será adaptada para usar request.igreja_ativa
     """ Painel/Dashboard Financeiro da Organização ou de uma Igreja específica. """
     organizacao = get_organizacao_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user) # Igrejas permitidas
         # --- FILTRO DE IGREJA ---
-        igreja_id_filtro = request.GET.get('igreja_filtro', '') # Pega o ID da igreja do GET, default '' (Toda Org)
-        igreja_selecionada = None
-        # Mostra apenas igrejas permitidas no dropdown de filtro
-        igrejas_org = allowed_churches.order_by('nome_igreja')
+        igreja_id_filtro_get = request.GET.get('igreja_filtro', '') # Pega o ID da igreja do GET, default ''
+        igreja_selecionada_para_dados = None # Igreja usada para filtrar os DADOS do painel
 
-        if igreja_id_filtro:
-            try:
-                # Tenta pegar a igreja selecionada, garantindo que pertence à organização E às permitidas
-                igreja_obj = get_object_or_404(Igreja, pk=igreja_id_filtro, organizacao=organizacao)
-                if is_admin_org(request.user) or igreja_obj in allowed_churches:
-                    igreja_selecionada = igreja_obj
-                    titulo_dashboard = f"Igreja: {igreja_selecionada.nome_igreja}"
-                else:
-                    messages.warning(request, "Você não tem permissão para ver detalhes desta igreja. Mostrando dados permitidos.")
-                    # Se não tem permissão para a igreja específica, mostra dados gerais permitidos
-                    igreja_id_filtro = ''
-                    titulo_dashboard = f"Organização: {organizacao.nome_fantasia} (Igrejas Permitidas)"
-            except (ValueError, Http404):
-                messages.warning(request, "Igreja selecionada inválida. Mostrando dados permitidos.")
-                igreja_id_filtro = '' # Reseta o filtro se inválido
-                titulo_dashboard = f"Organização: {organizacao.nome_fantasia} (Igrejas Permitidas)"
+        
+        
+        
+        
+        # --- Lógica para usar request.igreja_ativa para filtrar o painel ---
+        # Se uma igreja ativa está selecionada E é permitida para o usuário, use-a como filtro principal
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            igreja_selecionada_para_dados = request.igreja_ativa
+            titulo_dashboard = f"Igreja: {igreja_selecionada_para_dados.nome_igreja}"
+            # Se uma igreja ativa está definida, o filtro de igreja_id_filtro do GET é ignorado para a filtragem principal
+            # e o dropdown de filtro da página deve mostrar apenas a igreja ativa.
+            igrejas_para_filtro_template = Igreja.objects.filter(pk=request.igreja_ativa.pk)
+            igreja_id_filtro_selecionado_template = str(request.igreja_ativa.pk)
         else:
-             # Se nenhum filtro de igreja, mostra dados de todas as igrejas permitidas
-             titulo_dashboard = f"Organização: {organizacao.nome_fantasia} (Igrejas Permitidas)"
+            # Se nenhuma igreja ativa, ou a ativa não é permitida, use o filtro do GET (se houver e for permitido)
+            if igreja_id_filtro_get:
+                try:
+                    igreja_selecionada_para_dados = allowed_churches.get(pk=igreja_id_filtro_get) # Garante que a igreja do GET é permitida
+                    titulo_dashboard = f"Igreja: {igreja_selecionada_para_dados.nome_igreja}"
+                except Igreja.DoesNotExist:
+                    messages.warning(request, "Igreja selecionada inválida ou não permitida. Mostrando dados consolidados.")
+                    igreja_id_filtro_get = '' # Reseta o filtro
+            # Se nenhum filtro do GET e nenhuma igreja ativa, mostra dados de todas as igrejas permitidas
+            if not igreja_selecionada_para_dados:
+                titulo_dashboard = f"Organização: {organizacao.nome_fantasia} (Igrejas Permitidas)"
+
+        
+             # Para o dropdown de filtro na página, mostrar todas as permitidas se nenhuma global estiver ativa
+            igrejas_para_filtro_template = allowed_churches.order_by('nome_igreja')
+            igreja_id_filtro_selecionado_template = igreja_id_filtro_get
+        
+        
+        
         # --- FIM FILTRO DE IGREJA ---
 
         # --- LÓGICA DO FILTRO DE PERÍODO ---
@@ -113,18 +108,21 @@ def painel_financeiro(request):
         data_inicio_mes = data_hoje.replace(day=1)
 
         # Base Querysets - AGORA FILTRADOS PELAS IGREJAS PERMITIDAS ou pela igreja selecionada (se permitida)
-        if igreja_selecionada:
-            receitas_base = Receitas.objects.filter(igreja=igreja_selecionada)
-            despesas_base = Despesas.objects.filter(igreja=igreja_selecionada)
+        # Se igreja_selecionada (do seletor global ou do filtro GET) está definida, filtra por ela
+
+        if igreja_selecionada_para_dados:
+            receitas_base = Receitas.objects.filter(igreja=igreja_selecionada_para_dados)
+            despesas_base = Despesas.objects.filter(igreja=igreja_selecionada_para_dados)
+
         else: # Todas as igrejas permitidas para o usuário
-            receitas_base = Receitas.objects.filter(igreja__in=allowed_churches)
-            despesas_base = Despesas.objects.filter(igreja__in=allowed_churches)
+            receitas_base = Receitas.objects.filter(igreja__in=allowed_churches) # Já filtrado por allowed_churches
+            despesas_base = Despesas.objects.filter(igreja__in=allowed_churches) # Já filtrado por allowed_churches
 
          # --- Base para Contas a Pagar (filtrado por igreja/allowed_churches) ---
-        if igreja_selecionada:
-            contas_pagar_base = ContaPagar.objects.filter(igreja=igreja_selecionada)
+        if igreja_selecionada_para_dados:
+            contas_pagar_base = ContaPagar.objects.filter(igreja=igreja_selecionada_para_dados)
         else:
-            contas_pagar_base = ContaPagar.objects.filter(igreja__in=allowed_churches)
+            contas_pagar_base = ContaPagar.objects.filter(igreja__in=allowed_churches) 
         
         # --- Indicadores de Contas a Pagar ---
         total_contas_pendentes = contas_pagar_base.filter(
@@ -213,7 +211,7 @@ def painel_financeiro(request):
         
         # --- DADOS PARA GRÁFICO DE MOVIMENTAÇÃO POR FECHAMENTOS DE CAIXA (ÚLTIMOS 6) ---
         ultimos_fechamentos_qs = FechamentoCaixa.objects.filter(
-            igreja__in=(allowed_churches if not igreja_selecionada else [igreja_selecionada])
+            igreja__in=(allowed_churches if not igreja_selecionada_para_dados else [igreja_selecionada_para_dados])
         ).order_by('-data_fim')[:6] # Pega os últimos 6 fechamentos
 
         # Inverter a ordem para o gráfico (do mais antigo para o mais recente)
@@ -275,17 +273,20 @@ def painel_financeiro(request):
         # --- FIM DADOS PARA GRÁFICOS MENSAIS ---
         # --- DADOS PARA LISTAGEM DE SALDOS DE CONTAS BANCÁRIAS/CAIXAS ---
         # Filtra contas pela(s) igreja(s) selecionada(s) ou todas as permitidas
-        if igreja_selecionada:
-            contas_bancarias_painel = ContaBancaria.objects.filter(igreja=igreja_selecionada).order_by('nome_identificacao')
+        if igreja_selecionada_para_dados:
+            # Se uma igreja está selecionada, mostra apenas as contas dela
+
+            contas_bancarias_painel = ContaBancaria.objects.filter(igreja=igreja_selecionada_para_dados).order_by('nome_identificacao')
         else:
+            # Se nenhuma igreja selecionada, mostra contas de todas as igrejas permitidas
+
             contas_bancarias_painel = ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao')
-        # --- FIM DADOS PARA LISTAGEM DE SALDOS ---
 
         context = {
             'organizacao': organizacao,
-            'igrejas_org': igrejas_org, # Lista de igrejas permitidas para o filtro
-            'igreja_selecionada': igreja_selecionada, # Objeto da igreja selecionada (ou None)
-            'igreja_id_filtro_selecionado': igreja_id_filtro, # ID selecionado no filtro
+            'igrejas_org': igrejas_para_filtro_template, # Lista de igrejas para o dropdown de filtro da página
+            'igreja_selecionada': igreja_selecionada_para_dados, # Objeto da igreja cujos dados estão sendo mostrados (ou None)
+            'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template, # ID para manter o filtro da página selecionado
             'total_receitas': total_receitas,
             'total_despesas': total_despesas,
             'saldo_geral': saldo_geral,
@@ -331,7 +332,7 @@ def painel_financeiro(request):
         org_id = organizacao.id if 'organizacao' in locals() else 'N/A'
         logger.exception(f"Erro no painel financeiro para organização {org_id}") # Corrigido o nome da função no log
         messages.error(request, f"Ocorreu um erro ao carregar o painel financeiro: {e}")
-        return redirect('index')
+        return redirect('secretaria:dashboard') # Redireciona para o dashboard da secretaria ou outra página de fallback
 
 # ... (restante das views) ...
 
@@ -342,13 +343,23 @@ def lista_receitas(request):
     organizacao = get_organizacao_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
-        receitas_qs = Receitas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'membro').order_by('-data')
+        # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
+        if request.igreja_ativa:
+            # Se uma igreja ativa está selecionada, filtra por ela (garantindo que ela está entre as permitidas)
+            if request.igreja_ativa in allowed_churches: 
+                receitas_qs = Receitas.objects.filter(igreja=request.igreja_ativa).select_related('igreja', 'membro').order_by('-data')
+            else: # Segurança: se a igreja ativa não for permitida, mostra vazio ou todas permitidas
+                receitas_qs = Receitas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'membro').order_by('-data')
+        else:
+            # Se nenhuma igreja ativa, mostra de todas as igrejas permitidas
+            receitas_qs = Receitas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'membro').order_by('-data')
+        # --- Fim Lógica de Filtragem Inicial ---
 
         # Filtros adicionais do GET
         data_inicio = request.GET.get('data_inicio')
         data_fim = request.GET.get('data_fim')
         categoria = request.GET.get('categoria')
-        igreja_id = request.GET.get('igreja')
+        igreja_id_get = request.GET.get('igreja') # Renomeado
         # --- LÓGICA DO FILTRO 'fechado' ---
         # Pega o valor do parâmetro, default para 'false' (aberto) se não vier na URL
         fechado_filter = request.GET.get('fechado', 'false')
@@ -356,12 +367,16 @@ def lista_receitas(request):
         if data_inicio: receitas_qs = receitas_qs.filter(data__gte=data_inicio)
         if data_fim: receitas_qs = receitas_qs.filter(data__lte=data_fim)
         if categoria: receitas_qs = receitas_qs.filter(categoria=categoria)
-        if igreja_id:
-            # Garante que o filtro de igreja só aplique se a igreja estiver nas permitidas (ou se for admin)
-            if is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id).exists():
-                receitas_qs = receitas_qs.filter(igreja_id=igreja_id)
+        # --- Lógica para o filtro de igreja na página (se request.igreja_ativa NÃO estiver definida) ---
+
+        if igreja_id_get:
+            # Este filtro só deve ser aplicado se request.igreja_ativa NÃO estiver definida
+            if not request.igreja_ativa:
+                if is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists():
+                    receitas_qs = receitas_qs.filter(igreja_id=igreja_id_get)
+       
+       
         # --- LÓGICA DO FILTRO 'fechado' ---
-        # Pega o valor do parâmetro, default para 'false' (aberto) se não vier na URL
         fechado_filter = request.GET.get('fechado', 'false')
 
         # Aplica o filtro 'fechado' baseado no valor (seja o da URL ou o default 'false')
@@ -373,7 +388,13 @@ def lista_receitas(request):
         # --- FIM DA LÓGICA DO FILTRO 'fechado' ---
 
         categorias_choices = Receitas.CATEGORIA_CHOICES
-        igrejas_org = allowed_churches # Mostrar apenas igrejas permitidas no filtro
+        # --- Lógica para o dropdown de filtro de igreja no template ---
+        igrejas_para_filtro_template = allowed_churches
+        igreja_id_selecionada_template = igreja_id_get # Para o select do filtro da página
+
+        if request.igreja_ativa:
+            igrejas_para_filtro_template = Igreja.objects.filter(pk=request.igreja_ativa.pk) # Ou desabilitar o filtro
+            igreja_id_selecionada_template = str(request.igreja_ativa.pk) # Para o select do filtro da página
 
         # Permissão de edição para o template
         can_edit = has_finance_edit_permission(request.user)
@@ -382,12 +403,12 @@ def lista_receitas(request):
             'receitas': receitas_qs,
             'organizacao': organizacao,
             'categorias_choices': categorias_choices,
-            'igrejas_org': igrejas_org,
+            'igrejas_org': igrejas_para_filtro_template, # Usar a lista ajustada
             'data_inicio': data_inicio,
             'data_fim': data_fim,
             'categoria_selecionada': categoria,
-            'igreja_selecionada': igreja_id,
-            # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta
+            'igreja_selecionada': igreja_id_selecionada_template, # ID para o select do filtro da página
+            # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta no filtro da página
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
         }
@@ -403,6 +424,7 @@ def lista_receitas(request):
 def cadastrar_receita(request):
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
+    igreja_padrao_para_form = None # Inicializa
 
     # Se não for admin e não tiver igrejas permitidas, não pode criar
     if not is_admin_org(request.user) and not allowed_churches.exists():
@@ -412,7 +434,7 @@ def cadastrar_receita(request):
     if request.method == 'POST':
         # Passa organização para o form filtrar igrejas e membros (se necessário)
         # Passa allowed_churches para o form filtrar o campo igreja
-        form = ReceitaForm(request.POST, organizacao=organizacao, allowed_churches=allowed_churches)
+        form = ReceitaForm(request.POST, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
         if form.is_valid():
             try:
                 nova_receita = form.save(commit=False)
@@ -446,17 +468,22 @@ def cadastrar_receita(request):
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
  
-        initial_data = {}
-        # Tenta pré-selecionar a igreja e a conta padrão para receitas
-        if allowed_churches.count() == 1:
-            igreja_padrao = allowed_churches.first()
-            initial_data['igreja'] = igreja_padrao
-            if igreja_padrao.conta_padrao_receitas:
-                initial_data['conta_bancaria'] = igreja_padrao.conta_padrao_receitas
-        elif is_admin_org(request.user) and organizacao.igrejas.count() > 0: # Se admin e houver igrejas
-            pass # Poderia tentar pegar a primeira igreja da organização, ou deixar sem
+        initial_form_data = {} # Dicionário para passar valores iniciais
+        
+        # --- Lógica para pré-selecionar a igreja no formulário GET ---
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            # Se uma igreja ativa está selecionada e é permitida, pré-seleciona ela
+            initial_form_data['igreja'] = request.igreja_ativa
+            igreja_padrao_para_form = request.igreja_ativa # Passa para o form usar a conta padrão
+        elif allowed_churches.count() == 1:
+            # Se nenhuma igreja ativa, mas o usuário só tem uma permitida, pré-seleciona essa
+            igreja_unica_permitida = allowed_churches.first()
+            initial_form_data['igreja'] = igreja_unica_permitida
+            igreja_padrao_para_form = igreja_unica_permitida # Passa para o form usar a conta padrão
+        # Se múltiplas igrejas permitidas e nenhuma ativa, o campo igreja ficará vazio (usuário seleciona)
 
-        form = ReceitaForm(initial=initial_data, organizacao=organizacao, allowed_churches=allowed_churches)
+
+        form = ReceitaForm(initial=initial_form_data, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
 
  
     context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Cadastrar Receita'}
@@ -562,11 +589,18 @@ def lista_despesas(request):
         allowed_churches = get_allowed_churches_for_user(request.user)
         despesas_qs = Despesas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'categoria').order_by('-data')
 
+        # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            despesas_qs = despesas_qs.filter(igreja=request.igreja_ativa)
+        # Se nenhuma igreja ativa, o filtro já é por igreja__in=allowed_churches (definido acima)
+        # --- Fim Lógica de Filtragem Inicial ---
+        
         # Filtros adicionais
+
         data_inicio = request.GET.get('data_inicio')
         data_fim = request.GET.get('data_fim')
         categoria_id = request.GET.get('categoria')
-        igreja_id = request.GET.get('igreja')
+        igreja_id_get = request.GET.get('igreja') # Renomeado para evitar conflito com variável de contexto
         # --- LÓGICA DO FILTRO 'fechado' ---
         # Pega o valor do parâmetro, default para 'false' (aberto) se não vier na URL
         fechado_filter = request.GET.get('fechado', 'false')
@@ -574,9 +608,10 @@ def lista_despesas(request):
         if data_inicio: despesas_qs = despesas_qs.filter(data__gte=data_inicio)
         if data_fim: despesas_qs = despesas_qs.filter(data__lte=data_fim)
         if categoria_id: despesas_qs = despesas_qs.filter(categoria_id=categoria_id)
-        if igreja_id:
-            if is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id).exists():
-                despesas_qs = despesas_qs.filter(igreja_id=igreja_id)
+        if igreja_id_get:
+            # Este filtro só deve ser aplicado se request.igreja_ativa NÃO estiver definida
+            if not request.igreja_ativa and (is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists()):
+                despesas_qs = despesas_qs.filter(igreja_id=igreja_id_get)
 
         # Aplica o filtro 'fechado' baseado no valor (seja o da URL ou o default 'false')
         if fechado_filter == 'true':
@@ -586,7 +621,11 @@ def lista_despesas(request):
         # --- FIM DA LÓGICA DO FILTRO 'fechado' ---
 
         categorias_org = CategoriaDespesa.objects.filter(organizacao=organizacao)
-        igrejas_org = allowed_churches # Mostrar apenas igrejas permitidas no filtro
+        # --- Lógica para o dropdown de filtro de igreja no template ---        
+        igrejas_para_filtro_template = allowed_churches
+        igreja_id_selecionada_template = igreja_id_get # Para o select do filtro da página
+        if request.igreja_ativa: igrejas_para_filtro_template = Igreja.objects.filter(pk=request.igreja_ativa.pk) # Ou desabilitar o filtro
+        if request.igreja_ativa: igreja_id_selecionada_template = str(request.igreja_ativa.pk)
 
         # Permissão de edição para o template
         can_edit = has_finance_edit_permission(request.user)
@@ -594,12 +633,12 @@ def lista_despesas(request):
         context = {
             'despesas': despesas_qs,
             'organizacao': organizacao,
-            'categorias_org': categorias_org,
-            'igrejas_org': igrejas_org,
+            'categorias_org': categorias_org, # Continua mostrando todas as categorias da org
+            'igrejas_org': igrejas_para_filtro_template, 
             'data_inicio': data_inicio,
             'data_fim': data_fim,
             'categoria_selecionada': categoria_id,
-            'igreja_selecionada': igreja_id,
+            'igreja_selecionada': igreja_id_selecionada_template, # ID para o select do filtro da página
             # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
@@ -616,6 +655,7 @@ def lista_despesas(request):
 def cadastrar_despesa(request):
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
+    igreja_padrao_para_form = None # Inicializa
 
     # Se não for admin e não tiver igrejas permitidas, não pode criar
     if not is_admin_org(request.user) and not allowed_churches.exists():
@@ -623,7 +663,7 @@ def cadastrar_despesa(request):
         return redirect('financeiro:lista_despesas')
 
     if request.method == 'POST':
-        form = DespesaForm(request.POST, organizacao=organizacao, allowed_churches=allowed_churches)
+        form = DespesaForm(request.POST, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
         if form.is_valid():
             try:
                 nova_despesa = form.save(commit=False)
@@ -651,16 +691,24 @@ def cadastrar_despesa(request):
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        initial_data = {}
-        # Tenta pré-selecionar a igreja e a conta padrão para despesas
-        if allowed_churches.count() == 1:
-            igreja_padrao = allowed_churches.first()
-            initial_data['igreja'] = igreja_padrao
-            if igreja_padrao.conta_padrao_despesas:
-                initial_data['conta_bancaria'] = igreja_padrao.conta_padrao_despesas
-        elif is_admin_org(request.user) and organizacao.igrejas.count() > 0:
-            pass
-        form = DespesaForm(initial=initial_data, organizacao=organizacao, allowed_churches=allowed_churches)
+      
+        initial_form_data = {} # Dicionário para passar valores iniciais
+        
+        # --- Lógica para pré-selecionar a igreja no formulário GET ---
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            # Se uma igreja ativa está selecionada e é permitida, pré-seleciona ela
+            initial_form_data['igreja'] = request.igreja_ativa
+            igreja_padrao_para_form = request.igreja_ativa # Passa para o form usar a conta padrão
+        elif allowed_churches.count() == 1:
+            # Se nenhuma igreja ativa, mas o usuário só tem uma permitida, pré-seleciona essa
+            igreja_unica_permitida = allowed_churches.first()
+            initial_form_data['igreja'] = igreja_unica_permitida
+            igreja_padrao_para_form = igreja_unica_permitida # Passa para o form usar a conta padrão
+        # Se múltiplas igrejas permitidas e nenhuma ativa, o campo igreja ficará vazio (usuário seleciona)
+
+
+
+        form = DespesaForm(initial=initial_form_data, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
 
     context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Cadastrar Despesa'}
     return render(request, 'financeiro/despesas/form_despesa.html', context)
@@ -772,7 +820,12 @@ def lista_contas_bancarias(request):
     organizacao = get_organizacao_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
-        contas_bancarias = ContaBancaria.objects.filter(igreja__in=allowed_churches).select_related('igreja').order_by('igreja__nome_igreja', 'nome_identificacao')
+        # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            contas_bancarias = ContaBancaria.objects.filter(igreja=request.igreja_ativa).select_related('igreja').order_by('nome_identificacao')
+        else: # Se nenhuma igreja ativa, mostra de todas as permitidas
+            contas_bancarias = ContaBancaria.objects.filter(igreja__in=allowed_churches).select_related('igreja').order_by('igreja__nome_igreja', 'nome_identificacao')
+        # --- Fim Lógica de Filtragem Inicial ---
 
         can_edit = has_finance_edit_permission(request.user)
 
@@ -793,30 +846,59 @@ def lista_contas_bancarias(request):
 def criar_conta_bancaria(request):
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
+    igreja_inicial_para_form = None 
+
 
     if not is_admin_org(request.user) and not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar contas ou não está associado a nenhuma igreja específica.")
         return redirect('financeiro:lista_contas_bancarias')
 
     if request.method == 'POST':
-        form = ContaBancariaForm(request.POST, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches)
+        # Ao submeter, o form pega a igreja do request.POST se o campo estiver habilitado,
+        # ou usa a instance.igreja se estiver desabilitado (o que não é o caso aqui para criação)
+        # Passamos igreja_selecionada_inicial=request.igreja_ativa para o form __init__
+        # para que ele possa desabilitar o campo e torná-lo não obrigatório se necessário.
+        form = ContaBancariaForm(request.POST, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa)
         if form.is_valid():
             try:
                 nova_conta = form.save(commit=False)
-                # Validação extra (form já deve ter validado, mas é bom garantir)
+                
+                # Se request.igreja_ativa foi usada para desabilitar o campo 'igreja' no form,
+                # form.cleaned_data['igreja'] será None (porque required=False).
+                # Precisamos definir a igreja explicitamente.
+                if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+                    nova_conta.igreja = request.igreja_ativa
+                elif not nova_conta.igreja: # Se a igreja não foi definida (nem pelo form, nem pelo global)
+                    messages.error(request, "A igreja para a nova conta não foi definida. Por favor, selecione uma igreja.")
+                    raise ValueError("Igreja não definida para a nova conta.")
+
+                # Validação de segurança adicional
+
                 if not is_admin_org(request.user) and nova_conta.igreja not in allowed_churches:
-                    messages.error(request, "Erro: Igreja selecionada inválida.")
+                    messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
+                    # Não levanta exceção aqui, deixa o form ser re-renderizado com a mensagem
                 else:
                     nova_conta.save()
                     messages.success(request, f'Conta/Caixa "{nova_conta.nome_identificacao}" para a igreja "{nova_conta.igreja.nome_igreja}" cadastrada com sucesso!')
                     return redirect('financeiro:lista_contas_bancarias')
+            except ValueError as ve: # Captura o ValueError que levantamos
+                pass # A mensagem já foi adicionada, o formulário será re-renderizado
+
             except Exception as e:
                  logger.exception(f"Erro ao salvar conta bancária para organização {organizacao.id}")
                  messages.error(request, f'Erro ao salvar conta/caixa: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        form = ContaBancariaForm(organizacao=organizacao, user=request.user, allowed_churches=allowed_churches)
+  
+        # --- Lógica para pré-selecionar a igreja no formulário GET ---
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            igreja_inicial_para_form = request.igreja_ativa
+        elif allowed_churches.count() == 1 and not is_admin_org(request.user): # Admin Org pode querer escolher
+
+            igreja_unica_permitida = allowed_churches.first()
+            igreja_inicial_para_form = igreja_unica_permitida
+        form = ContaBancariaForm(organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_inicial_para_form)
 
     context = {
         'form': form,
@@ -908,10 +990,16 @@ def excluir_conta_bancaria(request, pk):
 def lista_fechamentos_caixa(request):
     """ Lista os fechamentos de caixa da organização. """
     organizacao = get_organizacao_or_error(request)
+    
+    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+           fechamentos = FechamentoCaixa.objects.filter(igreja=request.igreja_ativa).select_related('igreja').order_by('-data_fim')
+        else:        
+        # allowed_churches já foi definida no início do try
         # Filtra pelos fechamentos das igrejas permitidas
-        fechamentos = FechamentoCaixa.objects.filter(igreja__in=allowed_churches).select_related('igreja').order_by('-data_fim')
+            fechamentos = FechamentoCaixa.objects.filter(igreja__in=allowed_churches).select_related('igreja').order_by('-data_fim')
         # Permissão para criar novo fechamento
         can_edit = has_finance_edit_permission(request.user)
         context = {
@@ -937,13 +1025,29 @@ def criar_fechamento_caixa(request):
     """
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
-    # Passa igrejas permitidas para o form
-    form = FechamentoCaixaForm(request.POST or None, organizacao=organizacao, allowed_churches=allowed_churches)
+
+    igreja_inicial_para_form = None
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        igreja_inicial_para_form = request.igreja_ativa
+    elif allowed_churches.count() == 1 and not is_admin_org(request.user):
+        igreja_inicial_para_form = allowed_churches.first()
+
+    form = FechamentoCaixaForm(request.POST or None, 
+                               organizacao=organizacao, 
+                               user=request.user, # Adicionado user para consistência
+                               allowed_churches=allowed_churches, 
+                               igreja_selecionada_inicial=igreja_inicial_para_form)
+
+    
 
     if request.method == 'POST' and form.is_valid():
         # Formulário inicial é válido, vamos buscar dados para pré-visualização
         try:
-            igreja_selecionada = form.cleaned_data['igreja']
+            # Se a igreja foi desabilitada no form, cleaned_data['igreja'] pode ser None
+            if igreja_inicial_para_form and form.fields['igreja'].disabled:
+                igreja_selecionada = igreja_inicial_para_form
+            else:
+                igreja_selecionada = form.cleaned_data.get('igreja')
             data_inicio = form.cleaned_data['data_inicio']
             data_fim = form.cleaned_data['data_fim']
             observacoes = form.cleaned_data.get('observacoes', '') # Pega observações para passar adiante
@@ -951,7 +1055,7 @@ def criar_fechamento_caixa(request):
             # 1. Verificar se a igreja pertence às permitidas (redundante se o form filtrou, mas seguro)
             if not is_admin_org(request.user) and igreja_selecionada not in allowed_churches:
                 messages.error(request, "Erro: Igreja selecionada inválida.")
-                # Re-renderiza o form inicial com o erro
+                # Re-renderiza o form inicial com o erro, passando o form já instanciado
                 context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
                 return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
 
@@ -962,7 +1066,7 @@ def criar_fechamento_caixa(request):
             ).exists()
             if sobreposicao:
                 messages.error(request, f"Já existe um fechamento de caixa para a igreja '{igreja_selecionada.nome_igreja}' que se sobrepõe ao período selecionado.")
-                # Re-renderiza o form inicial com o erro
+                # Re-renderiza o form inicial com o erro, passando o form já instanciado
                 context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
                 return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
 
@@ -996,16 +1100,15 @@ def criar_fechamento_caixa(request):
         except Exception as e:
             logger.exception(f"Erro ao preparar pré-visualização do fechamento para organização {organizacao.id}")
             messages.error(request, f'Erro ao preparar pré-visualização: {e}')
-            # Volta para o form inicial em caso de erro inesperado
+            # Volta para o form inicial em caso de erro inesperado, passando o form já instanciado
             context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
             return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
-        # else: # Se o form NÃO for válido (continua daqui)
-        #    print("-" * 20)
-        #    print("Formulário inválido!")
-        #    print("Erros do formulário:", form.errors)
-        #    print("Erros não relacionados a campos:", form.non_field_errors())
-        #    print("-" * 20)
-        #    messages.error(request, 'Por favor, corrija os erros no formulário.')
+        
+        
+        else: # Se o form NÃO for válido no POST
+            # A mensagem de erro já deve ter sido adicionada pelo form.errors
+            # Apenas re-renderiza o template com o form contendo os erros.
+            pass # O código abaixo do if/else já lida com isso
 
     # Se GET ou form inválido no POST, renderiza o form inicial
     context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
@@ -1461,12 +1564,20 @@ def excluir_categoria_despesa(request, pk):
 def lista_contas_pagar(request):
     """ Lista as contas a pagar da organização, com filtros. """
     organizacao = get_organizacao_or_error(request)
+    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
+    
     try:
-        allowed_churches = get_allowed_churches_for_user(request.user)
-        # Filtra contas pela organização E pelas igrejas permitidas
-        contas_qs = ContaPagar.objects.filter(organizacao=organizacao, igreja__in=allowed_churches).select_related(
-            'igreja', 'fornecedor', 'categoria', 'conta_debito' # Incluir conta_debito
-        ).order_by('data_vencimento', 'status') # Ordenar por vencimento
+        allowed_churches = get_allowed_churches_for_user(request.user) # Base de igrejas permitidas
+        igreja_contexto_filtro_dados = None # Igreja que efetivamente filtrará os dados principais
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            igreja_contexto_filtro_dados = request.igreja_ativa
+            contas_qs = ContaPagar.objects.filter(organizacao=organizacao, igreja=request.igreja_ativa).select_related(
+                'igreja', 'fornecedor', 'categoria', 'conta_debito').order_by('data_vencimento', 'status')
+        else:        
+             # Se nenhuma igreja ativa globalmente, começa com todas as permitidas
+            contas_qs = ContaPagar.objects.filter(organizacao=organizacao, igreja__in=allowed_churches).select_related(
+                'igreja', 'fornecedor', 'categoria', 'conta_debito'
+            ).order_by('data_vencimento', 'status')
 
         # --- Filtros GET ---
         query = request.GET.get('q', '')
@@ -1474,7 +1585,7 @@ def lista_contas_pagar(request):
         venc_inicio = request.GET.get('venc_inicio', '')
         venc_fim = request.GET.get('venc_fim', '')
         igreja_id = request.GET.get('igreja', '')
-        fornecedor_id = request.GET.get('fornecedor', '')
+        fornecedor_id_get = request.GET.get('fornecedor', '')
 
         if query:
             contas_qs = contas_qs.filter(
@@ -1489,11 +1600,17 @@ def lista_contas_pagar(request):
         if venc_fim:
             contas_qs = contas_qs.filter(data_vencimento__lte=venc_fim)
         if igreja_id:
-            # Garante que o filtro de igreja só aplique se a igreja estiver nas permitidas
-            if is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id).exists():
+
+            # Este filtro só deve ser aplicado se request.igreja_ativa NÃO estiver definida
+            if not request.igreja_ativa and (is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id).exists()):
                 contas_qs = contas_qs.filter(igreja_id=igreja_id)
-        if fornecedor_id:
-            contas_qs = contas_qs.filter(fornecedor_id=fornecedor_id)
+                try: # Tenta definir o contexto de dados se um filtro GET de igreja foi aplicado
+                    igreja_contexto_filtro_dados = allowed_churches.get(pk=igreja_id)
+                except Igreja.DoesNotExist:
+                    pass # Mantém igreja_contexto_filtro_dados como None ou o valor de request.igreja_ativa
+
+        if fornecedor_id_get:
+            contas_qs = contas_qs.filter(fornecedor_id=fornecedor_id_get)
 
         # Opcional: Atualizar status para VENCIDA (pode impactar performance)
         # hoje = timezone.now().date()
@@ -1502,7 +1619,18 @@ def lista_contas_pagar(request):
         # ).update(status='VEN')
 
         # Para os filtros no template
-        igrejas_org = allowed_churches # Mostrar apenas igrejas permitidas
+        # --- Lógica para o dropdown de filtro de igreja no template ---
+        
+
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            igrejas_para_filtro_template = Igreja.objects.filter(pk=request.igreja_ativa.pk)
+            igreja_id_selecionada_template = str(request.igreja_ativa.pk)
+        else:
+            igrejas_para_filtro_template = allowed_churches
+            igreja_id_selecionada_template = igreja_id # O que foi passado no GET
+        
+        
+        
         fornecedores_org = Fornecedor.objects.filter(organizacao=organizacao, ativo=True)
 
         # Permissão para criar/pagar
@@ -1512,15 +1640,15 @@ def lista_contas_pagar(request):
             'contas': contas_qs,
             'organizacao': organizacao,
             'status_choices': ContaPagar.STATUS_CHOICES,
-            'igrejas_org': igrejas_org,
+            'igrejas_org': igrejas_para_filtro_template, # Usar a lista ajustada
             'fornecedores_org': fornecedores_org,
             # Passar filtros atuais de volta
             'current_q': query,
             'current_status': status_filtro,
             'current_venc_inicio': venc_inicio,
             'current_venc_fim': venc_fim,
-            'current_igreja': igreja_id,
-            'current_fornecedor': fornecedor_id,
+            'current_igreja': igreja_id_selecionada_template, # ID para o select do filtro da página
+            'current_fornecedor': fornecedor_id_get,
             'can_edit_finance': can_edit,
         }
         return render(request, 'financeiro/contas_pagar/lista_contas_pagar.html', context)
@@ -1534,6 +1662,8 @@ def lista_contas_pagar(request):
 def criar_conta_pagar(request):
     """ Cria uma nova conta a pagar (ou uma parcela). """
     organizacao = get_organizacao_or_error(request)
+    igreja_padrao_para_form = None # Inicializa
+
     allowed_churches = get_allowed_churches_for_user(request.user)
 
     # Se não for admin e não tiver igrejas permitidas, não pode criar
@@ -1541,13 +1671,22 @@ def criar_conta_pagar(request):
         messages.error(request, "Você não tem permissão para adicionar contas a pagar ou não está associado a nenhuma igreja específica.")
         return redirect('financeiro:lista_contas_pagar')
 
-    if request.method == 'POST':
-        form = ContaPagarForm(request.POST, organizacao=organizacao, allowed_churches=allowed_churches)
+    if request.method == 'POST': # O form já valida se a igreja selecionada é permitida
+        form = ContaPagarForm(request.POST,
+                              organizacao=organizacao,
+                              allowed_churches=allowed_churches,
+                              user=request.user, # Passar o usuário
+                              igreja_selecionada_inicial=request.igreja_ativa) # Passar igreja ativa
         if form.is_valid():
             try:
                 conta = form.save(commit=False)
                 conta.organizacao = organizacao
                 conta.usuario_criacao = request.user
+                # Se o campo igreja foi desabilitado e uma igreja ativa foi passada, usar a igreja ativa
+                if form.fields['igreja'].disabled and request.igreja_ativa:
+                    conta.igreja = request.igreja_ativa
+
+                
                 conta.status = 'PEN' # Garante que começa como Pendente
 
                 # Validações extras
@@ -1567,9 +1706,26 @@ def criar_conta_pagar(request):
         else:
             messages.error(request, "Formulário inválido. Verifique os campos.")
     else:
-        form = ContaPagarForm(organizacao=organizacao, allowed_churches=allowed_churches)
+        initial_form_data = {} # Dicionário para passar valores iniciais
+        
+        # --- Lógica para pré-selecionar a igreja no formulário GET ---
+        # A pré-seleção agora é feita no __init__ do form ao passar igreja_selecionada_inicial
+        # Mas podemos manter a lógica de initial_form_data para outros campos se necessário.
+        # O importante é passar igreja_selecionada_inicial para o form.
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches: # Mantido para clareza, mas o form usa igreja_selecionada_inicial
+            initial_form_data['igreja'] = request.igreja_ativa
+        elif allowed_churches.count() == 1:
+            igreja_unica_permitida = allowed_churches.first()
+            initial_form_data['igreja'] = igreja_unica_permitida
 
-    context = {
+        form = ContaPagarForm(initial=initial_form_data, organizacao=organizacao, allowed_churches=allowed_churches)
+
+    form = ContaPagarForm(initial=initial_form_data,
+                              organizacao=organizacao,
+                              allowed_churches=allowed_churches,
+                              user=request.user, # Passar o usuário
+                              igreja_selecionada_inicial=request.igreja_ativa) # Passar igreja ativa
+    context = {        
         'form': form,
         'organizacao': organizacao,
         'titulo_pagina': 'Criar Nova Conta a Pagar / Parcela'
@@ -1599,23 +1755,40 @@ def registrar_pagamento_conta_pagar(request, pk):
                     if conta_paga.conta_debito and conta_paga.conta_debito.igreja.organizacao != organizacao:
                         raise ValidationError("Conta de débito selecionada inválida.")
 
-                    conta_paga.save() # Salva a conta com status 'PAG' e dados do pagamento
+                    # Salva a ContaPagar com status 'PAG' e dados do pagamento
+                    # O form já define o status para 'PAG' no seu método save
+                    conta_paga.save()
 
-                    # --- ATUALIZAR SALDO DA CONTA BANCÁRIA/CAIXA ---
-                    if conta_paga.conta_debito and conta_paga.valor_pago is not None:
-                        conta_debitada = conta_paga.conta_debito
-                        valor_saida_liquido = conta_paga.valor_pago
-                        if conta_paga.juros_multa: # Adiciona juros/multa se houver
-                            valor_saida_liquido += conta_paga.juros_multa
-                        if conta_paga.desconto: # Subtrai desconto se houver
-                            valor_saida_liquido -= conta_paga.desconto
-                        
-                        # Atualiza o saldo da conta/caixa
-                        conta_debitada.saldo_atual -= valor_saida_liquido
-                        conta_debitada.save(update_fields=['saldo_atual']) # Salva apenas o campo saldo_atual
-                        
-                        logger.info(f"Saldo da conta {conta_debitada.nome_identificacao} (ID: {conta_debitada.pk}) atualizado para {conta_debitada.saldo_atual} após pagamento da conta a pagar ID {conta_paga.pk}.")
-                    # --- FIM ATUALIZAR SALDO ---
+                    # --- CRIAR A DESPESA CORRESPONDENTE ---
+                    if conta_paga.status == 'PAG' and conta_paga.valor_pago is not None:
+                        valor_efetivo_despesa = conta_paga.valor_pago
+                        if conta_paga.juros_multa:
+                            valor_efetivo_despesa += conta_paga.juros_multa
+                        if conta_paga.desconto:
+                            valor_efetivo_despesa -= conta_paga.desconto
+
+                        Despesas.objects.create(
+                            igreja=conta_paga.igreja,
+                            data=conta_paga.data_pagamento,
+                            descricao=f"Pagamento: {conta_paga.descricao}",
+                            valor=valor_efetivo_despesa,
+                            categoria=conta_paga.categoria, # Usa a mesma categoria da ContaPagar
+                            observacao=f"Pagamento referente à conta a pagar ID {conta_paga.pk}. {conta_paga.observacoes or ''}".strip(),
+                            fechado=False, # Despesa começa aberta
+                            conta_bancaria=conta_paga.conta_debito,
+                            origem_conta_pagar=conta_paga, # Vincula à ContaPagar
+                            usuario_registro_pagamento=request.user # Usuário que registrou o pagamento
+                        )
+                        logger.info(f"Despesa criada automaticamente para a ContaPagar ID {conta_paga.pk}.")
+
+                        # A ATUALIZAÇÃO DO SALDO DA CONTA BANCÁRIA SERÁ FEITA
+                        # PELO MÉTODO SAVE DA DESPESA OU POR UM SIGNAL.
+                        # NÃO FAREMOS MAIS AQUI DIRETAMENTE.
+                        # Exemplo: se o save da Despesa já atualiza o saldo, não precisamos fazer nada aqui.
+                        # Se não, precisaremos implementar essa lógica no save da Despesa ou em um signal.
+
+                    # --- FIM CRIAR DESPESA ---
+    
 
                     messages.success(request, f"Pagamento da conta '{conta.descricao}' registrado com sucesso!")
                     return redirect('financeiro:lista_contas_pagar')
@@ -1704,10 +1877,16 @@ def editar_conta_pagar(request, pk):
 def detalhe_conta_pagar(request, pk):
     """ Exibe os detalhes completos de uma conta a pagar. """
     organizacao = get_organizacao_or_error(request)
+    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     allowed_churches = get_allowed_churches_for_user(request.user)
-    # Garante que a conta pertence às igrejas permitidas
-    conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, igreja__in=allowed_churches)
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        # Se uma igreja ativa está selecionada, garante que a conta pertence a ela
+        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, igreja=request.igreja_ativa)
+    else:    
+        # Garante que a conta pertence às igrejas permitidas
+        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, igreja__in=allowed_churches)
     # Usar select_related para otimizar
+
     conta = ContaPagar.objects.select_related(
         # Re-busca com select_related após garantir a permissão
         'igreja', 'fornecedor', 'categoria', 'conta_debito', 'usuario_criacao'
@@ -1728,10 +1907,16 @@ def detalhe_conta_pagar(request, pk):
 def cancelar_conta_pagar(request, pk):
     """ Marca uma conta a pagar como Cancelada (requer POST). """
     organizacao = get_organizacao_or_error(request)
+    
+# --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     allowed_churches = get_allowed_churches_for_user(request.user)
-    # Permite cancelar apenas contas Pendentes ou Vencidas E das igrejas permitidas
-    conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
-    # conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN']) # Linha duplicada removida
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        # Se uma igreja ativa está selecionada, garante que a conta pertence a ela
+        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN'], igreja=request.igreja_ativa)
+    else:
+        # Permite cancelar apenas contas Pendentes ou Vencidas E das igrejas permitidas
+        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
+        # conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN']) # Linha duplicada removida
 
     if request.method == 'POST':
         try:
@@ -1750,62 +1935,140 @@ def cancelar_conta_pagar(request, pk):
 # ==================================================
 # ========= FIM: VIEWS PARA CONTAS A PAGAR =========
 # ==================================================
-
 @login_required
-@user_passes_test(is_finance_leader, login_url='core:home') # Apenas líderes financeiros
+@user_passes_test(is_finance_leader, login_url='core:home')
 def painel_lideranca_financeiro(request):
-    organizacao_usuario = request.user.perfil.organizacao
-    # Obtém todas as igrejas que o usuário tem permissão de ver (incluindo subordinadas para líderes)
-    allowed_churches_full_set = get_allowed_churches_for_user(request.user)
-    print(f"DEBUG: Usuário: {request.user.username}, Grupo Lideranca Financeira: {request.user.groups.filter(name='Lideranca Financeira').exists()}")
-    print(f"DEBUG: allowed_churches_full_set: {list(allowed_churches_full_set)}")
-    print(f"DEBUG (Financeiro): allowed_churches_full_set: {list(allowed_churches_full_set)}")
+    organizacao_usuario = get_organizacao_or_error(request)
+    allowed_churches_base_financeiro = get_allowed_churches_for_user(request.user)
 
-    if not allowed_churches_full_set.exists(): # Corrigido: usar allowed_churches_full_set
-        messages.warning(request, "Nenhuma igreja encontrada para visualização no painel de liderança.")
-        return render(request, 'financeiro/painel_lideranca_financeiro.html', {'nenhuma_igreja': True})
+    print(f"DEBUG (Financeiro): Usuário: {request.user.username}, É Líder Financeiro: {is_finance_leader(request.user)}")
+    print(f"DEBUG (Financeiro): allowed_churches_base_financeiro: {list(allowed_churches_base_financeiro)}")
+
+    if not allowed_churches_base_financeiro.exists() and not is_admin_org(request.user):
+        messages.warning(request, "Nenhuma igreja encontrada para visualização no painel de liderança financeira.")
+        return render(request, 'financeiro/painel_lideranca_financeiro.html', {
+            'nenhuma_igreja_permissao': True,
+            'organizacao_usuario': organizacao_usuario,
+            'titulo_dashboard': f"Liderança Financeira - {organizacao_usuario.nome_fantasia}"
+        })
 
     try:
-        # --- Lógica do Filtro de Igreja/Regional ---
-        igreja_id_filtro_selecionado = request.GET.get('igreja_filtro')
-        igreja_selecionada_filtro = None
-        churches_for_queries = allowed_churches_full_set # Começa com o conjunto completo
-        titulo_igreja_filtro = "Consolidado"
+        churches_for_queries = None
+        igreja_em_foco_obj = None # Objeto da igreja que está em foco (pode ser do global ou do filtro da página)
+        ver_apenas_entidade_foco = False # True se formos ver SÓ a igreja_em_foco_obj, sem descendentes
+        
+        # Título do escopo da igreja (será definido abaixo)
+        titulo_escopo_igreja = f"Consolidado - {organizacao_usuario.nome_fantasia}" 
+        # Opções para o dropdown de filtro na página
+        opcoes_filtro_pagina = allowed_churches_base_financeiro.order_by('nome_igreja')
+        # ID selecionado no filtro da página (vem do GET, ou será definido)
+        id_selecionado_filtro_pagina = request.GET.get('igreja_filtro', '')
 
-        if igreja_id_filtro_selecionado:
-            try:
-                igreja_selecionada_filtro = allowed_churches_full_set.get(pk=igreja_id_filtro_selecionado)
-                
-                # Coletar PKs da igreja selecionada e seus descendentes
-                pks_to_include = {igreja_selecionada_filtro.pk}
-                
-                if hasattr(igreja_selecionada_filtro, 'get_descendants'): # Verifica se o método existe
-                    descendants_qs = igreja_selecionada_filtro.get_descendants(include_self=False)
-                    pks_to_include.update(descendants_qs.values_list('pk', flat=True))
-                
-                churches_for_queries = Igreja.objects.filter(
-                    pk__in=list(pks_to_include),
-                    organizacao=organizacao_usuario # Garante que são da mesma organização
+        # --- Lógica principal de determinação do escopo ---
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches_base_financeiro:
+            # 1. Igreja global está ativa e permitida
+            igreja_em_foco_obj = request.igreja_ativa
+            # Dropdown da página mostra a igreja_ativa e suas descendentes permitidas
+            temp_pks_dropdown = {request.igreja_ativa.pk}
+            if hasattr(request.igreja_ativa, 'get_descendants'):
+                desc_dropdown_qs = request.igreja_ativa.get_descendants(include_self=False).filter(
+                    pk__in=allowed_churches_base_financeiro.values_list('pk', flat=True)
                 )
-                
-                titulo_igreja_filtro = igreja_selecionada_filtro.nome_igreja
-            except Igreja.DoesNotExist:
-                messages.warning(request, "A igreja selecionada não é válida ou não está na sua lista de permissões.")
-        # --- Fim Lógica do Filtro de Igreja/Regional ---
+                if desc_dropdown_qs.exists():
+                    temp_pks_dropdown.update(desc_dropdown_qs.values_list('pk', flat=True))
+            opcoes_filtro_pagina = Igreja.objects.filter(pk__in=list(temp_pks_dropdown)).order_by('nome_igreja')
 
-        # Verifica se, após o filtro, ainda existem igrejas para consulta
-        if not churches_for_queries.exists():
-            messages.warning(request, "Nenhuma igreja encontrada para visualização no painel de liderança.")
-            return render(request, 'financeiro/painel_lideranca_financeiro.html', {'nenhuma_igreja': True})
+            # Se o filtro da página não foi usado (value=''), ou se é igual à igreja global
+            if not id_selecionado_filtro_pagina or id_selecionado_filtro_pagina == str(request.igreja_ativa.pk):
+                id_selecionado_filtro_pagina = str(request.igreja_ativa.pk)
+
+                igreja_em_foco_obj = request.igreja_ativa # Confirma o foco
+                # Se o filtro da página é explicitamente a igreja global (e não "Toda Rede DENTRO dela")
+                # E essa igreja global tem descendentes, então o usuário quer ver SÓ a entidade global.
+                if request.GET.get('igreja_filtro') == str(request.igreja_ativa.pk) and \
+                   hasattr(request.igreja_ativa, 'get_descendants') and \
+                   request.igreja_ativa.get_descendants(include_self=False).filter(pk__in=allowed_churches_base_financeiro.values_list('pk', flat=True)).exists():
+                    ver_apenas_entidade_foco = True # Ver apenas a Regional/Sede
+                    titulo_escopo_igreja = f"Apenas: {request.igreja_ativa.nome_igreja}" 
+                else: # É uma folha ou não tem descendentes permitidas, ou o usuário quer a rede
+                    ver_apenas_entidade_foco = False # Mostra a rede (que será só ela se for folha)
+                    titulo_escopo_igreja = f"Rede: {request.igreja_ativa.nome_igreja}" if len(temp_pks_dropdown) > 1 else f"Igreja: {request.igreja_ativa.nome_igreja}"
+
+            else: # Filtro da página selecionou uma descendente específica da igreja global
+                try:
+                    igreja_descendente_selecionada = opcoes_filtro_pagina.get(pk=id_selecionado_filtro_pagina)
+                    igreja_em_foco_obj = igreja_descendente_selecionada
+                    ver_apenas_entidade_foco = True # Ao selecionar uma congregação, vemos apenas ela
+                    titulo_escopo_igreja = f"Igreja: {igreja_descendente_selecionada.nome_igreja}"
+                    id_selecionado_filtro_pagina = str(igreja_descendente_selecionada.pk) # Garante que o ID correto está selecionado
+                except Igreja.DoesNotExist: # Fallback: ID do filtro da página inválido
+                    id_selecionado_filtro_pagina = str(request.igreja_ativa.pk) # Volta para a igreja_ativa
+                    igreja_em_foco_obj = request.igreja_ativa
+                    ver_apenas_entidade_foco = False # Visão de rede da igreja_ativa
+                    titulo_escopo_igreja = f"Rede: {request.igreja_ativa.nome_igreja}" if len(temp_pks_dropdown) > 1 else f"Igreja: {request.igreja_ativa.nome_igreja}"
+        
+        else: # 2. Nenhuma igreja_ativa global, o filtro da página é o principal
+            opcoes_filtro_pagina = allowed_churches_base_financeiro.order_by('nome_igreja') # Todas permitidas
+            if id_selecionado_filtro_pagina: # Se um filtro de página foi usado
+                try:
+                    igreja_em_foco_obj = allowed_churches_base_financeiro.get(pk=id_selecionado_filtro_pagina)
+                    # Quando não há igreja_ativa global, selecionar uma Regional/Sede no filtro da página
+                    # implica ver a rede dessa Regional/Sede (ver_apenas_entidade_foco = False).
+                    ver_apenas_entidade_foco = False 
+                    # O título será definido na próxima seção ao construir pks_to_include
+                except Igreja.DoesNotExist:
+                    messages.warning(request, "Igreja selecionada no filtro inválida. Mostrando consolidado.")
+                    id_selecionado_filtro_pagina = ''
+                    igreja_em_foco_obj = None
+                    titulo_escopo_igreja = f"Consolidado - {organizacao_usuario.nome_fantasia}"
+            else: # Nenhum filtro na página e nenhuma igreja_ativa global (value='')
+                igreja_em_foco_obj = None
+                id_selecionado_filtro_pagina = '' # Garante que "todas" esteja selecionado
+                titulo_escopo_igreja = f"Consolidado - {organizacao_usuario.nome_fantasia}"
+
+        # --- Construir churches_for_queries e título final com base no foco e flag ---
+        if igreja_em_foco_obj:
+            if ver_apenas_entidade_foco:
+                churches_for_queries = Igreja.objects.filter(pk=igreja_em_foco_obj.pk)
+                # O título já foi definido como "Apenas: ..." ou "Igreja: ..."
+            else: # Visão de rede da igreja_em_foco_obj
+                pks_to_include = {igreja_em_foco_obj.pk}
+                if hasattr(igreja_em_foco_obj, 'get_descendants'):
+                    desc_qs = igreja_em_foco_obj.get_descendants(include_self=False).filter(
+                        pk__in=allowed_churches_base_financeiro.values_list('pk', flat=True)
+                    )
+                    if desc_qs.exists():
+                        pks_to_include.update(desc_qs.values_list('pk', flat=True))
+                churches_for_queries = Igreja.objects.filter(pk__in=list(pks_to_include), organizacao=organizacao_usuario)
+                
+                if len(pks_to_include) > 1: # Se incluiu descendentes
+                    if not ver_apenas_entidade_foco: # Só define como rede se não for visão exclusiva
+                        titulo_escopo_igreja = f"Rede: {igreja_em_foco_obj.nome_igreja}"
+                else: # Apenas a igreja em foco (não tem descendentes ou é visão exclusiva implícita)
+                    if not ver_apenas_entidade_foco: # Só define como igreja se não for visão exclusiva
+                        titulo_escopo_igreja = f"Igreja: {igreja_em_foco_obj.nome_igreja}"
+        else: # Visão consolidada de todas as igrejas permitidas ao líder
+            churches_for_queries = allowed_churches_base_financeiro
+
+        if not churches_for_queries or not churches_for_queries.exists():
+            messages.warning(request, "Nenhuma igreja corresponde aos filtros aplicados.")
+            return render(request, 'financeiro/painel_lideranca_financeiro.html', {
+                'nenhuma_igreja_filtro': True, 
+                'organizacao_usuario': organizacao_usuario,
+                'titulo_dashboard': f"Liderança Financeira - {organizacao_usuario.nome_fantasia}",
+                'igrejas_permitidas_filtro': allowed_churches_base_financeiro.order_by('nome_igreja'),
+                'igreja_id_filtro_selecionado': id_selecionado_filtro_pagina,
+            })
 
         # Filtros de período
-        periodo_filtro = request.GET.get('periodo_filtro', 'mes_atual') # Padrão para 'mes_atual'
+        periodo_filtro = request.GET.get('periodo_filtro', 'mes_atual')
         ano_atual = now().year
         mes_atual = now().month
 
-        receitas_base = Receitas.objects.filter(igreja__in=churches_for_queries) # Use churches_for_queries
-        despesas_base = Despesas.objects.filter(igreja__in=churches_for_queries) # Use churches_for_queries
+        receitas_base = Receitas.objects.filter(igreja__in=churches_for_queries)
+        despesas_base = Despesas.objects.filter(igreja__in=churches_for_queries)
 
+        titulo_filtro_periodo = "" 
         if periodo_filtro == 'ano_atual':
             receitas_filtradas = receitas_base.filter(data__year=ano_atual)
             despesas_filtradas = despesas_base.filter(data__year=ano_atual)
@@ -1814,139 +2077,106 @@ def painel_lideranca_financeiro(request):
             receitas_filtradas = receitas_base.filter(data__year=ano_atual, data__month=mes_atual)
             despesas_filtradas = despesas_base.filter(data__year=ano_atual, data__month=mes_atual)
             titulo_filtro_periodo = f"{calendar.month_name[mes_atual].capitalize()}/{ano_atual}"
-        
-
         elif periodo_filtro == 'mes_anterior':
             hoje = now().date()
             primeiro_dia_mes_atual = hoje.replace(day=1)
             ultimo_dia_mes_anterior = primeiro_dia_mes_atual - timedelta(days=1)
             primeiro_dia_mes_anterior = ultimo_dia_mes_anterior.replace(day=1)
-            
             receitas_filtradas = receitas_base.filter(data__gte=primeiro_dia_mes_anterior, data__lte=ultimo_dia_mes_anterior)
             despesas_filtradas = despesas_base.filter(data__gte=primeiro_dia_mes_anterior, data__lte=ultimo_dia_mes_anterior)
             titulo_filtro_periodo = f"{calendar.month_name[primeiro_dia_mes_anterior.month].capitalize()}/{primeiro_dia_mes_anterior.year}"
-    
         else: # 'geral'
             receitas_filtradas = receitas_base
             despesas_filtradas = despesas_base
-            titulo_filtro_periodo = f"Geral ({titulo_igreja_filtro})" # Inclui o nome da igreja/região filtrada
+            titulo_filtro_periodo = "Geral"
+        
+        titulo_dashboard_final = f"Liderança Financeira - {titulo_escopo_igreja} ({titulo_filtro_periodo})"
 
         total_receitas_lideranca = receitas_filtradas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
         total_despesas_lideranca = despesas_filtradas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
         saldo_geral_lideranca = total_receitas_lideranca - total_despesas_lideranca
         
-        # --- DADOS PARA GRÁFICOS COMPARATIVOS POR IGREJA ---
-        # Vamos calcular Receitas, Despesas e Saldo por igreja dentro das allowed_churches
-        # para o período filtrado.
-
-        grafico_comparativo_labels = [] # Nomes das igrejas
+        grafico_comparativo_labels = []
         grafico_comparativo_receitas_data = []
         grafico_comparativo_despesas_data = []
         grafico_comparativo_saldos_data = []
 
-        # Iterate through the allowed churches and calculate totals for each
-        # Order churches for consistent chart display. Use churches_for_queries.
-        churches_to_compare = churches_for_queries.order_by('nome_igreja')
+        churches_to_compare_qs = churches_for_queries.order_by('nome_igreja')
 
-        for igreja in churches_to_compare:
-            # Filter the already filtered querysets by the current church in the loop
-            receitas_igreja = receitas_filtradas.filter(igreja=igreja)
-            despesas_igreja = despesas_filtradas.filter(igreja=igreja)
+        for igreja_obj_loop in churches_to_compare_qs:
+            receitas_igreja_loop = receitas_filtradas.filter(igreja=igreja_obj_loop)
+            despesas_igreja_loop = despesas_filtradas.filter(igreja=igreja_obj_loop)
+            total_rec_igreja_loop = receitas_igreja_loop.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            total_desp_igreja_loop = despesas_igreja_loop.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            saldo_igreja_loop = total_rec_igreja_loop - total_desp_igreja_loop
+            grafico_comparativo_labels.append(igreja_obj_loop.nome_igreja)
+            grafico_comparativo_receitas_data.append(float(total_rec_igreja_loop))
+            grafico_comparativo_despesas_data.append(float(total_desp_igreja_loop))
+            grafico_comparativo_saldos_data.append(float(saldo_igreja_loop))
 
-            total_rec_igreja = receitas_igreja.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
-            total_desp_igreja = despesas_igreja.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
-            saldo_igreja = total_rec_igreja - total_desp_igreja
-
-            # Add data to lists
-            grafico_comparativo_labels.append(igreja.nome_igreja)
-            grafico_comparativo_receitas_data.append(float(total_rec_igreja))
-            grafico_comparativo_despesas_data.append(float(total_desp_igreja))
-            grafico_comparativo_saldos_data.append(float(saldo_igreja))
-
-        # --- FIM DADOS PARA GRÁFICOS COMPARATIVOS ---
-
-         # --- DADOS PARA RANKINGS ---
-        # Usaremos a lista de dados por igreja que já calculamos para os gráficos comparativos
-        # Criar uma lista de dicionários para facilitar a ordenação
         igrejas_com_totais = []
-        for i, igreja in enumerate(churches_to_compare):
+        for i, igreja_obj_rank_loop in enumerate(churches_to_compare_qs):
             igrejas_com_totais.append({
-                'igreja': igreja,
+                'igreja': igreja_obj_rank_loop,
                 'total_receitas': Decimal(grafico_comparativo_receitas_data[i]),
                 'total_despesas': Decimal(grafico_comparativo_despesas_data[i]),
                 'saldo': Decimal(grafico_comparativo_saldos_data[i]),
             })
-
-        # Ranking: Top 5 Igrejas por Receita (Decrescente)
         ranking_top_receitas = sorted(igrejas_com_totais, key=lambda x: x['total_receitas'], reverse=True)[:5]
-
-        # Ranking: Top 5 Igrejas por Saldo Positivo (Decrescente)
-        # Filtra apenas saldos >= 0 antes de ordenar
         ranking_top_saldo_positivo = sorted(
             [item for item in igrejas_com_totais if item['saldo'] >= 0],
             key=lambda x: x['saldo'],
             reverse=True
         )[:5]
-
-        # Ranking: Igrejas com Saldo Negativo (Ordenado por saldo crescente - menos negativo primeiro)
         ranking_saldo_negativo = sorted(
             [item for item in igrejas_com_totais if item['saldo'] < 0],
             key=lambda x: x['saldo']
         )
-        # --- FIM DADOS PARA RANKINGS ---
-
-# --- DADOS PARA GRÁFICO DE PORCENTAGEM DE GASTOS POR CATEGORIA (CONSOLIDADO) ---
+        
         grafico_gastos_cat_labels = []
         grafico_gastos_cat_valores = []
         grafico_gastos_cat_percentuais = []
-
-        if total_despesas_lideranca > 0: # Só calcula se houver despesas
-            # Usar despesas_filtradas que já contém as despesas consolidadas
+        if total_despesas_lideranca > 0:
             categorias_despesa_lideranca_qs = despesas_filtradas.values(
-                'categoria__nome' # Agrupa pelo nome da categoria da despesa
+                'categoria__nome'
             ).annotate(
-                total_categoria=Sum('valor') # Soma os valores para cada categoria
-            ).filter(total_categoria__gt=0).order_by('-total_categoria') # Ordena pela mais cara
-
-            for item in categorias_despesa_lideranca_qs:
-                categoria_nome = item['categoria__nome'] if item['categoria__nome'] else "Sem Categoria"
-                total_cat = item['total_categoria']
-                percentual = (total_cat / total_despesas_lideranca) * 100
-
-                grafico_gastos_cat_labels.append(categoria_nome)
-                grafico_gastos_cat_valores.append(float(total_cat))
-                grafico_gastos_cat_percentuais.append(round(float(percentual), 2))
-        # --- FIM DADOS PARA GRÁFICO DE PORCENTAGEM DE GASTOS ---
-
+                total_categoria=Sum('valor')
+            ).filter(total_categoria__gt=0).order_by('-total_categoria')
+            for item_cat_gasto_loop in categorias_despesa_lideranca_qs:
+                categoria_nome_gasto = item_cat_gasto_loop['categoria__nome'] if item_cat_gasto_loop['categoria__nome'] else "Sem Categoria"
+                total_cat_gasto = item_cat_gasto_loop['total_categoria']
+                percentual_gasto = (total_cat_gasto / total_despesas_lideranca) * 100
+                grafico_gastos_cat_labels.append(categoria_nome_gasto)
+                grafico_gastos_cat_valores.append(float(total_cat_gasto))
+                grafico_gastos_cat_percentuais.append(round(float(percentual_gasto), 2))
 
         context = {
-            'titulo_dashboard': f"Liderança Financeira - {titulo_igreja_filtro}" 
-                                if igreja_id_filtro_selecionado and igreja_selecionada_filtro 
-                                else f"Liderança Financeira - {organizacao_usuario.nome_fantasia} (Rede)",            'total_receitas_lideranca': total_receitas_lideranca,
-            'total_despesas_lideranca': total_despesas_lideranca, # Corrigido: usar total_despesas_lideranca
+            'titulo_dashboard': titulo_dashboard_final,
+            'total_receitas_lideranca': total_receitas_lideranca,
+            'total_despesas_lideranca': total_despesas_lideranca,
             'saldo_geral_lideranca': saldo_geral_lideranca,
             'titulo_filtro_periodo': titulo_filtro_periodo,
             'periodo_filtro_selecionado': periodo_filtro,            
-            'allowed_churches_count': churches_for_queries.count(), # Para mostrar quantas igrejas estão sendo consideradas após o filtro
-             # Dados para os novos gráficos comparativos
-            'grafico_comparativo_labels_json': json.dumps(grafico_comparativo_labels), # Corrigido: usar grafico_comparativo_labels
+            'allowed_churches_count': churches_for_queries.count(),
+            'grafico_comparativo_labels_json': json.dumps(grafico_comparativo_labels),
             'grafico_comparativo_receitas_data_json': json.dumps(grafico_comparativo_receitas_data),
             'grafico_comparativo_despesas_data_json': json.dumps(grafico_comparativo_despesas_data),
             'grafico_comparativo_saldos_data_json': json.dumps(grafico_comparativo_saldos_data),
-             # Dados para Rankings
             'ranking_top_receitas': ranking_top_receitas,
             'ranking_top_saldo_positivo': ranking_top_saldo_positivo,
             'ranking_saldo_negativo': ranking_saldo_negativo,
-            # Dados para o novo gráfico de gastos por categoria
             'grafico_gastos_cat_labels_json': json.dumps(grafico_gastos_cat_labels),
             'grafico_gastos_cat_valores_json': json.dumps(grafico_gastos_cat_valores),
             'grafico_gastos_cat_percentuais_json': json.dumps(grafico_gastos_cat_percentuais),
-             # Dados para o filtro de igreja/regional
-            'igrejas_permitidas_filtro': allowed_churches_full_set.order_by('nome_igreja'),
-            'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado,
-
+            'igrejas_permitidas_filtro': opcoes_filtro_pagina,
+            'igreja_id_filtro_selecionado': id_selecionado_filtro_pagina,
+            'organizacao_usuario': organizacao_usuario, 
         }
         return render(request, 'financeiro/painel_lideranca_financeiro.html', context)
     except Exception as e:
-        messages.error(request, f"Ocorreu um erro ao carregar o painel de liderança: {e}")
-        return render(request, 'financeiro/painel_lideranca_financeiro.html', {'erro_painel': True})
+        logger.exception(f"Erro ao carregar painel de liderança financeira para organização {organizacao_usuario.id if organizacao_usuario else 'N/A'}: {e}")
+        messages.error(request, f"Ocorreu um erro ao carregar o painel de liderança financeira: {e}")
+        return render(request, 'financeiro/painel_lideranca_financeiro.html', {
+            'erro_painel': True, 
+            'organizacao_usuario': organizacao_usuario
+        })

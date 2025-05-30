@@ -6,7 +6,7 @@
 <div class="container-fluid px-4">
     <h1 class="mt-4">{{ titulo_pagina|default:"Convidar Usuário" }}</h1>
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="{% url 'contas:lista_usuarios' %}">Gerenciar Usuários</a></li>
         <li class="breadcrumb-item active">Convidar</li>
     </ol>

@@ -51,7 +51,12 @@ def has_membro_edit_permission(user):
 
 # --- Função para Obter Igrejas Permitidas para secretaria de Membros ---
 
-def get_allowed_churches_for_membros(user):
+def get_allowed_churches_for_membros(user, organizacao_param=None): # Adicionado organizacao_param
+    # ... lógica existente ...
+    # Agora você pode usar 'organizacao_param' dentro da função se necessário
+    # Por exemplo, para filtrar igrejas pela organização do líder.
+    # Se a lógica já usa user.perfil.organizacao, pode não precisar de grandes mudanças internas,
+    # mas a assinatura da função precisa aceitar o argumento.
     """
     Retorna um QuerySet das Igrejas que o usuário tem permissão para acessar no contexto de membros.
     - Admin Org ou Líder Secretaria: Todas as igrejas da organização ou as permitidas no perfil + subordinadas.

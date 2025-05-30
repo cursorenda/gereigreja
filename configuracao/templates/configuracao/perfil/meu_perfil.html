@@ -1,0 +1,98 @@
+{% extends 'base_com_menu.html' %}
+{% load static %} {# <<< ADICIONE ESTA LINHA #}
+
+{% block title %}{{ titulo_pagina }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{{ titulo_pagina }}</h4>
+                    {# --- BOTÃO EDITAR PERFIL --- #}
+                    <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-edit me-1"></i> Editar Perfil
+                    </a>
+                    {# --- FIM BOTÃO EDITAR PERFIL --- #}
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            {# --- FOTO DO PERFIL --- #}
+                            {% if perfil_usuario.foto_perfil %}
+                                <img src="{{ perfil_usuario.foto_perfil.url }}" alt="Foto de Perfil de {{ usuario.get_full_name|default:usuario.username }}" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                            {% else %}
+                                {# Placeholder se não houver foto #}
+                                <img src="{% static 'img/default_avatar.png' %}" alt="Sem Foto de Perfil" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                            {% endif %}
+                            {# Link para editar (será implementado depois) #}
+                            {# <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-sm btn-outline-secondary">Editar Foto</a> #}
+                        </div>
+                        <div class="col-md-8">
+                            {# --- INFORMAÇÕES BÁSICAS DO USUÁRIO --- #}
+                            <h5>Informações da Conta</h5>
+                            <p><strong>Nome Completo:</strong> {{ usuario.get_full_name|default:"Não informado" }}</p>
+                            <p><strong>Nome de Usuário:</strong> {{ usuario.username }}</p>
+                            <p><strong>Email:</strong> {{ usuario.email }}</p>
+                            <p><strong>Membro desde:</strong> {{ usuario.date_joined|date:"d/m/Y" }}</p>
+                             {# --- NOVOS CAMPOS DE CONTATO --- #}
+                            <p><strong>Telefone:</strong> {{ perfil_usuario.telefone_contato|default:"Não informado" }}</p>
+                            <p><strong>WhatsApp:</strong> {{ perfil_usuario.whatsapp_contato|default:"Não informado" }}</p>
+                            {# --- FIM NOVOS CAMPOS DE CONTATO --- #}
+
+                            <p><strong>Último Login:</strong> {{ usuario.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</p>
+                            
+                            {# Link para alterar senha (já existe no menu, mas pode estar aqui também) #}
+                            <a href="{% url 'contas:password_change' %}" class="btn btn-sm btn-outline-secondary mb-3">Alterar Senha</a>
+
+                            <hr>
+
+                            {# --- INFORMAÇÕES DA ORGANIZAÇÃO E PERFIL --- #}
+                            <h5>Informações da Organização</h5>
+                            <p><strong>Organização:</strong> {{ perfil_usuario.organizacao.nome_fantasia }}</p>
+                            
+                            {# Exibir Igrejas Permitidas #}
+                            {% if perfil_usuario.igrejas_permitidas.exists %}
+                                <p><strong>Igrejas Permitidas:</strong></p>
+                                <ul>
+                                    {% for igreja in perfil_usuario.igrejas_permitidas.all %}
+                                        <li>{{ igreja.nome_igreja }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p><strong>Igrejas Permitidas:</strong> Todas da organização (acesso baseado em papel).</p>
+                            {% endif %}
+
+                            {# Exibir Papéis/Grupos #}
+                            <p><strong>Papéis/Grupos:</strong>
+                                {% if usuario.groups.all %}
+                                    {% for group in usuario.groups.all %}
+                                        <span class="badge bg-secondary me-1">{{ group.name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Nenhum papel atribuído.</span>
+                                {% endif %}
+                            </p>
+
+                            {# Link para gerenciar assinatura (já existe no menu, mas pode estar aqui também) #}
+                            <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-sm btn-outline-info mt-2">Gerenciar Assinatura</a>
+
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    Última atualização: {{ perfil_usuario.data_atualizacao|date:"d/m/Y H:i"|default:"N/A" }} {# Assumindo que PerfilUsuario tem data_atualizacao #}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{# Adicionar CSS para a imagem redonda se não estiver usando Bootstrap rounded-circle #}
+<style>
+    /* Se a classe Bootstrap rounded-circle não for suficiente ou você quiser mais controle */
+    /* .rounded-circle {
+        border-radius: 50% !important;
+    } */
+</style>
+{% endblock %}

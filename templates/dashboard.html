@@ -201,12 +201,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const generoTotals = generoData.map(item => item.total);
         const generoCtx = document.getElementById('generoChart');
         if (generoCtx && generoLabels.length > 0) {
+             // Mapeamento de cores para gênero
+            const generoColorMap = {
+                'Feminino': 'rgba(255, 99, 132, 0.7)', // Rosa
+                'Masculino': 'rgba(54, 162, 235, 0.7)', // Azul
+                'Não Informado': 'rgba(201, 203, 207, 0.7)' // Cinza
+            };
+            const backgroundColorsGenero = generoLabels.map(label => generoColorMap[label] || 'rgba(100, 100, 100, 0.7)'); // Cor padrão se não mapeado
+
             new Chart(generoCtx.getContext('2d'), {
                 type: 'pie',
                 data: {
                     labels: generoLabels,
-                    datasets: [{ label: 'Membros', data: generoTotals, borderWidth: 1 }]
-                },
+                    datasets: [{
+                        label: 'Membros',
+                        data: generoTotals,
+                        backgroundColor: backgroundColorsGenero, // Cores aplicadas aqui
+                        borderWidth: 1
+                    }]                },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
             });
         } else if(generoCtx) {

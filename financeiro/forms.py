@@ -52,18 +52,30 @@ class ContaBancariaForm(forms.ModelForm):
         # Pega a organização passada pela view
         organizacao = kwargs.pop('organizacao', None)
         user = kwargs.pop('user', None) # Pega o usuário
-        allowed_churches = kwargs.pop('allowed_churches', None) # Pega as igrejas permitidas
+        allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none()) # Pega as igrejas permitidas, default para none
+        igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None) # Vem da view
         super().__init__(*args, **kwargs)
 
         # Filtra o queryset de 'igreja'
         if user and not is_admin_org(user) and allowed_churches is not None:
             # Se não for admin, filtra pelas igrejas permitidas
-            self.fields['igreja'].queryset = allowed_churches
+            # Garante que allowed_churches seja um queryset
+            if not hasattr(allowed_churches, 'all'): # Se não for queryset (ex: lista)
+                self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
+            else:
+                self.fields['igreja'].queryset = allowed_churches
         elif organizacao: # Se for admin ou não houver filtro específico, usa a organização
             self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
         self.fields['igreja'].empty_label = "Selecione a Igreja"
+        
+         # Se uma igreja inicial (global) foi passada, pré-seleciona e desabilita o campo igreja
+        if igreja_selecionada_inicial and self.fields['igreja'].queryset.filter(pk=igreja_selecionada_inicial.pk).exists():
+            self.initial['igreja'] = igreja_selecionada_inicial
+            self.fields['igreja'].disabled = True
+            self.fields['igreja'].required = False # Para não falhar na validação se desabilitado e não enviado
+
 
         # Tornar campos opcionais no formulário, alinhando com o modelo (blank=True)
         self.fields['instituicao_bancaria'].required = False
@@ -90,30 +102,62 @@ class ReceitaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         organizacao = kwargs.pop('organizacao', None)
         user = kwargs.pop('user', None) # Pega o usuário
-        allowed_churches = kwargs.pop('allowed_churches', None) # Pega as igrejas permitidas
+        allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none()) # Pega as igrejas permitidas, default para none
+        igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None) # Vem da view (request.igreja_ativa)
         super().__init__(*args, **kwargs)
 
         # Filtra igrejas
         if user and not is_admin_org(user) and allowed_churches is not None:
-            # Se não for admin, filtra pelas igrejas permitidas
-            self.fields['igreja'].queryset = allowed_churches
+            if not hasattr(allowed_churches, 'all'): # Se não for queryset (ex: lista)
+                self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
+            else:
+                self.fields['igreja'].queryset = allowed_churches
         elif organizacao: # Se for admin ou não houver filtro específico, usa a organização
             self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
-            # Filtra membros (apenas membros da organização) - MANTÉM FILTRO POR ORGANIZAÇÃO
-            self.fields['membro'].queryset = Membro.objects.filter(igreja__organizacao=organizacao)
-            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('igreja__nome_igreja', 'nome_identificacao')
-
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
-            self.fields['membro'].queryset = Membro.objects.none()
-            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.none()
-
         # Definir empty_labels e required
         self.fields['igreja'].empty_label = "Selecione a Igreja"
         self.fields['membro'].empty_label = "Selecione o Membro (Opcional)"
         self.fields['membro'].required = False # Membro é opcional no modelo
         self.fields['conta_bancaria'].empty_label = "Selecione a Conta/Caixa de Destino (Opcional)"
         self.fields['conta_bancaria'].required = False
+
+        # Se uma igreja inicial (global) foi passada, pré-seleciona e desabilita o campo igreja
+        if igreja_selecionada_inicial and self.fields['igreja'].queryset.filter(pk=igreja_selecionada_inicial.pk).exists():
+            self.initial['igreja'] = igreja_selecionada_inicial
+            self.fields['igreja'].disabled = True
+
+        # Lógica para filtrar Membros e Contas Bancárias com base na igreja
+        # Esta lógica será aplicada ao carregar o form (GET) e ao re-renderizar após um POST inválido.
+        igreja_para_filtrar_campos_dependentes = None
+
+        if self.instance and self.instance.pk and self.instance.igreja: # Editando uma receita existente
+            igreja_para_filtrar_campos_dependentes = self.instance.igreja
+        elif self.is_bound and 'igreja' in self.data and self.data['igreja']: # Formulário sendo submetido (POST)
+            try:
+                igreja_id_post = int(self.data['igreja'])
+                igreja_para_filtrar_campos_dependentes = Igreja.objects.get(pk=igreja_id_post)
+            except (ValueError, TypeError, Igreja.DoesNotExist):
+                pass
+        elif igreja_selecionada_inicial: # Criando com pré-seleção (GET)
+            igreja_para_filtrar_campos_dependentes = igreja_selecionada_inicial
+        
+        if igreja_para_filtrar_campos_dependentes:
+            self.fields['membro'].queryset = Membro.objects.filter(igreja=igreja_para_filtrar_campos_dependentes).order_by('nome')
+            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja=igreja_para_filtrar_campos_dependentes).order_by('nome_identificacao')
+            # Pré-seleciona a conta padrão se aplicável e se não for um POST (para não sobrescrever a seleção do usuário)
+            # e se o campo não tiver um valor inicial já definido (ex: ao editar)
+            if not self.is_bound and not self.initial.get('conta_bancaria') and \
+               hasattr(igreja_para_filtrar_campos_dependentes, 'conta_padrao_receitas') and \
+               igreja_para_filtrar_campos_dependentes.conta_padrao_receitas:
+                self.initial['conta_bancaria'] = igreja_para_filtrar_campos_dependentes.conta_padrao_receitas
+        elif organizacao: # Nenhuma igreja específica, mas temos a organização (ex: Admin Org criando sem pré-seleção)
+            self.fields['membro'].queryset = Membro.objects.filter(igreja__organizacao=organizacao).order_by('igreja__nome_igreja', 'nome')
+            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('igreja__nome_igreja', 'nome_identificacao')
+        else: # Sem organização, querysets vazios
+            self.fields['membro'].queryset = Membro.objects.none()
+            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.none()
 
 
 
@@ -135,16 +179,18 @@ class DespesaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         organizacao = kwargs.pop('organizacao', None)
         user = kwargs.pop('user', None) # Pega o usuário
-        allowed_churches = kwargs.pop('allowed_churches', None) # Pega as igrejas permitidas
+        allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none()) # Pega as igrejas permitidas, default para none
+        igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None) # Para pré-selecionar conta
         super().__init__(*args, **kwargs)
 
         # Filtra igrejas
         if user and not is_admin_org(user) and allowed_churches is not None:
-            # Se não for admin, filtra pelas igrejas permitidas
-            self.fields['igreja'].queryset = allowed_churches
+            if not hasattr(allowed_churches, 'all'):
+                self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
+            else:
+                self.fields['igreja'].queryset = allowed_churches
         elif organizacao: # Se for admin ou não houver filtro específico, usa a organização
             self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
-            # Filtra categorias de despesa (MANTÉM FILTRO POR ORGANIZAÇÃO)
             self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(organizacao=organizacao)
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('igreja__nome_igreja', 'nome_identificacao')
         else:
@@ -158,6 +204,38 @@ class DespesaForm(forms.ModelForm):
         self.fields['categoria'].required = True # Categoria de despesa é obrigatória? Ajuste se não for.
         self.fields['conta_bancaria'].empty_label = "Selecione a Conta/Caixa de Origem (Opcional)"
         self.fields['conta_bancaria'].required = False
+        
+        # Se uma igreja inicial (global) foi passada, pré-seleciona e desabilita o campo igreja
+        if igreja_selecionada_inicial and self.fields['igreja'].queryset.filter(pk=igreja_selecionada_inicial.pk).exists():
+            self.initial['igreja'] = igreja_selecionada_inicial
+            self.fields['igreja'].disabled = True
+
+        # Pré-seleciona a conta bancária padrão para despesas se uma igreja inicial for fornecida
+        
+        # Lógica similar ao ReceitaForm para filtrar conta_bancaria
+        igreja_para_filtrar_contas = None
+
+        if self.instance and self.instance.pk and self.instance.igreja: # Editando uma despesa existente
+            igreja_para_filtrar_contas = self.instance.igreja
+        elif self.is_bound and 'igreja' in self.data and self.data['igreja']: # Formulário sendo submetido (POST)
+            try:
+                igreja_id_post = int(self.data['igreja'])
+                igreja_para_filtrar_contas = Igreja.objects.get(pk=igreja_id_post)
+            except (ValueError, TypeError, Igreja.DoesNotExist):
+                pass
+        elif igreja_selecionada_inicial: # Criando com pré-seleção (GET)
+            igreja_para_filtrar_contas = igreja_selecionada_inicial
+
+        if igreja_para_filtrar_contas:
+             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja=igreja_para_filtrar_contas).order_by('nome_identificacao')
+             # Pré-seleciona a conta padrão se aplicável e se não for um POST e não tiver initial
+             if not self.is_bound and not self.initial.get('conta_bancaria') and \
+                hasattr(igreja_para_filtrar_contas, 'conta_padrao_despesas') and \
+                igreja_para_filtrar_contas.conta_padrao_despesas:
+                 self.initial['conta_bancaria'] = igreja_para_filtrar_contas.conta_padrao_despesas
+        # Se nenhuma igreja específica, o queryset já foi definido para a organização ou vazio no início do __init__
+
+ 
 
 
 class FechamentoCaixaForm(forms.Form):
@@ -185,9 +263,9 @@ class FechamentoCaixaForm(forms.Form):
     def __init__(self, *args, **kwargs):
         organizacao = kwargs.pop('organizacao', None)
         user = kwargs.pop('user', None) # Pega o usuário
-        allowed_churches = kwargs.pop('allowed_churches', None) # Pega as igrejas permitidas
+        allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none()) # Default para queryset vazio
+        igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None) # Vem da view
         super().__init__(*args, **kwargs)
-
         # Filtra igrejas
         if user and not is_admin_org(user) and allowed_churches is not None:
             # Se não for admin, filtra pelas igrejas permitidas
@@ -196,6 +274,13 @@ class FechamentoCaixaForm(forms.Form):
             self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
+        self.fields['igreja'].empty_label = "Selecione a Igreja"
+
+        # Se uma igreja inicial (global) foi passada, pré-seleciona e desabilita o campo igreja
+        if igreja_selecionada_inicial and self.fields['igreja'].queryset.filter(pk=igreja_selecionada_inicial.pk).exists():
+            self.initial['igreja'] = igreja_selecionada_inicial
+            self.fields['igreja'].disabled = True
+            self.fields['igreja'].required = False # Para não falhar na validação se desabilitado
 
     def clean(self):
         cleaned_data = super().clean()
@@ -255,7 +340,8 @@ class ContaPagarForm(forms.ModelForm):
         # Pega a organização passada pela view para filtrar os QuerySets
         organizacao = kwargs.pop('organizacao', None)
         user = kwargs.pop('user', None) # Pega o usuário
-        allowed_churches = kwargs.pop('allowed_churches', None) # Pega as igrejas permitidas
+        allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none()) # Pega as igrejas permitidas, default para none
+        igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None) # Vem da view
         super().__init__(*args, **kwargs)
 
         # Filtra campos ForeignKey pela organização ou igrejas permitidas
@@ -284,6 +370,11 @@ class ContaPagarForm(forms.ModelForm):
         self.fields['categoria'].empty_label = "Selecione a Categoria (Opcional)"
         self.fields['categoria'].required = False # Categoria é opcional? Ajuste se necessário.
 
+        # Se uma igreja inicial (global) foi passada, pré-seleciona e desabilita o campo igreja
+        if igreja_selecionada_inicial and self.fields['igreja'].queryset.filter(pk=igreja_selecionada_inicial.pk).exists():
+            self.initial['igreja'] = igreja_selecionada_inicial
+            self.fields['igreja'].disabled = True
+
 class RegistrarPagamentoContaPagarForm(forms.ModelForm):
     """ Formulário para registrar os detalhes do pagamento de uma ContaPagar existente """
     class Meta:
@@ -307,24 +398,31 @@ class RegistrarPagamentoContaPagarForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         # A instância da ContaPagar é passada pela view
         conta = kwargs.get('instance')
+        self.instance = conta # Garante que self.instance está disponível
         # Pega a organização explicitamente da view (mais seguro que depender da instância)
         organizacao = kwargs.pop('organizacao', None)
         super().__init__(*args, **kwargs)
 
+        igreja_da_conta = self.instance.igreja if self.instance else None
+
         if conta:
             # Sugerir valor pago igual ao valor da conta/parcela (usuário pode alterar)
             self.fields['valor_pago'].initial = conta.valor
-            # Filtrar conta de débito pela organização
-            if organizacao:
-                 # Filtra contas pela organização da igreja associada à conta bancária
-                 self.fields['conta_debito'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao)
-                 self.fields['conta_debito'].empty_label = "Selecione a Conta/Caixa de Saída"
-                 self.fields['conta_debito'].required = True # Pagamento exige conta de saída? Ajuste se não.
-            else:
-                 self.fields['conta_debito'].queryset = ContaBancaria.objects.none()
+            if igreja_da_conta:
+                self.fields['conta_debito'].queryset = ContaBancaria.objects.filter(
+                    igreja=igreja_da_conta
+                ).order_by('nome_identificacao')
+                # Pré-selecionar a conta padrão de despesas da igreja da conta a pagar
+                if hasattr(igreja_da_conta, 'conta_padrao_despesas') and igreja_da_conta.conta_padrao_despesas:
+                    self.initial['conta_debito'] = igreja_da_conta.conta_padrao_despesas
+            elif organizacao: # Fallback se a conta não tiver igreja (improvável, mas seguro)
+                self.fields['conta_debito'].queryset = ContaBancaria.objects.filter(
+                    igreja__organizacao=organizacao
+                ).order_by('igreja__nome_igreja', 'nome_identificacao')
+            else: # Segurança: se não houver instância ou organização, não mostrar contas
+                self.fields['conta_debito'].queryset = ContaBancaria.objects.none()
         else:
-             # Segurança: se não houver instância ou organização, não mostrar contas
-             self.fields['conta_debito'].queryset = ContaBancaria.objects.none()
+            self.fields['conta_debito'].queryset = ContaBancaria.objects.none()
 
         self.fields['forma_pagamento'].empty_label = "Selecione a Forma"
         self.fields['forma_pagamento'].required = True # Pagamento exige forma? Ajuste se não.

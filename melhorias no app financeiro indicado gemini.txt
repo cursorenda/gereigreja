@@ -19,8 +19,17 @@ Aqui está uma organização mais estruturada para a implementação no seu prog
 - Inserir Formas de Pagamentos
 - Graficos para membros no painel liderança
 - Permitir que um líder de Sede filtre para ver os dados consolidados de uma Regional específica).
-
----
+- LOGO da igreja na pagina inicial.
+* As contas pagas de conta a pagar precisa aparecer no fechamento de caixa.
+* Pagina onde fica relação de atualizaçoes do sistema para que o usuario saiba as atualizaçoes e novidade.
+*Na lista de entradas e saidas listar o resultado por ordem de coluna "valores, membros, datas,igreja, categoria"---
+* MUDAR tipos_status dividir em 2 partes: 1. tipo_pessoa (quem é), 2. status (situação)
+     visitante — Pessoa que frequenta, mas não é membro.
+     congregado — Pessoa que frequenta regularmente, mas ainda não é membro oficial.
+     novo_convertido — Pessoa recém-convertida, em acompanhamento.
+     membro — Membro regular da igreja.
+     obreiro — Membro com função de liderança (pode incluir pastor, diácono, etc).
+ Status: Ativo, inativo, sisciplina, desligado?, transferido?, falecido?
 
 ## **2. Observações Gerais**
 ### **Estrutura do Projeto**
@@ -188,3 +197,114 @@ Adicionar um gráfico de "Categorias de Receita": Similar ao que fizemos para as
 Listar os saldos das Contas Bancárias/Caixas: Mostrar um resumo dos saldos atuais das suas contas diretamente no painel.
 Trabalhar na Visão Consolidada para Sede/Regionais: Aprimorar a lógica para que, ao selecionar uma Sede ou Regional (ou se o usuário tiver esse papel), os dados do painel financeiro (incluindo os cards e gráficos) reflitam as informações consolidadas das igrejas subordinadas.
 Ou, se preferir, podemos mudar o foco para outra funcionalidade do seu sistema.
+
+
+
+
+I. Melhorias em Funcionalidades Existentes e na Experiência do Usuário (UX):
+
+Dashboard e Painéis de Liderança Mais Dinâmicos:
+
+Filtros Avançados: Permitir que os líderes filtrem dados por múltiplos critérios combinados (ex: membros ativos de uma regional específica, com idade entre X e Y).
+Períodos Personalizados: Além dos filtros de período atuais (mês atual, ano atual), permitir a seleção de um intervalo de datas customizado nos dashboards e relatórios.
+Gráficos Interativos: Se ainda não estiver usando, explorar bibliotecas JavaScript (como Chart.js, que você já parece estar preparando com json.dumps, ou ApexCharts) para permitir drill-down nos gráficos, tooltips mais ricos, etc.
+Exportação de Dados dos Dashboards: Adicionar botões para exportar os dados resumidos ou os dados que compõem os gráficos (CSV/Excel).
+Gerenciamento de Membros (Secretaria):
+
+Histórico Completo do Membro: Além do status, registrar um histórico mais detalhado de alterações (mudança de igreja, cargos assumidos/deixados, cursos concluídos na igreja, etc.).
+Campos Personalizados para Membros: Permitir que a organização defina campos extras para o cadastro de membros, caso necessitem de informações específicas não contempladas.
+Importação/Exportação de Membros: Facilitar a migração de dados de outros sistemas ou a exportação para relatórios externos (Excel/CSV).
+Gestão de Documentos do Membro: No modelo Observacoes você tem caminho_documentos. Expandir isso para um upload mais robusto e visualização segura de documentos digitalizados (ex: certidão de batismo, carta de transferência).
+Financeiro:
+
+Conciliação Bancária: Uma ferramenta para ajudar a comparar os lançamentos do sistema com extratos bancários.
+Orçamento: Permitir que as igrejas/organização criem orçamentos anuais/mensais por categoria de despesa e acompanhem o realizado vs. orçado.
+Recorrências em Contas a Pagar/Receber: Facilitar o lançamento de contas que se repetem mensalmente (aluguel, salários, doações recorrentes).
+Centros de Custo/Projetos: Se as igrejas gerenciam finanças por projetos ou departamentos internos, adicionar essa dimensão aos lançamentos.
+Configuração e Administração:
+
+Logs de Auditoria Detalhados: Registrar quem fez o quê e quando, especialmente para ações críticas (alteração de permissões, exclusão de dados financeiros, mudança de status de assinatura).
+Personalização da Aparência: Permitir que a organização customize cores básicas ou logo na interface do sistema (para o admin da organização).
+Usabilidade Geral (UX):
+
+Buscas Mais Abrangentes: Melhorar as funcionalidades de busca em todas as listagens.
+Paginação: Implementar paginação em todas as listas que podem crescer muito (membros, lançamentos financeiros).
+Notificações no Sistema: Além dos messages do Django, um sistema de notificações mais persistente (ícone de sino no menu) para avisos importantes (ex: assinatura perto de vencer, convites pendentes, contas a pagar vencendo).
+Ajuda Contextual: Ícones de ajuda (?) próximos a campos ou seções complexas, explicando sua finalidade.
+II. Sugestões de Novas Funcionalidades (Módulos):
+
+Módulo de Eventos e Agenda:
+
+Cadastro completo de eventos (data, hora, local, descrição, público-alvo).
+Calendário visual para igrejas e organização.
+Inscrições online para eventos (com controle de vagas, se necessário).
+Lista de presença e check-in.
+Envio de lembretes para inscritos.
+Módulo de Grupos Pequenos / Células:
+
+Cadastro de grupos, líderes, participantes.
+Registro de frequência nos encontros.
+Relatórios de crescimento e participação dos grupos.
+Compartilhamento de material de estudo para os grupos.
+Módulo de Ensino / Escola Bíblica Dominical:
+
+Cadastro de cursos, turmas, professores, alunos.
+Controle de matrícula e frequência.
+Lançamento de notas/conceitos (se aplicável).
+Disponibilização de material didático.
+Módulo de Comunicação:
+
+Envio de e-mails ou SMS em massa para membros (segmentado por igreja, grupo, status, etc.).
+Templates de comunicação.
+Mural de avisos digital.
+Módulo de Doações Online:
+
+Integração com gateways de pagamento para receber dízimos, ofertas e doações específicas online.
+Geração de recibos para os doadores.
+Acompanhamento dessas doações no módulo financeiro.
+Gestão de Patrimônio/Inventário:
+
+Cadastro dos bens da igreja (móveis, equipamentos, imóveis).
+Controle de localização, estado de conservação, valor.
+Histórico de manutenção.
+Gestão de Voluntários:
+
+Cadastro de voluntários e suas áreas de interesse/habilidades.
+Alocação de voluntários para eventos ou ministérios.
+Comunicação com equipes de voluntários.
+Pedidos de Oração:
+
+Membros podem submeter pedidos de oração (públicos ou privados para a liderança).
+Líderes podem gerenciar e acompanhar os pedidos.
+III. Melhorias Técnicas e de Processo:
+
+Testes Automatizados:
+
+Implementar testes unitários para modelos, forms e funções utilitárias.
+Criar testes de integração para as views e fluxos principais. Isso garante que futuras alterações não quebrem o que já funciona.
+Documentação Interna:
+
+Documentar o código (docstrings), especialmente para funções complexas e modelos.
+Manter uma documentação do projeto (decisões de arquitetura, como configurar o ambiente, etc.).
+Otimização de Performance:
+
+Continuar usando select_related e prefetch_related de forma eficaz.
+Analisar queries lentas (o Django Debug Toolbar é ótimo para isso).
+Considerar caching para dados que não mudam com frequência.
+Tarefas Assíncronas (Celery):
+
+Para operações que podem demorar e não precisam bloquear a resposta ao usuário (ex: envio de muitos e-mails, processamento de relatórios complexos, backups robustos).
+Segurança:
+
+Revisar periodicamente as permissões.
+Manter o Django e as dependências atualizadas.
+Considerar ferramentas de análise de segurança estática.
+Refatoração Contínua:
+
+À medida que o sistema cresce, identificar partes do código que podem ser simplificadas, generalizadas ou movidas para locais mais apropriados (ex: lógica de negócio complexa das views para "services" ou managers de modelos).
+Por onde começar?
+
+Feedback dos Usuários: Converse com quem vai usar o sistema. As necessidades deles são o melhor guia.
+Priorização: Escolha algumas melhorias ou uma nova funcionalidade que traga mais impacto inicialmente. Não tente fazer tudo de uma vez.
+Iteração: Desenvolva de forma incremental, testando e validando cada etapa.
+O sistema já tem uma fundação muito boa! Essas são apenas ideias para expandir e refinar ainda mais. Se quiser discutir alguma dessas sugestões mais a fundo ou precisar de ajuda para planejar a implementação, é só dizer!

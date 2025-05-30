@@ -82,6 +82,9 @@ urlpatterns = [
     # --- URL PARA ATIVAR/DESATIVAR USUÁRIO (NOVA) ---
     # Usa <int:user_pk> para capturar a chave primária do User
     path('usuarios/<int:user_pk>/alternar-status/', views.alternar_status_usuario_org, name='alternar_status_usuario'),
+    # --- URL PARA PÁGINA DE AGUARDANDO APROVAÇÃO (NOVA) ---
+    path('aguardando-aprovacao/', views.aguardando_aprovacao, name='aguardando_aprovacao'),
+
     # --- FIM URL ---
     # --- FIM URL ---
     # --- FIM URLs RESET DE SENHA ---

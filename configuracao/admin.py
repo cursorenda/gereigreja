@@ -3,7 +3,8 @@ from django.contrib import admin
 # Importar os nomes corretos dos modelos
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Organizacao, Igreja, PerfilUsuario, ESTADO_CHOICES # Adicionar PerfilUsuario
+from .models import Organizacao, Igreja, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionar Plano e AssinaturaOrganizacao
+from .models import AtualizacaoSistema
 
 # --- Admin para Organização ---
 @admin.register(Organizacao)
@@ -43,7 +44,7 @@ class PerfilUsuarioInline(admin.StackedInline): # Ou admin.TabularInline
     verbose_name_plural = 'Perfil e Organização'
     fk_name = 'user'
     # Campos a exibir no inline
-    fields = ('organizacao', 'igrejas_permitidas') # Adicionar o novo campo
+    fields = ('organizacao', 'telefone_contato', 'whatsapp_contato', 'foto_perfil', 'igrejas_permitidas') # Adicionando os novos campos
     # Usar filter_horizontal para ManyToManyField fica melhor
     filter_horizontal = ('igrejas_permitidas',)
 
@@ -51,6 +52,8 @@ class PerfilUsuarioInline(admin.StackedInline): # Ou admin.TabularInline
         # Filtrar organização no dropdown (opcional, mas útil)
         # if db_field.name == "organizacao":
         #     kwargs["queryset"] = Organizacao.objects.order_by('nome_fantasia')
+        # Se quiser raw_id_fields para organização no inline:
+
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
@@ -60,6 +63,7 @@ class PerfilUsuarioInline(admin.StackedInline): # Ou admin.TabularInline
          if db_field.name == "igrejas_permitidas":
              kwargs["queryset"] = Igreja.objects.order_by('organizacao__nome_fantasia', 'nome_igreja')
          return super().formfield_for_manytomany(db_field, request, **kwargs)
+         raw_id_fields = ('organizacao',) # Adicionado para consistência
 
 
 # Define um novo User admin que inclui o PerfilUsuario inline
@@ -74,21 +78,21 @@ class UserAdmin(BaseUserAdmin):
             return instance.perfil.organizacao.nome_fantasia
         return None
 
-# Re-register UserAdmin
-admin.site.unregister(User) # Desregistra o UserAdmin padrão
-admin.site.register(User, UserAdmin) # Registra o nosso UserAdmin customizado
+@admin.register(PerfilUsuario)
+class PerfilUsuarioAdmin(admin.ModelAdmin):
+    list_display = ('user_display_name', 'organizacao_nome', 'telefone_contato', 'whatsapp_contato')
+    list_filter = ('organizacao__nome_fantasia',)
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'user__email', 'organizacao__nome_fantasia')
+    raw_id_fields = ('user', 'organizacao') # Facilita a seleção de User e Organização
+    filter_horizontal = ('igrejas_permitidas',) # Melhor interface para ManyToManyField
 
-# Opção 2: Registrar PerfilUsuario separadamente (menos comum se já edita User)
-# @admin.register(PerfilUsuario)
-# class PerfilUsuarioAdmin(admin.ModelAdmin):
-#     list_display = ('user', 'organizacao')
-#     list_select_related = ('user', 'organizacao')
-#     filter_horizontal = ('igrejas_permitidas',) # Bom para ManyToMany
-#     # Adicionar filtros e busca se necessário
-#     list_filter = ('organizacao',)
-#     search_fields = ('user__username', 'user__email', 'organizacao__nome_fantasia')
+    def user_display_name(self, obj):
+        return obj.user.get_full_name() or obj.user.username
+    user_display_name.short_description = "Usuário"
 
-# --- FIM ADMIN PERFILUSUARIO ---
+    def organizacao_nome(self, obj):
+        return obj.organizacao.nome_fantasia
+    organizacao_nome.short_description = "Organização"
 
 
 
@@ -133,3 +137,41 @@ class IgrejaAdmin(admin.ModelAdmin):
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+# --- NOVAS CLASSES ADMIN PARA PLANOS E ASSINATURAS ---
+@admin.register(Plano)
+class PlanoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'get_nome_display', 'preco', 'duracao_dias', 'ativo', 'codigo_referencia_gateway')
+    list_filter = ('ativo', 'nome')
+    search_fields = ('nome', 'descricao', 'codigo_referencia_gateway')
+    list_editable = ('preco', 'duracao_dias', 'ativo') # Cuidado ao usar list_editable com muitos dados
+
+@admin.register(AssinaturaOrganizacao)
+class AssinaturaOrganizacaoAdmin(admin.ModelAdmin):
+    list_display = ('organizacao', 'plano', 'status', 'data_inicio', 'data_fim', 'id_transacao_gateway')
+    list_filter = ('status', 'plano', 'data_inicio', 'data_fim')
+    search_fields = ('organizacao__nome_fantasia', 'plano__nome', 'id_transacao_gateway')
+    autocomplete_fields = ['organizacao', 'plano']
+    readonly_fields = ('data_criacao', 'data_atualizacao')
+    fieldsets = (
+        (None, {
+            'fields': ('organizacao', 'plano', 'status')
+        }),
+        ('Período da Assinatura', {
+            'fields': ('data_inicio', 'data_fim')
+        }),
+        ('Detalhes do Gateway (Opcional)', {
+            'fields': ('id_transacao_gateway',),
+            'classes': ('collapse',)
+        }),
+        ('Datas de Sistema', {
+            'fields': ('data_criacao', 'data_atualizacao'),
+            'classes': ('collapse',)
+        }),
+    )
+
+@admin.register(AtualizacaoSistema)
+class AtualizacaoSistemaAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'versao', 'data_publicacao', 'publicado')
+    list_filter = ('publicado', 'data_publicacao')
+    search_fields = ('titulo', 'conteudo', 'versao')    
+# --- FIM NOVAS CLASSES ADMIN ---

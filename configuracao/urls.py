@@ -7,7 +7,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 # Importar reverse_lazy para URLs de sucesso
 from django.urls import reverse_lazy
- 
+
 app_name = 'configuracao' # Define o namespace
  
 urlpatterns = [
@@ -16,6 +16,13 @@ urlpatterns = [
     path('minha-organizacao/', views.detalhes_organizacao, name='detalhes_organizacao'),
     path('minha-organizacao/editar/', views.editar_organizacao, name='editar_organizacao'),
  
+    # URL para Gerenciar Assinatura
+    path('assinatura/', views.gerenciar_assinatura, name='gerenciar_assinatura'),
+    
+    #path('processar-pagamento-teste/', views.processar_pagamento_teste, name='processar_pagamento_teste'),
+    # --- NOVA URL PARA ATUALIZAÇÕES DO SISTEMA ---
+    path('novidades/', login_required(views.lista_atualizacoes_sistema), name='lista_atualizacoes_sistema'),
+
     # ====================================================
     # ========= INÍCIO: URLs PARA GERENCIAR IGREJAS =========
     # ====================================================
@@ -24,6 +31,7 @@ urlpatterns = [
     # path('igrejas/<int:igreja_id>/editar/', views.editar_igreja, name='editar_igreja'), # Se você já tem uma, pode adaptar
     path('igrejas/<int:igreja_id>/editar-config/', views.editar_igreja_config, name='editar_igreja_config'), # Nova URL
     path('igrejas/<int:igreja_id>/excluir/', views.excluir_igreja, name='excluir_igreja'),    
+    path('definir-igreja-ativa/', views.set_active_church, name='set_active_church'), # Nova URL
 
     
     # ==================================================
@@ -50,4 +58,7 @@ urlpatterns = [
         name='password_change_done'
     ),
     # Outras URLs que você possa ter (login, etc., podem estar no urls.py principal)
+    path('perfil/', views.meu_perfil, name='meu_perfil'), # <--- AQUI!
+    path('perfil/editar/', views.editar_meu_perfil, name='editar_meu_perfil'), # <-- NOVA URL
+
 ]

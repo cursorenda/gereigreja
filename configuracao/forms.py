@@ -1,9 +1,19 @@
 # c:\Gereigreja\configuracao\forms.py
 from django import forms
-from .models import Igreja, Organizacao, PerfilUsuario, ESTADO_CHOICES  # Modelos necessários
+from .models import ESTADO_CHOICES 
+from .models import Organizacao, Igreja, PerfilUsuario, Plano, AssinaturaOrganizacao
+
 from django.contrib.auth.models import User # Modelo de usuário padrão
 from financeiro.models import ContaBancaria # Importar ContaBancaria
 from django.db import transaction # Para garantir atomicidade no registro
+
+# --- Widget Customizado para Upload de Imagem ---
+class CustomClearableFileInput(forms.ClearableFileInput):
+    template_name = 'configuracao/widgets/custom_clearable_file_input.html'
+    # Você pode customizar os textos padrão se quiser (opcional):
+    # initial_text = 'Logo atual:'
+    # input_text = 'Alterar:'
+    # clear_checkbox_label = 'Remover logo atual'
 
 
 
@@ -62,7 +72,7 @@ class IgrejaForm(forms.ModelForm):
             'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'celular': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'site': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
-            'pastor_local': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do Pastor/Responsável'}), # CORRIGIDO
+            'pastor_local': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do Pastor/Responsável'}),
             'pastor_regional': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'moeda': forms.TextInput(attrs={'class': 'form-control'}),
             'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
@@ -78,21 +88,34 @@ class IgrejaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if organizacao:
-            # Filtra o queryset de 'igreja_superior' para mostrar apenas igrejas da mesma organização
-            qs = Igreja.objects.filter(organizacao=organizacao)
-            if instance:
-                # Exclui a própria igreja da lista de superiores ao editar
-                qs = qs.exclude(pk=instance.pk)
-            self.fields['igreja_superior'].queryset = qs
+            qs_igreja_superior = Igreja.objects.filter(organizacao=organizacao)
+            
+            if instance and instance.pk: # Editando uma igreja existente
+                if instance.tipo_igreja in ['sede', 'independente']:
+                    self.fields['igreja_superior'].queryset = Igreja.objects.none()
+                    self.fields['igreja_superior'].widget.attrs['disabled'] = True
+                    self.fields['igreja_superior'].required = False
+                    self.initial['igreja_superior'] = None
+                else:
+                    # Para outros tipos, filtra para não mostrar a própria igreja
+                    self.fields['igreja_superior'].queryset = qs_igreja_superior.exclude(pk=instance.pk)
+            else: # Criando uma nova igreja
+                self.fields['igreja_superior'].queryset = qs_igreja_superior
 
-             # Filtra contas padrão para mostrar apenas as da igreja que está sendo editada
-            if instance: # Só faz sentido se estiver editando uma igreja existente
+
+            # Filtra contas padrão para mostrar apenas as da igreja que está sendo editada/criada
+            # Se for uma nova igreja (instance is None), o queryset de contas será vazio,
+            # o que é correto, pois a igreja precisa ser salva antes de ter contas.
+            if instance:
                 self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.filter(igreja=instance).order_by('nome_identificacao')
                 self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.filter(igreja=instance).order_by('nome_identificacao')
+            else:
+                self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.none()
+                self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.none()
         
 
         else:
-            # Se não houver organização, não mostra nenhuma igreja superior
+            # Se não houver organização, não mostra nenhuma igreja superior nem contas
             self.fields['igreja_superior'].queryset = Igreja.objects.none()
             self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.none()
             self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.none()
@@ -102,6 +125,17 @@ class IgrejaForm(forms.ModelForm):
         self.fields['conta_padrao_receitas'].empty_label = "Nenhuma Conta/Caixa Padrão"
         self.fields['conta_padrao_despesas'].empty_label = "Nenhuma Conta/Caixa Padrão"
 
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo_igreja = cleaned_data.get('tipo_igreja')
+        igreja_superior = cleaned_data.get('igreja_superior')
+
+        # Se o tipo for Sede ou Independente, igreja_superior deve ser None
+        if tipo_igreja in ['sede', 'independente']:
+            if igreja_superior is not None:
+                cleaned_data['igreja_superior'] = None
+                # Opcional: self.add_error('igreja_superior', 'Igrejas Sede/Independente não têm Igreja Superior.')
+        return cleaned_data
 
 # --- FORMULÁRIO PARA EDITAR DADOS DA ORGANIZAÇÃO (PELO ADMIN DA ORG) ---
 class OrganizacaoEditForm(forms.ModelForm):
@@ -141,7 +175,26 @@ class OrganizacaoEditForm(forms.ModelForm):
             # 'estado' já está definido acima com ChoiceField e Select widget
         }
 
+# Nota: A classe IgrejaEditForm abaixo parece ser uma duplicação de IgrejaForm.
+# Se a intenção é ter um formulário de edição com lógica diferente, certifique-se
+# de que as diferenças são intencionais. Caso contrário, você pode usar:
+# IgrejaEditForm = IgrejaForm
+#
+# A lógica de filtragem para conta_padrao_receitas e conta_padrao_despesas
+# no __init__ de IgrejaEditForm abaixo foi corrigida para usar igreja__organizacao,
+# pois ContaBancaria não tem um campo 'organizacao' direto nem 'ativa' ou 'nome_conta'.
+# Isso fará com que este formulário permita selecionar contas de QUALQUER igreja
+# da mesma organização, diferente do IgrejaForm acima que filtra pela própria igreja.
 class IgrejaEditForm(forms.ModelForm):
+     # Definir os campos de logo explicitamente para usar o widget customizado
+    logo1 = forms.ImageField(
+        widget=CustomClearableFileInput,
+        required=False # Mantém como opcional
+    )
+    logo2 = forms.ImageField(
+        widget=CustomClearableFileInput,
+        required=False # Mantém como opcional
+    )
     class Meta:
         model = Igreja
         fields = [
@@ -149,7 +202,7 @@ class IgrejaEditForm(forms.ModelForm):
             'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais',
             'email', 'cnpj', 'telefone', 'celular', 'site',
             'pastor_local', 'pastor_regional',
-            'moeda', 'observacoes', 'logo1', 'logo2',
+            'moeda', 'observacoes', 'logo1', 'logo2', # Mantidos aqui para o ModelForm
             'conta_padrao_receitas', 'conta_padrao_despesas' # Adicionar os campos aqui
         ]
         widgets = {
@@ -162,12 +215,27 @@ class IgrejaEditForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if organizacao:
-            # Filtrar igreja_superior para mostrar apenas igrejas da mesma organização
-            self.fields['igreja_superior'].queryset = Igreja.objects.filter(organizacao=organizacao).exclude(pk=self.instance.pk if self.instance else None)
+            qs_igreja_superior = Igreja.objects.filter(organizacao=organizacao)
+            if self.instance and self.instance.pk: # Excluir a própria igreja se estiver editando
+              
             
-            # Filtrar contas padrão para mostrar apenas contas da mesma organização
-            self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.filter(organizacao=organizacao, ativa=True).order_by('nome_conta')
-            self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.filter(organizacao=organizacao, ativa=True).order_by('nome_conta')
+                if self.instance.tipo_igreja in ['sede', 'independente']:
+                    self.fields['igreja_superior'].queryset = Igreja.objects.none()
+                    self.fields['igreja_superior'].widget.attrs['disabled'] = True
+                    self.fields['igreja_superior'].required = False
+                    self.initial['igreja_superior'] = None
+                else:
+                    # Para outros tipos, filtra para não mostrar a própria igreja
+                    self.fields['igreja_superior'].queryset = qs_igreja_superior.exclude(pk=self.instance.pk)
+            else: # Criando uma nova igreja (embora este seja IgrejaEditForm, pode ser usado para criar)
+                self.fields['igreja_superior'].queryset = qs_igreja_superior
+
+            
+            # Filtrar contas padrão para mostrar apenas contas de igrejas da mesma organização
+            # O modelo ContaBancaria tem 'igreja', e Igreja tem 'organizacao'.
+            # O campo 'nome_identificacao' está em ContaBancaria.
+            self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('nome_identificacao')
+            self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('nome_identificacao')
         else:
             # Se não houver organização, esvaziar os querysets ou tratar como erro
             self.fields['igreja_superior'].queryset = Igreja.objects.none()
@@ -182,5 +250,55 @@ class IgrejaEditForm(forms.ModelForm):
                  field.widget.attrs.update({'class': 'form-check-input'})
 
                  
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo_igreja = cleaned_data.get('tipo_igreja')
+        igreja_superior = cleaned_data.get('igreja_superior')
+
+        # Se o tipo for Sede ou Independente, igreja_superior deve ser None
+        if tipo_igreja in ['sede', 'independente']:
+            if igreja_superior is not None:
+                cleaned_data['igreja_superior'] = None
+                # Opcional: self.add_error('igreja_superior', 'Igrejas Sede/Independente não têm Igreja Superior.')
+        return cleaned_data    
+
 # Você pode adicionar outros formulários aqui conforme necessário,
 # por exemplo, um formulário para editar o PerfilUsuario, etc.
+
+# --- NOVOS FORMULÁRIOS PARA EDITAR PERFIL DO USUÁRIO ---
+class UserEditForm(forms.ModelForm):
+    """ Formulário para o usuário editar seus dados básicos (User model). """
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        # self.instance é o objeto User que está sendo editado
+        if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("Este endereço de e-mail já está em uso por outro usuário.")
+        return email
+
+class PerfilUsuarioEditForm(forms.ModelForm):
+    """ Formulário para o usuário editar seus dados do PerfilUsuario. """
+    class Meta:
+        model = PerfilUsuario
+        fields = ['telefone_contato', 'whatsapp_contato', 'foto_perfil']
+        widgets = {
+            'telefone_contato': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(XX) XXXXX-XXXX'}),
+            'whatsapp_contato': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '(XX) XXXXX-XXXX'}),
+            'foto_perfil': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Tornar campos opcionais se eles são blank=True, null=True no modelo
+        self.fields['telefone_contato'].required = False
+        self.fields['whatsapp_contato'].required = False
+        self.fields['foto_perfil'].required = False
+# --- FIM NOVOS FORMULÁRIOS ---

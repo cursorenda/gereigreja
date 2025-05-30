@@ -1,0 +1,386 @@
+/* Estilos Gerais - Aplicáveis a todo o documento */
+body {
+    font-family: sans-serif;
+    font-size: 10pt;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    overflow-x: auto;
+    max-width: 1200px;
+    margin: 0px auto;
+    padding: 20px;
+}
+
+table {
+    table-layout: auto; /* Permite que as colunas se ajustem ao conteúdo */
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+th, td {
+    border: 0px solid #ccc;
+    padding: 0.2em 0em;
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+/*tr {
+    display: flex; /* Torna cada linha um flex container */
+    /*align-items: center; 
+} */    /* Removed */ 
+
+.currency {
+    text-align: right;
+    padding-right: 0;
+    /*padding-left: 0; /* Adicionado */
+
+}
+
+.currency span {
+    margin-right: -5em; /* Removido */
+}
+
+.currency .value {
+    display: inline-block;
+    text-align: right;
+    min-width: 6em; /* Garante que os valores fiquem alinhados */
+}
+.currency .symbol {
+    margin-right: 0.2em; /* Espaçamento entre "R$" e o valor */
+}
+.summary {
+    margin-top: 1.5em;
+    margin-bottom: 3em;
+}
+
+.summary div {
+    margin-bottom: .2em;
+}
+.symbol {
+    margin-right: 0.2em; /* Adicionado */
+    /*margin-left: 0; /* Removido */
+}
+
+.signatures {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 3em;
+    margin-bottom: 3em;
+}
+
+.signature-line {
+    border-top: 1px solid #000;
+    width: 40%;
+    text-align: center;
+    padding-top: 0.5em;
+}
+
+.statement {
+    margin-top: 2em;
+    margin-bottom: 2em;
+}
+
+.statement p,
+.statement div {
+    margin-bottom: 0.8em;
+}
+
+.statement-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.8em;
+}
+
+.italic-obs {
+    font-style: italic;
+    font-size: 0.8em;
+    text-align: center;
+}
+
+.info-line {
+    display: flex;
+    /*justify-content: space-between; /* Removed */
+    margin-bottom: 10px;
+    align-items: center; /* Added */
+}
+
+/* Ajusta o último item da linha para ocupar mais espaço */
+.info-line .info-item:last-child {
+    margin-left: auto; /* Empurra o último item para a direita */
+    /*flex-basis: 80%; /* Faz o último item ocupar 80% da largura da linha */ /* Removido */
+    text-align: right; /* Alinha o texto à direita */
+}
+
+.info-line label {
+    font-weight: bold;
+    margin-right: 0.5em;
+}
+
+.info-item {
+    display: flex; /* Alinha o rótulo e o valor na mesma linha */
+    gap: 5px; /* Espaçamento entre o rótulo e o valor */
+    /*flex: 1; /* Faz os itens ocuparem o mesmo espaço */ /* Removed */
+}
+/* Rótulos */
+.info-item label {
+    font-weight: bold; /* Deixa os rótulos em negrito */
+    white-space: nowrap; /* Impede quebra de linha nos rótulos */
+}
+/* Valores */
+.info-item span {
+    color: #333; /* Cor do texto dos valores */
+}
+.info-line input[type="text"] {
+    border: none;
+    border-bottom: 1px dotted #000;
+    width: 15em;
+    outline: none;
+    padding: 0;
+    font-size: 1em;
+    background-color: transparent;
+}
+
+.info-line span {
+    text-align: left;
+}
+
+.align-right {
+    text-align: right;
+}
+
+.info-line-left {
+    flex-basis: 60%; /* Ajuste conforme necessário */
+    text-align: left;
+}
+
+.info-line-left span {
+    white-space:nowrap; /* Impede quebra de linha */
+}
+
+.info-line-center {
+    flex-basis: 40%; /* Ajuste conforme necessário */
+    text-align: center;
+}
+
+.info-line-right {
+    /*flex-basis: 80%; /* Ajuste conforme necessário */ /* Removido */
+    text-align: right;
+    margin-left: auto; /* Empurra para a direita */
+    width: 100%; /* Adicionado */
+
+}
+
+/* Remove o fundo cinza do título "COMPROVANTE DE PRESTAÇÃO DE CONTAS" */
+.comprovante-title {
+    background-color: transparent !important; /* Remove o fundo cinza */
+    color: #000; /* Garante que o texto fique preto */
+}
+
+/* ... (outros estilos) ... */
+
+.comprovante-row {
+    text-align: center;
+}
+
+.comprovante-td {
+    text-align: center;
+    vertical-align: middle; /* Garante alinhamento vertical */
+
+}
+
+.comprovante-td .place-date {
+    text-align: center; /* Centraliza a data */
+}
+
+.comprovante-td .italic-obs {
+    text-align: center;
+}
+
+
+.label-line {
+    display: flex;
+    align-items: center;
+}
+
+.label-text {
+    flex-grow: 1; /* Ocupa o espaço restante */
+    text-align: left;
+}
+
+.label-col {
+    width: 70%; /* Ajuste conforme necessário */
+    text-align: left;
+}
+
+.dotted-line {
+    border-bottom: 1px dotted black;
+    margin: 0 0.5em; /* Adiciona margem para melhor visualização */
+    width: 100%; /* Ocupa 100% da largura da célula */
+    display: block;
+}
+
+.valor-col {
+    width: 30%; /* Ajuste conforme necessário */
+    text-align: right; /* Alinha o texto à direita */
+}
+.info {
+    margin-bottom: 20px; /* Espaçamento inferior */
+}
+
+.label-with-dots {
+    width: 100%;
+}
+
+/* Cria uma área com pontilhados que se ajusta ao espaço disponível */
+.dot-leader {
+    flex-grow: 1;
+    border-bottom: 1px dotted #000;
+    /*margin: 0 5px;*/
+}
+.line {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.1em; /* ou outro valor menor que 0.5em */
+
+}
+
+
+
+
+
+
+/* Contêiner que agrupa Resumo e Assinaturas */
+
+
+/* Coluna do Resumo: 40% da largura */
+.resumo-container {
+    width: 35%;
+    vertical-align: top;
+    padding-right: 20px;
+}
+
+/* Coluna das Assinaturas: 60% da largura */
+.assinaturas-container {
+    width: 60%;
+    vertical-align: top;
+}
+
+/* Estilos para a Tabela de Resumo */
+.resumo-table {
+    width: 100%;
+    border: 1px solid #000;
+    border-collapse: collapse;
+}
+.resumo-table th {
+    background-color: transparent !important;
+    border-bottom: 1px solid #000;
+    text-align: center;
+    padding: 4px;
+}
+
+.resumo-table td {
+    padding: 4px;
+}
+
+/* Estilos para a Tabela de Assinaturas */
+.assinaturas-table {
+    width: 100%;
+    border: none;
+}
+.assinaturas-table td {
+    padding: 8px;
+    text-align: center;
+}
+
+/* Linha para assinatura */
+.assinatura-line {
+    border: none;
+    border-top: 1px solid #000;
+    width: 80%;
+    margin-bottom: 4px;
+}
+
+/* Alinha valores à direita */
+.text-right {
+    text-align: right;
+}
+
+.resumo-assinaturas tr { display: table-row; }
+
+/* Força o comportamento padrão da tabela para a seção Resumo e Assinaturas */
+.resumo-assinaturas {
+    display: table;
+    width: 100%;
+    margin-top: 10px;
+    table-layout: fixed; /* Garante que as larguras definidas sejam respeitadas */
+}
+
+.resumo-assinaturas tr {
+    display: table-row;
+}
+
+.resumo-assinaturas td {
+    display: table-cell;
+    vertical-align: top;
+}
+
+/* Define as larguras fixas para cada coluna */
+.resumo-container {
+    width: 40%;
+    padding-right: 20px;
+}
+
+.assinaturas-container {
+    width: 60%;
+}
+
+/* Centraliza o texto do rodapé */
+.footer-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    margin-top: -30px; /* Espaçamento superior */
+    line-height: 1; /* Espaçamento entre linhas */
+    padding: 0px; /* Espaçamento interno */
+    width: 100%; /* Garante que ocupe toda a largura */
+}
+
+/* Estilo para o texto do relatório financeiro */
+.report-text {
+    font-size: 10pt; /* Aumenta o tamanho da fonte */
+    text-align: justify; /* Alinha o texto de forma justificada */
+    margin-bottom: 10px; /* Adiciona espaçamento inferior */
+    line-height: 1; /* Ajusta o espaçamento entre linhas */
+}
+
+.report-title {
+    margin-bottom: 20px; /* Added */
+}
+
+/* Centraliza o texto da assinatura */
+.footer-signature {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2; /* Espaçamento entre linhas */
+    margin-top: -10px; /* Reduz o espaço entre as assinaturas e o texto acima */
+
+}
+@media print {
+    th {
+        background-color: #b3b3b3 !important; /* Define um cinza médio */
+        color: #000 !important; /* Garante que o texto fique preto para contraste */
+        -webkit-print-color-adjust: exact; /* Garante que a cor seja impressa no Chrome */
+        print-color-adjust: exact; /* Garante que a cor seja impressa em outros navegadores */
+    }
+}

@@ -31,10 +31,20 @@
                 <form method="get" id="filtroIgrejaForm" class="d-flex gap-2">
                     {# Manter o filtro de período existente ao submeter o filtro de igreja #}
                     <input type="hidden" name="periodo_filtro" value="{{ periodo_filtro_selecionado }}">
+                    {# Não precisamos passar o ID global aqui, a view já tem acesso a request.igreja_ativa #}
                     <div class="input-group input-group-sm">
                         <label class="input-group-text" for="igreja_filtro_select_lider">Igreja/Regional:</label>
                         <select name="igreja_filtro" id="igreja_filtro_select_lider" class="form-select form-select-sm" onchange="this.form.submit()">
-                            <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>Toda a Rede</option>
+                            {# Opção para "Toda a Rede" ou "Rede: [Nome da Regional Global]" #}
+                            <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>
+                                {% if request.igreja_ativa and request.igreja_ativa.get_descendants.count > 0 %}
+                                    Rede: {{ request.igreja_ativa.nome_igreja }}
+                                {% else %}
+                                    Toda a Rede (Permitidas)
+                                {% endif %}
+                            </option>                           
+                           
+                           
                             {% for igreja_opt in igrejas_permitidas_filtro %}
                                 <option value="{{ igreja_opt.pk }}" {% if igreja_id_filtro_selecionado == igreja_opt.pk|stringformat:"s" %}selected{% endif %}>{{ igreja_opt.nome_igreja }}</option>
                             {% endfor %}

@@ -17,19 +17,8 @@ from django.http import Http404 # Importar Http404
 import logging
 
 # Models e Forms
-from configuracao.models import Organizacao, PerfilUsuario
-# Importar função auxiliar de configuracao.views (ou de um utils compartilhado)
-try:
-    # Tenta importar do local original
-    from configuracao.views import get_organizacao_or_error
-except ImportError:
-    # Se falhar (ex: se você moveu para utils), ajuste o import aqui
-    # from core.utils import get_organizacao_or_error # Exemplo
-    logger.error("Falha ao importar get_organizacao_or_error de configuracao.views")
-    # Definir uma função dummy para evitar erros de NameError, mas logar
-    def get_organizacao_or_error(request):
-        logger.critical("get_organizacao_or_error não pôde ser importada!")
-        raise PermissionDenied("Erro crítico na configuração da aplicação.")
+
+from configuracao.models import Organizacao, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionar Plano e AssinaturaOrganizacao
 
 from .models import Convite
 from .forms import (
@@ -38,6 +27,14 @@ from .forms import (
     AceitarConviteSetPasswordForm,
     EditarPapeisUsuarioForm
 )
+from core.decorators import verificar_assinatura_valida # Ou o caminho correto
+from core.utils import get_organizacao_or_error # Importar de core.utils
+
+@login_required
+@verificar_assinatura_valida # Nosso novo decorator
+def minha_view_protegida(request):
+    organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
+    # ... resto da view ...
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +42,7 @@ logger = logging.getLogger(__name__)
 def registrar_usuario_e_org(request):
     """ View para lidar com o autocadastro de usuário e organização. """
     if request.user.is_authenticated:
-        return redirect('dashboard')
+        return redirect('secretaria:dashboard')
 
     if request.method == 'POST':
         form = RegistroForm(request.POST)
@@ -76,16 +73,41 @@ def registrar_usuario_e_org(request):
                         organizacao=nova_organizacao
                     )
 
+                     # --- LÓGICA PARA ATRIBUIR PLANO GRATUITO SE ELEGÍVEL ---
+                    try:
+                        plano_gratuito = Plano.objects.get(nome='gratuito')
+                        # Verifica se o plano gratuito está ativo E se a organização é elegível
+
+                        if plano_gratuito.ativo and nova_organizacao.verificar_elegibilidade_plano_gratuito():
+                            AssinaturaOrganizacao.objects.create(
+                                organizacao=nova_organizacao,
+                                plano=plano_gratuito,
+                                data_inicio=timezone.now(),
+                                # data_fim pode ser nulo ou uma data muito no futuro para gratuito
+                                status='gratuita' # Usar o status 'gratuita'
+                            )
+                            logger.info(f"Organização '{nome_fantasia_org}' elegível e atribuída ao plano Gratuito.")
+                        else:
+                            # Opcional: Criar uma assinatura pendente para um plano padrão ou deixar sem assinatura
+                            logger.info(f"Organização '{nome_fantasia_org}' não elegível para plano Gratuito no momento do registro.")
+                    except Plano.DoesNotExist:
+                        logger.warning("Plano 'gratuito' não encontrado no banco de dados. Não será ofertado automaticamente.")
+                    except Exception as e_plano:
+                        logger.error(f"Erro ao tentar atribuir plano para '{nome_fantasia_org}': {e_plano}")
+                    # --- FIM DA LÓGICA DO PLANO ---
+
+
+
                 logger.info(f"Novo usuário '{email}' e organização '{nome_fantasia_org}' registrados com sucesso.")
                 login(request, novo_usuario)
                 messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o da organização "{nome_fantasia_org}" foram concluídos. Sua organização aguarda aprovação do administrador do sistema.')
-                return redirect('dashboard')
-
-            except Exception as e:
-                logger.exception(f"Erro durante o registro do usuário {email} ou organização {nome_fantasia_org}.")
+                return redirect('contas:aguardando_aprovacao') # Redireciona para a página de aguardando aprovação
+            except Exception as e: # Captura exceções da criação de usuário/org ou da lógica de plano
+                logger.exception(f"Erro durante o registro do usuário {email} ou organização {nome_fantasia_org}: {e}")
                 messages.error(request, f"Ocorreu um erro inesperado durante o registro: {e}. Por favor, tente novamente ou contate o suporte.")
-                form = RegistroForm() # Limpa o form em caso de erro grave
+                # Não limpar o form aqui para o usuário não perder os dados digitados
 
+           
         else:
             messages.error(request, "Erro no formulário. Verifique os campos e tente novamente.")
 
@@ -134,7 +156,7 @@ def lista_usuarios_org(request):
         org_id = request.user.perfil.organizacao.id if hasattr(request.user, 'perfil') and request.user.perfil.organizacao else 'N/A'
         logger.exception(f"Erro ao listar usuários/convites para organização {org_id}")
         messages.error(request, f"Ocorreu um erro ao listar os usuários e convites: {e}")
-        return redirect('dashboard') # Ou 'index'
+        return redirect('secretaria:dashboard') # Ou 'secretaria:index'
 
 # --- VIEW ENVIAR CONVITE ---
 @login_required
@@ -248,7 +270,7 @@ def aceitar_convite(request, token):
                     convite.save()
 
                 messages.success(request, f"Convite aceito! Você agora faz parte da organização {convite.organizacao.nome_fantasia}.")
-                return redirect('dashboard')
+                return redirect('secretaria:dashboard')
             except Exception as e:
                  logger.exception(f"Erro ao aceitar convite (logado) para {convite.email_convidado}, token {token}")
                  messages.error(request, f"Ocorreu um erro ao processar o convite: {e}")
@@ -295,7 +317,7 @@ def aceitar_convite(request, token):
 
                     login(request, novo_usuario)
                     messages.success(request, f"Conta criada e convite aceito! Bem-vindo à organização {convite.organizacao.nome_fantasia}, {primeiro_nome}.")
-                    return redirect('dashboard')
+                    return redirect('secretaria:dashboard')
 
                 except Exception as e:
                     logger.exception(f"Erro ao criar usuário/perfil ao aceitar convite para {convite.email_convidado}, token {token}")
@@ -463,3 +485,28 @@ def alternar_status_usuario_org(request, user_pk):
         messages.error(request, "Ação inválida (requer POST).")
 
     return redirect('contas:lista_usuarios')
+
+@login_required
+def aguardando_aprovacao(request):
+    """
+    Página exibida para usuários cuja organização ainda não foi ativada.
+    """
+    organizacao_usuario = None
+    if hasattr(request.user, 'perfil') and request.user.perfil:
+        organizacao_usuario = request.user.perfil.organizacao
+    
+    if not organizacao_usuario:
+        # Isso não deveria acontecer se o registro foi bem-sucedido
+        messages.error(request, "Não foi possível identificar sua organização. Por favor, contate o suporte.")
+        return redirect('login') 
+
+    # Verificar se a organização já foi ativada, e se sim, redirecionar para o dashboard
+    if organizacao_usuario.ativo:
+        messages.info(request, f"Sua organização '{organizacao_usuario.nome_fantasia}' já está ativa!")
+        return redirect('secretaria:dashboard') # Ou a página principal após ativação
+
+    context = {
+        'organizacao': organizacao_usuario,
+        'titulo_pagina': "Aguardando Aprovação da Organização"
+    }
+    return render(request, 'contas/aguardando_aprovacao.html', context)
