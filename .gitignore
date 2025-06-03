@@ -71,6 +71,7 @@ staticfiles/ # Se você sempre roda collectstatic antes do deploy
 # Virtual Environments
 .env
 .venv
+.venv/
 env/
 venv/
 ENV/
@@ -84,6 +85,8 @@ venv.bak/
 *.project
 *.pydevproject
 .DS_Store
+.vscode/
+
 
 # Backup files
 backup/

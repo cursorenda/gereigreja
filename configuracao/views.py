@@ -280,7 +280,7 @@ def editar_organizacao(request):
         # --- FIM DA VERIFICAÇÃO ---
     if request.method == 'POST':
         # Passa a instância para editar o objeto correto
-        form = OrganizacaoEditForm(request.POST, instance=organizacao)
+        form = OrganizacaoEditForm(request.POST, request.FILES, instance=organizacao)
         if form.is_valid():
             try:
                 form.save()

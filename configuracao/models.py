@@ -2,11 +2,17 @@
 from django.db import models
 from django.conf import settings # Necessário para referenciar o User model padrão do Django
 from django.utils import timezone # Importar timezone se usar default=timezone.now
-import uuid
-import os # Já importado
+import uuid # Para nomes de arquivo únicos
+import os   # Para manipulação de caminhos
 from datetime import timedelta # Para calcular data_fim da assinatura
 from django.apps import apps # Para import tardio e evitar circularidade
 
+
+# --- Função para upload_to do logo da Organização ---
+def get_organizacao_logo_upload_path(instance, filename):
+    """ Gera um caminho de upload único para os logos das organizações. """
+    ext = os.path.splitext(filename)[1] # Pega a extensão .jpg, .png, etc.
+    return os.path.join('logos_organizacoes', f'org_{instance.pk_or_uuid}_{uuid.uuid4().hex}{ext}')
 
 # --- DEFINIÇÃO DE ESTADO_CHOICES ---
 ESTADO_CHOICES = [
@@ -63,7 +69,12 @@ class Organizacao(models.Model):
         null=True,
         verbose_name="Estado (Sede)"
     )
-
+    logo = models.ImageField(
+        upload_to=get_organizacao_logo_upload_path, # Função para gerar o caminho
+        null=True,
+        blank=True,
+        verbose_name="Logo da Organização"
+    )
     def __str__(self):
         return self.nome_fantasia
 
@@ -72,6 +83,12 @@ class Organizacao(models.Model):
         verbose_name_plural = "Organizações"
         ordering = ['nome_fantasia']
 
+    def save(self, *args, **kwargs):
+        # Define um atributo temporário pk_or_uuid que será usado pela função de upload
+        # se o objeto ainda não tiver um PK (ou seja, está sendo criado).
+        # Isso ajuda a função de upload a ter um identificador mesmo antes do save completo.
+        self.pk_or_uuid = self.pk or uuid.uuid4().hex
+        super().save(*args, **kwargs)
 
     def verificar_elegibilidade_plano_gratuito(self):
         """

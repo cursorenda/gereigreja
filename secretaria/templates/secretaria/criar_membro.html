@@ -21,10 +21,44 @@
             Dados do Novo Membro
         </div>
         <div class="card-body">
-            <form method="POST" action="{% url 'secretaria:cadastrar_membro' %}">
+            {# ADICIONADO enctype="multipart/form-data" para upload de arquivos #}
+            <form method="POST" action="{% url 'secretaria:cadastrar_membro' %}" enctype="multipart/form-data">
                 {% csrf_token %}
 
                 {% include "partials/_form_errors.html" with form=form %} {# Para erros non_field_errors #}
+
+                {# --- SEÇÃO SUPERIOR COM FOTO E DADOS PRINCIPAIS (ADAPTADO PARA CRIAÇÃO) --- #}
+                <div class="row mb-4 align-items-center">
+                    <div class="col-md-3 text-center">
+                        {# Placeholder para foto e preview #}
+                        <img src="{% static 'img/default_avatar.png' %}" alt="Foto do Membro" class="img-fluid rounded-circle mb-2" style="width: 150px; height: 150px; object-fit: cover;" id="fotoPreviewCriar">
+                        {# Campo de upload da foto logo abaixo da imagem #}
+                        <div class="mb-3">
+                            <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
+                            {{ form.foto }} {# Usará o widget customizado se definido no form #}
+                            {% if form.foto.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.foto.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-9">
+                        {# Nome e Apelido ao lado da foto #}
+                        <div class="mb-3">
+                            <label for="{{ form.nome.id_for_label }}" class="form-label">{{ form.nome.label }}:</label>
+                            {{ form.nome }}
+                            {% if form.nome.errors %}<div class="invalid-feedback d-block">{{ form.nome.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
+                            {{ form.apelido }}
+                            {% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                {# --- FIM SEÇÃO SUPERIOR --- #}
 
                 <div class="row">
                     {# --- CAMPO IGREJA ADICIONADO --- #}
@@ -60,34 +94,9 @@
                         </div>
                     </div>
 
-                    <div class="col-md-8"> {# Nome um pouco maior #}
-                        <div class="mb-3">
-                            <label for="{{ form.nome.id_for_label }}" class="form-label">{{ form.nome.label }}:</label>
-                            {{ form.nome }}
-                             {% if form.nome.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.nome.errors|striptags }}
-                                </div>
-                            {% endif %}
-                            {% if form.nome.help_text %}
-                                <div class="form-text">{{ form.nome.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4"> {# Apelido ao lado do nome #}
-                        <div class="mb-3">
-                            <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
-                            {{ form.apelido }}
-                            {% if form.apelido.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.apelido.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.apelido.help_text %}
-                                <div class="form-text">{{ form.apelido.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
+
+                    {# Os campos de nome e apelido foram movidos para a seção superior #}
+
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="{{ form.cpf.id_for_label }}" class="form-label">{{ form.cpf.label }}:</label>
@@ -397,7 +406,10 @@
                                 <div class="form-text">{{ form.data_casamento.help_text|safe }}</div>
                             {% endif %}
                         </div>
-                    </div>
+                    
+
+                {# O campo de foto foi movido para a seção superior #}
+             
                 </div>
                 <hr>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salvar Membro</button>
@@ -414,6 +426,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
 <script>
     $(document).ready(function(){
+         // Preview da foto ao selecionar no formulário de criar membro
+        // Usa o ID do campo de foto que o Django gera (geralmente id_nome_do_campo)
+        $("#{{ form.foto.id_for_label }}").change(function(){ // Corrigido para usar o ID do campo de foto
+            if (this.files && this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#fotoPreviewCriar').attr('src', e.target.result);
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+        
          // --- INÍCIO: LÓGICA PARA BUSCA DE CEP ---
          $("#id_cep").blur(function() { // Evento blur é quando o campo perde o foco
             var cep = $(this).val().replace(/\D/g, ''); // Remove caracteres não numéricos

@@ -1,3 +1,4 @@
+
 Aqui está uma organização mais estruturada para a implementação no seu programa de gerenciamento de igrejas:
 
 ## **1. Melhorias Urgentes**
@@ -22,7 +23,7 @@ Aqui está uma organização mais estruturada para a implementação no seu prog
 - LOGO da igreja na pagina inicial.
 * As contas pagas de conta a pagar precisa aparecer no fechamento de caixa.
 * Pagina onde fica relação de atualizaçoes do sistema para que o usuario saiba as atualizaçoes e novidade.
-*Na lista de entradas e saidas listar o resultado por ordem de coluna "valores, membros, datas,igreja, categoria"---
+* Na lista de entradas e saidas listar o resultado por ordem de coluna "valores, membros, datas,igreja, categoria"---
 * MUDAR tipos_status dividir em 2 partes: 1. tipo_pessoa (quem é), 2. status (situação)
      visitante — Pessoa que frequenta, mas não é membro.
      congregado — Pessoa que frequenta regularmente, mas ainda não é membro oficial.
@@ -30,6 +31,11 @@ Aqui está uma organização mais estruturada para a implementação no seu prog
      membro — Membro regular da igreja.
      obreiro — Membro com função de liderança (pode incluir pastor, diácono, etc).
  Status: Ativo, inativo, sisciplina, desligado?, transferido?, falecido?
+Gostaria que o sistema fizesse historico de tipo e status, onde poderemos visualizar todo o historico do membro/pessoa,
+ou uma linha do tempo para cada membros dentro do caastro dele em uma ABA.
+
+
+* adicionar logo do ministerio/organização
 
 ## **2. Observações Gerais**
 ### **Estrutura do Projeto**
@@ -193,10 +199,8 @@ Minha Sugestão de Próximo Passo:
 Com base no seu interesse em refinar o Painel Financeiro, sugiro adicionarmos os indicadores de Contas a Pagar (Pendentes e Vencidas) a ele. Isso complementaria os cards de resumo de receitas/despesas e daria uma visão mais completa das obrigações financeiras.
 
 
-Adicionar um gráfico de "Categorias de Receita": Similar ao que fizemos para as despesas, mas mostrando de onde vêm as receitas (Dízimos, Ofertas, etc.).
 Listar os saldos das Contas Bancárias/Caixas: Mostrar um resumo dos saldos atuais das suas contas diretamente no painel.
 Trabalhar na Visão Consolidada para Sede/Regionais: Aprimorar a lógica para que, ao selecionar uma Sede ou Regional (ou se o usuário tiver esse papel), os dados do painel financeiro (incluindo os cards e gráficos) reflitam as informações consolidadas das igrejas subordinadas.
-Ou, se preferir, podemos mudar o foco para outra funcionalidade do seu sistema.
 
 
 
@@ -308,3 +312,105 @@ Feedback dos Usuários: Converse com quem vai usar o sistema. As necessidades de
 Priorização: Escolha algumas melhorias ou uma nova funcionalidade que traga mais impacto inicialmente. Não tente fazer tudo de uma vez.
 Iteração: Desenvolva de forma incremental, testando e validando cada etapa.
 O sistema já tem uma fundação muito boa! Essas são apenas ideias para expandir e refinar ainda mais. Se quiser discutir alguma dessas sugestões mais a fundo ou precisar de ajuda para planejar a implementação, é só dizer!
+
+A jornada do visitante - processo: 
+Alcance - Desenvolva estrategias eficazes para atrair novos visitantes e expandir o impacto da igreja na comunidade.
+          Missao de alcançar pessoas
+          comunicação estrategica no Alcance
+          eventos e programaçoes como estrategia de Alcance
+          evangelismo pessoal e relacional.
+          projetos sociais e acoes comunitarias
+          evangelismo criativo e estrategico
+          planajamento e continuidade do alcance.
+
+Recepçao - crie uma experiencia acolhedora que faça os visitantes se sentirem valorizados e desejosos de retornar.
+          A cultura da hospitalidade da igreja
+          estruturando o ministerio de recepção
+          estrategias praticas para a recepção
+          o poder da despedida e acompanhamento pos culto
+          ensinando a igreja a ser receptiva
+          acessibilidade e inclusao no ministerio da recepção
+          avaliação e melhoria continua do ministerio
+
+Integração - estabeleça processos que facilitem a conexao dos novos membros com a comunidade, promovendo um senso de pertenciamento.
+          café de integração - apresentação da igreja
+          escola de primeiros Passos
+          aconselhamento pessoal com pastores
+          conexao profunda com a comunidade- grupos e ministerios
+          o papel da igreja na integração
+          integração duradoura e copromisso com a Missao
+
+consolidação - implemente programas de discipulado que fortaleçam a fé e incentivem o crescimento espiritual continuo.
+           O proposito da consolidação
+           o discipulado como base da consolidaçãoformação espiritual e educação crista
+           comunhao e envolvimento na igreja
+           servindo no reino- o papel do novo membro.
+           a jornada de 2 a 3 anos até a maturidade
+           monitoramento e melhoria continua da coonsolidação.
+
+
+-----------------------------------------------------------
+
+I. Correções de Bugs e Inconsistências Potenciais (Alguns podem já estar resolvidos no seu código mais recente, mas vale a pena verificar):
+
+URLs e Nomes de Rotas:
+
+financeiro.urls.py: A URL com name='editar_fechamento_caixa' (mencionada em erros anteriores do debug.log) não foi encontrada. Se a funcionalidade de editar um fechamento de caixa (diferente de reabrir ou ver detalhes) for necessária, essa URL e a view correspondente precisam ser criadas.
+Modelos e Lógica de Views:
+
+financeiro.models.ContaBancaria: Na view painel_financeiro, havia uma tentativa de filtrar por um campo ativa em ContaBancaria. Se essa funcionalidade de "conta ativa/inativa" é desejada, o campo ativa (Booleano) precisa ser adicionado ao modelo ContaBancaria e uma migração deve ser criada e aplicada.
+secretaria.models.Membro:
+Se você precisa exibir um "nome completo" nos templates ou views, e seu modelo Membro tem campos separados (ex: nome, sobrenome), considere adicionar uma @property no modelo Membro para gerar esse nome completo. Ex:
+python
+# Em secretaria/models.py, dentro da classe Membro
+@property
+def nome_completo(self):
+    return f"{self.nome} {self.sobrenome_ou_campo_similar}" # Ajuste conforme seus campos
+Se o modelo Membro não herda de django.contrib.auth.models.User e você precisa de um campo username, ele precisaria ser explicitamente adicionado ao modelo Membro.
+financeiro.views.py (erros do debug.log antigo, verificar se já corrigidos):
+NameError para num2words, datetime, json: Seus arquivos atuais parecem ter os imports corretos.
+NameError para is_admin_org, churches_for_queries: Parecem estar corretamente importados/definidos na versão atual das views.
+AttributeError: 'Organizacao' object has no attribute 'nome': Seu código atual usa organizacao.nome_fantasia, o que parece correto.
+AttributeError: 'Membro' object has no attribute 'nome_completo' ou 'username': Verifique os campos do modelo Membro e use os corretos nos templates/views, ou adicione a property nome_completo como sugerido acima.
+AttributeError: 'Receitas' object has no attribute 'descricao': Verifique o nome do campo no modelo Receitas.
+UnboundLocalError: local variable 'receitas_filtradas' (em painel_financeiro): A lógica atual parece definir esta variável corretamente nos diferentes caminhos.
+Templates:
+
+Existência de Arquivos (erros do debug.log antigo):
+financeiro/painel_financeiro.html
+partials/_messages.html
+Verifique se esses templates existem nos caminhos corretos e se a configuração TEMPLATES no settings.py está correta.
+Tags de Template (erros do debug.log antigo):
+TemplateSyntaxError: 'humanize' is not a registered tag library: Seu settings.py local já inclui 'django.contrib.humanize' em INSTALLED_APPS. Certifique-se de que {% load humanize %} está presente nos templates que usam filtros do humanize.
+TemplateSyntaxError: 'financeiro_tags' is not a registered tag library: Verifique se o arquivo financeiro/templatetags/financeiro_tags.py existe, está configurado corretamente, e se {% load financeiro_tags %} é usado nos templates.
+II. Melhorias de Código, Boas Práticas e Configuração para Produção:
+
+settings.py (para o ambiente de produção no servidor):
+
+Variáveis de Ambiente: É crucial que o settings.py usado em produção carregue configurações sensíveis (como SECRET_KEY, DEBUG, EMAIL_HOST_PASSWORD, senhas de banco de dados se não for SQLite) de variáveis de ambiente, como você já faz no seu settings.py local com python-dotenv. Essas variáveis precisam ser configuradas no painel do cPanel.
+Whitenoise: As configurações para Whitenoise (whitenoise.runserver_nostatic em INSTALLED_APPS, whitenoise.middleware.WhiteNoiseMiddleware em MIDDLEWARE, e STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage') são essenciais para servir arquivos estáticos corretamente quando DEBUG = False.
+Logging: A configuração de RotatingFileHandler para logs (escrevendo em logs/django_errors.log) é uma boa prática para produção. Garanta que o diretório logs/ exista na raiz do projeto no servidor e tenha permissão de escrita.
+Middleware DisableCacheMiddleware: Avalie a real necessidade do secretaria.middleware.DisableCacheMiddleware em produção. Desabilitar o cache pode impactar o desempenho. Se for para dados específicos, use os decorators de cache do Django (@never_cache, etc.) nas views apropriadas.
+Consistência e Organização do Código:
+
+secretaria/views.py: A função get_organizacao_or_error está definida localmente. Para manter a consistência e evitar duplicação, importe-a de core.utils (onde ela já está definida e é usada por outros apps).
+Formulários:
+
+configuracao/forms.py (IgrejaEditForm): Atualmente, os campos conta_padrao_receitas e conta_padrao_despesas são filtrados para mostrar contas de qualquer igreja dentro da mesma organização (ContaBancaria.objects.filter(igreja__organizacao=organizacao)). Confirme se este é o comportamento desejado. Se a intenção é permitir apenas contas da própria igreja que está sendo editada, o filtro deveria ser algo como ContaBancaria.objects.filter(igreja=self.instance).
+Processo de Deploy (.cpanel.yml):
+
+Linha de Cópia de Arquivos: Revise a necessidade da linha comentada - /bin/cp -R * $DEPLOYPATH. Se o "Git Version Control" do cPanel já faz o checkout (ou git pull) do seu repositório diretamente para o DEPLOYPATH (/home/gerei1/gereigreja.site/), esta linha de cópia é desnecessária e pode até causar problemas. Se o cPanel baixa o código para um diretório temporário primeiro, então uma adaptação dessa linha seria necessária.
+III. Segurança (Reforços Essenciais para Produção):
+
+DEBUG = False: No settings.py de produção (controlado pela variável de ambiente DJANGO_DEBUG='False').
+SECRET_KEY: Deve ser única, complexa e carregada de uma variável de ambiente em produção. Não use a chave de desenvolvimento.
+Senhas e Chaves de API: Todas as credenciais (como EMAIL_HOST_PASSWORD) devem ser carregadas de variáveis de ambiente em produção, nunca diretamente no código.
+ALLOWED_HOSTS: Deve ser preenchido corretamente com os domínios que servirão sua aplicação em produção.
+IV. Funcionalidades e Experiência do Usuário (UX) (Complementando sua lista):
+
+Histórico de Contribuições no Cadastro do Membro: Seu último commit (Implementa histórico de contribuições no cadastro do membro...) indica que você trabalhou nisso. Verifique se está funcionando como esperado e se a visualização é clara para o usuário.
+Revisão Geral da UX: Após as correções e o deploy, navegue pelo sistema como um usuário final para identificar pontos de atrito ou áreas que podem ser mais intuitivas.
+
+\* MELHORIAS JÁ EXECUTADAS *\
+
+Adicionar um gráfico de "Categorias de Receita": Similar ao que fizemos para as despesas, mas mostrando de onde vêm as receitas (Dízimos, Ofertas, etc.).

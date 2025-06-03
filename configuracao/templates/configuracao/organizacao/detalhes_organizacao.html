@@ -19,6 +19,14 @@
             Detalhes da Organização
         </div>
         <div class="card-body">
+            
+            {% if organizacao.logo %}
+                <div class="mb-3 text-center">
+                    <img src="{{ organizacao.logo.url }}" alt="Logo de {{ organizacao.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
+                </div>
+                <hr>
+            {% endif %}
+
             <dl class="row">
                 <dt class="col-sm-3">Nome Fantasia:</dt>
                 <dd class="col-sm-9">{{ organizacao.nome_fantasia }}</dd>

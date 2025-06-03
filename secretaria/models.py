@@ -1,6 +1,8 @@
 ﻿from django.db import models
 from django.apps import apps
 from django.utils import timezone
+import uuid # Para nomes de arquivo únicos
+import os   # Para manipulação de caminhos
 from configuracao.models import Igreja # <--- ADICIONE ESTA LINHA
 
 # --- Modelo Tiposstatus ---
@@ -25,6 +27,14 @@ class Tiposstatus(models.Model):
         verbose_name = "Tipo de Status"
         verbose_name_plural = "Tipos de Status"
         ordering = ['status'] # Ordenar alfabeticamente por padrão
+
+# --- Função para upload_to da foto do Membro ---
+def get_membro_foto_upload_path(instance, filename):
+    """ Gera um caminho de upload único para as fotos dos membros. """
+    ext = os.path.splitext(filename)[1] # Pega a extensão .jpg, .png, etc.
+    unique_filename = f"membro_{instance.chave_or_uuid}_{uuid.uuid4().hex}{ext}"
+    # Organiza as fotos em uma pasta por ID da igreja e depois por ID do membro (ou UUID se novo)
+    return os.path.join('fotos_membros', f'igreja_{instance.igreja_id or "sem_igreja"}', unique_filename)
 
 
 
@@ -72,6 +82,12 @@ class Membro(models.Model):
         related_name='membros',
         verbose_name="Status Atual" # Adicionando verbose_name
     )
+    foto = models.ImageField(
+        upload_to=get_membro_foto_upload_path,
+        null=True, blank=True,
+        verbose_name="Foto do Membro"
+    )
+    # --- FIM NOVO CAMPO FOTO ---
     conjuge = models.CharField(max_length=100, blank=True, null=True)
     data_casamento = models.DateField(blank=True, null=True)
     # Adicionar outros campos conforme necessário
@@ -87,6 +103,11 @@ class Membro(models.Model):
         return False
     # --- FIM PROPRIEDADE ---
     
+    def save(self, *args, **kwargs):
+        # Usado pela função de upload para ter um identificador antes do PK ser gerado
+        self.chave_or_uuid = self.chave or uuid.uuid4().hex
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.nome
     
@@ -220,8 +241,8 @@ class Observacoes(models.Model):
     necessidades_especiais = models.TextField(blank=True, null=True)
     observacoes_medicas = models.TextField(blank=True, null=True)
     alergias = models.TextField(blank=True, null=True)
-    observacoes_gerais = models.TextField(blank=True, null=True)
-    caminho_foto = models.TextField(blank=True, null=True)
+    observacoes_gerais = models.TextField(blank=True, null=True) # Mantido
+    # caminho_foto = models.TextField(blank=True, null=True) # REMOVIDO - Foto agora está no modelo Membro
     caminho_documentos = models.TextField(blank=True, null=True)
 
     class Meta:

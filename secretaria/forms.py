@@ -44,7 +44,9 @@ class MembroForm(forms.ModelForm):
             'estado_civil', 'profissao', 'escolaridade', 'nome_pai', 'nome_mae',
             'cep', 'pais', 'estado', 'cidade', 'bairro_distrito', 'rua',
             'numero_casa', 'complemento', 'telefone', 'data_entrada', 'status',
-            'conjuge', 'data_casamento'
+            'conjuge', 'data_casamento',
+            'foto'  # Adicionar o novo campo de foto
+
         ]
         # --- FIM ADIÇÃO ---
 
@@ -73,7 +75,16 @@ class MembroForm(forms.ModelForm):
             'data_entrada': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
             'conjuge': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
             'data_casamento': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'foto': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+
         }
+        # Adicionar classes Bootstrap para outros campos se desejar
+        for field_name in fields:
+            if field_name not in widgets: # Evita sobrescrever widgets já definidos
+                if isinstance(Membro._meta.get_field(field_name), (forms.fields.ChoiceField, forms.ModelChoiceField)):
+                    widgets[field_name] = forms.Select(attrs={'class': 'form-select'})
+                else:
+                    widgets[field_name] = forms.TextInput(attrs={'class': 'form-control'})
 
     # --- ADICIONAR/MODIFICAR __INIT__ ---
     def __init__(self, *args, **kwargs):
@@ -107,7 +118,11 @@ class MembroForm(forms.ModelForm):
         # Ajustar required=False para campos não obrigatórios se necessário
         self.fields['apelido'].required = False
         self.fields['cpf'].required = False
-        self.fields['rg'].required = False
+        # Definir o template customizado para o widget do campo 'foto'
+        self.fields['foto'].widget.template_name = 'secretaria/widgets/custom_clearable_file_input.html'
+        # Tornar o campo foto não obrigatório no formulário, pois é blank=True, null=True no modelo
+        # Embora o Django já faça isso por padrão para campos com blank=True, ser explícito é bom.
+        self.fields['foto'].required = False
         self.fields['naturalidade'].required = False
         self.fields['profissao'].required = False
         self.fields['nome_pai'].required = False

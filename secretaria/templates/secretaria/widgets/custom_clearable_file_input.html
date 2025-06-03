@@ -1,0 +1,14 @@
+{% comment %} Adaptado do template padrão do Django para ClearableFileInput {% endcomment %}
+{% if widget.is_initial %}
+    {# Não mostra "Atualmente: nome_do_arquivo.jpg" diretamente aqui. #}
+    {# A imagem atual já é mostrada acima do campo no template editar_membro.html. #}
+    {# Apenas o checkbox para limpar, se não for obrigatório e houver uma imagem. #}
+    {% if not widget.required and widget.value %} {# Adicionado widget.value para só mostrar se houver foto #}
+        <div class="form-check mt-1">
+            <input class="form-check-input" type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}>
+            <label class="form-check-label small text-muted" for="{{ widget.checkbox_id }}">{{ widget.clear_checkbox_label }}</label>
+        </div>
+    {% endif %}
+{% endif %}
+{# O input de arquivo em si #}
+<input class="form-control mt-1" type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>

@@ -185,7 +185,8 @@ LOGGING = {
 # ... (outras configurações) ...
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media' # Usando pathlib
+# MEDIA_ROOT = BASE_DIR / 'media' # Usando pathlib
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Cria uma pasta 'media' na raiz do projeto
 
 
 LOGIN_URL = '/accounts/login/' # URL para onde @login_required redireciona (já está funcionando)
@@ -206,7 +207,7 @@ EMAIL_HOST_USER = 'nao-responda@gereigreja.site'
 # A linha abaixo tenta ler a variável de ambiente 'GEREIGREJA_EMAIL_PASSWORD'.
 # Se não encontrar, e você estiver em DEBUG=True (localmente), pode usar uma senha padrão para teste.
 # NUNCA deixe uma senha real como padrão se DEBUG=False.
-EMAIL_HOST_PASSWORD = os.environ.get('GEREIGREJA_EMAIL_PASSWORD')
+EMAIL_HOST_PASSWORD = os.environ.get('gereigreja_email_password')
 
 # Para desenvolvimento local, se você ainda não configurou a variável de ambiente
 # e precisa testar, você pode temporariamente fazer:
@@ -214,10 +215,10 @@ EMAIL_HOST_PASSWORD = os.environ.get('GEREIGREJA_EMAIL_PASSWORD')
 #     EMAIL_HOST_PASSWORD = 'sua_senha_real_para_teste_local'
 # Verifique se a senha foi carregada, especialmente em produção
 if not DEBUG and not EMAIL_HOST_PASSWORD:
-    raise ValueError("A variável de ambiente GEREIGREJA_EMAIL_PASSWORD não está configurada para produção.")
+    raise ValueError("A variável de ambiente gereigreja_email_password não está configurada para produção.")
 
 
-DEFAULT_FROM_EMAIL = 'GereIgreja <nao-responda@gereigreja.site>' # E-mail que aparecerá como remetente
+DEFAULT_FROM_EMAIL = 'Gereigreja <nao-responda@gereigreja.site>' # E-mail que aparecerá como remetente
 SERVER_EMAIL = DEFAULT_FROM_EMAIL # Para e-mails de erro do servidor (enviados para ADMINS)
 ADMINS = [('sr. Júlio ', 'juliobsouza24@gmail.com')] # E-mail para onde o Django envia erros críticos
 

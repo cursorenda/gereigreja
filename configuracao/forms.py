@@ -6,6 +6,9 @@ from .models import Organizacao, Igreja, PerfilUsuario, Plano, AssinaturaOrganiz
 from django.contrib.auth.models import User # Modelo de usuário padrão
 from financeiro.models import ContaBancaria # Importar ContaBancaria
 from django.db import transaction # Para garantir atomicidade no registro
+from django.contrib.auth.models import User # Mantido
+from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 
 # --- Widget Customizado para Upload de Imagem ---
 class CustomClearableFileInput(forms.ClearableFileInput):
@@ -150,15 +153,11 @@ class OrganizacaoEditForm(forms.ModelForm):
     )
 
     class Meta:
-        model = Organizacao
-        # Definir os campos que o Admin da Org PODE editar
-        # Excluir campos críticos como 'ativo', 'administrador_principal', 'data_criacao'
-        fields = [
-            'nome_fantasia', 'razao_social',
-            'cnpj',
-            'telefone', 'email',
-            'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado'
-        ]
+        model = Organizacao # Mantido
+        fields = ['logo', 'nome_fantasia', 'razao_social', 'cnpj', 'telefone', 'email', 'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado']
+        # Adicionar 'logo' aos fields        
+      
+        
         widgets = {
             # Adicionar classes Bootstrap e máscaras se necessário
             'nome_fantasia': forms.TextInput(attrs={'class': 'form-control'}),
@@ -173,6 +172,8 @@ class OrganizacaoEditForm(forms.ModelForm):
             'bairro': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'cidade': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             # 'estado' já está definido acima com ChoiceField e Select widget
+            'logo': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+
         }
 
 # Nota: A classe IgrejaEditForm abaixo parece ser uma duplicação de IgrejaForm.
@@ -283,6 +284,10 @@ class UserEditForm(forms.ModelForm):
         if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise ValidationError("Este endereço de e-mail já está em uso por outro usuário.")
         return email
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.logo:
+            self.fields['logo'].help_text = f'<br>Logo atual: <a href="{self.instance.logo.url}" target="_blank"><img src="{self.instance.logo.url}" alt="Logo atual" style="max-height: 50px; margin-top: 5px;"></a>'
 
 class PerfilUsuarioEditForm(forms.ModelForm):
     """ Formulário para o usuário editar seus dados do PerfilUsuario. """

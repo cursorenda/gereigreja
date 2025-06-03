@@ -26,8 +26,18 @@
 <body class="sb-nav-fixed">
     <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
         <!-- Navbar Brand-->
-        <a class="navbar-brand ps-3" href="{% url 'secretaria:index' %}">Gereigreja</a>
-        <!-- Sidebar Toggle-->
+            <a class="navbar-brand ps-3" href="{% if user.is_authenticated %}{% url 'secretaria:dashboard' %}{% else %}{% url 'login' %}{% endif %}">
+            {% if request.organizacao and request.organizacao.logo %}
+                <img src="{{ request.organizacao.logo.url }}" alt="Logo {{ request.organizacao.nome_fantasia|default:'' }}" style="max-height: 30px; margin-right: 5px; vertical-align: middle;">
+            {% endif %}
+            {% if request.organizacao and request.organizacao.nome_fantasia and not request.organizacao.logo %}
+                {{ request.organizacao.nome_fantasia|truncatechars:20 }}
+            {% elif request.organizacao and not request.organizacao.nome_fantasia and not request.organizacao.logo and request.organizacao.razao_social %}
+                {{ request.organizacao.razao_social|truncatechars:20 }}
+            {% elif not request.organizacao %}
+                Gereigreja
+            {% endif %}
+        </a>        <!-- Sidebar Toggle-->
         <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>
 
           {# --- INÍCIO DO SELETOR DE IGREJA ATIVA --- #}
@@ -90,6 +100,11 @@
                     {% endfor %}
                 {% endif %}
                 {# --- FIM Links de Configuração da Organização --- #}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'configuracao:meu_perfil' %}">
+                            <i class="fas fa-id-card fa-fw me-1 text-muted"></i>Meu Perfil
+                        </a>
+                    </li>
 
                     {# --- Links da Conta do Usuário (Para TODOS os logados) --- #}
                     <li><a class="dropdown-item" href="{% url 'configuracao:gerenciar_assinatura' %}">Minha Assinatura</a></li>

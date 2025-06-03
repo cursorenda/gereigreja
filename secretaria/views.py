@@ -22,6 +22,7 @@ from django.urls import reverse_lazy # Para login_url
 # --- IMPORTAR UTILS DE PERMISSÃO PARA secretaria (Consolidado) ---
 from django.db.models.functions import Extract # Adicione esta linha para Extract
 from .utils import has_membro_view_permission, has_membro_edit_permission, get_allowed_churches_for_membros, is_secretaria_leader, is_admin_org # Adicionar is_secretaria_leader
+from financeiro.models import Receitas # Importar o modelo Receitas
 from django.urls import reverse
 
 
@@ -421,13 +422,15 @@ def editar_membro(request, membro_id):
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
+     # DEBUG: Verificar o membro que está sendo editado
+    print(f"DEBUG [editar_membro]: Editando membro: {membro.nome} (ID: {membro.pk})")
 
     if request.method == 'POST':
         # Ao editar, a igreja do membro não deve mudar via seletor global, mas o form precisa das allowed_churches
-        form = MembroForm(request.POST, instance=membro, 
+        form = MembroForm(request.POST, request.FILES, instance=membro, 
                           organizacao=organizacao, 
                           user=request.user, 
-                          allowed_churches=allowed_churches,
+                          allowed_churches=allowed_churches, # noqa
                           igreja_inicial=membro.igreja) # Passa a igreja atual do membro
         print(f"DEBUG POST - request.POST: {request.POST}") # Veja os dados brutos do POST
         if form.is_valid():
@@ -463,12 +466,22 @@ def editar_membro(request, membro_id):
         print(f"DEBUG GET - Editando Membro ID: {membro.pk}")
         print(f"DEBUG GET - Valor de membro.nascimento no BD: {membro.nascimento}")
         print(f"DEBUG GET - Tipo de membro.nascimento no BD: {type(membro.nascimento)}")
+    # Buscar histórico de contribuições do membro
+    contribuicoes = Receitas.objects.filter(membro=membro).select_related(
+        'igreja', 'conta_bancaria'
+    ).order_by('-data')
+    
+     # DEBUG: Verificar as contribuições encontradas
+    print(f"DEBUG [editar_membro]: Contribuições encontradas para {membro.nome} (ID: {membro.pk}): {list(contribuicoes)}")
+    # Para ver a query SQL gerada (pode ajudar a identificar problemas no filtro):
+    # print(f"DEBUG [editar_membro]: Query SQL para contribuições: {str(contribuicoes.query)}")
 
     context = {
         'form': form,
         'membro_id': membro_id,
         'organizacao': organizacao,
-        'titulo_pagina': f'Editar Membro: {membro.nome}'
+        'titulo_pagina': f'Editar Membro: {membro.nome}',
+        'contribuicoes': contribuicoes # Passando as contribuições para o template
     }
     return render(request, 'secretaria/editar_membro.html', context)
 
@@ -487,7 +500,7 @@ def criar_membro(request):
 
     if request.method == 'POST':
         # Ao criar, a igreja_ativa (se houver) deve ser a sugestão inicial
-        form = MembroForm(request.POST, 
+        form = MembroForm(request.POST, request.FILES, 
                           organizacao=organizacao, 
                           user=request.user, 
                           allowed_churches=allowed_churches,
@@ -672,6 +685,44 @@ def alternar_status_membro(request, membro_id):
         # GET request não é permitido para esta ação
         messages.error(request, "Ação inválida.")
         return redirect('secretaria:lista_membros')
+# --- FIM NOVA VIEW ---
+
+
+# --- NOVA VIEW PARA FICHA DE MEMBRO PARA IMPRESSÃO ---
+@login_required
+@user_passes_test(has_membro_view_permission, login_url=reverse_lazy('login'), redirect_field_name=None)
+def ficha_membro_impressao(request, membro_id):
+    organizacao = get_organizacao_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user)
+    
+    # Usar select_related e prefetch_related para otimizar a busca de dados relacionados
+    membro = get_object_or_404(
+        Membro.objects.select_related(
+            'igreja', 
+            'status',
+            # Adicione outros select_related para ForeignKeys diretos se necessário
+        ).prefetch_related(
+            'contatos_set', # related_name padrão se não definido explicitamente
+            'infoeclesiastica_set',
+            'familia_set',
+            'filhos_set',
+            'observacoes_set',
+            'membroscargos_set', # Para cargos
+            'membroscargos_set__cargo', # Para acessar o nome do cargo
+            # Adicione outros prefetch_related para ManyToMany ou Reverse ForeignKeys
+        ),
+        pk=membro_id, 
+        igreja__in=allowed_churches
+    )
+
+    context = {
+        'membro': membro,
+        'organizacao_sistema': organizacao, # Para diferenciar da organização do membro, se necessário
+        'titulo_pagina': f"Ficha Cadastral - {membro.nome}",
+        # Passar dados relacionados específicos se o template precisar deles de forma mais direta
+        # Ex: 'contatos': membro.contatos_set.first() # Se for OneToOne ou você só quer o primeiro
+    }
+    return render(request, 'secretaria/membro/ficha_membro_impressao.html', context)
 # --- FIM NOVA VIEW ---
 
 @login_required

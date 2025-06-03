@@ -84,6 +84,9 @@
                                     <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-outline-primary btn-sm me-1" title="Editar {{ membro.nome }}">
                                         <i class="fas fa-edit"></i>
                                     </a>
+                                    <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-sm btn-outline-info me-1" title="Ver Ficha para Impressão" target="_blank">
+                                                <i class="fas fa-print"></i>
+                                            </a>
                                     <form action="{% url 'secretaria:alternar_status_membro' membro.chave %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja alterar o status de atividade (para relatórios) deste membro?');">
                                         {% csrf_token %}
                                         {% if membro.is_ativo_para_relatorios %}
