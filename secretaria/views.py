@@ -1,8 +1,9 @@
 # c:\Gereigreja\secretaria\views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Membro, Tiposstatus
-from .forms import MembroForm
+from core.decorators import check_permission # Importar o novo decorator
+from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
+from .forms import MembroForm, StatusHistoricoManualForm, MembroUserManagementForm
 from django.http import HttpResponse, Http404
 from datetime import datetime
 from django.conf import settings
@@ -12,17 +13,21 @@ import logging
 import zipfile
 from django.db.models import Count, Q
 import json
-from django.contrib.auth.decorators import login_required, user_passes_test
-from configuracao.models import PerfilUsuario, Organizacao, Igreja # Adicionado Igreja
+from django.contrib.auth.decorators import login_required, user_passes_test # Adicionado user_passes_test
+from configuracao.models import PerfilUsuario, Organizacao, Igreja, AssinaturaOrganizacao # Adicionado Igreja e AssinaturaOrganizacao
 from django.core.exceptions import PermissionDenied
 from datetime import datetime, date # Importe 'date' aqui também
 from django.db.models import Count, Q, F, Value, Case, When, BooleanField # Adicione F, Value, Case, When, BooleanField
 from django.urls import reverse_lazy # Para login_url
+from core.decorators import check_permission # <<< ADICIONE ESTA LINHA
+from django.utils.crypto import get_random_string # Para gerar senhas aleatórias
 
 # --- IMPORTAR UTILS DE PERMISSÃO PARA secretaria (Consolidado) ---
 from django.db.models.functions import Extract # Adicione esta linha para Extract
 from .utils import has_membro_view_permission, has_membro_edit_permission, get_allowed_churches_for_membros, is_secretaria_leader, is_admin_org # Adicionar is_secretaria_leader
 from financeiro.models import Receitas # Importar o modelo Receitas
+from django.contrib.auth.models import User, Group # Importar User e Group
+from django.db import transaction # Adicionar import para transações atômicas
 from django.urls import reverse
 
 
@@ -93,9 +98,7 @@ def get_organizacao_or_error(request):
         # Se não tem assinatura E não é elegível para gratuita
         if not organizacao.verificar_elegibilidade_plano_gratuito():
             if not request.user.is_superuser and request.path != reverse('configuracao:gerenciar_assinatura'):
-                    messages.warning(request, f"Sua assinatura do plano {assinatura.plano.get_nome_display() if assinatura.plano else ''} está {assinatura.get_status_display()}. Por favor, regularize sua situação.")
-                    messages.warning(request, "Sua organização não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia.")
-# --- FIM VERIFICAÇÃO DA ASSINATURA ---
+                    messages.warning(request, "Sua organização não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia.")# --- FIM VERIFICAÇÃO DA ASSINATURA ---
     
     return organizacao
     
@@ -106,6 +109,11 @@ def get_organizacao_or_error(request):
 def index(request):
     if request.user.is_superuser:
         return redirect('admin:index')
+
+    # --- NOVO: Redireciona Membro Comum para o portal ---
+    if request.user.groups.filter(name='Membro Comum').exists() and not request.user.is_staff:
+        return redirect('secretaria:portal_membro')
+
     try:
         organizacao = get_organizacao_or_error(request)
         total_membros_ativos_count = 0
@@ -131,7 +139,8 @@ def index(request):
                 membros_base_qs = Membro.objects.filter(igreja__organizacao=organizacao)
 
             total_membros_ativos_count = membros_base_qs.filter(
-                status__considerar_ativo_relatorios=True
+                # status__considerar_ativo_relatorios=True # Lógica antiga
+                status_pessoa__considerar_ativo_relatorios=True # Nova lógica
             ).count()
 
             from datetime import timedelta 
@@ -199,19 +208,19 @@ def dashboard(request):
     if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
         membros_para_relatorios = Membro.objects.filter(
             igreja=request.igreja_ativa,
-            status__considerar_ativo_relatorios=True
+            status_pessoa__considerar_ativo_relatorios=True # CORRIGIDO AQUI
         )
         titulo_contextual_dashboard = f"Dashboard - Igreja: {request.igreja_ativa.nome_igreja}"
     elif allowed_churches_secretaria.exists():
         membros_para_relatorios = Membro.objects.filter(
             igreja__in=allowed_churches_secretaria,
-            status__considerar_ativo_relatorios=True
+            status_pessoa__considerar_ativo_relatorios=True # Alterado
         )
         titulo_contextual_dashboard += " (Visão Consolidada)"
     elif is_admin_org(request.user): # Admin da Org sem igrejas no perfil e sem igreja ativa
         membros_para_relatorios = Membro.objects.filter(
             igreja__organizacao=organizacao,
-            status__considerar_ativo_relatorios=True
+            status_pessoa__considerar_ativo_relatorios=True # Alterado
         )
         titulo_contextual_dashboard += " (Visão da Organização)"
     else:
@@ -224,13 +233,26 @@ def dashboard(request):
 
 
 
-    # 1. Contagem por Status
-    status_data_qs = membros_para_relatorios.values( # Renomeado para evitar conflito
-        'status__status'
+    # Base de membros para o gráfico de status (sem filtro de 'considerar_ativo_relatorios')
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        membros_base_para_grafico_status = Membro.objects.filter(igreja=request.igreja_ativa)
+    elif allowed_churches_secretaria.exists():
+        membros_base_para_grafico_status = Membro.objects.filter(igreja__in=allowed_churches_secretaria)
+    elif is_admin_org(request.user):
+        membros_base_para_grafico_status = Membro.objects.filter(igreja__organizacao=organizacao)
+    else:
+        membros_base_para_grafico_status = Membro.objects.none()
+
+    # 1. Contagem por Status (para o gráfico, usando a base sem filtro de 'ativo para relatórios')
+    status_data_qs = membros_base_para_grafico_status.values(
+
+        'status_pessoa__nome' # Alterado para novo campo e nome
     ).annotate(
         total=Count('chave')
-    ).order_by('status__status')
-    status_data_list = [{'status': item['status__status'], 'total': item['total']} for item in status_data_qs]
+    ).order_by('status_pessoa__nome') # Alterado
+    # Ajustar a chave do dicionário para o template, se necessário
+    status_data_list = [{'status': item['status_pessoa__nome'], 'total': item['total']} for item in status_data_qs]
+    status_data_list = [item for item in status_data_list if item['status']] # Remove entradas onde status_pessoa__nome é None
     logger.info(f"Dashboard - Status Data (Filtrado): {status_data_list}")
 
     # 2. Contagem por Gênero (para gráfico)
@@ -330,7 +352,7 @@ def dashboard(request):
     # Card 3: Aniversariantes do Mês Atual
     aniversariantes_mes_atual_count = membros_para_relatorios.filter( # Usar membros_para_relatorios
         # status__considerar_ativo_relatorios=True, # Já filtrado em membros_para_relatorios
-    nascimento__month=hoje_data.month
+        nascimento__month=hoje_data.month
     ).count()
 
     # Card 4: Média de Idade dos Membros Ativos
@@ -370,9 +392,8 @@ def dashboard(request):
     return render(request, 'dashboard.html', context)
 
 
-@login_required
-@user_passes_test(has_membro_view_permission, login_url=reverse_lazy('login'), redirect_field_name=None)
-def lista_membros(request):
+@check_permission(has_membro_view_permission, login_url_name='login')
+def lista_membros(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
 
@@ -387,7 +408,7 @@ def lista_membros(request):
         membros_queryset = Membro.objects.none()
     # --- Fim Lógica de Filtragem Inicial ---
 
-    membros_queryset = membros_queryset.select_related('igreja', 'status').order_by('nome')
+    membros_queryset = membros_queryset.select_related('igreja', 'tipo_pessoa', 'status_pessoa').order_by('nome') # Adicionado tipo_pessoa, status_pessoa
 
 
     query = request.GET.get('q')
@@ -416,13 +437,16 @@ def lista_membros(request):
     return render(request, 'secretaria/lista_membros.html', context)
 
 
-@login_required
-@user_passes_test(has_membro_edit_permission, login_url=reverse_lazy('login'), redirect_field_name=None)
-def editar_membro(request, membro_id):
+@check_permission(has_membro_edit_permission, login_url_name='login')
+def editar_membro(request, membro_id): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
      # DEBUG: Verificar o membro que está sendo editado
+    
+     # Tenta encontrar o User e PerfilUsuario associados ao membro
+    user_associado = User.objects.filter(email__iexact=membro.email, perfil__organizacao=organizacao).first()
+    perfil_associado = user_associado.perfil if user_associado else None
     print(f"DEBUG [editar_membro]: Editando membro: {membro.nome} (ID: {membro.pk})")
 
     if request.method == 'POST':
@@ -431,37 +455,111 @@ def editar_membro(request, membro_id):
                           organizacao=organizacao, 
                           user=request.user, 
                           allowed_churches=allowed_churches, # noqa
-                          igreja_inicial=membro.igreja) # Passa a igreja atual do membro
+                          igreja_inicial=membro.igreja) # Passa a igreja atual do membro 
         print(f"DEBUG POST - request.POST: {request.POST}") # Veja os dados brutos do POST
-        if form.is_valid():
-            print(f"DEBUG POST - form.cleaned_data: {form.cleaned_data}") # Veja os dados limpos
-            nascimento_do_form = form.cleaned_data.get('nascimento')
-            print(f"DEBUG POST - Nascimento do form.cleaned_data: {nascimento_do_form}, Tipo: {type(nascimento_do_form)}")
-            try:
-                membro_editado = form.save(commit=False)
-                print(f"DEBUG POST - membro_editado.nascimento ANTES do save: {membro_editado.nascimento}, Tipo: {type(membro_editado.nascimento)}")
-                if not is_admin_org(request.user) and membro_editado.igreja not in allowed_churches:
-                    messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
-                else:
-                    membro_editado.save()
-                    messages.success(request, f'Membro "{membro_editado.nome}" atualizado com sucesso!')
-                    return redirect('secretaria:lista_membros')
-            except Exception as e:
-                print(f"DEBUG POST - Exceção ao salvar: {e}")
+        # --- Lógica para o formulário de gerenciamento de usuário ---
+        user_management_form = MembroUserManagementForm(
+            request.POST,
+            membro_instance=membro,
+            organizacao=organizacao,
+            user_instance=user_associado,
+            perfil_instance=perfil_associado
+        )
 
-                logger.exception(f"Erro ao salvar edição do membro {membro_id} para organização {organizacao.id}")
-                messages.error(request, f"Ocorreu um erro ao salvar as alterações: {e}")
-        else:
-            # Adicionar este print para depuração quando o formulário é carregado (GET)
-            print(f"DEBUG POST - Form inválido. Erros: {form.errors.as_json()}")
+        if 'submit_membro_form' in request.POST: # Se o formulário principal do membro foi submetido
+            if form.is_valid():
+                print(f"DEBUG POST - form.cleaned_data: {form.cleaned_data}") # Veja os dados limpos
+                nascimento_do_form = form.cleaned_data.get('nascimento')
+                print(f"DEBUG POST - Nascimento do form.cleaned_data: {nascimento_do_form}, Tipo: {type(nascimento_do_form)}")
+                try:
+                    membro_editado = form.save(commit=False)
+                    print(f"DEBUG POST - membro_editado.nascimento ANTES do save: {membro_editado.nascimento}, Tipo: {type(membro_editado.nascimento)}")
+                    if not is_admin_org(request.user) and membro_editado.igreja not in allowed_churches:
+                        messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
+                   
+                   
+                    else:
+                        membro_editado.save(user=request.user) # Passa o usuário
+                        messages.success(request, f'Membro "{membro_editado.nome}" atualizado com sucesso!')
+                        # Verifica o VALOR do botão pressionado, não a presença de uma chave.
+                        # O botão "Salvar e Continuar" envia o valor "_save_and_continue".
+                        # O botão "Salvar Alterações" não tem valor, então o get() retornará None.
+                        if request.POST.get('submit_membro_form') == '_save_and_continue':
+                            return redirect('secretaria:editar_membro', membro_id=membro_id)
+                        else:
+                            return redirect('secretaria:lista_membros')
+                except Exception as e:
+                    print(f"DEBUG POST - Exceção ao salvar: {e}")
 
-            messages.error(request, "Erro ao atualizar membro. Verifique os campos.")
+                    logger.exception(f"Erro ao salvar edição do membro {membro_id} para organização {organizacao.id}")
+                    messages.error(request, f"Ocorreu um erro ao salvar as alterações: {e}")
+            else:
+                print(f"DEBUG POST - Membro Form inválido. Erros: {form.errors.as_json()}")
+                messages.error(request, "Erro ao atualizar membro. Verifique os campos.")
+
+        elif 'submit_user_management_form' in request.POST: # Se o formulário de gerenciamento de usuário foi submetido
+            if user_management_form.is_valid():
+                try:
+                    with transaction.atomic():
+                        # 1. Criar ou obter o User
+                        if not user_associado:
+                            # Se não existe User, cria um novo com senha aleatória e inativa
+                            # O usuário terá que usar o fluxo de "esqueci a senha" para definir a primeira senha
+                            random_password = get_random_string(length=20)
+                            user_associado = User.objects.create_user(
+                                username=user_management_form.cleaned_data['email_usuario'],
+                                email=user_management_form.cleaned_data['email_usuario'],
+                                password=random_password,
+                                is_active=user_management_form.cleaned_data.get('is_active', False),
+                                first_name=membro.nome, # Usa o nome do membro
+                                last_name=membro.apelido or ''
+                            )
+                            messages.info(request, "Nova conta de usuário criada. O usuário precisará usar a função 'Esqueci a senha' para definir sua primeira senha.")
+                        
+                        # 2. Atualizar dados do User
+                        user_associado.is_active = user_management_form.cleaned_data['is_active']
+                        user_associado.is_staff = user_management_form.cleaned_data['is_staff']
+                        user_associado.save()
+
+                        # 3. Atualizar grupos do User
+                        user_associado.groups.set(user_management_form.cleaned_data['grupos'])
+
+                        # 4. Criar ou obter PerfilUsuario e atualizar igrejas permitidas
+                        perfil_associado, created = PerfilUsuario.objects.get_or_create(user=user_associado, defaults={'organizacao': organizacao})
+                        perfil_associado.igrejas_permitidas.set(user_management_form.cleaned_data['igrejas_permitidas'])
+                        perfil_associado.organizacao = organizacao # Garante que a organização está correta
+                        perfil_associado.save()
+
+                    messages.success(request, f"Acesso do usuário {user_associado.username} atualizado com sucesso!")
+                    # Redireciona de volta para a mesma página, na aba correta
+                    redirect_url = reverse('secretaria:editar_membro', args=[membro_id]) + '?tab=acesso-sistema'
+                    return redirect(redirect_url)
+                except Exception as e:
+                    logger.exception(f"Erro ao gerenciar acesso do usuário para membro {membro_id}: {e}")
+                    messages.error(request, f"Erro ao gerenciar acesso do usuário: {e}")
+                    # RECARREGA O FORMULÁRIO PRINCIPAL PARA NÃO PERDER OS DADOS
+                    form = MembroForm(instance=membro, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_inicial=membro.igreja)
+
+           
+            else:
+                print(f"DEBUG POST - User Management Form inválido. Erros: {user_management_form.errors.as_json()}")
+                messages.error(request, "Erro ao gerenciar acesso do usuário. Verifique os campos.")
+                # RECARREGA O FORMULÁRIO PRINCIPAL PARA NÃO PERDER OS DADOS
+                form = MembroForm(instance=membro, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_inicial=membro.igreja)
+       
     else:
         form = MembroForm(instance=membro, 
                           organizacao=organizacao, 
                           user=request.user, 
                           allowed_churches=allowed_churches,
                           igreja_inicial=membro.igreja) # Passa a igreja atual do membro
+        
+        user_management_form = MembroUserManagementForm(
+            membro_instance=membro,
+            organizacao=organizacao,
+            user_instance=user_associado,
+            perfil_instance=perfil_associado
+        )    
         # Print para quando o formulário é carregado (GET)
         print(f"DEBUG GET - Editando Membro ID: {membro.pk}")
         print(f"DEBUG GET - Valor de membro.nascimento no BD: {membro.nascimento}")
@@ -476,19 +574,27 @@ def editar_membro(request, membro_id):
     # Para ver a query SQL gerada (pode ajudar a identificar problemas no filtro):
     # print(f"DEBUG [editar_membro]: Query SQL para contribuições: {str(contribuicoes.query)}")
 
+    # >>> ADICIONAR ESTE LOG <<<
+    historico_status_membro = membro.transicoes_status_secretaria.all()
+    print(f"DEBUG [editar_membro]: Histórico de Status para {membro.nome} (ID: {membro.pk}): {list(historico_status_membro)}")
+    for h in historico_status_membro:
+        print(f"  - Histórico ID: {h.pk}, Data: {h.data_transicao}, Obs: {h.observacao}")
+    # >>> FIM DO LOG ADICIONADO <<<
+
     context = {
         'form': form,
         'membro_id': membro_id,
         'organizacao': organizacao,
         'titulo_pagina': f'Editar Membro: {membro.nome}',
-        'contribuicoes': contribuicoes # Passando as contribuições para o template
+        'contribuicoes': contribuicoes, # Passando as contribuições para o template
+        'user_management_form': user_management_form, # Novo formulário
+        'user_associado': user_associado, # Passa o objeto User associado
     }
     return render(request, 'secretaria/editar_membro.html', context)
 
 
-@login_required
-@user_passes_test(has_membro_edit_permission, login_url=reverse_lazy('login'), redirect_field_name=None)
-def criar_membro(request):
+@check_permission(has_membro_edit_permission, login_url_name='login')
+def criar_membro(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     igreja_inicial_para_form = None
@@ -517,7 +623,7 @@ def criar_membro(request):
                 if not is_admin_org(request.user) and novo_membro.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                 else:
-                    novo_membro.save()
+                    novo_membro.save(user=request.user) # Passa o usuário
                     messages.success(request, f'Membro "{novo_membro.nome}" cadastrado com sucesso!')
                     return redirect('secretaria:lista_membros')
             except Exception as e:
@@ -545,8 +651,7 @@ def criar_membro(request):
 
 
 # --- Views de Backup (Restritas a Superusuários) ---
-@login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/') # login_url pode ser ajustado se necessário
+@check_permission(lambda u: u.is_superuser, login_url_name='admin:login')
 def backup_database_view(request): # Adicionado 'request'
     data_hora_atual = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     backup_dir = os.path.join(settings.BASE_DIR, 'backup')
@@ -562,9 +667,8 @@ def backup_database_view(request): # Adicionado 'request'
         logger.error(f"Erro ao realizar backup do banco de dados: {e}")
         return False, None
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/') # login_url pode ser ajustado
-def backup_site_files_view(request): # Adicionado 'request'
+@check_permission(lambda u: u.is_superuser, login_url_name='admin:login')
+def backup_site_files_view(request): # noqa: E302
     data_hora_atual = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     backup_dir = os.path.join(settings.BASE_DIR, 'backup')
     os.makedirs(backup_dir, exist_ok=True)
@@ -604,9 +708,8 @@ def backup_site_files_view(request): # Adicionado 'request'
         logger.exception(f"Erro ao realizar backup dos arquivos do site")
         return False, None
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser, login_url='/admin/login/')
-def backup_page(request):
+@check_permission(lambda u: u.is_superuser, login_url_name='admin:login') # MODIFICADO para alinhar com as permissões de backup
+def backup_page(request): # noqa: E302
     if request.method == 'POST':
         fazer_backup_database = 'backup_database' in request.POST
         fazer_backup_files = 'backup_files' in request.POST
@@ -645,38 +748,40 @@ def backup_page(request):
     return render(request, 'secretaria/backup_page.html')
 
 # --- NOVA VIEW PARA ALTERNAR STATUS DO MEMBRO ---
-@login_required
-@user_passes_test(has_membro_edit_permission, login_url=reverse_lazy('login'), redirect_field_name=None)
-def alternar_status_membro(request, membro_id):
+@check_permission(has_membro_edit_permission, login_url_name='login')
+def alternar_status_membro(request, membro_id): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
 
-    # Defina os nomes dos seus Tiposstatus padrão para ativo e inativo
-    # Estes nomes devem corresponder exatamente aos cadastrados no seu modelo Tiposstatus
-    NOME_STATUS_ATIVO_PADRAO = "MEMBRO ATIVO"
-    NOME_STATUS_INATIVO_PADRAO = "MEMBRO INATIVO"
+    # Nomes dos novos StatusPessoa para Ativo e Inativo
+    # Certifique-se que estes existem na sua tabela StatusPessoa
+    NOME_STATUSPESSOA_ATIVO = "Ativo" # Ajuste se o nome do seu status Ativo for diferente
+    NOME_STATUSPESSOA_INATIVO = "Inativo" # Ajuste se o nome do seu status Inativo for diferente
+
 
     if request.method == 'POST':
         try:
-            status_ativo_padrao = Tiposstatus.objects.get(status=NOME_STATUS_ATIVO_PADRAO)
-            status_inativo_padrao = Tiposstatus.objects.get(status=NOME_STATUS_INATIVO_PADRAO)
+            status_ativo_novo = StatusPessoa.objects.get(nome=NOME_STATUSPESSOA_ATIVO)
+            status_inativo_novo = StatusPessoa.objects.get(nome=NOME_STATUSPESSOA_INATIVO)
 
             acao = ""
-            if membro.status and membro.status.considerar_ativo_relatorios:
+             # Agora verificamos o novo campo status_pessoa
+            if membro.status_pessoa and membro.status_pessoa.considerar_ativo_relatorios:
+
                 # Se está ativo para relatórios, inativa
-                membro.status = status_inativo_padrao
+                membro.status_pessoa = status_inativo_novo
                 acao = "inativado (para relatórios)"
             else:
                 # Se está inativo para relatórios (ou sem status), ativa
-                membro.status = status_ativo_padrao
+                membro.status_pessoa = status_ativo_novo
                 acao = "ativado (para relatórios)"
 
-            membro.save(update_fields=['status'])
+            membro.save(update_fields=['status_pessoa']) # Salva o novo campo
             messages.success(request, f'Membro "{membro.nome}" foi {acao} com sucesso.')
 
-        except Tiposstatus.DoesNotExist:
-            messages.error(request, f"Erro: Os status '{NOME_STATUS_ATIVO_PADRAO}' ou '{NOME_STATUS_INATIVO_PADRAO}' não foram encontrados. Verifique o cadastro de Tipos de Status.")
+        except StatusPessoa.DoesNotExist:
+            messages.error(request, f"Erro: Os status '{NOME_STATUSPESSOA_ATIVO}' ou '{NOME_STATUSPESSOA_INATIVO}' não foram encontrados no cadastro de Status de Pessoa. Verifique os nomes e o cadastro.")
         except Exception as e:
             logger.exception(f"Erro ao alternar status do membro {membro_id} para organização {organizacao.id}")
             messages.error(request, f"Ocorreu um erro ao alternar o status do membro: {e}")
@@ -689,17 +794,17 @@ def alternar_status_membro(request, membro_id):
 
 
 # --- NOVA VIEW PARA FICHA DE MEMBRO PARA IMPRESSÃO ---
-@login_required
-@user_passes_test(has_membro_view_permission, login_url=reverse_lazy('login'), redirect_field_name=None)
-def ficha_membro_impressao(request, membro_id):
+@check_permission(has_membro_view_permission, login_url_name='login')
+def ficha_membro_impressao(request, membro_id): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     
     # Usar select_related e prefetch_related para otimizar a busca de dados relacionados
     membro = get_object_or_404(
         Membro.objects.select_related(
-            'igreja', 
-            'status',
+            'igreja',
+            'tipo_pessoa', 'status_pessoa', # Adicionados novos campos
+
             # Adicione outros select_related para ForeignKeys diretos se necessário
         ).prefetch_related(
             'contatos_set', # related_name padrão se não definido explicitamente
@@ -725,9 +830,8 @@ def ficha_membro_impressao(request, membro_id):
     return render(request, 'secretaria/membro/ficha_membro_impressao.html', context)
 # --- FIM NOVA VIEW ---
 
-@login_required
-@user_passes_test(is_secretaria_leader, login_url='core:home') # Apenas líderes da secretaria
-def painel_lideranca_secretaria(request):
+@check_permission(is_secretaria_leader, login_url_name='login') # Ajuste login_url_name se 'core:home' for diferente de 'login'
+def painel_lideranca_secretaria(request): # noqa: E302
     try:
         # Chama get_organizacao_or_error no início para validar o acesso à organização
         organizacao_usuario = get_organizacao_or_error(request) # Usar a função centralizada
@@ -855,7 +959,8 @@ def painel_lideranca_secretaria(request):
         # --- Cálculos de dados para o painel da secretaria ---
         total_membros_rede = Membro.objects.filter(
             igreja__in=churches_for_queries, 
-            status__considerar_ativo_relatorios=True
+            # status__considerar_ativo_relatorios=True # Lógica antiga
+            status_pessoa__considerar_ativo_relatorios=True # Nova lógica
         ).count()
 
         from datetime import date, timedelta # Já importado no topo do arquivo
@@ -863,7 +968,7 @@ def painel_lideranca_secretaria(request):
         trinta_dias_atras_lider = hoje_data_lider - timedelta(days=30)
         novos_membros_rede_30_dias = Membro.objects.filter(
             igreja__in=churches_for_queries,
-            status__considerar_ativo_relatorios=True, 
+            status_pessoa__considerar_ativo_relatorios=True, # Alterado
             data_entrada__gte=trinta_dias_atras_lider
         ).count()
 
@@ -873,14 +978,14 @@ def painel_lideranca_secretaria(request):
 
         membros_por_status_qs = Membro.objects.filter(
             igreja__in=churches_for_queries,
-            status__considerar_ativo_relatorios=True
-        ).values('status__status').annotate(total=Count('chave')).order_by('status__status')
-        grafico_membros_status_labels = [item['status__status'] if item['status__status'] else "Sem Status" for item in membros_por_status_qs]
+            status_pessoa__considerar_ativo_relatorios=True # Alterado
+        ).values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome') # Alterado
+        grafico_membros_status_labels = [item['status_pessoa__nome'] if item['status_pessoa__nome'] else "Sem Status" for item in membros_por_status_qs]
         grafico_membros_status_valores = [item['total'] for item in membros_por_status_qs]
 
         membros_lideranca_ativos = Membro.objects.filter(
             igreja__in=churches_for_queries,
-            status__considerar_ativo_relatorios=True
+            status_pessoa__considerar_ativo_relatorios=True # Alterado
         )
         genero_data_lider_qs = membros_lideranca_ativos.values('genero').annotate(total=Count('chave'))
         genero_map_lider = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
@@ -914,6 +1019,22 @@ def painel_lideranca_secretaria(request):
         grafico_membros_faixa_labels = [k for k, v in faixas_lider.items()]
         grafico_membros_faixa_valores = [v for k, v in faixas_lider.items()]
 
+         # Novo: Gráfico de Membros por Tipo de Pessoa (Consolidado)
+        membros_por_tipo_qs = membros_lideranca_ativos.values(
+            'tipo_pessoa__nome'
+        ).annotate(total=Count('chave')).order_by('tipo_pessoa__nome')
+        grafico_membros_tipo_labels = [item['tipo_pessoa__nome'] if item['tipo_pessoa__nome'] else "Sem Tipo" for item in membros_por_tipo_qs]
+        grafico_membros_tipo_valores = [item['total'] for item in membros_por_tipo_qs]
+
+        # Novo: Gráfico de Membros por Status Pessoa (Consolidado - todos os status, não apenas os ativos para relatório)
+        # Usaremos 'churches_for_queries' para pegar todos os membros da rede, sem o filtro de 'considerar_ativo_relatorios'
+        membros_rede_completa_para_status = Membro.objects.filter(igreja__in=churches_for_queries)
+        membros_por_status_geral_qs = membros_rede_completa_para_status.values(
+            'status_pessoa__nome'
+        ).annotate(total=Count('chave')).order_by('status_pessoa__nome')
+        grafico_membros_status_geral_labels = [item['status_pessoa__nome'] if item['status_pessoa__nome'] else "Sem Status" for item in membros_por_status_geral_qs]
+        grafico_membros_status_geral_valores = [item['total'] for item in membros_por_status_geral_qs]
+
         context = {
             'titulo_dashboard': f"Liderança Secretaria - {titulo_escopo_igreja}", # Usar o título do escopo
             'total_membros_rede': total_membros_rede,
@@ -925,6 +1046,11 @@ def painel_lideranca_secretaria(request):
             'grafico_membros_genero_valores_json': json.dumps(grafico_membros_genero_valores),
             'grafico_membros_faixa_labels_json': json.dumps(grafico_membros_faixa_labels),
             'grafico_membros_faixa_valores_json': json.dumps(grafico_membros_faixa_valores),
+             'grafico_membros_tipo_labels_json': json.dumps(grafico_membros_tipo_labels), # Novo
+            'grafico_membros_tipo_valores_json': json.dumps(grafico_membros_tipo_valores), # Novo
+            'grafico_membros_status_geral_labels_json': json.dumps(grafico_membros_status_geral_labels), # Novo
+            'grafico_membros_status_geral_valores_json': json.dumps(grafico_membros_status_geral_valores), # Novo
+    
             'igrejas_permitidas_filtro': opcoes_filtro_pagina, 
             'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template_lider_sec,
             'allowed_churches_count': churches_for_queries.count() if churches_for_queries else 0,
@@ -940,3 +1066,74 @@ def painel_lideranca_secretaria(request):
         logger.exception(f"Erro inesperado no painel de liderança da secretaria para organização '{org_nome_log}': {e}")
         messages.error(request, f"Ocorreu um erro ao carregar o painel de liderança da secretaria: {e}")
         return redirect('secretaria:dashboard')
+
+# --- VIEW PARA ADICIONAR HISTÓRICO DE STATUS MANUALMENTE ---
+@check_permission(has_membro_edit_permission, login_url_name='login')
+def adicionar_historico_status_manual(request, membro_id=None): # noqa: E302
+    organizacao = get_organizacao_or_error(request)
+    membro_obj = None
+    if membro_id:
+        # Garante que o membro_id pertence à organização do usuário
+        allowed_churches = get_allowed_churches_for_membros(request.user)
+        membro_obj = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
+
+    if request.method == 'POST':
+        form = StatusHistoricoManualForm(request.POST, organizacao=organizacao, membro_inicial=membro_obj)
+        if form.is_valid():
+            try:
+                historico = form.save(commit=False)
+                if membro_obj: # Se o membro veio da URL, garante que é ele
+                    historico.membro = membro_obj
+                
+                historico.registrado_por = request.user
+                historico.save()
+                messages.success(request, f"Entrada de histórico manual adicionada para {historico.membro.nome}.")
+                # Redireciona para a página de edição do membro, na aba de histórico
+                return redirect(reverse('secretaria:editar_membro', args=[historico.membro.pk]) + '?tab=historico-status')
+            except Exception as e:
+                logger.error(f"Erro ao salvar histórico manual para organização {organizacao.id}: {e}")
+                messages.error(request, f"Ocorreu um erro ao salvar o histórico: {e}")
+        else:
+            messages.error(request, "Por favor, corrija os erros no formulário.")
+    else:
+        form = StatusHistoricoManualForm(organizacao=organizacao, membro_inicial=membro_obj)
+
+    context = {
+        'form': form,
+        'organizacao': organizacao,
+        'membro_obj': membro_obj, # Passa o objeto do membro para o template, se houver
+        'titulo_pagina': f"Adicionar Histórico Manual para {membro_obj.nome}" if membro_obj else "Adicionar Histórico Manual de Tipo/Status"
+    }
+    return render(request, 'secretaria/membro/adicionar_historico_status_manual.html', context)
+
+# --- FIM VIEW HISTÓRICO MANUAL ---
+
+# --- NOVA VIEW PARA O PORTAL DO MEMBRO COMUM ---
+@login_required
+def portal_membro(request):
+    """
+    Página inicial para usuários do grupo 'Membro Comum'.
+    Exibe um resumo dos dados pessoais e atalhos.
+    """
+    organizacao = get_organizacao_or_error(request)
+    try:
+        # Busca o objeto Membro associado ao usuário logado
+        membro_obj = Membro.objects.get(email__iexact=request.user.email, igreja__organizacao=organizacao)
+    except Membro.DoesNotExist:
+        # Se não encontrar um registro de membro correspondente, mostra uma mensagem.
+        # Isso pode acontecer se o e-mail do usuário não corresponder ao e-mail no cadastro de membro.
+        messages.warning(request, "Seu cadastro de membro não foi encontrado. Por favor, contate a secretaria da sua igreja para verificar seus dados.")
+        membro_obj = None
+
+    # Busca o histórico de contribuições se o membro foi encontrado
+    contribuicoes = []
+    if membro_obj:
+        contribuicoes = Receitas.objects.filter(membro=membro_obj).order_by('-data')[:10] # Pega as 10 últimas
+
+    context = {
+        'organizacao': organizacao,
+        'membro': membro_obj,
+        'contribuicoes': contribuicoes,
+        'titulo_pagina': "Meu Portal"
+    }
+    return render(request, 'secretaria/portal_membro.html', context)

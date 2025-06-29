@@ -17,5 +17,8 @@ urlpatterns = [
     path('membros/<int:membro_id>/alternar-status/', views.alternar_status_membro, name='alternar_status_membro'),
     path('membros/<int:membro_id>/ficha-impressao/', views.ficha_membro_impressao, name='ficha_membro_impressao'), # NOVA URL
     path('painel-lideranca-secretaria/', views.painel_lideranca_secretaria, name='painel_lideranca_secretaria'),
-
+     # --- NOVA URL PARA ADICIONAR HISTÓRICO MANUAL ---
+    path('membros/<int:membro_id>/historico/adicionar-manual/', views.adicionar_historico_status_manual, name='adicionar_historico_status_manual'),
+    # --- URL PARA O PORTAL DO MEMBRO ---
+    path('portal/', views.portal_membro, name='portal_membro'),
 ]

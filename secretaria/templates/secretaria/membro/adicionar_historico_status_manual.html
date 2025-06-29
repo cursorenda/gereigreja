@@ -1,0 +1,95 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina|default:"Adicionar Histórico Manual" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Adicionar Histórico Manual de Tipo/Status" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        {% if membro_obj %}
+            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Membros</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'secretaria:editar_membro' membro_id=membro_obj.pk %}">Editar: {{ membro_obj.nome }}</a></li>
+            <li class="breadcrumb-item active">Adicionar Histórico Manual</li>
+        {% else %}
+            <li class="breadcrumb-item active">Adicionar Histórico Manual</li>
+        {% endif %}
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-history me-1"></i>
+            Detalhes da Entrada de Histórico
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                {% include "partials/_form_errors.html" with form=form %}
+
+                <div class="row">
+                    {% if not membro_obj %} {# Só mostra o campo membro se não veio pela URL #}
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.membro.id_for_label }}" class="form-label">{{ form.membro.label }}:</label>
+                        {{ form.membro }}
+                        {% if form.membro.errors %}<div class="invalid-feedback d-block">{{ form.membro.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {% else %}
+                        {# Se o membro_obj existe, o campo 'membro' no form estará desabilitado e pré-preenchido #}
+                        {{ form.membro.as_hidden }} {# Renderiza como hidden para passar na validação se desabilitado #}
+                    {% endif %}
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.tipo_pessoa_anterior.id_for_label }}" class="form-label">{{ form.tipo_pessoa_anterior.label }}:</label>
+                        {{ form.tipo_pessoa_anterior }}
+                        {% if form.tipo_pessoa_anterior.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa_anterior.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.tipo_pessoa_novo.id_for_label }}" class="form-label">{{ form.tipo_pessoa_novo.label }}:</label>
+                        {{ form.tipo_pessoa_novo }}
+                        {% if form.tipo_pessoa_novo.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa_novo.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.status_pessoa_anterior.id_for_label }}" class="form-label">{{ form.status_pessoa_anterior.label }}:</label>
+                        {{ form.status_pessoa_anterior }}
+                        {% if form.status_pessoa_anterior.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa_anterior.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.status_pessoa_novo.id_for_label }}" class="form-label">{{ form.status_pessoa_novo.label }}:</label>
+                        {{ form.status_pessoa_novo }}
+                        {% if form.status_pessoa_novo.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa_novo.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.data_transicao.id_for_label }}" class="form-label">{{ form.data_transicao.label }}:</label>
+                        {{ form.data_transicao }}
+                        {% if form.data_transicao.errors %}<div class="invalid-feedback d-block">{{ form.data_transicao.errors|striptags }}</div>{% endif %}
+                        {% if form.data_transicao.help_text %}<div class="form-text">{{ form.data_transicao.help_text|safe }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.observacao.id_for_label }}" class="form-label">{{ form.observacao.label }}:</label>
+                        {{ form.observacao }}
+                        {% if form.observacao.errors %}<div class="invalid-feedback d-block">{{ form.observacao.errors|striptags }}</div>{% endif %}
+                    </div>
+                </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salvar Histórico</button>
+                {% if membro_obj %}
+                    <a href="{% url 'secretaria:editar_membro' membro_id=membro_obj.pk %}" class="btn btn-secondary">Cancelar</a>
+                {% else %}
+                    <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{# Adicione JS aqui se necessário, por exemplo, para datepickers mais avançados #}
+{% endblock %}

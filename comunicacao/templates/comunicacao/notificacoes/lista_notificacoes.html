@@ -1,0 +1,93 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ titulo_pagina|default:"Minhas Notificações" }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Minhas Notificações" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Notificações</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-bell me-1"></i>Minhas Notificações</span>
+                <div>
+                    <div class="btn-group" role="group" aria-label="Filtro de Notificações">
+                        <a href="{% url 'comunicacao:lista_notificacoes' %}" class="btn btn-sm {% if status_filter == 'todas' %}btn-primary{% else %}btn-outline-primary{% endif %}">Todas</a>
+                        <a href="{% url 'comunicacao:lista_notificacoes' %}?status=nao_lidas" class="btn btn-sm {% if status_filter == 'nao_lidas' %}btn-primary{% else %}btn-outline-primary{% endif %}">Não Lidas</a>
+                        <a href="{% url 'comunicacao:lista_notificacoes' %}?status=lidas" class="btn btn-sm {% if status_filter == 'lidas' %}btn-primary{% else %}btn-outline-primary{% endif %}">Lidas</a>
+                    </div>
+                    <form action="{% url 'comunicacao:marcar_todas_notificacoes_lidas' %}" method="post" class="d-inline ms-2">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-secondary" title="Marcar todas como lidas">
+                            <i class="fas fa-check-double me-1"></i> Marcar Todas Lidas
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if notificacoes %}
+                <div class="list-group">
+                    {% for notificacao in notificacoes %}
+                    <div class="list-group-item list-group-item-action {% if not notificacao.is_read %}list-group-item-light{% endif %} flex-column align-items-start mb-2 shadow-sm">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">
+                                {% if notificacao.url %}
+                                    <a href="{{ notificacao.url }}" class="text-decoration-none {% if not notificacao.is_read %}fw-bold{% endif %}">
+                                        {{ notificacao.message }}
+                                    </a>
+                                {% else %}
+                                    <span class="{% if not notificacao.is_read %}fw-bold{% endif %}">{{ notificacao.message }}</span>
+                                {% endif %}
+                            </h5>
+                            <small class="text-muted">{{ notificacao.created_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1 text-muted small">
+                            Tipo: <span class="badge bg-secondary">{{ notificacao.get_notification_type_display }}</span>
+                        </p>
+                        <div class="mt-2 text-end">
+                            {% if not notificacao.is_read %}
+                                <form action="{% url 'comunicacao:marcar_notificacao_lida' pk=notificacao.pk %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-success btn-sm me-1" title="Marcar como Lida">
+                                        <i class="fas fa-check me-1"></i> Marcar Lida
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="text-success small"><i class="fas fa-check-circle me-1"></i> Lida</span>
+                            {% endif %}
+                            {% if notificacao.url %}
+                                <a href="{{ notificacao.url }}" class="btn btn-outline-info btn-sm" title="Ver Detalhes">
+                                    <i class="fas fa-eye me-1"></i> Ver
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info text-center" role="alert">
+                    Nenhuma notificação encontrada.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Script para auto-submeter o formulário de filtro ao mudar a seleção
+    document.getElementById('notificationFilter').addEventListener('change', function() {
+        this.form.submit();
+    });
+</script>
+{% endblock %}

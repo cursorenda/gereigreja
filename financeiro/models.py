@@ -7,6 +7,8 @@ from decimal import Decimal
 # PRECISAMOS importar Igreja e Organizacao para adicionar as FKs
 from configuracao.models import Igreja, Organizacao # <<< ADICIONAR IMPORT
 from django.conf import settings
+import logging # Adicione no topo do arquivo se já não estiver
+logger = logging.getLogger(__name__) # Adicione no topo do arquivo
 
 
 class CategoriaDespesa(models.Model):
@@ -92,6 +94,74 @@ class Despesas(models.Model):
         verbose_name_plural = "Despesas"
         ordering = ['-data'] # Ordenar por data descendente
 
+    _original_valor = None
+    _original_conta_bancaria_id = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.pk: # Se o objeto já existe (não é novo)
+            self._original_valor = self.valor
+            self._original_conta_bancaria_id = self.conta_bancaria_id
+
+    def save(self, *args, **kwargs):
+        from django.db import transaction # Import local para melhor organização
+        logger.info(f"Despesa SAVE - Despesa ID: {self.pk}, Valor: {self.valor}, ContaBancaria ID: {self.conta_bancaria_id}")
+
+        # 1. Lidar com a conta bancária ANTIGA (se estiver editando e a conta mudou ou foi removida)
+        if not self._state.adding and self._original_conta_bancaria_id:
+            if self._original_conta_bancaria_id != self.conta_bancaria_id or not self.conta_bancaria_id:
+                # Reverte o valor original na conta antiga
+                if self._original_valor is not None:
+                    try:
+                        with transaction.atomic():
+                            conta_antiga = ContaBancaria.objects.select_for_update().get(pk=self._original_conta_bancaria_id)
+                            conta_antiga.saldo_atual += self._original_valor # Adiciona de volta (despesa)
+                            conta_antiga.save(update_fields=['saldo_atual'])
+                    except ContaBancaria.DoesNotExist:
+                        pass # Conta antiga pode ter sido deletada, não há o que reverter
+
+        super().save(*args, **kwargs) # 2. Salva o objeto Despesa (ou Receita)
+
+        # 3. Lidar com a conta bancária NOVA (se nova despesa/receita, ou conta mudou, ou valor mudou na mesma conta)
+        if self.conta_bancaria_id:
+            if self._state.adding or \
+               self._original_conta_bancaria_id != self.conta_bancaria_id or \
+               (self._original_conta_bancaria_id == self.conta_bancaria_id and self._original_valor != self.valor):
+                
+                with transaction.atomic():
+                    # Usar select_for_update para bloquear a linha da conta durante a atualização
+                    conta_nova = ContaBancaria.objects.select_for_update().get(pk=self.conta_bancaria_id)
+                    logger.info(f"Despesa SAVE - ContaBancaria ID: {conta_nova.pk} - Saldo Atual ANTES da despesa: {conta_nova.saldo_atual}")
+
+                    if self._state.adding or self._original_conta_bancaria_id != self.conta_bancaria_id:
+                        # Nova despesa ou a conta bancária mudou: aplica o valor total da despesa
+                        if self.valor is not None:
+                            conta_nova.saldo_atual -= self.valor # Subtrai (despesa)
+                    elif self._original_valor != self.valor: # Mesma conta, mas o valor mudou
+                        # Calcula a diferença para aplicar ao saldo
+                        # Se o novo valor da despesa é menor, a diferença é positiva (aumenta o saldo)
+                        # Se o novo valor da despesa é maior, a diferença é negativa (diminui o saldo)
+                        diferenca = (self._original_valor or Decimal(0)) - (self.valor or Decimal(0))
+                        conta_nova.saldo_atual += diferenca
+                    logger.info(f"Despesa SAVE - ContaBancaria ID: {conta_nova.pk} - Saldo Atual DEPOIS da despesa: {conta_nova.saldo_atual}")
+
+                    conta_nova.save(update_fields=['saldo_atual'])
+
+             
+        # Atualiza os valores originais para o próximo save
+        self._original_valor = self.valor
+        self._original_conta_bancaria_id = self.conta_bancaria_id
+     
+    def delete(self, *args, **kwargs):
+        from django.db import transaction # Import local
+        # Se a despesa tinha uma conta e valor, reverte o saldo ao excluir
+        if self.conta_bancaria and self.valor is not None:
+            with transaction.atomic():
+                conta_afetada = ContaBancaria.objects.select_for_update().get(pk=self.conta_bancaria_id)
+                conta_afetada.saldo_atual += self.valor # Adiciona o valor de volta
+                conta_afetada.save(update_fields=['saldo_atual'])
+        super().delete(*args, **kwargs) # Deleta a despesa
+
 
 class Receitas(models.Model):
     """
@@ -114,13 +184,7 @@ class Receitas(models.Model):
         verbose_name="Igreja"
     )
     # --- FIM ADIÇÃO ---
-    # Membro pode ser opcional
-    membro = models.ForeignKey(Membro, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Membro (Opcional)')
-    data = models.DateField(verbose_name="Data")
-    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor")
-    observacao = models.TextField(blank=True, null=True, verbose_name="Observação")
-    forma_pgto = models.CharField(max_length=50, blank=True, null=True, verbose_name="Forma de Pagamento") # Usar CharField
-    categoria = models.CharField(
+    categoria = models.CharField( # Mover categoria para cima para agrupar com outros campos de dados
         max_length=20,
         choices=CATEGORIA_CHOICES,
         default='oferta', # Talvez 'oferta' seja um default melhor?
@@ -136,6 +200,11 @@ class Receitas(models.Model):
         ('CRE', 'Cartão de Crédito'),
         ('OUT', 'Outro'),
     )
+    # Membro pode ser opcional
+    membro = models.ForeignKey(Membro, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Membro (Opcional)')
+    data = models.DateField(verbose_name="Data")
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor")
+    observacao = models.TextField(blank=True, null=True, verbose_name="Observação")
     fechado = models.BooleanField(default=False, verbose_name="Fechado")
     conta_bancaria = models.ForeignKey(
         'ContaBancaria',
@@ -145,7 +214,7 @@ class Receitas(models.Model):
         verbose_name="Conta/Caixa de Destino"
     )
     forma_pgto = models.CharField(
-        max_length=3, # Ajustar max_length para o tamanho das chaves (ex: 'BOL', 'PIX')
+        max_length=50, # CORRIGIDO: Aumentar para acomodar valores antigos como "Dinheiro"
         choices=FORMA_PAGAMENTO_CHOICES, # Adicionar as opções
         blank=True, null=True, # Manter como opcional
         verbose_name="Forma de Pagamento"
@@ -156,6 +225,70 @@ class Receitas(models.Model):
         verbose_name = "Receita"
         verbose_name_plural = "Receitas"
         ordering = ['-data'] # Ordenar por data descendente
+
+    
+    _original_valor_receita = None
+    _original_conta_bancaria_id_receita = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.pk:
+            self._original_valor_receita = self.valor
+            self._original_conta_bancaria_id_receita = self.conta_bancaria_id
+
+    def save(self, *args, **kwargs):
+       
+        from django.db import transaction # Import local
+
+        # 1. Lidar com a conta bancária ANTIGA (se estiver editando e a conta mudou ou foi removida)
+        if not self._state.adding and self._original_conta_bancaria_id_receita:
+            if self._original_conta_bancaria_id_receita != self.conta_bancaria_id or not self.conta_bancaria_id:
+                # Reverte o valor original na conta antiga
+                if self._original_valor_receita is not None:
+                    try:
+                        with transaction.atomic():
+                            conta_antiga = ContaBancaria.objects.select_for_update().get(pk=self._original_conta_bancaria_id_receita)
+                            conta_antiga.saldo_atual -= self._original_valor_receita # Subtrai da antiga (receita)
+                            conta_antiga.save(update_fields=['saldo_atual'])
+                    except ContaBancaria.DoesNotExist:
+                        pass 
+
+        super().save(*args, **kwargs) # 2. Salva o objeto Receita
+
+        # 3. Lidar com a conta bancária NOVA
+        if self.conta_bancaria_id:
+            if self._state.adding or \
+               self._original_conta_bancaria_id_receita != self.conta_bancaria_id or \
+               (self._original_conta_bancaria_id_receita == self.conta_bancaria_id and self._original_valor_receita != self.valor):
+                
+                with transaction.atomic():
+                    conta_nova = ContaBancaria.objects.select_for_update().get(pk=self.conta_bancaria_id)
+                    
+                    if self._state.adding or self._original_conta_bancaria_id_receita != self.conta_bancaria_id:
+                        # Nova receita ou a conta bancária mudou: aplica o valor total da receita
+                        if self.valor is not None:
+                            conta_nova.saldo_atual += self.valor # Adiciona (receita)
+                    elif self._original_valor_receita != self.valor: # Mesma conta, mas o valor mudou
+                        # Calcula a diferença para aplicar ao saldo
+                        # Se o novo valor da receita é maior, a diferença é positiva (aumenta o saldo)
+                        diferenca = (self.valor or Decimal(0)) - (self._original_valor_receita or Decimal(0))
+                        conta_nova.saldo_atual += diferenca
+                    
+                    conta_nova.save(update_fields=['saldo_atual'])
+        
+      
+        self._original_valor_receita = self.valor
+        self._original_conta_bancaria_id_receita = self.conta_bancaria_id
+    
+    def delete(self, *args, **kwargs):
+        from django.db import transaction # Import local para melhor organização
+        # Se a receita tinha uma conta e valor, reverte o saldo ao excluir
+        if self.conta_bancaria and self.valor is not None:
+            with transaction.atomic():
+                conta_afetada = ContaBancaria.objects.select_for_update().get(pk=self.conta_bancaria_id)
+                conta_afetada.saldo_atual -= self.valor # Subtrai o valor da receita
+                conta_afetada.save(update_fields=['saldo_atual'])
+        super().delete(*args, **kwargs) # Deleta a receita após a lógica de saldo
 
 
 # --- NOVO MODELO: ContaBancaria (Exemplo) ---
@@ -187,10 +320,19 @@ class ContaBancaria(models.Model):
         return f"{self.nome_identificacao} ({self.igreja.nome_igreja})"
     
     def save(self, *args, **kwargs):
+        logger.info(f"ContaBancaria SAVE - PK: {self.pk}, Saldo Inicial: {self.saldo_inicial}, Saldo Atual ANTES: {self.saldo_atual}")
+
         # Se for uma nova conta (não tem pk ainda), inicializa o saldo atual com o saldo inicial
         if not self.pk:
             self.saldo_atual = self.saldo_inicial
+            logger.info(f"ContaBancaria SAVE (NOVA) - Saldo Atual DEPOIS de atribuir inicial: {self.saldo_atual}")
         super().save(*args, **kwargs)
+        # Para verificar o que foi salvo no banco, você precisaria recarregar o objeto:
+        # if not self.pk: # Isso não vai funcionar bem aqui pois o pk já foi setado
+        #    reloaded_self = ContaBancaria.objects.get(pk=self.pk)
+        #    logger.info(f"ContaBancaria SAVE (NOVA) - Saldo Atual NO BANCO (após reload): {reloaded_self.saldo_atual}")
+        logger.info(f"ContaBancaria SAVE - Saldo Atual FINAL (em memória): {self.saldo_atual}")
+
 
     class Meta:
         verbose_name = "Conta Bancária/Caixa"

@@ -49,7 +49,7 @@
                             <tr>
                                 <th>Nome</th>
                                 <th>Gênero</th>
-                                <th>Status</th>
+                                <th>Tipo / Status</th>
                                 <th class="text-center">Ativo p/ Relatórios?</th>
                                 <th>Data de Nascimento</th>
                                 <th>Igreja</th>
@@ -63,12 +63,12 @@
                             <tr class="{% if not membro.is_ativo_para_relatorios %}table-secondary text-muted{% endif %}">
                                 <td>{{ membro.nome }} {% if membro.apelido %}({{ membro.apelido }}){% endif %}</td>
                                 <td>{{ membro.get_genero_display|default:"N/I" }}</td>
-                                <td>
-                                    {% if membro.status %}
-                                        {{ membro.status.status }}
-                                    {% else %}
-                                        <span class="badge bg-light text-dark border">Sem Status</span>
-                                    {% endif %}
+                                <td>                                   
+                                    {% if membro.tipo_pessoa %} {{ membro.tipo_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Tipo</span> {% endif %}
+                                    / 
+                                    {% if membro.status_pessoa %} {{ membro.status_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Status</span> {% endif %}
+
+                                
                                 </td>
                                 <td class="text-center">
                                     {% if membro.is_ativo_para_relatorios %}

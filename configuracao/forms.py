@@ -284,11 +284,7 @@ class UserEditForm(forms.ModelForm):
         if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
             raise ValidationError("Este endereço de e-mail já está em uso por outro usuário.")
         return email
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk and self.instance.logo:
-            self.fields['logo'].help_text = f'<br>Logo atual: <a href="{self.instance.logo.url}" target="_blank"><img src="{self.instance.logo.url}" alt="Logo atual" style="max-height: 50px; margin-top: 5px;"></a>'
-
+   
 class PerfilUsuarioEditForm(forms.ModelForm):
     """ Formulário para o usuário editar seus dados do PerfilUsuario. """
     class Meta:

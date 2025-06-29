@@ -36,13 +36,16 @@ INSTALLED_APPS = [
     'django.contrib.humanize', # <<< ADICIONE ESTA LINHA
     'django.contrib.sites', # <<< ADICIONAR SE NÃO EXISTIR
     'whitenoise.runserver_nostatic', # Adicionar Whitenoise (útil até mesmo em dev sem DEBUG=True para estáticos)
+    'django_extensions', # Adicionar para usar shell_plus e outros comandos
 
 
     # Seus Apps
     'secretaria',
     'financeiro',
     'configuracao',
-    'contas', # <<< ADICIONE ESTA LINHA
+    'contas',
+    'comunicacao', 
+    
 
 ]
 
@@ -57,6 +60,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.ActiveChurchMiddleware', # Adicionado nosso middleware
     'secretaria.middleware.DisableCacheMiddleware',  # Remova a linha comentada se esta é a ativa. Avalie a necessidade em produção.
+    # 'comunicacao', # <<< REMOVA OU COMENTE ESTA LINHA
 
 ]
 
@@ -76,6 +80,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.unread_notifications', # Adicionado para o contador de notificações
+
             ],
         },
     },
@@ -92,19 +98,17 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-#DATABASES = {
-    #'default': {
-    #    'ENGINE': 'django.db.backends.sqlite3',
-    #    'NAME': BASE_DIR / 'db.sqlite3',
-    #   # 'NAME': BASE_DIR / 'bdmembros.db db.sqlite3',
-   #}
-#}
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',  # ou o nome do seu arquivo sqlite
-    }
+
+DATABASES ={
+   'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+   }
 }
 
 # Password validation
@@ -154,6 +158,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': { # Mover formatters para cima para ser referenciado
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': { # Adicionar um formatador simples para o console
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'file': {
             'level': 'ERROR',
@@ -162,21 +176,25 @@ LOGGING = {
             'maxBytes': 1024 * 1024 * 5,  # 5 MB
             'backupCount': 5,
             'formatter': 'verbose', # Adicionar um formatador
+        },
+        'console': { # Adicionar handler para o console
+            'level': 'INFO', # Nível para o console (pode ser DEBUG também)
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple', # Usar o formatador simples
+    
 
         },
     },
     'loggers': {
         'financeiro': {
-            'handlers': ['file'],
-            'level': 'ERROR',
+            'handlers': ['console', 'file'], # Adicionar 'console' aqui
+            'level': 'INFO', # Change to INFO or DEBUG for debugging
             'propagate': True,
         },
-    },
-
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+    'django': { # Opcional: para ver logs do próprio Django no console
+            'handlers': ['console', 'file'],
+            'level': 'INFO', # Cuidado para não poluir muito com DEBUG aqui
+            'propagate': False,
         },
     },
 }
@@ -197,14 +215,15 @@ LOGOUT_REDIRECT_URL = '/' # URL para onde o usuário vai APÓS fazer logout (opc
 
 # Configuração de E-mail (Usando Brevo/Sendinblue SMTP)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'mail.gereigreja.site'  # Ou smtp-relay.sendinblue.com
-EMAIL_PORT = 465                     # Porta 465 geralmente usa SSL
-EMAIL_USE_SSL = True
-EMAIL_USE_TLS = False  # Usar TLS (recomendado para porta 587)
+EMAIL_HOST = 'smtp-relay.brevo.com'  # Ou smtp-relay.sendinblue.com
+EMAIL_PORT = 587                     # Porta 465 geralmente usa SSL
+EMAIL_USE_SSL = False
+EMAIL_USE_TLS = True  # Usar TLS (recomendado para porta 587)
 
 # Carregue de variáveis de ambiente em produção
-EMAIL_HOST_USER = 'nao-responda@gereigreja.site'
-# A linha abaixo tenta ler a variável de ambiente 'GEREIGREJA_EMAIL_PASSWORD'.
+EMAIL_HOST_USER = '8b9a59002@smtp-brevo.com' # <<< CORRIGIDO: Este é o seu Login SMTP fornecido pelo Brevo
+# A linha abaixo tenta ler a variável de ambiente 'gereigreja_email_password'.
+
 # Se não encontrar, e você estiver em DEBUG=True (localmente), pode usar uma senha padrão para teste.
 # NUNCA deixe uma senha real como padrão se DEBUG=False.
 EMAIL_HOST_PASSWORD = os.environ.get('gereigreja_email_password')

@@ -16,20 +16,20 @@ from .forms import (
 from configuracao.models import PerfilUsuario, Organizacao, Igreja
 from django.core.exceptions import PermissionDenied, ValidationError # Adicionar ValidationError
 from django.http import Http404
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count # Adicionado Count
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 
 from .utils import has_finance_view_permission, has_finance_edit_permission, get_allowed_churches_for_user, is_finance_leader, is_admin_org # Importar is_admin_org
-from core.utils import get_organizacao_or_error # Importar de core.utils
-
+from core.utils import get_organizacao_or_error # Importar de core.utils # noqa: E402
+from core.decorators import check_permission # <<< ADICIONE ESTA LINHA
 # --- FIM IMPORT ---
 from decimal import Decimal # Import Decimal
 import locale
 import logging, traceback, calendar 
-from datetime import date, datetime, timedelta # Adicionar timedelta aqui
+from datetime import date, datetime, timedelta 
 from num2words import num2words
 from django.db import transaction # Adicionar import para transações atômicas
-import json # Adicionar esta linha
+import json # Adicionar esta linha # noqa: E402
 from django.urls import reverse
 from core.decorators import verificar_assinatura_valida # Ou o caminho correto
 
@@ -37,6 +37,7 @@ from core.decorators import verificar_assinatura_valida # Ou o caminho correto
 @verificar_assinatura_valida # Nosso novo decorator
 def minha_view_protegida(request):
     organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
+    # ...
     # ... resto da view ...
 
 
@@ -55,9 +56,8 @@ logger = logging.getLogger(__name__)
 ## A função get_organizacao_or_error foi movida para core.utils.py ##
 
 
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Protege a view
-def painel_financeiro(request): # Esta view será adaptada para usar request.igreja_ativa
+@check_permission(has_finance_view_permission) # MODIFICADO
+def painel_financeiro(request):
     """ Painel/Dashboard Financeiro da Organização ou de uma Igreja específica. """
     organizacao = get_organizacao_or_error(request)
     try:
@@ -201,6 +201,8 @@ def painel_financeiro(request): # Esta view será adaptada para usar request.igr
         receitas_mensais_grafico_data = []
         despesas_mensais_grafico_data = []
         saldos_mensais_grafico_data = []
+        # Dizimistas únicos mensais (será populado abaixo)
+
         dizimistas_unicos_mensais_grafico_data = []
 
         # Base para filtros de igreja para os gráficos
@@ -209,6 +211,11 @@ def painel_financeiro(request): # Esta view será adaptada para usar request.igr
         # precisamos redefini-las aqui com base em allowed_churches.
         # No seu código atual, elas já são definidas com base em allowed_churches se igreja_selecionada for None.
         
+         # --- DADOS PARA GRÁFICO DE DIZIMISTAS POR FECHAMENTO DE CAIXA ---
+        dizimistas_por_fechamento_labels = []
+        dizimistas_por_fechamento_valores = []
+        # Usaremos os 'ultimos_fechamentos' já buscados para o gráfico de movimentação
+
         # --- DADOS PARA GRÁFICO DE MOVIMENTAÇÃO POR FECHAMENTOS DE CAIXA (ÚLTIMOS 6) ---
         ultimos_fechamentos_qs = FechamentoCaixa.objects.filter(
             igreja__in=(allowed_churches if not igreja_selecionada_para_dados else [igreja_selecionada_para_dados])
@@ -228,6 +235,17 @@ def painel_financeiro(request): # Esta view será adaptada para usar request.igr
             grafico_fech_receitas_data.append(float(fc.total_entradas))
             grafico_fech_despesas_data.append(float(fc.total_saidas))
             grafico_fech_saldos_data.append(float(fc.saldo_final))
+
+            # Contar dizimistas únicos para este fechamento
+            dizimistas_no_fechamento_count = receitas_base.filter(
+                data__gte=fc.data_inicio,
+                data__lte=fc.data_fim,
+                categoria='dizimo',
+                membro__isnull=False
+            ).values('membro').distinct().count()
+            dizimistas_por_fechamento_labels.append(f"Fech. {fc.data_fim.strftime('%b/%y')}")
+            dizimistas_por_fechamento_valores.append(dizimistas_no_fechamento_count)
+
         # --- FIM DADOS PARA GRÁFICO DE MOVIMENTAÇÃO POR FECHAMENTOS ---
 
         
@@ -267,10 +285,50 @@ def painel_financeiro(request): # Esta view será adaptada para usar request.igr
 
             # Dizimistas únicos do mês (usando receitas_base)
             dizimistas_count = receitas_base.filter(
-                data__year=ano, data__month=mes, categoria='dizimo', membro__isnull=False
+                data__year=ano, data__month=mes, 
+                categoria='dizimo', 
+                membro__isnull=False # Apenas garante que há um membro associado
             ).values('membro').distinct().count()
             dizimistas_unicos_mensais_grafico_data.append(dizimistas_count)
         # --- FIM DADOS PARA GRÁFICOS MENSAIS ---
+
+          # --- NOVO: DADOS PARA GRÁFICO DE PERFIL DOS DIZIMISTAS (POR TIPO DE PESSOA) ---
+        # Usaremos 'receitas_filtradas' que já considera o filtro de período do painel
+        dizimos_no_periodo_filtrado = receitas_filtradas.filter(categoria='dizimo', membro__isnull=False)
+
+        perfil_dizimistas_data_qs = dizimos_no_periodo_filtrado.values(
+            'membro__tipo_pessoa__nome' # Agrupa pelo nome do TipoPessoa do membro
+        ).annotate(
+            quantidade_dizimistas=Count('membro', distinct=True), # Conta membros distintos
+            valor_total_dizimado=Sum('valor') # Soma o valor dos dízimos
+        ).order_by('membro__tipo_pessoa__nome')
+
+        perfil_dizimistas_labels = []
+        perfil_dizimistas_qtd_valores = []
+        perfil_dizimistas_total_valores = []
+
+        total_geral_dizimistas_no_periodo = dizimos_no_periodo_filtrado.values('membro').distinct().count()
+        total_geral_valor_dizimado_no_periodo = dizimos_no_periodo_filtrado.aggregate(total=Sum('valor'))['total'] or Decimal(0)
+
+        perfil_dizimistas_qtd_percentuais = []
+        perfil_dizimistas_valor_percentuais = []
+
+        for item in perfil_dizimistas_data_qs:
+            tipo_nome = item['membro__tipo_pessoa__nome'] if item['membro__tipo_pessoa__nome'] else "Sem Tipo"
+            perfil_dizimistas_labels.append(tipo_nome)
+            perfil_dizimistas_qtd_valores.append(item['quantidade_dizimistas'])
+            perfil_dizimistas_total_valores.append(float(item['valor_total_dizimado']))
+
+            # Calcular percentuais
+            qtd_perc = (item['quantidade_dizimistas'] / total_geral_dizimistas_no_periodo * 100) if total_geral_dizimistas_no_periodo > 0 else 0
+            perfil_dizimistas_qtd_percentuais.append(round(qtd_perc, 2))
+
+            valor_perc = (item['valor_total_dizimado'] / total_geral_valor_dizimado_no_periodo * 100) if total_geral_valor_dizimado_no_periodo > 0 else 0
+            perfil_dizimistas_valor_percentuais.append(round(float(valor_perc), 2))
+
+        # --- FIM NOVO GRÁFICO DE PERFIL ---
+
+
         # --- DADOS PARA LISTAGEM DE SALDOS DE CONTAS BANCÁRIAS/CAIXAS ---
         # Filtra contas pela(s) igreja(s) selecionada(s) ou todas as permitidas
         if igreja_selecionada_para_dados:
@@ -302,8 +360,11 @@ def painel_financeiro(request): # Esta view será adaptada para usar request.igr
             'grafico_receitas_data_json': json.dumps(receitas_mensais_grafico_data),
             'grafico_despesas_data_json': json.dumps(despesas_mensais_grafico_data),
             'grafico_saldos_data_json': json.dumps(saldos_mensais_grafico_data),
-            # 'grafico_dizimistas_labels_json' usa os mesmos 'meses_labels_grafico'
+            # Gráfico de Dizimistas (mensal e por fechamento)
             'grafico_dizimistas_data_json': json.dumps(dizimistas_unicos_mensais_grafico_data),
+            'grafico_dizimistas_fechamento_labels_json': json.dumps(dizimistas_por_fechamento_labels),
+            'grafico_dizimistas_fechamento_valores_json': json.dumps(dizimistas_por_fechamento_valores),
+
              # Dados para o novo gráfico de categorias de despesa
             'grafico_cat_desp_labels_json': json.dumps(grafico_cat_desp_labels),
             'grafico_cat_desp_valores_json': json.dumps(grafico_cat_desp_valores),
@@ -320,7 +381,13 @@ def painel_financeiro(request): # Esta view será adaptada para usar request.igr
             'grafico_cat_rec_valores_json': json.dumps(grafico_cat_rec_valores),
              # Contas bancárias para o painel
             'contas_bancarias_painel': contas_bancarias_painel,
-            
+             # Dados para o novo gráfico de Perfil dos Dizimistas
+            'perfil_dizimistas_labels_json': json.dumps(perfil_dizimistas_labels),
+            'perfil_dizimistas_qtd_valores_json': json.dumps(perfil_dizimistas_qtd_valores),
+            'perfil_dizimistas_total_valores_json': json.dumps(perfil_dizimistas_total_valores),
+            'perfil_dizimistas_qtd_percentuais_json': json.dumps(perfil_dizimistas_qtd_percentuais),
+            'perfil_dizimistas_valor_percentuais_json': json.dumps(perfil_dizimistas_valor_percentuais),
+
             # 'allowed_churches_count' não é usado diretamente neste painel da mesma forma que no de liderança
             # 'igrejas_permitidas_filtro' e 'igreja_id_filtro_selecionado' já são tratados por 'igrejas_org' e 'igreja_id_filtro'
         
@@ -337,9 +404,8 @@ def painel_financeiro(request): # Esta view será adaptada para usar request.igr
 # ... (restante das views) ...
 
 # --- Receitas ---
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Protege a view
-def lista_receitas(request):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def lista_receitas(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
@@ -419,9 +485,9 @@ def lista_receitas(request):
         return redirect('financeiro:painel_financeiro')
 
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Protege a view
-def cadastrar_receita(request):
+
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def cadastrar_receita(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
@@ -445,19 +511,11 @@ def cadastrar_receita(request):
                 elif nova_receita.membro and nova_receita.membro.igreja.organizacao != organizacao:
                      messages.error(request, "Erro: Membro selecionado não pertence à sua organização.")
                 else:
-                    with transaction.atomic():
-                        nova_receita.save()
+                     # O método save da Receita agora atualiza o saldo
+                     nova_receita.save()
 
-                        # --- ATUALIZAR SALDO DA CONTA BANCÁRIA/CAIXA (RECEITA) ---
-                        if nova_receita.conta_bancaria and nova_receita.valor is not None:
-                            conta_destino = nova_receita.conta_bancaria
-                            conta_destino.saldo_atual += nova_receita.valor
-                            conta_destino.save(update_fields=['saldo_atual'])
-                            logger.info(f"Saldo da conta {conta_destino.nome_identificacao} (ID: {conta_destino.pk}) atualizado para {conta_destino.saldo_atual} após cadastro da receita ID {nova_receita.pk}.")
-                        # --- FIM ATUALIZAR SALDO ---
-
-                        messages.success(request, 'Receita cadastrada com sucesso!')
-                        return redirect('financeiro:lista_receitas')
+                     messages.success(request, 'Receita cadastrada com sucesso!')
+                     return redirect('financeiro:lista_receitas')
 
 
 
@@ -491,9 +549,8 @@ def cadastrar_receita(request):
     return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Protege a view
-def editar_receita(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def editar_receita(request, pk): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     # Garante que a receita pertence às igrejas permitidas
@@ -530,8 +587,8 @@ def editar_receita(request, pk):
     return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
-@login_required
-def excluir_receita(request, pk):
+# @login_required # Removido pois check_permission faria isso, mas aqui a lógica é interna
+def excluir_receita(request, pk): # noqa: E302
     # Apenas quem pode editar pode excluir
     if not has_finance_edit_permission(request.user):
         raise PermissionDenied("Você não tem permissão para excluir receitas.")
@@ -554,17 +611,7 @@ def excluir_receita(request, pk):
             else:
                 nome_receita_formatado = f"Receita ({receita.get_categoria_display()}) de R$ {receita.valor}"
             
-            # Guarda informações para reverter o saldo ANTES de deletar a receita
-            conta_bancaria_afetada = receita.conta_bancaria
-            valor_receita = receita.valor
-
-            receita.delete()
-            # Reverte o saldo da conta bancária/caixa se uma conta estava associada
-            if conta_bancaria_afetada and valor_receita is not None:
-                with transaction.atomic(): # Garante atomicidade
-                    conta_bancaria_afetada.saldo_atual -= valor_receita # Subtrai o valor da receita
-                    conta_bancaria_afetada.save(update_fields=['saldo_atual'])
-                    logger.info(f"Saldo da conta {conta_bancaria_afetada.nome_identificacao} (ID: {conta_bancaria_afetada.pk}) revertido para {conta_bancaria_afetada.saldo_atual} após exclusão da receita ID {pk}.")
+            receita.delete() # O método delete da Receita agora reverte o saldo
 
             messages.success(request, f'Receita "{nome_receita_formatado}" excluída com sucesso!')
         except Exception as e:
@@ -581,9 +628,8 @@ def excluir_receita(request, pk):
 
 
 # --- Despesas (Estrutura similar às Receitas) ---
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Protege a view
-def lista_despesas(request):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def lista_despesas(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
@@ -650,9 +696,8 @@ def lista_despesas(request):
         return redirect('financeiro:painel_financeiro')
 
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Protege a view
-def cadastrar_despesa(request):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def cadastrar_despesa(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
@@ -671,17 +716,11 @@ def cadastrar_despesa(request):
                 elif nova_despesa.categoria.organizacao != organizacao: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
-                    with transaction.atomic():
-                        nova_despesa.save()
-
-                        # --- ATUALIZAR SALDO DA CONTA BANCÁRIA/CAIXA (DESPESA) ---
-                        if nova_despesa.conta_bancaria and nova_despesa.valor is not None:
-                            conta_origem = nova_despesa.conta_bancaria
-                            conta_origem.saldo_atual -= nova_despesa.valor
-                            conta_origem.save(update_fields=['saldo_atual'])
-                            logger.info(f"Saldo da conta {conta_origem.nome_identificacao} (ID: {conta_origem.pk}) atualizado para {conta_origem.saldo_atual} após cadastro da despesa ID {nova_despesa.pk}.")
-                        # --- FIM ATUALIZAR SALDO ---
-
+                        # O método save da Despesa agora atualiza o saldo
+                        nova_despesa.save() 
+                        
+                       
+                   
                         messages.success(request, 'Despesa cadastrada com sucesso!')
                         return redirect('financeiro:lista_despesas')
    
@@ -714,8 +753,8 @@ def cadastrar_despesa(request):
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
-@login_required
-def editar_despesa(request, pk):
+# @login_required # Removido
+def editar_despesa(request, pk): # noqa: E302
     if not has_finance_edit_permission(request.user): raise PermissionDenied("Sem permissão para editar.")
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -747,8 +786,8 @@ def editar_despesa(request, pk):
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
-@login_required
-def excluir_despesa(request, pk):
+# @login_required # Removido
+def excluir_despesa(request, pk): # noqa: E302
     if not has_finance_edit_permission(request.user): raise PermissionDenied("Sem permissão para excluir.")
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -759,21 +798,17 @@ def excluir_despesa(request, pk):
     if request.method == 'POST':
         try:
             nome_despesa = despesa.descricao or f"Despesa ID {despesa.pk}"
-            despesa.delete()
+            despesa.delete() # O método delete da Despesa agora reverte o saldo
+            
             messages.success(request, f'Despesa "{nome_despesa}" excluída com sucesso!')
         except Exception as e:
             logger.exception(f"Erro ao excluir despesa {pk} para organização {organizacao.id}")
-            messages.error(request, f'Erro ao excluir despesa: {e}')
-        return redirect('financeiro:lista_despesas')
-    else:
-        messages.error(request, 'Método inválido para exclusão.')
-        return redirect('financeiro:lista_despesas')
+
 
 
 # --- Categorias de Despesa ---
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Ver categorias
-def lista_categorias_despesa(request):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def lista_categorias_despesa(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     categorias = CategoriaDespesa.objects.filter(organizacao=organizacao).order_by('nome')
     can_edit = has_finance_edit_permission(request.user) # Para botão de adicionar
@@ -784,9 +819,8 @@ def lista_categorias_despesa(request):
     }
     return render(request, 'financeiro/categorias/lista_categorias.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Criar categorias
-def cadastrar_categoria_despesa(request):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def cadastrar_categoria_despesa(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     if request.method == 'POST':
         form = CategoriaDespesaForm(request.POST)
@@ -814,9 +848,8 @@ def cadastrar_categoria_despesa(request):
 # ========= INÍCIO: VIEWS PARA CONTAS BANCÁRIAS =========
 # ====================================================
 
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None)
-def lista_contas_bancarias(request):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def lista_contas_bancarias(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
@@ -841,9 +874,9 @@ def lista_contas_bancarias(request):
         messages.error(request, f"Ocorreu um erro ao listar as contas bancárias: {e}")
         return redirect('financeiro:painel_financeiro')
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None)
-def criar_conta_bancaria(request):
+
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def criar_conta_bancaria(request): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_inicial_para_form = None 
@@ -907,9 +940,8 @@ def criar_conta_bancaria(request):
     }
     return render(request, 'financeiro/contas_bancarias/form_conta_bancaria.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None)
-def editar_conta_bancaria(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def editar_conta_bancaria(request, pk): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     conta_bancaria = get_object_or_404(ContaBancaria, pk=pk, igreja__in=allowed_churches)
@@ -941,9 +973,8 @@ def editar_conta_bancaria(request, pk):
     }
     return render(request, 'financeiro/contas_bancarias/form_conta_bancaria.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None)
-def excluir_conta_bancaria(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def excluir_conta_bancaria(request, pk): # noqa: E302
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     conta_bancaria = get_object_or_404(ContaBancaria, pk=pk, igreja__in=allowed_churches)
@@ -985,9 +1016,8 @@ def excluir_conta_bancaria(request, pk):
 
 
 # --- Fechamento de Caixa (Refatorado) ---
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Ver fechamentos
-def lista_fechamentos_caixa(request):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def lista_fechamentos_caixa(request): # noqa: E302
     """ Lista os fechamentos de caixa da organização. """
     organizacao = get_organizacao_or_error(request)
     
@@ -1016,9 +1046,8 @@ def lista_fechamentos_caixa(request):
 # financeiro/views.py
 # ... (imports e outras views como estão) ...
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Criar fechamento
-def criar_fechamento_caixa(request):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def criar_fechamento_caixa(request): # noqa: E302
     """
     ETAPA 1: Exibe o formulário para selecionar igreja/período (GET)
     ou valida a seleção e mostra a pré-visualização (POST inicial).
@@ -1117,9 +1146,8 @@ def criar_fechamento_caixa(request):
 # --- FIM DA VIEW criar_fechamento_caixa MODIFICADA ---
 
 # --- NOVA VIEW para finalizar o fechamento ---
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Finalizar fechamento
-def finalizar_fechamento_caixa(request):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def finalizar_fechamento_caixa(request): # noqa: E302
     """
     ETAPA 2: Recebe o POST da página de confirmação e efetivamente
     cria o FechamentoCaixa e marca as transações como fechadas.
@@ -1207,9 +1235,8 @@ def finalizar_fechamento_caixa(request):
 # ... (restante das views: detalhe_fechamento_caixa, reabrir_fechamento_caixa, etc.) ...
 
 
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Ver detalhes
-def detalhe_fechamento_caixa(request, pk):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def detalhe_fechamento_caixa(request, pk): # noqa: E302
     """ Mostra os detalhes de um fechamento específico. """
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1247,9 +1274,8 @@ def detalhe_fechamento_caixa(request, pk):
         return redirect('financeiro:lista_fechamentos_caixa')
 
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Reabrir fechamento
-def reabrir_fechamento_caixa(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def reabrir_fechamento_caixa(request, pk): # noqa: E302
     """ Reabre um caixa fechado, marcando as receitas/despesas como abertas novamente. """
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1285,9 +1311,8 @@ def reabrir_fechamento_caixa(request, pk):
 
 
 # --- Relatórios ---
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Ver relatório
-def relatorio_mensal_detalhe(request, pk):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def relatorio_mensal_detalhe(request, pk): # noqa: E302
     """ Gera o relatório formatado de um fechamento de caixa específico. """
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1355,8 +1380,7 @@ def relatorio_mensal_detalhe(request, pk):
 # ========= INÍCIO: VIEWS PARA FORNECEDORES =========
 # ====================================================
 
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Ver fornecedores
+@check_permission(has_finance_view_permission) # MODIFICADO
 def lista_fornecedores(request):
     """ Lista os fornecedores da organização, com filtros. """
     organizacao = get_organizacao_or_error(request)
@@ -1399,9 +1423,8 @@ def lista_fornecedores(request):
         messages.error(request, f"Ocorreu um erro ao listar os fornecedores: {e}")
         return redirect('financeiro:painel_financeiro') # Redireciona para painel em caso de erro
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Criar fornecedor
-def criar_fornecedor(request):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def criar_fornecedor(request): # noqa: E302
     """ Cria um novo fornecedor para a organização. """
     organizacao = get_organizacao_or_error(request)
     if request.method == 'POST':
@@ -1429,9 +1452,8 @@ def criar_fornecedor(request):
     context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Novo Fornecedor'}
     return render(request, 'financeiro/fornecedores/form_fornecedor.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Editar fornecedor
-def editar_fornecedor(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def editar_fornecedor(request, pk): # noqa: E302
     """ Edita um fornecedor existente da organização. """
     organizacao = get_organizacao_or_error(request)
     # Validação de organização já feita no get_object_or_404
@@ -1458,9 +1480,8 @@ def editar_fornecedor(request, pk):
     context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': f'Editar Fornecedor: {fornecedor.nome}', 'fornecedor': fornecedor}
     return render(request, 'financeiro/fornecedores/form_fornecedor.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Alternar status
-def alternar_status_fornecedor(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def alternar_status_fornecedor(request, pk): # noqa: E302
     """ Ativa ou desativa um fornecedor (requer método POST). """
     organizacao = get_organizacao_or_error(request)
     # Validação de organização já feita no get_object_or_404
@@ -1487,9 +1508,8 @@ def alternar_status_fornecedor(request, pk):
 # ========= FIM: VIEWS PARA FORNECEDORES =========
 # ==================================================
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Editar categoria
-def editar_categoria_despesa(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def editar_categoria_despesa(request, pk): # noqa: E302
     """ Edita uma categoria de despesa existente. """
     organizacao = get_organizacao_or_error(request)
     # Validação de organização já feita no get_object_or_404
@@ -1525,9 +1545,8 @@ def editar_categoria_despesa(request, pk):
     # Reutilizar o template do formulário de cadastro
     return render(request, 'financeiro/categorias/form_categoria.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Excluir categoria
-def excluir_categoria_despesa(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def excluir_categoria_despesa(request, pk): # noqa: E302
     """ Exclui uma categoria de despesa (requer POST e confirmação). """
     organizacao = get_organizacao_or_error(request)
     # Validação de organização já feita no get_object_or_404
@@ -1559,9 +1578,8 @@ def excluir_categoria_despesa(request, pk):
 # ========= INÍCIO: VIEWS PARA CONTAS A PAGAR =========
 # ====================================================
 
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Ver contas a pagar
-def lista_contas_pagar(request):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def lista_contas_pagar(request): # noqa: E302
     """ Lista as contas a pagar da organização, com filtros. """
     organizacao = get_organizacao_or_error(request)
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
@@ -1657,9 +1675,8 @@ def lista_contas_pagar(request):
         messages.error(request, f"Ocorreu um erro ao listar as contas a pagar: {e}")
         return redirect('financeiro:painel_financeiro')
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Criar conta a pagar
-def criar_conta_pagar(request):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def criar_conta_pagar(request): # noqa: E302
     """ Cria uma nova conta a pagar (ou uma parcela). """
     organizacao = get_organizacao_or_error(request)
     igreja_padrao_para_form = None # Inicializa
@@ -1707,24 +1724,25 @@ def criar_conta_pagar(request):
             messages.error(request, "Formulário inválido. Verifique os campos.")
     else:
         initial_form_data = {} # Dicionário para passar valores iniciais
-        
+        igreja_para_form_get = None # Variável para a igreja que será usada no form
         # --- Lógica para pré-selecionar a igreja no formulário GET ---
         # A pré-seleção agora é feita no __init__ do form ao passar igreja_selecionada_inicial
         # Mas podemos manter a lógica de initial_form_data para outros campos se necessário.
         # O importante é passar igreja_selecionada_inicial para o form.
         if request.igreja_ativa and request.igreja_ativa in allowed_churches: # Mantido para clareza, mas o form usa igreja_selecionada_inicial
             initial_form_data['igreja'] = request.igreja_ativa
+            igreja_para_form_get = request.igreja_ativa
         elif allowed_churches.count() == 1:
             igreja_unica_permitida = allowed_churches.first()
             initial_form_data['igreja'] = igreja_unica_permitida
+            igreja_para_form_get = igreja_unica_permitida # Adicionar esta linha
 
-        form = ContaPagarForm(initial=initial_form_data, organizacao=organizacao, allowed_churches=allowed_churches)
-
-    form = ContaPagarForm(initial=initial_form_data,
+        form = ContaPagarForm(initial=initial_form_data, 
                               organizacao=organizacao,
                               allowed_churches=allowed_churches,
-                              user=request.user, # Passar o usuário
-                              igreja_selecionada_inicial=request.igreja_ativa) # Passar igreja ativa
+                              user=request.user, # Adicionar user
+                              igreja_selecionada_inicial=igreja_para_form_get) # Usar igreja_para_form_get
+
     context = {        
         'form': form,
         'organizacao': organizacao,
@@ -1732,9 +1750,8 @@ def criar_conta_pagar(request):
     }
     return render(request, 'financeiro/contas_pagar/form_conta_pagar.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Registrar pagamento
-def registrar_pagamento_conta_pagar(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
     """ Registra o pagamento de uma conta a pagar específica. """
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1781,13 +1798,8 @@ def registrar_pagamento_conta_pagar(request, pk):
                         )
                         logger.info(f"Despesa criada automaticamente para a ContaPagar ID {conta_paga.pk}.")
 
-                        # A ATUALIZAÇÃO DO SALDO DA CONTA BANCÁRIA SERÁ FEITA
-                        # PELO MÉTODO SAVE DA DESPESA OU POR UM SIGNAL.
-                        # NÃO FAREMOS MAIS AQUI DIRETAMENTE.
-                        # Exemplo: se o save da Despesa já atualiza o saldo, não precisamos fazer nada aqui.
-                        # Se não, precisaremos implementar essa lógica no save da Despesa ou em um signal.
-
-                    # --- FIM CRIAR DESPESA ---
+                        # A ATUALIZAÇÃO DO SALDO DA CONTA BANCÁRIA É FEITA PELO MÉTODO SAVE DA DESPESA.
+                     # --- FIM CRIAR DESPESA CORRESPONDENTE ---
     
 
                     messages.success(request, f"Pagamento da conta '{conta.descricao}' registrado com sucesso!")
@@ -1830,9 +1842,8 @@ def registrar_pagamento_conta_pagar(request, pk):
 # ========= CONTINUAÇÃO: VIEWS PARA CONTAS A PAGAR =========
 # ====================================================
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Editar conta a pagar
-def editar_conta_pagar(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def editar_conta_pagar(request, pk): # noqa: E302
     """ Edita uma conta a pagar existente (se ainda não estiver paga ou cancelada). """
     organizacao = get_organizacao_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1872,9 +1883,8 @@ def editar_conta_pagar(request, pk):
     # Reutiliza o mesmo template do formulário de criação
     return render(request, 'financeiro/contas_pagar/form_conta_pagar.html', context)
 
-@login_required
-@user_passes_test(has_finance_view_permission, login_url='login', redirect_field_name=None) # Ver detalhes
-def detalhe_conta_pagar(request, pk):
+@check_permission(has_finance_view_permission) # MODIFICADO
+def detalhe_conta_pagar(request, pk): # noqa: E302
     """ Exibe os detalhes completos de uma conta a pagar. """
     organizacao = get_organizacao_or_error(request)
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
@@ -1902,9 +1912,8 @@ def detalhe_conta_pagar(request, pk):
     }
     return render(request, 'financeiro/contas_pagar/detalhe_conta_pagar.html', context)
 
-@login_required
-@user_passes_test(has_finance_edit_permission, login_url='login', redirect_field_name=None) # Cancelar conta
-def cancelar_conta_pagar(request, pk):
+@check_permission(has_finance_edit_permission) # MODIFICADO
+def cancelar_conta_pagar(request, pk): # noqa: E302
     """ Marca uma conta a pagar como Cancelada (requer POST). """
     organizacao = get_organizacao_or_error(request)
     
@@ -1935,8 +1944,7 @@ def cancelar_conta_pagar(request, pk):
 # ==================================================
 # ========= FIM: VIEWS PARA CONTAS A PAGAR =========
 # ==================================================
-@login_required
-@user_passes_test(is_finance_leader, login_url='core:home')
+@check_permission(is_finance_leader) # MODIFICADO
 def painel_lideranca_financeiro(request):
     organizacao_usuario = get_organizacao_or_error(request)
     allowed_churches_base_financeiro = get_allowed_churches_for_user(request.user)

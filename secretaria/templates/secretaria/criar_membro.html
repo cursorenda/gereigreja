@@ -55,14 +55,32 @@
                             {{ form.apelido }}
                             {% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
                         </div>
+                         <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.tipo_pessoa.id_for_label }}" class="form-label">{{ form.tipo_pessoa.label }}:</label>
+                                    {{ form.tipo_pessoa }}
+                                     {% if form.tipo_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa.errors|striptags }}</div>{% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">{{ form.status_pessoa.label }}:</label>
+                                    {{ form.status_pessoa }}
+                                     {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <hr>
                 {# --- FIM SEÇÃO SUPERIOR --- #}
 
+
+                <!-- Seção: Informações da Igreja -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Informações da Igreja</h5>
                 <div class="row">
-                    {# --- CAMPO IGREJA ADICIONADO --- #}
-                    <div class="col-md-6"> {# Ajustado para col-md-6 para melhor layout com status ao lado #}
+                    <div class="col-md-6">
                         <div class="mb-3">
                             <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
                             {{ form.igreja }}
@@ -76,28 +94,57 @@
                             {% endif %}
                         </div>
                     </div>
-                    {# --- FIM CAMPO IGREJA --- #}
-
-                    {# --- CAMPO STATUS ADICIONADO AO LADO DA IGREJA --- #}
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}:</label>
-                            {{ form.status }}
-                             {% if form.status.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.status.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.status.help_text %}
-                                <div class="form-text">{{ form.status.help_text|safe }}</div>
-                            {% endif %}
+                            <label for="{{ form.data_entrada.id_for_label }}" class="form-label">{{ form.data_entrada.label }}:</label>
+                            {{ form.data_entrada }}
+                             {% if form.data_entrada.errors %}<div class="invalid-feedback d-block">{{ form.data_entrada.errors|striptags }}</div>{% endif %}
+                             {% if form.data_entrada.help_text %}<div class="form-text">{{ form.data_entrada.help_text|safe }}</div>{% endif %}
                         </div>
                     </div>
+                </div>
 
-
-                    {# Os campos de nome e apelido foram movidos para a seção superior #}
-
+                <!-- Seção: Dados Pessoais -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Dados Pessoais</h5>
+                <div class="row">
                     <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.nascimento.id_for_label }}" class="form-label">{{ form.nascimento.label }}:</label>
+                            {{ form.nascimento }}
+                             {% if form.nascimento.errors %}<div class="invalid-feedback d-block">{{ form.nascimento.errors|striptags }}</div>{% endif %}
+                             {% if form.nascimento.help_text %}<div class="form-text">{{ form.nascimento.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.genero.id_for_label }}" class="form-label">{{ form.genero.label }}:</label>
+                            {{ form.genero }}
+                             {% if form.genero.errors %}<div class="invalid-feedback d-block">{{ form.genero.errors|striptags }}</div>{% endif %}
+                             {% if form.genero.help_text %}<div class="form-text">{{ form.genero.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                         <div class="mb-3">
+                            <label for="{{ form.nacionalidade.id_for_label }}" class="form-label">{{ form.nacionalidade.label }}:</label>
+                            {{ form.nacionalidade }}
+                             {% if form.nacionalidade.errors %}<div class="invalid-feedback d-block">{{ form.nacionalidade.errors|striptags }}</div>{% endif %}
+                             {% if form.nacionalidade.help_text %}<div class="form-text">{{ form.nacionalidade.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.naturalidade.id_for_label }}" class="form-label">{{ form.naturalidade.label }}:</label>
+                            {{ form.naturalidade }}
+                             {% if form.naturalidade.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade.errors|striptags }}</div>{% endif %}
+                             {% if form.naturalidade.help_text %}<div class="form-text">{{ form.naturalidade.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção: Documentos -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Documentos</h5>
+                <div class="row">
+                    <div class="col-md-6">
                         <div class="mb-3">
                             <label for="{{ form.cpf.id_for_label }}" class="form-label">{{ form.cpf.label }}:</label>
                             {{ form.cpf }}
@@ -111,7 +158,7 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="mb-3">
                             <label for="{{ form.rg.id_for_label }}" class="form-label">{{ form.rg.label }}:</label>
                             {{ form.rg }}
@@ -125,48 +172,11 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.naturalidade.id_for_label }}" class="form-label">{{ form.naturalidade.label }}:</label>
-                            {{ form.naturalidade }}
-                             {% if form.naturalidade.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.naturalidade.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.naturalidade.help_text %}
-                                <div class="form-text">{{ form.naturalidade.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.nascimento.id_for_label }}" class="form-label">{{ form.nascimento.label }}:</label>
-                            {{ form.nascimento }}
-                             {% if form.nascimento.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.nascimento.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.nascimento.help_text %}
-                                <div class="form-text">{{ form.nascimento.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.genero.id_for_label }}" class="form-label">{{ form.genero.label }}:</label>
-                            {{ form.genero }}
-                             {% if form.genero.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.genero.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.genero.help_text %}
-                                <div class="form-text">{{ form.genero.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
+                </div>
+
+                <!-- Seção: Vida Civil e Profissional -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Vida Civil e Profissional</h5>
+                <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="{{ form.estado_civil.id_for_label }}" class="form-label">{{ form.estado_civil.label }}:</label>
@@ -209,6 +219,11 @@
                             {% endif %}
                         </div>
                     </div>
+                </div>
+
+                <!-- Seção: Filiação -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Filiação</h5>
+                <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="{{ form.nome_pai.id_for_label }}" class="form-label">{{ form.nome_pai.label }}:</label>
@@ -237,8 +252,12 @@
                             {% endif %}
                         </div>
                     </div>
+                </div>
 
-                     <div class="col-md-3">
+                <!-- Seção: Endereço e Contato -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Endereço e Contato</h5>
+                <div class="row">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
                             {{ form.cep }}
@@ -252,133 +271,89 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
-                            {{ form.pais }}
-                             {% if form.pais.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.pais.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.pais.help_text %}
-                                <div class="form-text">{{ form.pais.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
-                            {{ form.estado }}
-                             {% if form.estado.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.estado.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.estado.help_text %}
-                                <div class="form-text">{{ form.estado.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                     <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
-                            {{ form.cidade }}
-                             {% if form.cidade.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.cidade.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.cidade.help_text %}
-                                <div class="form-text">{{ form.cidade.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                      <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
-                            {{ form.bairro_distrito }}
-                             {% if form.bairro_distrito.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.bairro_distrito.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.bairro_distrito.help_text %}
-                                <div class="form-text">{{ form.bairro_distrito.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
+                    <div class="col-md-5">
                         <div class="mb-3">
                             <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
                             {{ form.rua }}
-                             {% if form.rua.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.rua.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.rua.help_text %}
-                                <div class="form-text">{{ form.rua.help_text|safe }}</div>
-                            {% endif %}
+                             {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
+                             {% if form.rua.help_text %}<div class="form-text">{{ form.rua.help_text|safe }}</div>{% endif %}
                         </div>
                     </div>
                     <div class="col-md-2">
                         <div class="mb-3">
                             <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
                             {{ form.numero_casa }}
-                             {% if form.numero_casa.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.numero_casa.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.numero_casa.help_text %}
-                                <div class="form-text">{{ form.numero_casa.help_text|safe }}</div>
-                            {% endif %}
+                             {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|striptags }}</div>{% endif %}
+                             {% if form.numero_casa.help_text %}<div class="form-text">{{ form.numero_casa.help_text|safe }}</div>{% endif %}
                         </div>
                     </div>
+                     <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
+                            {{ form.pais }}
+                             {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
+                             {% if form.pais.help_text %}<div class="form-text">{{ form.pais.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
+                            {{ form.bairro_distrito }}
+                             {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|striptags }}</div>{% endif %}
+                             {% if form.bairro_distrito.help_text %}<div class="form-text">{{ form.bairro_distrito.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
+                            {{ form.cidade }}
+                             {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
+                             {% if form.cidade.help_text %}<div class="form-text">{{ form.cidade.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
+                            {{ form.estado }}
+                             {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
+                             {% if form.estado.help_text %}<div class="form-text">{{ form.estado.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                     <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
+                            {{ form.email }}
+                             {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
+                             {% if form.email.help_text %}<div class="form-text">{{ form.email.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
+                            {{ form.telefone }}
+                             {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
+                             {% if form.telefone.help_text %}<div class="form-text">{{ form.telefone.help_text|safe }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
                     <div class="col-md-12">
                         <div class="mb-3">
                             <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
                             {{ form.complemento }}
-                             {% if form.complemento.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.complemento.errors|striptags }}
-                                </div>
-                            {% endif %}
+                             {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
                              {% if form.complemento.help_text %}
                                 <div class="form-text">{{ form.complemento.help_text|safe }}</div>
                             {% endif %}
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
-                            {{ form.telefone }}
-                             {% if form.telefone.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.telefone.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.telefone.help_text %}
-                                <div class="form-text">{{ form.telefone.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.data_entrada.id_for_label }}" class="form-label">{{ form.data_entrada.label }}:</label>
-                            {{ form.data_entrada }}
-                             {% if form.data_entrada.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.data_entrada.errors|striptags }}
-                                </div>
-                            {% endif %}
-                             {% if form.data_entrada.help_text %}
-                                <div class="form-text">{{ form.data_entrada.help_text|safe }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
+                </div>
 
+                <!-- Seção: Família (Cônjuge) -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Família (Cônjuge)</h5>
+                <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="{{ form.conjuge.id_for_label }}" class="form-label">{{ form.conjuge.label }}:</label>
@@ -406,13 +381,10 @@
                                 <div class="form-text">{{ form.data_casamento.help_text|safe }}</div>
                             {% endif %}
                         </div>
-                    
-
-                {# O campo de foto foi movido para a seção superior #}
-             
+                      </div>
                 </div>
                 <hr>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salvar Membro</button>
+                <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Membro</button>
                 <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
             </form>
         </div>
@@ -437,7 +409,7 @@
                 reader.readAsDataURL(this.files[0]);
             }
         });
-        
+
          // --- INÍCIO: LÓGICA PARA BUSCA DE CEP ---
          $("#id_cep").blur(function() { // Evento blur é quando o campo perde o foco
             var cep = $(this).val().replace(/\D/g, ''); // Remove caracteres não numéricos
@@ -481,7 +453,7 @@
             }
         });
         // --- FIM: LÓGICA PARA BUSCA DE CEP ---
- 
+
     });
 </script>
 {% endblock %}

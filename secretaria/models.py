@@ -1,9 +1,13 @@
 ﻿from django.db import models
-from django.apps import apps
+from django.utils import timezone # Adicionar este import
 from django.utils import timezone
 import uuid # Para nomes de arquivo únicos
 import os   # Para manipulação de caminhos
+from django.conf import settings # Para settings.AUTH_USER_MODEL
 from configuracao.models import Igreja # <--- ADICIONE ESTA LINHA
+
+import logging # Add this
+logger = logging.getLogger(__name__) # Add this
 
 # --- Modelo Tiposstatus ---
 class Tiposstatus(models.Model):
@@ -28,12 +32,53 @@ class Tiposstatus(models.Model):
         verbose_name_plural = "Tipos de Status"
         ordering = ['status'] # Ordenar alfabeticamente por padrão
 
+
+
+# --- NOVOS MODELOS ---
+class TipoPessoa(models.Model):
+    nome = models.CharField(max_length=100, unique=True, help_text="Ex: Membro, Visitante, Obreiro, Congregado, Novo Convertido")
+    descricao = models.TextField(blank=True, null=True, help_text="Descrição adicional do tipo de pessoa.")
+    # Se os tipos de pessoa forem específicos por organização, adicione uma ForeignKey para Organizacao aqui.
+    # Por simplicidade inicial, vamos considerar globais.
+
+    def __str__(self):
+        return self.nome
+
+    class Meta:
+        verbose_name = "Tipo de Pessoa"
+        verbose_name_plural = "Tipos de Pessoas"
+        ordering = ['nome']
+
+class StatusPessoa(models.Model):
+    nome = models.CharField(max_length=100, unique=True, help_text="Ex: Ativo, Inativo, Em Disciplina, Desligado, Transferido, Falecido")
+    descricao = models.TextField(blank=True, null=True, help_text="Descrição adicional do status.")
+    considerar_ativo_relatorios = models.BooleanField(
+        default=True,
+        help_text="Marque se pessoas com este status devem ser consideradas ativas em relatórios de membresia."
+    )
+    cor_associada = models.CharField(
+        max_length=7, blank=True, null=True, help_text="Cor em hexadecimal (ex: #FF0000) para UI."
+    )
+    # Se os status forem específicos por organização, adicione uma ForeignKey para Organizacao aqui.
+
+    def __str__(self):
+        return self.nome
+
+    class Meta:
+        verbose_name = "Status da Pessoa"
+        verbose_name_plural = "Status das Pessoas"
+        ordering = ['nome']
+
+
+
 # --- Função para upload_to da foto do Membro ---
 def get_membro_foto_upload_path(instance, filename):
     """ Gera um caminho de upload único para as fotos dos membros. """
     ext = os.path.splitext(filename)[1] # Pega a extensão .jpg, .png, etc.
-    unique_filename = f"membro_{instance.chave_or_uuid}_{uuid.uuid4().hex}{ext}"
-    # Organiza as fotos em uma pasta por ID da igreja e depois por ID do membro (ou UUID se novo)
+     # Revertido para usar instance.chave (PK).
+    # Nota: instance.chave será None para um novo membro antes do primeiro save.
+    # Se o upload for feito ANTES do primeiro save, esta lógica precisará de ajuste ou o Django usará um nome padrão.
+    unique_filename = f"membro_{instance.chave or uuid.uuid4().hex}_{uuid.uuid4().hex}{ext}"
     return os.path.join('fotos_membros', f'igreja_{instance.igreja_id or "sem_igreja"}', unique_filename)
 
 
@@ -43,6 +88,8 @@ def get_membro_foto_upload_path(instance, filename):
 class Membro(models.Model):
     # Removido db_column='Chave' - Deixe o Django gerenciar o nome da coluna
     chave = models.AutoField(primary_key=True)
+    # O campo chave_or_uuid foi removido.
+
 
     # --- Campo ForeignKey para Igreja ---
     igreja = models.ForeignKey(
@@ -54,7 +101,7 @@ class Membro(models.Model):
     # --- FIM ---
     nome = models.CharField(max_length=100)
     apelido = models.CharField(max_length=50, blank=True, null=True)
-    cpf = models.CharField(max_length=14, blank=True, null=True, unique=True) # CPF deve ser único se preenchido
+    cpf = models.CharField(max_length=14, blank=True, null=True, unique=True)
     rg = models.CharField(max_length=20, blank=True, null=True)
     naturalidade = models.CharField(max_length=50, blank=True, null=True)
     nascimento = models.DateField(blank=True, null=True)
@@ -71,22 +118,39 @@ class Membro(models.Model):
     bairro_distrito = models.CharField(max_length=50, blank=True, null=True)
     rua = models.CharField(max_length=100, blank=True, null=True)
     numero_casa = models.CharField(max_length=10, blank=True, null=True)
+    nacionalidade = models.CharField(max_length=50, blank=True, null=True, verbose_name="Nacionalidade") # NOVO CAMPO
+    email = models.EmailField(max_length=100, blank=True, null=True, verbose_name="E-mail Pessoal") # NOVO CAMPO
     complemento = models.CharField(max_length=100, blank=True, null=True)
-    telefone = models.CharField(max_length=15, blank=True, null=True)
+    telefone = models.CharField(max_length=15, blank=True, null=True) # Adicionar máscara JS no template
     data_entrada = models.DateField(default=timezone.now, blank=True, null=True) # Usar default=timezone.now?
-    status = models.ForeignKey(
-        Tiposstatus,
-        on_delete=models.SET_NULL, # Mantendo SET_NULL conforme seu modelo original
-        blank=True,
-        null=True,
-        related_name='membros',
-        verbose_name="Status Atual" # Adicionando verbose_name
-    )
+    # O campo 'status' antigo foi removido.
+
     foto = models.ImageField(
         upload_to=get_membro_foto_upload_path,
         null=True, blank=True,
         verbose_name="Foto do Membro"
     )
+
+# --- NOVOS CAMPOS PARA TIPO E STATUS ---
+    tipo_pessoa = models.ForeignKey(
+        TipoPessoa,
+        on_delete=models.PROTECT, # Alterado para PROTECT para evitar exclusão acidental
+        null=False, # Tornando obrigatório
+        blank=False, # Tornando obrigatório
+
+        verbose_name="Tipo de Pessoa",
+        related_name="membros"
+    )
+    status_pessoa = models.ForeignKey(
+        StatusPessoa,
+        on_delete=models.PROTECT, # Alterado para PROTECT
+        null=False, # Tornando obrigatório
+        blank=False, # Tornando obrigatório
+
+        verbose_name="Status da Pessoa",
+        related_name="membros_com_status"
+    )
+
     # --- FIM NOVO CAMPO FOTO ---
     conjuge = models.CharField(max_length=100, blank=True, null=True)
     data_casamento = models.DateField(blank=True, null=True)
@@ -95,18 +159,112 @@ class Membro(models.Model):
     # --- PROPRIEDADE OPCIONAL (Útil para templates/admin) ---
     @property
     def is_ativo_para_relatorios(self):
-        """Verifica se o status do membro permite inclusão em relatórios."""
-        if self.status:
-            return self.status.considerar_ativo_relatorios
+        """Verifica se o status_pessoa do membro permite inclusão em relatórios.""" # noqa: E501
+        if self.status_pessoa: # Agora verifica o novo campo
+            return self.status_pessoa.considerar_ativo_relatorios
+
         # Defina o comportamento padrão se o membro não tiver status
         # False é geralmente mais seguro para relatórios
         return False
+    @property
+    def nome_completo(self):
+        """Retorna o nome completo do membro."""
+        parts = [self.nome]
+        # Adicione outras partes do nome se existirem, ex: self.sobrenome
+        # if self.sobrenome:
+        #     parts.append(self.sobrenome)
+        return " ".join(filter(None, parts))
+
     # --- FIM PROPRIEDADE ---
+
+    _original_tipo_pessoa_id = None # Adicionado para rastrear tipo anterior
+
+    def __init__(self, *args, **kwargs): # Adicionado __init__
+        super().__init__(*args, **kwargs)
+        # Armazena os valores originais ao carregar o objeto do banco
+        self._original_tipo_pessoa_id = self.tipo_pessoa_id
+        self._original_status_pessoa_id = self.status_pessoa_id
+        # logger.debug(f"Membro __init__ for {self.pk} ({self.nome_completo if self.pk else 'NEW'}): orig_tipo_id={self._original_tipo_pessoa_id}, orig_status_id={self._original_status_pessoa_id}") # noqa: E501
+
+
     
     def save(self, *args, **kwargs):
-        # Usado pela função de upload para ter um identificador antes do PK ser gerado
-        self.chave_or_uuid = self.chave or uuid.uuid4().hex
+        current_user = kwargs.pop('user', None) # Espera um 'user' opcional de kwargs
+        is_new = self._state.adding
+        logger.debug(f"Membro SAVE for {self.pk}/{self.nome_completo if self.pk else 'NEW'}. is_new: {is_new}")
+        logger.debug(f"  Current tipo_id: {self.tipo_pessoa_id}, Original tipo_id: {self._original_tipo_pessoa_id}")
+        logger.debug(f"  Current status_id: {self.status_pessoa_id}, Original status_id: {self._original_status_pessoa_id}")
+
+        changed_tipo = not is_new and self.tipo_pessoa_id != self._original_tipo_pessoa_id
+        changed_status = not is_new and self.status_pessoa_id != self._original_status_pessoa_id
+
+        logger.debug(f"  changed_tipo: {changed_tipo}, changed_status: {changed_status}")
+
+        tipo_anterior_obj = None
+        status_anterior_obj = None
+
+        if not is_new:
+            if changed_tipo and self._original_tipo_pessoa_id:
+                
+                
+                try:
+                    tipo_anterior_obj = TipoPessoa.objects.get(pk=self._original_tipo_pessoa_id)
+                    logger.debug(f"  Fetched tipo_anterior_obj: {tipo_anterior_obj}")
+                except TipoPessoa.DoesNotExist:
+                    logger.warning(f"  TipoPessoa with pk={self._original_tipo_pessoa_id} not found for tipo_anterior_obj.") # noqa: E501
+            if changed_status and self._original_status_pessoa_id:
+                try:
+                    status_anterior_obj = StatusPessoa.objects.get(pk=self._original_status_pessoa_id)
+                    logger.debug(f"  Fetched status_anterior_obj: {status_anterior_obj}")
+                except StatusPessoa.DoesNotExist:
+                    logger.warning(f"  StatusPessoa with pk={self._original_status_pessoa_id} not found for status_anterior_obj.") # noqa: E501
+
+
+        # A linha self.chave_or_uuid = self.chave or uuid.uuid4().hex foi removida.
         super().save(*args, **kwargs)
+
+         # --- ADICIONAR LÓGICA PARA CRIAR StatusHistorico ---
+        if is_new or changed_tipo or changed_status:
+            logger.debug(f"  Creating StatusHistorico. is_new={is_new}, changed_tipo={changed_tipo}, changed_status={changed_status}") # noqa: E501
+            
+            observ_parts = []
+            if is_new:
+                observ_parts.append("Registro inicial do membro.")
+                if self.tipo_pessoa: observ_parts.append(f"Tipo definido como '{self.tipo_pessoa.nome}'.")
+                if self.status_pessoa: observ_parts.append(f"Status definido como '{self.status_pessoa.nome}'.")
+            else:
+                if changed_tipo:
+                    old_tipo_name = tipo_anterior_obj.nome if tipo_anterior_obj else "Nenhum"
+                    new_tipo_name = self.tipo_pessoa.nome if self.tipo_pessoa else "Nenhum"
+                    observ_parts.append(f"Tipo alterado de '{old_tipo_name}' para '{new_tipo_name}'.")
+                if changed_status:
+                    old_status_name = status_anterior_obj.nome if status_anterior_obj else "Nenhum"
+                    new_status_name = self.status_pessoa.nome if self.status_pessoa else "Nenhum"
+                    observ_parts.append(f"Status alterado de '{old_status_name}' para '{new_status_name}'.")
+            
+            final_observacao = " ".join(observ_parts) if observ_parts else "Alteração de tipo/status registrada."
+
+            try:
+                StatusHistorico.objects.create(
+                    membro=self,
+                    tipo_pessoa_anterior=tipo_anterior_obj if not is_new else None,
+                    tipo_pessoa_novo=self.tipo_pessoa,
+                    status_pessoa_anterior=status_anterior_obj if not is_new else None,
+                    status_pessoa_novo=self.status_pessoa,
+                    registrado_por=current_user,
+                    observacao=final_observacao
+                )
+                logger.info(f"  StatusHistorico created for membro {self.pk} ({self.nome_completo})")
+            except Exception as e:
+                logger.error(f"  Error creating StatusHistorico for membro {self.pk} ({self.nome_completo}): {e}", exc_info=True) # noqa: E501
+
+        # --- FIM DA LÓGICA PARA CRIAR StatusHistorico ---
+        # Atualiza os valores originais para a próxima comparação de save
+        # ESTA PARTE É CRUCIAL PARA QUE O HISTÓRICO FUNCIONE EM SAVES SUBSEQUENTES
+        self._original_tipo_pessoa_id = self.tipo_pessoa_id
+        self._original_status_pessoa_id = self.status_pessoa_id
+        # logger.debug(f"Membro SAVE end for {self.pk}: new orig_tipo_id={self._original_tipo_pessoa_id}, new orig_status_id={self._original_status_pessoa_id}") # noqa: E501
+
 
     def __str__(self):
         return self.nome
@@ -262,25 +420,37 @@ class OutrosFamiliares(models.Model):
         verbose_name = "Outro Familiar"
         verbose_name_plural = "Outros Familiares"
 
+
+# REMOVER ESTA DEFINIÇÃO ANTIGA DE StatusHistorico
+# class StatusHistorico(models.Model):
+#     membro = models.ForeignKey(Membro, on_delete=models.CASCADE)
+#     status_anterior = models.ForeignKey(Tiposstatus, related_name='status_anterior', on_delete=models.CASCADE)
+#     novo_status = models.ForeignKey(Tiposstatus, related_name='novo_status', on_delete=models.CASCADE)
+#     data_mudanca = models.DateTimeField(auto_now_add=True)
+#
+#     class Meta:
+#         # managed = False # Se você quer que o Django gerencie, comente ou remova
+#         db_table = 'status_historico'
+#         verbose_name = "Histórico de Status"
+#         verbose_name_plural = "Históricos de Status"
+#         ordering = ['-data_mudanca'] # Ordenar por mais recente
+
+
+
+from django.conf import settings # Movido para perto da classe que o usa
+
+
+
 class StatusHistorico(models.Model):
-    membro = models.ForeignKey(Membro, on_delete=models.CASCADE)
-    status_anterior = models.ForeignKey(Tiposstatus, related_name='status_anterior', on_delete=models.CASCADE)
-    novo_status = models.ForeignKey(Tiposstatus, related_name='novo_status', on_delete=models.CASCADE)
-    data_mudanca = models.DateTimeField(auto_now_add=True)
+    # Esta é a definição CORRETA de StatusHistorico
+    membro = models.ForeignKey(Membro, on_delete=models.CASCADE, related_name='transicoes_status_secretaria') # related_name usado no template
+    tipo_pessoa_anterior = models.ForeignKey(TipoPessoa, null=True, blank=True, on_delete=models.SET_NULL, related_name='historico_tipo_anterior')
+    tipo_pessoa_novo = models.ForeignKey(TipoPessoa, null=True, blank=True, on_delete=models.SET_NULL, related_name='historico_tipo_novo')
+    status_pessoa_anterior = models.ForeignKey(StatusPessoa, null=True, blank=True, on_delete=models.SET_NULL, related_name='historico_status_anterior')
+    status_pessoa_novo = models.ForeignKey(StatusPessoa, null=True, blank=True, on_delete=models.SET_NULL, related_name='historico_status_novo')
+    data_transicao = models.DateTimeField(default=timezone.now) # MODIFICADO: Permite definir manualmente, default para agora
+    observacao = models.TextField(blank=True, null=True)
+    registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
 
     class Meta:
-        # managed = False # Se você quer que o Django gerencie, comente ou remova
-        db_table = 'status_historico'
-        verbose_name = "Histórico de Status"
-        verbose_name_plural = "Históricos de Status"
-        ordering = ['-data_mudanca'] # Ordenar por mais recente
-
-
-
-
-#class Usuarios(models.Model):
- #   username = models.TextField(unique=True)
-  #  password = models.TextField()
-
-   # class Meta:
-    #    db_table = 'usuarios' # NOME CORRETO DA TABELA
+        ordering = ['-data_transicao']

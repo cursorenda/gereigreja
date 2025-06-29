@@ -1,0 +1,41 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina|default:"Confirmar Exclusão" }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Confirmar Exclusão de Aviso" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:lista_avisos' %}">Mural de Avisos</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:detalhe_aviso' pk=aviso.pk %}">{{ aviso.titulo|truncatechars:30 }}</a></li>
+        <li class="breadcrumb-item active">Confirmar Exclusão</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header text-white bg-danger">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            Atenção: Confirmação Necessária
+        </div>
+        <div class="card-body">
+            <p class="lead">Você tem certeza que deseja excluir permanentemente o aviso:</p>
+            <h4 class="mb-4">"{{ aviso.titulo }}"?</h4>
+
+            <p>Esta ação não poderá ser desfeita.</p>
+
+            <form method="POST" action="{% url 'comunicacao:excluir_aviso' pk=aviso.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-1"></i> Sim, Excluir Aviso
+                </button>
+                <a href="{% url 'comunicacao:detalhe_aviso' pk=aviso.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Acesso Negado{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="row justify-content-center mt-5">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-danger text-white text-center">
+                    <h3 class="fw-light my-4"><i class="fas fa-exclamation-triangle me-2"></i>Acesso Negado</h3>
+                </div>
+                <div class="card-body text-center">
+                    <p class="lead">Você não tem permissão para acessar esta página ou realizar esta ação.</p>
+                    <p>Se você acredita que isso é um erro, por favor, entre em contato com o administrador do sistema.</p>
+                    <hr>
+                    <a href="{% url 'secretaria:dashboard' %}" class="btn btn-primary"><i class="fas fa-home me-1"></i> Voltar para o Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -9,6 +9,8 @@ from django.http import Http404
 from core.utils import get_organizacao_or_error
 # Importar AssinaturaOrganizacao para o except
 from configuracao.models import AssinaturaOrganizacao
+from django.contrib.auth.decorators import login_required # Adicionado
+from django.urls import reverse_lazy # Adicionado
 
 
 def verificar_assinatura_valida(view_func):
@@ -56,3 +58,26 @@ def verificar_assinatura_valida(view_func):
         # Se tudo estiver OK (organização ativa e assinatura válida/cortesia), executa a view.
         return view_func(request, *args, **kwargs)
     return _wrapped_view
+
+
+def check_permission(test_func, login_url_name=None): # Renomeado o parâmetro para clareza
+    def decorator(view_func):
+        # Calcula a URL de login a ser usada.
+        # Passamos o NOME da URL para login_required, que resolverá de forma lazy.
+        _login_url_to_use = login_url_name or 'login'
+
+
+        # Aplica os decorators à função _wrapped_view.
+        # @wraps geralmente fica mais próximo da função que está envolvendo.
+        @login_required(login_url=_login_url_to_use)
+        @wraps(view_func)
+
+
+
+        def _wrapped_view(request, *args, **kwargs):
+            if test_func(request.user): # Executa a função de teste de permissão
+                return view_func(request, *args, **kwargs)
+            else: # Usuário está logado, mas não tem a permissão
+                raise PermissionDenied("Você não tem permissão para acessar esta página.")
+        return _wrapped_view
+    return decorator

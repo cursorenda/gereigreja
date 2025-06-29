@@ -11,6 +11,9 @@ from django.urls import reverse
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.contrib.sites.shortcuts import get_current_site
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 from django.conf import settings
 from django.core.exceptions import PermissionDenied # Importar PermissionDenied
 from django.http import Http404 # Importar Http404
@@ -19,6 +22,7 @@ import logging
 # Models e Forms
 
 from configuracao.models import Organizacao, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionar Plano e AssinaturaOrganizacao
+from secretaria.models import Membro # Importar Membro
 
 from .models import Convite
 from .forms import (
@@ -445,6 +449,60 @@ def editar_papeis_usuario(request, user_pk):
     # O template continua o mesmo por enquanto, mas o título muda
     return render(request, 'contas/editar_papeis_usuario.html', context)
 # --- FIM VIEW ATUALIZADA ---
+
+# --- NOVA VIEW PARA ENVIAR LINK DE RESET PELO ADMIN ---
+@login_required
+def enviar_link_reset_senha(request, user_pk):
+    """
+    View para o Admin da Org enviar um link de redefinição de senha
+    para um usuário específico.
+    """
+    # 1. Validação de permissão
+    try:
+        organizacao = get_organizacao_or_error(request)
+        # Apenas Admins da Organização podem fazer isso
+        if not request.user.groups.filter(name='Admin Organizacao').exists():
+            messages.error(request, "Você não tem permissão para realizar esta ação.")
+            return redirect('secretaria:index')
+    except (PermissionDenied, Http404):
+        return redirect('login')
+
+    # 2. Encontrar o usuário alvo, garantindo que ele pertence à organização
+    usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__organizacao=organizacao)
+
+    # 3. Gerar o token e a URL de reset manualmente
+    current_site = get_current_site(request)
+    context = {
+        'email': usuario_alvo.email,
+        'domain': current_site.domain,
+        'site_name': current_site.name,
+        'uid': urlsafe_base64_encode(force_bytes(usuario_alvo.pk)),
+        'user': usuario_alvo,
+        'token': default_token_generator.make_token(usuario_alvo),
+        'protocol': 'https' if request.is_secure() else 'http',
+    }
+
+    # 4. Renderizar e enviar o e-mail
+    subject = render_to_string('contas/password_reset_subject.txt', context)
+    subject = ''.join(subject.splitlines()) # Remove quebras de linha do assunto
+    body = render_to_string('contas/password_reset_email.html', context)
+
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [usuario_alvo.email], fail_silently=False)
+        messages.success(request, f"Link de redefinição de senha enviado com sucesso para {usuario_alvo.email}.")
+    except Exception as e:
+        logger.error(f"Erro ao enviar email de reset de senha para {usuario_alvo.email}: {e}")
+        messages.error(request, f"Ocorreu um erro ao enviar o e-mail: {e}")
+
+    # 5. Redirecionar de volta para a página de edição do membro
+    try:
+        membro_associado = Membro.objects.get(email__iexact=usuario_alvo.email, igreja__organizacao=organizacao)
+        # Adiciona o parâmetro ?tab=... para voltar para a aba correta
+        redirect_url = reverse('secretaria:editar_membro', args=[membro_associado.pk]) + '?tab=acesso-sistema'
+        return redirect(redirect_url)
+    except Membro.DoesNotExist:
+        # Se não houver membro associado (caso raro), volta para a lista de usuários.
+        return redirect('contas:lista_usuarios')
 
 # --- VIEW ATIVAR/DESATIVAR USUÁRIO ---
 @login_required

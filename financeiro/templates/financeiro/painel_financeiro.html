@@ -304,6 +304,28 @@
                 </div>
             </div>
         </div>
+                    <!-- NOVO: Gráfico de Perfil dos Dizimistas por Tipo de Pessoa -->
+            <div class="col-xl-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-users-cog me-1"></i>
+                        Perfil dos Dizimistas por Tipo ({{ titulo_filtro_periodo }})
+                        <select id="perfilDizimistaTipoFiltro" class="form-select form-select-sm float-end" style="width: auto; display: inline-block; margin-left: 10px;">
+                            <option value="qtd" selected>Quantidade</option>
+                            <option value="perc_qtd">% Quantidade</option>
+                            <option value="valor">Valor (R$)</option>
+                            <option value="perc_valor">% Valor (R$)</option>
+                        </select>
+                    </div>
+                    <div class="card-body" style="height: 350px;">
+                        <canvas id="perfilDizimistasChart"></canvas>
+                    </div>
+                    <div class="card-footer small text-muted">
+                        Dados baseados nos dízimos do período selecionado.
+                    </div>
+                </div>
+            </div>
+
         <div class="col-xl-6"> {# Dizimistas Únicos por Mês #}
             <div class="card mb-4">
 

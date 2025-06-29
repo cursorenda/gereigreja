@@ -1,0 +1,85 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ titulo_pagina|default:"Meu Portal" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item active">Meu Portal</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    {% if membro %}
+        <div class="row">
+            <!-- Coluna do Perfil -->
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-body text-center">
+                        {% if membro.foto %}
+                            <img src="{{ membro.foto.url }}" alt="Foto de {{ membro.nome }}" class="rounded-circle img-fluid" style="width: 150px; height: 150px; object-fit: cover;">
+                        {% else %}
+                            <img src="{% static 'img/default_avatar.png' %}" alt="Sem foto" class="rounded-circle img-fluid" style="width: 150px;">
+                        {% endif %}
+                        <h5 class="my-3">{{ membro.nome_completo }}</h5>
+                        <p class="text-muted mb-1">{{ membro.tipo_pessoa.nome|default:"-" }} na {{ membro.igreja.nome_igreja }}</p>
+                        <p class="text-muted mb-4">{{ membro.status_pessoa.nome|default:"-" }}</p>
+                        <div class="d-flex justify-content-center mb-2">
+                            <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-primary">Editar Meus Dados</a>
+                            <a href="{% url 'secretaria:ficha_membro_impressao' membro.chave %}" target="_blank" class="btn btn-outline-primary ms-1">Ver Ficha</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna de Informações e Contribuições -->
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-sm-3"><p class="mb-0">Nome Completo</p></div>
+                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.nome }}</p></div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-3"><p class="mb-0">Email</p></div>
+                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.email|default:"Não informado" }}</p></div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-3"><p class="mb-0">Telefone</p></div>
+                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.telefone|default:"Não informado" }}</p></div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-sm-3"><p class="mb-0">Endereço</p></div>
+                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.rua|default:'-' }}, {{ membro.numero_casa|default:'' }} - {{ membro.cidade|default:'' }}</p></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header"><i class="fas fa-hand-holding-usd me-1"></i>Últimas Contribuições</div>
+                    <div class="card-body">
+                        {% if contribuicoes %}
+                            <ul class="list-group list-group-flush">
+                                {% for c in contribuicoes %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>{{ c.data|date:"d/m/Y" }} - {{ c.get_categoria_display }}</span>
+                                        <span class="badge bg-primary rounded-pill">R$ {{ c.valor|intcomma }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">Nenhuma contribuição registrada.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

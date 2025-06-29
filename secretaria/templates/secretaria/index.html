@@ -10,7 +10,11 @@
     <div class="row justify-content-center mb-4">
         <div class="col-lg-10 text-center">
             <h1 class="mt-4 mb-3 display-4">Bem-vindo(a), {{ user.get_full_name|default:user.username }}!</h1>
-            <p class="lead">Gerenciando a organização: <strong>{{ organizacao.nome }}</strong></p>
+            <p class="lead">Gerenciando a organização: <strong>{{ organizacao.nome_fantasia }}</strong></p>
+            <div class="card-body text-center"> {# Adicionado text-center para centralizar o logo #}
+                {% if organizacao.logo %}
+                    <img src="{{ organizacao.logo.url }}" alt="Logo {{ organizacao.nome_fantasia|default:'Organização' }}" class="rounded-circle img-fluid mb-3 shadow-sm" style="width: 150px; height: 150px; object-fit: cover;">
+                {% endif %}
             <hr class="w-50 mx-auto"> {# Linha horizontal mais curta #}
         </div>
     </div>
@@ -103,8 +107,8 @@
                 <div class="card-body">
                     <h5 class="card-title">Informações Rápidas</h5>
                     <p class="card-text">
-                        Total de membros ativos: <strong>{{ total_membros_ativos }}</strong><br>
-                        Novos membros no último mês: <strong>{{ novos_membros_ultimo_mes }}</strong><br>
+                        Total de pessoas ativas: <strong>{{ total_membros_ativos }}</strong><br>
+                        Novas pessoas no último mês: <strong>{{ novos_membros_ultimo_mes }}</strong><br>
                         Próximo evento: <strong>{{ proximo_evento|default:"Nenhum evento próximo." }}</strong>
                    </p>
                 </div>

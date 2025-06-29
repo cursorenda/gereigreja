@@ -145,7 +145,8 @@
             {% if info_ecl %}
                 <div class="secao secao-titulo">Informações Eclesiásticas</div>
                 <div class="campo"><strong>Igreja Atual:</strong> {{ membro.igreja.nome_igreja|default:"-" }}</div>
-                <div class="campo"><strong>Status Atual:</strong> {{ membro.status.status|default:"-" }}</div>
+                <div class="campo"><strong>Tipo:</strong> {{ membro.tipo_pessoa.nome|default:"-" }}</div>
+                <div class="campo"><strong>Status:</strong> {{ membro.status_pessoa.nome|default:"-" }}</div>
                 <div class="campo"><strong>Data de Admissão na Igreja Atual:</strong> {{ membro.data_entrada|date:"d/m/Y"|default:"-" }}</div>
                 <div class="campo"><strong>Cargo(s):</strong> 
                     {% for mc in membro.membroscargos_set.all %}

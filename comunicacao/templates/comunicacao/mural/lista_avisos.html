@@ -1,0 +1,100 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ titulo_pagina|default:"Mural de Avisos" }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Mural de Avisos" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Mural de Avisos</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-bullhorn me-1"></i>Avisos Publicados</span>
+                {% if can_manage %}
+                <a href="{% url 'comunicacao:criar_aviso' %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus me-1"></i> Novo Aviso
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{% url 'comunicacao:lista_avisos' %}" class="row g-3 mb-4 align-items-center">
+                <div class="col-auto flex-grow-1">
+                    <label for="searchQueryAvisos" class="visually-hidden">Buscar Avisos</label>
+                    <input type="text" class="form-control form-control-sm" id="searchQueryAvisos" placeholder="Buscar por título..." name="q" value="{{ query|default:'' }}">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+                    {% if query %}
+                        <a href="{% url 'comunicacao:lista_avisos' %}" class="btn btn-outline-secondary btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
+                    {% endif %}
+                </div>
+            </form>
+
+            {% if avisos %}
+                <div class="list-group">
+                    {% for aviso in avisos %}
+                    <div class="list-group-item list-group-item-action flex-column align-items-start mb-3 shadow-sm">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">
+                                <a href="{% url 'comunicacao:detalhe_aviso' pk=aviso.pk %}" class="text-decoration-none">{{ aviso.titulo }}</a>
+                            </h5>
+                            <small class="text-muted">{{ aviso.data_publicacao|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ aviso.conteudo|truncatewords_html:30|safe }}</p>
+                        <small class="text-muted">
+                            Por: {{ aviso.autor.get_full_name|default:aviso.autor.username|default:"Sistema" }}
+                            {% if aviso.data_expiracao %}
+                                | Expira em: {{ aviso.data_expiracao|date:"d/m/Y" }}
+                            {% endif %}
+                        </small>
+                        {% if aviso.igrejas_destino.exists %}
+                            <br>
+                            <small class="text-muted">
+                                Para:
+                                {% for igreja_destino in aviso.igrejas_destino.all %}
+                                    <span class="badge bg-light text-dark border">{{ igreja_destino.nome_igreja }}</span>
+                                {% endfor %}
+                            </small>
+                        {% else %}
+                            <br>
+                            <small class="text-muted">Para: Toda a Organização</small>
+                        {% endif %}
+
+                        {% if can_manage %}
+                        <div class="mt-2 text-end">
+                            <a href="{% url 'comunicacao:editar_aviso' pk=aviso.pk %}" class="btn btn-outline-primary btn-sm me-1" title="Editar Aviso">
+                                <i class="fas fa-edit"></i> Editar
+                            </a>
+                            <a href="{% url 'comunicacao:excluir_aviso' pk=aviso.pk %}" class="btn btn-outline-danger btn-sm" title="Excluir Aviso">
+                                <i class="fas fa-trash-alt"></i> Excluir
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info text-center" role="alert">
+                    Nenhum aviso encontrado.
+                    {% if can_manage %}
+                        <a href="{% url 'comunicacao:criar_aviso' %}" class="alert-link">Crie o primeiro aviso!</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{# Adicionar JS específico se necessário #}
+{% endblock %}

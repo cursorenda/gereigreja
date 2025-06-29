@@ -65,13 +65,31 @@
 
 
         <!-- Navbar (Menu Superior Direito) -->
-        <ul class="navbar-nav ms-auto me-3 me-lg-4"> {# Movido ms-auto para alinhar à direita #}
+        <ul class="navbar-nav ms-auto me-3 me-lg-4">
             {% if user.is_authenticated %}
+            {# --- INÍCIO: Ícone de Notificações --- #}
+            <li class="nav-item dropdown">
+                <a class="nav-link" href="{% url 'comunicacao:lista_notificacoes' %}" role="button" aria-expanded="false" title="Notificações">
+                    <i class="fas fa-bell fa-fw"></i>
+                    {% if unread_notifications_count > 0 %}
+                        <span class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle">
+                            {{ unread_notifications_count }}
+                        </span>
+                    {% endif %}    
+                </a>
+            </li>
+            {# --- FIM: Ícone de Notificações --- #}
+    
             {# --- INÍCIO: Dropdown do Usuário LOGADO --- #}
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" id="navbarDropdownUser" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user fa-fw"></i>
-                    <span class="d-none d-md-inline ms-1">{{ user.get_full_name|default:user.username }}</span>
+                    {% if request.user.perfil.foto_perfil %}
+                        <img src="{{ request.user.perfil.foto_perfil.url }}" class="rounded-circle" style="width: 30px; height: 30px; object-fit: cover; margin-right: 5px;">
+                    {% else %}
+                        <i class="fas fa-user-circle fa-fw"></i>
+                    {% endif %}
+
+                   <span class="d-none d-md-inline ms-1">{{ user.get_full_name|default:user.username }}</span>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
 
@@ -107,8 +125,12 @@
                     </li>
 
                     {# --- Links da Conta do Usuário (Para TODOS os logados) --- #}
-                    <li><a class="dropdown-item" href="{% url 'configuracao:gerenciar_assinatura' %}">Minha Assinatura</a></li>
-
+                    {# Apenas Admin da Organização pode gerenciar a assinatura #}
+                    {% if 'Admin Organizacao' in user.groups.all|join:", " %}
+                        <li><a class="dropdown-item" href="{% url 'configuracao:gerenciar_assinatura' %}">
+                            <i class="fas fa-credit-card fa-fw me-1 text-muted"></i>Gerenciar Assinatura
+                        </a></li>
+                    {% endif %}
                     <li>
                         <a class="dropdown-item" href="{% url 'contas:password_change' %}">
                             <i class="fas fa-key fa-fw me-1 text-muted"></i>Alterar Senha
@@ -148,12 +170,38 @@
     <div id="layoutSidenav">
         <div id="layoutSidenav_nav">
             <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
-                {# Inclui o menu lateral a partir de menu.html #}
-                {% include 'menu.html' %}
+                {# O menu lateral administrativo só é exibido para staff #}
+                {% if user.is_staff %} {# Se o usuário é staff, mostra o menu administrativo completo #}
+                    {% include 'menu.html' %} 
+                {% else %} {# Se o usuário NÃO é staff (ex: Membro Comum), mostra um menu simplificado #}
+                    <div class="sb-sidenav-menu">
+                        <div class="nav">
+                            <div class="sb-sidenav-menu-heading">Navegação</div>
+                            <a class="nav-link" href="{% url 'secretaria:portal_membro' %}">
+                                <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
+                                Meu Portal
+                            </a>
+                            <a class="nav-link" href="{% url 'configuracao:meu_perfil' %}">
+                                <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
+                                Meu Perfil
+                            </a>
+                            <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
+                                <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
+                                Mural de Avisos
+                            </a>
+                            <a class="nav-link" href="{% url 'comunicacao:lista_notificacoes' %}">
+                                <div class="sb-nav-link-icon"><i class="fas fa-bell"></i></div>
+                                Minhas Notificações
+                            </a>
+                            {# Adicione outros links relevantes para o membro comum aqui #}
+                        </div>
+                    </div>
+                {% endif %} {# Fim da condição user.is_staff #}
+
 
                 {# Rodapé do menu lateral com nome do usuário #}
                 <div class="sb-sidenav-footer">
-                    <div class="small">Logado como:</div>
+                    <div class="small">Usuário:</div>
                     {{ request.user.get_full_name|default:request.user.username }} {# Mostra nome completo ou username #}
                 </div>
             </nav>
@@ -168,12 +216,11 @@
             <footer class="py-4 bg-light mt-auto">
                 <div class="container-fluid px-4">
                     <div class="d-flex align-items-center justify-content-between small">
-                        <div class="text-muted">Copyright &copy; Sua Igreja/Organização {% now "Y" %}</div>
+                        <div class="text-muted">Copyright &copy; {{ request.organizacao.nome_fantasia|default:"Gereigreja" }} {% now "Y" %}</div>
                         <div>
-                            {# Links de rodapé opcionais #}
-                            {# <a href="#">Política de Privacidade</a>
+                            <a href="{% url 'politica_privacidade' %}">Política de Privacidade</a>
                             &middot;
-                            <a href="#">Termos &amp; Condições</a> #}
+                            <a href="{% url 'termos_condicoes' %}">Termos &amp; Condições</a>
                         </div>
                     </div>
                 </div>

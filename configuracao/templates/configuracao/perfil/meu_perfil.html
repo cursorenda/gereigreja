@@ -76,8 +76,9 @@
                             </p>
 
                             {# Link para gerenciar assinatura (já existe no menu, mas pode estar aqui também) #}
-                            <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-sm btn-outline-info mt-2">Gerenciar Assinatura</a>
-
+                            {% if 'Admin Organizacao' in user.groups.all|join:", " %}
+                                <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-info">Gerenciar Assinatura</a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

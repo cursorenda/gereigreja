@@ -78,6 +78,8 @@ urlpatterns = [
     
     # --- URL PARA EDITAR PAPÉIS/GRUPOS DE UM USUÁRIO (NOVA) ---
     # Usa <int:user_pk> para capturar a chave primária do User
+    path('usuarios/<int:user_pk>/enviar-reset-senha/', views.enviar_link_reset_senha, name='enviar_link_reset_senha'),
+
     path('usuarios/<int:user_pk>/editar-papeis/', views.editar_papeis_usuario, name='editar_papeis_usuario'),
     # --- URL PARA ATIVAR/DESATIVAR USUÁRIO (NOVA) ---
     # Usa <int:user_pk> para capturar a chave primária do User
