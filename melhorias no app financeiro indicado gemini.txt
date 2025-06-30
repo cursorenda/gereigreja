@@ -492,6 +492,7 @@ Qualidade: Refatore as views mais complexas para facilitar a manutenção futura
 Valor: Comece a planejar o módulo "Jornada do Visitante" e implemente as notificações automáticas.
 Minha recomendação é focar 100% na migração do banco de dados como a próxima tarefa. É a mais crítica de todas. Depois que a base estiver sólida, podemos voltar a adicionar as funcionalidades incríveis que você planejou.
 
+depois mudar Django~=3.2 para Django==5.2 e PostgreSQL 10.23 para versao 14 - o PostgreSQL 14 depende do dajango 5.2
 
 
 
@@ -514,39 +515,4 @@ DATABASES = {
     }
 }
 
-backup de conversa:
-PS C:\Gereigreja> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-PS C:\Gereigreja> .\.venv\Scripts\Activate.ps1
-(.venv) PS C:\Gereigreja> git add .
-(.venv) PS C:\Gereigreja> git commit -m "feat: Migra o sistema para usar PostgreSQL"
-On branch master
-Your branch is ahead of 'origin/master' by 1 commit.
-  (use "git push" to publish your local commits)
 
-nothing to commit, working tree clean
-(.venv) PS C:\Gereigreja> git push origin master
-info: please complete authentication in your browser...
-Enumerating objects: 139, done.
-Counting objects: 100% (139/139), done.
-Delta compression using up to 12 threads
-PS C:\Gereigreja> .\.venv\Scripts\Activate.ps1
-(.venv) PS C:\Gereigreja> git add .
-(.venv) PS C:\Gereigreja> git commit -m "feat: Migra o sistema para usar PostgreSQL"
-On branch master
-Your branch is ahead of 'origin/master' by 1 commit.
-  (use "git push" to publish your local commits)
-
-nothing to commit, working tree clean
-(.venv) PS C:\Gereigreja> git push origin master
-info: please complete authentication in your browser...
-Enumerating objects: 139, done.
-Counting objects: 100% (139/139), done.
-Delta compression using up to 12 threads
-Delta compression using up to 12 threads
-Compressing objects: 100% (83/83), done.
-Writing objects: 100% (86/86), 192.33 KiB | 3.00 MiB/s, done.
-Total 86 (delta 45), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas: 100% (45/45), completed with 34 local objects.
-To https://github.com/cursorenda/gereigreja.git
-   22b6bdd..9d06e53  master -> master
-(.venv) PS C:\Gereigreja>
