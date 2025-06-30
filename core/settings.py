@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'financeiro',
     'configuracao',
     'contas',
-    'comunicacao.apps.ComunicacaoConfig', # Caminho explícito para a configuração do app
+    'comunicacao', 
     
 
 ]
