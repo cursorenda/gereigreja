@@ -34,7 +34,7 @@ Aqui está uma organização mais estruturada para a implementação no seu prog
 - **Autocadastro:** Link para membros se cadastrarem de forma independente.
 - **Aplicativo:** Desenvolvimento de um app para membros, pastores e diretoria.
 - **Departamento Infantil:** Gestão específica para o setor infantil.
-- **Biblioteca:** Implementação de um módulo de biblioteca.
+- **Biblioteca:** Implementação de um módulo de biblioteca online, onde o usuario pode ler online os ebooks.
 - **Recados:** Criar sistema de comunicação interna.
 - **Movimentação no Cadastro de Membro:** Incluir histórico financeiro e de edições.
 - **Metas:** Definir metas financeiras e de crescimento de membros.
@@ -59,6 +59,8 @@ Aqui está uma organização mais estruturada para a implementação no seu prog
 Gostaria que o sistema fizesse historico de tipo e status, onde poderemos visualizar todo o historico do membro/pessoa,
 ou uma linha do tempo para cada membros dentro do caastro dele em uma ABA.
 
+fazer um suporte no sistema, para que o usuario entre em contato com o suporte e escolhe qual tipo de ajuda deseja
+se deseja ajuda financeiro, suporte tecnico, sugestoes de melhorias e em qual area a sugestao.
 ideia de fazer uma linha do tempo com o historico dos membros como entrada, batismo disciplina, exclusao
 desligamentos, batismo...etc com opçoes de escolher quais os tipos quer que apareça.
 
@@ -511,3 +513,40 @@ DATABASES = {
 
     }
 }
+
+backup de conversa:
+PS C:\Gereigreja> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+PS C:\Gereigreja> .\.venv\Scripts\Activate.ps1
+(.venv) PS C:\Gereigreja> git add .
+(.venv) PS C:\Gereigreja> git commit -m "feat: Migra o sistema para usar PostgreSQL"
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+nothing to commit, working tree clean
+(.venv) PS C:\Gereigreja> git push origin master
+info: please complete authentication in your browser...
+Enumerating objects: 139, done.
+Counting objects: 100% (139/139), done.
+Delta compression using up to 12 threads
+PS C:\Gereigreja> .\.venv\Scripts\Activate.ps1
+(.venv) PS C:\Gereigreja> git add .
+(.venv) PS C:\Gereigreja> git commit -m "feat: Migra o sistema para usar PostgreSQL"
+On branch master
+Your branch is ahead of 'origin/master' by 1 commit.
+  (use "git push" to publish your local commits)
+
+nothing to commit, working tree clean
+(.venv) PS C:\Gereigreja> git push origin master
+info: please complete authentication in your browser...
+Enumerating objects: 139, done.
+Counting objects: 100% (139/139), done.
+Delta compression using up to 12 threads
+Delta compression using up to 12 threads
+Compressing objects: 100% (83/83), done.
+Writing objects: 100% (86/86), 192.33 KiB | 3.00 MiB/s, done.
+Total 86 (delta 45), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (45/45), completed with 34 local objects.
+To https://github.com/cursorenda/gereigreja.git
+   22b6bdd..9d06e53  master -> master
+(.venv) PS C:\Gereigreja>
