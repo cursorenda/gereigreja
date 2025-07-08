@@ -11,8 +11,10 @@ from django.apps import apps # Para import tardio e evitar circularidade
 # --- Função para upload_to do logo da Organização ---
 def get_organizacao_logo_upload_path(instance, filename):
     """ Gera um caminho de upload único para os logos das organizações. """
-    ext = os.path.splitext(filename)[1] # Pega a extensão .jpg, .png, etc.
-    return os.path.join('logos_organizacoes', f'org_{instance.pk_or_uuid}_{uuid.uuid4().hex}{ext}')
+    ext = os.path.splitext(filename)[1]
+    # Cria um nome de arquivo único que não depende do PK do objeto.
+    unique_filename = f"org_logo_{uuid.uuid4().hex}{ext}"
+    return os.path.join('logos_organizacoes', unique_filename)
 
 # --- DEFINIÇÃO DE ESTADO_CHOICES ---
 ESTADO_CHOICES = [
@@ -75,20 +77,18 @@ class Organizacao(models.Model):
         blank=True,
         verbose_name="Logo da Organização"
     )
+
+    # --- CAMPO PARA INTEGRAÇÃO COM GATEWAY DE PAGAMENTO ---
+    stripe_customer_id = models.CharField(
+        max_length=255, blank=True, null=True,
+        verbose_name="ID do Cliente no Stripe",
+        help_text="ID do cliente no Stripe, usado para gerenciar assinaturas."
+    )
+
     def __str__(self):
         return self.nome_fantasia
 
-    class Meta:
-        verbose_name = "Organização"
-        verbose_name_plural = "Organizações"
-        ordering = ['nome_fantasia']
-
-    def save(self, *args, **kwargs):
-        # Define um atributo temporário pk_or_uuid que será usado pela função de upload
-        # se o objeto ainda não tiver um PK (ou seja, está sendo criado).
-        # Isso ajuda a função de upload a ter um identificador mesmo antes do save completo.
-        self.pk_or_uuid = self.pk or uuid.uuid4().hex
-        super().save(*args, **kwargs)
+    
 
     def verificar_elegibilidade_plano_gratuito(self):
         """
@@ -105,12 +105,17 @@ class Organizacao(models.Model):
                     Membro = apps.get_model('secretaria', 'Membro')
                     membros_ativos_count = Membro.objects.filter(
                         igreja=igreja_unica,
-                        status__considerar_ativo_relatorios=True # Do modelo Tiposstatus em secretaria
+                        status_pessoa__considerar_ativo_relatorios=True # CORRIGIDO: Usa o novo relacionamento
                     ).count()
                     return membros_ativos_count <= 50
                 except LookupError: # Caso o modelo Membro ou app secretaria não seja encontrado
                     return False
         return False        
+    
+    class Meta:
+        verbose_name = "Organização"
+        verbose_name_plural = "Organizações"
+        ordering = ['nome_fantasia']
 
 # --- Modelo para o Perfil do Usuário ---
 class PerfilUsuario(models.Model):
@@ -158,26 +163,21 @@ class PerfilUsuario(models.Model):
         verbose_name_plural = "Perfis de Usuários"
 
 # --- Funções para upload_to dos logos da Igreja ---
-def get_logo_upload_path(instance, filename, logo_type_prefix):
-    """
-    Gera um caminho de upload único para os logos da igreja.
-    Ex: logos_igrejas/igreja_123/logo1_uuidaleatorio.jpg
-    """
-    ext = os.path.splitext(filename)[1] # Pega a extensão .jpg, .png, etc.
-    # Gera um nome de arquivo único usando UUID
-    unique_filename = f"{logo_type_prefix}_{uuid.uuid4().hex}{ext}"
-    # Organiza os logos em uma pasta por ID da igreja
-    # instance.pk pode ser None se a igreja ainda não foi salva (caso de criação)
-    # Django lida com isso: salva o modelo primeiro, obtém o PK, depois salva o arquivo.
-    return os.path.join('logos_igrejas', f'igreja_{instance.pk_or_initial}', unique_filename)
 
 def logo1_upload_to_path(instance, filename):
-    instance.pk_or_initial = instance.pk or "nova" # Para o caso de nova igreja
-    return get_logo_upload_path(instance, filename, 'logo1')
+    """ Gera um caminho de upload único para o logo 1 da igreja. """
+    ext = os.path.splitext(filename)[1]
+    # Cria um nome de arquivo único que não depende do PK do objeto.
+    # Opcional: pode-se incluir instance.pk se ele existir para organizar em pastas.
+    # Ex: f'igreja_{instance.pk or "novo"}/logo1_{uuid.uuid4().hex}{ext}'
+    unique_filename = f"igreja_logo1_{uuid.uuid4().hex}{ext}"
+    return os.path.join('logos_igrejas', unique_filename)
 
 def logo2_upload_to_path(instance, filename):
-    instance.pk_or_initial = instance.pk or "nova" # Para o caso de nova igreja
-    return get_logo_upload_path(instance, filename, 'logo2')
+    """ Gera um caminho de upload único para o logo 2 da igreja. """
+    ext = os.path.splitext(filename)[1]
+    unique_filename = f"igreja_logo2_{uuid.uuid4().hex}{ext}"
+    return os.path.join('logos_igrejas', unique_filename)
 
 
 # --- Modelo para cada Igreja (Sede, Regional, Congregação) ---
@@ -263,9 +263,9 @@ class Igreja(models.Model):
         verbose_name="Conta/Caixa Padrão para Despesas",
         help_text="Conta/Caixa que será pré-selecionada ao registrar novas despesas para esta igreja."
     )
-    data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro", null=True) # Adicionado null=True temporariamente se houver dados existentes
-    data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Data de Atualização", null=True) # Adicionado null=True temporariamente
-
+    data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
+    data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Data de Atualização")
+ 
     def __str__(self):
         org_nome = self.organizacao.nome_fantasia if self.organizacao else "Sem Organização"
         return f"{self.nome_igreja} ({self.get_tipo_igreja_display()}) - [{org_nome}]"
@@ -296,26 +296,38 @@ class Igreja(models.Model):
 # --- NOVOS MODELOS PARA PLANOS E ASSINATURAS ---
 
 class Plano(models.Model):
-    NOME_CHOICES = [
-        ('mensal', 'Mensal'),
-        ('trimestral', 'Trimestral'),
-        ('anual', 'Anual'),
-        ('gratuito', 'Gratuito'),
+    NOME_PLANO_CHOICES = [
+        ('pioneiro', 'Pioneiro'),
+        ('crescimento', 'Crescimento'),
+        ('ministerio', 'Ministério'),
     ]
-    nome = models.CharField(max_length=50, choices=NOME_CHOICES, unique=True, verbose_name="Nome do Plano")
+    nome = models.CharField(max_length=50, choices=NOME_PLANO_CHOICES, unique=True, verbose_name="Nome do Plano")
+    codigo_plano = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="Identificador único para o sistema (ex: 'pioneiro', 'crescimento', 'ministerio').")    
+    # Preços
+    preco_mensal = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Preço Mensal (R$)")
+    preco_anual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Preço Anual (R$)")
+
+    # Limites e Features
+    limite_membros = models.PositiveIntegerField(default=50, help_text="Número máximo de pessoas ativas (consideradas para relatórios). 0 para ilimitado.", verbose_name="Limite de Pessoas Ativas")
+    limite_igrejas = models.PositiveIntegerField(default=1, help_text="Número máximo de igrejas/congregações. 0 para ilimitado.")
+    permite_modulo_comunicacao = models.BooleanField(default=False, verbose_name="Permite Módulo de Comunicação?")
+    suporte_prioritario = models.BooleanField(default=False, verbose_name="Suporte Prioritário?")
+    
+
     descricao = models.TextField(blank=True, null=True, verbose_name="Descrição")
-    preco = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Preço (R$)")
-    duracao_dias = models.IntegerField(verbose_name="Duração em Dias", help_text="Ex: 30, 90, 365. Para Gratuito, pode ser um valor simbólico alto ou não usado se o status da assinatura for 'gratuita'.")
-    ativo = models.BooleanField(default=True, verbose_name="Plano Ativo?")
-    codigo_referencia_gateway = models.CharField(max_length=100, blank=True, null=True, verbose_name="Código de Referência (Gateway)", help_text="ID do plano no gateway de pagamento, se aplicável.")
+    ativo = models.BooleanField(default=True, verbose_name="Plano Ativo no Sistema?")
+    is_visible = models.BooleanField(default=True, help_text="Marque para exibir este plano nas páginas de preço/venda.")
+    stripe_price_id_mensal = models.CharField(max_length=100, blank=True, null=True, verbose_name="Stripe Price ID (Mensal)")
+    stripe_price_id_anual = models.CharField(max_length=100, blank=True, null=True, verbose_name="Stripe Price ID (Anual)")
 
     def __str__(self):
-        return f"{self.get_nome_display()} - R$ {self.preco}"
+        return self.get_nome_display() # Usa o método automático do Django
+
 
     class Meta:
         verbose_name = "Plano de Assinatura"
         verbose_name_plural = "Planos de Assinatura"
-        ordering = ['preco']
+        ordering = ['preco_mensal']
 
 
 class AssinaturaOrganizacao(models.Model):
@@ -325,6 +337,10 @@ class AssinaturaOrganizacao(models.Model):
         ('vencida', 'Vencida'),
         ('cancelada', 'Cancelada'),
         ('gratuita', 'Gratuita'),
+    ]
+    CICLO_PAGAMENTO_CHOICES = [
+        ('mensal', 'Mensal'),
+        ('anual', 'Anual'),
     ]
     organizacao = models.OneToOneField( # Garante uma assinatura por organização
         Organizacao,
@@ -342,6 +358,12 @@ class AssinaturaOrganizacao(models.Model):
     data_inicio = models.DateTimeField(verbose_name="Data de Início")
     data_fim = models.DateTimeField(verbose_name="Data de Fim", blank=True, null=True) # Nulo para 'gratuita' vitalícia
     status = models.CharField(max_length=20, choices=STATUS_ASSINATURA_CHOICES, default='pendente_pagamento', verbose_name="Status")
+    ciclo_pagamento = models.CharField(
+        max_length=10,
+        choices=CICLO_PAGAMENTO_CHOICES,
+        null=True, blank=True,
+        verbose_name="Ciclo de Pagamento"
+    )
     id_transacao_gateway = models.CharField(max_length=200, blank=True, null=True, verbose_name="ID da Transação (Gateway)")
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)

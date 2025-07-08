@@ -1,3 +1,60 @@
 from django.contrib import admin
+from .models import (
+    Receitas, Despesas, CategoriaDespesa, FechamentoCaixa, ContaBancaria,
+    Fornecedor, ContaPagar
+)
 
-# Register your models here.
+@admin.register(CategoriaDespesa)
+class CategoriaDespesaAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'organizacao')
+    list_filter = ('organizacao',)
+    search_fields = ('nome', 'organizacao__nome_fantasia')
+    autocomplete_fields = ['organizacao']
+
+@admin.register(ContaBancaria)
+class ContaBancariaAdmin(admin.ModelAdmin):
+    list_display = ('nome_identificacao', 'igreja', 'tipo', 'saldo_atual')
+    list_filter = ('igreja__organizacao', 'igreja', 'tipo')
+    search_fields = ('nome_identificacao', 'igreja__nome_igreja')
+    readonly_fields = ('saldo_atual',)
+    autocomplete_fields = ['igreja']
+
+@admin.register(Receitas)
+class ReceitasAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'igreja', 'data', 'valor', 'categoria', 'fechado')
+    list_filter = ('igreja__organizacao', 'igreja', 'categoria', 'fechado', 'data')
+    search_fields = ('observacao', 'membro__nome', 'igreja__nome_igreja')
+    autocomplete_fields = ['igreja', 'membro', 'conta_bancaria']
+    date_hierarchy = 'data'
+
+@admin.register(Despesas)
+class DespesasAdmin(admin.ModelAdmin):
+    list_display = ('descricao', 'igreja', 'data', 'valor', 'categoria', 'fechado')
+    list_filter = ('igreja__organizacao', 'igreja', 'categoria', 'fechado', 'data')
+    search_fields = ('descricao', 'observacao', 'igreja__nome_igreja')
+    autocomplete_fields = ['igreja', 'categoria', 'conta_bancaria', 'origem_conta_pagar']
+    date_hierarchy = 'data'
+
+@admin.register(FechamentoCaixa)
+class FechamentoCaixaAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'igreja', 'data_inicio', 'data_fim', 'saldo_final', 'status')
+    list_filter = ('igreja__organizacao', 'igreja', 'status')
+    search_fields = ('igreja__nome_igreja', 'observacoes')
+    readonly_fields = ('total_entradas', 'total_saidas', 'saldo_final')
+    autocomplete_fields = ['igreja']
+
+@admin.register(Fornecedor)
+class FornecedorAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'organizacao', 'cnpj_cpf', 'ativo')
+    list_filter = ('organizacao', 'ativo')
+    search_fields = ('nome', 'cnpj_cpf', 'organizacao__nome_fantasia')
+    autocomplete_fields = ['organizacao']
+
+@admin.register(ContaPagar)
+class ContaPagarAdmin(admin.ModelAdmin):
+    list_display = ('descricao', 'fornecedor', 'igreja', 'valor', 'data_vencimento', 'status')
+    list_filter = ('status', 'igreja__organizacao', 'igreja', 'data_vencimento')
+    search_fields = ('descricao', 'fornecedor__nome', 'igreja__nome_igreja')
+    readonly_fields = ('data_criacao', 'data_atualizacao')
+    autocomplete_fields = ['organizacao', 'igreja', 'fornecedor', 'categoria', 'conta_debito']
+    date_hierarchy = 'data_vencimento'

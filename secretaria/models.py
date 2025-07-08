@@ -9,29 +9,6 @@ from configuracao.models import Igreja # <--- ADICIONE ESTA LINHA
 import logging # Add this
 logger = logging.getLogger(__name__) # Add this
 
-# --- Modelo Tiposstatus ---
-class Tiposstatus(models.Model):
-    status = models.CharField(
-        max_length=50,
-        unique=True, # Boa prática: Garante que não haja status duplicados
-        verbose_name="Nome do Status" # Adiciona um nome mais amigável
-    )
-    # --- NOVO CAMPO ---
-    considerar_ativo_relatorios = models.BooleanField(
-        default=True, # Por padrão, status são considerados ativos para relatórios
-        verbose_name="Considerar Ativo para Relatórios?",
-        help_text="Marque se membros com este status devem ser incluídos nas contagens e gráficos gerais (Ex: Ativo). Desmarque para status como 'Inativo', 'Falecido', 'Transferido'."
-    )
-    # --- FIM NOVO CAMPO ---
-
-    def __str__(self):
-        return self.status
-
-    class Meta:
-        verbose_name = "Tipo de Status"
-        verbose_name_plural = "Tipos de Status"
-        ordering = ['status'] # Ordenar alfabeticamente por padrão
-
 
 
 # --- NOVOS MODELOS ---
@@ -74,15 +51,12 @@ class StatusPessoa(models.Model):
 # --- Função para upload_to da foto do Membro ---
 def get_membro_foto_upload_path(instance, filename):
     """ Gera um caminho de upload único para as fotos dos membros. """
-    ext = os.path.splitext(filename)[1] # Pega a extensão .jpg, .png, etc.
-     # Revertido para usar instance.chave (PK).
-    # Nota: instance.chave será None para um novo membro antes do primeiro save.
-    # Se o upload for feito ANTES do primeiro save, esta lógica precisará de ajuste ou o Django usará um nome padrão.
-    unique_filename = f"membro_{instance.chave or uuid.uuid4().hex}_{uuid.uuid4().hex}{ext}"
-    return os.path.join('fotos_membros', f'igreja_{instance.igreja_id or "sem_igreja"}', unique_filename)
-
-
-
+    ext = os.path.splitext(filename)[1]
+    # Cria um nome de arquivo único que não depende do PK do objeto.
+    unique_filename = f"membro_foto_{uuid.uuid4().hex}{ext}"
+    # Organiza em uma pasta pela igreja, se disponível.
+    igreja_folder = f'igreja_{instance.igreja_id}' if instance.igreja_id else 'sem_igreja'
+    return os.path.join('fotos_membros', igreja_folder, unique_filename)
 
 
 class Membro(models.Model):

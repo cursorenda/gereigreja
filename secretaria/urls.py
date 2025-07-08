@@ -8,7 +8,7 @@ app_name = 'secretaria' # Adicione esta linha
 
 
 urlpatterns = [
-    path('', views.index, name='index'),
+    path('', views.index, name='index'), # Esta URL agora será /sistema/
     path('dashboard/', views.dashboard, name='dashboard'),
     path('membros/', views.lista_membros, name='lista_membros'),
     path('membros/cadastrar/', views.criar_membro, name='cadastrar_membro'),

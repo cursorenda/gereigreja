@@ -1,0 +1,55 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina|default:"Abrir Novo Ticket" }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Abrir Novo Ticket de Suporte" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'suporte:lista_tickets' %}">Suporte</a></li>
+        <li class="breadcrumb-item active">Abrir Ticket</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-plus-circle me-1"></i>
+            Preencha os detalhes do seu ticket
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {% csrf_token %}
+                {% include "partials/_form_errors.html" with form=form %}
+
+                <div class="mb-3">
+                    <label for="{{ form.area.id_for_label }}" class="form-label">{{ form.area.label }}:</label>
+                    {{ form.area }}
+                    {% if form.area.errors %}<div class="invalid-feedback d-block">{{ form.area.errors|striptags }}</div>{% endif %}
+                    {% if form.area.help_text %}<div class="form-text">{{ form.area.help_text|safe }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.assunto.id_for_label }}" class="form-label">{{ form.assunto.label }}:</label>
+                    {{ form.assunto }}
+                    {% if form.assunto.errors %}<div class="invalid-feedback d-block">{{ form.assunto.errors|striptags }}</div>{% endif %}
+                    {% if form.assunto.help_text %}<div class="form-text">{{ form.assunto.help_text|safe }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="{{ form.mensagem.id_for_label }}" class="form-label">{{ form.mensagem.label }}:</label>
+                    {{ form.mensagem }}
+                    {% if form.mensagem.errors %}<div class="invalid-feedback d-block">{{ form.mensagem.errors|striptags }}</div>{% endif %}
+                    {% if form.mensagem.help_text %}<div class="form-text">{{ form.mensagem.help_text|safe }}</div>{% endif %}
+                </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i> Enviar Ticket</button>
+                <a href="{% url 'suporte:lista_tickets' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

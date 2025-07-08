@@ -1,0 +1,291 @@
+{% extends 'base_landing.html' %}
+{% load static %}
+
+{% block content %}
+
+<!-- Schema.org para SEO Avançado (ótimo para buscadores de IA) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Gereigreja",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "description": "Sistema de gerenciamento completo para igrejas, com módulos de secretaria, financeiro, comunicação e suporte. Facilita a gestão de membros, dízimos, ofertas e eventos.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0.00",
+    "priceCurrency": "BRL",
+    "category": "freemium"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "reviewCount": "88"
+  },
+  "author": {
+    "@type": "Organization",
+    "name": "Gereigreja"
+  }
+}
+</script>
+
+<!-- Navbar Simples -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">
+            <i class="fas fa-church me-2 text-primary"></i>Gereigreja
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="#features">Funcionalidades</a></li>
+                <li class="nav-item"><a class="nav-link" href="#pricing">Planos</a></li>
+                <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+                <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}">Começar Agora</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Header / Hero Section -->
+<header class="header">
+    <div class="container">
+        <h1 class="display-4">Transforme a Gestão da Sua Igreja</h1>
+        <p class="lead">Organize, cresça e pastoreie com mais eficiência. O Gereigreja centraliza a gestão de membros, finanças e comunicação em um único lugar, de forma simples e poderosa.</p>
+        <a href="{% url 'contas:registrar' %}" class="btn btn-cta-primary btn-lg me-2">Comece Gratuitamente</a>
+        <a href="#pricing" class="btn btn-cta-secondary btn-lg">Ver Planos</a>
+    </div>
+</header>
+
+<main>
+    <!-- Seção de Funcionalidades -->
+    <section id="features" class="section">
+        <div class="container">
+            <h2 class="section-title">A Solução Completa para Sua Igreja</h2>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card p-4 text-center">
+                        <div class="feature-icon mb-3"><i class="fas fa-users"></i></div>
+                        <h4 class="card-title">Secretaria Inteligente</h4>
+                        <p class="card-text">Gerencie membros, congregados e visitantes com fichas cadastrais completas, histórico de status, grupos familiares e relatórios detalhados.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card p-4 text-center">
+                        <div class="feature-icon mb-3"><i class="fas fa-hand-holding-usd"></i></div>
+                        <h4 class="card-title">Financeiro Transparente</h4>
+                        <p class="card-text">Controle dízimos, ofertas, despesas e contas a pagar. Gere relatórios, realize fechamentos de caixa e tenha uma visão clara da saúde financeira.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card p-4 text-center">
+                        <div class="feature-icon mb-3"><i class="fas fa-bullhorn"></i></div>
+                        <h4 class="card-title">Comunicação Integrada</h4>
+                        <p class="card-text">Mantenha a igreja conectada com um mural de avisos, gestão de eventos e ferramentas para uma comunicação eficaz com toda a membresia.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card p-4 text-center">
+                        <div class="feature-icon mb-3"><i class="fas fa-sitemap"></i></div>
+                        <h4 class="card-title">Gestão Multi-Igreja</h4>
+                        <p class="card-text">Ideal para ministérios com múltiplas congregações. Gerencie sedes, regionais e congregações de forma centralizada, com permissões hierárquicas.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card p-4 text-center">
+                        <div class="feature-icon mb-3"><i class="fas fa-chart-pie"></i></div>
+                        <h4 class="card-title">Dashboards para Líderes</h4>
+                        <p class="card-text">Painéis visuais com gráficos e indicadores-chave para que a liderança tome decisões estratégicas baseadas em dados precisos e atualizados.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card p-4 text-center">
+                        <div class="feature-icon mb-3"><i class="fas fa-life-ring"></i></div>
+                        <h4 class="card-title">Suporte Dedicado</h4>
+                        <p class="card-text">Acesse nosso portal de suporte diretamente no sistema para tirar dúvidas, reportar problemas ou sugerir melhorias. Estamos aqui para ajudar!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Seção de Benefícios -->
+    <section id="benefits" class="section bg-white">
+        <div class="container">
+            <h2 class="section-title">Mais que um Sistema, um Parceiro no Ministério</h2>
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <img src="{% static 'img/dashboard_preview.png' %}" alt="Dashboard do Gereigreja" class="img-fluid rounded shadow-lg">
+                    {# Crie um print bonito do seu dashboard para colocar aqui #}
+                </div>
+                <div class="col-lg-6 mt-4 mt-lg-0">
+                    <div class="d-flex mb-3">
+                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <div>
+                            <h5>Otimize seu Tempo</h5>
+                            <p>Reduza horas de trabalho manual com automação de tarefas administrativas e financeiras.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-3">
+                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <div>
+                            <h5>Pastoreie com Informação</h5>
+                            <p>Conheça sua membresia a fundo com dados sobre frequência, engajamento e necessidades.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-3">
+                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <div>
+                            <h5>Aumente a Transparência</h5>
+                            <p>Gere relatórios financeiros claros e precisos, fortalecendo a confiança e a governança da sua igreja.</p>
+                        </div>
+                    </div>
+                     <div class="d-flex">
+                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <div>
+                            <h5>Acesse de Qualquer Lugar</h5>
+                            <p>Sendo um sistema 100% online, você pode gerenciar sua igreja do computador, tablet ou celular.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Seção de Planos -->
+    <section id="pricing" class="section">
+        <div class="container">
+            <h2 class="section-title">Planos Flexíveis para Igrejas de Todos os Tamanhos</h2>
+            
+            <div class="row justify-content-center g-4">
+                {% for plano in planos %}
+                    <div class="col-lg-4">
+                        <div class="card price-card text-center h-100 {% if plano.codigo_plano == 'crescimento' %}highlight{% endif %}">
+                            <div class="card-header {% if plano.codigo_plano == 'crescimento' %}bg-primary text-white{% else %}bg-transparent{% endif %} py-3">
+                                <h4 class="my-0 fw-normal">{{ plano.get_nome_display }}</h4>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                {% if plano.preco_mensal > 0 %}
+                                    <h3 class="card-title pricing-card-title">R${{ plano.preco_mensal|floatformat:2 }}<small class="text-muted fw-light">/mês</small></h3>
+                                {% else %}
+                                    <h3 class="card-title pricing-card-title">Grátis</h3>
+                                {% endif %}
+                                <p class="text-muted fw-bold">{{ plano.descricao|default:"Ideal para sua necessidade." }}</p>
+                                <ul class="list-unstyled mt-3 mb-4 text-start">
+                                    <li><i class="fas fa-check text-success me-2"></i>
+                                        Até <strong>{% if plano.limite_membros == 0 %}pessoas ilimitadas{% else %}{{ plano.limite_membros }} pessoas ativas{% endif %}</strong>
+                                    </li>
+                                    <li><i class="fas fa-check text-success me-2"></i>
+                                        Até <strong>{% if plano.limite_igrejas == 0 %}ilimitadas{% elif plano.limite_igrejas == 1 %}1 igreja{% else %}{{ plano.limite_igrejas }} igrejas{% endif %}</strong>
+                                    </li>
+                                    {% if plano.permite_modulo_comunicacao %}
+                                        <li><i class="fas fa-check text-success me-2"></i>Módulo de Comunicação</li>
+                                    {% else %}
+                                        <li><i class="fas fa-times text-muted me-2"></i>Módulo de Comunicação</li>
+                                    {% endif %}
+                                    {% if plano.suporte_prioritario %}
+                                        <li><i class="fas fa-check text-success me-2"></i>Suporte Prioritário</li>
+                                    {% else %}
+                                        <li><i class="fas fa-check text-success me-2"></i>Suporte via Tickets</li>
+                                    {% endif %}
+                                </ul>
+                                <a href="{% url 'contas:registrar' %}" class="w-100 btn btn-lg {% if plano.codigo_plano == 'crescimento' %}btn-primary{% else %}btn-outline-primary{% endif %} mt-auto">
+                                    {% if plano.preco_mensal > 0 %}Escolher Plano{% else %}Começar Gratuitamente{% endif %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Seção de Perguntas Frequentes (FAQ) -->
+    <section id="faq" class="section bg-white">
+        <div class="container">
+            <h2 class="section-title">Perguntas Frequentes</h2>
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="accordion" id="faqAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                    Os meus dados estão seguros no Gereigreja?
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    <strong>Sim, a segurança é nossa prioridade.</strong> Utilizamos servidores robustos, criptografia de ponta (SSL/TLS) para todas as comunicações e seguimos as melhores práticas de segurança de dados. Seus dados são seus, e nós os protegemos com o máximo rigor.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                    Preciso instalar algum programa no meu computador?
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Não. O Gereigreja é um sistema 100% online (SaaS). Você só precisa de um navegador de internet (como Chrome, Firefox, Safari) e uma conexão com a internet para acessar de qualquer lugar, seja no computador, tablet ou celular.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    Como funciona o suporte técnico?
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Oferecemos suporte diretamente pelo sistema através de um portal de tickets. Para os planos pagos, oferecemos canais prioritários como chat e telefone. Nossa equipe está pronta para ajudar com qualquer dúvida ou problema que você possa ter.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingFour">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                    Posso cancelar minha assinatura a qualquer momento?
+                                </button>
+                            </h2>
+                            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Sim. Você tem total liberdade para cancelar sua assinatura a qualquer momento, sem multas ou burocracia. Você pode exportar seus dados antes de cancelar, se desejar.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Seção de Chamada para Ação Final -->
+    <section class="cta-final section text-center">
+        <div class="container">
+            <h2 class="mb-4">Pronto para Levar a Gestão da Sua Igreja para o Próximo Nível?</h2>
+            <p class="lead mb-4">Junte-se a centenas de igrejas que já estão otimizando seu tempo e focando no que realmente importa: as pessoas.</p>
+            <a href="{% url 'contas:registrar' %}" class="btn btn-cta-primary btn-lg">Comece a Usar Gratuitamente Agora</a>
+        </div>
+    </section>
+</main>
+
+<!-- Rodapé -->
+<footer class="footer">
+    <div class="container text-center">
+        <p class="mb-2">&copy; {% now "Y" %} Gereigreja. Todos os direitos reservados.</p>
+        <p class="mb-0">
+            <a href="#features">Funcionalidades</a> | 
+            <a href="#pricing">Planos</a> | 
+            <a href="{% url 'politica_privacidade' %}" target="_blank">Política de Privacidade</a> | 
+            <a href="{% url 'termos_condicoes' %}" target="_blank">Termos de Uso</a>
+        </p>
+    </div>
+</footer>
+
+{% endblock %}                

@@ -140,21 +140,26 @@ class IgrejaAdmin(admin.ModelAdmin):
 # --- NOVAS CLASSES ADMIN PARA PLANOS E ASSINATURAS ---
 @admin.register(Plano)
 class PlanoAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'get_nome_display', 'preco', 'duracao_dias', 'ativo', 'codigo_referencia_gateway')
-    list_filter = ('ativo', 'nome')
-    search_fields = ('nome', 'descricao', 'codigo_referencia_gateway')
-    list_editable = ('preco', 'duracao_dias', 'ativo') # Cuidado ao usar list_editable com muitos dados
-
+    list_display = ('get_nome_display', 'codigo_plano', 'preco_mensal', 'preco_anual', 'limite_membros', 'is_visible', 'ativo')
+    list_filter = ('ativo', 'is_visible')
+    search_fields = ('nome', 'codigo_plano', 'descricao')
+    list_editable = ('preco_mensal', 'preco_anual', 'limite_membros', 'is_visible', 'ativo')
+    fieldsets = (
+        ('Identificação', {'fields': ('nome', 'codigo_plano', 'descricao')}),
+        ('Preços e Visibilidade', {'fields': ('preco_mensal', 'preco_anual', 'is_visible', 'ativo')}),
+        ('Limites e Recursos', {'fields': ('limite_membros', 'limite_igrejas', 'permite_modulo_comunicacao', 'suporte_prioritario')}),
+        ('Integração (Stripe)', {'fields': ('stripe_price_id_mensal', 'stripe_price_id_anual'), 'classes': ('collapse',)}),
+    )
 @admin.register(AssinaturaOrganizacao)
 class AssinaturaOrganizacaoAdmin(admin.ModelAdmin):
-    list_display = ('organizacao', 'plano', 'status', 'data_inicio', 'data_fim', 'id_transacao_gateway')
+    list_display = ('organizacao', 'plano', 'status', 'ciclo_pagamento', 'data_inicio', 'data_fim')
     list_filter = ('status', 'plano', 'data_inicio', 'data_fim')
     search_fields = ('organizacao__nome_fantasia', 'plano__nome', 'id_transacao_gateway')
     autocomplete_fields = ['organizacao', 'plano']
     readonly_fields = ('data_criacao', 'data_atualizacao')
     fieldsets = (
         (None, {
-            'fields': ('organizacao', 'plano', 'status')
+            'fields': ('organizacao', 'plano', 'status', 'ciclo_pagamento')
         }),
         ('Período da Assinatura', {
             'fields': ('data_inicio', 'data_fim')

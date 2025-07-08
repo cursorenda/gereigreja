@@ -15,6 +15,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.conf import settings
+from django.views.generic import TemplateView # Adicionar TemplateView
 from django.core.exceptions import PermissionDenied # Importar PermissionDenied
 from django.http import Http404 # Importar Http404
 import logging
@@ -39,6 +40,17 @@ from core.utils import get_organizacao_or_error # Importar de core.utils
 def minha_view_protegida(request):
     organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
     # ... resto da view ...
+
+# --- NOVA VIEW PARA A LANDING PAGE ---
+class LandingPageView(TemplateView):
+    template_name = 'contas/landing_page.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Passa os planos visíveis para o template
+        context['planos'] = Plano.objects.filter(is_visible=True, ativo=True).order_by('preco_mensal')
+        return context
+# --- FIM DA NOVA VIEW ---
 
 logger = logging.getLogger(__name__)
 

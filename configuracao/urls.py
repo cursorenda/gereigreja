@@ -18,7 +18,10 @@ urlpatterns = [
  
     # URL para Gerenciar Assinatura
     path('assinatura/', views.gerenciar_assinatura, name='gerenciar_assinatura'),
-    
+
+    # --- NOVA URL PARA WEBHOOK DO STRIPE ---
+    path('stripe-webhook/', views.stripe_webhook, name='stripe_webhook'),
+
     #path('processar-pagamento-teste/', views.processar_pagamento_teste, name='processar_pagamento_teste'),
     # --- NOVA URL PARA ATUALIZAÇÕES DO SISTEMA ---
     path('novidades/', login_required(views.lista_atualizacoes_sistema), name='lista_atualizacoes_sistema'),

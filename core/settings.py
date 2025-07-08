@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'configuracao',
     'contas',
     'comunicacao', 
-    
+    'suporte',
+
 
 ]
 
@@ -100,15 +101,27 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 
 
-DATABASES ={
-   'default': {
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.environ.get('DB_NAME'),
+#         'USER': os.environ.get('DB_USER'),
+#         'PASSWORD': os.environ.get('DB_PASSWORD'),
+#         'HOST': os.environ.get('DB_HOST'),
+#         'PORT': os.environ.get('DB_PORT'),
+#     }
+# }
+
+# --- CONFIGURAÇÃO DO BANCO DE DADOS (LIDO DO ARQUIVO .ENV) ---
+DATABASES = {
+    'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME'),
         'USER': os.environ.get('DB_USER'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
         'HOST': os.environ.get('DB_HOST'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-   }
+        'PORT': os.environ.get('DB_PORT'),
+    }
 }
 
 # Password validation
@@ -208,7 +221,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # Cria uma pasta 'media' na raiz do
 
 
 LOGIN_URL = '/accounts/login/' # URL para onde @login_required redireciona (já está funcionando)
-LOGIN_REDIRECT_URL = '/' # URL para onde o usuário vai APÓS o login SE NENHUM 'next' for especificado (ex: '/', '/dashboard/')
+LOGIN_REDIRECT_URL = '/sistema/' # URL para onde o usuário vai APÓS o login SE NENHUM 'next' for especificado
 LOGOUT_REDIRECT_URL = '/' # URL para onde o usuário vai APÓS fazer logout (opcional, mas bom ter)
 
 # core/settings.py
@@ -243,3 +256,7 @@ ADMINS = [('sr. Júlio ', 'juliobsouza24@gmail.com')] # E-mail para onde o Djang
 
 SITE_ID = 1
 
+# --- STRIPE CONFIGURATION ---
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')

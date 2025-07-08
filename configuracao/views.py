@@ -11,6 +11,8 @@ from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseR
 from django.db.models import Q # Para buscas
 import logging
 from .models import Igreja, Organizacao, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionado Plano e AssinaturaOrganizacao
+from django.conf import settings # Para pegar as chaves do Stripe
+import stripe # Importar a biblioteca do Stripe
 from .forms import IgrejaForm, OrganizacaoEditForm, IgrejaEditForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
@@ -27,7 +29,12 @@ from datetime import timedelta # Movido para o topo do arquivo ou garantir que e
 
 from core.decorators import verificar_assinatura_valida # Ou o caminho correto
 from .forms import UserEditForm, PerfilUsuarioEditForm
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 
+# Configurar a chave da API do Stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 @login_required
 @verificar_assinatura_valida # Nosso novo decorator
@@ -435,21 +442,20 @@ def gerenciar_assinatura(request):
             logger.warning("Plano 'gratuito' ativo não encontrado para atribuição automática.")
 
     # Planos ativos, excluindo o "gratuito" se a organização não for elegível ou se já tiver um plano pago
-    planos_disponiveis = Plano.objects.filter(ativo=True).exclude(nome='gratuito').order_by('preco')
+    planos_disponiveis = Plano.objects.filter(is_visible=True, ativo=True).order_by('preco_mensal')
     mostrar_opcao_cortesia = False
 
     if request.method == 'POST':
         plano_id_selecionado = request.POST.get('plano_id')
-        if not plano_id_selecionado:
+        ciclo_pagamento_selecionado = request.POST.get('ciclo_pagamento') # 'mensal' ou 'anual'
+        if not plano_id_selecionado or not ciclo_pagamento_selecionado:
             messages.error(request, "Nenhum plano foi selecionado.")
             return redirect('configuracao:gerenciar_assinatura')
 
         try:
-            plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
-             # --- LÓGICA PARA ATIVAR CORTESIA ---
+            # --- LÓGICA PARA ATIVAR CORTESIA ---
             if request.POST.get('ativar_cortesia') == 'true':
                 if assinatura_atual and assinatura_atual.status == 'vencida' and not assinatura_atual.is_periodo_cortesia_valido():
-                    # Poderia adicionar uma lógica para limitar a concessão de cortesia (ex: uma vez)
                     assinatura_atual.periodo_cortesia_ativo = True
                     assinatura_atual.data_inicio_cortesia = timezone.now()
                     assinatura_atual.save()
@@ -457,38 +463,49 @@ def gerenciar_assinatura(request):
                     return redirect('configuracao:gerenciar_assinatura')
                 else:
                     messages.error(request, "Não foi possível ativar o período de cortesia no momento.")
+                return redirect('configuracao:gerenciar_assinatura')
+
             # --- FIM LÓGICA CORTESIA ---
-            else: # Processamento normal de escolha de plano
-                plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
+            # Processamento normal de escolha de plano
+            plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
 
-                # Lógica de "pagamento" (simulada por enquanto)
-                data_inicio_nova_assinatura = timezone.now()
-                data_fim_nova_assinatura = data_inicio_nova_assinatura + timedelta(days=plano_escolhido.duracao_dias)
+            # Determina qual ID de preço do Stripe usar
+            if ciclo_pagamento_selecionado == 'anual':
+                stripe_price_id = plano_escolhido.stripe_price_id_anual
+            else: # 'mensal'
+                stripe_price_id = plano_escolhido.stripe_price_id_mensal
 
+            if not stripe_price_id:
+                messages.error(request, "Este plano não está configurado para pagamento online. Contate o suporte.")
+                return redirect('configuracao:gerenciar_assinatura')
+
+           
             
 
-            if assinatura_atual:
-                # Atualiza a assinatura existente
-                assinatura_atual.plano = plano_escolhido
-                assinatura_atual.data_inicio = data_inicio_nova_assinatura
-                assinatura_atual.data_fim = data_fim_nova_assinatura
-                assinatura_atual.status = 'ativa' # Simula pagamento confirmado
-                # assinatura_atual.id_transacao_gateway = "simulado_xyz" # Exemplo
-                assinatura_atual.save()
-                messages.success(request, f"Sua assinatura foi atualizada para o plano {plano_escolhido.get_nome_display()}!")
-            else:
-                # Cria uma nova assinatura
-                AssinaturaOrganizacao.objects.create(
-                    organizacao=organizacao,
-                    plano=plano_escolhido,
-                    data_inicio=data_inicio_nova_assinatura,
-                    data_fim=data_fim_nova_assinatura,
-                    status='ativa', # Simula pagamento confirmado
-                    # id_transacao_gateway = "simulado_abc" # Exemplo
-                )
-                messages.success(request, f"Você assinou o plano {plano_escolhido.get_nome_display()}!")
-            return redirect('configuracao:gerenciar_assinatura')
+            # Cria a sessão de checkout do Stripe
+            checkout_session = stripe.checkout.Session.create(
+                line_items=[
+                    {
+                        'price': stripe_price_id,
+                        'quantity': 1,
+                    },
+                ],
+                mode='subscription',
+                success_url=request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=success',
+                cancel_url=request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=cancelled',
+                # Passa metadados para identificar o usuário e a organização no webhook
+                metadata={
+                    'organizacao_id': organizacao.id,
+                    'user_id': request.user.id,
+                    'plano_id': plano_escolhido.id,
+                    'ciclo_pagamento': ciclo_pagamento_selecionado,
+                }
+            )
 
+            # Redireciona o usuário para a página de pagamento do Stripe
+            return redirect(checkout_session.url, code=303)
+
+            
         except Plano.DoesNotExist:
             messages.error(request, "O plano selecionado não é válido ou não está mais disponível.")
         except Exception as e:
@@ -508,7 +525,18 @@ def gerenciar_assinatura(request):
         if 0 <= dias_para_vencer_calc <= 7: # Se vence nos próximos 7 dias
             aviso_vencimento_proximo = True
             dias_para_vencer = dias_para_vencer_calc
-
+    # --- NOVA LÓGICA PARA CONTAGEM REGRESSIVA DA CORTESIA ---
+    tempo_cortesia_restante = None
+    if assinatura_atual and assinatura_atual.is_periodo_cortesia_valido():
+        data_fim_cortesia = assinatura_atual.data_inicio_cortesia + timedelta(days=3)
+        tempo_restante = data_fim_cortesia - timezone.now()
+        if tempo_restante.total_seconds() > 0:
+            tempo_cortesia_restante = {
+                'dias': tempo_restante.days,
+                'horas': tempo_restante.seconds // 3600,
+                'minutos': (tempo_restante.seconds % 3600) // 60,
+            }
+    # --- FIM NOVA LÓGICA ---
 
     context = {
         'organizacao': organizacao,
@@ -517,8 +545,10 @@ def gerenciar_assinatura(request):
         'titulo_pagina': "Gerenciar Assinatura",
         'aviso_vencimento_proximo': aviso_vencimento_proximo,
         'dias_para_vencer': dias_para_vencer,
-        'mostrar_opcao_cortesia': mostrar_opcao_cortesia,    }
-
+        'mostrar_opcao_cortesia': mostrar_opcao_cortesia,
+        'tempo_cortesia_restante': tempo_cortesia_restante, # Passa para o template
+    }
+    
     return render(request, 'configuracao/assinatura/gerenciar_assinatura.html', context)
 
 # Adicionar ao final de c:\Gereigreja\configuracao\views.py
@@ -663,3 +693,78 @@ def editar_meu_perfil(request):
     }
     return render(request, 'configuracao/perfil/editar_meu_perfil.html', context) # Crie este template
 # --- FIM NOVA VIEW ---
+
+@csrf_exempt
+def stripe_webhook(request):
+    payload = request.body
+    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+    event = None
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        # Payload inválido
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError as e:
+        # Assinatura inválida
+        return HttpResponse(status=400)
+
+    # Lidar com o evento checkout.session.completed
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        # Obter os metadados que enviamos
+        metadata = session.get('metadata', {})
+        organizacao_id = metadata.get('organizacao_id')
+        plano_id = metadata.get('plano_id')
+        ciclo_pagamento = metadata.get('ciclo_pagamento')
+        stripe_customer_id = session.get('customer')
+        stripe_subscription_id = session.get('subscription')
+
+        if not all([organizacao_id, plano_id, ciclo_pagamento]):
+            logger.error(f"Webhook do Stripe com metadados faltando: {session.id}")
+            return HttpResponse(status=400)
+
+        try:
+            with transaction.atomic():
+                organizacao = Organizacao.objects.get(id=organizacao_id)
+                plano_escolhido = Plano.objects.get(id=plano_id)
+
+                # Atualiza a organização com os IDs do Stripe para gerenciamento futuro
+                organizacao.stripe_customer_id = stripe_customer_id
+                organizacao.save()
+
+                # Calcula a data de fim da assinatura
+                data_inicio = timezone.now()
+                if ciclo_pagamento == 'anual':
+                    data_fim = data_inicio + timedelta(days=365)
+                else:
+                    data_fim = data_inicio + timedelta(days=30)
+
+                # Atualiza ou cria a assinatura
+                assinatura, created = AssinaturaOrganizacao.objects.update_or_create(
+                    organizacao=organizacao,
+                    defaults={
+                        'plano': plano_escolhido,
+                        'data_inicio': data_inicio,
+                        'data_fim': data_fim,
+                        'ciclo_pagamento': ciclo_pagamento,
+                        'status': 'ativa',
+                        'periodo_cortesia_ativo': False,
+                        'id_transacao_gateway': stripe_subscription_id,
+                    }
+                )
+                logger.info(f"Assinatura para a organização '{organizacao.nome_fantasia}' foi ativada/atualizada via webhook do Stripe.")
+
+        except (Organizacao.DoesNotExist, Plano.DoesNotExist) as e:
+            logger.error(f"Erro no webhook do Stripe: Organização ou Plano não encontrado. Detalhes: {e}")
+            return HttpResponse(status=404)
+        except Exception as e:
+            logger.error(f"Erro crítico ao processar webhook do Stripe: {e}")
+            return HttpResponse(status=500)
+
+    # Adicione outros tipos de evento se necessário (ex: 'invoice.payment_failed')
+
+    return HttpResponse(status=200)

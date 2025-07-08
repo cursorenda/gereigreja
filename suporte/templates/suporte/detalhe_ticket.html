@@ -1,0 +1,121 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'suporte:lista_tickets' %}">Suporte</a></li>
+        <li class="breadcrumb-item active">Detalhes do Ticket</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            {# Card da Conversa #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-comments me-1"></i>
+                    Conversa do Ticket
+                </div>
+                <div class="card-body" style="max-height: 60vh; overflow-y: auto;">
+
+                    {# Mensagem Original do Usuário #}
+                    <div class="d-flex flex-row justify-content-start mb-4">
+                        {% if ticket.user.perfil and ticket.user.perfil.foto_perfil %}
+                            <img src="{{ ticket.user.perfil.foto_perfil.url }}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60" style="object-fit: cover;">
+                        {% else %}
+                            <img src="{% static 'img/default_avatar.png' %}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60">
+                        {% endif %}
+                        <div class="card w-100">
+                            <div class="card-header d-flex justify-content-between p-2">
+                                <p class="fw-bold mb-0">{{ ticket.user.get_full_name|default:ticket.user.username }} (Mensagem Original)</p>
+                                <p class="text-muted small mb-0"><i class="far fa-clock"></i> {{ ticket.data_criacao|date:"d/m/Y H:i" }}</p>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-0">{{ ticket.mensagem|linebreaksbr }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Loop de Respostas #}
+                    {% for resposta in respostas %}
+                        {% if resposta.autor == request.user %}
+                            {# Resposta do Usuário Logado (alinhada à direita) #}
+                            <div class="d-flex flex-row justify-content-end mb-4">
+                                <div class="card w-100 bg-light">
+                                    <div class="card-header d-flex justify-content-between p-2">
+                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> {{ resposta.data_criacao|date:"d/m/Y H:i" }}</p>
+                                        <p class="fw-bold mb-0">Você</p>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-0">{{ resposta.mensagem|linebreaksbr }}</p>
+                                    </div>
+                                </div>
+                                {% if resposta.autor.perfil and resposta.autor.perfil.foto_perfil %}
+                                    <img src="{{ resposta.autor.perfil.foto_perfil.url }}" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60" height="60" style="object-fit: cover;">
+                                {% else %}
+                                    <img src="{% static 'img/default_avatar.png' %}" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60" height="60">
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            {# Resposta do Suporte (alinhada à esquerda) #}
+                            <div class="d-flex flex-row justify-content-start mb-4">
+                                {% if resposta.autor.perfil and resposta.autor.perfil.foto_perfil %}
+                                    <img src="{{ resposta.autor.perfil.foto_perfil.url }}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60" style="object-fit: cover;">
+                                {% else %}
+                                   <img src="{% static 'img/default_avatar.png' %}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60">
+                                {% endif %}
+                                <div class="card w-100">
+                                    <div class="card-header d-flex justify-content-between p-2">
+                                        <p class="fw-bold mb-0">{{ resposta.autor.get_full_name|default:resposta.autor.username }} (Suporte)</p>
+                                        <p class="text-muted small mb-0"><i class="far fa-clock"></i> {{ resposta.data_criacao|date:"d/m/Y H:i" }}</p>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-0">{{ resposta.mensagem|linebreaksbr }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="card-footer">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            {{ form.mensagem }}
+                            <button class="btn btn-primary" type="submit" id="button-addon2"><i class="fas fa-paper-plane"></i> Enviar</button>
+                        </div>
+                        {% if form.mensagem.errors %}<div class="invalid-feedback d-block">{{ form.mensagem.errors|striptags }}</div>{% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            {# Card de Informações do Ticket #}
+            <div class="card">
+                <div class="card-header"><i class="fas fa-info-circle me-1"></i> Informações</div>
+                <div class="card-body">
+                    <p><strong>ID do Ticket:</strong> #{{ ticket.pk }}</p>
+                    <p><strong>Área:</strong> {{ ticket.get_area_display }}</p>
+                    <p><strong>Status:</strong>
+                        {% if ticket.status == 'aberto' %}<span class="badge bg-primary">{{ ticket.get_status_display }}</span>
+                        {% elif ticket.status == 'em_andamento' %}<span class="badge bg-info text-dark">{{ ticket.get_status_display }}</span>
+                        {% elif ticket.status == 'respondido' %}<span class="badge bg-success">{{ ticket.get_status_display }}</span>
+                        {% elif ticket.status == 'fechado' %}<span class="badge bg-secondary">{{ ticket.get_status_display }}</span>
+                        {% else %}<span class="badge bg-light text-dark">{{ ticket.get_status_display }}</span>
+                        {% endif %}
+                    </p>                    
+                    <p><strong>Aberto por:</strong> {{ ticket.user.get_full_name|default:ticket.user.username }}</p>
+                    <p><strong>Data de Abertura:</strong> {{ ticket.data_criacao|date:"d/m/Y H:i" }}</p>
+                    <p><strong>Última Atualização:</strong> {{ ticket.data_atualizacao|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
