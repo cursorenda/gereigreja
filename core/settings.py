@@ -167,51 +167,59 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-# settings.py
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': { # Mover formatters para cima para ser referenciado
+    'formatters': {
         'verbose': {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
-        'simple': { # Adicionar um formatador simples para o console
+        'simple': {
             'format': '{levelname} {asctime} {module} {message}',
             'style': '{',
         },
     },
     'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler', # Melhor para produção
-            'filename': BASE_DIR / 'logs' / 'django_errors.log', # Centralize os logs. Crie a pasta 'logs'.
-            'maxBytes': 1024 * 1024 * 5,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'verbose', # Adicionar um formatador
-        },
-        'console': { # Adicionar handler para o console
-            'level': 'INFO', # Nível para o console (pode ser DEBUG também)
+        # O handler 'file' será adicionado condicionalmente abaixo para desenvolvimento.
+        'console': {
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple', # Usar o formatador simples
-    
-
+            'formatter': 'simple',
         },
     },
     'loggers': {
         'financeiro': {
-            'handlers': ['console', 'file'], # Adicionar 'console' aqui
-            'level': 'INFO', # Change to INFO or DEBUG for debugging
+            'handlers': ['console'], # Inicia apenas com 'console'
+            'level': 'INFO',
             'propagate': True,
         },
-    'django': { # Opcional: para ver logs do próprio Django no console
-            'handlers': ['console', 'file'],
-            'level': 'INFO', # Cuidado para não poluir muito com DEBUG aqui
+        'django': {
+            'handlers': ['console'], # Inicia apenas com 'console'
+            'level': 'INFO',
             'propagate': False,
         },
     },
 }
 
+# --- LÓGICA CONDICIONAL PARA LOGGING EM ARQUIVO ---
+# Apenas em ambiente de desenvolvimento (DEBUG=True), tentamos logar para um arquivo.
+# Em produção (Render), os logs irão para o console e serão capturados pela plataforma.
+if DEBUG:
+    LOGS_DIR = BASE_DIR / 'logs'
+    LOGS_DIR.mkdir(exist_ok=True) # Cria a pasta 'logs' se não existir (para dev local)
+
+    LOGGING['handlers']['file'] = {
+        'level': 'ERROR',
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': LOGS_DIR / 'django_errors.log',
+        'maxBytes': 1024 * 1024 * 5,  # 5 MB
+        'backupCount': 5,
+        'formatter': 'verbose',
+    }
+    # Adiciona o handler de arquivo aos loggers
+    LOGGING['loggers']['financeiro']['handlers'].append('file')
+    LOGGING['loggers']['django']['handlers'].append('file')
 
 # ... (outras configurações) ...
 
