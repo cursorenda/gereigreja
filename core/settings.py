@@ -26,6 +26,15 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Será True se DJANGO_
 # ALLOWED_HOSTS deve conter os domínios/IPs que servirão sua aplicação.
 ALLOWED_HOSTS = ['gereigreja.site', 'www.gereigreja.site', '199.167.147.66', 'localhost', '127.0.0.1']
 
+# --- Configuração para Produção na Render ---
+# A Render injeta automaticamente a variável de ambiente RENDER_EXTERNAL_HOSTNAME
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    # Adicionar o domínio ao CSRF_TRUSTED_ORIGINS para garantir que POST requests funcionem em produção
+    CSRF_TRUSTED_ORIGINS = [f'https://{RENDER_EXTERNAL_HOSTNAME}']
+
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
