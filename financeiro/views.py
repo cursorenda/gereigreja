@@ -46,11 +46,20 @@ def minha_view_protegida(request):
 # Configurar locale e logger
 # from dateutil.relativedelta import relativedelta # Descomente se for usar relativedelta
 
-try:
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8') # Usar LC_ALL
-except locale.Error:
-    locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252') # Fallback para Windows
 logger = logging.getLogger(__name__)
+
+# Tenta configurar o locale para pt_BR, com fallbacks.
+locales_to_try = ['pt_BR.UTF-8', 'Portuguese_Brazil.1252']
+locale_set = False
+for loc in locales_to_try:
+    try:
+        locale.setlocale(locale.LC_ALL, loc)
+        locale_set = True
+        break # Sucesso, para o loop
+    except locale.Error:
+        continue # Tenta o próximo
+if not locale_set:
+    logger.warning(f"Nenhum dos locales {locales_to_try} foi suportado. Usando o locale padrão do sistema.")
 
 
 ## A função get_organizacao_or_error foi movida para core.utils.py ##
