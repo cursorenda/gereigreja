@@ -100,7 +100,7 @@ class Membro(models.Model):
     # O campo 'status' antigo foi removido.
 
     foto = models.ImageField(
-        upload_to=get_membro_foto_upload_path,
+        upload_to='fotos_membros/%Y/%m/%d/',
         null=True, blank=True,
         verbose_name="Foto do Membro"
     )

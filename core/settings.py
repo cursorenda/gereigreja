@@ -241,7 +241,7 @@ MEDIA_URL = '/media/'
 # Em produção na Render, o caminho do disco persistente é definido por uma variável de ambiente.
 # O padrão é '/var/data'. Se você montou em '/var/www/media', use esse caminho.
 # A melhor prática é usar uma variável de ambiente para isso também.
-MEDIA_ROOT = os.environ.get('MEDIA_DIR', os.path.join(BASE_DIR, 'media'))
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 LOGIN_URL = '/accounts/login/' # URL para onde @login_required redireciona (já está funcionando)
