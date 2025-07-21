@@ -518,4 +518,10 @@ DATABASES = {
     }
 }
 
+AWS_ACCESS_KEY_ID = 'AKIA3ZLQNTWD3PAUL3ED'
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_STORAGE_BUCKET_NAME = 'gereigreja-media'
+AWS_S3_REGION_NAME = 'sa-east-1'  # Região São Paulo, ajuste se usou outra
+
+
 
