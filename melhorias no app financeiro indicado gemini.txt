@@ -1,6 +1,9 @@
 uma melhoria que o gemine indicou segue:
 Dando continuidade às melhorias e refinamentos, vamos aprimorar a lógica de filtragem nos painéis de liderança (financeiro e secretaria). O objetivo é garantir que, quando um líder com acesso a uma estrutura hierárquica (Sede > Regional > Congregação) utiliza os filtros, a visualização dos dados consolidados seja precisa e intuitiva.
-
+consertar em notificaoes, o "marcar todas" que esta dando erro.
+Agrupar os membros em famílias
+Mapas : visualize os endereços residenciais dos membros com a integração do Google Maps
+Calendário.
 Especificamente, vamos ajustar como o sistema determina o escopo dos dados (se deve mostrar apenas uma entidade específica ou toda a sua rede de subordinadas) quando um filtro global (request.igreja_ativa) e um filtro na página são combinados.
 
 Melhorias Propostas:

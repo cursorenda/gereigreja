@@ -51,7 +51,6 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic', # Adicionar Whitenoise (útil até mesmo em dev sem DEBUG=True para estáticos)
     'django_extensions', # Adicionar para usar shell_plus e outros comandos
 
-
     # Seus Apps
     'secretaria',
     'financeiro',
@@ -241,7 +240,7 @@ MEDIA_URL = '/media/'
 # Em produção na Render, o caminho do disco persistente é definido por uma variável de ambiente.
 # O padrão é '/var/data'. Se você montou em '/var/www/media', use esse caminho.
 # A melhor prática é usar uma variável de ambiente para isso também.
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')
 
 
 LOGIN_URL = '/accounts/login/' # URL para onde @login_required redireciona (já está funcionando)
@@ -284,3 +283,19 @@ SITE_ID = 1
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+
+INSTALLED_APPS += ['storages']
+
+AWS_ACCESS_KEY_ID = 'AKIA3ZLQNTWD3PAUL3ED'
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_STORAGE_BUCKET_NAME = 'gereigreja-media'
+AWS_S3_REGION_NAME = 'sa-east-1'  # Região São Paulo, ajuste se usou outra
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+
+AWS_DEFAULT_ACL = None
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'

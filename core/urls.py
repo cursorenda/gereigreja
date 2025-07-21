@@ -31,7 +31,11 @@ urlpatterns = [
 
 ]
 
+
 if settings.DEBUG:
     # A linha abaixo já deve existir para MEDIA_ROOT
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) 
+    # Em produção, o servidor web (nginx, apache, etc.) é que serve os arquivos de mídia
+    # Em desenvolvimento, o Django pode servir, mas não é eficiente
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
