@@ -235,12 +235,12 @@ if DEBUG:
 
 # ... (outras configurações) ...
 
-MEDIA_URL = '/media/'
+# MEDIA_URL = '/media/'
 # MEDIA_ROOT = BASE_DIR / 'media' # Usando pathlib
 # Em produção na Render, o caminho do disco persistente é definido por uma variável de ambiente.
 # O padrão é '/var/data'. Se você montou em '/var/www/media', use esse caminho.
 # A melhor prática é usar uma variável de ambiente para isso também.
-MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')
+# MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')
 
 
 LOGIN_URL = '/accounts/login/' # URL para onde @login_required redireciona (já está funcionando)
@@ -296,6 +296,9 @@ AWS_DEFAULT_ACL = None
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
+
+print("AWS_ACCESS_KEY_ID:", AWS_ACCESS_KEY_ID)
+print("AWS_STORAGE_BUCKET_NAME:", AWS_STORAGE_BUCKET_NAME)
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
