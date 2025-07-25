@@ -661,6 +661,9 @@ def editar_meu_perfil(request):
         return redirect('configuracao:meu_perfil') # Redireciona de volta para a página de visualização
 
     if request.method == 'POST':
+        print("FILES RECEBIDOS:", request.FILES)
+        print("foto_perfil:", request.FILES.get('foto_perfil'))
+
         # request.FILES é necessário para o upload da foto_perfil
         user_form = UserEditForm(request.POST, instance=user)
         perfil_form = PerfilUsuarioEditForm(request.POST, request.FILES, instance=perfil_usuario)
