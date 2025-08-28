@@ -1,5 +1,6 @@
 # c:\Gereigreja\financeiro\views.py
 # financeiro/views.py
+from django.db.models import Count
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test # Importar user_passes_test

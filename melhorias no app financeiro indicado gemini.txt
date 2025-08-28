@@ -24,6 +24,10 @@ secretaria/views.py (para painel_lideranca_secretaria)
 financeiro/templates/financeiro/painel_lideranca_financeiro.html
 secretaria/templates/secretaria/painel_lideranca_secretaria.html
 
+Passos para implementar:
+
+Buscar e substituir todas as ocorrências de igrejas_org por igrejas_para_filtro_template nas views e templates do app financeiro.
+Testar os filtros de igreja nas telas do financeiro para garantir que tudo continua funcionando.
 
 preciso de uma pagina de vendas para este sistema, mas esta pagina precisa ter implementada estrategias de GEO,
 Investindo em conteudo que sustente sozinho: atualizado, util e com contexto claro; sendo feito com modelos que IA adoram 

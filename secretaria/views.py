@@ -1,4 +1,5 @@
 # c:\Gereigreja\secretaria\views.py
+from configuracao.models import AssinaturaOrganizacao
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from core.decorators import check_permission # Importar o novo decorator
