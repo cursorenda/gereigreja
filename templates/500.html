@@ -1,86 +1,22 @@
-    *   Adicione `{% extends 'base_com_menu.html' %}` no topo.
-    *   Envolva o conteúdo dentro de `{% block content %}` e `{% endblock %}`.
-    *  Altere o href do link para `{% url 'index' %}`
-
-*   **`templates/401.html`:**
-    ```diff
-    --- a/c:\Phyton\Gereigreja\templates\401.html
-    +++ b/c:\Phyton\Gereigreja\templates\401.html
-    @@ -1,48 +1,27 @@
--    <!DOCTYPE html>
--<html lang="en">
--    <head>
--        <meta charset="utf-8" />
--        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
--        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
--        <meta name="description" content="" />
--        <meta name="author" content="" />
--        <title>404 Error - SB Admin</title>
--        <link href="css/styles.css" rel="stylesheet" />
--        <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
--    </head>
--    <body>
--        <div id="layoutError">
--            <div id="layoutError_content">
--                <main>
--                    <div class="container">
--                        <div class="row justify-content-center">
--                            <div class="col-lg-6">
--                                <div class="text-center mt-4">
--                                    <h1 class="display-1">401</h1>
--                                    <p class="lead">Unauthorized</p>
--                                    <p>Access to this resource is denied.</p>
--                                    <a href="index.html">
--                                        <i class="fas fa-arrow-left me-1"></i>
--                                        Return to Dashboard
--                                    </a>
--                                </div>
--                            </div>
--                        </div>
--                    </div>
--                </main>
--            </div>
--            <div id="layoutError_footer">
--                <footer class="py-4 bg-light mt-auto">
--                    <div class="container-fluid px-4">
--                        <div class="d-flex align-items-center justify-content-between small">
--                            <div class="text-muted">Copyright &copy; Your Website 2023</div>
--                            <div>
--                                <a href="#">Privacy Policy</a>
--                                &middot;
--                                <a href="#">Terms &amp; Conditions</a>
--                            </div>
--                        </div>
--                    </div>
--                </footer>
--            </div>
--        </div>
--        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
--        <script src="js/scripts.js"></script>
--    </body>
--</html>
-+    {% extends 'base_com_menu.html' %}
-+    {% block title %}401 Error - GereIgreja{% endblock %}
-+    {% block content %}
-+        <div id="layoutError">
-+            <div id="layoutError_content">
-+                <main>
-+                    <div class="container">
-+                        <div class="row justify-content-center">
-+                            <div class="col-lg-6">
-+                                <div class="text-center mt-4">
-+                                    <h1 class="display-1">401</h1>
-+                                    <p class="lead">Unauthorized</p>
-+                                    <p>Access to this resource is denied.</p>
-+                                    <a href="{% url 'index' %}">
-+                                        <i class="fas fa-arrow-left me-1"></i>
-+                                        Return to Dashboard
-+                                    </a>
-+                                </div>
-+                            </div>
-+                        </div>
-+                    </div>
-+                </main>
-+            </div>
-+        </div>
-+    {% endblock %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erro Interno do Servidor (500)</title>
+    <style>
+        body { background: #f8d7da; color: #721c24; font-family: Arial, sans-serif; }
+        .centered { max-width: 500px; margin: 80px auto; background: #fff; border: 1px solid #f5c6cb; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 32px; text-align: center; }
+        h1 { color: #dc3545; }
+        .icon { font-size: 48px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="centered">
+        <div class="icon">&#9888;&#65039;</div>
+        <h1>Erro Interno do Servidor (500)</h1>
+        <p>Ocorreu um erro inesperado no servidor.</p>
+        <p>Pedimos desculpas pelo transtorno.<br>Se o problema persistir, entre em contato com o suporte técnico.</p>
+    </div>
+</body>
+</html>

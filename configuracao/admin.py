@@ -1,10 +1,17 @@
 # c:\Gereigreja\configuracao\admin.py
 from django.contrib import admin
+from django.db import models  # Adicione esta linha
 # Importar os nomes corretos dos modelos
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from .models import Organizacao, Igreja, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionar Plano e AssinaturaOrganizacao
 from .models import AtualizacaoSistema
+from django.shortcuts import render
+from django.urls import path, reverse
+import boto3
+from . import views
+from .models import PerfilUsuario, Organizacao  # ...seus outros modelos
+import os  # Adicione esta linha no topo
 
 # --- Admin para Organização ---
 @admin.register(Organizacao)
@@ -36,6 +43,7 @@ class OrganizacaoAdmin(admin.ModelAdmin):
         }),
     )
     # --- FIM CORREÇÃO ---
+    
 
 # Opção 1: Inline dentro do UserAdmin (preferível)
 class PerfilUsuarioInline(admin.StackedInline): # Ou admin.TabularInline
@@ -83,8 +91,8 @@ class PerfilUsuarioAdmin(admin.ModelAdmin):
     list_display = ('user_display_name', 'organizacao_nome', 'telefone_contato', 'whatsapp_contato')
     list_filter = ('organizacao__nome_fantasia',)
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'user__email', 'organizacao__nome_fantasia')
-    raw_id_fields = ('user', 'organizacao') # Facilita a seleção de User e Organização
-    filter_horizontal = ('igrejas_permitidas',) # Melhor interface para ManyToManyField
+    raw_id_fields = ('user', 'organizacao')
+    filter_horizontal = ('igrejas_permitidas',)
 
     def user_display_name(self, obj):
         return obj.user.get_full_name() or obj.user.username
@@ -93,7 +101,6 @@ class PerfilUsuarioAdmin(admin.ModelAdmin):
     def organizacao_nome(self, obj):
         return obj.organizacao.nome_fantasia
     organizacao_nome.short_description = "Organização"
-
 
 
 # --- Admin para Igreja (Atualizado e CORRIGIDO) ---
@@ -179,4 +186,55 @@ class AtualizacaoSistemaAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'versao', 'data_publicacao', 'publicado')
     list_filter = ('publicado', 'data_publicacao')
     search_fields = ('titulo', 'conteudo', 'versao')    
-# --- FIM NOVAS CLASSES ADMIN ---
+
+# Modificar a classe ValidacaoImagens
+class ValidacaoImagens(PerfilUsuario):
+    class Meta:
+        proxy = True
+        verbose_name = 'Validação de Imagens'
+        verbose_name_plural = 'Validações de Imagens'
+        app_label = 'configuracao'
+
+class ValidacaoImagensAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('', self.admin_site.admin_view(self.validar_imagens_view), name='configuracao_validacaoimagens_changelist'),
+        ]
+        return custom_urls + urls
+
+    def validar_imagens_view(self, request):
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Validação de Imagens de Perfil',
+            'resultados': self.get_imagens_para_validar(),
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/configuracao/validar_imagens.html', context)
+
+    def get_imagens_para_validar(self):
+        resultados = []
+        for perfil in PerfilUsuario.objects.filter(foto_perfil__isnull=False):
+            status = '✅ OK'
+            if perfil.foto_perfil:
+                # Suas verificações de imagem aqui
+                pass
+            resultados.append({
+                'usuario': perfil.user.get_full_name() or perfil.user.username,
+                'organizacao': perfil.organizacao.nome_fantasia,
+                'imagem': perfil.foto_perfil,
+                'status': status
+            })
+        return resultados
+
+# Registrar no admin (mova este registro para o final do arquivo)
+admin.site.register(ValidacaoImagens, ValidacaoImagensAdmin)

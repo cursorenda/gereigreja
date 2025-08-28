@@ -247,6 +247,13 @@ class Membro(models.Model):
         verbose_name = "Membro"
         verbose_name_plural = "Membros"
         ordering = ['nome'] # Ordenar por nome por padrão
+        indexes = [
+            models.Index(fields=['nome'], name='nome_idx'),
+            models.Index(fields=['cpf'], name='cpf_idx'),
+            models.Index(fields=['igreja'], name='igreja_idx'), # Adicionei este índice
+            models.Index(fields=['status_pessoa'], name='status_pessoa_idx'), # Adicionei este índice
+            models.Index(fields=['tipo_pessoa'], name='tipo_pessoa_idx'), # Adicionei este índice
+        ]
 
 
 class Cargos(models.Model):

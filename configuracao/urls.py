@@ -7,6 +7,9 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 # Importar reverse_lazy para URLs de sucesso
 from django.urls import reverse_lazy
+from .views import validar_imagens_perfil
+from django.conf import settings
+from django.conf.urls.static import static # Importar static
 
 app_name = 'configuracao' # Define o namespace
  
@@ -64,4 +67,10 @@ urlpatterns = [
     path('perfil/', views.meu_perfil, name='meu_perfil'), # <--- AQUI!
     path('perfil/editar/', views.editar_meu_perfil, name='editar_meu_perfil'), # <-- NOVA URL
 
+    #path('admin/validar-imagens/',views.validar_imagens_perfil, name='validar_imagens'),
+    path('validar-imagens/', views.validar_imagens_perfil, name='validar_imagens'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

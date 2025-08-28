@@ -3,7 +3,9 @@
 
 <div class="sb-sidenav-menu">
     <div class="nav">
+        <!-- Seção Principal -->
         <div class="sb-sidenav-menu-heading">Principal</div>
+    <!-- Dashboard removido para evitar duplicidade -->
 
         {# Link Principal - Varia conforme o status do usuário/organização #}
         {% if request.user.is_authenticated %}
@@ -157,5 +159,21 @@
                 Suporte
             </a>
         {% endif %}
+
+        <!-- Seção de Configurações -->
+        <div class="sb-sidenav-menu-heading">Configurações</div>
+        <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseConfiguracao">
+            <div class="sb-nav-link-icon"><i class="fas fa-cog"></i></div>
+            Configurações
+            <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+        </a>
+        <div class="collapse" id="collapseConfiguracao" data-bs-parent="#sidenavAccordion">
+            <nav class="sb-sidenav-menu-nested nav">
+                <a class="nav-link" href="{% url 'configuracao:validar_imagens' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-images"></i></div>
+                    Validar Imagens
+                </a>
+            </nav>
+        </div>
     </div>
 </div>

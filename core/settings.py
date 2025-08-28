@@ -1,11 +1,38 @@
-from pathlib import Path
+
 import os
+from pathlib import Path
 from dotenv import load_dotenv # pip install python-dotenv
 
+# --- DEBUG: Mostra qual settings.py está sendo carregado e o valor de DJANGO_SETTINGS_MODULE ---
+print(f"[DEBUG settings.py] Arquivo settings carregado: {__file__}")
+print(f"[DEBUG settings.py] DJANGO_SETTINGS_MODULE: {os.environ.get('DJANGO_SETTINGS_MODULE')}")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
 load_dotenv(BASE_DIR / '.env') # Carrega as variáveis do arquivo .env
+
+# --- Defina o backend de storage S3 o mais cedo possível ---
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'sa-east-1')
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+AWS_QUERYSTRING_AUTH = False  # 🔓 Permite URLs públicas no S3
+AWS_DEFAULT_ACL = 'public-read'
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+
+# --- DEBUG: Mostra valores das variáveis AWS após o load_dotenv ---
+print("[DEBUG settings.py pós-dotenv] AWS_ACCESS_KEY_ID:", os.environ.get('AWS_ACCESS_KEY_ID'))
+print("[DEBUG settings.py pós-dotenv] AWS_SECRET_ACCESS_KEY:", os.environ.get('AWS_SECRET_ACCESS_KEY'))
+print("[DEBUG settings.py pós-dotenv] AWS_STORAGE_BUCKET_NAME:", os.environ.get('AWS_STORAGE_BUCKET_NAME'))
+print("[DEBUG settings.py pós-dotenv] AWS_S3_REGION_NAME:", os.environ.get('AWS_S3_REGION_NAME'))
+
 
 # BASE_DIR / 'secretaria' / 'templates'
 
@@ -21,7 +48,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-r$cs+v_ad_nqus
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Em produção, defina a variável de ambiente DJANGO_DEBUG='False' no painel da hospedagem.
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Será True se DJANGO_DEBUG='True' ou não definida, False se DJANGO_DEBUG='False'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'false') == 'false' # Será True se DJANGO_DEBUG='True' ou não definida, False se DJANGO_DEBUG='False'
 
 # ALLOWED_HOSTS deve conter os domínios/IPs que servirão sua aplicação.
 ALLOWED_HOSTS = ['gereigreja.site', 'www.gereigreja.site', '199.167.147.66', 'localhost', '127.0.0.1']
@@ -37,7 +64,6 @@ RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
     CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
-
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -58,7 +84,7 @@ INSTALLED_APPS = [
     'contas',
     'comunicacao', 
     'suporte',
-
+    'storages', # <- Move 'storages' here
 
 ]
 
@@ -105,26 +131,12 @@ STATICFILES_DIRS = [BASE_DIR / 'static'] # Usando pathlib para consistência
 STATIC_ROOT = BASE_DIR / 'staticfiles_production' # Usando pathlib
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' # Para Whitenoise
 
-
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.environ.get('DB_NAME'),
-#         'USER': os.environ.get('DB_USER'),
-#         'PASSWORD': os.environ.get('DB_PASSWORD'),
-#         'HOST': os.environ.get('DB_HOST'),
-#         'PORT': os.environ.get('DB_PORT'),
-#     }
-# }
-
-# --- CONFIGURAÇÃO DO BANCO DE DADOS (LIDO DO ARQUIVO .ENV) ---
+# --- CONFIGURAÇÃO DO BANCO DE DADOS SUPABASE(LIDO DO ARQUIVO .ENV) ---
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -133,6 +145,8 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD'),
         'HOST': os.environ.get('DB_HOST'),
         'PORT': os.environ.get('DB_PORT'),
+        'CONN_MAX_AGE': 0,  # Desativa o pool padrão do Django
+      
     }
 }
 
@@ -191,22 +205,71 @@ LOGGING = {
         },
     },
     'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'django_errors.log',
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
         # O handler 'file' será adicionado condicionalmente abaixo para desenvolvimento.
         'console': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
     },
     'loggers': {
         'financeiro': {
-            'handlers': ['console'], # Inicia apenas com 'console'
-            'level': 'INFO',
+            'handlers': ['console'],
+            'level': 'DEBUG',
             'propagate': True,
         },
         'django': {
-            'handlers': ['console'], # Inicia apenas com 'console'
-            'level': 'INFO',
+            'handlers': ['file', 'console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'secretaria': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'configuracao': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'contas': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'comunicacao': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'suporte': {
+            'handlers': ['file', 'console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        # --- LOGGING DETALHADO PARA S3 ---
+        'boto3': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'botocore': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'storages': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     },
@@ -233,19 +296,19 @@ if DEBUG:
 
 # ... (outras configurações) ...
 
+
 # MEDIA_URL = '/media/'
+
 # MEDIA_ROOT = BASE_DIR / 'media' # Usando pathlib
+
 # Em produção na Render, o caminho do disco persistente é definido por uma variável de ambiente.
 # O padrão é '/var/data'. Se você montou em '/var/www/media', use esse caminho.
 # A melhor prática é usar uma variável de ambiente para isso também.
 # MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')
 
-
 LOGIN_URL = '/accounts/login/' # URL para onde @login_required redireciona (já está funcionando)
 LOGIN_REDIRECT_URL = '/sistema/' # URL para onde o usuário vai APÓS o login SE NENHUM 'next' for especificado
 LOGOUT_REDIRECT_URL = '/' # URL para onde o usuário vai APÓS fazer logout (opcional, mas bom ter)
-
-# core/settings.py
 
 # Configuração de E-mail (Usando Brevo/Sendinblue SMTP)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -270,7 +333,6 @@ EMAIL_HOST_PASSWORD = os.environ.get('gereigreja_email_password')
 if not DEBUG and not EMAIL_HOST_PASSWORD:
     raise ValueError("A variável de ambiente gereigreja_email_password não está configurada para produção.")
 
-
 DEFAULT_FROM_EMAIL = 'Gereigreja <nao-responda@gereigreja.site>' # E-mail que aparecerá como remetente
 SERVER_EMAIL = DEFAULT_FROM_EMAIL # Para e-mails de erro do servidor (enviados para ADMINS)
 ADMINS = [('sr. Júlio ', 'juliobsouza24@gmail.com')] # E-mail para onde o Django envia erros críticos
@@ -282,20 +344,29 @@ STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 
-INSTALLED_APPS += ['storages']
+AWS_ACCESS_KEY_ID = os.environ.get ('AWS_ACCESS_KEY_ID')
+print("AWS_ACCESS_KEY_ID:", AWS_ACCESS_KEY_ID)
 
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-2')
+print("AWS_STORAGE_BUCKET_NAME:", AWS_STORAGE_BUCKET_NAME)
+
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'sa-east-1')
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 AWS_QUERYSTRING_AUTH = False  # 🔓 Permite URLs públicas no S3
 
-AWS_DEFAULT_ACL = None
+AWS_DEFAULT_ACL = 'public-read'
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
 
-
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+print("DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
+
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}

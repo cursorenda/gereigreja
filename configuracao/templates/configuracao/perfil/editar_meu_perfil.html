@@ -4,6 +4,11 @@
 {% block title %}{{ titulo_pagina }} - {{ block.super }}{% endblock %}
 
 {% block content %}
+    <h1>{{ titulo_pagina }}</h1> {# Printa normalmente #}
+    <p><strong>Debug - User:</strong> {{ usuario }}</p>
+    <p><strong>Debug - Perfil:</strong> {{ perfil_usuario }}</p> {# Printa normalmente #}
+    <p><strong>Debug - Organizacao:</strong> {{ organizacao }}</p> {# Printa normalmente #}
+
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-7"> {# Ajuste a largura conforme preferir #}
@@ -14,7 +19,7 @@
                 <div class="card-body">
                     {% include 'partials/_messages.html' %}
 
-                    <form method="post" enctype="multipart/form-data">
+                    <form method="post" enctype="multipart/form-data"> {# ADICIONE enctype #}
                         {% csrf_token %}
 
                         <h5>Dados da Conta</h5>

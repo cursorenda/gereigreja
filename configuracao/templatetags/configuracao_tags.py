@@ -1,17 +1,22 @@
 # c:\Gereigreja\configuracao\templatetags\configuracao_tags.py
 from django import template
-from datetime import timedelta
 
 register = template.Library()
 
 @register.filter
+def startswith(text, starts):
+    if isinstance(text, str):
+        return text.startswith(starts)
+    return False
+
+
+# Filtro para somar dias a uma data
+from datetime import timedelta
+
+@register.filter
 def add_timedelta_days(value, days):
-    if value:
-        try:
-            # Tenta converter 'days' para int, caso venha como string do template
-            num_days = int(days)
-            return value + timedelta(days=num_days)
-        except (ValueError, TypeError):
-            # Se a conversão falhar, retorna o valor original ou None
-            return value # ou None, dependendo do comportamento desejado
-    return None
+    """Adiciona N dias a um objeto datetime/date."""
+    try:
+        return value + timedelta(days=int(days))
+    except Exception:
+        return value

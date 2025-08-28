@@ -538,8 +538,9 @@ def editar_membro(request, membro_id): # noqa: E302
                     logger.exception(f"Erro ao gerenciar acesso do usuário para membro {membro_id}: {e}")
                     messages.error(request, f"Erro ao gerenciar acesso do usuário: {e}")
                     # RECARREGA O FORMULÁRIO PRINCIPAL PARA NÃO PERDER OS DADOS
-                    form = MembroForm(instance=membro, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_inicial=membro.igreja)
-
+                form = MembroForm(instance=membro, organizacao=organizacao, user=request.user,
+                                  allowed_churches=allowed_churches, igreja_inicial=membro.igreja)
+            
            
             else:
                 print(f"DEBUG POST - User Management Form inválido. Erros: {user_management_form.errors.as_json()}")

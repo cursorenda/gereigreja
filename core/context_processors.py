@@ -13,3 +13,7 @@ def unread_notifications(request):
             ).count()
             return {'unread_notifications_count': unread_count}
     return {'unread_notifications_count': 0} # Retorna 0 se não autenticado ou sem organização
+
+
+
+

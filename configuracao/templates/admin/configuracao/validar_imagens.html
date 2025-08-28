@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <h1>{{ title }}</h1>
+        <div class="results">
+            <table id="result_list">
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Organização</th>
+                        <th>Imagem</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    <tr class="{% cycle 'row1' 'row2' %}">
+                        <td>{{ r.usuario }}</td>
+                        <td>{{ r.organizacao }}</td>
+                        <td>
+                            {% if r.imagem %}
+                                <img src="{{ r.imagem.url }}" alt="Imagem de {{ r.usuario }}" style="max-width: 100px;">
+                            {% else %}
+                                <span class="text-muted">Sem imagem</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

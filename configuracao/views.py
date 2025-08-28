@@ -13,6 +13,7 @@ import logging
 from .models import Igreja, Organizacao, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionado Plano e AssinaturaOrganizacao
 from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
+import django.db.utils # Import django utils
 from .forms import IgrejaForm, OrganizacaoEditForm, IgrejaEditForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
@@ -32,6 +33,13 @@ from .forms import UserEditForm, PerfilUsuarioEditForm
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
+import pdb # Importar o módulo pdb
+from django.contrib.admin.views.decorators import staff_member_required
+from configuracao.models import PerfilUsuario
+import boto3
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .models import PerfilUsuario
 
 # Configurar a chave da API do Stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -286,6 +294,7 @@ def editar_organizacao(request):
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
     if request.method == 'POST':
+        print(request.FILES) # <- Add this line
         # Passa a instância para editar o objeto correto
         form = OrganizacaoEditForm(request.POST, request.FILES, instance=organizacao)
         if form.is_valid():
@@ -388,7 +397,7 @@ def adicionar_igreja(request):
     }
    
     # Você precisará de um template para adicionar igreja, ex: 'configuracao/igreja/adicionar_igreja.html'
-    return render(request, 'configuracao/igrejas/form_igreja.html', context) # Reutilizando form_igreja.html
+    return render(request, 'configuracao/igrejas/form_igreja.html', context) # Reutilizando form_igreha.html
 
 
 
@@ -626,23 +635,37 @@ def meu_perfil(request):
     """
     Exibe e permite a edição do perfil do usuário logado.
     """
+    logger.info(f"Usuário acessando meu_perfil: {request.user.username} (ID: {request.user.id})")
+
     # Tenta obter o PerfilUsuario associado ao usuário logado
     try:
         perfil_usuario = request.user.perfil
+        logger.info(f"Perfil encontrado para o usuário: {perfil_usuario.id}")
+        organizacao = perfil_usuario.organizacao
+        logger.info(f"Organização associada ao perfil: {organizacao.nome_fantasia} (ID: {organizacao.id})")
+
     except PerfilUsuario.DoesNotExist:
         # Caso o perfil não exista por algum motivo (improvável se o sistema estiver consistente)
         # Você pode criar um perfil aqui ou redirecionar/mostrar um erro.
         # Por simplicidade, vamos assumir que o perfil deve existir.
         messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
+        logger.error(f"Perfil não encontrado para o usuário: {request.user.username} (ID: {request.user.id})")
+
         return redirect('secretaria:index') # Ou outra página apropriada
 
     # Aqui você pode adicionar lógica para um formulário de edição do perfil, se desejar.
     # Por enquanto, apenas exibiremos os dados.
 
+    logger.debug(f"Usuário: {request.user}")
+    logger.debug(f"PerfilUsuario: {perfil_usuario}")
+    logger.debug(f"Organização: {perfil_usuario.organizacao if perfil_usuario else None}")
+
     context = {
         'perfil_usuario': perfil_usuario,
         'usuario': request.user,
         'titulo_pagina': "Meu Perfil",
+        'organizacao': perfil_usuario.organizacao # Adiciona a organização ao contexto
+
     }
     return render(request, 'configuracao/perfil/meu_perfil.html', context) # Crie este template
 # --- FIM NOVA VIEW ---
@@ -655,26 +678,52 @@ def editar_meu_perfil(request):
     """
     user = request.user
     try:
+        logger.info(f"Usuário acessando editar_meu_perfil: {request.user.username} (ID: {request.user.id})")
+
         perfil_usuario = user.perfil
     except PerfilUsuario.DoesNotExist:
         messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
         return redirect('configuracao:meu_perfil') # Redireciona de volta para a página de visualização
 
     if request.method == 'POST':
-        print("FILES RECEBIDOS:", request.FILES)
-        print("foto_perfil:", request.FILES.get('foto_perfil'))
-
-        # request.FILES é necessário para o upload da foto_perfil
+       # request.FILES é necessário para o upload da foto_perfil
         user_form = UserEditForm(request.POST, instance=user)
         perfil_form = PerfilUsuarioEditForm(request.POST, request.FILES, instance=perfil_usuario)
+       
+        logger.debug(f"Usuário: {request.user}")
+        logger.debug(f"PerfilUsuario: {perfil_usuario}")
+        logger.debug(f"Organização: {perfil_usuario.organizacao if perfil_usuario else None}")
 
+        logger.debug(f"Usuário: {request.user}, PerfilUsuario: {perfil_usuario}")
+        if perfil_usuario:
+            logger.debug(f"Organização: {perfil_usuario.organizacao}")
+        else:
+            logger.warning("PerfilUsuario não encontrado.")
         if user_form.is_valid() and perfil_form.is_valid():
             try:
-                with transaction.atomic(): # Garante que ambas as alterações sejam salvas ou nenhuma
-                    user_form.save()
-                    perfil_form.save()
+                # with transaction.atomic(): # Garante que ambas as alterações sejam salvas ou nenhuma
+                logger.info("Salvando user_form...")
+
+                user_form.save()
+                logger.info("user_form salvo com sucesso.")
+
+                logger.info("Salvando perfil_form...")
+                perfil_form.save()
+                logger.info("perfil_form salvo com sucesso.")
+
+                # --- DEBUG: Mostra o valor do campo de imagem após salvar ---
+                logger.info(f"[DEBUG view] Valor de perfil_usuario.foto_perfil: {perfil_usuario.foto_perfil}")
+                print(f"[DEBUG view] Valor de perfil_usuario.foto_perfil: {perfil_usuario.foto_perfil}")
+
                 messages.success(request, 'Seu perfil foi atualizado com sucesso!')
                 return redirect('configuracao:meu_perfil') # Redireciona para a página de visualização do perfil
+            except ValidationError as e:
+                logger.error(f"Erro de validação ao salvar edição do perfil para usuário {user.username}: {e}")
+                messages.error(request, "Ocorreu um erro de validação ao salvar seu perfil. Tente novamente.")
+
+            # except Exception as e:
+            #    logger.error(f"Erro ao salvar edição do perfil para usuário {user.username}: {e}")
+            #    messages.error(request, "Ocorreu um erro ao salvar seu perfil. Tente novamente.")
             except Exception as e:
                 logger.error(f"Erro ao salvar edição do perfil para usuário {user.username}: {e}")
                 messages.error(request, "Ocorreu um erro ao salvar seu perfil. Tente novamente.")
@@ -693,6 +742,10 @@ def editar_meu_perfil(request):
         'user_form': user_form,
         'perfil_form': perfil_form,
         'titulo_pagina': "Editar Meu Perfil",
+        'usuario': user,
+        'perfil_usuario': perfil_usuario,
+
+        'organizacao': perfil_usuario.organizacao # Adiciona a organização ao contexto
     }
     return render(request, 'configuracao/perfil/editar_meu_perfil.html', context) # Crie este template
 # --- FIM NOVA VIEW ---
@@ -771,3 +824,36 @@ def stripe_webhook(request):
     # Adicione outros tipos de evento se necessário (ex: 'invoice.payment_failed')
 
     return HttpResponse(status=200)
+
+
+
+@staff_member_required
+def validar_imagens_perfil(request):
+    try:
+        resultados = []
+        for perfil in PerfilUsuario.objects.filter(foto_perfil__isnull=False):
+            status = '✅ OK'
+            resultados.append({
+                'usuario': perfil.user.get_full_name() or perfil.user.username,
+                'organizacao': perfil.organizacao.nome_fantasia if perfil.organizacao else '',
+                'imagem': perfil.foto_perfil,
+                'status': status
+            })
+            
+        context = {
+            'title': 'Validação de Imagens de Perfil',
+            'resultados': resultados,
+        }
+        
+        if request.path.startswith('/admin/'):
+            template_name = 'admin/configuracao/validar_imagens.html'
+        else:
+            template_name = 'configuracao/validacao_imagens_sistema.html'
+            
+        return render(request, template_name, context)
+        
+    except Exception as e:
+        messages.error(request, str(e))
+        if request.path.startswith('/admin/'):
+            return redirect('admin:index')
+        return redirect('dashboard')

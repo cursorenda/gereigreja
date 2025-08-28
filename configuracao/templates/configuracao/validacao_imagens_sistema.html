@@ -1,0 +1,48 @@
+{% extends "configuracao/validacao_base.html" %}
+{% load static %}
+
+{% block title %}Validação de Imagens{% endblock %}
+
+{% block validacao_content %}
+<h1 class="mt-4">{{ title }}</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-images me-1"></i>
+        Validação de Imagens
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Organização</th>
+                        <th>Imagem</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    <tr>
+                        <td>{{ r.usuario }}</td>
+                        <td>{{ r.organizacao }}</td>
+                        <td>
+                            {% if r.imagem %}
+                                <img src="{{ r.imagem.url }}" 
+                                     alt="Imagem de {{ r.usuario }}" 
+                                     class="img-thumbnail"
+                                     style="max-width: 100px;">
+                            {% else %}
+                                <span class="text-muted">Sem imagem</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
