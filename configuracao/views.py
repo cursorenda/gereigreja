@@ -709,6 +709,7 @@ def editar_meu_perfil(request):
 
                 logger.info("Salvando perfil_form...")
                 perfil_form.save()
+                print("[DEBUG VIEW] Após salvar perfil_form, foto_perfil:", perfil_usuario.foto_perfil)
                 logger.info("perfil_form salvo com sucesso.")
 
                 # --- DEBUG: Mostra o valor do campo de imagem após salvar ---
