@@ -16,7 +16,11 @@ load_dotenv(BASE_DIR / '.env') # Carrega as variáveis do arquivo .env
 # --- Defina o backend de storage S3 o mais cedo possível ---
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+print("AWS_ACCESS_KEY_ID:", AWS_ACCESS_KEY_ID)
+
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+print("AWS_STORAGE_BUCKET_NAME:", AWS_STORAGE_BUCKET_NAME)
+
 AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'sa-east-1')
 AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
 AWS_QUERYSTRING_AUTH = False  # 🔓 Permite URLs públicas no S3
@@ -25,6 +29,8 @@ AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+print("DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
+
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 
 # --- DEBUG: Mostra valores das variáveis AWS após o load_dotenv ---
