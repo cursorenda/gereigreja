@@ -1,3 +1,9 @@
+# Diagnóstico: forçar import e print de S3Boto3Storage
+try:
+    from storages.backends.s3boto3 import S3Boto3Storage
+    print("[DEBUG settings.py] S3Boto3Storage importado com sucesso:", S3Boto3Storage)
+except Exception as e:
+    print("[ERRO settings.py] Falha ao importar S3Boto3Storage:", e)
 
 
 import os
