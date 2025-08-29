@@ -1,10 +1,17 @@
 
 import os
 from pathlib import Path
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+print("DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
+
 from dotenv import load_dotenv # pip install python-dotenv
 
 import pkg_resources
 print("[DEBUG] django-storages version:", pkg_resources.get_distribution("django-storages").version)
+
+import django.core.files.storage
+print("[DEBUG] Storage backend em runtime:", django.core.files.storage.default_storage.__class__)
 
 # --- DEBUG: Mostra qual settings.py está sendo carregado e o valor de DJANGO_SETTINGS_MODULE ---
 print(f"[DEBUG settings.py] Arquivo settings carregado: {__file__}")
@@ -31,11 +38,6 @@ AWS_DEFAULT_ACL = 'public-read'
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-print("DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
-
-import django.core.files.storage
-print("[DEBUG] Storage backend em runtime:", django.core.files.storage.default_storage.__class__)
 
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 
