@@ -8,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env') # Carrega as variáveis do arquivo .env
 
+
 # --- Cloudinary ---
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
@@ -16,6 +17,12 @@ CLOUDINARY_STORAGE = {
 }
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 MEDIA_URL = '/media/'
+
+# LOGS DE DIAGNÓSTICO CLOUDINARY
+print('[CLOUDINARY DIAG] CLOUD_NAME:', os.environ.get('CLOUDINARY_CLOUD_NAME'))
+print('[CLOUDINARY DIAG] API_KEY:', os.environ.get('CLOUDINARY_API_KEY'))
+print('[CLOUDINARY DIAG] API_SECRET:', os.environ.get('CLOUDINARY_API_SECRET'))
+print('[CLOUDINARY DIAG] DEFAULT_FILE_STORAGE:', DEFAULT_FILE_STORAGE)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
