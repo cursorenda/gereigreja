@@ -1,8 +1,13 @@
+# --- DIAGNÓSTICO: Mostra settings.py e storage backend ---
+import os
+print("[DIAGNÓSTICO settings.py] Arquivo carregado:", __file__)
+print("[DIAGNÓSTICO settings.py] DJANGO_SETTINGS_MODULE:", os.environ.get('DJANGO_SETTINGS_MODULE'))
+
 import os
 from pathlib import Path
 
-# Corrigido para o backend correto da versão atual do django-storages
 DEFAULT_FILE_STORAGE = 'storages.backends.s3.S3Storage'
+print("[DIAGNÓSTICO settings.py] DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
 
 # Diagnóstico: print do backend em runtime e erro proposital
 
