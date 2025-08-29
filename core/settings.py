@@ -6,8 +6,12 @@ print("[DIAGNÓSTICO settings.py] DJANGO_SETTINGS_MODULE:", os.environ.get('DJAN
 import os
 from pathlib import Path
 
-DEFAULT_FILE_STORAGE = 'storages.backends.s3.S3Storage'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 print("[DIAGNÓSTICO settings.py] DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
+
+# Diagnóstico: print do tipo do storage em runtime
+import django.core.files.storage
+print("[DIAGNÓSTICO settings.py] Storage backend em runtime:", django.core.files.storage.default_storage.__class__)
 
 # Diagnóstico: print do backend em runtime e erro proposital
 
