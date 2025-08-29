@@ -15,8 +15,16 @@ CLOUDINARY_STORAGE = {
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
+
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+if not CLOUDINARY_STORAGE['CLOUD_NAME']:
+    raise Exception("CLOUDINARY_CLOUD_NAME não está definida!")
 MEDIA_URL = '/media/'
+
+# --- Força o default_storage a usar o backend correto em runtime ---
+from django.core.files.storage import default_storage
+from django.utils.module_loading import import_string
+default_storage._wrapped = import_string(DEFAULT_FILE_STORAGE)()
 
 # LOGS DE DIAGNÓSTICO CLOUDINARY
 print('[CLOUDINARY DIAG] CLOUD_NAME:', os.environ.get('CLOUDINARY_CLOUD_NAME'))
