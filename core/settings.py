@@ -1,62 +1,21 @@
-# --- DIAGNÓSTICO: Mostra settings.py e storage backend ---
-import os
-print("[DIAGNÓSTICO settings.py] Arquivo carregado:", __file__)
-print("[DIAGNÓSTICO settings.py] DJANGO_SETTINGS_MODULE:", os.environ.get('DJANGO_SETTINGS_MODULE'))
 
 import os
 from pathlib import Path
-
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-print("[DIAGNÓSTICO settings.py] DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
-
-# Diagnóstico: print do tipo do storage em runtime
-import django.core.files.storage
-print("[DIAGNÓSTICO settings.py] Storage backend em runtime:", django.core.files.storage.default_storage.__class__)
-
-# Diagnóstico: print do backend em runtime e erro proposital
-
-
 from dotenv import load_dotenv # pip install python-dotenv
-
-import pkg_resources
-print("[DEBUG] django-storages version:", pkg_resources.get_distribution("django-storages").version)
-
-# --- DEBUG: Mostra qual settings.py está sendo carregado e o valor de DJANGO_SETTINGS_MODULE ---
-print(f"[DEBUG settings.py] Arquivo settings carregado: {__file__}")
-print(f"[DEBUG settings.py] DJANGO_SETTINGS_MODULE: {os.environ.get('DJANGO_SETTINGS_MODULE')}")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 load_dotenv(BASE_DIR / '.env') # Carrega as variáveis do arquivo .env
 
-# --- Defina o backend de storage S3 o mais cedo possível ---
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-print("AWS_ACCESS_KEY_ID:", AWS_ACCESS_KEY_ID)
-
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-print("AWS_STORAGE_BUCKET_NAME:", AWS_STORAGE_BUCKET_NAME)
-
-AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'sa-east-1')
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-AWS_QUERYSTRING_AUTH = False  # 🔓 Permite URLs públicas no S3
-AWS_DEFAULT_ACL = 'public-read'
-AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
+# --- Cloudinary ---
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
-
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-
-# --- DEBUG: Mostra valores das variáveis AWS após o load_dotenv ---
-print("[DEBUG settings.py pós-dotenv] AWS_ACCESS_KEY_ID:", os.environ.get('AWS_ACCESS_KEY_ID'))
-print("[DEBUG settings.py pós-dotenv] AWS_SECRET_ACCESS_KEY:", os.environ.get('AWS_SECRET_ACCESS_KEY'))
-print("[DEBUG settings.py pós-dotenv] AWS_STORAGE_BUCKET_NAME:", os.environ.get('AWS_STORAGE_BUCKET_NAME'))
-print("[DEBUG settings.py pós-dotenv] AWS_S3_REGION_NAME:", os.environ.get('AWS_S3_REGION_NAME'))
-
-
-# BASE_DIR / 'secretaria' / 'templates'
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+MEDIA_URL = '/media/'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -107,7 +66,8 @@ INSTALLED_APPS = [
     'comunicacao', 
     'suporte',
     'storages', # <- Move 'storages' here
-
+    'cloudinary',
+    'cloudinary_storage',
 ]
 
 MIDDLEWARE = [
