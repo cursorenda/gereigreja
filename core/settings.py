@@ -7,9 +7,7 @@ DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 print("DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
 
 # Diagnóstico: print do backend em runtime e erro proposital
-import django.core.files.storage
-print("[DEBUG] Storage backend em runtime:", django.core.files.storage.default_storage.__class__)
-raise Exception("TESTE DE ERRO APÓS PRINT STORAGE")
+
 
 from dotenv import load_dotenv # pip install python-dotenv
 
@@ -360,6 +358,10 @@ SITE_ID = 1
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
+
+# Diagnóstico: print do backend de storage no final do settings.py
+import django.core.files.storage
+print("[DEBUG FINAL settings.py] Storage backend em runtime:", django.core.files.storage.default_storage.__class__)
 
 
 
