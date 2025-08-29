@@ -1,16 +1,8 @@
-# Diagnóstico: forçar import e print de S3Boto3Storage
-try:
-    from storages.backends.s3boto3 import S3Boto3Storage
-    print("[DEBUG settings.py] S3Boto3Storage importado com sucesso:", S3Boto3Storage)
-except Exception as e:
-    print("[ERRO settings.py] Falha ao importar S3Boto3Storage:", e)
-
-
 import os
 from pathlib import Path
 
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-print("DEFAULT_FILE_STORAGE:", DEFAULT_FILE_STORAGE)
+# Corrigido para o backend correto da versão atual do django-storages
+DEFAULT_FILE_STORAGE = 'storages.backends.s3.S3Storage'
 
 # Diagnóstico: print do backend em runtime e erro proposital
 
@@ -364,10 +356,6 @@ SITE_ID = 1
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
-
-# Diagnóstico: print do backend de storage no final do settings.py
-import django.core.files.storage
-print("[DEBUG FINAL settings.py] Storage backend em runtime:", django.core.files.storage.default_storage.__class__)
 
 
 
