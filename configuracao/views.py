@@ -203,7 +203,7 @@ def editar_igreja(request, pk):
                 messages.error(request, f'Erro ao salvar igreja: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
-            print("ERROS NO FORMULÁRIO:", form.errors.as_json()) # Imprime os erros no console
+            # print("ERROS NO FORMULÁRIO:", form.errors.as_json()) # Removido para produção
 
     else:
         form = IgrejaForm(instance=igreja)
@@ -294,7 +294,7 @@ def editar_organizacao(request):
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
     if request.method == 'POST':
-        print(request.FILES) # <- Add this line
+    # print(request.FILES) # Removido para produção
         # Passa a instância para editar o objeto correto
         form = OrganizacaoEditForm(request.POST, request.FILES, instance=organizacao)
         if form.is_valid():
@@ -347,7 +347,7 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
             return redirect('configuracao:lista_igrejas') # Ou para onde você quiser redirecionar
         else:
             messages.error(request, "Erro ao atualizar os dados da igreja. Verifique os campos.")
-            print("ERROS NO FORMULÁRIO IgrejaEditForm:", form.errors.as_json()) # <--- ADICIONE ESTA LINHA
+            # print("ERROS NO FORMULÁRIO IgrejaEditForm:", form.errors.as_json()) # Removido para produção
 
     else:
         form = IgrejaEditForm(instance=igreja, organizacao=organizacao)
@@ -709,12 +709,12 @@ def editar_meu_perfil(request):
 
                 logger.info("Salvando perfil_form...")
                 perfil_form.save()
-                print("[DEBUG VIEW] Após salvar perfil_form, foto_perfil:", perfil_usuario.foto_perfil)
+                # print("[DEBUG VIEW] Após salvar perfil_form, foto_perfil:", perfil_usuario.foto_perfil) # Removido para produção
                 logger.info("perfil_form salvo com sucesso.")
 
                 # --- DEBUG: Mostra o valor do campo de imagem após salvar ---
                 logger.info(f"[DEBUG view] Valor de perfil_usuario.foto_perfil: {perfil_usuario.foto_perfil}")
-                print(f"[DEBUG view] Valor de perfil_usuario.foto_perfil: {perfil_usuario.foto_perfil}")
+                # print(f"[DEBUG view] Valor de perfil_usuario.foto_perfil: {perfil_usuario.foto_perfil}") # Removido para produção
 
                 messages.success(request, 'Seu perfil foi atualizado com sucesso!')
                 return redirect('configuracao:meu_perfil') # Redireciona para a página de visualização do perfil

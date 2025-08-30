@@ -168,12 +168,52 @@
     </nav>
 
     <div id="layoutSidenav">
-        <div id="layoutSidenav_nav">
+        <!-- Offcanvas para mobile -->
+        <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="offcanvasSidebar" aria-labelledby="offcanvasSidebarLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasSidebarLabel">Menu</h5>
+                <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body p-0">
+                <nav class="sb-sidenav accordion sb-sidenav-dark h-100" id="sidenavAccordionMobile">
+                    {% if user.is_staff %}
+                        {% include 'menu.html' %}
+                    {% else %}
+                        <div class="sb-sidenav-menu">
+                            <div class="nav">
+                                <div class="sb-sidenav-menu-heading">Navegação</div>
+                                <a class="nav-link" href="{% url 'secretaria:portal_membro' %}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
+                                    Meu Portal
+                                </a>
+                                <a class="nav-link" href="{% url 'configuracao:meu_perfil' %}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
+                                    Meu Perfil
+                                </a>
+                                <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
+                                    Mural de Avisos
+                                </a>
+                                <a class="nav-link" href="{% url 'comunicacao:lista_notificacoes' %}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-bell"></i></div>
+                                    Minhas Notificações
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                    <div class="sb-sidenav-footer">
+                        <div class="small">Usuário:</div>
+                        {{ request.user.get_full_name|default:request.user.username }}
+                    </div>
+                </nav>
+            </div>
+        </div>
+        <!-- Sidebar normal para desktop -->
+        <div id="layoutSidenav_nav" class="d-none d-lg-block">
             <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
-                {# O menu lateral administrativo só é exibido para staff #}
-                {% if user.is_staff %} {# Se o usuário é staff, mostra o menu administrativo completo #}
-                    {% include 'menu.html' %} 
-                {% else %} {# Se o usuário NÃO é staff (ex: Membro Comum), mostra um menu simplificado #}
+                {% if user.is_staff %}
+                    {% include 'menu.html' %}
+                {% else %}
                     <div class="sb-sidenav-menu">
                         <div class="nav">
                             <div class="sb-sidenav-menu-heading">Navegação</div>
@@ -193,24 +233,18 @@
                                 <div class="sb-nav-link-icon"><i class="fas fa-bell"></i></div>
                                 Minhas Notificações
                             </a>
-                            {# Adicione outros links relevantes para o membro comum aqui #}
                         </div>
                     </div>
-                {% endif %} {# Fim da condição user.is_staff #}
-
-
-                {# Rodapé do menu lateral com nome do usuário #}
+                {% endif %}
                 <div class="sb-sidenav-footer">
                     <div class="small">Usuário:</div>
-                    {{ request.user.get_full_name|default:request.user.username }} {# Mostra nome completo ou username #}
+                    {{ request.user.get_full_name|default:request.user.username }}
                 </div>
             </nav>
         </div>
         <div id="layoutSidenav_content">
             <main>
-                {# Container principal onde o conteúdo da página será inserido #}
                 {% block content %}
-                {# Conteúdo das páginas filhas virá aqui #}
                 {% endblock %}
             </main>
             <footer class="py-4 bg-light mt-auto">
@@ -235,8 +269,22 @@
     <script src="{% static 'js/scripts.js' %}"></script>
     {# DataTables (se usado em alguma página) #}
     <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js" crossorigin="anonymous"></script>
-    {# <script src="{% static 'js/datatables-simple-demo.js' %}"></script> #} {# Temporariamente comentado #}
-    {# Bloco para JS extra das páginas filhas (IMPORTANTE para scripts como Chart.js, máscaras, etc.) #}
     {% block extra_js %}{% endblock %}
-
-
+    <script>
+    // Abrir o offcanvas ao clicar no botão do menu no mobile
+    document.addEventListener('DOMContentLoaded', function() {
+        var sidebarToggle = document.getElementById('sidebarToggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function(e) {
+                if (window.innerWidth < 992) { // lg breakpoint
+                    e.preventDefault();
+                    var offcanvasSidebar = document.getElementById('offcanvasSidebar');
+                    if (offcanvasSidebar) {
+                        var bsOffcanvas = new bootstrap.Offcanvas(offcanvasSidebar);
+                        bsOffcanvas.toggle();
+                    }
+                }
+            });
+        }
+    });
+    </script>

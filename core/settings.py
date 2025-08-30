@@ -26,11 +26,6 @@ from django.core.files.storage import default_storage
 from django.utils.module_loading import import_string
 default_storage._wrapped = import_string(DEFAULT_FILE_STORAGE)()
 
-# LOGS DE DIAGNÓSTICO CLOUDINARY
-print('[CLOUDINARY DIAG] CLOUD_NAME:', os.environ.get('CLOUDINARY_CLOUD_NAME'))
-print('[CLOUDINARY DIAG] API_KEY:', os.environ.get('CLOUDINARY_API_KEY'))
-print('[CLOUDINARY DIAG] API_SECRET:', os.environ.get('CLOUDINARY_API_SECRET'))
-print('[CLOUDINARY DIAG] DEFAULT_FILE_STORAGE:', DEFAULT_FILE_STORAGE)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/

@@ -10,4 +10,4 @@ def remove_null_bytes(file_path):
 if __name__ == "__main__":
     file_path = 'secretaria/models.py'
     remove_null_bytes(file_path)
-    print(f"Null bytes removed from {file_path}")
+    # print(f"Null bytes removed from {file_path}") # Removido para produção

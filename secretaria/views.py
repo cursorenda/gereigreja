@@ -153,8 +153,8 @@ def index(request):
                 
         # A variável 'can_view' não estava definida aqui. A permissão é passada ao contexto abaixo.
         # print(f"DEBUG VIEW: has_membro_view_permission = {has_membro_view_permission(request.user)}") # Exemplo de como poderia ser
-        print(f"DEBUG VIEW: novos_membros_ultimo_mes_count = {novos_membros_ultimo_mes_count} (Tipo: {type(novos_membros_ultimo_mes_count)})")
-        print(f"DEBUG VIEW: total_membros_ativos_count = {total_membros_ativos_count} (Tipo: {type(total_membros_ativos_count)})")
+    # print(f"DEBUG VIEW: novos_membros_ultimo_mes_count = {novos_membros_ultimo_mes_count} (Tipo: {type(novos_membros_ultimo_mes_count)})") # Removido para produção
+    # print(f"DEBUG VIEW: total_membros_ativos_count = {total_membros_ativos_count} (Tipo: {type(total_membros_ativos_count)})") # Removido para produção
         
         context = {
             'organizacao': organizacao,
@@ -448,7 +448,7 @@ def editar_membro(request, membro_id): # noqa: E302
      # Tenta encontrar o User e PerfilUsuario associados ao membro
     user_associado = User.objects.filter(email__iexact=membro.email, perfil__organizacao=organizacao).first()
     perfil_associado = user_associado.perfil if user_associado else None
-    print(f"DEBUG [editar_membro]: Editando membro: {membro.nome} (ID: {membro.pk})")
+    # print(f"DEBUG [editar_membro]: Editando membro: {membro.nome} (ID: {membro.pk})") # Removido para produção
 
     if request.method == 'POST':
         # Ao editar, a igreja do membro não deve mudar via seletor global, mas o form precisa das allowed_churches
@@ -457,7 +457,7 @@ def editar_membro(request, membro_id): # noqa: E302
                           user=request.user, 
                           allowed_churches=allowed_churches, # noqa
                           igreja_inicial=membro.igreja) # Passa a igreja atual do membro 
-        print(f"DEBUG POST - request.POST: {request.POST}") # Veja os dados brutos do POST
+    # print(f"DEBUG POST - request.POST: {request.POST}") # Removido para produção
         # --- Lógica para o formulário de gerenciamento de usuário ---
         user_management_form = MembroUserManagementForm(
             request.POST,
@@ -469,12 +469,12 @@ def editar_membro(request, membro_id): # noqa: E302
 
         if 'submit_membro_form' in request.POST: # Se o formulário principal do membro foi submetido
             if form.is_valid():
-                print(f"DEBUG POST - form.cleaned_data: {form.cleaned_data}") # Veja os dados limpos
+                # print(f"DEBUG POST - form.cleaned_data: {form.cleaned_data}") # Removido para produção
                 nascimento_do_form = form.cleaned_data.get('nascimento')
-                print(f"DEBUG POST - Nascimento do form.cleaned_data: {nascimento_do_form}, Tipo: {type(nascimento_do_form)}")
+                # print(f"DEBUG POST - Nascimento do form.cleaned_data: {nascimento_do_form}, Tipo: {type(nascimento_do_form)}") # Removido para produção
                 try:
                     membro_editado = form.save(commit=False)
-                    print(f"DEBUG POST - membro_editado.nascimento ANTES do save: {membro_editado.nascimento}, Tipo: {type(membro_editado.nascimento)}")
+                    # print(f"DEBUG POST - membro_editado.nascimento ANTES do save: {membro_editado.nascimento}, Tipo: {type(membro_editado.nascimento)}") # Removido para produção
                     if not is_admin_org(request.user) and membro_editado.igreja not in allowed_churches:
                         messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                    
@@ -490,12 +490,12 @@ def editar_membro(request, membro_id): # noqa: E302
                         else:
                             return redirect('secretaria:lista_membros')
                 except Exception as e:
-                    print(f"DEBUG POST - Exceção ao salvar: {e}")
+                    # print(f"DEBUG POST - Exceção ao salvar: {e}") # Removido para produção
 
                     logger.exception(f"Erro ao salvar edição do membro {membro_id} para organização {organizacao.id}")
                     messages.error(request, f"Ocorreu um erro ao salvar as alterações: {e}")
             else:
-                print(f"DEBUG POST - Membro Form inválido. Erros: {form.errors.as_json()}")
+                # print(f"DEBUG POST - Membro Form inválido. Erros: {form.errors.as_json()}") # Removido para produção
                 messages.error(request, "Erro ao atualizar membro. Verifique os campos.")
 
         elif 'submit_user_management_form' in request.POST: # Se o formulário de gerenciamento de usuário foi submetido
@@ -544,7 +544,7 @@ def editar_membro(request, membro_id): # noqa: E302
             
            
             else:
-                print(f"DEBUG POST - User Management Form inválido. Erros: {user_management_form.errors.as_json()}")
+                # print(f"DEBUG POST - User Management Form inválido. Erros: {user_management_form.errors.as_json()}") # Removido para produção
                 messages.error(request, "Erro ao gerenciar acesso do usuário. Verifique os campos.")
                 # RECARREGA O FORMULÁRIO PRINCIPAL PARA NÃO PERDER OS DADOS
                 form = MembroForm(instance=membro, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_inicial=membro.igreja)
@@ -563,24 +563,25 @@ def editar_membro(request, membro_id): # noqa: E302
             perfil_instance=perfil_associado
         )    
         # Print para quando o formulário é carregado (GET)
-        print(f"DEBUG GET - Editando Membro ID: {membro.pk}")
-        print(f"DEBUG GET - Valor de membro.nascimento no BD: {membro.nascimento}")
-        print(f"DEBUG GET - Tipo de membro.nascimento no BD: {type(membro.nascimento)}")
+    # print(f"DEBUG GET - Editando Membro ID: {membro.pk}") # Removido para produção
+    # print(f"DEBUG GET - Valor de membro.nascimento no BD: {membro.nascimento}") # Removido para produção
+    # print(f"DEBUG GET - Tipo de membro.nascimento no BD: {type(membro.nascimento)}") # Removido para produção
     # Buscar histórico de contribuições do membro
     contribuicoes = Receitas.objects.filter(membro=membro).select_related(
         'igreja', 'conta_bancaria'
     ).order_by('-data')
     
      # DEBUG: Verificar as contribuições encontradas
-    print(f"DEBUG [editar_membro]: Contribuições encontradas para {membro.nome} (ID: {membro.pk}): {list(contribuicoes)}")
+    # print(f"DEBUG [editar_membro]: Contribuições encontradas para {membro.nome} (ID: {membro.pk}): {list(contribuicoes)}") # Removido para produção
     # Para ver a query SQL gerada (pode ajudar a identificar problemas no filtro):
     # print(f"DEBUG [editar_membro]: Query SQL para contribuições: {str(contribuicoes.query)}")
 
     # >>> ADICIONAR ESTE LOG <<<
     historico_status_membro = membro.transicoes_status_secretaria.all()
-    print(f"DEBUG [editar_membro]: Histórico de Status para {membro.nome} (ID: {membro.pk}): {list(historico_status_membro)}")
+    # print(f"DEBUG [editar_membro]: Histórico de Status para {membro.nome} (ID: {membro.pk}): {list(historico_status_membro)}") # Removido para produção
+
     for h in historico_status_membro:
-        print(f"  - Histórico ID: {h.pk}, Data: {h.data_transicao}, Obs: {h.observacao}")
+        pass  # Bloco mantido para evitar erro de indentação
     # >>> FIM DO LOG ADICIONADO <<<
 
     context = {
@@ -614,9 +615,9 @@ def criar_membro(request): # noqa: E302
                           allowed_churches=allowed_churches,
                           igreja_inicial=request.igreja_ativa) # Passa request.igreja_ativa
         if form.is_valid():
-            print(f"DEBUG POST - form.cleaned_data: {form.cleaned_data}")
+            # print(f"DEBUG POST - form.cleaned_data: {form.cleaned_data}") # Removido para produção
             nascimento_do_form = form.cleaned_data.get('nascimento')
-            print(f"DEBUG POST - Nascimento do form.cleaned_data: {nascimento_do_form}, Tipo: {type(nascimento_do_form)}")
+            # print(f"DEBUG POST - Nascimento do form.cleaned_data: {nascimento_do_form}, Tipo: {type(nascimento_do_form)}") # Removido para produção
 
             try:
                 membro_editado = form.save(commit=False)
@@ -841,7 +842,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
 
         allowed_churches_base_secretaria = get_allowed_churches_for_membros(request.user, organizacao_usuario) # Passa organizacao_usuario
         
-        print(f"DEBUG (Secretaria): Usuário: {request.user.username}, É Líder Secretaria: {is_secretaria_leader(request.user)}")
+    # print(f"DEBUG (Secretaria): Usuário: {request.user.username}, É Líder Secretaria: {is_secretaria_leader(request.user)}") # Removido para produção
         print(f"DEBUG (Secretaria): allowed_churches_base_secretaria: {list(allowed_churches_base_secretaria)}")
         if not allowed_churches_base_secretaria.exists() and not is_admin_org(request.user):
 

@@ -1959,8 +1959,8 @@ def painel_lideranca_financeiro(request):
     organizacao_usuario = get_organizacao_or_error(request)
     allowed_churches_base_financeiro = get_allowed_churches_for_user(request.user)
 
-    print(f"DEBUG (Financeiro): Usuário: {request.user.username}, É Líder Financeiro: {is_finance_leader(request.user)}")
-    print(f"DEBUG (Financeiro): allowed_churches_base_financeiro: {list(allowed_churches_base_financeiro)}")
+    # print(f"DEBUG (Financeiro): Usuário: {request.user.username}, É Líder Financeiro: {is_finance_leader(request.user)}") # Removido para produção
+    # print(f"DEBUG (Financeiro): allowed_churches_base_financeiro: {list(allowed_churches_base_financeiro)}") # Removido para produção
 
     if not allowed_churches_base_financeiro.exists() and not is_admin_org(request.user):
         messages.warning(request, "Nenhuma igreja encontrada para visualização no painel de liderança financeira.")

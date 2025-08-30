@@ -6,57 +6,31 @@
   - **Tecnologias Chave:**
     - Backend: Python com Django Framework.
     - Frontend: HTML, CSS (Bootstrap), JavaScript (jQuery, Chart.js).
-    - Banco de Dados: SQLite3 (desenvolvimento e produção inicial).
-    - Hospedagem: BrasilLinkHost (cPanel, Phusion Passenger).
+    - Banco de Dados: SQLite3 (desenvolvimento) e Supabase (produção, se aplicável).
+    - Hospedagem: Render (deploy automatizado).
+    - Armazenamento de Mídia: Cloudinary (imagens e arquivos de usuários).
     - Controle de Versão: Git e GitHub.
 
-## 2. Ambiente de Hospedagem (BrasilLinkHost)
+## 2. Ambiente de Hospedagem (Render)
 
- - **Provedor:** BrasilLinkHost
-   - **Endereço IP do Servidor:** 199.167.147.66
-   - **Acesso ao Servidor:** SSH para o usuário `gerei1`.
-   - **Diretório Raiz da Aplicação:** `/home/gerei1/gereigreja.site/`
-   - **Ambiente Virtual Python:**
-     - Localização: `/home/gerei1/virtualenv/gereigreja.site/3.11/`
-     - Comando de ativação: `source /home/gerei1/virtualenv/gereigreja.site/3.11/bin/activate`
-     - Versão do Python no Servidor: 3.11.9 (confirmar se é a mesma do ambiente virtual)
-   - **Configuração do "Python App" no cPanel (via Phusion Passenger):**
-     - Arquivo de Inicialização (Application startup file): `core/wsgi.py` (ou `passenger_wsgi.py` se criado especificamente para o Passenger, mas `core/wsgi.py` é o padrão do Django).
-     - Ponto de Entrada (Application Entry point): `application` (variável padrão no `wsgi.py`).
-     - Variáveis de Ambiente (configuradas no painel do cPanel):
-       - `DJANGO_SETTINGS_MODULE`: `core.settings`
-       - `DJANGO_SECRET_KEY`: (Valor único e secreto para produção)
-       - `DJANGO_DEBUG`: `False`
-       - `gereigreja_email_password`: (Senha do e-mail `nao-responda@gereigreja.site`)
-       - **Importante:** A forma correta de definir no cPanel é `NOME_DA_VARIAVEL` e `VALOR_DA_VARIAVEL`.
-   - **Banco de Dados:**
-     - Tipo em Produção: SQLite3
-     - Localização: `BASE_DIR / 'db.sqlite3'` (no servidor: `/home/gerei1/gereigreja.site/db.sqlite3`)
-     - **Alerta Crítico:** O arquivo `db.sqlite3` **não deve** ser sobrescrito pelo deploy. Garantir que o `.gitignore` o ignore e que scripts de deploy (como o `.cpanel.yml`) não o copiem do ambiente de desenvolvimento.
-   - **Arquivos Estáticos e de Mídia:**
-     - `STATIC_URL = 'static/'`
-     - `STATICFILES_DIRS = [BASE_DIR / 'static']` (para desenvolvimento)
-     - `STATIC_ROOT = BASE_DIR / 'staticfiles_production'` (para onde o `collectstatic` copia em produção)
-     - `MEDIA_URL = '/media/'`
-     - `MEDIA_ROOT = BASE_DIR / 'media'`
-     - Servidos pelo Whitenoise em produção (quando `DEBUG=False`).
-   - **Logs da Aplicação:**
-     - Configurados para `BASE_DIR / 'logs' / 'django_errors.log'`.
-     - O diretório `logs/` precisa existir na raiz do projeto no servidor (`/home/gerei1/gereigreja.site/logs/`) e ter permissão de escrita pelo usuário da aplicação.
-   - **Configuração de Domínio (DNS):** Domínio `gereigreja.site` registrado na GoDaddy, com nameservers apontando para a BrasilLinkHost.
+- **Provedor:** Render
+  - **Deploy:** Automatizado via GitHub (build e deploy contínuo).
+  - **Configuração:**
+    - Variáveis de ambiente configuradas no painel da Render (ex: `DJANGO_SETTINGS_MODULE`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, credenciais de e-mail, Cloudinary, Supabase, etc).
+    - Banco de dados: SQLite3 (desenvolvimento) e Supabase (produção, se aplicável).
+    - Armazenamento de mídia: Cloudinary (configurado em `settings.py`).
+    - Arquivos estáticos: Servidos via Whitenoise.
+    - Logs: Gravados em `logs/django_errors.log`.
+    - Domínio: gereigreja.site (DNS configurado para Render).
 
 ## 3. Processo de Deploy
 
   - **Controle de Versão:** Código gerenciado com Git e hospedado no GitHub.
-  - **Deploy no cPanel:**
-    - Utiliza a funcionalidade "Git Version Control" do cPanel para clonar/atualizar o repositório no `DEPLOYPATH`.
-    - **Arquivo `.cpanel.yml`:** Define tarefas pós-deploy:
-      - Ativação do ambiente virtual.
-      - Instalação/atualização de dependências (`pip install -r requirements.txt`).
-      - Execução de migrações do banco de dados (`python manage.py migrate --noinput`).
-      - Coleta de arquivos estáticos (`python manage.py collectstatic --noinput`).
-      - Criação/atualização do arquivo `tmp/restart.txt` para reiniciar a aplicação Phusion Passenger.
-  - **Autenticação Git:** Idealmente configurada com chaves SSH para acesso seguro ao repositório.
+  - **Deploy na Render:**
+    - Deploy automatizado via integração GitHub/Render.
+    - Build e deploy contínuo a cada push na branch principal.
+    - Instalação de dependências, migrações e coleta de estáticos automatizadas pelo Render.
+    - Variáveis de ambiente configuradas no painel da Render.
 
 ## 4. Estrutura dos Aplicativos Principais
 
@@ -69,6 +43,11 @@
 
 ## 5. Decisões de Design e Funcionalidades Implementadas Recentemente
 
+  - **Backend de Mídia:**
+    - Integração com Cloudinary para upload e armazenamento de imagens e arquivos de usuários.
+    - Correção do backend de mídia no Django, forçando reload do storage após definição do DEFAULT_FILE_STORAGE.
+  - **Limpeza de Código:**
+    - Remoção de prints e códigos de debug em toda a base para produção.
   - **Refatoração de Status de Membro:**
     - Divisão do conceito de "status" em `TipoPessoa` (quem é: Membro, Visitante, etc.) e `StatusPessoa` (situação: Ativo, Inativo, Disciplina, etc.).
     - Implementação de `StatusHistorico` para rastrear automaticamente as mudanças de `TipoPessoa` e `StatusPessoa` de um membro, incluindo quem fez a alteração e quando.
@@ -94,16 +73,11 @@
 
 ## 6. Pontos de Atenção e Solução de Problemas Comuns
 
-  - **Erro `eval: line 17...` (cPanel):** Causado pela definição incorreta de variáveis de ambiente no cPanel. Corrigido ajustando os nomes e valores das variáveis para o formato simples.
-  - **Erro `OperationalError: no such column: ...`:** Geralmente indica que as migrações não foram aplicadas no banco de dados de produção após uma alteração no modelo. Resolvido com `python manage.py migrate`.
-  - **Erro "Index of /" (Servidor):** Pode ter várias causas:
-    - Aplicação Django não iniciando devido a erros de configuração (ex: variáveis de ambiente, `settings.py`).
-    - Arquivo de inicialização (`core/wsgi.py` ou `passenger_wsgi.py`) ausente ou incorreto.
-    - Problemas com o Phusion Passenger (verificar logs do Passenger).
-  - **Substituição do Banco de Dados de Produção:** Risco se o processo de deploy copiar arquivos indiscriminadamente. O `db.sqlite3` deve ser persistente no servidor.
-  - **Arquivos Estáticos Não Carregando em Produção:** Verificar se `DEBUG=False`, se `collectstatic` foi executado, e se o Whitenoise está configurado corretamente.
-  - **Permissões de Arquivo/Pasta no Servidor:** O usuário da aplicação precisa de permissão de escrita para `MEDIA_ROOT`, `STATIC_ROOT` (durante `collectstatic`), e o diretório de logs.
-  - **Circular Imports:** Especialmente ao lidar com `reverse_lazy` em definições de módulo. Solucionado adiando a avaliação da URL para dentro da função/decorator.
+  - **Backend de Mídia não ativando:** Corrigido forçando reload do storage após definição do DEFAULT_FILE_STORAGE no settings.py.
+  - **Erro `OperationalError: no such column: ...`:** Indica migrações pendentes. Resolvido com `python manage.py migrate`.
+  - **Arquivos Estáticos/Mídia não carregando:** Verificar configuração do Whitenoise, Cloudinary e variáveis de ambiente.
+  - **Permissões de Arquivo/Pasta:** Render gerencia permissões, mas garantir que diretórios de logs e mídia estejam configurados corretamente.
+  - **Circular Imports:** Adiar avaliação de URLs para dentro de funções/decorators.
 
 ## 7. Configurações Importantes do Django (`settings.py`)
 
@@ -112,43 +86,22 @@
     - `DEBUG`: `False` em produção (controlado por variável de ambiente).
     - `ALLOWED_HOSTS`: Lista de domínios permitidos para servir a aplicação.
   - **Aplicações Instaladas (`INSTALLED_APPS`):**
-    ```python
-    INSTALLED_APPS = [
-        'django.contrib.admin',
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.sessions',
-        'django.contrib.messages',
-        'django.contrib.staticfiles',
-        'django.contrib.humanize',
-        'django.contrib.sites',
-        'whitenoise.runserver_nostatic',
-        # Seus Apps
-        'secretaria',
-        'financeiro',
-        'configuracao',
-        'contas',
-        # Adicionar outros apps como 'eventos', 'comunicacao' se estiverem ativos
-    ]
-    ```
+    - Apps principais: `secretaria`, `financeiro`, `configuracao`, `contas`, `eventos`, `comunicacao` (se ativos).
+    - Apps Django padrão: admin, auth, sessions, staticfiles, humanize, sites, whitenoise.
   - **Middleware:**
-    - `whitenoise.middleware.WhiteNoiseMiddleware`: Para servir arquivos estáticos em produção.
-    - `core.middleware.ActiveChurchMiddleware`: Para gerenciar a igreja ativa na sessão.
+    - Whitenoise para arquivos estáticos.
+    - Middleware customizado para igreja ativa.
   - **Templates:** Diretório `BASE_DIR / 'templates'` configurado.
   - **Arquivos Estáticos e Mídia:**
-    - `STATIC_URL`, `STATICFILES_DIRS`, `STATIC_ROOT`.
-    - `STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'`.
-    - `MEDIA_URL`, `MEDIA_ROOT`.
-  - **Banco de Dados:** Configurado para SQLite3.
-  - **Internacionalização (`LANGUAGE_CODE = 'pt-br'`, `USE_I18N = True`, etc.).**
-  - **Logging:** Configurado para `RotatingFileHandler`, salvando erros em `logs/django_errors.log`.
+    - `STATIC_URL`, `STATICFILES_DIRS`, `STATIC_ROOT`, `STATICFILES_STORAGE` (Whitenoise).
+    - `MEDIA_URL`, `MEDIA_ROOT`, `DEFAULT_FILE_STORAGE` (Cloudinary).
+  - **Banco de Dados:** SQLite3 (desenvolvimento) e Supabase (produção, se aplicável).
+  - **Internacionalização:** `LANGUAGE_CODE = 'pt-br'`, `USE_I18N = True`, etc.
+  - **Logging:** RotatingFileHandler, erros em `logs/django_errors.log`.
   - **Autenticação:**
-    - `LOGIN_URL = '/accounts/login/'`
-    - `LOGIN_REDIRECT_URL = '/'` (ou dashboard apropriado)
-    - `LOGOUT_REDIRECT_URL = '/'`
+    - `LOGIN_URL`, `LOGIN_REDIRECT_URL`, `LOGOUT_REDIRECT_URL`.
   - **Configuração de E-mail:**
-    - `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_SSL`/`TLS`.
-    - `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (carregado de variável de ambiente).
+    - Backend, host, porta, SSL/TLS, usuário/senha via variável de ambiente.
     - `DEFAULT_FROM_EMAIL`, `ADMINS`.
   - `SITE_ID = 1` (para `django.contrib.sites`).
 
@@ -158,8 +111,8 @@
   - **Refinamento de Permissões:** Continuar ajustando níveis de acesso para diferentes papéis de usuário em todos os módulos.
   - **Dashboard Financeiro:** Incluir mais gráficos e indicadores financeiros relevantes.
   - **Autocadastro de Membros:** Implementar link/funcionalidade para membros se cadastrarem de forma independente, aguardando aprovação.
-  - **Envio de E-mail:** Finalizar e testar exaustivamente a configuração de envio de e-mails (Brevo) para convites, notificações, reset de senha, etc.
-  - **Logo da Igreja/Organização:** Permitir upload e exibição do logo da organização/igreja em locais chave (login, cabeçalhos, relatórios).
+  - **Envio de E-mail:** Finalizar e testar exaustivamente a configuração de envio de e-mails (Brevo ou outro backend).
+  - **Logo da Igreja/Organização:** Permitir upload e exibição do logo da organização/igreja em locais chave (login, cabeçalhos, relatórios) via Cloudinary.
   - **Contas Pagas no Fechamento de Caixa:** Garantir que as despesas originadas de "Contas a Pagar" sejam corretamente incluídas nos fechamentos de caixa.
 
 ### 8.2. Funcionalidades de Membros (Secretaria)

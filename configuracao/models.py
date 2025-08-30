@@ -159,9 +159,9 @@ class PerfilUsuario(models.Model):
         return f"Perfil de {user_display} ({self.organizacao.nome_fantasia})"
 
     def save(self, *args, **kwargs):
-        print("[DEBUG MODEL] Chamou save do PerfilUsuario, foto_perfil:", self.foto_perfil)
+    # print("[DEBUG MODEL] Chamou save do PerfilUsuario, foto_perfil:", self.foto_perfil) # Removido para produção
         super().save(*args, **kwargs)
-        
+
     class Meta:
         verbose_name = "Perfil de Usuário"
         verbose_name_plural = "Perfis de Usuários"
