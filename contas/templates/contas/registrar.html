@@ -1,14 +1,14 @@
 {% extends 'base_com_menu.html' %} {# Ou seu template base para páginas públicas #}
 {% load static %}
 
-{% block title %}Registrar Nova Conta e Organização{% endblock %}
+{% block title %}Registrar Nova Conta e Ministério{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-lg-7"> {# Um pouco mais largo para mais campos #}
             <div class="card shadow-lg border-0 rounded-lg mt-5">
-                <div class="card-header"><h3 class="text-center font-weight-light my-4">Criar Conta e Registrar Organização</h3></div>
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Criar Conta e Registrar Ministério</h3></div>
                 <div class="card-body">
                     {# Mensagens de erro do servidor (se houver) #}
                     {% if messages %}
@@ -74,18 +74,18 @@
 
                         <hr class="my-4">
 
-                        <h5 class="mb-3">Dados da Organização</h5>
+                        <h5 class="mb-3">Dados da Ministério</h5>
                         <div class="form-floating mb-3">
                             {{ form.nome_fantasia_org }}
                             <label for="{{ form.nome_fantasia_org.id_for_label }}">{{ form.nome_fantasia_org.label }}</label>
                         </div>
                          {% if form.nome_fantasia_org.errors %}<div class="invalid-feedback d-block">{{ form.nome_fantasia_org.errors|striptags }}</div>{% endif %}
 
-                        {# Adicionar outros campos da organização aqui se foram adicionados ao form #}
+                        {# Adicionar outros campos da ministério aqui se foram adicionados ao form #}
 
                         <div class="mt-4 mb-0">
                             <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-block">Criar Conta e Registrar Organização</button>
+                                <button type="submit" class="btn btn-primary btn-block">Criar Conta e Registrar Ministério</button>
                             </div>
                         </div>
                     </form>

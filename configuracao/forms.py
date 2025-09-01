@@ -1,7 +1,7 @@
 # c:\Gereigreja\configuracao\forms.py
 from django import forms
 from .models import ESTADO_CHOICES 
-from .models import Organizacao, Igreja, PerfilUsuario, Plano, AssinaturaOrganizacao
+from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio
 
 from django.contrib.auth.models import User # Modelo de usuário padrão
 from financeiro.models import ContaBancaria # Importar ContaBancaria
@@ -47,9 +47,9 @@ class IgrejaForm(forms.ModelForm):
 
     class Meta:
         model = Igreja
-        # Exclui 'organizacao' pois será definida na view
-        exclude = ['organizacao']
-        # Listar todos os campos do modelo unificado (exceto organizacao)
+        # Exclui 'ministerio' pois será definida na view
+        exclude = ['ministerio']
+        # Listar todos os campos do modelo unificado (exceto ministerio)
         fields = [
             'nome_igreja', 'tipo_igreja', 'igreja_superior', 'data_fundacao',
             'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais',
@@ -84,14 +84,14 @@ class IgrejaForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        # Pega a organização passada pela view para filtrar igreja_superior
-        organizacao = kwargs.pop('organizacao', None)
+        # Pega a ministério passada pela view para filtrar igreja_superior
+        ministerio = kwargs.pop('ministerio', None)
         # Pega a instância da igreja (se estiver editando)
         instance = kwargs.get('instance')
         super().__init__(*args, **kwargs)
 
-        if organizacao:
-            qs_igreja_superior = Igreja.objects.filter(organizacao=organizacao)
+        if ministerio:
+            qs_igreja_superior = Igreja.objects.filter(ministerio=ministerio)
             
             if instance and instance.pk: # Editando uma igreja existente
                 if instance.tipo_igreja in ['sede', 'independente']:
@@ -118,7 +118,7 @@ class IgrejaForm(forms.ModelForm):
         
 
         else:
-            # Se não houver organização, não mostra nenhuma igreja superior nem contas
+            # Se não houver ministério, não mostra nenhuma igreja superior nem contas
             self.fields['igreja_superior'].queryset = Igreja.objects.none()
             self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.none()
             self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.none()
@@ -140,9 +140,9 @@ class IgrejaForm(forms.ModelForm):
                 # Opcional: self.add_error('igreja_superior', 'Igrejas Sede/Independente não têm Igreja Superior.')
         return cleaned_data
 
-# --- FORMULÁRIO PARA EDITAR DADOS DA ORGANIZAÇÃO (PELO ADMIN DA ORG) ---
-class OrganizacaoEditForm(forms.ModelForm):
-    """ Formulário para o Admin da Org editar dados da própria organização """
+# --- FORMULÁRIO PARA EDITAR DADOS DA MINISTÉRIO (PELO ADMIN DA ORG) ---
+class MinisterioEditForm(forms.ModelForm):
+    """ Formulário para o Admin da Org editar dados da própria ministério """
     # Sobrescrever o campo estado para garantir o widget correto se necessário
     # Embora o modelo já tenha choices, definir explicitamente aqui é seguro
     estado = forms.ChoiceField(
@@ -153,7 +153,7 @@ class OrganizacaoEditForm(forms.ModelForm):
     )
 
     class Meta:
-        model = Organizacao # Mantido
+        model = Ministerio # Corrigido para o nome correto do modelo
         fields = ['logo', 'nome_fantasia', 'razao_social', 'cnpj', 'telefone', 'email', 'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado']
         # Adicionar 'logo' aos fields        
       
@@ -182,10 +182,10 @@ class OrganizacaoEditForm(forms.ModelForm):
 # IgrejaEditForm = IgrejaForm
 #
 # A lógica de filtragem para conta_padrao_receitas e conta_padrao_despesas
-# no __init__ de IgrejaEditForm abaixo foi corrigida para usar igreja__organizacao,
-# pois ContaBancaria não tem um campo 'organizacao' direto nem 'ativa' ou 'nome_conta'.
+# no __init__ de IgrejaEditForm abaixo foi corrigida para usar igreja__ministerio,
+# pois ContaBancaria não tem um campo 'ministerio' direto nem 'ativa' ou 'nome_conta'.
 # Isso fará com que este formulário permita selecionar contas de QUALQUER igreja
-# da mesma organização, diferente do IgrejaForm acima que filtra pela própria igreja.
+# da mesma ministério, diferente do IgrejaForm acima que filtra pela própria igreja.
 class IgrejaEditForm(forms.ModelForm):
      # Definir os campos de logo explicitamente para usar o widget customizado
     logo1 = forms.ImageField(
@@ -212,11 +212,11 @@ class IgrejaEditForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
 
-        if organizacao:
-            qs_igreja_superior = Igreja.objects.filter(organizacao=organizacao)
+        if ministerio:
+            qs_igreja_superior = Igreja.objects.filter(ministerio=ministerio)
             if self.instance and self.instance.pk: # Excluir a própria igreja se estiver editando
               
             
@@ -232,13 +232,13 @@ class IgrejaEditForm(forms.ModelForm):
                 self.fields['igreja_superior'].queryset = qs_igreja_superior
 
             
-            # Filtrar contas padrão para mostrar apenas contas de igrejas da mesma organização
-            # O modelo ContaBancaria tem 'igreja', e Igreja tem 'organizacao'.
+            # Filtrar contas padrão para mostrar apenas contas de igrejas da mesma ministério
+            # O modelo ContaBancaria tem 'igreja', e Igreja tem 'ministerio'.
             # O campo 'nome_identificacao' está em ContaBancaria.
-            self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('nome_identificacao')
-            self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('nome_identificacao')
+            self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('nome_identificacao')
+            self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('nome_identificacao')
         else:
-            # Se não houver organização, esvaziar os querysets ou tratar como erro
+            # Se não houver ministério, esvaziar os querysets ou tratar como erro
             self.fields['igreja_superior'].queryset = Igreja.objects.none()
             self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.none()
             self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.none()

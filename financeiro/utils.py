@@ -22,8 +22,8 @@ def _user_in_group(user, group_name):
     return user.groups.filter(name=group_name).exists()
 
 def is_admin_org(user):
-    """Verifica se o usuário é Admin da Organização."""
-    return _user_in_group(user, 'Admin Organizacao')
+    """Verifica se o usuário é Admin da Ministério."""
+    return _user_in_group(user, 'Admin Ministerio')
 
 def is_tesoureiro(user):
     """Verifica se o usuário é Tesoureiro."""
@@ -48,7 +48,7 @@ def has_finance_edit_permission(user):
 
 
 def is_finance_leader(user):
-    """ Verifica se o usuário é Admin da Organização ou pertence ao grupo 'Lideranca Financeira'. """
+    """ Verifica se o usuário é Admin da Ministério ou pertence ao grupo 'Lideranca Financeira'. """
     if is_admin_org(user):
         return True
     # Verifica se o usuário pertence ao grupo 'Lideranca Financeira'
@@ -60,32 +60,32 @@ def is_finance_leader(user):
 def get_allowed_churches_for_user(user):
     """
     Retorna um QuerySet das Igrejas que o usuário tem permissão para acessar financeiramente.
-    - Admin Org: Todas as igrejas da organização.
+    - Admin Org: Todas as igrejas da ministério.
     - Tesoureiro, Líder: Igrejas associadas no PerfilUsuario.
     - Outros: Nenhuma igreja.
-    - Retorna QuerySet vazio se o usuário não tiver perfil/organização ou permissão de visualização.
+    - Retorna QuerySet vazio se o usuário não tiver perfil/ministério ou permissão de visualização.
     """
-    if not user.is_authenticated or not hasattr(user, 'perfil') or not user.perfil.organizacao:
+    if not user.is_authenticated or not hasattr(user, 'perfil') or not user.perfil.ministerio:
         return Igreja.objects.none() # Retorna queryset vazio por segurança
 
     # Verifica se o usuário tem PELO MENOS permissão de visualização financeira
     if not has_finance_view_permission(user):
         return Igreja.objects.none()
 
-    organizacao = user.perfil.organizacao
+    ministerio = user.perfil.ministerio
 
-    # Se o usuário é Admin da Organização ou Líder Financeiro, expandir permissões
+    # Se o usuário é Admin da Ministério ou Líder Financeiro, expandir permissões
     if is_finance_leader(user):
         # Começa com as igrejas diretamente permitidas no perfil
-        igrejas_base_permitidas = user.perfil.igrejas_permitidas.filter(organizacao=organizacao)
+        igrejas_base_permitidas = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
         
         # Se o usuário não tem nenhuma igreja explicitamente permitida, mas é líder,
         # e é Admin Org, ele vê TUDO. Se for apenas Líder Financeiro sem igrejas permitidas,
         # talvez a regra seja ver apenas as Sede/Regionais? Vamos assumir que Admin Org vê tudo
         # e Líder Financeiro vê as permitidas + subordinadas.
         if is_admin_org(user) and not igrejas_base_permitidas.exists():
-             # Admin Org sem igrejas permitidas explicitamente vê todas da organização
-             return Igreja.objects.filter(organizacao=organizacao)
+             # Admin Org sem igrejas permitidas explicitamente vê todas da ministério
+             return Igreja.objects.filter(ministerio=ministerio)
 
         # Coletar todas as igrejas permitidas, incluindo subordinadas recursivamente
         todas_igrejas_permitidas_ids = set()
@@ -93,8 +93,8 @@ def get_allowed_churches_for_user(user):
         def get_subordinadas_recursivamente(igreja_obj):
             sub_ids = set()
             sub_ids.add(igreja_obj.pk) # Adiciona a própria igreja
-            # Busca subordinadas que pertencem à mesma organização (segurança)
-            for sub_igreja in igreja_obj.igrejas_subordinadas.filter(organizacao=organizacao):
+            # Busca subordinadas que pertencem à mesma ministério (segurança)
+            for sub_igreja in igreja_obj.igrejas_subordinadas.filter(ministerio=ministerio):
                 sub_ids.update(get_subordinadas_recursivamente(sub_igreja))
             return sub_ids
 
@@ -105,18 +105,18 @@ def get_allowed_churches_for_user(user):
              todas_igrejas_permitidas_ids.update(get_subordinadas_recursivamente(igreja_permitida))
              
         if todas_igrejas_permitidas_ids:
-            # Retorna um QuerySet das igrejas coletadas, garantindo que pertencem à organização
-            return Igreja.objects.filter(pk__in=list(todas_igrejas_permitidas_ids), organizacao=organizacao)
+            # Retorna um QuerySet das igrejas coletadas, garantindo que pertencem à ministério
+            return Igreja.objects.filter(pk__in=list(todas_igrejas_permitidas_ids), ministerio=ministerio)
         else:
              # Se o líder não tem nenhuma igreja explicitamente permitida e não é Admin Org,
-             # ou se as igrejas permitidas não existem na organização, retorna vazio.
+             # ou se as igrejas permitidas não existem na ministério, retorna vazio.
              return Igreja.objects.none()
 
     else: # Usuário não é líder financeiro nem Admin Org
         # Para outros papéis, usa apenas as igrejas explicitamente permitidas no perfil
-        # Garante que as igrejas retornadas pertencem à organização do usuário e ao seu perfil.
+        # Garante que as igrejas retornadas pertencem à ministério do usuário e ao seu perfil.
 
-        igrejas_diretamente_permitidas = user.perfil.igrejas_permitidas.filter(organizacao=organizacao)
+        igrejas_diretamente_permitidas = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
         return igrejas_diretamente_permitidas
 
 

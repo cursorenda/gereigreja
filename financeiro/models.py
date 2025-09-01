@@ -1,11 +1,11 @@
 # financeiro/models.py
 from django.db import models
 from django.utils import timezone
-# Importa Membro, que já tem relação com Igreja -> Organizacao
+# Importa Membro, que já tem relação com Igreja -> Ministerio
 from secretaria.models import Membro
 from decimal import Decimal
-# PRECISAMOS importar Igreja e Organizacao para adicionar as FKs
-from configuracao.models import Igreja, Organizacao # <<< ADICIONAR IMPORT
+# PRECISAMOS importar Igreja e Ministerio para adicionar as FKs
+from configuracao.models import Igreja, Ministerio # <<< ADICIONAR IMPORT
 from django.conf import settings
 import logging # Adicione no topo do arquivo se já não estiver
 logger = logging.getLogger(__name__) # Adicione no topo do arquivo
@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__) # Adicione no topo do arquivo
 class CategoriaDespesa(models.Model):
     """
     Modelo para representar uma categoria de Despesa.
-    DECISÃO: Tornar por Organização.
+    DECISÃO: Tornar por Ministério.
     """
-    # --- ADICIONAR FK para Organizacao ---
-    organizacao = models.ForeignKey(
-        Organizacao,
+    # --- ADICIONAR FK para Ministerio ---
+    ministerio = models.ForeignKey(
+        Ministerio,
         on_delete=models.CASCADE, # Se deletar a Org, deleta as categorias dela
         related_name='categorias_despesa',
-        verbose_name="Organização"
+        verbose_name="Ministério"
         # null=False, blank=False por padrão
     )
     # --- FIM ADIÇÃO ---
@@ -35,8 +35,8 @@ class CategoriaDespesa(models.Model):
         # db_table = 'categoria_despesa'
         verbose_name = "Categoria de Despesa"
         verbose_name_plural = "Categorias de Despesas"
-        # Garantir que o nome seja único DENTRO de cada organização
-        unique_together = ('organizacao', 'nome')
+        # Garantir que o nome seja único DENTRO de cada ministério
+        unique_together = ('ministerio', 'nome')
 
 
 class Despesas(models.Model):
@@ -55,7 +55,7 @@ class Despesas(models.Model):
     data = models.DateField(verbose_name="Data")
     descricao = models.CharField(max_length=255, verbose_name="Descrição")
     valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor")
-    # Categoria agora é filtrada por organização na view/form
+    # Categoria agora é filtrada por ministério na view/form
     categoria = models.ForeignKey(CategoriaDespesa, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Categoria")
     observacao = models.TextField(blank=True, null=True, verbose_name="Observação")
     fechado = models.BooleanField(default=False, verbose_name="Fechado")
@@ -104,7 +104,7 @@ class Despesas(models.Model):
             self._original_conta_bancaria_id = self.conta_bancaria_id
 
     def save(self, *args, **kwargs):
-        from django.db import transaction # Import local para melhor organização
+        from django.db import transaction # Import local para melhor ministério
         logger.info(f"Despesa SAVE - Despesa ID: {self.pk}, Valor: {self.valor}, ContaBancaria ID: {self.conta_bancaria_id}")
 
         # 1. Lidar com a conta bancária ANTIGA (se estiver editando e a conta mudou ou foi removida)
@@ -281,7 +281,7 @@ class Receitas(models.Model):
         self._original_conta_bancaria_id_receita = self.conta_bancaria_id
     
     def delete(self, *args, **kwargs):
-        from django.db import transaction # Import local para melhor organização
+        from django.db import transaction # Import local para melhor ministério
         # Se a receita tinha uma conta e valor, reverte o saldo ao excluir
         if self.conta_bancaria and self.valor is not None:
             with transaction.atomic():
@@ -349,7 +349,7 @@ class ContaBancaria(models.Model):
 class FechamentoCaixa(models.Model):
     """
     Modelo para representar um Fechamento de Caixa.
-    PRECISA de link para Igreja ou Organização. Link para Igreja é mais granular.
+    PRECISA de link para Igreja ou Ministério. Link para Igreja é mais granular.
     """
     STATUS_CHOICES = [
         ('aberto', 'Aberto'), # Status inicial ao criar/reabrir
@@ -400,11 +400,11 @@ class FechamentoCaixa(models.Model):
 
 class Fornecedor(models.Model):
     """ Modelo para Fornecedores/Credores """
-    organizacao = models.ForeignKey(
-        Organizacao,
+    ministerio = models.ForeignKey(
+        Ministerio,
         on_delete=models.CASCADE,
         related_name='fornecedores_financeiro', # Usar related_name específico
-        verbose_name="Organização"
+        verbose_name="Ministério"
     )
     nome = models.CharField(max_length=150, verbose_name="Nome/Razão Social")
     cnpj_cpf = models.CharField(max_length=18, blank=True, null=True, verbose_name="CNPJ/CPF")
@@ -418,8 +418,8 @@ class Fornecedor(models.Model):
         verbose_name = "Fornecedor"
         verbose_name_plural = "Fornecedores"
         ordering = ['nome']
-        # Garante nome único por organização
-        unique_together = ('organizacao', 'nome')
+        # Garante nome único por ministério
+        unique_together = ('ministerio', 'nome')
 
     def __str__(self):
         return self.nome
@@ -445,7 +445,7 @@ class ContaPagar(models.Model):
     )
 
     # Ligações principais
-    organizacao = models.ForeignKey(Organizacao, on_delete=models.PROTECT, related_name='contas_a_pagar_financeiro') # related_name específico
+    ministerio = models.ForeignKey(Ministerio, on_delete=models.PROTECT, related_name='contas_a_pagar_financeiro') # related_name específico
     igreja = models.ForeignKey(Igreja, on_delete=models.PROTECT, related_name='contas_a_pagar_financeiro', verbose_name="Igreja Responsável")
     fornecedor = models.ForeignKey(Fornecedor, on_delete=models.PROTECT, related_name='contas_a_pagar', verbose_name="Fornecedor")
     categoria = models.ForeignKey(CategoriaDespesa, on_delete=models.SET_NULL, null=True, blank=True, related_name='contas_a_pagar', verbose_name="Categoria")

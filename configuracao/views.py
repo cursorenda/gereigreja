@@ -10,18 +10,18 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseRedirect
 from django.db.models import Q # Para buscas
 import logging
-from .models import Igreja, Organizacao, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionado Plano e AssinaturaOrganizacao
+from .models import Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionado Plano e AssinaturaMinisterio
 from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
 import django.db.utils # Import django utils
-from .forms import IgrejaForm, OrganizacaoEditForm, IgrejaEditForm # Adicionado IgrejaEditForm
+from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import reverse
 # Ajuste o import de get_allowed_churches_for_user se você a moveu para core.utils
 from financeiro.utils import get_allowed_churches_for_user # Importar para set_active_church
 
-from core.utils import get_organizacao_or_error # Importar de core.utils
+from core.utils import get_ministerio_or_error # Importar de core.utils
 from .models import AtualizacaoSistema
 
 
@@ -47,7 +47,7 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 @login_required
 @verificar_assinatura_valida # Nosso novo decorator
 def minha_view_protegida(request):
-    organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
+    ministerio = get_ministerio_or_error(request) # Ainda chama para obter o ministério e verificar ministerio.ativo
     # ... resto da view ...
 
 
@@ -58,52 +58,52 @@ logger = logging.getLogger(__name__)
 def pode_editar_configuracao_org(user):
     if not user.is_authenticated:
         return False
-    # Exemplo: Admin da Organização ou um grupo específico pode editar
-    return user.groups.filter(name='Admin Organizacao').exists() # ou outra lógica
+    # Exemplo: Admin da Ministério ou um grupo específico pode editar
+    return user.groups.filter(name='Admin Ministerio').exists() # ou outra lógica
 
 
-## A função get_organizacao_or_error foi movida para core.utils.py ##
+## A função get_ministerio_or_error foi movida para core.utils.py ##
 
 
 # --- View Principal de Configuração (Lista Igrejas) ---
 @login_required
 def configuracao_view(request):
     """
-    View principal de configuração. Lista as igrejas da organização do usuário logado.
+    View principal de configuração. Lista as igrejas da ministério do usuário logado.
     """
     try:
         perfil = request.user.perfil
-        organizacao = perfil.organizacao
-        if not organizacao:
-            messages.error(request, "Seu usuário não está associado a nenhuma organização.")
+        ministerio = perfil.ministerio
+        if not ministerio:
+            messages.error(request, "Seu usuário não está associado a nenhuma ministério.")
             # Se for superuser, talvez redirecionar para uma visão geral?
             if request.user.is_superuser:
-                 return redirect('admin:index') # Ex: para o admin do Django
+                return redirect('admin:index') # Ex: para o admin do Django
             return redirect('secretaria:index')
 
-        # Verifica se a organização está ativa (opcional, mas recomendado)
-        if not organizacao.ativo and not request.user.is_superuser:
-             messages.warning(request, f'Sua organização "{organizacao.nome}" ainda não foi aprovada. Algumas funcionalidades podem estar limitadas.')
-             # Você pode decidir se limita o acesso aqui ou apenas mostra a mensagem
+        # Verifica se a ministério está ativa (opcional, mas recomendado)
+        if not ministerio.ativo and not request.user.is_superuser:
+            messages.warning(request, f'Seu ministério "{ministerio.nome}" ainda não foi aprovado. Algumas funcionalidades podem estar limitadas.')
+            # Você pode decidir se limita o acesso aqui ou apenas mostra a mensagem
 
-        igrejas = Igreja.objects.filter(organizacao=organizacao).order_by('tipo_igreja', 'nome_igreja')
+        igrejas = Igreja.objects.filter(ministerio=ministerio).order_by('tipo_igreja', 'nome_igreja')
 
         context = {
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'igrejas': igrejas,
-            'organizacao_ativa': organizacao.ativo # Passa o status para o template
+            'ministerio_ativo': ministerio.ativo # Passa o status para o template
         }
         return render(request, 'configuracao/lista_igrejas.html', context)
 
     except PerfilUsuario.DoesNotExist:
         if request.user.is_superuser:
-             messages.info(request, "Como Superusuário, você não tem uma organização padrão. Use o painel Admin para gerenciar organizações.")
-             return redirect('admin:index') # Redireciona superuser para o admin
+            messages.info(request, "Como Superusuário, você não tem uma ministério padrão. Use o painel Admin para gerenciar organizações.")
+            return redirect('admin:index') # Redireciona superuser para o admin
         else:
-             # Situação inesperada: usuário logado sem perfil.
-             messages.error(request, "Erro crítico: Perfil de usuário não encontrado. Contate o suporte.")
-             # Talvez deslogar o usuário? Ou redirecionar para uma página de erro?
-             return redirect('secretaria:index') # Ou para o login?
+            # Situação inesperada: usuário logado sem perfil.
+            messages.error(request, "Erro crítico: Perfil de usuário não encontrado. Contate o suporte.")
+            # Talvez deslogar o usuário? Ou redirecionar para uma página de erro?
+            return redirect('secretaria:index') # Ou para o login?
 
     except Exception as e:
         messages.error(request, f"Ocorreu um erro inesperado ao carregar as configurações: {e}")
@@ -115,17 +115,17 @@ def configuracao_view(request):
 # --- Views Adicionais (CRUD de Igrejas) ---
 @login_required
 def lista_igrejas(request):
-    """ Lista as igrejas da organização do usuário logado. """
-    organizacao = get_organizacao_or_error(request)
+    """ Lista as igrejas da ministério do usuário logado. """
+    ministerio = get_ministerio_or_error(request)
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Organizacao').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
     
     
-    try: # <<< DESCOMENTADO
-        igrejas_qs = Igreja.objects.filter(organizacao=organizacao).order_by('nome_igreja')
+    try:
+        igrejas_qs = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
 
         # Filtro de busca (opcional)
         query = request.GET.get('q', '')
@@ -138,22 +138,22 @@ def lista_igrejas(request):
 
         context = {
             'igrejas': igrejas_qs,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'current_q': query,
         }
         return render(request, 'configuracao/igrejas/lista_igrejas.html', context)
-    except Exception as e: # <<< DESCOMENTADO
-        logger.exception(f"Erro ao listar igrejas para organização {organizacao.id}") # <<< DESCOMENTADO
-        messages.error(request, f"Ocorreu um erro ao listar as igrejas: {e}") # <<< DESCOMENTADO
-        return redirect('secretaria:dashboard') # <<< DESCOMENTADO
+    except Exception as e:
+        logger.exception(f"Erro ao listar igrejas para ministério {ministerio.id}")
+        messages.error(request, f"Ocorreu um erro ao listar as igrejas: {e}")
+        return redirect('secretaria:dashboard')
 
 
 @login_required
 def adicionar_igreja(request):
-    """ Cria uma nova igreja para a organização do usuário. """
-    organizacao = get_organizacao_or_error(request)
+    """ Cria uma nova igreja para a ministério do usuário. """
+    ministerio = get_ministerio_or_error(request)
     # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Organizacao').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
@@ -163,33 +163,33 @@ def adicionar_igreja(request):
         if form.is_valid():
             try:
                 igreja = form.save(commit=False)
-                igreja.organizacao = organizacao # Associa à organização do usuário
+                igreja.ministerio = ministerio # Associa ao ministério do usuário
                 igreja.save()
                 messages.success(request, f'Igreja "{igreja.nome_igreja}" criada com sucesso!')
                 return redirect('configuracao:lista_igrejas')
             except Exception as e:
                 # Tratar erro de unicidade se houver (ex: CNPJ único)
-                logger.exception(f"Erro ao salvar nova igreja para organização {organizacao.id}")
+                logger.exception(f"Erro ao salvar nova igreja para ministério {ministerio.id}")
                 messages.error(request, f'Erro ao salvar igreja: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         form = IgrejaForm()
 
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Adicionar Nova Igreja'}
+    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Adicionar Nova Igreja'}
     return render(request, 'configuracao/igrejas/form_igreja.html', context)
 
 @login_required
 def editar_igreja(request, pk):
-    """ Edita uma igreja existente da organização do usuário. """
-    organizacao = get_organizacao_or_error(request)
+    """ Edita uma igreja existente da ministério do usuário. """
+    ministerio = get_ministerio_or_error(request)
     # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Organizacao').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
         #   
-    igreja = get_object_or_404(Igreja, pk=pk, organizacao=organizacao)
+    igreja = get_object_or_404(Igreja, pk=pk, ministerio=ministerio)
 
     if request.method == 'POST':
         form = IgrejaForm(request.POST, instance=igreja)
@@ -199,7 +199,7 @@ def editar_igreja(request, pk):
                 messages.success(request, f'Igreja "{igreja.nome_igreja}" atualizada com sucesso!')
                 return redirect('configuracao:lista_igrejas')
             except Exception as e:
-                logger.exception(f"Erro ao editar igreja {pk} para organização {organizacao.id}")
+                logger.exception(f"Erro ao editar igreja {pk} para ministério {ministerio.id}")
                 messages.error(request, f'Erro ao salvar igreja: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
@@ -210,7 +210,7 @@ def editar_igreja(request, pk):
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+    'ministerio': ministerio,
         'titulo_pagina': f'Editar Igreja: {igreja.nome_igreja}',
         'igreja': igreja
     }
@@ -219,13 +219,13 @@ def editar_igreja(request, pk):
 @login_required
 def excluir_igreja(request, pk):
     """ Exclui uma igreja (requer POST e confirmação). """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Organizacao').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
-    igreja = get_object_or_404(Igreja, pk=pk, organizacao=organizacao)
+    igreja = get_object_or_404(Igreja, pk=pk, ministerio=ministerio)
 
     # --- VERIFICAÇÃO IMPORTANTE: Impedir exclusão se tiver dependências ---
     # Verificar se há membros, receitas, despesas, contas a pagar, etc. associados
@@ -244,12 +244,12 @@ def excluir_igreja(request, pk):
             igreja.delete()
             messages.success(request, f'Igreja "{nome_igreja}" excluída com sucesso!')
         except Exception as e:
-            logger.exception(f"Erro ao excluir igreja {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao excluir igreja {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao excluir igreja: {e}')
         return redirect('configuracao:lista_igrejas')
     else:
         # GET: Mostrar página de confirmação
-        context = {'igreja': igreja, 'organizacao': organizacao}
+        context = {'igreja': igreja, 'ministerio': ministerio}
         return render(request, 'configuracao/igrejas/confirmar_excluir_igreja.html', context)
 
 # ==================================================
@@ -260,73 +260,73 @@ def excluir_igreja(request, pk):
 # ... (imports e views existentes) ...
 
 # ====================================================
-# ========= INÍCIO: VIEWS PARA MINHA ORGANIZAÇÃO =========
+# ========= INÍCIO: VIEWS PARA MINHA MINISTÉRIO =========
 # ====================================================
 
 @login_required
-def detalhes_organizacao(request):
-    """ Exibe os detalhes da organização do usuário logado. """
-    # A função get_organizacao_or_error já busca a organização correta
+def detalhes_ministerio(request):
+    """ Exibe os detalhes da ministério do usuário logado. """
+    # A função get_ministerio_or_error já busca a ministério correta
     # e trata os casos de erro (não logado, superuser, sem perfil, sem org)
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     try:
         context = {
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             # Passar outros dados relacionados se necessário
         }
-        return render(request, 'configuracao/organizacao/detalhes_organizacao.html', context)
+        return render(request, 'configuracao/ministerio/detalhes_ministerio.html', context)
     except Exception as e:
         # Captura erro inesperado ao renderizar (menos provável aqui)
-        logger.exception(f"Erro ao exibir detalhes da organização {organizacao.id}")
-        messages.error(request, f"Ocorreu um erro ao carregar os detalhes da organização: {e}")
+        logger.exception(f"Erro ao exibir detalhes da ministério {ministerio.id}")
+        messages.error(request, f"Ocorreu um erro ao carregar os detalhes da ministério: {e}")
         return redirect('secretaria:dashboard') # Redireciona para o dashboard principal
 
 # View para editar (a implementar depois)
 # @login_required
 # --- NOVA VIEW ---
 @login_required
-def editar_organizacao(request):
-    """ Permite ao Admin da Org editar os dados da sua própria organização. """
-    organizacao = get_organizacao_or_error(request) # Pega a organização do usuário
+def editar_ministerio(request):
+    """ Permite ao Admin da Org editar os dados da sua própria ministério. """
+    ministerio = get_ministerio_or_error(request) # Pega a ministério do usuário
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Organizacao').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
     if request.method == 'POST':
     # print(request.FILES) # Removido para produção
         # Passa a instância para editar o objeto correto
-        form = OrganizacaoEditForm(request.POST, request.FILES, instance=organizacao)
+        form = MinisterioEditForm(request.POST, request.FILES, instance=ministerio)
         if form.is_valid():
             try:
                 form.save()
-                messages.success(request, 'Dados da organização atualizados com sucesso!')
+                messages.success(request, 'Dados da ministério atualizados com sucesso!')
                 # Redireciona de volta para a página de detalhes
-                return redirect('configuracao:detalhes_organizacao')
+                return redirect('configuracao:detalhes_ministerio')
             except Exception as e:
-                logger.exception(f"Erro ao salvar organização {organizacao.id}")
-                messages.error(request, f'Erro ao salvar dados da organização: {e}')
+                logger.exception(f"Erro ao salvar ministério {ministerio.id}")
+                messages.error(request, f'Erro ao salvar dados da ministério: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         # GET: Exibe o formulário preenchido com os dados atuais
-        form = OrganizacaoEditForm(instance=organizacao)
+        form = MinisterioEditForm(instance=ministerio)
 
     context = {
         'form': form,
-        'organizacao': organizacao,
-        'titulo_pagina': f'Editar Organização: {organizacao.nome_fantasia}'
+        'ministerio': ministerio,
+        'titulo_pagina': f'Editar Ministério: {ministerio.nome_fantasia}'
     }
     # Criaremos um novo template para este formulário
-    return render(request, 'configuracao/organizacao/form_organizacao.html', context)
+    return render(request, 'configuracao/ministerio/form_ministerio.html', context)
 # --- FIM NOVA VIEW ---
 
-#     organizacao = get_organizacao_or_error(request)
-#     # ... lógica GET/POST com OrganizacaoEditForm ...
+#     ministerio = get_ministerio_or_error(request)
+#     # ... lógica GET/POST com MinisterioEditForm ...
 #     pass
 
 # ==================================================
-# ========= FIM: VIEWS PARA MINHA ORGANIZAÇÃO =========
+# ========= FIM: VIEWS PARA MINHA MINISTÉRIO =========
 # ==================================================
 
 
@@ -335,12 +335,12 @@ def editar_organizacao(request):
 @login_required
 @user_passes_test(pode_editar_configuracao_org) # Proteja a view
 def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito com outras views editar_igreja
-    organizacao = get_organizacao_or_error(request) # Usar a função auxiliar
-    # Garante que a igreja a ser editada pertence à organização do usuário
-    igreja = get_object_or_404(Igreja, pk=igreja_id, organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request) # Usar a função auxiliar
+    # Garante que a igreja a ser editada pertence à ministério do usuário
+    igreja = get_object_or_404(Igreja, pk=igreja_id, ministerio=ministerio)
 
     if request.method == 'POST':
-        form = IgrejaEditForm(request.POST, request.FILES, instance=igreja, organizacao=organizacao)
+        form = IgrejaEditForm(request.POST, request.FILES, instance=igreja, ministerio=ministerio)
         if form.is_valid():
             form.save()
             messages.success(request, f"Dados da igreja '{igreja.nome_igreja}' atualizados com sucesso!")
@@ -350,7 +350,7 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
             # print("ERROS NO FORMULÁRIO IgrejaEditForm:", form.errors.as_json()) # Removido para produção
 
     else:
-        form = IgrejaEditForm(instance=igreja, organizacao=organizacao)
+        form = IgrejaEditForm(instance=igreja, ministerio=ministerio)
 
     context = {
         'form': form,
@@ -369,7 +369,7 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
 @login_required
 @user_passes_test(pode_editar_configuracao_org) # Use a permissão apropriada
 def adicionar_igreja(request):
-    organizacao = get_organizacao_or_error(request) # Usar a função auxiliar
+    ministerio = get_ministerio_or_error(request) # Usar a função auxiliar
 
     if request.method == 'POST':
         # Se você usar IgrejaEditForm, ele tentará pegar uma 'instance'.
@@ -377,23 +377,23 @@ def adicionar_igreja(request):
         # Você pode criar um IgrejaCreateForm que não exija 'instance'
         # ou adaptar o IgrejaEditForm para lidar com criação.
         # Por simplicidade, vamos assumir que IgrejaEditForm pode ser usado para criar se instance=None
-        form = IgrejaForm(request.POST, request.FILES, organizacao=organizacao) # Usando IgrejaForm para criação
+        form = IgrejaForm(request.POST, request.FILES, ministerio=ministerio) # Usando IgrejaForm para criação
         if form.is_valid():
             nova_igreja = form.save(commit=False)
-            nova_igreja.organizacao = organizacao # Garante que a organização está definida
+            nova_igreja.ministerio = ministerio # Garante que a ministério está definida
             nova_igreja.save()
             messages.success(request, f"Igreja '{nova_igreja.nome_igreja}' adicionada com sucesso!")
             return redirect('configuracao:lista_igrejas')
         else:
             messages.error(request, "Erro ao adicionar igreja. Verifique os campos.")
     else:
-        form = IgrejaEditForm(organizacao=organizacao) # Formulário vazio para criação
+        form = IgrejaEditForm(ministerio=ministerio) # Formulário vazio para criação
 
 
     context = { # Corrigido: 'form' deve ser o objeto do formulário
         'form': form, # Corrigido
         'titulo_pagina': "Adicionar Nova Igreja",
-        'organizacao': organizacao # Adicionado para o template ter acesso
+        'ministerio': ministerio # Adicionado para o template ter acesso
     }
    
     # Você precisará de um template para adicionar igreja, ex: 'configuracao/igreja/adicionar_igreja.html'
@@ -404,41 +404,41 @@ def adicionar_igreja(request):
 @login_required
 def gerenciar_assinatura(request):
     """
-    Permite ao administrador da organização visualizar os planos disponíveis,
+    Permite ao administrador da ministério visualizar os planos disponíveis,
     ver sua assinatura atual e escolher/alterar um plano.
     """
-    # organizacao = get_organizacao_or_error(request) # REMOVER ESTA LINHA
+    # ministerio = get_ministerio_or_error(request) # REMOVER ESTA LINHA
 
-    # Obter a organização diretamente do perfil do usuário,
-    # permitindo acesso mesmo que a organização esteja inativa.
-    organizacao = None
-    if hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.organizacao:
-        organizacao = request.user.perfil.organizacao
+    # Obter a ministério diretamente do perfil do usuário,
+    # permitindo acesso mesmo que a ministério esteja inativa.
+    ministerio = None
+    if hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.ministerio:
+        ministerio = request.user.perfil.ministerio
     else:
         # Este caso não deveria ocorrer para um usuário logado com perfil,
         # mas é uma segurança.
-        messages.error(request, "Não foi possível identificar sua organização. Por favor, contate o suporte.")
+        messages.error(request, "Não foi possível identificar sua ministério. Por favor, contate o suporte.")
         return redirect('login') # Redireciona para login ou página de erro
 
-    # Se a organização existe, mas não está ativa, exibe uma mensagem de aviso, mas continua
-    if not organizacao.ativo:
-        messages.warning(request, f"Sua organização '{organizacao.nome_fantasia}' ainda não está ativa. Você pode configurar sua assinatura enquanto aguarda a aprovação do sistema.")
+    # Se a ministério existe, mas não está ativa, exibe uma mensagem de aviso, mas continua
+    if not ministerio.ativo:
+        messages.warning(request, f"Sua ministério '{ministerio.nome_fantasia}' ainda não está ativa. Você pode configurar sua assinatura enquanto aguarda a aprovação do sistema.")
     assinatura_atual = None
     try:
-        assinatura_atual = organizacao.assinatura # Usando o related_name='assinatura'
-    except AssinaturaOrganizacao.DoesNotExist:
-        # Se não existe, pode ser uma organização nova que não passou pela lógica de atribuição
+        assinatura_atual = ministerio.assinatura # Usando o related_name='assinatura'
+    except AssinaturaMinisterio.DoesNotExist:
+        # Se não existe, pode ser uma ministério nova que não passou pela lógica de atribuição
         # ou uma que ainda não escolheu um plano.
         pass
     except AttributeError: # Caso o related_name 'assinatura' não exista por algum motivo
-        logger.warning(f"Organização {organizacao.id} não possui o atributo 'assinatura'. Verifique o related_name no modelo AssinaturaOrganizacao.")
+        logger.warning(f"Ministério {ministerio.id} não possui o atributo 'assinatura'. Verifique o related_name no modelo AssinaturaMinisterio.")
 
      # Tenta criar assinatura gratuita se elegível e não tiver nenhuma, e o plano gratuito estiver ativo
-    if not assinatura_atual and organizacao.verificar_elegibilidade_plano_gratuito():
+    if not assinatura_atual and ministerio.verificar_elegibilidade_plano_gratuito():
         try:
             plano_gratuito = Plano.objects.get(nome='gratuito', ativo=True) # Verifica se o plano gratuito está ativo
-            assinatura_atual, criada = AssinaturaOrganizacao.objects.get_or_create(
-                organizacao=organizacao,
+            assinatura_atual, criada = AssinaturaMinisterio.objects.get_or_create(
+                ministerio=ministerio,
                 defaults={
                     'plano': plano_gratuito,
                     'data_inicio': timezone.now(),
@@ -450,7 +450,7 @@ def gerenciar_assinatura(request):
         except Plano.DoesNotExist:
             logger.warning("Plano 'gratuito' ativo não encontrado para atribuição automática.")
 
-    # Planos ativos, excluindo o "gratuito" se a organização não for elegível ou se já tiver um plano pago
+    # Planos ativos, excluindo o "gratuito" se a ministério não for elegível ou se já tiver um plano pago
     planos_disponiveis = Plano.objects.filter(is_visible=True, ativo=True).order_by('preco_mensal')
     mostrar_opcao_cortesia = False
 
@@ -502,9 +502,9 @@ def gerenciar_assinatura(request):
                 mode='subscription',
                 success_url=request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=success',
                 cancel_url=request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=cancelled',
-                # Passa metadados para identificar o usuário e a organização no webhook
+                # Passa metadados para identificar o usuário e a ministério no webhook
                 metadata={
-                    'organizacao_id': organizacao.id,
+                    'ministerio_id': ministerio.id,
                     'user_id': request.user.id,
                     'plano_id': plano_escolhido.id,
                     'ciclo_pagamento': ciclo_pagamento_selecionado,
@@ -518,7 +518,7 @@ def gerenciar_assinatura(request):
         except Plano.DoesNotExist:
             messages.error(request, "O plano selecionado não é válido ou não está mais disponível.")
         except Exception as e:
-            logger.error(f"Erro ao processar escolha de plano para organização {organizacao.id}: {e}")
+            logger.error(f"Erro ao processar escolha de plano para ministério {ministerio.id}: {e}")
             messages.error(request, "Ocorreu um erro ao processar sua solicitação. Tente novamente.")
         return redirect('configuracao:gerenciar_assinatura')
     
@@ -548,7 +548,7 @@ def gerenciar_assinatura(request):
     # --- FIM NOVA LÓGICA ---
 
     context = {
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'assinatura_atual': assinatura_atual,
         'planos_disponiveis': planos_disponiveis,
         'titulo_pagina': "Gerenciar Assinatura",
@@ -610,12 +610,12 @@ def lista_atualizacoes_sistema(request):
     """
     Exibe uma lista de todas as atualizações do sistema que foram publicadas.
     """
-    # Apenas para garantir que o usuário está em uma organização válida,
+    # Apenas para garantir que o usuário está em uma ministério válida,
     # embora as atualizações sejam globais para o sistema.
     try:
-        get_organizacao_or_error(request) # Valida a organização do usuário
-    except Exception: # Se get_organizacao_or_error levantar PermissionDenied ou Http404
-        # Você pode decidir se quer permitir acesso mesmo sem organização
+        get_ministerio_or_error(request) # Valida a ministério do usuário
+    except Exception: # Se get_ministerio_or_error levantar PermissionDenied ou Http404
+        # Você pode decidir se quer permitir acesso mesmo sem ministério
         # ou redirecionar para o login/página de erro.
         # Por enquanto, vamos permitir, pois as atualizações são do sistema.
         pass
@@ -641,8 +641,8 @@ def meu_perfil(request):
     try:
         perfil_usuario = request.user.perfil
         logger.info(f"Perfil encontrado para o usuário: {perfil_usuario.id}")
-        organizacao = perfil_usuario.organizacao
-        logger.info(f"Organização associada ao perfil: {organizacao.nome_fantasia} (ID: {organizacao.id})")
+        ministerio = perfil_usuario.ministerio
+        logger.info(f"Ministério associada ao perfil: {ministerio.nome_fantasia} (ID: {ministerio.id})")
 
     except PerfilUsuario.DoesNotExist:
         # Caso o perfil não exista por algum motivo (improvável se o sistema estiver consistente)
@@ -658,13 +658,13 @@ def meu_perfil(request):
 
     logger.debug(f"Usuário: {request.user}")
     logger.debug(f"PerfilUsuario: {perfil_usuario}")
-    logger.debug(f"Organização: {perfil_usuario.organizacao if perfil_usuario else None}")
+    logger.debug(f"Ministério: {perfil_usuario.ministerio if perfil_usuario else None}")
 
     context = {
         'perfil_usuario': perfil_usuario,
         'usuario': request.user,
         'titulo_pagina': "Meu Perfil",
-        'organizacao': perfil_usuario.organizacao # Adiciona a organização ao contexto
+        'ministerio': perfil_usuario.ministerio # Adiciona a ministério ao contexto
 
     }
     return render(request, 'configuracao/perfil/meu_perfil.html', context) # Crie este template
@@ -692,11 +692,11 @@ def editar_meu_perfil(request):
        
         logger.debug(f"Usuário: {request.user}")
         logger.debug(f"PerfilUsuario: {perfil_usuario}")
-        logger.debug(f"Organização: {perfil_usuario.organizacao if perfil_usuario else None}")
+        logger.debug(f"Ministério: {perfil_usuario.ministerio if perfil_usuario else None}")
 
         logger.debug(f"Usuário: {request.user}, PerfilUsuario: {perfil_usuario}")
         if perfil_usuario:
-            logger.debug(f"Organização: {perfil_usuario.organizacao}")
+            logger.debug(f"Ministério: {perfil_usuario.ministerio}")
         else:
             logger.warning("PerfilUsuario não encontrado.")
         if user_form.is_valid() and perfil_form.is_valid():
@@ -746,7 +746,7 @@ def editar_meu_perfil(request):
         'usuario': user,
         'perfil_usuario': perfil_usuario,
 
-        'organizacao': perfil_usuario.organizacao # Adiciona a organização ao contexto
+        'ministerio': perfil_usuario.ministerio # Adiciona a ministério ao contexto
     }
     return render(request, 'configuracao/perfil/editar_meu_perfil.html', context) # Crie este template
 # --- FIM NOVA VIEW ---
@@ -774,24 +774,24 @@ def stripe_webhook(request):
         
         # Obter os metadados que enviamos
         metadata = session.get('metadata', {})
-        organizacao_id = metadata.get('organizacao_id')
+        ministerio_id = metadata.get('ministerio_id')
         plano_id = metadata.get('plano_id')
         ciclo_pagamento = metadata.get('ciclo_pagamento')
         stripe_customer_id = session.get('customer')
         stripe_subscription_id = session.get('subscription')
 
-        if not all([organizacao_id, plano_id, ciclo_pagamento]):
+        if not all([ministerio_id, plano_id, ciclo_pagamento]):
             logger.error(f"Webhook do Stripe com metadados faltando: {session.id}")
             return HttpResponse(status=400)
 
         try:
             with transaction.atomic():
-                organizacao = Organizacao.objects.get(id=organizacao_id)
+                ministerio = Ministerio.objects.get(id=ministerio_id)
                 plano_escolhido = Plano.objects.get(id=plano_id)
 
-                # Atualiza a organização com os IDs do Stripe para gerenciamento futuro
-                organizacao.stripe_customer_id = stripe_customer_id
-                organizacao.save()
+                # Atualiza a ministério com os IDs do Stripe para gerenciamento futuro
+                ministerio.stripe_customer_id = stripe_customer_id
+                ministerio.save()
 
                 # Calcula a data de fim da assinatura
                 data_inicio = timezone.now()
@@ -801,8 +801,8 @@ def stripe_webhook(request):
                     data_fim = data_inicio + timedelta(days=30)
 
                 # Atualiza ou cria a assinatura
-                assinatura, created = AssinaturaOrganizacao.objects.update_or_create(
-                    organizacao=organizacao,
+                assinatura, created = AssinaturaMinisterio.objects.update_or_create(
+                    ministerio=ministerio,
                     defaults={
                         'plano': plano_escolhido,
                         'data_inicio': data_inicio,
@@ -813,10 +813,10 @@ def stripe_webhook(request):
                         'id_transacao_gateway': stripe_subscription_id,
                     }
                 )
-                logger.info(f"Assinatura para a organização '{organizacao.nome_fantasia}' foi ativada/atualizada via webhook do Stripe.")
+                logger.info(f"Assinatura para a ministério '{ministerio.nome_fantasia}' foi ativada/atualizada via webhook do Stripe.")
 
-        except (Organizacao.DoesNotExist, Plano.DoesNotExist) as e:
-            logger.error(f"Erro no webhook do Stripe: Organização ou Plano não encontrado. Detalhes: {e}")
+        except (Ministerio.DoesNotExist, Plano.DoesNotExist) as e:
+            logger.error(f"Erro no webhook do Stripe: Ministério ou Plano não encontrado. Detalhes: {e}")
             return HttpResponse(status=404)
         except Exception as e:
             logger.error(f"Erro crítico ao processar webhook do Stripe: {e}")
@@ -836,7 +836,7 @@ def validar_imagens_perfil(request):
             status = '✅ OK'
             resultados.append({
                 'usuario': perfil.user.get_full_name() or perfil.user.username,
-                'organizacao': perfil.organizacao.nome_fantasia if perfil.organizacao else '',
+                'ministerio': perfil.ministerio.nome_fantasia if perfil.ministerio else '',
                 'imagem': perfil.foto_perfil,
                 'status': status
             })

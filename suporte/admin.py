@@ -20,15 +20,15 @@ class TicketAdmin(admin.ModelAdmin):
     """
     Configuração do Admin para o modelo Ticket.
     """
-    list_display = ('id', 'assunto', 'organizacao', 'user', 'area', 'status', 'data_criacao', 'data_atualizacao')
-    list_filter = ('status', 'area', 'organizacao')
-    search_fields = ('assunto', 'mensagem', 'user__username', 'organizacao__nome_fantasia')
+    list_display = ('id', 'assunto', 'ministerio', 'user', 'area', 'status', 'data_criacao', 'data_atualizacao')
+    list_filter = ('status', 'area', 'ministerio')
+    search_fields = ('assunto', 'mensagem', 'user__username', 'ministerio__nome_fantasia')
     list_editable = ('status',) # Permite editar o status diretamente na lista!
-    readonly_fields = ('user', 'organizacao', 'data_criacao', 'data_atualizacao')
+    readonly_fields = ('user', 'ministerio', 'data_criacao', 'data_atualizacao')
     
     fieldsets = (
         ('Informações do Ticket', {
-            'fields': ('assunto', 'area', 'status', ('user', 'organizacao'))
+            'fields': ('assunto', 'area', 'status', ('user', 'ministerio'))
         }),
         ('Mensagem Original', {
             'fields': ('mensagem',),

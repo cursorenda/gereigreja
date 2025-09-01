@@ -4,18 +4,18 @@ from django.db import models  # Adicione esta linha
 # Importar os nomes corretos dos modelos
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Organizacao, Igreja, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionar Plano e AssinaturaOrganizacao
+from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionar Plano e AssinaturaMinisterio
 from .models import AtualizacaoSistema
 from django.shortcuts import render
 from django.urls import path, reverse
 import boto3
 from . import views
-from .models import PerfilUsuario, Organizacao  # ...seus outros modelos
+from .models import PerfilUsuario, Ministerio  # ...seus outros modelos
 import os  # Adicione esta linha no topo
 
-# --- Admin para Organização ---
-@admin.register(Organizacao)
-class OrganizacaoAdmin(admin.ModelAdmin):
+# --- Admin para Ministério ---
+@admin.register(Ministerio)
+class MinisterioAdmin(admin.ModelAdmin):
     # --- CORREÇÃO AQUI ---
     # Substituir 'nome' por 'nome_fantasia' e/ou 'razao_social'
     list_display = ('nome_fantasia', 'razao_social', 'cnpj', 'ativo', 'administrador_principal')
@@ -37,7 +37,7 @@ class OrganizacaoAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Endereço', {
-            # Adicionar 'estado' aqui APENAS se você o adicionou ao modelo Organizacao
+            # Adicionar 'estado' aqui APENAS se você o adicionou ao modelo Ministerio
             'fields': ('cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado'),
             'classes': ('collapse',)
         }),
@@ -49,58 +49,58 @@ class OrganizacaoAdmin(admin.ModelAdmin):
 class PerfilUsuarioInline(admin.StackedInline): # Ou admin.TabularInline
     model = PerfilUsuario
     can_delete = False # Não permitir deletar perfil a partir do User
-    verbose_name_plural = 'Perfil e Organização'
+    verbose_name_plural = 'Perfil e Ministério'
     fk_name = 'user'
     # Campos a exibir no inline
-    fields = ('organizacao', 'telefone_contato', 'whatsapp_contato', 'foto_perfil', 'igrejas_permitidas') # Adicionando os novos campos
+    fields = ('ministerio', 'telefone_contato', 'whatsapp_contato', 'foto_perfil', 'igrejas_permitidas') # Adicionando os novos campos
     # Usar filter_horizontal para ManyToManyField fica melhor
     filter_horizontal = ('igrejas_permitidas',)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        # Filtrar organização no dropdown (opcional, mas útil)
-        # if db_field.name == "organizacao":
-        #     kwargs["queryset"] = Organizacao.objects.order_by('nome_fantasia')
-        # Se quiser raw_id_fields para organização no inline:
+        # Filtrar ministério no dropdown (opcional, mas útil)
+        # if db_field.name == "ministerio":
+        #     kwargs["queryset"] = Ministerio.objects.order_by('nome_fantasia')
+        # Se quiser raw_id_fields para ministério no inline:
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
-         # Filtrar igrejas permitidas para mostrar apenas as da organização selecionada
+         # Filtrar igrejas permitidas para mostrar apenas as da ministério selecionada
          # Isso requer um pouco de Javascript no admin ou uma abordagem mais complexa.
          # Por enquanto, mostra todas as igrejas. O admin precisa ter cuidado.
          if db_field.name == "igrejas_permitidas":
-             kwargs["queryset"] = Igreja.objects.order_by('organizacao__nome_fantasia', 'nome_igreja')
+             kwargs["queryset"] = Igreja.objects.order_by('ministerio__nome_fantasia', 'nome_igreja')
          return super().formfield_for_manytomany(db_field, request, **kwargs)
-         raw_id_fields = ('organizacao',) # Adicionado para consistência
+         raw_id_fields = ('ministerio',) # Adicionado para consistência
 
 
 # Define um novo User admin que inclui o PerfilUsuario inline
 class UserAdmin(BaseUserAdmin):
     inlines = (PerfilUsuarioInline,)
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_organizacao') # Adicionar coluna organização
-    list_select_related = ('perfil', 'perfil__organizacao') # Otimizar query
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_ministerio') # Adicionar coluna ministério
+    list_select_related = ('perfil', 'perfil__ministerio') # Otimizar query
 
-    @admin.display(description='Organização', ordering='perfil__organizacao__nome_fantasia')
-    def get_organizacao(self, instance):
-        if hasattr(instance, 'perfil') and instance.perfil.organizacao:
-            return instance.perfil.organizacao.nome_fantasia
+    @admin.display(description='Ministério', ordering='perfil__ministerio__nome_fantasia')
+    def get_ministerio(self, instance):
+        if hasattr(instance, 'perfil') and instance.perfil.ministerio:
+            return instance.perfil.ministerio.nome_fantasia
         return None
 
 @admin.register(PerfilUsuario)
 class PerfilUsuarioAdmin(admin.ModelAdmin):
-    list_display = ('user_display_name', 'organizacao_nome', 'telefone_contato', 'whatsapp_contato')
-    list_filter = ('organizacao__nome_fantasia',)
-    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'user__email', 'organizacao__nome_fantasia')
-    raw_id_fields = ('user', 'organizacao')
+    list_display = ('user_display_name', 'ministerio_nome', 'telefone_contato', 'whatsapp_contato')
+    list_filter = ('ministerio__nome_fantasia',)
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'user__email', 'ministerio__nome_fantasia')
+    raw_id_fields = ('user', 'ministerio')
     filter_horizontal = ('igrejas_permitidas',)
 
     def user_display_name(self, obj):
         return obj.user.get_full_name() or obj.user.username
     user_display_name.short_description = "Usuário"
 
-    def organizacao_nome(self, obj):
-        return obj.organizacao.nome_fantasia
-    organizacao_nome.short_description = "Organização"
+    def ministerio_nome(self, obj):
+        return obj.ministerio.nome_fantasia
+    ministerio_nome.short_description = "Ministério"
 
 
 # --- Admin para Igreja (Atualizado e CORRIGIDO) ---
@@ -109,37 +109,37 @@ class PerfilUsuarioAdmin(admin.ModelAdmin):
 @admin.register(Igreja)
 class IgrejaAdmin(admin.ModelAdmin):
     # Verificar se 'responsavel' existe ou se é 'pastor_local' no seu modelo Igreja
-    list_display = ('nome_igreja', 'organizacao', 'cidade', 'estado', 'pastor_local') # Ajustado para 'pastor_local' (verifique seu modelo)
-    list_filter = ('organizacao', 'estado', 'cidade')
+    list_display = ('nome_igreja', 'ministerio', 'cidade', 'estado', 'pastor_local') # Ajustado para 'pastor_local' (verifique seu modelo)
+    list_filter = ('ministerio', 'estado', 'cidade')
     search_fields = ('nome_igreja', 'pastor_local', 'cidade') # Ajustado para 'pastor_local'
-    list_select_related = ('organizacao',)
+    list_select_related = ('ministerio',)
 
 
     # Método para controlar campos readonly (correto como estava)
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return ('organizacao',)
+            return ('ministerio',)
         else:
             return ()
 
     # Método para filtrar 'igreja_superior' (correto como estava)
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "igreja_superior":
-            organizacao_id = request.POST.get('organizacao')
+            ministerio_id = request.POST.get('ministerio')
             obj_id = request.resolver_match.kwargs.get('object_id')
 
             if obj_id: # Editando
                 try:
                     igreja_atual = self.get_object(request, obj_id)
-                    if igreja_atual and igreja_atual.organizacao:
-                        kwargs["queryset"] = Igreja.objects.filter(organizacao=igreja_atual.organizacao).exclude(pk=obj_id)
+                    if igreja_atual and igreja_atual.ministerio:
+                        kwargs["queryset"] = Igreja.objects.filter(ministerio=igreja_atual.ministerio).exclude(pk=obj_id)
                     else:
                          kwargs["queryset"] = Igreja.objects.none()
                 except Igreja.DoesNotExist:
                      kwargs["queryset"] = Igreja.objects.none()
-            elif organizacao_id: # Adicionando (tentativa de pegar do POST)
-                 kwargs["queryset"] = Igreja.objects.filter(organizacao_id=organizacao_id)
-            else: # Adicionando, sem organização selecionada ainda
+            elif ministerio_id: # Adicionando (tentativa de pegar do POST)
+                 kwargs["queryset"] = Igreja.objects.filter(ministerio_id=ministerio_id)
+            else: # Adicionando, sem ministério selecionada ainda
                 kwargs["queryset"] = Igreja.objects.none()
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -157,16 +157,16 @@ class PlanoAdmin(admin.ModelAdmin):
         ('Limites e Recursos', {'fields': ('limite_membros', 'limite_igrejas', 'permite_modulo_comunicacao', 'suporte_prioritario')}),
         ('Integração (Stripe)', {'fields': ('stripe_price_id_mensal', 'stripe_price_id_anual'), 'classes': ('collapse',)}),
     )
-@admin.register(AssinaturaOrganizacao)
-class AssinaturaOrganizacaoAdmin(admin.ModelAdmin):
-    list_display = ('organizacao', 'plano', 'status', 'ciclo_pagamento', 'data_inicio', 'data_fim')
+@admin.register(AssinaturaMinisterio)
+class AssinaturaMinisterioAdmin(admin.ModelAdmin):
+    list_display = ('ministerio', 'plano', 'status', 'ciclo_pagamento', 'data_inicio', 'data_fim')
     list_filter = ('status', 'plano', 'data_inicio', 'data_fim')
-    search_fields = ('organizacao__nome_fantasia', 'plano__nome', 'id_transacao_gateway')
-    autocomplete_fields = ['organizacao', 'plano']
+    search_fields = ('ministerio__nome_fantasia', 'plano__nome', 'id_transacao_gateway')
+    autocomplete_fields = ['ministerio', 'plano']
     readonly_fields = ('data_criacao', 'data_atualizacao')
     fieldsets = (
         (None, {
-            'fields': ('organizacao', 'plano', 'status', 'ciclo_pagamento')
+            'fields': ('ministerio', 'plano', 'status', 'ciclo_pagamento')
         }),
         ('Período da Assinatura', {
             'fields': ('data_inicio', 'data_fim')
@@ -230,7 +230,7 @@ class ValidacaoImagensAdmin(admin.ModelAdmin):
                 pass
             resultados.append({
                 'usuario': perfil.user.get_full_name() or perfil.user.username,
-                'organizacao': perfil.organizacao.nome_fantasia,
+                'ministerio': perfil.ministerio.nome_fantasia,
                 'imagem': perfil.foto_perfil,
                 'status': status
             })

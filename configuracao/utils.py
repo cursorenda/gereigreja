@@ -3,14 +3,14 @@ from django.contrib.auth.models import Group
 
 def pode_editar_configuracao_org(user):
     """
-    Verifica se o usuário tem permissão para editar configurações da organização.
-    Exemplo: Ser do grupo 'Admin Organizacao'.
+    Verifica se o usuário tem permissão para editar configurações da ministério.
+    Exemplo: Ser do grupo 'Admin Ministerio'.
     """
     if not user.is_authenticated:
         return False
-    # Verifica se o usuário pertence ao grupo 'Admin Organizacao'
+    # Verifica se o usuário pertence ao grupo 'Admin Ministerio'
     # Você pode adicionar outras lógicas de permissão aqui, se necessário
     # Por exemplo, verificar se é superusuário ou tem uma permissão específica.
-    return user.groups.filter(name='Admin Organizacao').exists()
+    return user.groups.filter(name='Admin Ministerio').exists()
 
 # Você pode adicionar outras funções de utilidade específicas do app configuracao aqui.

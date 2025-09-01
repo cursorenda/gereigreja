@@ -7,17 +7,17 @@ class ConviteAdmin(admin.ModelAdmin):
     """ Configuração do Admin para o modelo Convite """
     list_display = (
         'email_convidado',
-        'organizacao',
+        'ministerio',
         'status',
         'remetente',
         'data_criacao',
         'data_aceite',
         'token' # Mostrar o token pode ser útil para debug
     )
-    list_filter = ('status', 'organizacao', 'data_criacao')
+    list_filter = ('status', 'ministerio', 'data_criacao')
     search_fields = (
         'email_convidado',
-        'organizacao__nome_fantasia',
+        'ministerio__nome_fantasia',
         'remetente__username',
         'remetente__email'
     )
@@ -26,8 +26,8 @@ class ConviteAdmin(admin.ModelAdmin):
     # Ordenação padrão
     ordering = ('-data_criacao',)
 
-    # Opcional: Filtrar organização por autocomplete se houver muitas
-    # autocomplete_fields = ['organizacao', 'remetente']
+    # Opcional: Filtrar ministério por autocomplete se houver muitas
+    # autocomplete_fields = ['ministerio', 'remetente']
 
     # Opcional: Ações administrativas (ex: marcar como expirado)
     # actions = [...]

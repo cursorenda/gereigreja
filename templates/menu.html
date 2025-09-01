@@ -7,7 +7,7 @@
         <div class="sb-sidenav-menu-heading">Principal</div>
     <!-- Dashboard removido para evitar duplicidade -->
 
-        {# Link Principal - Varia conforme o status do usuário/organização #}
+        {# Link Principal - Varia conforme o status do usuário/ministério #}
         {% if request.user.is_authenticated %}
             {% if request.user.is_superuser %}
                 {# Superusuário - link para o painel de administração #}
@@ -15,14 +15,14 @@
                     <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
                     Admin
                 </a>
-            {% elif request.user.perfil and request.user.perfil.organizacao and not request.user.perfil.organizacao.ativo %}
-                {# Usuário com organização INATIVA - link para página de aguardando aprovação #}
+            {% elif request.user.perfil and request.user.perfil.ministerio and not request.user.perfil.ministerio.ativo %}
+                {# Usuário com ministério INATIVA - link para página de aguardando aprovação #}
                 <a class="nav-link" href="{% url 'contas:aguardando_aprovacao' %}">
                     <div class="sb-nav-link-icon"><i class="fas fa-hourglass-half"></i></div>
                     Aguardando Aprovação
                 </a>
             {% else %}
-                {# Usuário com organização ATIVA (ou sem perfil/org, que será tratado pela view) #}
+                {# Usuário com ministério ATIVA (ou sem perfil/org, que será tratado pela view) #}
                 <a class="nav-link" href="{% url 'secretaria:index' %}">
                     <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
                     Home
@@ -31,8 +31,8 @@
         {% endif %}
 
 
-        {# Menu Completo - Exibido apenas se o usuário tiver uma organização ATIVA #}
-        {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.organizacao and request.user.perfil.organizacao.ativo %}
+        {# Menu Completo - Exibido apenas se o usuário tiver uma ministério ATIVA #}
+        {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
             <a class="nav-link" href="{% url 'secretaria:dashboard' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 Dashboard
@@ -140,7 +140,7 @@
             {% endif %}
             {# --- FIM NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}
   
-        {% endif %} {# Fim do bloco de menu completo para organização ativa #}
+        {% endif %} {# Fim do bloco de menu completo para ministério ativa #}
 
         {# Link de Novidades sempre visível para usuários autenticados (não superusuários) #}
         {% if request.user.is_authenticated and not request.user.is_superuser %}

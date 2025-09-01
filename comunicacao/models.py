@@ -3,7 +3,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from configuracao.models import Organizacao, Igreja
+from configuracao.models import Ministerio, Igreja
 
 # Crie seus modelos aqui.
 
@@ -11,11 +11,11 @@ class Aviso(models.Model):
     """
     Modelo para representar um aviso ou anúncio.
     """
-    organizacao = models.ForeignKey(
-        Organizacao,
+    ministerio = models.ForeignKey(
+        Ministerio,
         on_delete=models.CASCADE,
         related_name='avisos_comunicacao',
-        verbose_name="Organização"
+        verbose_name="Ministério"
     )
     titulo = models.CharField(max_length=200, verbose_name="Título do Aviso")
     conteudo = models.TextField(verbose_name="Conteúdo do Aviso")
@@ -29,10 +29,10 @@ class Aviso(models.Model):
     )
     igrejas_destino = models.ManyToManyField(
         Igreja,
-        blank=True, # Pode ser um aviso para toda a organização
+        blank=True, # Pode ser um aviso para toda a ministério
         related_name='avisos_recebidos',
         verbose_name="Igrejas de Destino",
-        help_text="Selecione as igrejas específicas para este aviso. Deixe em branco se for para toda a organização."
+        help_text="Selecione as igrejas específicas para este aviso. Deixe em branco se for para toda a ministério."
     )
     data_publicacao = models.DateTimeField(default=timezone.now, verbose_name="Data de Publicação")
     data_expiracao = models.DateField(null=True, blank=True, verbose_name="Data de Expiração (Opcional)", help_text="O aviso não será mais exibido após esta data.")
@@ -65,11 +65,11 @@ class Notificacao(models.Model):
         related_name='notificacoes',
         verbose_name="Usuário Destino"
     )
-    organizacao = models.ForeignKey(
-        Organizacao,
+    ministerio = models.ForeignKey(
+        Ministerio,
         on_delete=models.CASCADE,
-        related_name='notificacoes_organizacao',
-        verbose_name="Organização"
+        related_name='notificacoes_ministerio',
+        verbose_name="Ministério"
     )
     message = models.TextField(verbose_name="Mensagem")
     notification_type = models.CharField(max_length=20, choices=TIPO_CHOICES, default='info', verbose_name="Tipo")

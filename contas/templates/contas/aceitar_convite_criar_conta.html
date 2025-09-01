@@ -10,12 +10,12 @@
             <div class="card shadow-lg border-0 rounded-lg mt-5">
                 <div class="card-header">
                     <h3 class="text-center font-weight-light my-4">
-                        Convite para {{ convite.organizacao.nome_fantasia }}
+                        Convite para {{ convite.ministerio.nome_fantasia }}
                     </h3>
                 </div>
                 <div class="card-body">
                     <p class="text-center text-muted mb-4">
-                        Você foi convidado por {{ convite.remetente.get_full_name|default:convite.remetente.username }} para se juntar à organização.
+                        Você foi convidado por {{ convite.remetente.get_full_name|default:convite.remetente.username }} para se juntar à ministério.
                         <br>Seu e-mail: <strong>{{ convite.email_convidado }}</strong>
                         <br>Complete seu cadastro abaixo definindo seu nome e uma senha.
                     </p>

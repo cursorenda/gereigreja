@@ -47,14 +47,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>{{ organizacao_nome }}</h1>
+            <h1>{{ ministerio_nome }}</h1>
         </div>
         <div class="content">
             {{ mensagem|safe }} {# Usar 'safe' para renderizar HTML #}
         </div>
         <div class="footer">
             <p>Este é um e-mail automático, por favor, não responda diretamente.</p>
-            <p>&copy; {% now "Y" %} {{ organizacao_nome }}. Todos os direitos reservados.</p>
+            <p>&copy; {% now "Y" %} {{ ministerio_nome }}. Todos os direitos reservados.</p>
         </div>
     </div>
 </body>

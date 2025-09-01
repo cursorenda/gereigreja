@@ -48,9 +48,9 @@
 
                             <hr>
 
-                            {# --- INFORMAÇÕES DA ORGANIZAÇÃO E PERFIL --- #}
-                            <h5>Informações da Organização</h5>
-                            <p><strong>Organização:</strong> {{ perfil_usuario.organizacao.nome_fantasia }}</p>
+                            {# --- INFORMAÇÕES DA MINISTÉRIO E PERFIL --- #}
+                            <h5>Informações da Ministério</h5>
+                            <p><strong>Ministério:</strong> {{ perfil_usuario.ministerio.nome_fantasia }}</p>
                             
                             {# Exibir Igrejas Permitidas #}
                             {% if perfil_usuario.igrejas_permitidas.exists %}
@@ -61,7 +61,7 @@
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p><strong>Igrejas Permitidas:</strong> Todas da organização (acesso baseado em papel).</p>
+                                <p><strong>Igrejas Permitidas:</strong> Todas da ministério (acesso baseado em papel).</p>
                             {% endif %}
 
                             {# Exibir Papéis/Grupos #}
@@ -76,7 +76,7 @@
                             </p>
 
                             {# Link para gerenciar assinatura (já existe no menu, mas pode estar aqui também) #}
-                            {% if 'Admin Organizacao' in user.groups.all|join:", " %}
+                            {% if 'Admin Ministerio' in user.groups.all|join:", " %}
                                 <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-info">Gerenciar Assinatura</a>
                             {% endif %}
                         </div>

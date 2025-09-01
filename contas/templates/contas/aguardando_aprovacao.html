@@ -13,9 +13,9 @@
                 </div>
                 <div class="card-body text-center">
                     <p class="lead">Olá, {{ request.user.get_full_name|default:request.user.username }}!</p>
-                    <p>O registro da sua organização "<strong>{{ organizacao.nome_fantasia }}</strong>" foi concluído com sucesso.</p>
+                    <p>O registro da sua ministério "<strong>{{ ministerio.nome_fantasia }}</strong>" foi concluído com sucesso.</p>
                     <p>No momento, ela está aguardando a aprovação de um administrador do sistema Gereigreja.</p>
-                    <p>Você será notificado por e-mail assim que sua organização for ativada.</p>
+                    <p>Você será notificado por e-mail assim que sua ministério for ativada.</p>
                     <hr>
                     <p class="mb-1">Enquanto isso, você pode:</p>
                     <ul class="list-unstyled">
@@ -24,13 +24,13 @@
                                 <i class="fas fa-user-edit me-1"></i>Ver/Editar Meu Perfil
                             </a>
                         </li>
-                        {% if organizacao.assinatura %}
+                        {% if ministerio.assinatura %}
                             <li>
                                 <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-sm btn-outline-info my-1">
                                     <i class="fas fa-credit-card me-1"></i>Verificar Assinatura
                                 </a>
                             </li>
-                        {% elif not organizacao.verificar_elegibilidade_plano_gratuito %}
+                        {% elif not ministerio.verificar_elegibilidade_plano_gratuito %}
                              <li>
                                 <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-sm btn-outline-success my-1">
                                     <i class="fas fa-file-signature me-1"></i>Configurar Assinatura

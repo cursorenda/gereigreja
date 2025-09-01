@@ -8,13 +8,12 @@ from datetime import timedelta # Para calcular data_fim da assinatura
 from django.apps import apps # Para import tardio e evitar circularidade
 
 
-# --- Função para upload_to do logo da Organização ---
-def get_organizacao_logo_upload_path(instance, filename):
-    """ Gera um caminho de upload único para os logos das organizações. """
+# --- Função para upload_to do logo do Ministério ---
+def get_ministerio_logo_upload_path(instance, filename):
+    """Gera um caminho de upload único para os logos dos Ministérios."""
     ext = os.path.splitext(filename)[1]
-    # Cria um nome de arquivo único que não depende do PK do objeto.
-    unique_filename = f"org_logo_{uuid.uuid4().hex}{ext}"
-    return os.path.join('logos_organizacoes', unique_filename)
+    unique_filename = f"ministerio_logo_{uuid.uuid4().hex}{ext}"
+    return os.path.join('logos_ministerios', unique_filename)
 
 # --- DEFINIÇÃO DE ESTADO_CHOICES ---
 ESTADO_CHOICES = [
@@ -28,8 +27,9 @@ ESTADO_CHOICES = [
 ]
 # --- FIM ESTADO_CHOICES ---
 
-# --- Modelo para a Organização/Ministério ---
-class Organizacao(models.Model):
+
+# --- Modelo para o Ministério ---
+class Ministerio(models.Model):
     nome_fantasia = models.CharField(
         max_length=150,
         verbose_name="Nome Fantasia"
@@ -43,7 +43,7 @@ class Organizacao(models.Model):
     administrador_principal = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name='organizacoes_administradas',
+        related_name='ministerios_administrados',
         verbose_name="Administrador Principal"
     )
     data_criacao = models.DateTimeField(
@@ -53,7 +53,7 @@ class Organizacao(models.Model):
     ativo = models.BooleanField(
         default=False,
         verbose_name="Ativo (Aprovado pelo Desenvolvedor)",
-        help_text="Organizações inativas podem ter acesso limitado até serem aprovadas."
+        help_text="Ministérios inativos podem ter acesso limitado até serem aprovados."
     )
     cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True, verbose_name="CNPJ")
     telefone = models.CharField(max_length=20, blank=True, null=True)
@@ -72,10 +72,10 @@ class Organizacao(models.Model):
         verbose_name="Estado (Sede)"
     )
     logo = models.ImageField(
-        upload_to=get_organizacao_logo_upload_path, # Função para gerar o caminho
+        upload_to=get_ministerio_logo_upload_path, # Função para gerar o caminho
         null=True,
         blank=True,
-        verbose_name="Logo da Organização"
+        verbose_name="Logo do Ministério"
     )
 
     # --- CAMPO PARA INTEGRAÇÃO COM GATEWAY DE PAGAMENTO ---
@@ -88,11 +88,9 @@ class Organizacao(models.Model):
     def __str__(self):
         return self.nome_fantasia
 
-    
-
     def verificar_elegibilidade_plano_gratuito(self):
         """
-        Verifica se a organização é elegível para o plano gratuito.
+        Verifica se o ministério é elegível para o plano gratuito.
         Condições:
         1. Ter exatamente uma igreja.
         2. Essa igreja ser do tipo 'independente'.
@@ -105,16 +103,16 @@ class Organizacao(models.Model):
                     Membro = apps.get_model('secretaria', 'Membro')
                     membros_ativos_count = Membro.objects.filter(
                         igreja=igreja_unica,
-                        status_pessoa__considerar_ativo_relatorios=True # CORRIGIDO: Usa o novo relacionamento
+                        status_pessoa__considerar_ativo_relatorios=True
                     ).count()
                     return membros_ativos_count <= 50
-                except LookupError: # Caso o modelo Membro ou app secretaria não seja encontrado
+                except LookupError:
                     return False
-        return False        
-    
+        return False
+
     class Meta:
-        verbose_name = "Organização"
-        verbose_name_plural = "Organizações"
+        verbose_name = "Ministério"
+        verbose_name_plural = "Ministérios"
         ordering = ['nome_fantasia']
 
 # --- Modelo para o Perfil do Usuário ---
@@ -122,22 +120,21 @@ class PerfilUsuario(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='perfil' # related_name útil para acessar perfil a partir do user
+        related_name='perfil'
     )
-    organizacao = models.ForeignKey(
-        Organizacao,
-        on_delete=models.CASCADE, # Ou models.PROTECT se um perfil impedir deletar Org
+    ministerio = models.ForeignKey(
+        Ministerio,
+        on_delete=models.CASCADE,
         related_name='perfis_usuarios'
     )
     igrejas_permitidas = models.ManyToManyField(
-        'Igreja', # <-- Use a string 'Igreja'
+        'Igreja',
         blank=True,
         related_name='usuarios_permitidos',
         verbose_name="Igrejas Permitidas",
-        help_text="Selecione as igrejas específicas que este usuário pode gerenciar (deixe em branco para acesso baseado apenas no papel/organização)."
+        help_text="Selecione as igrejas específicas que este usuário pode gerenciar (deixe em branco para acesso baseado apenas no papel/ministerio)."
     )
     foto_perfil = models.ImageField(upload_to='fotos_perfil/', null=True, blank=True, verbose_name="Foto do Perfil")
- # --- NOVOS CAMPOS DE CONTATO E ATUALIZAÇÃO ---
     telefone_contato = models.CharField(
         max_length=20,
         blank=True, null=True,
@@ -149,17 +146,15 @@ class PerfilUsuario(models.Model):
         verbose_name="WhatsApp"
     )
     data_atualizacao = models.DateTimeField(
-        auto_now=True, # Atualiza automaticamente ao salvar
+        auto_now=True,
         verbose_name="Última Atualização"
     )
-    # --- FIM NOVOS CAMPOS ---
 
     def __str__(self):
         user_display = self.user.get_full_name() or self.user.username
-        return f"Perfil de {user_display} ({self.organizacao.nome_fantasia})"
+        return f"Perfil de {user_display} ({self.ministerio.nome_fantasia})"
 
     def save(self, *args, **kwargs):
-    # print("[DEBUG MODEL] Chamou save do PerfilUsuario, foto_perfil:", self.foto_perfil) # Removido para produção
         super().save(*args, **kwargs)
 
     class Meta:
@@ -187,9 +182,9 @@ def logo2_upload_to_path(instance, filename):
 # --- Modelo para cada Igreja (Sede, Regional, Congregação) ---
 class Igreja(models.Model):
     # --- Relacionamentos ---
-    organizacao = models.ForeignKey(
-        Organizacao,
-        on_delete=models.CASCADE, # Se deletar Org, deleta igrejas
+    ministerio = models.ForeignKey(
+        Ministerio,
+        on_delete=models.CASCADE,
         related_name='igrejas'
     )
     igreja_superior = models.ForeignKey(
@@ -271,8 +266,8 @@ class Igreja(models.Model):
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Data de Atualização")
  
     def __str__(self):
-        org_nome = self.organizacao.nome_fantasia if self.organizacao else "Sem Organização"
-        return f"{self.nome_igreja} ({self.get_tipo_igreja_display()}) - [{org_nome}]"
+        min_nome = self.ministerio.nome_fantasia if self.ministerio else "Sem Ministério"
+        return f"{self.nome_igreja} ({self.get_tipo_igreja_display()}) - [{min_nome}]"
 
     def get_descendants(self, include_self=False):
         """
@@ -293,9 +288,8 @@ class Igreja(models.Model):
     class Meta:
         verbose_name = "Igreja"
         verbose_name_plural = "Igrejas"
-        ordering = ['organizacao', 'nome_igreja']
-
-        unique_together = ('organizacao', 'nome_igreja')
+        ordering = ['ministerio', 'nome_igreja']
+        unique_together = ('ministerio', 'nome_igreja')
 
 # --- NOVOS MODELOS PARA PLANOS E ASSINATURAS ---
 
@@ -334,7 +328,8 @@ class Plano(models.Model):
         ordering = ['preco_mensal']
 
 
-class AssinaturaOrganizacao(models.Model):
+
+class AssinaturaMinisterio(models.Model):
     STATUS_ASSINATURA_CHOICES = [
         ('ativa', 'Ativa'),
         ('pendente_pagamento', 'Pendente de Pagamento'),
@@ -346,21 +341,21 @@ class AssinaturaOrganizacao(models.Model):
         ('mensal', 'Mensal'),
         ('anual', 'Anual'),
     ]
-    organizacao = models.OneToOneField( # Garante uma assinatura por organização
-        Organizacao,
+    ministerio = models.OneToOneField(
+        Ministerio,
         on_delete=models.CASCADE,
-        related_name='assinatura', # Acesso fácil: organizacao.assinatura
-        verbose_name="Organização"
+        related_name='assinatura',
+        verbose_name="Ministério"
     )
     plano = models.ForeignKey(
         Plano,
         on_delete=models.SET_NULL,
-        null=True, blank=True, # Plano pode ser nulo se for 'gratuita' e gerenciada de outra forma
+        null=True, blank=True,
         related_name='assinaturas',
         verbose_name="Plano Contratado"
     )
     data_inicio = models.DateTimeField(verbose_name="Data de Início")
-    data_fim = models.DateTimeField(verbose_name="Data de Fim", blank=True, null=True) # Nulo para 'gratuita' vitalícia
+    data_fim = models.DateTimeField(verbose_name="Data de Fim", blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_ASSINATURA_CHOICES, default='pendente_pagamento', verbose_name="Status")
     ciclo_pagamento = models.CharField(
         max_length=10,
@@ -371,27 +366,22 @@ class AssinaturaOrganizacao(models.Model):
     id_transacao_gateway = models.CharField(max_length=200, blank=True, null=True, verbose_name="ID da Transação (Gateway)")
     data_criacao = models.DateTimeField(auto_now_add=True)
     data_atualizacao = models.DateTimeField(auto_now=True)
-     # --- Campos para Período de Graça/Cortesia ---
     periodo_cortesia_ativo = models.BooleanField(default=False, verbose_name="Período de Cortesia Ativo?")
     data_inicio_cortesia = models.DateTimeField(null=True, blank=True, verbose_name="Início da Cortesia")
-    # --- Fim Campos Cortesia ---
+
     def __str__(self):
         plano_nome = self.plano.get_nome_display() if self.plano else "N/D"
-        return f"Assinatura de {self.organizacao.nome_fantasia} - Plano: {plano_nome} ({self.get_status_display()})"
+        return f"Assinatura de {self.ministerio.nome_fantasia} - Plano: {plano_nome} ({self.get_status_display()})"
 
     class Meta:
-        verbose_name = "Assinatura da Organização"
-        verbose_name_plural = "Assinaturas das Organizações"
-        ordering = ['-data_fim', 'organizacao__nome_fantasia']
+        verbose_name = "Assinatura do Ministério"
+        verbose_name_plural = "Assinaturas dos Ministérios"
+        ordering = ['-data_fim', 'ministerio__nome_fantasia']
 
     def is_periodo_cortesia_valido(self):
         """Verifica se o período de cortesia está ativo e dentro da validade de 3 dias."""
         if self.periodo_cortesia_ativo and self.data_inicio_cortesia:
-            # Calcula a data de fim da cortesia (3 dias após o início)
             data_fim_cortesia = self.data_inicio_cortesia + timedelta(days=3)
-            # Verifica se a data atual é menor ou igual à data de fim da cortesia
-            return timezone.now() <= data_fim_cortesia
-        return False
 
 class AtualizacaoSistema(models.Model):
     titulo = models.CharField(max_length=200)

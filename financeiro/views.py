@@ -7,21 +7,21 @@ from django.contrib.auth.decorators import login_required, user_passes_test # Im
 from django.utils.timezone import now # Importar now
 
 # Importar modelos corretos
-from .models import Receitas, Despesas, ContaBancaria, FechamentoCaixa, ContaPagar, CategoriaDespesa, Fornecedor, Organizacao # Removed CATEGORIA_RECEITA_CHOICES import
+from .models import Receitas, Despesas, ContaBancaria, FechamentoCaixa, ContaPagar, CategoriaDespesa, Fornecedor
 # Importar forms corretos
 from .forms import (
     ReceitaForm, DespesaForm, CategoriaDespesaForm, FechamentoCaixaForm, ContaBancariaForm,
     FornecedorForm, ContaPagarForm, RegistrarPagamentoContaPagarForm # Adicionar novos forms
 )
 # from django.contrib.auth.decorators import login_required # Removido, já importado acima
-from configuracao.models import PerfilUsuario, Organizacao, Igreja
+from configuracao.models import PerfilUsuario, Ministerio, Igreja
 from django.core.exceptions import PermissionDenied, ValidationError # Adicionar ValidationError
 from django.http import Http404
 from django.db.models import Sum, Q, Count # Adicionado Count
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 
 from .utils import has_finance_view_permission, has_finance_edit_permission, get_allowed_churches_for_user, is_finance_leader, is_admin_org # Importar is_admin_org
-from core.utils import get_organizacao_or_error # Importar de core.utils # noqa: E402
+from core.utils import get_ministerio_or_error # Importar de core.utils # noqa: E402
 from core.decorators import check_permission # <<< ADICIONE ESTA LINHA
 # --- FIM IMPORT ---
 from decimal import Decimal # Import Decimal
@@ -37,7 +37,7 @@ from core.decorators import verificar_assinatura_valida # Ou o caminho correto
 @login_required
 @verificar_assinatura_valida # Nosso novo decorator
 def minha_view_protegida(request):
-    organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
+    ministerio = get_ministerio_or_error(request) # Ainda chama para obter o ministério e verificar ministerio.ativo
     # ...
     # ... resto da view ...
 
@@ -63,13 +63,13 @@ if not locale_set:
     logger.warning(f"Nenhum dos locales {locales_to_try} foi suportado. Usando o locale padrão do sistema.")
 
 
-## A função get_organizacao_or_error foi movida para core.utils.py ##
+## A função get_ministerio_or_error foi movida para core.utils.py ##
 
 
 @check_permission(has_finance_view_permission) # MODIFICADO
 def painel_financeiro(request):
-    """ Painel/Dashboard Financeiro da Organização ou de uma Igreja específica. """
-    organizacao = get_organizacao_or_error(request)
+    """ Painel/Dashboard Financeiro da Ministério ou de uma Igreja específica. """
+    ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user) # Igrejas permitidas
         # --- FILTRO DE IGREJA ---
@@ -100,7 +100,7 @@ def painel_financeiro(request):
                     igreja_id_filtro_get = '' # Reseta o filtro
             # Se nenhum filtro do GET e nenhuma igreja ativa, mostra dados de todas as igrejas permitidas
             if not igreja_selecionada_para_dados:
-                titulo_dashboard = f"Organização: {organizacao.nome_fantasia} (Igrejas Permitidas)"
+                titulo_dashboard = f"Ministério: {ministerio.nome_fantasia} (Igrejas Permitidas)"
 
         
              # Para o dropdown de filtro na página, mostrar todas as permitidas se nenhuma global estiver ativa
@@ -351,7 +351,7 @@ def painel_financeiro(request):
             contas_bancarias_painel = ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao')
 
         context = {
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'igrejas_org': igrejas_para_filtro_template, # Lista de igrejas para o dropdown de filtro da página
             'igreja_selecionada': igreja_selecionada_para_dados, # Objeto da igreja cujos dados estão sendo mostrados (ou None)
             'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template, # ID para manter o filtro da página selecionado
@@ -406,8 +406,8 @@ def painel_financeiro(request):
         return render(request, 'financeiro/painel_financeiro.html', context)
     except Exception as e:
         # Logar erro com mais detalhes se possível
-        org_id = organizacao.id if 'organizacao' in locals() else 'N/A'
-        logger.exception(f"Erro no painel financeiro para organização {org_id}") # Corrigido o nome da função no log
+        min_id = ministerio.id if 'ministerio' in locals() else 'N/A'
+        logger.exception(f"Erro no painel financeiro para ministério {min_id}") # Corrigido o nome da função no log
         messages.error(request, f"Ocorreu um erro ao carregar o painel financeiro: {e}")
         return redirect('secretaria:dashboard') # Redireciona para o dashboard da secretaria ou outra página de fallback
 
@@ -416,7 +416,7 @@ def painel_financeiro(request):
 # --- Receitas ---
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_receitas(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
         # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
@@ -477,7 +477,7 @@ def lista_receitas(request): # noqa: E302
 
         context = {
             'receitas': receitas_qs,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'categorias_choices': categorias_choices,
             'igrejas_org': igrejas_para_filtro_template, # Usar a lista ajustada
             'data_inicio': data_inicio,
@@ -490,7 +490,7 @@ def lista_receitas(request): # noqa: E302
         }
         return render(request, 'financeiro/receitas/lista_receitas.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao listar receitas para organização {organizacao.id}")
+        logger.exception(f"Erro ao listar receitas para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar as receitas: {e}")
         return redirect('financeiro:painel_financeiro')
 
@@ -498,7 +498,7 @@ def lista_receitas(request): # noqa: E302
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def cadastrar_receita(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
 
@@ -508,9 +508,9 @@ def cadastrar_receita(request): # noqa: E302
         return redirect('financeiro:lista_receitas')
 
     if request.method == 'POST':
-        # Passa organização para o form filtrar igrejas e membros (se necessário)
+        # Passa ministério para o form filtrar igrejas e membros (se necessário)
         # Passa allowed_churches para o form filtrar o campo igreja
-        form = ReceitaForm(request.POST, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
+        form = ReceitaForm(request.POST, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
         if form.is_valid():
             try:
                 nova_receita = form.save(commit=False)
@@ -518,26 +518,20 @@ def cadastrar_receita(request): # noqa: E302
                 if not is_admin_org(request.user) and nova_receita.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida.")
                 # Validar membro (se selecionado) - form já deve filtrar
-                elif nova_receita.membro and nova_receita.membro.igreja.organizacao != organizacao:
-                     messages.error(request, "Erro: Membro selecionado não pertence à sua organização.")
+                elif nova_receita.membro and nova_receita.membro.igreja.ministerio != ministerio:
+                    messages.error(request, "Erro: Membro selecionado não pertence à sua ministério.")
                 else:
-                     # O método save da Receita agora atualiza o saldo
-                     nova_receita.save()
-
-                     messages.success(request, 'Receita cadastrada com sucesso!')
-                     return redirect('financeiro:lista_receitas')
-
-
-
+                    # O método save da Receita agora atualiza o saldo
+                    nova_receita.save()
+                    messages.success(request, 'Receita cadastrada com sucesso!')
+                    return redirect('financeiro:lista_receitas')
             except Exception as e:
-                 logger.exception(f"Erro ao salvar receita para organização {organizacao.id}")
-                 messages.error(request, f'Erro ao salvar receita: {e}')
+                logger.exception(f"Erro ao salvar receita para ministério {ministerio.id}")
+                messages.error(request, f'Erro ao salvar receita: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
- 
         initial_form_data = {} # Dicionário para passar valores iniciais
-        
         # --- Lógica para pré-selecionar a igreja no formulário GET ---
         if request.igreja_ativa and request.igreja_ativa in allowed_churches:
             # Se uma igreja ativa está selecionada e é permitida, pré-seleciona ela
@@ -549,19 +543,15 @@ def cadastrar_receita(request): # noqa: E302
             initial_form_data['igreja'] = igreja_unica_permitida
             igreja_padrao_para_form = igreja_unica_permitida # Passa para o form usar a conta padrão
         # Se múltiplas igrejas permitidas e nenhuma ativa, o campo igreja ficará vazio (usuário seleciona)
-
-
-        form = ReceitaForm(initial=initial_form_data, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
-
- 
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Cadastrar Receita'}
-    # Usar um template genérico ou específico
-    return render(request, 'financeiro/receitas/form_receita.html', context)
+        form = ReceitaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
+        context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Cadastrar Receita'}
+        # Usar um template genérico ou específico
+        return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def editar_receita(request, pk): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     # Garante que a receita pertence às igrejas permitidas
     receita = get_object_or_404(Receitas, pk=pk, igreja__in=allowed_churches)
@@ -572,29 +562,28 @@ def editar_receita(request, pk): # noqa: E302
     #    return redirect('financeiro:lista_receitas')
 
     if request.method == 'POST':
-        form = ReceitaForm(request.POST, instance=receita, organizacao=organizacao, allowed_churches=allowed_churches)
+        form = ReceitaForm(request.POST, instance=receita, ministerio=ministerio, allowed_churches=allowed_churches)
         if form.is_valid():
             try:
                 receita_editada = form.save(commit=False)
                 # Validações extras
                 if not is_admin_org(request.user) and receita_editada.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida.")
-                elif receita_editada.membro and receita_editada.membro.igreja.organizacao != organizacao:
-                     messages.error(request, "Erro: Membro selecionado não pertence à sua organização.")
+                elif receita_editada.membro and receita_editada.membro.igreja.ministerio != ministerio:
+                    messages.error(request, "Erro: Membro selecionado não pertence à sua ministério.")
                 else:
                     receita_editada.save()
                     messages.success(request, 'Receita atualizada com sucesso!')
                     return redirect('financeiro:lista_receitas')
             except Exception as e:
-                 logger.exception(f"Erro ao salvar edição da receita {pk} para organização {organizacao.id}")
-                 messages.error(request, f'Erro ao salvar receita: {e}')
+                logger.exception(f"Erro ao salvar edição da receita {pk} para ministério {ministerio.id}")
+                messages.error(request, f'Erro ao salvar receita: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        form = ReceitaForm(instance=receita, organizacao=organizacao, allowed_churches=allowed_churches)
-
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Editar Receita', 'receita': receita}
-    return render(request, 'financeiro/receitas/form_receita.html', context)
+        form = ReceitaForm(instance=receita, ministerio=ministerio, allowed_churches=allowed_churches)
+        context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Editar Receita', 'receita': receita}
+        return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
 # @login_required # Removido pois check_permission faria isso, mas aqui a lógica é interna
@@ -602,7 +591,7 @@ def excluir_receita(request, pk): # noqa: E302
     # Apenas quem pode editar pode excluir
     if not has_finance_edit_permission(request.user):
         raise PermissionDenied("Você não tem permissão para excluir receitas.")
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     receita = get_object_or_404(Receitas, pk=pk, igreja__in=allowed_churches)
 
@@ -626,12 +615,12 @@ def excluir_receita(request, pk): # noqa: E302
             messages.success(request, f'Receita "{nome_receita_formatado}" excluída com sucesso!')
         except Exception as e:
 
-            logger.exception(f"Erro ao excluir receita {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao excluir receita {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao excluir receita: {e}')
         return redirect('financeiro:lista_receitas')
     else:
         # GET não deve excluir, mostrar confirmação ou erro
-        # context = {'receita': receita, 'organizacao': organizacao}
+        # context = {'receita': receita, 'ministerio': ministerio}
         # return render(request, 'financeiro/receitas/confirmar_excluir_receita.html', context)
         messages.error(request, 'Método inválido para exclusão.')
         return redirect('financeiro:lista_receitas')
@@ -640,7 +629,7 @@ def excluir_receita(request, pk): # noqa: E302
 # --- Despesas (Estrutura similar às Receitas) ---
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_despesas(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
         despesas_qs = Despesas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'categoria').order_by('-data')
@@ -676,7 +665,7 @@ def lista_despesas(request): # noqa: E302
             despesas_qs = despesas_qs.filter(fechado=False)
         # --- FIM DA LÓGICA DO FILTRO 'fechado' ---
 
-        categorias_org = CategoriaDespesa.objects.filter(organizacao=organizacao)
+        categorias_org = CategoriaDespesa.objects.filter(ministerio=ministerio)
         # --- Lógica para o dropdown de filtro de igreja no template ---        
         igrejas_para_filtro_template = allowed_churches
         igreja_id_selecionada_template = igreja_id_get # Para o select do filtro da página
@@ -688,7 +677,7 @@ def lista_despesas(request): # noqa: E302
 
         context = {
             'despesas': despesas_qs,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'categorias_org': categorias_org, # Continua mostrando todas as categorias da org
             'igrejas_org': igrejas_para_filtro_template, 
             'data_inicio': data_inicio,
@@ -701,14 +690,14 @@ def lista_despesas(request): # noqa: E302
         }
         return render(request, 'financeiro/despesas/lista_despesas.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao listar despesas para organização {organizacao.id}")
+        logger.exception(f"Erro ao listar despesas para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar as despesas: {e}")
         return redirect('financeiro:painel_financeiro')
 
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def cadastrar_despesa(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
 
@@ -718,12 +707,12 @@ def cadastrar_despesa(request): # noqa: E302
         return redirect('financeiro:lista_despesas')
 
     if request.method == 'POST':
-        form = DespesaForm(request.POST, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
+        form = DespesaForm(request.POST, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
         if form.is_valid():
             try:
                 nova_despesa = form.save(commit=False)
                 if not is_admin_org(request.user) and nova_despesa.igreja not in allowed_churches: messages.error(request, "Erro: Igreja inválida.")
-                elif nova_despesa.categoria.organizacao != organizacao: messages.error(request, "Erro: Categoria inválida.")
+                elif nova_despesa.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
                         # O método save da Despesa agora atualiza o saldo
@@ -735,7 +724,7 @@ def cadastrar_despesa(request): # noqa: E302
                         return redirect('financeiro:lista_despesas')
    
             except Exception as e:
-                 logger.exception(f"Erro ao salvar despesa para organização {organizacao.id}")
+                 logger.exception(f"Erro ao salvar despesa para ministério {ministerio.id}")
                  messages.error(request, f'Erro ao salvar despesa: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
@@ -757,49 +746,49 @@ def cadastrar_despesa(request): # noqa: E302
 
 
 
-        form = DespesaForm(initial=initial_form_data, organizacao=organizacao, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
+        form = DespesaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
 
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Cadastrar Despesa'}
+    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Cadastrar Despesa'}
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
 # @login_required # Removido
 def editar_despesa(request, pk): # noqa: E302
     if not has_finance_edit_permission(request.user): raise PermissionDenied("Sem permissão para editar.")
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
 
     # if despesa.fechado: ... (verificar se pode editar)
 
     if request.method == 'POST':
-        form = DespesaForm(request.POST, instance=despesa, organizacao=organizacao, allowed_churches=allowed_churches)
+        form = DespesaForm(request.POST, instance=despesa, ministerio=ministerio, allowed_churches=allowed_churches)
         if form.is_valid():
             try:
                 despesa_editada = form.save(commit=False)
                 if not is_admin_org(request.user) and despesa_editada.igreja not in allowed_churches: messages.error(request, "Erro: Igreja inválida.")
-                elif despesa_editada.categoria.organizacao != organizacao: messages.error(request, "Erro: Categoria inválida.")
+                elif despesa_editada.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
                     despesa_editada.save()
                     messages.success(request, 'Despesa atualizada com sucesso!')
                     return redirect('financeiro:lista_despesas')
             except Exception as e:
-                 logger.exception(f"Erro ao salvar edição da despesa {pk} para organização {organizacao.id}")
+                 logger.exception(f"Erro ao salvar edição da despesa {pk} para ministério {ministerio.id}")
                  messages.error(request, f'Erro ao salvar despesa: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        form = DespesaForm(instance=despesa, organizacao=organizacao, allowed_churches=allowed_churches)
+        form = DespesaForm(instance=despesa, ministerio=ministerio, allowed_churches=allowed_churches)
 
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Editar Despesa', 'despesa': despesa}
+    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Editar Despesa', 'despesa': despesa}
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
 # @login_required # Removido
 def excluir_despesa(request, pk): # noqa: E302
     if not has_finance_edit_permission(request.user): raise PermissionDenied("Sem permissão para excluir.")
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
 
@@ -812,43 +801,43 @@ def excluir_despesa(request, pk): # noqa: E302
             
             messages.success(request, f'Despesa "{nome_despesa}" excluída com sucesso!')
         except Exception as e:
-            logger.exception(f"Erro ao excluir despesa {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao excluir despesa {pk} para ministério {ministerio.id}")
 
 
 
 # --- Categorias de Despesa ---
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_categorias_despesa(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
-    categorias = CategoriaDespesa.objects.filter(organizacao=organizacao).order_by('nome')
+    ministerio = get_ministerio_or_error(request)
+    categorias = CategoriaDespesa.objects.filter(ministerio=ministerio).order_by('nome')
     can_edit = has_finance_edit_permission(request.user) # Para botão de adicionar
     context = {
         'categorias': categorias,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'can_edit_finance': can_edit,
     }
     return render(request, 'financeiro/categorias/lista_categorias.html', context)
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def cadastrar_categoria_despesa(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     if request.method == 'POST':
         form = CategoriaDespesaForm(request.POST)
         if form.is_valid():
             try:
                 nova_categoria = form.save(commit=False)
-                nova_categoria.organizacao = organizacao # Associa à organização
+                nova_categoria.ministerio = ministerio # Associa à ministério
                 nova_categoria.save()
                 messages.success(request, 'Categoria de despesa cadastrada com sucesso!')
                 return redirect('financeiro:lista_categorias_despesa')
             except Exception as e:
-                 logger.exception(f"Erro ao salvar categoria de despesa para organização {organizacao.id}")
+                 logger.exception(f"Erro ao salvar categoria de despesa para ministério {ministerio.id}")
                  messages.error(request, f'Erro ao salvar categoria: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         form = CategoriaDespesaForm()
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Cadastrar Categoria de Despesa'}
+    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Cadastrar Categoria de Despesa'}
     return render(request, 'financeiro/categorias/form_categoria.html', context)
 
 
@@ -860,7 +849,7 @@ def cadastrar_categoria_despesa(request): # noqa: E302
 
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_contas_bancarias(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
         # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
@@ -874,20 +863,20 @@ def lista_contas_bancarias(request): # noqa: E302
 
         context = {
             'contas_bancarias': contas_bancarias,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'can_edit_finance': can_edit,
             'titulo_pagina': 'Contas Bancárias/Caixas'
         }
         return render(request, 'financeiro/contas_bancarias/lista_contas_bancarias.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao listar contas bancárias para organização {organizacao.id}")
+        logger.exception(f"Erro ao listar contas bancárias para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar as contas bancárias: {e}")
         return redirect('financeiro:painel_financeiro')
 
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def criar_conta_bancaria(request): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_inicial_para_form = None 
 
@@ -901,7 +890,7 @@ def criar_conta_bancaria(request): # noqa: E302
         # ou usa a instance.igreja se estiver desabilitado (o que não é o caso aqui para criação)
         # Passamos igreja_selecionada_inicial=request.igreja_ativa para o form __init__
         # para que ele possa desabilitar o campo e torná-lo não obrigatório se necessário.
-        form = ContaBancariaForm(request.POST, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa)
+        form = ContaBancariaForm(request.POST, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa)
         if form.is_valid():
             try:
                 nova_conta = form.save(commit=False)
@@ -928,7 +917,7 @@ def criar_conta_bancaria(request): # noqa: E302
                 pass # A mensagem já foi adicionada, o formulário será re-renderizado
 
             except Exception as e:
-                 logger.exception(f"Erro ao salvar conta bancária para organização {organizacao.id}")
+                 logger.exception(f"Erro ao salvar conta bancária para ministério {ministerio.id}")
                  messages.error(request, f'Erro ao salvar conta/caixa: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
@@ -941,23 +930,23 @@ def criar_conta_bancaria(request): # noqa: E302
 
             igreja_unica_permitida = allowed_churches.first()
             igreja_inicial_para_form = igreja_unica_permitida
-        form = ContaBancariaForm(organizacao=organizacao, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_inicial_para_form)
+        form = ContaBancariaForm(ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_inicial_para_form)
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': 'Adicionar Nova Conta Bancária/Caixa'
     }
     return render(request, 'financeiro/contas_bancarias/form_conta_bancaria.html', context)
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def editar_conta_bancaria(request, pk): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     conta_bancaria = get_object_or_404(ContaBancaria, pk=pk, igreja__in=allowed_churches)
 
     if request.method == 'POST':
-        form = ContaBancariaForm(request.POST, instance=conta_bancaria, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches)
+        form = ContaBancariaForm(request.POST, instance=conta_bancaria, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
         if form.is_valid():
             try:
                 conta_editada = form.save(commit=False)
@@ -968,16 +957,16 @@ def editar_conta_bancaria(request, pk): # noqa: E302
                     messages.success(request, 'Conta Bancária/Caixa atualizada com sucesso!')
                     return redirect('financeiro:lista_contas_bancarias')
             except Exception as e:
-                 logger.exception(f"Erro ao editar conta bancária {pk} para organização {organizacao.id}")
+                 logger.exception(f"Erro ao editar conta bancária {pk} para ministério {ministerio.id}")
                  messages.error(request, f'Erro ao salvar conta/caixa: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        form = ContaBancariaForm(instance=conta_bancaria, organizacao=organizacao, user=request.user, allowed_churches=allowed_churches)
+        form = ContaBancariaForm(instance=conta_bancaria, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'conta_bancaria': conta_bancaria,
         'titulo_pagina': f'Editar Conta/Caixa: {conta_bancaria.nome_identificacao}'
     }
@@ -985,7 +974,7 @@ def editar_conta_bancaria(request, pk): # noqa: E302
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def excluir_conta_bancaria(request, pk): # noqa: E302
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     conta_bancaria = get_object_or_404(ContaBancaria, pk=pk, igreja__in=allowed_churches)
 
@@ -1005,13 +994,13 @@ def excluir_conta_bancaria(request, pk): # noqa: E302
             conta_bancaria.delete()
             messages.success(request, f'Conta Bancária/Caixa "{nome_conta}" excluída com sucesso!')
         except Exception as e:
-            logger.exception(f"Erro ao excluir conta bancária {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao excluir conta bancária {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao excluir conta/caixa: {e}')
         return redirect('financeiro:lista_contas_bancarias')
     else:
         context = {
             'conta_bancaria': conta_bancaria,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'titulo_pagina': 'Confirmar Exclusão de Conta/Caixa'
             }
         return render(request, 'financeiro/contas_bancarias/confirmar_excluir_conta.html', context)
@@ -1028,8 +1017,8 @@ def excluir_conta_bancaria(request, pk): # noqa: E302
 # --- Fechamento de Caixa (Refatorado) ---
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_fechamentos_caixa(request): # noqa: E302
-    """ Lista os fechamentos de caixa da organização. """
-    organizacao = get_organizacao_or_error(request)
+    """ Lista os fechamentos de caixa da ministério. """
+    ministerio = get_ministerio_or_error(request)
     
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     try:
@@ -1044,12 +1033,12 @@ def lista_fechamentos_caixa(request): # noqa: E302
         can_edit = has_finance_edit_permission(request.user)
         context = {
             'fechamentos': fechamentos,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'can_edit_finance': can_edit, # Passa para o template
         }
         return render(request, 'financeiro/fechamentos/lista_fechamentos_caixa.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao listar fechamentos para organização {organizacao.id}")
+        logger.exception(f"Erro ao listar fechamentos para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar os fechamentos: {e}")
         return redirect('financeiro:painel_financeiro')
 
@@ -1062,7 +1051,7 @@ def criar_fechamento_caixa(request): # noqa: E302
     ETAPA 1: Exibe o formulário para selecionar igreja/período (GET)
     ou valida a seleção e mostra a pré-visualização (POST inicial).
     """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
 
     igreja_inicial_para_form = None
@@ -1072,7 +1061,7 @@ def criar_fechamento_caixa(request): # noqa: E302
         igreja_inicial_para_form = allowed_churches.first()
 
     form = FechamentoCaixaForm(request.POST or None, 
-                               organizacao=organizacao, 
+                               ministerio=ministerio, 
                                user=request.user, # Adicionado user para consistência
                                allowed_churches=allowed_churches, 
                                igreja_selecionada_inicial=igreja_inicial_para_form)
@@ -1095,7 +1084,7 @@ def criar_fechamento_caixa(request): # noqa: E302
             if not is_admin_org(request.user) and igreja_selecionada not in allowed_churches:
                 messages.error(request, "Erro: Igreja selecionada inválida.")
                 # Re-renderiza o form inicial com o erro, passando o form já instanciado
-                context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
+                context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Criar Fechamento de Caixa'}
                 return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
 
             # 2. Verificar sobreposição (mantido aqui)
@@ -1106,7 +1095,7 @@ def criar_fechamento_caixa(request): # noqa: E302
             if sobreposicao:
                 messages.error(request, f"Já existe um fechamento de caixa para a igreja '{igreja_selecionada.nome_igreja}' que se sobrepõe ao período selecionado.")
                 # Re-renderiza o form inicial com o erro, passando o form já instanciado
-                context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
+                context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Criar Fechamento de Caixa'}
                 return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
 
             # 3. Buscar receitas e despesas ABERTAS para a pré-visualização
@@ -1120,7 +1109,7 @@ def criar_fechamento_caixa(request): # noqa: E302
 
             # 5. Preparar contexto para o template de CONFIRMAÇÃO
             context_confirmacao = {
-                'organizacao': organizacao,
+                'ministerio': ministerio,
                 'igreja_selecionada': igreja_selecionada,
                 'data_inicio': data_inicio,
                 'data_fim': data_fim,
@@ -1137,10 +1126,10 @@ def criar_fechamento_caixa(request): # noqa: E302
             return render(request, 'financeiro/fechamentos/confirmar_fechamento_caixa.html', context_confirmacao)
 
         except Exception as e:
-            logger.exception(f"Erro ao preparar pré-visualização do fechamento para organização {organizacao.id}")
+            logger.exception(f"Erro ao preparar pré-visualização do fechamento para ministério {ministerio.id}")
             messages.error(request, f'Erro ao preparar pré-visualização: {e}')
             # Volta para o form inicial em caso de erro inesperado, passando o form já instanciado
-            context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
+            context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Criar Fechamento de Caixa'}
             return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
         
         
@@ -1150,7 +1139,7 @@ def criar_fechamento_caixa(request): # noqa: E302
             pass # O código abaixo do if/else já lida com isso
 
     # Se GET ou form inválido no POST, renderiza o form inicial
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Fechamento de Caixa'}
+    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Criar Fechamento de Caixa'}
     return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
 
 # --- FIM DA VIEW criar_fechamento_caixa MODIFICADA ---
@@ -1162,7 +1151,7 @@ def finalizar_fechamento_caixa(request): # noqa: E302
     ETAPA 2: Recebe o POST da página de confirmação e efetivamente
     cria o FechamentoCaixa e marca as transações como fechadas.
     """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
 
     if request.method != 'POST':
         messages.error(request, "Ação inválida.")
@@ -1235,7 +1224,7 @@ def finalizar_fechamento_caixa(request): # noqa: E302
         messages.error(request, str(pd))
         return redirect('financeiro:criar_fechamento_caixa')
     except Exception as e:
-        logger.exception(f"Erro ao finalizar fechamento de caixa para organização {organizacao.id}")
+        logger.exception(f"Erro ao finalizar fechamento de caixa para ministério {ministerio.id}")
         messages.error(request, f'Erro ao finalizar fechamento de caixa: {e}')
         # Volta para o início do processo em caso de erro
         return redirect('financeiro:criar_fechamento_caixa')
@@ -1248,7 +1237,7 @@ def finalizar_fechamento_caixa(request): # noqa: E302
 @check_permission(has_finance_view_permission) # MODIFICADO
 def detalhe_fechamento_caixa(request, pk): # noqa: E302
     """ Mostra os detalhes de um fechamento específico. """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     # Garante que o fechamento pertence às igrejas permitidas
     fechamento = get_object_or_404(FechamentoCaixa, pk=pk, igreja__in=allowed_churches)
@@ -1274,12 +1263,12 @@ def detalhe_fechamento_caixa(request, pk): # noqa: E302
             'total_entradas': fechamento.total_entradas,
             'total_saidas': fechamento.total_saidas,
             'saldo_final': fechamento.saldo_final,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'can_edit_finance': can_edit, # Para o botão Reabrir
         }
         return render(request, 'financeiro/fechamentos/detalhe_fechamento_caixa.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao detalhar fechamento {pk} para organização {organizacao.id}")
+        logger.exception(f"Erro ao detalhar fechamento {pk} para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao carregar os detalhes do fechamento: {e}")
         return redirect('financeiro:lista_fechamentos_caixa')
 
@@ -1287,7 +1276,7 @@ def detalhe_fechamento_caixa(request, pk): # noqa: E302
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def reabrir_fechamento_caixa(request, pk): # noqa: E302
     """ Reabre um caixa fechado, marcando as receitas/despesas como abertas novamente. """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     # Garante que o fechamento pertence às igrejas permitidas
     fechamento = get_object_or_404(FechamentoCaixa, pk=pk, igreja__in=allowed_churches)
@@ -1311,12 +1300,12 @@ def reabrir_fechamento_caixa(request, pk): # noqa: E302
             messages.success(request, f'Caixa da igreja "{igreja_nome}" ({data_inicio_str} a {data_fim_str}) foi reaberto com sucesso! As transações estão disponíveis para edição.')
             return redirect('financeiro:lista_fechamentos_caixa')
         except Exception as e:
-            logger.exception(f"Erro ao reabrir fechamento {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao reabrir fechamento {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao reabrir o caixa: {e}')
             return redirect('financeiro:detalhe_fechamento_caixa', pk=pk) # Volta para o detalhe em caso de erro
     else:
         # Se GET, mostrar página de confirmação para reabrir
-        context = {'fechamento': fechamento, 'organizacao': organizacao}
+        context = {'fechamento': fechamento, 'ministerio': ministerio}
         return render(request, 'financeiro/fechamentos/confirmar_reabrir_caixa.html', context)
 
 
@@ -1324,7 +1313,7 @@ def reabrir_fechamento_caixa(request, pk): # noqa: E302
 @check_permission(has_finance_view_permission) # MODIFICADO
 def relatorio_mensal_detalhe(request, pk): # noqa: E302
     """ Gera o relatório formatado de um fechamento de caixa específico. """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     # Garante que o fechamento pertence às igrejas permitidas
     fechamento = get_object_or_404(FechamentoCaixa, pk=pk, igreja__in=allowed_churches)
@@ -1339,7 +1328,7 @@ def relatorio_mensal_detalhe(request, pk): # noqa: E302
 
         # --- MODIFICAÇÃO PARA DESPESAS ---
         # 1. Buscar categorias ordenadas por ID (pk)
-        categorias_despesa_org = CategoriaDespesa.objects.filter(organizacao=organizacao).order_by('pk')
+        categorias_despesa_org = CategoriaDespesa.objects.filter(ministerio=ministerio).order_by('pk')
 
         # 2. Criar uma LISTA de tuplas (nome, total) para preservar a ordem
         totais_despesas_cat_list = [] # Mudar para lista
@@ -1360,7 +1349,7 @@ def relatorio_mensal_detalhe(request, pk): # noqa: E302
         context = {
             'fechamento': fechamento,
             'igreja': igreja,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'totais_receitas_cat': totais_receitas_cat,
             # 'totais_despesas_cat': totais_despesas_cat, # Remover o dict antigo
             'totais_despesas_cat_list': totais_despesas_cat_list, # Passar a LISTA nova
@@ -1374,7 +1363,7 @@ def relatorio_mensal_detalhe(request, pk): # noqa: E302
         }
         return render(request, 'financeiro/relatorio_mensal.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao gerar relatório para fechamento {pk}, organização {organizacao.id}")
+        logger.exception(f"Erro ao gerar relatório para fechamento {pk}, ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao gerar o relatório: {e}")
         return redirect('financeiro:lista_fechamentos_caixa')
 
@@ -1392,11 +1381,11 @@ def relatorio_mensal_detalhe(request, pk): # noqa: E302
 
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_fornecedores(request):
-    """ Lista os fornecedores da organização, com filtros. """
-    organizacao = get_organizacao_or_error(request)
+    """ Lista os fornecedores da ministério, com filtros. """
+    ministerio = get_ministerio_or_error(request)
     try:
-        # Fornecedores são ligados diretamente à organização, não precisam de filtro de igreja
-        fornecedores_qs = Fornecedor.objects.filter(organizacao=organizacao).order_by('nome')
+        # Fornecedores são ligados diretamente à ministério, não precisam de filtro de igreja
+        fornecedores_qs = Fornecedor.objects.filter(ministerio=ministerio).order_by('nome')
         can_edit = has_finance_edit_permission(request.user) # Para botões
 
         # Filtros GET
@@ -1422,52 +1411,52 @@ def lista_fornecedores(request):
 
         context = {
             'fornecedores': fornecedores_qs,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'current_q': query,
             'current_status_ativo': status_selecionado,
             'can_edit_finance': can_edit,
         }
         return render(request, 'financeiro/fornecedores/lista_fornecedores.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao listar fornecedores para organização {organizacao.id}")
+        logger.exception(f"Erro ao listar fornecedores para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar os fornecedores: {e}")
         return redirect('financeiro:painel_financeiro') # Redireciona para painel em caso de erro
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def criar_fornecedor(request): # noqa: E302
-    """ Cria um novo fornecedor para a organização. """
-    organizacao = get_organizacao_or_error(request)
+    """ Cria um novo fornecedor para a ministério. """
+    ministerio = get_ministerio_or_error(request)
     if request.method == 'POST':
         form = FornecedorForm(request.POST)
         if form.is_valid():
             try:
                 fornecedor = form.save(commit=False)
-                fornecedor.organizacao = organizacao
+                fornecedor.ministerio = ministerio
                 fornecedor.ativo = True # Novos fornecedores começam ativos
                 fornecedor.save()
                 messages.success(request, f'Fornecedor "{fornecedor.nome}" criado com sucesso!')
                 return redirect('financeiro:lista_fornecedores')
             except Exception as e:
-                # Verifica erro de unicidade (nome duplicado na organização)
-                if 'UNIQUE constraint' in str(e) and 'organizacao_id, nome' in str(e):
-                     messages.error(request, f'Erro: Já existe um fornecedor com o nome "{form.cleaned_data.get("nome")}" nesta organização.')
+                # Verifica erro de unicidade (nome duplicado na ministério)
+                if 'UNIQUE constraint' in str(e) and 'ministerio_id, nome' in str(e):
+                     messages.error(request, f'Erro: Já existe um fornecedor com o nome "{form.cleaned_data.get("nome")}" nesta ministério.')
                 else:
-                    logger.exception(f"Erro ao salvar novo fornecedor para organização {organizacao.id}")
+                    logger.exception(f"Erro ao salvar novo fornecedor para ministério {ministerio.id}")
                     messages.error(request, f'Erro ao salvar fornecedor: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         form = FornecedorForm()
 
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': 'Criar Novo Fornecedor'}
+    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Criar Novo Fornecedor'}
     return render(request, 'financeiro/fornecedores/form_fornecedor.html', context)
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def editar_fornecedor(request, pk): # noqa: E302
-    """ Edita um fornecedor existente da organização. """
-    organizacao = get_organizacao_or_error(request)
-    # Validação de organização já feita no get_object_or_404
-    fornecedor = get_object_or_404(Fornecedor, pk=pk, organizacao=organizacao)
+    """ Edita um fornecedor existente da ministério. """
+    ministerio = get_ministerio_or_error(request)
+    # Validação de ministério já feita no get_object_or_404
+    fornecedor = get_object_or_404(Fornecedor, pk=pk, ministerio=ministerio)
 
     if request.method == 'POST':
         form = FornecedorForm(request.POST, instance=fornecedor)
@@ -1477,25 +1466,25 @@ def editar_fornecedor(request, pk): # noqa: E302
                 messages.success(request, f'Fornecedor "{fornecedor.nome}" atualizado com sucesso!')
                 return redirect('financeiro:lista_fornecedores')
             except Exception as e:
-                 if 'UNIQUE constraint' in str(e) and 'organizacao_id, nome' in str(e):
-                     messages.error(request, f'Erro: Já existe outro fornecedor com o nome "{form.cleaned_data.get("nome")}" nesta organização.')
+                 if 'UNIQUE constraint' in str(e) and 'ministerio_id, nome' in str(e):
+                     messages.error(request, f'Erro: Já existe outro fornecedor com o nome "{form.cleaned_data.get("nome")}" nesta ministério.')
                  else:
-                    logger.exception(f"Erro ao editar fornecedor {pk} para organização {organizacao.id}")
+                    logger.exception(f"Erro ao editar fornecedor {pk} para ministério {ministerio.id}")
                     messages.error(request, f'Erro ao salvar fornecedor: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         form = FornecedorForm(instance=fornecedor)
 
-    context = {'form': form, 'organizacao': organizacao, 'titulo_pagina': f'Editar Fornecedor: {fornecedor.nome}', 'fornecedor': fornecedor}
+    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': f'Editar Fornecedor: {fornecedor.nome}', 'fornecedor': fornecedor}
     return render(request, 'financeiro/fornecedores/form_fornecedor.html', context)
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def alternar_status_fornecedor(request, pk): # noqa: E302
     """ Ativa ou desativa um fornecedor (requer método POST). """
-    organizacao = get_organizacao_or_error(request)
-    # Validação de organização já feita no get_object_or_404
-    fornecedor = get_object_or_404(Fornecedor, pk=pk, organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request)
+    # Validação de ministério já feita no get_object_or_404
+    fornecedor = get_object_or_404(Fornecedor, pk=pk, ministerio=ministerio)
 
     if request.method == 'POST':
         try:
@@ -1504,7 +1493,7 @@ def alternar_status_fornecedor(request, pk): # noqa: E302
             status_msg = "ativado" if fornecedor.ativo else "desativado"
             messages.success(request, f'Fornecedor "{fornecedor.nome}" foi {status_msg} com sucesso.')
         except Exception as e:
-            logger.exception(f"Erro ao alternar status do fornecedor {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao alternar status do fornecedor {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao alterar status do fornecedor: {e}')
     else:
         messages.error(request, "Ação inválida (requer POST).")
@@ -1521,9 +1510,9 @@ def alternar_status_fornecedor(request, pk): # noqa: E302
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def editar_categoria_despesa(request, pk): # noqa: E302
     """ Edita uma categoria de despesa existente. """
-    organizacao = get_organizacao_or_error(request)
-    # Validação de organização já feita no get_object_or_404
-    categoria = get_object_or_404(CategoriaDespesa, pk=pk, organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request)
+    # Validação de ministério já feita no get_object_or_404
+    categoria = get_object_or_404(CategoriaDespesa, pk=pk, ministerio=ministerio)
 
     if request.method == 'POST':
         # Passa instance=categoria para editar o objeto existente
@@ -1535,10 +1524,10 @@ def editar_categoria_despesa(request, pk): # noqa: E302
                 return redirect('financeiro:lista_categorias_despesa')
             except Exception as e:
                  # Tratar erro de unicidade se o nome for alterado para um já existente
-                 if 'UNIQUE constraint' in str(e) and 'organizacao_id, nome' in str(e):
-                     messages.error(request, f'Erro: Já existe uma categoria com o nome "{form.cleaned_data.get("nome")}" nesta organização.')
+                 if 'UNIQUE constraint' in str(e) and 'ministerio_id, nome' in str(e):
+                     messages.error(request, f'Erro: Já existe uma categoria com o nome "{form.cleaned_data.get("nome")}" nesta ministério.')
                  else:
-                    logger.exception(f"Erro ao editar categoria {pk} para organização {organizacao.id}")
+                    logger.exception(f"Erro ao editar categoria {pk} para ministério {ministerio.id}")
                     messages.error(request, f'Erro ao salvar categoria: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
@@ -1548,7 +1537,7 @@ def editar_categoria_despesa(request, pk): # noqa: E302
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': f'Editar Categoria: {categoria.nome}',
         'categoria': categoria # Passa o objeto para o template, se necessário
     }
@@ -1558,9 +1547,9 @@ def editar_categoria_despesa(request, pk): # noqa: E302
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def excluir_categoria_despesa(request, pk): # noqa: E302
     """ Exclui uma categoria de despesa (requer POST e confirmação). """
-    organizacao = get_organizacao_or_error(request)
-    # Validação de organização já feita no get_object_or_404
-    categoria = get_object_or_404(CategoriaDespesa, pk=pk, organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request)
+    # Validação de ministério já feita no get_object_or_404
+    categoria = get_object_or_404(CategoriaDespesa, pk=pk, ministerio=ministerio)
 
     # Verificar se a categoria está em uso antes de excluir? (Boa prática)
     # despesas_associadas = Despesas.objects.filter(categoria=categoria).exists()
@@ -1575,12 +1564,12 @@ def excluir_categoria_despesa(request, pk): # noqa: E302
             categoria.delete()
             messages.success(request, f'Categoria "{nome_categoria}" excluída com sucesso!')
         except Exception as e:
-            logger.exception(f"Erro ao excluir categoria {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao excluir categoria {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao excluir categoria: {e}')
         return redirect('financeiro:lista_categorias_despesa')
     else:
         # GET: Mostrar página de confirmação
-        context = {'categoria': categoria, 'organizacao': organizacao}
+        context = {'categoria': categoria, 'ministerio': ministerio}
         return render(request, 'financeiro/categorias/confirmar_excluir_categoria.html', context)
 
 
@@ -1590,8 +1579,8 @@ def excluir_categoria_despesa(request, pk): # noqa: E302
 
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_contas_pagar(request): # noqa: E302
-    """ Lista as contas a pagar da organização, com filtros. """
-    organizacao = get_organizacao_or_error(request)
+    """ Lista as contas a pagar da ministério, com filtros. """
+    ministerio = get_ministerio_or_error(request)
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     
     try:
@@ -1599,11 +1588,11 @@ def lista_contas_pagar(request): # noqa: E302
         igreja_contexto_filtro_dados = None # Igreja que efetivamente filtrará os dados principais
         if request.igreja_ativa and request.igreja_ativa in allowed_churches:
             igreja_contexto_filtro_dados = request.igreja_ativa
-            contas_qs = ContaPagar.objects.filter(organizacao=organizacao, igreja=request.igreja_ativa).select_related(
+            contas_qs = ContaPagar.objects.filter(ministerio=ministerio, igreja=request.igreja_ativa).select_related(
                 'igreja', 'fornecedor', 'categoria', 'conta_debito').order_by('data_vencimento', 'status')
         else:        
              # Se nenhuma igreja ativa globalmente, começa com todas as permitidas
-            contas_qs = ContaPagar.objects.filter(organizacao=organizacao, igreja__in=allowed_churches).select_related(
+            contas_qs = ContaPagar.objects.filter(ministerio=ministerio, igreja__in=allowed_churches).select_related(
                 'igreja', 'fornecedor', 'categoria', 'conta_debito'
             ).order_by('data_vencimento', 'status')
 
@@ -1643,7 +1632,7 @@ def lista_contas_pagar(request): # noqa: E302
         # Opcional: Atualizar status para VENCIDA (pode impactar performance)
         # hoje = timezone.now().date()
         # ContaPagar.objects.filter(
-        #     organizacao=organizacao, status='PEN', data_vencimento__lt=hoje
+        #     ministerio=ministerio, status='PEN', data_vencimento__lt=hoje
         # ).update(status='VEN')
 
         # Para os filtros no template
@@ -1659,14 +1648,14 @@ def lista_contas_pagar(request): # noqa: E302
         
         
         
-        fornecedores_org = Fornecedor.objects.filter(organizacao=organizacao, ativo=True)
+        fornecedores_org = Fornecedor.objects.filter(ministerio=ministerio, ativo=True)
 
         # Permissão para criar/pagar
         can_edit = has_finance_edit_permission(request.user)
 
         context = {
             'contas': contas_qs,
-            'organizacao': organizacao,
+            'ministerio': ministerio,
             'status_choices': ContaPagar.STATUS_CHOICES,
             'igrejas_org': igrejas_para_filtro_template, # Usar a lista ajustada
             'fornecedores_org': fornecedores_org,
@@ -1681,14 +1670,14 @@ def lista_contas_pagar(request): # noqa: E302
         }
         return render(request, 'financeiro/contas_pagar/lista_contas_pagar.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao listar contas a pagar para organização {organizacao.id}")
+        logger.exception(f"Erro ao listar contas a pagar para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar as contas a pagar: {e}")
         return redirect('financeiro:painel_financeiro')
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def criar_conta_pagar(request): # noqa: E302
     """ Cria uma nova conta a pagar (ou uma parcela). """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     igreja_padrao_para_form = None # Inicializa
 
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1700,14 +1689,14 @@ def criar_conta_pagar(request): # noqa: E302
 
     if request.method == 'POST': # O form já valida se a igreja selecionada é permitida
         form = ContaPagarForm(request.POST,
-                              organizacao=organizacao,
+                              ministerio=ministerio,
                               allowed_churches=allowed_churches,
                               user=request.user, # Passar o usuário
                               igreja_selecionada_inicial=request.igreja_ativa) # Passar igreja ativa
         if form.is_valid():
             try:
                 conta = form.save(commit=False)
-                conta.organizacao = organizacao
+                conta.ministerio = ministerio
                 conta.usuario_criacao = request.user
                 # Se o campo igreja foi desabilitado e uma igreja ativa foi passada, usar a igreja ativa
                 if form.fields['igreja'].disabled and request.igreja_ativa:
@@ -1718,8 +1707,8 @@ def criar_conta_pagar(request): # noqa: E302
 
                 # Validações extras
                 if not is_admin_org(request.user) and conta.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
-                if conta.fornecedor.organizacao != organizacao: raise ValidationError("Fornecedor inválido")
-                if conta.categoria and conta.categoria.organizacao != organizacao: raise ValidationError("Categoria inválida")
+                if conta.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
+                if conta.categoria and conta.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
 
                 conta.save()
                 messages.success(request, "Conta a pagar criada com sucesso!")
@@ -1728,7 +1717,7 @@ def criar_conta_pagar(request): # noqa: E302
             except ValidationError as ve: # Captura erros de validação específicos
                  messages.error(request, f"Erro de validação: {ve}")
             except Exception as e:
-                logger.exception(f"Erro ao salvar nova conta a pagar para organização {organizacao.id}")
+                logger.exception(f"Erro ao salvar nova conta a pagar para ministério {ministerio.id}")
                 messages.error(request, f"Erro ao salvar conta a pagar: {e}")
         else:
             messages.error(request, "Formulário inválido. Verifique os campos.")
@@ -1748,14 +1737,14 @@ def criar_conta_pagar(request): # noqa: E302
             igreja_para_form_get = igreja_unica_permitida # Adicionar esta linha
 
         form = ContaPagarForm(initial=initial_form_data, 
-                              organizacao=organizacao,
+                              ministerio=ministerio,
                               allowed_churches=allowed_churches,
                               user=request.user, # Adicionar user
                               igreja_selecionada_inicial=igreja_para_form_get) # Usar igreja_para_form_get
 
     context = {        
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': 'Criar Nova Conta a Pagar / Parcela'
     }
     return render(request, 'financeiro/contas_pagar/form_conta_pagar.html', context)
@@ -1763,23 +1752,23 @@ def criar_conta_pagar(request): # noqa: E302
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
     """ Registra o pagamento de uma conta a pagar específica. """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     # Permite pagar apenas contas Pendentes ou Vencidas E que pertençam às igrejas permitidas
-    conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
+    conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
 
     # Envolver em uma transação atômica para garantir consistência
     if request.method == 'POST':
         # Passa instance=conta para o form saber qual conta está sendo paga
-        # O form já filtra a conta_debito pela organização
-        form = RegistrarPagamentoContaPagarForm(request.POST, request.FILES, instance=conta, organizacao=organizacao) # Passa organizacao
+        # O form já filtra a conta_debito pela ministério
+        form = RegistrarPagamentoContaPagarForm(request.POST, request.FILES, instance=conta, ministerio=ministerio) # Passa ministerio
         if form.is_valid():
             try:
                 with transaction.atomic(): # Garante que ou tudo funciona ou nada é salvo
                     conta_paga = form.save(commit=False) # O save do form já define status='PAG'
 
                     # Validação extra da conta de débito (form já deve ter filtrado)
-                    if conta_paga.conta_debito and conta_paga.conta_debito.igreja.organizacao != organizacao:
+                    if conta_paga.conta_debito and conta_paga.conta_debito.igreja.ministerio != ministerio:
                         raise ValidationError("Conta de débito selecionada inválida.")
 
                     # Salva a ContaPagar com status 'PAG' e dados do pagamento
@@ -1818,24 +1807,24 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
             except ValidationError as ve:
                  messages.error(request, f"Erro de validação: {ve}")
             except Exception as e:
-                 logger.exception(f"Erro ao registrar pagamento da conta {pk} para organização {organizacao.id}")
-                 logger.error(f"Erro ao registrar pagamento da conta {pk} para organização {organizacao.id}: {e}\n{traceback.format_exc()}")
+                 logger.exception(f"Erro ao registrar pagamento da conta {pk} para ministério {ministerio.id}")
+                 logger.error(f"Erro ao registrar pagamento da conta {pk} para ministério {ministerio.id}: {e}\n{traceback.format_exc()}")
                  messages.error(request, f"Erro ao registrar pagamento: {e}")
         else:
             messages.error(request, "Formulário de pagamento inválido. Verifique os campos.")
     else:
         # GET: Exibe o formulário preenchido com sugestões
-        # Passa a organização para filtrar conta_debito
-        form = RegistrarPagamentoContaPagarForm(instance=conta, organizacao=organizacao)
+        # Passa a ministério para filtrar conta_debito
+        form = RegistrarPagamentoContaPagarForm(instance=conta, ministerio=ministerio)
     # Verifica se o campo conta_debito tem opções disponíveis
-    # Se o queryset estiver vazio, significa que não há contas bancárias cadastradas para a organização
+    # Se o queryset estiver vazio, significa que não há contas bancárias cadastradas para a ministério
     if not form.fields['conta_debito'].queryset.exists():
-        messages.warning(request, "Não há contas bancárias/caixas cadastradas para a sua organização. Cadastre uma conta para registrar pagamentos.")
+        messages.warning(request, "Não há contas bancárias/caixas cadastradas para a sua ministério. Cadastre uma conta para registrar pagamentos.")
         # Opcional: Redirecionar para a página de cadastro de contas bancárias se ela existir
     context = {
         'form': form,
         'conta': conta, # Passa a conta para exibir detalhes no template
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': f"Registrar Pagamento: {conta.descricao}"
     }
     return render(request, 'financeiro/contas_pagar/form_registrar_pagamento.html', context)
@@ -1855,20 +1844,20 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def editar_conta_pagar(request, pk): # noqa: E302
     """ Edita uma conta a pagar existente (se ainda não estiver paga ou cancelada). """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     # Permite editar apenas contas Pendentes ou Vencidas E das igrejas permitidas
-    conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
+    conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
 
     if request.method == 'POST':
-        form = ContaPagarForm(request.POST, instance=conta, organizacao=organizacao, allowed_churches=allowed_churches)
+        form = ContaPagarForm(request.POST, instance=conta, ministerio=ministerio, allowed_churches=allowed_churches)
         if form.is_valid():
             try:
                 conta_editada = form.save(commit=False)
                 # Validações extras (redundantes se o form filtra, mas seguro)
                 if not is_admin_org(request.user) and conta_editada.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
-                if conta_editada.fornecedor.organizacao != organizacao: raise ValidationError("Fornecedor inválido")
-                if conta_editada.categoria and conta_editada.categoria.organizacao != organizacao: raise ValidationError("Categoria inválida")
+                if conta_editada.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
+                if conta_editada.categoria and conta_editada.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
 
                 conta_editada.save()
                 messages.success(request, f'Conta a pagar "{conta.descricao}" atualizada com sucesso!')
@@ -1876,17 +1865,17 @@ def editar_conta_pagar(request, pk): # noqa: E302
             except ValidationError as ve:
                  messages.error(request, f"Erro de validação: {ve}")
             except Exception as e:
-                logger.exception(f"Erro ao editar conta a pagar {pk} para organização {organizacao.id}")
+                logger.exception(f"Erro ao editar conta a pagar {pk} para ministério {ministerio.id}")
                 messages.error(request, f'Erro ao salvar conta a pagar: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         # GET: Exibe o formulário preenchido
-        form = ContaPagarForm(instance=conta, organizacao=organizacao, allowed_churches=allowed_churches)
+        form = ContaPagarForm(instance=conta, ministerio=ministerio, allowed_churches=allowed_churches)
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': f'Editar Conta: {conta.descricao}',
         'conta': conta # Passa o objeto para o template
     }
@@ -1896,28 +1885,28 @@ def editar_conta_pagar(request, pk): # noqa: E302
 @check_permission(has_finance_view_permission) # MODIFICADO
 def detalhe_conta_pagar(request, pk): # noqa: E302
     """ Exibe os detalhes completos de uma conta a pagar. """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     allowed_churches = get_allowed_churches_for_user(request.user)
     if request.igreja_ativa and request.igreja_ativa in allowed_churches:
         # Se uma igreja ativa está selecionada, garante que a conta pertence a ela
-        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, igreja=request.igreja_ativa)
+        conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, igreja=request.igreja_ativa)
     else:    
         # Garante que a conta pertence às igrejas permitidas
-        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, igreja__in=allowed_churches)
+        conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, igreja__in=allowed_churches)
     # Usar select_related para otimizar
 
     conta = ContaPagar.objects.select_related(
         # Re-busca com select_related após garantir a permissão
         'igreja', 'fornecedor', 'categoria', 'conta_debito', 'usuario_criacao'
-    ).get(pk=pk, organizacao=organizacao) # A permissão já foi verificada acima
+    ).get(pk=pk, ministerio=ministerio) # A permissão já foi verificada acima
 
     # Permissão para editar/pagar/cancelar
     can_edit = has_finance_edit_permission(request.user)
 
     context = {
         'conta': conta,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'can_edit_finance': can_edit, # Passa para o template
     }
     return render(request, 'financeiro/contas_pagar/detalhe_conta_pagar.html', context)
@@ -1925,17 +1914,17 @@ def detalhe_conta_pagar(request, pk): # noqa: E302
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def cancelar_conta_pagar(request, pk): # noqa: E302
     """ Marca uma conta a pagar como Cancelada (requer POST). """
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     
 # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     allowed_churches = get_allowed_churches_for_user(request.user)
     if request.igreja_ativa and request.igreja_ativa in allowed_churches:
         # Se uma igreja ativa está selecionada, garante que a conta pertence a ela
-        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN'], igreja=request.igreja_ativa)
+        conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja=request.igreja_ativa)
     else:
         # Permite cancelar apenas contas Pendentes ou Vencidas E das igrejas permitidas
-        conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
-        # conta = get_object_or_404(ContaPagar, pk=pk, organizacao=organizacao, status__in=['PEN', 'VEN']) # Linha duplicada removida
+        conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
+        # conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN']) # Linha duplicada removida
 
     if request.method == 'POST':
         try:
@@ -1943,7 +1932,7 @@ def cancelar_conta_pagar(request, pk): # noqa: E302
             conta.save(update_fields=['status', 'data_atualizacao']) # Atualiza só os campos necessários
             messages.success(request, f'Conta a pagar "{conta.descricao}" cancelada com sucesso.')
         except Exception as e:
-            logger.exception(f"Erro ao cancelar conta a pagar {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao cancelar conta a pagar {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao cancelar a conta: {e}')
         return redirect('financeiro:lista_contas_pagar')
     else:
@@ -1956,7 +1945,7 @@ def cancelar_conta_pagar(request, pk): # noqa: E302
 # ==================================================
 @check_permission(is_finance_leader) # MODIFICADO
 def painel_lideranca_financeiro(request):
-    organizacao_usuario = get_organizacao_or_error(request)
+    ministerio_usuario = get_ministerio_or_error(request)
     allowed_churches_base_financeiro = get_allowed_churches_for_user(request.user)
 
     # print(f"DEBUG (Financeiro): Usuário: {request.user.username}, É Líder Financeiro: {is_finance_leader(request.user)}") # Removido para produção
@@ -1966,8 +1955,8 @@ def painel_lideranca_financeiro(request):
         messages.warning(request, "Nenhuma igreja encontrada para visualização no painel de liderança financeira.")
         return render(request, 'financeiro/painel_lideranca_financeiro.html', {
             'nenhuma_igreja_permissao': True,
-            'organizacao_usuario': organizacao_usuario,
-            'titulo_dashboard': f"Liderança Financeira - {organizacao_usuario.nome_fantasia}"
+            'ministerio_usuario': ministerio_usuario,
+            'titulo_dashboard': f"Liderança Financeira - {ministerio_usuario.nome_fantasia}"
         })
 
     try:
@@ -1976,7 +1965,7 @@ def painel_lideranca_financeiro(request):
         ver_apenas_entidade_foco = False # True se formos ver SÓ a igreja_em_foco_obj, sem descendentes
         
         # Título do escopo da igreja (será definido abaixo)
-        titulo_escopo_igreja = f"Consolidado - {organizacao_usuario.nome_fantasia}" 
+        titulo_escopo_igreja = f"Consolidado - {ministerio_usuario.nome_fantasia}" 
         # Opções para o dropdown de filtro na página
         opcoes_filtro_pagina = allowed_churches_base_financeiro.order_by('nome_igreja')
         # ID selecionado no filtro da página (vem do GET, ou será definido)
@@ -2038,11 +2027,11 @@ def painel_lideranca_financeiro(request):
                     messages.warning(request, "Igreja selecionada no filtro inválida. Mostrando consolidado.")
                     id_selecionado_filtro_pagina = ''
                     igreja_em_foco_obj = None
-                    titulo_escopo_igreja = f"Consolidado - {organizacao_usuario.nome_fantasia}"
+                    titulo_escopo_igreja = f"Consolidado - {ministerio_usuario.nome_fantasia}"
             else: # Nenhum filtro na página e nenhuma igreja_ativa global (value='')
                 igreja_em_foco_obj = None
                 id_selecionado_filtro_pagina = '' # Garante que "todas" esteja selecionado
-                titulo_escopo_igreja = f"Consolidado - {organizacao_usuario.nome_fantasia}"
+                titulo_escopo_igreja = f"Consolidado - {ministerio_usuario.nome_fantasia}"
 
         # --- Construir churches_for_queries e título final com base no foco e flag ---
         if igreja_em_foco_obj:
@@ -2057,7 +2046,7 @@ def painel_lideranca_financeiro(request):
                     )
                     if desc_qs.exists():
                         pks_to_include.update(desc_qs.values_list('pk', flat=True))
-                churches_for_queries = Igreja.objects.filter(pk__in=list(pks_to_include), organizacao=organizacao_usuario)
+                churches_for_queries = Igreja.objects.filter(pk__in=list(pks_to_include), ministerio=ministerio_usuario)
                 
                 if len(pks_to_include) > 1: # Se incluiu descendentes
                     if not ver_apenas_entidade_foco: # Só define como rede se não for visão exclusiva
@@ -2072,8 +2061,8 @@ def painel_lideranca_financeiro(request):
             messages.warning(request, "Nenhuma igreja corresponde aos filtros aplicados.")
             return render(request, 'financeiro/painel_lideranca_financeiro.html', {
                 'nenhuma_igreja_filtro': True, 
-                'organizacao_usuario': organizacao_usuario,
-                'titulo_dashboard': f"Liderança Financeira - {organizacao_usuario.nome_fantasia}",
+                'ministerio_usuario': ministerio_usuario,
+                'titulo_dashboard': f"Liderança Financeira - {ministerio_usuario.nome_fantasia}",
                 'igrejas_permitidas_filtro': allowed_churches_base_financeiro.order_by('nome_igreja'),
                 'igreja_id_filtro_selecionado': id_selecionado_filtro_pagina,
             })
@@ -2188,13 +2177,13 @@ def painel_lideranca_financeiro(request):
             'grafico_gastos_cat_percentuais_json': json.dumps(grafico_gastos_cat_percentuais),
             'igrejas_permitidas_filtro': opcoes_filtro_pagina,
             'igreja_id_filtro_selecionado': id_selecionado_filtro_pagina,
-            'organizacao_usuario': organizacao_usuario, 
+            'ministerio_usuario': ministerio_usuario, 
         }
         return render(request, 'financeiro/painel_lideranca_financeiro.html', context)
     except Exception as e:
-        logger.exception(f"Erro ao carregar painel de liderança financeira para organização {organizacao_usuario.id if organizacao_usuario else 'N/A'}: {e}")
+        logger.exception(f"Erro ao carregar painel de liderança financeira para ministério {ministerio_usuario.id if ministerio_usuario else 'N/A'}: {e}")
         messages.error(request, f"Ocorreu um erro ao carregar o painel de liderança financeira: {e}")
         return render(request, 'financeiro/painel_lideranca_financeiro.html', {
             'erro_painel': True, 
-            'organizacao_usuario': organizacao_usuario
+            'ministerio_usuario': ministerio_usuario
         })

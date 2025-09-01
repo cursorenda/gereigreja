@@ -2,7 +2,7 @@
 {% load humanize %}
 {% load l10n %}
 
-{% block title %}Detalhes Conta: {{ conta.descricao|truncatechars:30 }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+{% block title %}Detalhes Conta: {{ conta.descricao|truncatechars:30 }} - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">

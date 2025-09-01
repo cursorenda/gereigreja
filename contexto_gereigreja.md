@@ -6,7 +6,7 @@
   - **Tecnologias Chave:**
     - Backend: Python com Django Framework.
     - Frontend: HTML, CSS (Bootstrap), JavaScript (jQuery, Chart.js).
-    - Banco de Dados: SQLite3 (desenvolvimento) e Supabase (produção, se aplicável).
+  - Banco de Dados: Supabase (PostgreSQL).
     - Hospedagem: Render (deploy automatizado).
     - Armazenamento de Mídia: Cloudinary (imagens e arquivos de usuários).
     - Controle de Versão: Git e GitHub.
@@ -17,7 +17,7 @@
   - **Deploy:** Automatizado via GitHub (build e deploy contínuo).
   - **Configuração:**
     - Variáveis de ambiente configuradas no painel da Render (ex: `DJANGO_SETTINGS_MODULE`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, credenciais de e-mail, Cloudinary, Supabase, etc).
-    - Banco de dados: SQLite3 (desenvolvimento) e Supabase (produção, se aplicável).
+  - Banco de dados: Supabase (PostgreSQL).
     - Armazenamento de mídia: Cloudinary (configurado em `settings.py`).
     - Arquivos estáticos: Servidos via Whitenoise.
     - Logs: Gravados em `logs/django_errors.log`.
@@ -53,14 +53,14 @@
     - Implementação de `StatusHistorico` para rastrear automaticamente as mudanças de `TipoPessoa` e `StatusPessoa` de um membro, incluindo quem fez a alteração e quando.
     - Interface para adicionar entradas manuais/retroativas no `StatusHistorico`.
   - **Permissões e Acesso:**
-    - Uso de grupos do Django (`Admin Organizacao`, `Secretario`, `Tesoureiro`, `Lider`) para controlar o acesso às funcionalidades.
+    - Uso de grupos do Django (`Admin Ministerio`, `Secretario`, `Tesoureiro`, `Lider`) para controlar o acesso às funcionalidades.
     - Decorator customizado `@check_permission` para verificar permissões de forma mais robusta.
     - Página de erro `403.html` personalizada para acessos não permitidos.
   - **Gerenciamento de Igrejas e Contexto Global:**
     - Implementação de um seletor global de "Igreja Ativa" na sessão do usuário, permitindo filtrar dados em diferentes módulos.
     - Lógica nos painéis de liderança para consolidar dados de igrejas subordinadas.
   - **Assinaturas e Planos:**
-    - Modelos para `Plano` e `AssinaturaOrganizacao`.
+    - Modelos para `Plano` e `AssinaturaMinisterio`.
     - Funcionalidade para gerenciar assinaturas, incluindo plano gratuito e período de cortesia.
     - Decorator `@verificar_assinatura_valida` para proteger views.
   - **Melhorias na Interface de Usuário (UX):**
@@ -95,7 +95,7 @@
   - **Arquivos Estáticos e Mídia:**
     - `STATIC_URL`, `STATICFILES_DIRS`, `STATIC_ROOT`, `STATICFILES_STORAGE` (Whitenoise).
     - `MEDIA_URL`, `MEDIA_ROOT`, `DEFAULT_FILE_STORAGE` (Cloudinary).
-  - **Banco de Dados:** SQLite3 (desenvolvimento) e Supabase (produção, se aplicável).
+  - **Banco de Dados:** Supabase (PostgreSQL).
   - **Internacionalização:** `LANGUAGE_CODE = 'pt-br'`, `USE_I18N = True`, etc.
   - **Logging:** RotatingFileHandler, erros em `logs/django_errors.log`.
   - **Autenticação:**
@@ -112,7 +112,7 @@
   - **Dashboard Financeiro:** Incluir mais gráficos e indicadores financeiros relevantes.
   - **Autocadastro de Membros:** Implementar link/funcionalidade para membros se cadastrarem de forma independente, aguardando aprovação.
   - **Envio de E-mail:** Finalizar e testar exaustivamente a configuração de envio de e-mails (Brevo ou outro backend).
-  - **Logo da Igreja/Organização:** Permitir upload e exibição do logo da organização/igreja em locais chave (login, cabeçalhos, relatórios) via Cloudinary.
+  - **Logo da Igreja/Ministério:** Permitir upload e exibição do logo da organização/igreja em locais chave (login, cabeçalhos, relatórios) via Cloudinary.
   - **Contas Pagas no Fechamento de Caixa:** Garantir que as despesas originadas de "Contas a Pagar" sejam corretamente incluídas nos fechamentos de caixa.
 
 ### 8.2. Funcionalidades de Membros (Secretaria)

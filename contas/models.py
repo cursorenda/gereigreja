@@ -5,10 +5,10 @@ from django.utils import timezone
 import uuid # Para gerar tokens únicos
 
 # Importar modelos de outros apps
-from configuracao.models import Organizacao
+from configuracao.models import Ministerio
 
 class Convite(models.Model):
-    """ Modelo para armazenar convites enviados para novos usuários se juntarem a uma organização. """
+    """ Modelo para armazenar convites enviados para novos usuários se juntarem a uma ministério. """
     STATUS_CHOICES = (
         ('pendente', 'Pendente'),
         ('aceito', 'Aceito'),
@@ -26,11 +26,11 @@ class Convite(models.Model):
         related_name='convites_enviados',
         verbose_name="Enviado por"
     )
-    organizacao = models.ForeignKey(
-        Organizacao,
-        on_delete=models.CASCADE, # Se a organização for excluída, os convites também são
+    ministerio = models.ForeignKey(
+        Ministerio,
+        on_delete=models.CASCADE, # Se a ministério for excluída, os convites também são
         related_name='convites_recebidos',
-        verbose_name="Organização"
+        verbose_name="Ministério"
     )
     token = models.UUIDField(
         default=uuid.uuid4, # Gera um UUID único automaticamente
@@ -56,7 +56,7 @@ class Convite(models.Model):
     # data_expiracao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Expiração")
 
     def __str__(self):
-        return f"Convite para {self.email_convidado} ({self.organizacao.nome_fantasia}) - {self.get_status_display()}"
+        return f"Convite para {self.email_convidado} ({self.ministerio.nome_fantasia}) - {self.get_status_display()}"
 
     class Meta:
         verbose_name = "Convite"

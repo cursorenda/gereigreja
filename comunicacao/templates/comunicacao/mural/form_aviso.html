@@ -1,7 +1,7 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
 
-{% block title %}{{ titulo_pagina|default:"Gerenciar Aviso" }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+{% block title %}{{ titulo_pagina|default:"Gerenciar Aviso" }} - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -43,10 +43,10 @@
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.organizacao.id_for_label }}" class="form-label">{{ form.organizacao.label }}:</label>
-                        {{ form.organizacao }}
-                        {% if form.organizacao.errors %}<div class="invalid-feedback d-block">{{ form.organizacao.errors|striptags }}</div>{% endif %}
-                        {% if form.organizacao.help_text %}<div class="form-text">{{ form.organizacao.help_text|safe }}</div>{% endif %}
+                        <label for="{{ form.ministerio.id_for_label }}" class="form-label">{{ form.ministerio.label }}:</label>
+                        {{ form.ministerio }}
+                        {% if form.ministerio.errors %}<div class="invalid-feedback d-block">{{ form.ministerio.errors|striptags }}</div>{% endif %}
+                        {% if form.ministerio.help_text %}<div class="form-text">{{ form.ministerio.help_text|safe }}</div>{% endif %}
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="{{ form.autor.id_for_label }}" class="form-label">{{ form.autor.label }}:</label>
@@ -62,7 +62,7 @@
                         {{ form.igrejas_destino }}
                         {% if form.igrejas_destino.errors %}<div class="invalid-feedback d-block">{{ form.igrejas_destino.errors|striptags }}</div>{% endif %}
                         {% if form.igrejas_destino.help_text %}<div class="form-text">{{ form.igrejas_destino.help_text|safe }}</div>{% endif %}
-                        <small class="form-text text-muted">Segure Ctrl (ou Cmd em Mac) para selecionar múltiplas igrejas. Se nenhuma for selecionada, o aviso será para toda a organização.</small>
+                        <small class="form-text text-muted">Segure Ctrl (ou Cmd em Mac) para selecionar múltiplas igrejas. Se nenhuma for selecionada, o aviso será para toda a ministério.</small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="{{ form.data_expiracao.id_for_label }}" class="form-label">{{ form.data_expiracao.label }}:</label>

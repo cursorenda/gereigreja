@@ -1,6 +1,6 @@
 {% extends 'base_com_menu.html' %}
 
-{% block title %}Gerenciar Igrejas - {{ organizacao.nome_fantasia }}{% endblock %}
+{% block title %}Gerenciar Igrejas - {{ ministerio.nome_fantasia }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -16,7 +16,7 @@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-church me-1"></i>
-            Igrejas da Organização: {{ organizacao.nome_fantasia }} ({{ igrejas.count }})
+            Igrejas da Ministério: {{ ministerio.nome_fantasia }} ({{ igrejas.count }})
         </div>
         <div class="card-body">
             {# Filtro de Busca (Opcional) #}

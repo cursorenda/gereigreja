@@ -16,7 +16,7 @@
             <div class="input-group input-group-sm w-auto">
                 <label class="input-group-text" for="igreja_filtro_select">Igreja:</label>
                 <select name="igreja_filtro" id="igreja_filtro_select" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>Toda a Organização</option>
+                    <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>Toda a Ministério</option>
                     {% for igreja_opt in igrejas_org %}
                     <option value="{{ igreja_opt.pk }}" {% if igreja_id_filtro_selecionado == igreja_opt.pk|stringformat:"s" %}selected{% endif %}>{{ igreja_opt.nome_igreja }}</option>
                     {% endfor %}
@@ -171,7 +171,7 @@
             <div class="card mb-4">
                 <div class="card-header">
                     <i class="fas fa-arrow-down me-1"></i>
-                    Últimas 5 Receitas {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                    Últimas 5 Receitas {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
                 </div>
                 <div class="card-body">
                     {% if ultimas_receitas %}
@@ -204,7 +204,7 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p class="text-muted">Nenhuma receita recente {% if igreja_selecionada %}para esta igreja{% else %}na organização{% endif %}.</p>
+                        <p class="text-muted">Nenhuma receita recente {% if igreja_selecionada %}para esta igreja{% else %}na ministério{% endif %}.</p>
                     {% endif %}
                     <div class="text-end mt-2">
                         <a href="{% url 'financeiro:lista_receitas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}" class="btn btn-sm btn-outline-primary">Ver Todas Receitas</a>
@@ -216,7 +216,7 @@
              <div class="card mb-4">
                 <div class="card-header">
                     <i class="fas fa-arrow-up me-1"></i>
-                    Últimas 5 Despesas {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                    Últimas 5 Despesas {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
                 </div>
                 <div class="card-body">
                      {% if ultimas_despesas %}
@@ -239,7 +239,7 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p class="text-muted">Nenhuma despesa recente {% if igreja_selecionada %}para esta igreja{% else %}na organização{% endif %}.</p>
+                        <p class="text-muted">Nenhuma despesa recente {% if igreja_selecionada %}para esta igreja{% else %}na ministério{% endif %}.</p>
                     {% endif %}
                      <div class="text-end mt-2">
                         <a href="{% url 'financeiro:lista_despesas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}" class="btn btn-sm btn-outline-primary">Ver Todas Despesas</a>
@@ -256,7 +256,7 @@
                 <div class="card-header">
                     <i class="fas fa-university me-1"></i>
                     Saldos das Contas/Caixas Ativas
-                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
                 </div>
                 <div class="card-body">
                     {% if contas_bancarias_painel %}
@@ -276,7 +276,7 @@
                             {% endfor %}
                         </div>
                     {% else %}
-                        <p class="text-muted">Nenhuma conta bancária/caixa ativa encontrada {% if igreja_selecionada %}para esta igreja{% else %}para as igrejas permitidas na organização{% endif %}.</p>
+                        <p class="text-muted">Nenhuma conta bancária/caixa ativa encontrada {% if igreja_selecionada %}para esta igreja{% else %}para as igrejas permitidas na ministério{% endif %}.</p>
                     {% endif %}
                     {% if can_edit_finance %}
                     <div class="text-end mt-2">
@@ -297,7 +297,7 @@
                 <div class="card-header">
                     <i class="fas fa-chart-bar me-1"></i>
                     Movimentação Mensal (Últimos 12 Meses)
-                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
                 </div>
                 <div class="card-body" style="height: 350px;">
                     <canvas id="movimentacaoMensalChart"></canvas>
@@ -332,7 +332,7 @@
                 <div class="card-header">
                     <i class="fas fa-users me-1"></i>
                     Dizimistas Únicos por Mês (Últimos 12 Meses)
-                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
                 </div>
                 <div class="card-body" style="height: 350px;">
                     <canvas id="dizimistasMensalChart"></canvas>
@@ -348,7 +348,7 @@
                 <div class="card-header">
                     <i class="fas fa-chart-pie me-1"></i>
                     Receitas por Categoria ({{ titulo_filtro_periodo }})
-                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
                 </div>
                 <div class="card-body" style="height: 350px;">
                     <canvas id="categoriasReceitaChart"></canvas>
@@ -361,7 +361,7 @@
                 <div class="card-header">
                     <i class="fas fa-chart-pie me-1"></i>
                     Despesas por Categoria ({{ titulo_filtro_periodo }})
-                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                    {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
                 </div>
                 <div class="card-body" style="height: 350px;">
                     <canvas id="categoriasDespesaChart"></canvas>
@@ -374,7 +374,7 @@
             <div class="card-header">
                 <i class="fas fa-archive me-1"></i>
                 Movimentação por Fechamentos de Caixa (Últimos 6)
-                {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Organização){% endif %}
+                {% if igreja_selecionada %}({{ igreja_selecionada.nome_igreja }}){% else %}(Ministério){% endif %}
             </div>
             <div class="card-body" style="height: 350px;">
                 <canvas id="movimentacaoFechamentosChart"></canvas>

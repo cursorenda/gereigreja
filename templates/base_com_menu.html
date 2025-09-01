@@ -27,14 +27,14 @@
     <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
         <!-- Navbar Brand-->
             <a class="navbar-brand ps-3" href="{% if user.is_authenticated %}{% url 'secretaria:dashboard' %}{% else %}{% url 'login' %}{% endif %}">
-            {% if request.organizacao and request.organizacao.logo %}
-                <img src="{{ request.organizacao.logo.url }}" alt="Logo {{ request.organizacao.nome_fantasia|default:'' }}" style="max-height: 30px; margin-right: 5px; vertical-align: middle;">
+            {% if request.ministerio and request.ministerio.logo %}
+                <img src="{{ request.ministerio.logo.url }}" alt="Logo {{ request.ministerio.nome_fantasia|default:'' }}" style="max-height: 30px; margin-right: 5px; vertical-align: middle;">
             {% endif %}
-            {% if request.organizacao and request.organizacao.nome_fantasia and not request.organizacao.logo %}
-                {{ request.organizacao.nome_fantasia|truncatechars:20 }}
-            {% elif request.organizacao and not request.organizacao.nome_fantasia and not request.organizacao.logo and request.organizacao.razao_social %}
-                {{ request.organizacao.razao_social|truncatechars:20 }}
-            {% elif not request.organizacao %}
+            {% if request.ministerio and request.ministerio.nome_fantasia and not request.ministerio.logo %}
+                {{ request.ministerio.nome_fantasia|truncatechars:20 }}
+            {% elif request.ministerio and not request.ministerio.nome_fantasia and not request.ministerio.logo and request.ministerio.razao_social %}
+                {{ request.ministerio.razao_social|truncatechars:20 }}
+            {% elif not request.ministerio %}
                 Gereigreja
             {% endif %}
         </a>        <!-- Sidebar Toggle-->
@@ -93,18 +93,18 @@
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
 
-                {# --- Links de Configuração da Organização (SÓ PARA NÃO SUPERUSUÁRIOS E NO GRUPO CERTO) --- #}
+                {# --- Links de Configuração da Ministério (SÓ PARA NÃO SUPERUSUÁRIOS E NO GRUPO CERTO) --- #}
                 {% if not user.is_superuser and user.groups.all %} {# Verifica se tem grupos associados #}
                 {% for group in user.groups.all %}
-                    {% if group.name == 'Admin Organizacao' %} {# Verifica se está no grupo específico #}
+                    {% if group.name == 'Admin ministerio' %} {# Verifica se está no grupo específico #}
                         <li>
                             <a class="dropdown-item" href="{% url 'configuracao:lista_igrejas' %}">
                                 <i class="fas fa-church fa-fw me-1 text-muted"></i>Gerenciar Igrejas
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="{% url 'configuracao:detalhes_organizacao' %}">
-                                <i class="fas fa-sitemap fa-fw me-1 text-muted"></i>Minha Organização
+                            <a class="dropdown-item" href="{% url 'configuracao:detalhes_ministerio' %}">
+                                <i class="fas fa-sitemap fa-fw me-1 text-muted"></i>Minha Ministério
                             </a>
                         </li>
                         <li>
@@ -117,7 +117,7 @@
                         {% endif %}
                     {% endfor %}
                 {% endif %}
-                {# --- FIM Links de Configuração da Organização --- #}
+                {# --- FIM Links de Configuração da Ministério --- #}
                     <li>
                         <a class="dropdown-item" href="{% url 'configuracao:meu_perfil' %}">
                             <i class="fas fa-id-card fa-fw me-1 text-muted"></i>Meu Perfil
@@ -125,8 +125,8 @@
                     </li>
 
                     {# --- Links da Conta do Usuário (Para TODOS os logados) --- #}
-                    {# Apenas Admin da Organização pode gerenciar a assinatura #}
-                    {% if 'Admin Organizacao' in user.groups.all|join:", " %}
+                    {# Apenas Admin da Ministério pode gerenciar a assinatura #}
+                    {% if 'Admin ministerio' in user.groups.all|join:", " %}
                         <li><a class="dropdown-item" href="{% url 'configuracao:gerenciar_assinatura' %}">
                             <i class="fas fa-credit-card fa-fw me-1 text-muted"></i>Gerenciar Assinatura
                         </a></li>
@@ -250,7 +250,7 @@
             <footer class="py-4 bg-light mt-auto">
                 <div class="container-fluid px-4">
                     <div class="d-flex align-items-center justify-content-between small">
-                        <div class="text-muted">Copyright &copy; {{ request.organizacao.nome_fantasia|default:"Gereigreja" }} {% now "Y" %}</div>
+                        <div class="text-muted">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %}</div>
                         <div>
                             <a href="{% url 'politica_privacidade' %}">Política de Privacidade</a>
                             &middot;

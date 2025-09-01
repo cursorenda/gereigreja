@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}{{ titulo_pagina|default:"Detalhe do Aviso" }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+{% block title %}{{ titulo_pagina|default:"Detalhe do Aviso" }} - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -63,7 +63,7 @@
                 </ul>
             {% else %}
                 <hr>
-                <p><strong>Destinado para:</strong> Toda a Organização</p>
+                <p><strong>Destinado para:</strong> Toda a Ministério</p>
             {% endif %}
         </div>
         <div class="card-footer text-muted">

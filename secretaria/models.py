@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__) # Add this
 class TipoPessoa(models.Model):
     nome = models.CharField(max_length=100, unique=True, help_text="Ex: Membro, Visitante, Obreiro, Congregado, Novo Convertido")
     descricao = models.TextField(blank=True, null=True, help_text="Descrição adicional do tipo de pessoa.")
-    # Se os tipos de pessoa forem específicos por organização, adicione uma ForeignKey para Organizacao aqui.
+    # Se os tipos de pessoa forem específicos por ministério, adicione uma ForeignKey para Ministerio aqui.
     # Por simplicidade inicial, vamos considerar globais.
 
     def __str__(self):
@@ -36,7 +36,7 @@ class StatusPessoa(models.Model):
     cor_associada = models.CharField(
         max_length=7, blank=True, null=True, help_text="Cor em hexadecimal (ex: #FF0000) para UI."
     )
-    # Se os status forem específicos por organização, adicione uma ForeignKey para Organizacao aqui.
+    # Se os status forem específicos por ministério, adicione uma ForeignKey para Ministerio aqui.
 
     def __str__(self):
         return self.nome

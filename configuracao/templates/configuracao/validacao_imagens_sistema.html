@@ -17,7 +17,7 @@
                 <thead>
                     <tr>
                         <th>Usuário</th>
-                        <th>Organização</th>
+                        <th>Ministério</th>
                         <th>Imagem</th>
                         <th>Status</th>
                     </tr>
@@ -26,7 +26,7 @@
                     {% for r in resultados %}
                     <tr>
                         <td>{{ r.usuario }}</td>
-                        <td>{{ r.organizacao }}</td>
+                        <td>{{ r.ministerio }}</td>
                         <td>
                             {% if r.imagem %}
                                 <img src="{{ r.imagem.url }}" 

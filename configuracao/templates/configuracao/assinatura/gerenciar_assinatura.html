@@ -65,17 +65,17 @@
                     </div>
                 {% endif %}
 
-                {% if assinatura_atual.plano.nome == 'gratuito' and not organizacao.verificar_elegibilidade_plano_gratuito and not assinatura_atual.is_periodo_cortesia_valido %}
+                {% if assinatura_atual.plano.nome == 'gratuito' and not ministerio.verificar_elegibilidade_plano_gratuito and not assinatura_atual.is_periodo_cortesia_valido %}
                     <div class="alert alert-warning mt-2" role="alert">
-                        Atenção: Sua organização não parece mais ser elegível para o plano gratuito. Considere atualizar seu plano.
+                        Atenção: Sua ministério não parece mais ser elegível para o plano gratuito. Considere atualizar seu plano.
                     </div>
                 {% endif %}
             {% else %}
                 <p>Você ainda não possui uma assinatura ativa ou selecionou um plano.</p>
                 
-                {% if not assinatura_atual and organizacao.verificar_elegibilidade_plano_gratuito %}
+                {% if not assinatura_atual and ministerio.verificar_elegibilidade_plano_gratuito %}
                     <div class="alert alert-info mt-2">
-                        Sua organização parece ser elegível para o plano gratuito. Se ele não foi atribuído automaticamente, isso pode ocorrer após a aprovação da sua organização ou cadastro da primeira igreja.
+                        Sua ministério parece ser elegível para o plano gratuito. Se ele não foi atribuído automaticamente, isso pode ocorrer após a aprovação da sua ministério ou cadastro da primeira igreja.
                     </div>
                 {% endif %}
             {% endif %}
@@ -115,7 +115,7 @@
 
 
             {% if planos_disponiveis %}
-            <p>Selecione um dos planos abaixo para sua organização. Planos anuais incluem um desconto!</p>
+            <p>Selecione um dos planos abaixo para sua ministério. Planos anuais incluem um desconto!</p>
                 <div class="row">
                     {% for plano in planos_disponiveis %}
                         {% if plano.preco_mensal > 0 %} {# Não mostrar o plano gratuito aqui #}

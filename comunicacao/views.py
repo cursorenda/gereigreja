@@ -13,7 +13,7 @@ from datetime import date
 from .models import Aviso, Notificacao # Importar os modelos Aviso e Notificacao
 from .forms import AvisoForm # Manter o AvisoForm
 
-from core.utils import get_organizacao_or_error
+from core.utils import get_ministerio_or_error
 from configuracao.models import Igreja # Para filtrar igrejas
 from .utils import can_manage_avisos, can_view_avisos # Nossas funções de permissão
 from core.decorators import verificar_assinatura_valida # Decorator de assinatura
@@ -24,28 +24,28 @@ from core.decorators import verificar_assinatura_valida # Decorator de assinatur
 @verificar_assinatura_valida
 @user_passes_test(can_view_avisos, login_url='login')
 def lista_avisos(request):
-    organizacao = get_organizacao_or_error(request)
-    avisos_qs = Aviso.objects.filter(organizacao=organizacao, publicado=True)
+    ministerio = get_ministerio_or_error(request)
+    avisos_qs = Aviso.objects.filter(ministerio=ministerio, publicado=True)
 
     # Filtra avisos que não expiraram ou não têm data de expiração
     avisos_qs = avisos_qs.filter(
         Q(data_expiracao__isnull=True) | Q(data_expiracao__gte=timezone.now().date())
     )
 
-    # Filtra por igreja ativa (se houver) ou mostra avisos para toda a organização
+    # Filtra por igreja ativa (se houver) ou mostra avisos para toda a ministério
     # ou para as igrejas específicas que o usuário pode ver (se a lógica for mais complexa no futuro)
     if request.igreja_ativa:
         avisos_qs = avisos_qs.filter(
             Q(igrejas_destino__isnull=True) | Q(igrejas_destino=request.igreja_ativa)
         ).distinct() # distinct() é importante por causa do ManyToMany
     else:
-        # Se nenhuma igreja ativa, mostra avisos para toda a organização
-        # ou aqueles que não têm igrejas destino específicas (são para toda a organização)
+        # Se nenhuma igreja ativa, mostra avisos para toda a ministério
+        # ou aqueles que não têm igrejas destino específicas (são para toda a ministério)
         # Esta lógica pode precisar de ajuste dependendo de como você quer que "todas as igrejas" funcione
         # Por enquanto, mostra os que não têm igrejas_destino (para toda org)
         # ou os que têm alguma igreja destino (se o usuário for admin da org, por exemplo)
-        # Para simplificar, se não há igreja ativa, mostramos os que são para toda a organização.
-        # Se o usuário for admin da org, ele verá todos os avisos da organização de qualquer forma.
+        # Para simplificar, se não há igreja ativa, mostramos os que são para toda a ministério.
+        # Se o usuário for admin da org, ele verá todos os avisos da ministério de qualquer forma.
         avisos_qs = avisos_qs.filter(igrejas_destino__isnull=True).distinct()
 
     # Adicionar filtros de busca se necessário (ex: por título)
@@ -55,7 +55,7 @@ def lista_avisos(request):
 
     context = {
         'avisos': avisos_qs.order_by('-data_publicacao'),
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': "Mural de Avisos",
         'can_manage': can_manage_avisos(request.user),
         'query': query,
@@ -66,20 +66,20 @@ def lista_avisos(request):
 @verificar_assinatura_valida
 @user_passes_test(can_view_avisos, login_url='login')
 def detalhe_aviso(request, pk):
-    organizacao = get_organizacao_or_error(request)
-    aviso = get_object_or_404(Aviso, pk=pk, organizacao=organizacao, publicado=True)
+    ministerio = get_ministerio_or_error(request)
+    aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio, publicado=True)
 
     # Verifica se o aviso não expirou
     if aviso.data_expiracao and aviso.data_expiracao < timezone.now().date():
         raise PermissionDenied("Este aviso expirou.") # Ou redirecionar para lista com mensagem
 
-    # Verifica se o aviso é para a igreja ativa do usuário ou para toda a organização
+    # Verifica se o aviso é para a igreja ativa do usuário ou para toda a ministério
     if request.igreja_ativa and aviso.igrejas_destino.exists() and request.igreja_ativa not in aviso.igrejas_destino.all():
         raise PermissionDenied("Você não tem permissão para ver este aviso específico para outra igreja.")
 
     context = {
         'aviso': aviso,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': aviso.titulo,
         'can_manage': can_manage_avisos(request.user),
     }
@@ -89,13 +89,13 @@ def detalhe_aviso(request, pk):
 @verificar_assinatura_valida
 @user_passes_test(can_manage_avisos, login_url='login')
 def criar_aviso(request):
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     if request.method == 'POST':
         form = AvisoForm(request.POST)
         if form.is_valid():
             try:
                 aviso = form.save(commit=False)
-                aviso.organizacao = organizacao # Garante a organização correta
+                aviso.ministerio = ministerio # Garante a ministério correta
                 if not aviso.autor: # Define o autor se não foi preenchido (ex: se o campo estiver oculto)
                     aviso.autor = request.user
                 aviso.save()
@@ -107,16 +107,16 @@ def criar_aviso(request):
         else:
             messages.error(request, "Por favor, corrija os erros no formulário.")
     else:
-        form = AvisoForm(initial={'organizacao': organizacao, 'autor': request.user})
-        # Filtra o queryset de igrejas_destino para a organização atual
-        form.fields['igrejas_destino'].queryset = Igreja.objects.filter(organizacao=organizacao).order_by('nome_igreja')
-        form.fields['organizacao'].disabled = True # Não permitir mudar a organização
+        form = AvisoForm(initial={'ministerio': ministerio, 'autor': request.user})
+        # Filtra o queryset de igrejas_destino para a ministério atual
+        form.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        form.fields['ministerio'].disabled = True # Não permitir mudar a ministério
         # O campo autor pode ser preenchido automaticamente e desabilitado ou oculto
         # form.fields['autor'].disabled = True
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': "Criar Novo Aviso",
     }
     return render(request, 'comunicacao/mural/form_aviso.html', context)
@@ -125,16 +125,16 @@ def criar_aviso(request):
 @verificar_assinatura_valida
 @user_passes_test(can_manage_avisos, login_url='login')
 def editar_aviso(request, pk):
-    organizacao = get_organizacao_or_error(request)
-    aviso = get_object_or_404(Aviso, pk=pk, organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request)
+    aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio)
 
     if request.method == 'POST':
         form = AvisoForm(request.POST, instance=aviso)
         if form.is_valid():
             try:
-                # Garante que a organização não seja alterada
-                if form.cleaned_data.get('organizacao') != organizacao:
-                    raise PermissionDenied("Não é permitido alterar a organização do aviso.")
+                # Garante que a ministério não seja alterada
+                if form.cleaned_data.get('ministerio') != ministerio:
+                    raise PermissionDenied("Não é permitido alterar a ministério do aviso.")
                 
                 edited_aviso = form.save(commit=False)
                 # Se o autor não puder ser alterado no form, garanta que ele não mude
@@ -151,14 +151,14 @@ def editar_aviso(request, pk):
             messages.error(request, "Por favor, corrija os erros no formulário.")
     else:
         form = AvisoForm(instance=aviso)
-        form.fields['igrejas_destino'].queryset = Igreja.objects.filter(organizacao=organizacao).order_by('nome_igreja')
-        form.fields['organizacao'].disabled = True
+        form.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        form.fields['ministerio'].disabled = True
         # form.fields['autor'].disabled = True # Se o autor não puder ser alterado
 
     context = {
         'form': form,
         'aviso': aviso,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': f"Editar Aviso: {aviso.titulo}",
     }
     return render(request, 'comunicacao/mural/form_aviso.html', context)
@@ -167,8 +167,8 @@ def editar_aviso(request, pk):
 @verificar_assinatura_valida
 @user_passes_test(can_manage_avisos, login_url='login')
 def excluir_aviso(request, pk):
-    organizacao = get_organizacao_or_error(request)
-    aviso = get_object_or_404(Aviso, pk=pk, organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request)
+    aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio)
 
     if request.method == 'POST':
         try:
@@ -181,7 +181,7 @@ def excluir_aviso(request, pk):
 
     context = {
         'aviso': aviso,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': f"Confirmar Exclusão: {aviso.titulo}",
     }
     return render(request, 'comunicacao/mural/confirmar_excluir_aviso.html', context)
@@ -194,10 +194,10 @@ from secretaria.models import Membro # Importar o modelo Membro
 @verificar_assinatura_valida
 @user_passes_test(can_manage_avisos, login_url='login') # Reutilizando a permissão de gerenciar avisos por enquanto
 def enviar_email_massa(request):
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
 
     if request.method == 'POST':
-        form = EmailMassaForm(request.POST, organizacao=organizacao)
+        form = EmailMassaForm(request.POST, ministerio=ministerio)
         if form.is_valid():
             assunto = form.cleaned_data['assunto']
             mensagem = form.cleaned_data['mensagem']
@@ -208,7 +208,7 @@ def enviar_email_massa(request):
             aniversariantes_do_mes = form.cleaned_data['aniversariantes_do_mes']
 
             # Construir o queryset de membros baseado nos filtros
-            membros_qs = Membro.objects.filter(igreja__organizacao=organizacao)
+            membros_qs = Membro.objects.filter(igreja__ministerio=ministerio)
 
             if igrejas_destino:
                 membros_qs = membros_qs.filter(igreja__in=igrejas_destino)
@@ -237,7 +237,7 @@ def enviar_email_massa(request):
                 html_message = render_to_string('comunicacao/email/email_massa_template.html', {
                     'assunto': assunto,
                     'mensagem': mensagem,
-                    'organizacao_nome': organizacao.nome_fantasia,
+                    'ministerio_nome': ministerio.nome_fantasia,
                 })
                 send_mail(
                     assunto,
@@ -256,11 +256,11 @@ def enviar_email_massa(request):
         else:
             messages.error(request, "Por favor, corrija os erros no formulário.")
     else:
-        form = EmailMassaForm(organizacao=organizacao)
+        form = EmailMassaForm(ministerio=ministerio)
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': "Enviar E-mail em Massa",
     }
     return render(request, 'comunicacao/email/form_email_massa.html', context)
@@ -272,8 +272,8 @@ def lista_notificacoes(request):
     """
     Lista todas as notificações do usuário logado.
     """
-    organizacao = get_organizacao_or_error(request)
-    notificacoes_qs = Notificacao.objects.filter(user=request.user, organizacao=organizacao).order_by('-created_at')
+    ministerio = get_ministerio_or_error(request)
+    notificacoes_qs = Notificacao.objects.filter(user=request.user, ministerio=ministerio).order_by('-created_at')
 
     # Opcional: Filtrar por lidas/não lidas
     status_filter = request.GET.get('status', 'todas')
@@ -284,7 +284,7 @@ def lista_notificacoes(request):
 
     context = {
         'notificacoes': notificacoes_qs,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': "Minhas Notificações",
         'status_filter': status_filter,
     }
@@ -296,8 +296,8 @@ def marcar_notificacao_lida(request, pk):
     """
     Marca uma notificação específica como lida.
     """
-    organizacao = get_organizacao_or_error(request)
-    notificacao = get_object_or_404(Notificacao, pk=pk, user=request.user, organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request)
+    notificacao = get_object_or_404(Notificacao, pk=pk, user=request.user, ministerio=ministerio)
 
     if request.method == 'POST':
         notificacao.is_read = True
@@ -314,7 +314,7 @@ def marcar_notificacao_lida(request, pk):
 @login_required
 @verificar_assinatura_valida
 def marcar_todas_notificacoes_lidas(request):
-    organizacao = get_organizacao_or_404(request)
-    Notificacao.objects.filter(user=request.user, organizacao=organizacao, is_read=False).update(is_read=True)
+    ministerio = get_ministerio_or_404(request)
+    Notificacao.objects.filter(user=request.user, ministerio=ministerio, is_read=False).update(is_read=True)
     messages.success(request, "Todas as notificações foram marcadas como lidas.")
     return redirect('comunicacao:lista_notificacoes')

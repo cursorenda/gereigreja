@@ -7,7 +7,7 @@
 
 ## Key Patterns & Conventions
 - **App Structure:** Each app is self-contained. Templates are namespaced under `templates/<app_name>/`.
-- **Database:** Uses SQLite by default (`db.sqlite3`). Backups are stored in `/backup/`.
+-- **Database:** Usa Supabase (PostgreSQL) em produção. Backups são armazenados em `/backup/`.
 - **Media & Static:** User-uploaded files are in `/media/`; static assets are in `/static/`, `/staticfiles/`, and `/staticfiles_production/`.
 - **Custom Utilities:** Shared logic is often placed in `utils.py` within each app.
 - **Signals:** Some apps (e.g., `financeiro`, `comunicacao`) use Django signals for side effects.

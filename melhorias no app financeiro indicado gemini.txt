@@ -28,6 +28,8 @@ Passos para implementar:
 
 Buscar e substituir todas as ocorrências de igrejas_org por igrejas_para_filtro_template nas views e templates do app financeiro.
 Testar os filtros de igreja nas telas do financeiro para garantir que tudo continua funcionando.
+implementar no cadastro de membro modo de entrada do membro : batismo, aclamação, carta... ?
+implementar na tela de cadsaatro de membro, quando for cadastrar uma pessoa, ao escrever o primeiro nome, que apareça todas pessoas que tem a inicial daquele nome para nao termos membros repetidos no sistema.
 
 preciso de uma pagina de vendas para este sistema, mas esta pagina precisa ter implementada estrategias de GEO,
 Investindo em conteudo que sustente sozinho: atualizado, util e com contexto claro; sendo feito com modelos que IA adoram 
@@ -131,7 +133,7 @@ linha do tempo com todos os eventos futuros, cultos e agenda; tendo a opção de
 
 ### **Eventos e Agendas**
 - **Calendário interativo:** Controle anual, mensal e semanal.
-- **Grupos:** Organização de pequenos grupos e EBD.
+- **Grupos:** Ministério de pequenos grupos e EBD.
 
 ### **Outros Recursos**
 - **Gestão de visitas** e emissão de certificados.
@@ -156,8 +158,8 @@ Pelo código, a funcionalidade de Contas a Pagar parece estar bem estruturada e 
 
 Modelos (c:\Gereigreja\financeiro\models.py):
 
-Existe um modelo Fornecedor para cadastrar os credores. Ele está associado à Organizacao.
-Existe um modelo ContaPagar que representa uma obrigação ou uma parcela a ser paga. Ele está associado à Organizacao, Igreja (responsável pela conta), Fornecedor, e opcionalmente a uma CategoriaDespesa.
+Existe um modelo Fornecedor para cadastrar os credores. Ele está associado à Ministerio.
+Existe um modelo ContaPagar que representa uma obrigação ou uma parcela a ser paga. Ele está associado à Ministerio, Igreja (responsável pela conta), Fornecedor, e opcionalmente a uma CategoriaDespesa.
 O modelo ContaPagar possui campos para detalhes da obrigação (descricao, valor, data_vencimento, etc.) e campos para detalhes do pagamento (status, data_pagamento, valor_pago, juros_multa, desconto, conta_debito, forma_pagamento, comprovante).
 O status da ContaPagar pode ser 'Pendente' (PEN), 'Paga' (PAG), 'Vencida' (VEN), 'Cancelada' (CAN).
 Há uma propriedade is_vencida no modelo ContaPagar.
@@ -409,7 +411,7 @@ Se o modelo Membro não herda de django.contrib.auth.models.User e você precisa
 financeiro.views.py (erros do debug.log antigo, verificar se já corrigidos):
 NameError para num2words, datetime, json: Seus arquivos atuais parecem ter os imports corretos.
 NameError para is_admin_org, churches_for_queries: Parecem estar corretamente importados/definidos na versão atual das views.
-AttributeError: 'Organizacao' object has no attribute 'nome': Seu código atual usa organizacao.nome_fantasia, o que parece correto.
+AttributeError: 'Ministerio' object has no attribute 'nome': Seu código atual usa organizacao.nome_fantasia, o que parece correto.
 AttributeError: 'Membro' object has no attribute 'nome_completo' ou 'username': Verifique os campos do modelo Membro e use os corretos nos templates/views, ou adicione a property nome_completo como sugerido acima.
 AttributeError: 'Receitas' object has no attribute 'descricao': Verifique o nome do campo no modelo Receitas.
 UnboundLocalError: local variable 'receitas_filtradas' (em painel_financeiro): A lógica atual parece definir esta variável corretamente nos diferentes caminhos.
@@ -426,11 +428,11 @@ II. Melhorias de Código, Boas Práticas e Configuração para Produção:
 
 settings.py (para o ambiente de produção no servidor):
 
-Variáveis de Ambiente: É crucial que o settings.py usado em produção carregue configurações sensíveis (como SECRET_KEY, DEBUG, EMAIL_HOST_PASSWORD, senhas de banco de dados se não for SQLite) de variáveis de ambiente, como você já faz no seu settings.py local com python-dotenv. Essas variáveis precisam ser configuradas no painel do cPanel.
+Variáveis de Ambiente: É crucial que o settings.py usado em produção carregue configurações sensíveis (como SECRET_KEY, DEBUG, EMAIL_HOST_PASSWORD, senhas de banco de dados) de variáveis de ambiente, como você já faz no seu settings.py local com python-dotenv. Essas variáveis precisam ser configuradas no painel do cPanel.
 Whitenoise: As configurações para Whitenoise (whitenoise.runserver_nostatic em INSTALLED_APPS, whitenoise.middleware.WhiteNoiseMiddleware em MIDDLEWARE, e STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage') são essenciais para servir arquivos estáticos corretamente quando DEBUG = False.
 Logging: A configuração de RotatingFileHandler para logs (escrevendo em logs/django_errors.log) é uma boa prática para produção. Garanta que o diretório logs/ exista na raiz do projeto no servidor e tenha permissão de escrita.
 Middleware DisableCacheMiddleware: Avalie a real necessidade do secretaria.middleware.DisableCacheMiddleware em produção. Desabilitar o cache pode impactar o desempenho. Se for para dados específicos, use os decorators de cache do Django (@never_cache, etc.) nas views apropriadas.
-Consistência e Organização do Código:
+Consistência e Ministério do Código:
 
 secretaria/views.py: A função get_organizacao_or_error está definida localmente. Para manter a consistência e evitar duplicação, importe-a de core.utils (onde ela já está definida e é usada por outros apps).
 Formulários:
@@ -459,9 +461,9 @@ Adicionar um gráfico de "Categorias de Receita": Similar ao que fizemos para as
 
 
 
-Migrar o Banco de Dados de SQLite para PostgreSQL (ou MySQL)
+Migrar o Banco de Dados para PostgreSQL (ou MySQL)
 
-Problema: O SQLite, que você está usando, é um banco de dados fantástico para desenvolvimento e aplicações de pequeno porte, mas ele não lida bem com múltiplos usuários escrevendo dados ao mesmo tempo. Em um sistema SaaS como o seu, isso levará a erros de "database is locked" (banco de dados bloqueado), lentidão e potencial corrupção de dados à medida que mais igrejas começarem a usar o sistema simultaneamente.
+Problema: Bancos de dados como SQLite são ótimos para testes e prototipagem, mas não lidam bem com múltiplos usuários escrevendo dados ao mesmo tempo. Em um sistema SaaS como o seu, isso pode levar a erros de concorrência, lentidão e potencial corrupção de dados à medida que mais igrejas começarem a usar o sistema simultaneamente.
 Solução (Urgente): Migrar para um sistema de banco de dados cliente-servidor como o PostgreSQL. Ele é gratuito, extremamente robusto, recomendado pelo Django e suportado pela maioria das hospedagens, incluindo a sua. Esta é a mudança técnica mais importante que você pode fazer para garantir a estabilidade e escalabilidade do Gereigreja.
 Implementar uma Estratégia de Backup Automatizado
 
@@ -509,8 +511,7 @@ xsmtpsib-cfb0a4c4c63c5919662db2720a70a7953d6b9435da5c61f1570c445e8602aa6d-GvfzS4
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    # Exemplo antigo removido: configuração SQLite
 
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

@@ -22,7 +22,7 @@ import logging
 
 # Models e Forms
 
-from configuracao.models import Organizacao, PerfilUsuario, Plano, AssinaturaOrganizacao # Adicionar Plano e AssinaturaOrganizacao
+from configuracao.models import Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionar Plano e AssinaturaMinisterio
 from secretaria.models import Membro # Importar Membro
 
 from .models import Convite
@@ -33,12 +33,12 @@ from .forms import (
     EditarPapeisUsuarioForm
 )
 from core.decorators import verificar_assinatura_valida # Ou o caminho correto
-from core.utils import get_organizacao_or_error # Importar de core.utils
+from core.utils import get_ministerio_or_error # Importar de core.utils
 
 @login_required
 @verificar_assinatura_valida # Nosso novo decorator
 def minha_view_protegida(request):
-    organizacao = get_organizacao_or_error(request) # Ainda chama para obter a org e verificar org.ativo
+    ministerio = get_ministerio_or_error(request) # Ainda chama para obter a org e verificar org.ativo
     # ... resto da view ...
 
 # --- NOVA VIEW PARA A LANDING PAGE ---
@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 # --- VIEW DE REGISTRO ---
 def registrar_usuario_e_org(request):
-    """ View para lidar com o autocadastro de usuário e organização. """
+    """ View para lidar com o autocadastro de usuário e ministério. """
     if request.user.is_authenticated:
         return redirect('secretaria:dashboard')
 
@@ -79,33 +79,33 @@ def registrar_usuario_e_org(request):
                         last_name=ultimo_nome,
                         is_active=True
                     )
-                    nova_organizacao = Organizacao.objects.create(
+                    nova_ministerio = Ministerio.objects.create(
                         nome_fantasia=nome_fantasia_org,
                         administrador_principal=novo_usuario,
                         ativo=False
                     )
                     PerfilUsuario.objects.create(
                         user=novo_usuario,
-                        organizacao=nova_organizacao
+                        ministerio=nova_ministerio
                     )
 
                      # --- LÓGICA PARA ATRIBUIR PLANO GRATUITO SE ELEGÍVEL ---
                     try:
                         plano_gratuito = Plano.objects.get(nome='gratuito')
-                        # Verifica se o plano gratuito está ativo E se a organização é elegível
+                        # Verifica se o plano gratuito está ativo E se a ministério é elegível
 
-                        if plano_gratuito.ativo and nova_organizacao.verificar_elegibilidade_plano_gratuito():
-                            AssinaturaOrganizacao.objects.create(
-                                organizacao=nova_organizacao,
+                        if plano_gratuito.ativo and nova_ministerio.verificar_elegibilidade_plano_gratuito():
+                            AssinaturaMinisterio.objects.create(
+                                ministerio=nova_ministerio,
                                 plano=plano_gratuito,
                                 data_inicio=timezone.now(),
                                 # data_fim pode ser nulo ou uma data muito no futuro para gratuito
                                 status='gratuita' # Usar o status 'gratuita'
                             )
-                            logger.info(f"Organização '{nome_fantasia_org}' elegível e atribuída ao plano Gratuito.")
+                            logger.info(f"Ministério '{nome_fantasia_org}' elegível e atribuída ao plano Gratuito.")
                         else:
                             # Opcional: Criar uma assinatura pendente para um plano padrão ou deixar sem assinatura
-                            logger.info(f"Organização '{nome_fantasia_org}' não elegível para plano Gratuito no momento do registro.")
+                            logger.info(f"Ministério '{nome_fantasia_org}' não elegível para plano Gratuito no momento do registro.")
                     except Plano.DoesNotExist:
                         logger.warning("Plano 'gratuito' não encontrado no banco de dados. Não será ofertado automaticamente.")
                     except Exception as e_plano:
@@ -114,12 +114,12 @@ def registrar_usuario_e_org(request):
 
 
 
-                logger.info(f"Novo usuário '{email}' e organização '{nome_fantasia_org}' registrados com sucesso.")
+                logger.info(f"Novo usuário '{email}' e ministério '{nome_fantasia_org}' registrados com sucesso.")
                 login(request, novo_usuario)
-                messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o da organização "{nome_fantasia_org}" foram concluídos. Sua organização aguarda aprovação do administrador do sistema.')
+                messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o da ministério "{nome_fantasia_org}" foram concluídos. Sua ministério aguarda aprovação do administrador do sistema.')
                 return redirect('contas:aguardando_aprovacao') # Redireciona para a página de aguardando aprovação
             except Exception as e: # Captura exceções da criação de usuário/org ou da lógica de plano
-                logger.exception(f"Erro durante o registro do usuário {email} ou organização {nome_fantasia_org}: {e}")
+                logger.exception(f"Erro durante o registro do usuário {email} ou ministério {nome_fantasia_org}: {e}")
                 messages.error(request, f"Ocorreu um erro inesperado durante o registro: {e}. Por favor, tente novamente ou contate o suporte.")
                 # Não limpar o form aqui para o usuário não perder os dados digitados
 
@@ -136,83 +136,68 @@ def registrar_usuario_e_org(request):
 # --- VIEW LISTAR USUÁRIOS E CONVITES ---
 @login_required
 def lista_usuarios_org(request):
-    """ Lista os usuários associados E os convites pendentes da organização. """
+    """ Lista os usuários associados E os convites pendentes da ministério. """
     try:
-        organizacao = get_organizacao_or_error(request) # Levanta exceção se não for admin de org
-        
-        # --- NOVA VERIFICAÇÃO DE GRUPO ---
-        # Verifica se o usuário pertence ao grupo 'Admin Organizacao'
-        if not request.user.groups.filter(name='Admin Organizacao').exists():
-            messages.error(request, "Você não tem permissão para gerenciar usuários.")
-            # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
-
-        usuarios_org = User.objects.filter(
-            perfil__organizacao=organizacao
-        ).select_related('perfil').prefetch_related('groups').order_by('first_name', 'last_name') # Adicionado prefetch_related
-
-        convites_pendentes = Convite.objects.filter(
-            organizacao=organizacao,
-            status='pendente'
-        ).select_related('remetente').order_by('-data_criacao')
-
-        context = {
-            'organizacao': organizacao,
-            'usuarios': usuarios_org,
-            'convites_pendentes': convites_pendentes,
-            'titulo_pagina': 'Gerenciar Usuários e Convites'
-        }
-        return render(request, 'contas/lista_usuarios.html', context)
-    except (PermissionDenied, Http404) as e:
-         # Mensagem já foi adicionada por get_organizacao_or_error
-         return redirect('login') # Redireciona para login se não for admin de org
+        ministerio = get_ministerio_or_error(request) # Levanta exceção se não for admin de org
+    except (PermissionDenied, Http404):
+        return redirect('login')
     except Exception as e:
-        # Captura outros erros inesperados
-        org_id = request.user.perfil.organizacao.id if hasattr(request.user, 'perfil') and request.user.perfil.organizacao else 'N/A'
-        logger.exception(f"Erro ao listar usuários/convites para organização {org_id}")
+        org_id = request.user.perfil.ministerio.id if hasattr(request.user, 'perfil') and request.user.perfil.ministerio else 'N/A'
+        logger.exception(f"Erro ao listar usuários/convites para ministério {org_id}")
         messages.error(request, f"Ocorreu um erro ao listar os usuários e convites: {e}")
-        return redirect('secretaria:dashboard') # Ou 'secretaria:index'
+        return redirect('secretaria:dashboard')
+    # --- NOVA VERIFICAÇÃO DE GRUPO ---
+    if not request.user.groups.filter(name='Admin ministerio').exists():
+        messages.error(request, "Você não tem permissão para gerenciar usuários.")
+        return redirect('secretaria:index')
+    # --- FIM DA VERIFICAÇÃO ---
+    usuarios_org = User.objects.filter(
+        perfil__ministerio=ministerio
+    ).select_related('perfil').prefetch_related('groups').order_by('first_name', 'last_name')
+    convites_pendentes = Convite.objects.filter(
+        ministerio=ministerio,
+        status='pendente'
+    ).select_related('remetente').order_by('-data_criacao')
+    context = {
+        'ministerio': ministerio,
+        'usuarios': usuarios_org,
+        'convites_pendentes': convites_pendentes,
+        'titulo_pagina': 'Gerenciar Usuários e Convites'
+    }
+    return render(request, 'contas/lista_usuarios.html', context)
 
 # --- VIEW ENVIAR CONVITE ---
 @login_required
 def enviar_convite(request):
     """ View para o Admin da Org enviar um convite para um novo usuário. """
     try:
-        organizacao = get_organizacao_or_error(request)
-
-        # --- NOVA VERIFICAÇÃO DE GRUPO ---
-        # Verifica se o usuário pertence ao grupo 'Admin Organizacao'
-        if not request.user.groups.filter(name='Admin Organizacao').exists():
-            messages.error(request, "Você não tem permissão para gerenciar usuários.")
-            # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
-
-
+        ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
-         return redirect('login') # Redireciona se não for admin de org
+        return redirect('login')
+    if not request.user.groups.filter(name='Admin ministerio').exists():
+        messages.error(request, "Você não tem permissão para gerenciar usuários.")
+        return redirect('secretaria:index')
 
     if request.method == 'POST':
-        form = ConviteForm(request.POST, organizacao=organizacao)
+        form = ConviteForm(request.POST, ministerio=ministerio)
         if form.is_valid():
             email_convidado = form.cleaned_data['email_convidado']
             try:
                 novo_convite = Convite.objects.create(
                     email_convidado=email_convidado,
                     remetente=request.user,
-                    organizacao=organizacao,
+                    ministerio=ministerio,
                     status='pendente'
                 )
 
                 # Lógica de Envio de E-mail
                 current_site = get_current_site(request)
-                subject = f"Convite para se juntar à organização {organizacao.nome_fantasia}"
+                subject = f"Convite para se juntar à ministério {ministerio.nome_fantasia}"
                 accept_url = request.build_absolute_uri(
                     reverse('contas:aceitar_convite', kwargs={'token': novo_convite.token})
                 )
                 message_html = render_to_string('contas/email/convite_email.html', {
-                    'organizacao': organizacao,
+                    'ministerio': ministerio,
                     'remetente': request.user,
                     'accept_url': accept_url,
                     'site_name': current_site.name,
@@ -236,7 +221,7 @@ def enviar_convite(request):
                 return redirect('contas:lista_usuarios')
 
             except Exception as e:
-                logger.exception(f"Erro ao criar convite para {email_convidado} na organização {organizacao.id}")
+                logger.exception(f"Erro ao criar convite para {email_convidado} na ministério {ministerio.id}")
                 messages.error(request, f"Ocorreu um erro inesperado ao criar o convite: {e}")
                 # Re-renderiza o formulário em caso de erro na criação
         else:
@@ -245,11 +230,11 @@ def enviar_convite(request):
             messages.error(request, "Não foi possível enviar o convite. Verifique os erros abaixo.")
     else:
         # GET request
-        form = ConviteForm(organizacao=organizacao)
+        form = ConviteForm(ministerio=ministerio)
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': 'Convidar Novo Usuário'
     }
     return render(request, 'contas/enviar_convite.html', context)
@@ -269,23 +254,23 @@ def aceitar_convite(request, token):
                 with transaction.atomic():
                     perfil, criado = PerfilUsuario.objects.get_or_create(
                         user=request.user,
-                        defaults={'organizacao': convite.organizacao}
+                        defaults={'ministerio': convite.ministerio}
                     )
-                    if not criado and perfil.organizacao != convite.organizacao:
-                        organizacao_anterior_nome = perfil.organizacao.nome_fantasia if perfil.organizacao else "uma organização anterior"
-                        perfil.organizacao = convite.organizacao
+                    if not criado and perfil.ministerio != convite.ministerio:
+                        ministerio_anterior_nome = perfil.ministerio.nome_fantasia if perfil.ministerio else "uma ministério anterior"
+                        perfil.ministerio = convite.ministerio
                         perfil.save()
                         messages.warning(
                             request,
-                            f"Seu acesso foi atualizado para a organização '{convite.organizacao.nome_fantasia}'. "
-                            f"Você não terá mais acesso direto aos dados de '{organizacao_anterior_nome}' com esta conta."
+                            f"Seu acesso foi atualizado para a ministério '{convite.ministerio.nome_fantasia}'. "
+                            f"Você não terá mais acesso direto aos dados de '{ministerio_anterior_nome}' com esta conta."
                         )
 
                     convite.status = 'aceito'
                     convite.data_aceite = timezone.now()
                     convite.save()
 
-                messages.success(request, f"Convite aceito! Você agora faz parte da organização {convite.organizacao.nome_fantasia}.")
+                messages.success(request, f"Convite aceito! Você agora faz parte da ministério {convite.ministerio.nome_fantasia}.")
                 return redirect('secretaria:dashboard')
             except Exception as e:
                  logger.exception(f"Erro ao aceitar convite (logado) para {convite.email_convidado}, token {token}")
@@ -325,14 +310,14 @@ def aceitar_convite(request, token):
                         )
                         PerfilUsuario.objects.create(
                             user=novo_usuario,
-                            organizacao=convite.organizacao
+                            ministerio=convite.ministerio
                         )
                         convite.status = 'aceito'
                         convite.data_aceite = timezone.now()
                         convite.save()
 
                     login(request, novo_usuario)
-                    messages.success(request, f"Conta criada e convite aceito! Bem-vindo à organização {convite.organizacao.nome_fantasia}, {primeiro_nome}.")
+                    messages.success(request, f"Conta criada e convite aceito! Bem-vindo à ministério {convite.ministerio.nome_fantasia}, {primeiro_nome}.")
                     return redirect('secretaria:dashboard')
 
                 except Exception as e:
@@ -356,23 +341,18 @@ def aceitar_convite(request, token):
 def cancelar_convite(request, pk):
     """ Cancela um convite pendente (requer POST). """
     try:
-        organizacao = get_organizacao_or_error(request)
-        # --- NOVA VERIFICAÇÃO DE GRUPO ---
-        # Verifica se o usuário pertence ao grupo 'Admin Organizacao'
-        if not request.user.groups.filter(name='Admin Organizacao').exists():
-            messages.error(request, "Você não tem permissão para gerenciar usuários.")
-            # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
-
-        convite = get_object_or_404(
-            Convite,
-            pk=pk,
-            organizacao=organizacao,
-            status='pendente'
-        )
+        ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
-         return redirect('login')
+        return redirect('login')
+    if not request.user.groups.filter(name='Admin ministerio').exists():
+        messages.error(request, "Você não tem permissão para gerenciar usuários.")
+        return redirect('secretaria:index')
+    convite = get_object_or_404(
+        Convite,
+        pk=pk,
+        ministerio=ministerio,
+        status='pendente'
+    )
 
     if request.method == 'POST':
         try:
@@ -380,7 +360,7 @@ def cancelar_convite(request, pk):
             convite.save(update_fields=['status'])
             messages.success(request, f"Convite para {convite.email_convidado} foi cancelado com sucesso.")
         except Exception as e:
-            logger.exception(f"Erro ao cancelar convite {pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao cancelar convite {pk} para ministério {ministerio.id}")
             messages.error(request, f"Ocorreu um erro ao cancelar o convite: {e}")
         return redirect('contas:lista_usuarios')
     else:
@@ -392,12 +372,12 @@ def cancelar_convite(request, pk):
 def editar_papeis_usuario(request, user_pk):
     """ Permite ao Admin da Org editar os grupos (papéis) e igrejas permitidas de um usuário. """
     try:
-        organizacao = get_organizacao_or_error(request)
-        # Busca o usuário alvo e seu perfil, garantindo que pertence à organização
+        ministerio = get_ministerio_or_error(request)
+        # Busca o usuário alvo e seu perfil, garantindo que pertence à ministério
         usuario_alvo = get_object_or_404(
             User.objects.select_related('perfil'), # Otimiza buscando o perfil junto
             pk=user_pk,
-            perfil__organizacao=organizacao
+            perfil__ministerio=ministerio
         )
         # Pega o perfil do usuário alvo (já sabemos que existe por causa do filtro acima)
         perfil_alvo = usuario_alvo.perfil
@@ -416,13 +396,13 @@ def editar_papeis_usuario(request, user_pk):
     if usuario_alvo == request.user:
         messages.error(request, "Você não pode editar seus próprios acessos aqui.")
         return redirect('contas:lista_usuarios')
-    if usuario_alvo == organizacao.administrador_principal:
+    if usuario_alvo == ministerio.administrador_principal:
          messages.error(request, f"Não é possível alterar os acessos do administrador principal ({usuario_alvo.get_full_name()}) por aqui.")
          return redirect('contas:lista_usuarios')
 
     if request.method == 'POST':
-        # Passa a organização para o form filtrar o queryset de igrejas
-        form = EditarPapeisUsuarioForm(request.POST, organizacao=organizacao)
+        # Passa a ministério para o form filtrar o queryset de igrejas
+        form = EditarPapeisUsuarioForm(request.POST, ministerio=ministerio)
         if form.is_valid():
             try:
                 with transaction.atomic(): # Garante atomicidade ao salvar grupos e igrejas
@@ -437,14 +417,14 @@ def editar_papeis_usuario(request, user_pk):
                 messages.success(request, f"Acessos do usuário {usuario_alvo.get_full_name()} atualizados com sucesso.")
                 return redirect('contas:lista_usuarios')
             except Exception as e:
-                logger.exception(f"Erro ao atualizar acessos do usuário {user_pk} para organização {organizacao.id}")
+                logger.exception(f"Erro ao atualizar acessos do usuário {user_pk} para ministério {ministerio.id}")
                 messages.error(request, f"Ocorreu um erro ao atualizar os acessos: {e}")
         else:
             messages.error(request, "Erro no formulário. Verifique os dados.")
     else:
         # GET: Preenche o formulário com os dados atuais do usuário
         form = EditarPapeisUsuarioForm(
-            organizacao=organizacao, # Passa organização para filtrar igrejas
+            ministerio=ministerio, # Passa ministério para filtrar igrejas
             initial={
                 'grupos': usuario_alvo.groups.all(),
                 'igrejas_permitidas': perfil_alvo.igrejas_permitidas.all() # Pega igrejas do perfil
@@ -454,7 +434,7 @@ def editar_papeis_usuario(request, user_pk):
     context = {
         'form': form,
         'usuario_alvo': usuario_alvo,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         # Atualizar título para refletir a edição de acessos
         'titulo_pagina': f'Editar Acessos de {usuario_alvo.get_full_name()}'
     }
@@ -471,16 +451,15 @@ def enviar_link_reset_senha(request, user_pk):
     """
     # 1. Validação de permissão
     try:
-        organizacao = get_organizacao_or_error(request)
-        # Apenas Admins da Organização podem fazer isso
-        if not request.user.groups.filter(name='Admin Organizacao').exists():
-            messages.error(request, "Você não tem permissão para realizar esta ação.")
-            return redirect('secretaria:index')
+        ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
         return redirect('login')
+    if not request.user.groups.filter(name='Admin ministerio').exists():
+        messages.error(request, "Você não tem permissão para realizar esta ação.")
+        return redirect('secretaria:index')
 
-    # 2. Encontrar o usuário alvo, garantindo que ele pertence à organização
-    usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__organizacao=organizacao)
+    # 2. Encontrar o usuário alvo, garantindo que ele pertence à ministério
+    usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__ministerio=ministerio)
 
     # 3. Gerar o token e a URL de reset manualmente
     current_site = get_current_site(request)
@@ -508,7 +487,7 @@ def enviar_link_reset_senha(request, user_pk):
 
     # 5. Redirecionar de volta para a página de edição do membro
     try:
-        membro_associado = Membro.objects.get(email__iexact=usuario_alvo.email, igreja__organizacao=organizacao)
+        membro_associado = Membro.objects.get(email__iexact=usuario_alvo.email, igreja__ministerio=ministerio)
         # Adiciona o parâmetro ?tab=... para voltar para a aba correta
         redirect_url = reverse('secretaria:editar_membro', args=[membro_associado.pk]) + '?tab=acesso-sistema'
         return redirect(redirect_url)
@@ -519,26 +498,21 @@ def enviar_link_reset_senha(request, user_pk):
 # --- VIEW ATIVAR/DESATIVAR USUÁRIO ---
 @login_required
 def alternar_status_usuario_org(request, user_pk):
-    """ Ativa ou desativa um usuário dentro da organização (requer POST). """
+    """ Ativa ou desativa um usuário dentro da ministério (requer POST). """
     try:
-        organizacao = get_organizacao_or_error(request)
-        # --- NOVA VERIFICAÇÃO DE GRUPO ---
-        # Verifica se o usuário pertence ao grupo 'Admin Organizacao'
-        if not request.user.groups.filter(name='Admin Organizacao').exists():
-            messages.error(request, "Você não tem permissão para gerenciar usuários.")
-            # Redireciona para um local seguro (página inicial ou dashboard)
-            return redirect('secretaria:index') # Ou 'secretaria:dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
-
-        usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__organizacao=organizacao)
+        ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
-         return redirect('login')
+        return redirect('login')
+    if not request.user.groups.filter(name='Admin ministerio').exists():
+        messages.error(request, "Você não tem permissão para gerenciar usuários.")
+        return redirect('secretaria:index')
+    usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__ministerio=ministerio)
 
     # Validações de Permissão
     if usuario_alvo == request.user:
         messages.error(request, "Você não pode alterar seu próprio status de ativação.")
         return redirect('contas:lista_usuarios')
-    if usuario_alvo == organizacao.administrador_principal:
+    if usuario_alvo == ministerio.administrador_principal:
          messages.error(request, f"Não é possível alterar o status do administrador principal ({usuario_alvo.get_full_name()}).")
          return redirect('contas:lista_usuarios')
 
@@ -549,7 +523,7 @@ def alternar_status_usuario_org(request, user_pk):
             status_msg = "ativado" if usuario_alvo.is_active else "desativado"
             messages.success(request, f'Usuário "{usuario_alvo.get_full_name()}" foi {status_msg} com sucesso.')
         except Exception as e:
-            logger.exception(f"Erro ao alternar status do usuário {user_pk} para organização {organizacao.id}")
+            logger.exception(f"Erro ao alternar status do usuário {user_pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao alterar status do usuário: {e}')
     else:
         messages.error(request, "Ação inválida (requer POST).")
@@ -559,24 +533,24 @@ def alternar_status_usuario_org(request, user_pk):
 @login_required
 def aguardando_aprovacao(request):
     """
-    Página exibida para usuários cuja organização ainda não foi ativada.
+    Página exibida para usuários cuja ministério ainda não foi ativada.
     """
-    organizacao_usuario = None
+    ministerio_usuario = None
     if hasattr(request.user, 'perfil') and request.user.perfil:
-        organizacao_usuario = request.user.perfil.organizacao
+        ministerio_usuario = request.user.perfil.ministerio
     
-    if not organizacao_usuario:
+    if not ministerio_usuario:
         # Isso não deveria acontecer se o registro foi bem-sucedido
-        messages.error(request, "Não foi possível identificar sua organização. Por favor, contate o suporte.")
+        messages.error(request, "Não foi possível identificar sua ministério. Por favor, contate o suporte.")
         return redirect('login') 
 
-    # Verificar se a organização já foi ativada, e se sim, redirecionar para o dashboard
-    if organizacao_usuario.ativo:
-        messages.info(request, f"Sua organização '{organizacao_usuario.nome_fantasia}' já está ativa!")
+    # Verificar se a ministério já foi ativada, e se sim, redirecionar para o dashboard
+    if ministerio_usuario.ativo:
+        messages.info(request, f"Sua ministério '{ministerio_usuario.nome_fantasia}' já está ativa!")
         return redirect('secretaria:dashboard') # Ou a página principal após ativação
 
     context = {
-        'organizacao': organizacao_usuario,
-        'titulo_pagina': "Aguardando Aprovação da Organização"
+        'ministerio': ministerio_usuario,
+        'titulo_pagina': "Aguardando Aprovação da Ministério"
     }
     return render(request, 'contas/aguardando_aprovacao.html', context)

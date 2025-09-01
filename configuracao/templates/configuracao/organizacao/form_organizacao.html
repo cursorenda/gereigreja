@@ -1,13 +1,13 @@
 {% extends 'base_com_menu.html' %}
 
-{% block title %}{{ titulo_pagina|default:"Editar Organização" }}{% endblock %}
+{% block title %}{{ titulo_pagina|default:"Editar Ministério" }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina|default:"Editar Organização" }}</h1>
+    <h1 class="mt-4">{{ titulo_pagina|default:"Editar Ministério" }}</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'configuracao:detalhes_organizacao' %}">Minha Organização</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'configuracao:detalhes_ministerio' %}">Minha Ministério</a></li>
         <li class="breadcrumb-item active">Editar</li>
     </ol>
 
@@ -16,7 +16,7 @@
 
     <div class="card mb-4">
         <div class="card-header">
-            <i class="fas fa-edit me-1"></i> Editar Dados da Organização
+            <i class="fas fa-edit me-1"></i> Editar Dados da Ministério
         </div>
         <div class="card-body">
             <form method="POST" enctype="multipart/form-data"> {# Action vazia submete para a mesma URL #}
@@ -113,7 +113,7 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-1"></i> Salvar Alterações
                 </button>
-                <a href="{% url 'configuracao:detalhes_organizacao' %}" class="btn btn-secondary">Cancelar</a>
+                <a href="{% url 'configuracao:detalhes_ministerio' %}" class="btn btn-secondary">Cancelar</a>
             </form>
         </div>
     </div>

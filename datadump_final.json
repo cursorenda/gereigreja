@@ -5373,7 +5373,7 @@
       "titulo": "✨ Novidades e Melhorias no Gereigreja! ✨",
       "versao": null,
       "data_publicacao": "2025-06-11",
-      "conteudo": "Olá a todos!\r\n\r\nEstamos felizes em anunciar uma série de atualizações e melhorias no sistema Gereigreja, pensadas para tornar a gestão da sua igreja ainda mais eficiente e organizada. Confira as principais novidades:\r\n\r\nSecretaria - Gerenciamento de Membros:\r\n\r\nEdição Mais Ágil:\r\nSalvar e Continuar: Ao editar os dados de um membro, agora você conta com o botão \"Salvar e Continuar Editando\". Isso permite que você faça múltiplas alterações no mesmo cadastro sem precisar sair da tela e reabri-la, agilizando seu trabalho.\r\nVisualização Otimizada nos Cadastros:\r\nOrganização em Seções: Os formulários de cadastro e edição de membros foram completamente reorganizados! Agora, as informações estão agrupadas em seções claras (Dados Pessoais, Endereço e Contato, Informações da Igreja, Família, etc.), facilitando a localização e o preenchimento dos dados.\r\nTipo e Status em Destaque: Para uma rápida identificação, os campos \"Tipo de Pessoa\" e \"Status da Pessoa\" foram movidos para o topo da tela de edição, próximos ao nome do membro.\r\nHistórico de Tipo/Status Acessível:\r\nA funcionalidade para adicionar entradas manuais ou retroativas no histórico de mudanças de \"Tipo de Pessoa\" e \"Status da Pessoa\" de um membro está funcionando corretamente. O botão \"Adicionar Entrada Manual/Retroativa\" agora aparece para todos os usuários com a devida permissão, permitindo manter o histórico sempre atualizado.\r\nAdministração e Segurança:\r\n\r\nGestão de Acessos Refinada:\r\nRevisamos e aprimoramos a forma como as permissões são atribuídas aos diferentes grupos de usuários (Secretario, Tesoureiro, Líderes, etc.). Isso garante que cada papel tenha acesso apenas às funcionalidades e dados relevantes para suas responsabilidades, aumentando a segurança e a organização.\r\nCorreções e Melhorias Gerais:\r\n\r\nForam corrigidos pequenos erros internos para garantir uma experiência de uso mais estável e fluida.\r\nEsperamos que essas atualizações ajudem no seu dia a dia! Continuamos trabalhando para trazer ainda mais melhorias para o Gereigreja.\r\n\r\nSe tiver alguma dúvida ou feedback, não hesite em nos contatar.\r\n\r\nAtenciosamente, Equipe Gereigreja (ou o nome que você preferir)",
+      "conteudo": "Olá a todos!\r\n\r\nEstamos felizes em anunciar uma série de atualizações e melhorias no sistema Gereigreja, pensadas para tornar a gestão da sua igreja ainda mais eficiente e organizada. Confira as principais novidades:\r\n\r\nSecretaria - Gerenciamento de Membros:\r\n\r\nEdição Mais Ágil:\r\nSalvar e Continuar: Ao editar os dados de um membro, agora você conta com o botão \"Salvar e Continuar Editando\". Isso permite que você faça múltiplas alterações no mesmo cadastro sem precisar sair da tela e reabri-la, agilizando seu trabalho.\r\nVisualização Otimizada nos Cadastros:\r\nMinistério em Seções: Os formulários de cadastro e edição de membros foram completamente reorganizados! Agora, as informações estão agrupadas em seções claras (Dados Pessoais, Endereço e Contato, Informações da Igreja, Família, etc.), facilitando a localização e o preenchimento dos dados.\r\nTipo e Status em Destaque: Para uma rápida identificação, os campos \"Tipo de Pessoa\" e \"Status da Pessoa\" foram movidos para o topo da tela de edição, próximos ao nome do membro.\r\nHistórico de Tipo/Status Acessível:\r\nA funcionalidade para adicionar entradas manuais ou retroativas no histórico de mudanças de \"Tipo de Pessoa\" e \"Status da Pessoa\" de um membro está funcionando corretamente. O botão \"Adicionar Entrada Manual/Retroativa\" agora aparece para todos os usuários com a devida permissão, permitindo manter o histórico sempre atualizado.\r\nAdministração e Segurança:\r\n\r\nGestão de Acessos Refinada:\r\nRevisamos e aprimoramos a forma como as permissões são atribuídas aos diferentes grupos de usuários (Secretario, Tesoureiro, Líderes, etc.). Isso garante que cada papel tenha acesso apenas às funcionalidades e dados relevantes para suas responsabilidades, aumentando a segurança e a organização.\r\nCorreções e Melhorias Gerais:\r\n\r\nForam corrigidos pequenos erros internos para garantir uma experiência de uso mais estável e fluida.\r\nEsperamos que essas atualizações ajudem no seu dia a dia! Continuamos trabalhando para trazer ainda mais melhorias para o Gereigreja.\r\n\r\nSe tiver alguma dúvida ou feedback, não hesite em nos contatar.\r\n\r\nAtenciosamente, Equipe Gereigreja (ou o nome que você preferir)",
       "publicado": true
     }
   },
@@ -6524,7 +6524,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can add Organização",
+      "name": "Can add Ministério",
       "content_type": [
         "configuracao",
         "organizacao"
@@ -6535,7 +6535,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can change Organização",
+      "name": "Can change Ministério",
       "content_type": [
         "configuracao",
         "organizacao"
@@ -6546,7 +6546,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can delete Organização",
+      "name": "Can delete Ministério",
       "content_type": [
         "configuracao",
         "organizacao"
@@ -6557,7 +6557,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can view Organização",
+      "name": "Can view Ministério",
       "content_type": [
         "configuracao",
         "organizacao"
@@ -7492,7 +7492,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can add Assinatura da Organização",
+      "name": "Can add Assinatura da Ministério",
       "content_type": [
         "configuracao",
         "assinaturaorganizacao"
@@ -7503,7 +7503,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can change Assinatura da Organização",
+      "name": "Can change Assinatura da Ministério",
       "content_type": [
         "configuracao",
         "assinaturaorganizacao"
@@ -7514,7 +7514,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can delete Assinatura da Organização",
+      "name": "Can delete Assinatura da Ministério",
       "content_type": [
         "configuracao",
         "assinaturaorganizacao"
@@ -7525,7 +7525,7 @@
   {
     "model": "auth.permission",
     "fields": {
-      "name": "Can view Assinatura da Organização",
+      "name": "Can view Assinatura da Ministério",
       "content_type": [
         "configuracao",
         "assinaturaorganizacao"
@@ -7756,7 +7756,7 @@
   {
     "model": "auth.group",
     "fields": {
-      "name": "Admin Organizacao",
+      "name": "Admin Ministerio",
       "permissions": [
         [
           "add_logentry",
@@ -9978,7 +9978,7 @@
       "date_joined": "2025-04-08T02:08:36Z",
       "groups": [
         [
-          "Admin Organizacao"
+          "Admin Ministerio"
         ],
         [
           "Membro Comum"
@@ -10002,7 +10002,7 @@
       "date_joined": "2025-04-10T11:19:35Z",
       "groups": [
         [
-          "Admin Organizacao"
+          "Admin Ministerio"
         ]
       ],
       "user_permissions": []
@@ -10133,7 +10133,7 @@
       "date_joined": "2025-04-24T18:14:51Z",
       "groups": [
         [
-          "Admin Organizacao"
+          "Admin Ministerio"
         ],
         [
           "Tesoureiro"
@@ -11325,7 +11325,7 @@
     "model": "configuracao.organizacao",
     "pk": 4,
     "fields": {
-      "nome_fantasia": "Nome da Organização de Teste",
+      "nome_fantasia": "Nome da Ministério de Teste",
       "razao_social": null,
       "administrador_principal": [
         "clarice@gmail.com"
@@ -12342,7 +12342,7 @@
         "group"
       ],
       "object_id": "4",
-      "object_repr": "Admin Organizacao",
+      "object_repr": "Admin Ministerio",
       "action_flag": 1,
       "change_message": "[{\"added\": {}}]"
     }
@@ -12902,7 +12902,7 @@
       "object_id": "9",
       "object_repr": "clarice@gmail.com",
       "action_flag": 2,
-      "change_message": "[{\"changed\": {\"fields\": [\"Groups\"]}}, {\"changed\": {\"name\": \"Perfil de Usu\\u00e1rio\", \"object\": \"Perfil de clarice cunha (Assembleia de Deus Ministerio dos Vales)\", \"fields\": [\"Organizacao\", \"Igrejas Permitidas\"]}}]"
+      "change_message": "[{\"changed\": {\"fields\": [\"Groups\"]}}, {\"changed\": {\"name\": \"Perfil de Usu\\u00e1rio\", \"object\": \"Perfil de clarice cunha (Assembleia de Deus Ministerio dos Vales)\", \"fields\": [\"Ministerio\", \"Igrejas Permitidas\"]}}]"
     }
   },
   {
@@ -13026,7 +13026,7 @@
         "organizacao"
       ],
       "object_id": "4",
-      "object_repr": "Nome da Organização de Teste",
+      "object_repr": "Nome da Ministério de Teste",
       "action_flag": 2,
       "change_message": "[{\"changed\": {\"fields\": [\"Ativo (Aprovado pelo Desenvolvedor)\"]}}]"
     }
@@ -13044,7 +13044,7 @@
         "organizacao"
       ],
       "object_id": "4",
-      "object_repr": "Nome da Organização de Teste",
+      "object_repr": "Nome da Ministério de Teste",
       "action_flag": 2,
       "change_message": "[{\"changed\": {\"fields\": [\"Ativo (Aprovado pelo Desenvolvedor)\"]}}]"
     }
@@ -13062,7 +13062,7 @@
         "organizacao"
       ],
       "object_id": "4",
-      "object_repr": "Nome da Organização de Teste",
+      "object_repr": "Nome da Ministério de Teste",
       "action_flag": 2,
       "change_message": "[]"
     }
@@ -13674,7 +13674,7 @@
         "group"
       ],
       "object_id": "4",
-      "object_repr": "Admin Organizacao",
+      "object_repr": "Admin Ministerio",
       "action_flag": 2,
       "change_message": "[{\"changed\": {\"fields\": [\"Permissions\"]}}]"
     }
@@ -13980,7 +13980,7 @@
         "group"
       ],
       "object_id": "4",
-      "object_repr": "Admin Organizacao",
+      "object_repr": "Admin Ministerio",
       "action_flag": 2,
       "change_message": "[{\"changed\": {\"fields\": [\"Permissions\"]}}]"
     }
@@ -14162,7 +14162,7 @@
       "object_id": "4",
       "object_repr": "Perfil de Maryellen Barbosa (Assembleia de Deus Ministerio dos Vales)",
       "action_flag": 2,
-      "change_message": "[{\"changed\": {\"fields\": [\"Organizacao\", \"Igrejas Permitidas\"]}}]"
+      "change_message": "[{\"changed\": {\"fields\": [\"Ministerio\", \"Igrejas Permitidas\"]}}]"
     }
   },
   {

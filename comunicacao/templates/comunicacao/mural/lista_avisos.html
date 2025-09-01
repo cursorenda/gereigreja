@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}{{ titulo_pagina|default:"Mural de Avisos" }} - {{ organizacao.nome_fantasia|default:"Organização" }}{% endblock %}
+{% block title %}{{ titulo_pagina|default:"Mural de Avisos" }} - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -66,7 +66,7 @@
                             </small>
                         {% else %}
                             <br>
-                            <small class="text-muted">Para: Toda a Organização</small>
+                            <small class="text-muted">Para: Toda a Ministério</small>
                         {% endif %}
 
                         {% if can_manage %}

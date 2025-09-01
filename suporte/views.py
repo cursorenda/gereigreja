@@ -3,23 +3,23 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Ticket, RespostaTicket
 from .forms import TicketForm, RespostaTicketForm
-from core.utils import get_organizacao_or_error
+from core.utils import get_ministerio_or_error
 from core.decorators import verificar_assinatura_valida
 from django.db.models import Q
 
 @login_required
 @verificar_assinatura_valida
 def lista_tickets(request):
-    organizacao = get_organizacao_or_error(request)
-    # Admin da Org vê todos os tickets da organização, usuário comum vê apenas os seus.
-    if request.user.groups.filter(name='Admin Organizacao').exists():
-        tickets_qs = Ticket.objects.filter(organizacao=organizacao)
+    ministerio = get_ministerio_or_error(request)
+    # Admin da Org vê todos os tickets da ministério, usuário comum vê apenas os seus.
+    if request.user.groups.filter(name='Admin Ministerio').exists():
+        tickets_qs = Ticket.objects.filter(ministerio=ministerio)
     else:
         tickets_qs = Ticket.objects.filter(user=request.user)
 
     context = {
         'tickets': tickets_qs.order_by('-data_criacao'),
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': "Meus Tickets de Suporte",
     }
     return render(request, 'suporte/lista_tickets.html', context)
@@ -27,13 +27,13 @@ def lista_tickets(request):
 @login_required
 @verificar_assinatura_valida
 def criar_ticket(request):
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
     if request.method == 'POST':
         form = TicketForm(request.POST)
         if form.is_valid():
             ticket = form.save(commit=False)
             ticket.user = request.user
-            ticket.organizacao = organizacao
+            ticket.ministerio = ministerio
             ticket.save()
             messages.success(request, "Seu ticket de suporte foi aberto com sucesso! Responderemos em breve.")
             return redirect('suporte:lista_tickets')
@@ -42,7 +42,7 @@ def criar_ticket(request):
 
     context = {
         'form': form,
-        'organizacao': organizacao,
+        'ministerio': ministerio,
         'titulo_pagina': "Abrir Novo Ticket de Suporte",
     }
     return render(request, 'suporte/criar_ticket.html', context)
@@ -50,15 +50,15 @@ def criar_ticket(request):
 @login_required
 @verificar_assinatura_valida
 def detalhe_ticket(request, pk):
-    organizacao = get_organizacao_or_error(request)
+    ministerio = get_ministerio_or_error(request)
 
     # Garante que o usuário só pode ver seus próprios tickets,
     # ou que um admin da org pode ver todos os tickets da org.
     query_filter = Q(pk=pk)
-    if not request.user.groups.filter(name='Admin Organizacao').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         query_filter &= Q(user=request.user)
     else:
-        query_filter &= Q(organizacao=organizacao)
+        query_filter &= Q(ministerio=ministerio)
 
     ticket = get_object_or_404(Ticket, query_filter)
     respostas = ticket.respostas.all().order_by('data_criacao')
@@ -76,7 +76,7 @@ def detalhe_ticket(request, pk):
         form = RespostaTicketForm()
 
     context = {
-        'ticket': ticket, 'respostas': respostas, 'form': form, 'organizacao': organizacao,
+        'ticket': ticket, 'respostas': respostas, 'form': form, 'ministerio': ministerio,
         'titulo_pagina': f"Ticket #{ticket.pk}: {ticket.assunto}",
     }
     return render(request, 'suporte/detalhe_ticket.html', context)

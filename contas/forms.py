@@ -1,12 +1,12 @@
 # c:\Gereigreja\contas\forms.py
 from django import forms
 from django.contrib.auth.models import User, Group
-from configuracao.models import Organizacao, Igreja # Importar Igreja
+from configuracao.models import Ministerio, Igreja # Importar Igreja
 from .models import Convite
 
 # --- FORMULÁRIO DE REGISTRO ---
 class RegistroForm(forms.Form):
-    """ Formulário para autocadastro de Usuário e Organização inicial """
+    """ Formulário para autocadastro de Usuário e Ministério inicial """
     # Campos do Usuário
     primeiro_nome = forms.CharField(
         label="Seu Primeiro Nome",
@@ -37,14 +37,14 @@ class RegistroForm(forms.Form):
         widget=forms.PasswordInput(attrs={'class': 'form-control'})
     )
 
-    # Campos da Organização
+    # Campos da Ministério
     nome_fantasia_org = forms.CharField(
-        label="Nome da Organização/Ministério",
+        label="Nome da Ministério/Ministério",
         max_length=150,
-        required=True, # Nome da organização é obrigatório
+        required=True, # Nome da ministério é obrigatório
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Ministério Exemplo Central'})
     )
-    # Adicionar outros campos opcionais da organização se desejar coletar no registro
+    # Adicionar outros campos opcionais da ministério se desejar coletar no registro
     # Ex: telefone_org = forms.CharField(required=False, ...)
 
     # Validações
@@ -81,22 +81,22 @@ class ConviteForm(forms.Form):
         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Digite o e-mail de quem deseja convidar'})
     )
 
-    # Validação para verificar se já existe um convite pendente ou usuário na organização
+    # Validação para verificar se já existe um convite pendente ou usuário na ministério
     def __init__(self, *args, **kwargs):
-        # Pega a organização passada pela view
-        self.organizacao = kwargs.pop('organizacao', None)
+        # Pega a ministério passada pela view
+        self.ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
 
     def clean_email_convidado(self):
         email = self.cleaned_data.get('email_convidado')
-        if email and self.organizacao:
-            # 1. Verifica se já existe um usuário com este email NA MESMA organização
-            if User.objects.filter(email__iexact=email, perfil__organizacao=self.organizacao).exists():
-                raise forms.ValidationError("Este usuário já pertence a esta organização.")
+        if email and self.ministerio:
+            # 1. Verifica se já existe um usuário com este email NA MESMA ministério
+            if User.objects.filter(email__iexact=email, perfil__ministerio=self.ministerio).exists():
+                raise forms.ValidationError("Este usuário já pertence a esta ministério.")
 
-            # 2. Verifica se já existe um convite PENDENTE para este email NA MESMA organização
-            if Convite.objects.filter(email_convidado__iexact=email, organizacao=self.organizacao, status='pendente').exists():
-                raise forms.ValidationError("Já existe um convite pendente para este e-mail nesta organização.")
+            # 2. Verifica se já existe um convite PENDENTE para este email NA MESMA ministério
+            if Convite.objects.filter(email_convidado__iexact=email, ministerio=self.ministerio, status='pendente').exists():
+                raise forms.ValidationError("Já existe um convite pendente para este e-mail nesta ministério.")
 
             # 3. Opcional: Verificar se o email já existe no sistema (mesmo em outra org)?
             # if User.objects.filter(email__iexact=email).exists():
@@ -105,11 +105,11 @@ class ConviteForm(forms.Form):
 
         return email
 # --- FIM FORMULÁRIO DE CONVITE ---
-    # Opcional: Validação para nome da organização (ex: verificar se já existe?)
+    # Opcional: Validação para nome da ministério (ex: verificar se já existe?)
     # def clean_nome_fantasia_org(self):
     #     nome = self.cleaned_data.get('nome_fantasia_org')
-    #     if nome and Organizacao.objects.filter(nome_fantasia__iexact=nome).exists():
-    #         raise forms.ValidationError("Já existe uma organização com este nome fantasia.")
+    #     if nome and Ministerio.objects.filter(nome_fantasia__iexact=nome).exists():
+    #         raise forms.ValidationError("Já existe uma ministério com este nome fantasia.")
     #     return nome
 # --- FIM FORMULÁRIO DE REGISTRO ---
 
@@ -167,22 +167,22 @@ class EditarPapeisUsuarioForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         required=False, # Permite não selecionar nenhuma igreja específica
         label="Igrejas com Acesso Permitido",
-        help_text="Selecione as igrejas que este usuário poderá gerenciar/visualizar. Se nenhum papel exigir acesso a igrejas específicas, ou se o acesso for para toda a organização (ex: Admin Org), deixe em branco."
+        help_text="Selecione as igrejas que este usuário poderá gerenciar/visualizar. Se nenhum papel exigir acesso a igrejas específicas, ou se o acesso for para toda a ministério (ex: Admin Org), deixe em branco."
     )
     # --- FIM NOVO CAMPO ---
 
     def __init__(self, *args, **kwargs):
-        # Pega a organização passada pela view
-        organizacao = kwargs.pop('organizacao', None)
+        # Pega a ministério passada pela view
+        ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
 
-        # Filtra o queryset de igrejas_permitidas se a organização foi fornecida
-        if organizacao:
+        # Filtra o queryset de igrejas_permitidas se a ministério foi fornecida
+        if ministerio:
             self.fields['igrejas_permitidas'].queryset = Igreja.objects.filter(
-                organizacao=organizacao
+                ministerio=ministerio
             ).order_by('nome_igreja')
         else:
-            # Se não houver organização, não mostra nenhuma igreja (segurança)
+            # Se não houver ministério, não mostra nenhuma igreja (segurança)
             self.fields['igrejas_permitidas'].queryset = Igreja.objects.none()
 
 # --- FIM FORMULÁRIO ---

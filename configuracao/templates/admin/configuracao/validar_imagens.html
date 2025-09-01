@@ -19,7 +19,7 @@
                 <thead>
                     <tr>
                         <th>Usuário</th>
-                        <th>Organização</th>
+                        <th>Ministério</th>
                         <th>Imagem</th>
                         <th>Status</th>
                     </tr>
@@ -28,7 +28,7 @@
                     {% for r in resultados %}
                     <tr class="{% cycle 'row1' 'row2' %}">
                         <td>{{ r.usuario }}</td>
-                        <td>{{ r.organizacao }}</td>
+                        <td>{{ r.ministerio }}</td>
                         <td>
                             {% if r.imagem %}
                                 <img src="{{ r.imagem.url }}" alt="Imagem de {{ r.usuario }}" style="max-width: 100px;">

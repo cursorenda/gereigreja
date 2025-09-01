@@ -3,9 +3,9 @@ from django import forms
 from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico # Adicionado StatusHistorico
 from django.contrib.auth.models import User, Group # Importar User e Group
 from configuracao.models import PerfilUsuario # Importar PerfilUsuario
-from configuracao.models import Igreja, Organizacao # Importar Igreja e Organizacao
+from configuracao.models import Igreja, Ministerio # Importar Igreja e Ministerio
 # --- IMPORTAR UTILS DE PERMISSÃO ---
-from .utils import is_admin_org # Para verificar se o usuário é admin da organização
+from .utils import is_admin_org # Para verificar se o usuário é admin da ministério
 
 class MembroForm(forms.ModelForm):
     # ... (campos genero, estado_civil, escolaridade como estão) ...
@@ -99,8 +99,8 @@ class MembroForm(forms.ModelForm):
 
     # --- ADICIONAR/MODIFICAR __INIT__ ---
     def __init__(self, *args, **kwargs):
-        # Pega a organização passada pela view
-        organizacao = kwargs.pop('organizacao', None) # Organização do usuário logado
+        # Pega a ministério passada pela view
+        ministerio = kwargs.pop('ministerio', None) # Ministério do usuário logado
         user = kwargs.pop('user', None) # Usuário logado
         allowed_churches = kwargs.pop('allowed_churches', None) # Igrejas permitidas para o usuário
         igreja_inicial_param = kwargs.pop('igreja_inicial', None) # Novo parâmetro para igreja ativa
@@ -108,14 +108,14 @@ class MembroForm(forms.ModelForm):
 
         # Filtra o queryset de 'igreja'
         if user and not is_admin_org(user) and allowed_churches is not None:
-            # Se não for admin da organização, filtra pelas igrejas permitidas
+            # Se não for admin da ministério, filtra pelas igrejas permitidas
             self.fields['igreja'].queryset = allowed_churches
-        elif organizacao:
-            # Se for admin da organização ou não houver filtro específico de allowed_churches,
-            # mostra todas as igrejas da organização do usuário.
-            self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao).order_by('nome_igreja')
+        elif ministerio:
+            # Se for admin da ministério ou não houver filtro específico de allowed_churches,
+            # mostra todas as igrejas da ministério do usuário.
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
         else:
-             # Se não houver organização (erro?), não mostra nenhuma igreja
+             # Se não houver ministério (erro?), não mostra nenhuma igreja
              self.fields['igreja'].queryset = Igreja.objects.none()
         # Pré-seleciona e desabilita a igreja se uma igreja_inicial_param for passada e válida
         if igreja_inicial_param and self.fields['igreja'].queryset.filter(pk=igreja_inicial_param.pk).exists():
@@ -124,13 +124,13 @@ class MembroForm(forms.ModelForm):
 
        
         # Popula os querysets para os novos campos tipo_pessoa e status_pessoa
-        # Se TipoPessoa e StatusPessoa forem globais (não ligados à organização):
+        # Se TipoPessoa e StatusPessoa forem globais (não ligados à ministério):
         self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
         self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
-        # Se forem específicos por organização, você precisaria filtrar aqui, por exemplo:
-        # if organizacao:
-        #     self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.filter(organizacao=organizacao).order_by('nome')
-        #     self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(organizacao=organizacao).order_by('nome')
+        # Se forem específicos por ministério, você precisaria filtrar aqui, por exemplo:
+        # if ministerio:
+        #     self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.filter(ministerio=ministerio).order_by('nome')
+        #     self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(ministerio=ministerio).order_by('nome')
        
         # Ajustar required=False para campos não obrigatórios se necessário
         self.fields['apelido'].required = False
@@ -177,12 +177,12 @@ class StatusHistoricoManualForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         membro_inicial = kwargs.pop('membro_inicial', None) # Para pré-selecionar o membro
         super().__init__(*args, **kwargs)
 
-        if organizacao:
-            self.fields['membro'].queryset = Membro.objects.filter(igreja__organizacao=organizacao).order_by('nome')
+        if ministerio:
+            self.fields['membro'].queryset = Membro.objects.filter(igreja__ministerio=ministerio).order_by('nome')
         else:
             self.fields['membro'].queryset = Membro.objects.none()
 
@@ -242,12 +242,12 @@ class MembroUserManagementForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         required=False,
         label="Igrejas com Acesso Permitido",
-        help_text="Selecione as igrejas que este usuário poderá gerenciar/visualizar. Se nenhum papel exigir acesso a igrejas específicas, ou se o acesso for para toda a organização (ex: Admin Org), deixe em branco."
+        help_text="Selecione as igrejas que este usuário poderá gerenciar/visualizar. Se nenhum papel exigir acesso a igrejas específicas, ou se o acesso for para toda a ministério (ex: Admin Org), deixe em branco."
     )
 
     def __init__(self, *args, **kwargs):
         self.membro_instance = kwargs.pop('membro_instance', None)
-        self.organizacao = kwargs.pop('organizacao', None)
+        self.ministerio = kwargs.pop('ministerio', None)
         self.user_instance = kwargs.pop('user_instance', None) # User associado ao membro, se existir
         self.perfil_instance = kwargs.pop('perfil_instance', None) # PerfilUsuario associado, se existir
         super().__init__(*args, **kwargs)
@@ -255,9 +255,9 @@ class MembroUserManagementForm(forms.Form):
         # Popula o queryset de grupos com todos os grupos do sistema
         self.fields['grupos'].queryset = Group.objects.all().order_by('name')
 
-        # Popula o queryset de igrejas permitidas com as igrejas da organização
-        if self.organizacao:
-            self.fields['igrejas_permitidas'].queryset = Igreja.objects.filter(organizacao=self.organizacao).order_by('nome_igreja')
+        # Popula o queryset de igrejas permitidas com as igrejas da ministério
+        if self.ministerio:
+            self.fields['igrejas_permitidas'].queryset = Igreja.objects.filter(ministerio=self.ministerio).order_by('nome_igreja')
         else:
             self.fields['igrejas_permitidas'].queryset = Igreja.objects.none()
 

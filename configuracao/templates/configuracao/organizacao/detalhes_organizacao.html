@@ -1,13 +1,13 @@
 {% extends 'base_com_menu.html' %}
 
-{% block title %}Minha Organização: {{ organizacao.nome_fantasia }}{% endblock %}
+{% block title %}Minha Ministério: {{ ministerio.nome_fantasia }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Minha Organização</h1>
+    <h1 class="mt-4">Minha Ministério</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Minha Organização</li>
+        <li class="breadcrumb-item active">Minha Ministério</li>
     </ol>
 
     {# Mensagens #}
@@ -16,33 +16,33 @@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-sitemap me-1"></i>
-            Detalhes da Organização
+            Detalhes da Ministério
         </div>
         <div class="card-body">
             
-            {% if organizacao.logo %}
+            {% if ministerio.logo %}
                 <div class="mb-3 text-center">
-                    <img src="{{ organizacao.logo.url }}" alt="Logo de {{ organizacao.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
+                    <img src="{{ ministerio.logo.url }}" alt="Logo de {{ ministerio.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
                 </div>
                 <hr>
             {% endif %}
 
             <dl class="row">
                 <dt class="col-sm-3">Nome Fantasia:</dt>
-                <dd class="col-sm-9">{{ organizacao.nome_fantasia }}</dd>
+                <dd class="col-sm-9">{{ ministerio.nome_fantasia }}</dd>
 
                 <dt class="col-sm-3">Razão Social:</dt>
-                <dd class="col-sm-9">{{ organizacao.razao_social|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.razao_social|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">CNPJ:</dt>
-                <dd class="col-sm-9">{{ organizacao.cnpj|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.cnpj|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Data Criação:</dt> {# <-- Label atualizado #}
-                <dd class="col-sm-9">{{ organizacao.data_criacao|date:"d/m/Y H:i" }}</dd> {# <-- Campo correto #}
+                <dd class="col-sm-9">{{ ministerio.data_criacao|date:"d/m/Y H:i" }}</dd> {# <-- Campo correto #}
 
                 <dt class="col-sm-3">Status:</dt>
                 <dd class="col-sm-9">
-                    {% if organizacao.ativo %}
+                    {% if ministerio.ativo %}
                         <span class="badge bg-success">Ativa</span>
                     {% else %}
                         <span class="badge bg-warning text-dark">Aguardando Aprovação</span>
@@ -50,43 +50,43 @@
                 </dd>
 
                 <dt class="col-sm-3">Administrador Principal:</dt>
-                <dd class="col-sm-9">{{ organizacao.administrador_principal.get_full_name|default:organizacao.administrador_principal.username }}</dd>
+                <dd class="col-sm-9">{{ ministerio.administrador_principal.get_full_name|default:ministerio.administrador_principal.username }}</dd>
 
                 <hr class="my-3"> {# Linha separadora para endereço #}
 
                 <dt class="col-sm-3">Telefone:</dt>
-                <dd class="col-sm-9">{{ organizacao.telefone|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.telefone|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Email:</dt>
-                <dd class="col-sm-9">{{ organizacao.email|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.email|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">CEP:</dt>
-                <dd class="col-sm-9">{{ organizacao.cep|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.cep|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Rua:</dt>
-                <dd class="col-sm-9">{{ organizacao.rua|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.rua|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Número:</dt>
-                <dd class="col-sm-9">{{ organizacao.numero|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.numero|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Complemento:</dt>
-                <dd class="col-sm-9">{{ organizacao.complemento|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.complemento|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Bairro:</dt>
-                <dd class="col-sm-9">{{ organizacao.bairro|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.bairro|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Cidade:</dt>
-                <dd class="col-sm-9">{{ organizacao.cidade|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.cidade|default:"N/A" }}</dd>
 
                 <dt class="col-sm-3">Estado:</dt>
-                <dd class="col-sm-9">{{ organizacao.get_estado_display|default:organizacao.estado|default:"N/A" }}</dd>
+                <dd class="col-sm-9">{{ ministerio.get_estado_display|default:ministerio.estado|default:"N/A" }}</dd>
 
             </dl>
         </div>
         <div class="card-footer">
             {# Botão para editar (a implementar) #}
-            <a href="{% url 'configuracao:editar_organizacao' %}" class="btn btn-primary"> {# Removido disabled, aria-disabled, badge #}
-                <i class="fas fa-edit"></i> Editar Dados da Organização
+            <a href="{% url 'configuracao:editar_ministerio' %}" class="btn btn-primary"> {# Removido disabled, aria-disabled, badge #}
+                <i class="fas fa-edit"></i> Editar Dados da Ministério
             </a>
         </div>
     </div>

@@ -69,12 +69,12 @@ def enviar_email_para_membro(membro: Membro, assunto: str, corpo_html: str, corp
 
 #     return redirect('secretaria:detalhe_membro', pk=membro_id) # Exemplo de redirecionamento
 
-def get_organizacao_or_error(request):
+def get_ministerio_or_error(request):
     """
-    Obtém a organização do usuário logado.
+    Obtém a ministério do usuário logado.
     Levanta PermissionDenied se não autenticado, superuser, ou erro de perfil.
-    Levanta Http404 se o perfil não tem organização associada.
-    Retorna o objeto Organizacao em caso de sucesso.
+    Levanta Http404 se o perfil não tem ministério associada.
+    Retorna o objeto Ministerio em caso de sucesso.
     """
     if not request.user.is_authenticated:
         raise PermissionDenied("Usuário não autenticado.")
@@ -91,37 +91,37 @@ def get_organizacao_or_error(request):
         # messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
         raise PermissionDenied("Acesso negado: Perfil de usuário não encontrado.")
 
-    organizacao = perfil.organizacao
-    if not organizacao:
-        # messages.error(request, "Seu usuário não está associado a nenhuma organização.")
-        raise Http404("Organização não encontrada para o usuário.")
+    ministerio = perfil.ministerio
+    if not ministerio:
+        # messages.error(request, "Seu usuário não está associado a nenhuma ministério.")
+        raise Http404("Ministério não encontrada para o usuário.")
     
-    if not organizacao.ativo:
-        # messages.warning(request, f"A organização '{organizacao.nome_fantasia}' não está ativa. Contate o suporte do sistema.")
-        raise PermissionDenied(f"Acesso negado: Organização '{organizacao.nome_fantasia}' inativa.")
+    if not ministerio.ativo:
+        # messages.warning(request, f"A ministério '{ministerio.nome_fantasia}' não está ativa. Contate o suporte do sistema.")
+        raise PermissionDenied(f"Acesso negado: Ministério '{ministerio.nome_fantasia}' inativa.")
     
     # --- VERIFICAÇÃO DO STATUS DA ASSINATURA ---
     # Para uma função utilitária, adicionar mensagens diretamente pode não ser ideal.
     # Considere retornar um status ou levantar exceções específicas que a view pode tratar.
     # Mantendo a lógica de mensagens por enquanto, mas com verificações para evitar loops.
     try:
-        assinatura = organizacao.assinatura 
+        assinatura = ministerio.assinatura 
         status_validos = ['ativa', 'gratuita']
         
         if assinatura.status not in status_validos and \
            not assinatura.is_periodo_cortesia_valido() and \
-           not (assinatura.status == 'vencida' and organizacao.verificar_elegibilidade_plano_gratuito()):
+           not (assinatura.status == 'vencida' and ministerio.verificar_elegibilidade_plano_gratuito()):
             if request.path != reverse('configuracao:gerenciar_assinatura'):
                 mensagem_aviso = f"Sua assinatura do plano {assinatura.plano.get_nome_display() if assinatura.plano else ''} está {assinatura.get_status_display()}. Por favor, regularize sua situação ou ative sua cortesia."
                 if not any(m.message == mensagem_aviso for m in messages.get_messages(request)):
                     messages.warning(request, mensagem_aviso)
-    except AssinaturaOrganizacao.DoesNotExist:
-        if not organizacao.verificar_elegibilidade_plano_gratuito() and request.path != reverse('configuracao:gerenciar_assinatura'):
-            mensagem_aviso_sem_assinatura = "Sua organização não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia."
+    except AssinaturaMinisterio.DoesNotExist:
+        if not ministerio.verificar_elegibilidade_plano_gratuito() and request.path != reverse('configuracao:gerenciar_assinatura'):
+            mensagem_aviso_sem_assinatura = "Sua ministério não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia."
             if not any(m.message == mensagem_aviso_sem_assinatura for m in messages.get_messages(request)):
                 messages.warning(request, mensagem_aviso_sem_assinatura)
     except Exception as e_assinatura:
-        logger.error(f"Erro ao verificar assinatura para organização {organizacao.id} em get_organizacao_or_error: {e_assinatura}")
+        logger.error(f"Erro ao verificar assinatura para ministério {ministerio.id} em get_ministerio_or_error: {e_assinatura}")
 
-    return organizacao
+    return ministerio
 

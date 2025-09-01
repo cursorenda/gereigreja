@@ -21,7 +21,7 @@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-users me-1"></i>
-            Usuários da Organização: {{ organizacao.nome_fantasia }} ({{ usuarios.count }})
+            Usuários da Ministério: {{ ministerio.nome_fantasia }} ({{ usuarios.count }})
             <a href="{% url 'contas:enviar_convite' %}" class="btn btn-success btn-sm float-end">
                 <i class="fas fa-user-plus me-1"></i> Convidar Novo Usuário
             </a>
@@ -54,7 +54,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if usuario_item == organizacao.administrador_principal %}
+                                    {% if usuario_item == ministerio.administrador_principal %}
                                         <i class="fas fa-crown text-warning" title="Administrador Principal"></i> Sim
                                     {% else %}
                                         Não
@@ -88,7 +88,7 @@
                                             
                                             {% with is_admin_org=False %} {# Variável temporária para controle #}
                                                 {% for group in usuario_item.groups.all %}
-                                                    {% if group.name == 'Admin Organizacao' %}
+                                                    {% if group.name == 'Admin Ministerio' %}
                                                         {% with is_admin_org=True %}{% endwith %} {# Marca como True se encontrar #}
                                                     {% endif %}
                                                 {% endfor %}
@@ -114,7 +114,7 @@
                                     
                                     {# --- BOTÃO EDITAR PAPÉIS (ATIVADO) --- #}
                                     {# Só mostra se não for o próprio usuário E não for o admin principal #}
-                                    {% if usuario_item != request.user and usuario_item != organizacao.administrador_principal %}
+                                    {% if usuario_item != request.user and usuario_item != ministerio.administrador_principal %}
                                         <a href="{% url 'contas:editar_papeis_usuario' usuario_item.pk %}" class="btn btn-secondary btn-sm" title="Editar Papéis de {{ usuario_item.get_full_name }}">
                                             <i class="fas fa-user-tag"></i> Editar Papéis
                                         </a>
@@ -129,7 +129,7 @@
                                     
                                     {# --- FORMULÁRIO PARA ATIVAR/DESATIVAR USUÁRIO --- #}
                                     {# Só mostra se não for o próprio usuário E não for o admin principal #}
-                                    {% if usuario_item != request.user and usuario_item != organizacao.administrador_principal %}
+                                    {% if usuario_item != request.user and usuario_item != ministerio.administrador_principal %}
                                         <form action="{% url 'contas:alternar_status_usuario' usuario_item.pk %}" method="post" class="d-inline-block ms-1 mt-1" onsubmit="return confirm('Tem certeza que deseja {% if usuario_item.is_active %}desativar{% else %}ativar{% endif %} o usuário {{ usuario_item.get_full_name }}?');">
                                             {% csrf_token %}
                                             {# Botão muda de cor e texto dependendo do status atual #}
@@ -155,7 +155,7 @@
                     </table>
                 </div>
             {% else %}
-                <p class="text-center text-muted">Nenhum usuário encontrado para esta organização.</p>
+                <p class="text-center text-muted">Nenhum usuário encontrado para esta ministério.</p>
             {% endif %}
         </div>
     </div>

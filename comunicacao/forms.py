@@ -1,6 +1,6 @@
 from django import forms
 from .models import Aviso
-from configuracao.models import Organizacao, Igreja
+from configuracao.models import Ministerio, Igreja
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from secretaria.models import Membro, TipoPessoa, StatusPessoa
@@ -15,7 +15,7 @@ class AvisoForm(forms.ModelForm):
     class Meta:
         model = Aviso
         fields = [
-            'organizacao',
+            'ministerio',
             'titulo',
             'conteudo',
             'autor',
@@ -24,7 +24,7 @@ class AvisoForm(forms.ModelForm):
             'publicado',
         ]
         widgets = {
-            'organizacao': forms.Select(attrs={'class': 'form-select'}),
+            'ministerio': forms.Select(attrs={'class': 'form-select'}),
             'titulo': forms.TextInput(attrs={'class': 'form-control'}),
             'conteudo': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
             'autor': forms.Select(attrs={'class': 'form-select'}),
@@ -35,14 +35,14 @@ class AvisoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # O campo 'organizacao' será filtrado na view ou no admin,
+        # O campo 'ministerio' será filtrado na view ou no admin,
         # mas podemos garantir que o queryset inicial não seja muito amplo se necessário.
-        # self.fields['organizacao'].queryset = Organizacao.objects.filter(...) # Exemplo de filtro
+        # self.fields['ministerio'].queryset = Ministerio.objects.filter(...) # Exemplo de filtro
         self.fields['autor'].queryset = User.objects.filter(is_staff=True).order_by('first_name', 'last_name') # Exemplo: apenas staff pode ser autor
-        self.fields['igrejas_destino'].queryset = Igreja.objects.all().order_by('nome_igreja') # Pode precisar filtrar por organização na view/form init se necessário
+        self.fields['igrejas_destino'].queryset = Igreja.objects.all().order_by('nome_igreja') # Pode precisar filtrar por ministério na view/form init se necessário
         self.fields['data_expiracao'].required = False # Tornar opcional explicitamente
         self.fields['autor'].required = False # Tornar opcional explicitamente (SET_NULL no modelo)
-        self.fields['organizacao'].required = True # Tornar obrigatório explicitamente (CASCADE no modelo)
+        self.fields['ministerio'].required = True # Tornar obrigatório explicitamente (CASCADE no modelo)
 
 class EmailMassaForm(forms.Form):
     """
@@ -62,13 +62,13 @@ class EmailMassaForm(forms.Form):
 
     # Critérios de seleção de destinatários
     # Nota: Estes querysets serão filtrados no __init__ do formulário
-    # para garantir que apenas dados da organização do usuário sejam exibidos.
+    # para garantir que apenas dados da ministério do usuário sejam exibidos.
     igrejas_destino = forms.ModelMultipleChoiceField(
         queryset=Igreja.objects.none(),
         label="Enviar para Igrejas Específicas",
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
-        help_text="Selecione uma ou mais igrejas. Se nenhuma for selecionada, o e-mail será enviado para todos os membros da organização."
+        help_text="Selecione uma ou mais igrejas. Se nenhuma for selecionada, o e-mail será enviado para todos os membros da ministério."
     )
     tipos_pessoa = forms.ModelMultipleChoiceField(
         queryset=TipoPessoa.objects.none(),
@@ -99,15 +99,15 @@ class EmailMassaForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
 
-        if organizacao:
-            self.fields['igrejas_destino'].queryset = Igreja.objects.filter(organizacao=organizacao).order_by('nome_igreja')
+        if ministerio:
+            self.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
             # Assumindo que TipoPessoa e StatusPessoa são globais ou filtrados de outra forma
-            # Se forem por organização, você precisaria filtrar aqui:
-            # self.fields['tipos_pessoa'].queryset = TipoPessoa.objects.filter(organizacao=organizacao).order_by('nome')
-            # self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(organizacao=organizacao).order_by('nome')
+            # Se forem por ministério, você precisaria filtrar aqui:
+            # self.fields['tipos_pessoa'].queryset = TipoPessoa.objects.filter(ministerio=ministerio).order_by('nome')
+            # self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(ministerio=ministerio).order_by('nome')
             self.fields['tipos_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
             self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
 

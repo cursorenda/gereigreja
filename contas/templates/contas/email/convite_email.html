@@ -3,12 +3,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Convite para {{ organizacao.nome_fantasia }}</title>
+    <title>Convite para {{ ministerio.nome_fantasia }}</title>
 </head>
 <body>
     <p>Olá,</p>
 
-    <p>Você foi convidado por <strong>{{ remetente.get_full_name|default:remetente.username }}</strong> para se juntar à organização <strong>"{{ organizacao.nome_fantasia }}"</strong> no sistema Gereigreja.</p>
+    <p>Você foi convidado por <strong>{{ remetente.get_full_name|default:remetente.username }}</strong> para se juntar à ministério <strong>"{{ ministerio.nome_fantasia }}"</strong> no sistema Gereigreja.</p>
 
     <p>Para aceitar o convite e criar sua conta (ou associar sua conta existente), por favor clique no link abaixo:</p>
 

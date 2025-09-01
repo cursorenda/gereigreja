@@ -4,7 +4,7 @@ from .models import (
     Receitas, Despesas, CategoriaDespesa, FechamentoCaixa, ContaBancaria,
     Fornecedor, ContaPagar
 )
-from configuracao.models import Igreja, Organizacao
+from configuracao.models import Igreja, Ministerio
 from secretaria.models import Membro
 from decimal import Decimal
 # --- IMPORTAR UTILS DE PERMISSÃO ---
@@ -20,10 +20,10 @@ class DateInput(forms.DateInput):
     input_type = 'date'
 
 class CategoriaDespesaForm(forms.ModelForm):
-    """ Formulário para Categoria de Despesa (ligada à Organização) """
+    """ Formulário para Categoria de Despesa (ligada à Ministério) """
     class Meta:
         model = CategoriaDespesa
-        exclude = ['organizacao']
+        exclude = ['ministerio']
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
         }
@@ -47,7 +47,7 @@ class ContaBancariaForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         user = kwargs.pop('user', None)
         allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
@@ -58,8 +58,8 @@ class ContaBancariaForm(forms.ModelForm):
                 self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
             else:
                 self.fields['igreja'].queryset = allowed_churches
-        elif organizacao:
-            self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
+        elif ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
         self.fields['igreja'].empty_label = "Selecione a Igreja"
@@ -91,7 +91,7 @@ class ReceitaForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         user = kwargs.pop('user', None)
         allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
@@ -102,8 +102,8 @@ class ReceitaForm(forms.ModelForm):
                 self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
             else:
                 self.fields['igreja'].queryset = allowed_churches
-        elif organizacao:
-            self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
+        elif ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
 
@@ -136,9 +136,9 @@ class ReceitaForm(forms.ModelForm):
                hasattr(igreja_para_filtrar_campos_dependentes, 'conta_padrao_receitas') and \
                igreja_para_filtrar_campos_dependentes.conta_padrao_receitas:
                 self.initial['conta_bancaria'] = igreja_para_filtrar_campos_dependentes.conta_padrao_receitas
-        elif organizacao:
-            self.fields['membro'].queryset = Membro.objects.filter(igreja__organizacao=organizacao).order_by('igreja__nome_igreja', 'nome')
-            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('igreja__nome_igreja', 'nome_identificacao')
+        elif ministerio:
+            self.fields['membro'].queryset = Membro.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome')
+            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome_identificacao')
         else:
             self.fields['membro'].queryset = Membro.objects.none()
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.none()
@@ -160,7 +160,7 @@ class DespesaForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         user = kwargs.pop('user', None)
         allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
@@ -171,10 +171,10 @@ class DespesaForm(forms.ModelForm):
                 self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
             else:
                 self.fields['igreja'].queryset = allowed_churches
-        elif organizacao:
-            self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
-            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(organizacao=organizacao)
-            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__organizacao=organizacao).order_by('igreja__nome_igreja', 'nome_identificacao')
+        elif ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
+            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(ministerio=ministerio)
+            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome_identificacao')
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
             self.fields['categoria'].queryset = CategoriaDespesa.objects.none()
@@ -233,7 +233,7 @@ class FechamentoCaixaForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         user = kwargs.pop('user', None)
         allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
@@ -241,8 +241,8 @@ class FechamentoCaixaForm(forms.Form):
 
         if user and not is_admin_org(user) and allowed_churches is not None:
             self.fields['igreja'].queryset = allowed_churches
-        elif organizacao:
-            self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
+        elif ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
         self.fields['igreja'].empty_label = "Selecione a Igreja"
@@ -270,7 +270,7 @@ class FornecedorForm(forms.ModelForm):
     """ Formulário para Criar/Editar Fornecedores """
     class Meta:
         model = Fornecedor
-        exclude = ['organizacao', 'ativo']
+        exclude = ['ministerio', 'ativo']
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
             'cnpj_cpf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
@@ -308,12 +308,12 @@ class ContaPagarForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         user = kwargs.pop('user', None)
         allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
 
-        logger.info(f"[ContaPagarForm.__init__] Recebida organizacao: {organizacao}")
+        logger.info(f"[ContaPagarForm.__init__] Recebida ministerio: {ministerio}")
 
         super().__init__(*args, **kwargs)
         # --- Lógica para filtrar o campo 'igreja' ---
@@ -321,31 +321,31 @@ class ContaPagarForm(forms.ModelForm):
         if user and not is_admin_org(user) and allowed_churches is not None:
             # Este bloco filtra o campo 'igreja' pelas igrejas permitidas
             self.fields['igreja'].queryset = allowed_churches
-        elif organizacao: # Este bloco agora APENAS filtra o campo 'igreja' se a condição do IF anterior for falsa
-            self.fields['igreja'].queryset = Igreja.objects.filter(organizacao=organizacao)
+        elif ministerio: # Este bloco agora APENAS filtra o campo 'igreja' se a condição do IF anterior for falsa
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
         else:
-            logger.info("[ContaPagarForm.__init__] Nenhuma organizacao recebida. Querysets de igreja, fornecedor e categoria serão vazios.")
+            logger.info("[ContaPagarForm.__init__] Nenhuma ministerio recebida. Querysets de igreja, fornecedor e categoria serão vazios.")
             self.fields['igreja'].queryset = Igreja.objects.none()
-            # Estes querysets também devem ser vazios se não houver organização
+            # Estes querysets também devem ser vazios se não houver ministério
             self.fields['fornecedor'].queryset = Fornecedor.objects.none()
             self.fields['categoria'].queryset = CategoriaDespesa.objects.none()
-        # --- Lógica para filtrar campos dependentes da organização (fornecedor, categoria) ---
-        # Esta lógica deve rodar sempre que a organização estiver disponível,
+        # --- Lógica para filtrar campos dependentes da ministério (fornecedor, categoria) ---
+        # Esta lógica deve rodar sempre que a ministério estiver disponível,
         # independentemente de como o campo 'igreja' foi filtrado.
-        if organizacao:
-            print("DEBUG: Organizacao está disponível. Filtrando fornecedores e categorias.") # <--- Novo debug print
+        if ministerio:
+            print("DEBUG: Ministerio está disponível. Filtrando fornecedores e categorias.") # <--- Novo debug print
             
-            logger.info(f"[ContaPagarForm.__init__] (Bloco IF organizacao) Verificando fornecedores para organizacao ID: {organizacao.pk if organizacao else 'N/A'}")
+            logger.info(f"[ContaPagarForm.__init__] (Bloco IF ministerio) Verificando fornecedores para ministerio ID: {ministerio.pk if ministerio else 'N/A'}")
 
-            fornecedores_da_org = Fornecedor.objects.filter(organizacao=organizacao)
-            logger.info(f"[ContaPagarForm.__init__] (Bloco IF organizacao) Fornecedores APENAS pela organizacao ({fornecedores_da_org.count()}): {list(fornecedores_da_org.values_list('nome', 'ativo'))}")
+            fornecedores_da_org = Fornecedor.objects.filter(ministerio=ministerio)
+            logger.info(f"[ContaPagarForm.__init__] (Bloco IF ministerio) Fornecedores APENAS pela ministerio ({fornecedores_da_org.count()}): {list(fornecedores_da_org.values_list('nome', 'ativo'))}")
 
             fornecedores_ativos_da_org = fornecedores_da_org.filter(ativo=True)
-            logger.info(f"[ContaPagarForm.__init__] (Bloco IF organizacao) Fornecedores PELA organizacao E ativo=True ({fornecedores_ativos_da_org.count()}): {list(fornecedores_ativos_da_org.values_list('nome', flat=True))}")
+            logger.info(f"[ContaPagarForm.__init__] (Bloco IF ministerio) Fornecedores PELA ministerio E ativo=True ({fornecedores_ativos_da_org.count()}): {list(fornecedores_ativos_da_org.values_list('nome', flat=True))}")
             
             self.fields['fornecedor'].queryset = fornecedores_ativos_da_org
-            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(organizacao=organizacao)
-        # --- Fim Lógica para filtrar campos dependentes da organização ---
+            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(ministerio=ministerio)
+        # --- Fim Lógica para filtrar campos dependentes da ministério ---
 
 
         self.fields['igreja'].empty_label = "Selecione a Igreja"
@@ -378,7 +378,7 @@ class RegistrarPagamentoContaPagarForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         conta = kwargs.get('instance')
         self.instance = conta
-        organizacao = kwargs.pop('organizacao', None)
+        ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
 
         igreja_da_conta = self.instance.igreja if self.instance else None
@@ -391,9 +391,9 @@ class RegistrarPagamentoContaPagarForm(forms.ModelForm):
                 ).order_by('nome_identificacao')
                 if hasattr(igreja_da_conta, 'conta_padrao_despesas') and igreja_da_conta.conta_padrao_despesas:
                     self.initial['conta_debito'] = igreja_da_conta.conta_padrao_despesas
-            elif organizacao:
+            elif ministerio:
                 self.fields['conta_debito'].queryset = ContaBancaria.objects.filter(
-                    igreja__organizacao=organizacao
+                    igreja__ministerio=ministerio
                 ).order_by('igreja__nome_igreja', 'nome_identificacao')
             else:
                 self.fields['conta_debito'].queryset = ContaBancaria.objects.none()

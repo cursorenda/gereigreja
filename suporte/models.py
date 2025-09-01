@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from configuracao.models import Organizacao
+from configuracao.models import Ministerio
 
 class Ticket(models.Model):
     """
@@ -20,7 +20,7 @@ class Ticket(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tickets_suporte', verbose_name="Usuário")
-    organizacao = models.ForeignKey(Organizacao, on_delete=models.CASCADE, related_name='tickets_suporte', verbose_name="Organização")
+    ministerio = models.ForeignKey(Ministerio, on_delete=models.CASCADE, related_name='tickets_suporte', verbose_name="Ministério")
     area = models.CharField(max_length=50, choices=AREA_CHOICES, default='duvida_geral', verbose_name="Área de Suporte")
     assunto = models.CharField(max_length=255, verbose_name="Assunto")
     mensagem = models.TextField(verbose_name="Mensagem")

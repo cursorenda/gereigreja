@@ -100,11 +100,11 @@
         <div class="ficha-header">
             {% if membro.igreja.logo1 %}
                 <img src="{{ membro.igreja.logo1.url }}" alt="Logo da Igreja" class="logo">
-            {% elif membro.igreja.organizacao.logo_principal %} {# Supondo que Organizacao tenha um logo #}
-                <img src="{{ membro.igreja.organizacao.logo_principal.url }}" alt="Logo da Organização" class="logo">
+            {% elif membro.igreja.ministerio.logo_principal %} {# Supondo que Ministerio tenha um logo #}
+                <img src="{{ membro.igreja.ministerio.logo_principal.url }}" alt="Logo da Ministério" class="logo">
             {% endif %}
             <h1>{{ membro.igreja.nome_igreja|default:"Igreja" }}</h1>
-            <p class="mb-0">{{ membro.igreja.organizacao.nome_fantasia|default:"Organização" }}</p>
+            <p class="mb-0">{{ membro.igreja.ministerio.nome_fantasia|default:"Ministério" }}</p>
             <h2 class="mt-2">Ficha Cadastral de Membro</h2>
         </div>
 
