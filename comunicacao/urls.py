@@ -17,5 +17,9 @@ urlpatterns = [
     path('notificacoes/marcar-todas-lidas/', views.marcar_todas_notificacoes_lidas, name='marcar_todas_notificacoes_lidas'),
     # E-mail em Massa
     path('email-massa/', views.enviar_email_massa, name='enviar_email_massa'),
+    # Templates de E-mail
+    path('templates-email/', views.templates_email, name='templates_email'),
+    path('templates-email/email-massa/', views.visualizar_template_email_massa, name='visualizar_template_email_massa'),
+    path('templates-email/password-reset/', views.visualizar_template_password_reset, name='visualizar_template_password_reset'),
 
 ]

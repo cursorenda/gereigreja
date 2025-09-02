@@ -1,3 +1,9 @@
+from django.core.exceptions import PermissionDenied
+from django.http import Http404
+from django.contrib import messages
+from configuracao.models import PerfilUsuario
+from django.urls import reverse
+from configuracao.models import AssinaturaMinisterio
 # c:\Gereigreja\comunicacao\utils.py
 
 from django.core.mail import send_mail
@@ -27,18 +33,23 @@ def enviar_email_para_membro(membro: Membro, assunto: str, corpo_html: str, corp
 
     # Tenta usar o email da igreja do membro como remetente
     # Se a igreja não tiver email, usa o email padrão das configurações
-    from_email = membro.igreja.email if membro.igreja and membro.igreja.email else settings.DEFAULT_FROM_EMAIL
+    import re
+    def extract_email(address):
+        match = re.search(r'<([^>]+)>', address)
+        return match.group(1) if match else address.strip()
 
-    # Formata o nome do remetente (opcional)
-    # Usa o nome da igreja se disponível, senão usa o nome do remetente padrão
-    from_name = membro.igreja.nome_igreja if membro.igreja and membro.igreja.nome_igreja else settings.DEFAULT_FROM_EMAIL.split('<')[0].strip()
-    from_email_formatted = f"{from_name} <{from_email}>"
+    if membro.igreja and membro.igreja.email:
+        from_email = extract_email(membro.igreja.email)
+    else:
+        from_email = extract_email(settings.DEFAULT_FROM_EMAIL)
+
+        from_email = from_email  # Usa apenas o e-mail puro como remetente
 
     try:
         send_mail(
             assunto,
             corpo_texto or '', # Corpo em texto puro (fallback)
-            from_email_formatted, # Remetente formatado
+                from_email, # Remetente: apenas o e-mail puro
             [membro.email], # Destinatário (lista de emails)
             html_message=corpo_html, # Corpo em HTML
             fail_silently=False, # Para ver erros se o envio falhar

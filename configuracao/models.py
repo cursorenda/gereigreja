@@ -1,3 +1,4 @@
+
 # c:\Gereigreja\configuracao\models.py
 from django.db import models
 from django.conf import settings # Necessário para referenciar o User model padrão do Django
@@ -6,6 +7,34 @@ import uuid # Para nomes de arquivo únicos
 import os   # Para manipulação de caminhos
 from datetime import timedelta # Para calcular data_fim da assinatura
 from django.apps import apps # Para import tardio e evitar circularidade
+
+# Histórico de mensalidades e cortesias
+class HistoricoAssinatura(models.Model):
+    TIPOS = [
+        ('mensalidade', 'Mensalidade'),
+        ('cortesia', 'Cortesia'),
+    ]
+    STATUS = [
+        ('paga', 'Paga'),
+        ('expirada', 'Expirada'),
+        ('a_vencer', 'A Vencer'),
+        ('vencida', 'Vencida'),
+    ]
+    ministerio = models.ForeignKey('Ministerio', on_delete=models.CASCADE, related_name='historicos_assinatura')
+    plano = models.ForeignKey('Plano', on_delete=models.SET_NULL, null=True, blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPOS)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    status = models.CharField(max_length=20, choices=STATUS)
+    data_inicio = models.DateTimeField()
+    data_fim = models.DateTimeField(null=True, blank=True)
+    data_registro = models.DateTimeField(auto_now_add=True)
+    observacao = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-data_inicio']
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.get_status_display()} ({self.data_inicio:%d/%m/%Y})"
 
 
 # --- Função para upload_to do logo do Ministério ---
@@ -30,6 +59,19 @@ ESTADO_CHOICES = [
 
 # --- Modelo para o Ministério ---
 class Ministerio(models.Model):
+    def verificar_elegibilidade_plano_gratuito(self):
+        """
+        Retorna True se o ministério está dentro dos limites do plano gratuito (busca o limite do plano pioneiro cadastrado).
+        """
+        total_membros = 0
+        for igreja in self.igrejas.all():
+            total_membros += igreja.membros.count()
+        try:
+            plano_pioneiro = Plano.objects.get(codigo_plano='pioneiro')
+            limite = plano_pioneiro.limite_membros
+        except Plano.DoesNotExist:
+            limite = 50 # fallback seguro
+        return limite == 0 or total_membros <= limite
     nome_fantasia = models.CharField(
         max_length=150,
         verbose_name="Nome Fantasia"
@@ -88,27 +130,6 @@ class Ministerio(models.Model):
     def __str__(self):
         return self.nome_fantasia
 
-    def verificar_elegibilidade_plano_gratuito(self):
-        """
-        Verifica se o ministério é elegível para o plano gratuito.
-        Condições:
-        1. Ter exatamente uma igreja.
-        2. Essa igreja ser do tipo 'independente'.
-        3. Essa igreja ter no máximo 50 membros ativos.
-        """
-        if self.igrejas.count() == 1:
-            igreja_unica = self.igrejas.first()
-            if igreja_unica.tipo_igreja == 'independente':
-                try:
-                    Membro = apps.get_model('secretaria', 'Membro')
-                    membros_ativos_count = Membro.objects.filter(
-                        igreja=igreja_unica,
-                        status_pessoa__considerar_ativo_relatorios=True
-                    ).count()
-                    return membros_ativos_count <= 50
-                except LookupError:
-                    return False
-        return False
 
     class Meta:
         verbose_name = "Ministério"

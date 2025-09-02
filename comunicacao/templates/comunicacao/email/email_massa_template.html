@@ -54,6 +54,12 @@
         </div>
         <div class="footer">
             <p>Este é um e-mail automático, por favor, não responda diretamente.</p>
+            {% if igreja_nome %}
+                <p>Igreja: {{ igreja_nome }}</p>
+            {% endif %}
+            {% if remetente_email %}
+                <p>E-mail de contato: <a href="mailto:{{ remetente_email }}">{{ remetente_email }}</a></p>
+            {% endif %}
             <p>&copy; {% now "Y" %} {{ ministerio_nome }}. Todos os direitos reservados.</p>
         </div>
     </div>

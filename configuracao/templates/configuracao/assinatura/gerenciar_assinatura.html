@@ -1,173 +1,240 @@
 {% extends 'base_com_menu.html' %}
-{% load humanize %} {# Para formatar números, se necessário #}
-{% load configuracao_tags %} {# Carrega suas custom template tags, se tiver o add_timedelta_days #}
-
+{% load humanize %}
+{% load configuracao_tags %}
+{% load assinatura_extras %}
 {% block title %}{{ titulo_pagina }}{% endblock %}
-
 {% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina }}</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">{{ titulo_pagina }}</li>
-    </ol>
-
-    {% include 'partials/_messages.html' %}
-    {# --- NOVO BANNER DE CORTESIA ATIVA --- #}
-    {% if tempo_cortesia_restante %}
-    <div class="card text-white bg-info mb-4 shadow">
-        <div class="card-body text-center">
-            <h4 class="card-title mb-2"><i class="fas fa-stopwatch me-2"></i>Período de Cortesia Ativo!</h4>
-            <p class="lead mb-0">
-                Sua assinatura expira em: 
-                <strong>{{ tempo_cortesia_restante.dias }} dia(s), {{ tempo_cortesia_restante.horas }} hora(s) e {{ tempo_cortesia_restante.minutos }} minuto(s).</strong>
-            </p>
-            <p class="small mt-1">Escolha um plano abaixo para não perder o acesso ao sistema.</p>
-        </div>
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-history me-1"></i>
+        Histórico de Mensalidades e Cortesias
     </div>
-    {% endif %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-file-signature me-1"></i>
-            Sua Assinatura Atual
-        </div>
-        <div class="card-body">
-            {% if assinatura_atual %}
-
-                <p><strong>Plano:</strong> {{ assinatura_atual.plano.get_nome_display|default:"N/D" }}</p>
-                
-                {% if assinatura_atual.is_periodo_cortesia_valido %}
-                    <p><strong>Status:</strong> <span class="badge bg-info">Período de Cortesia Ativo</span></p>
-                    <p><strong>Cortesia iniciada em:</strong> {{ assinatura_atual.data_inicio_cortesia|date:"d/m/Y H:i" }}</p>
-                    <p><strong>Cortesia válida até:</strong> {{ assinatura_atual.data_inicio_cortesia|add_timedelta_days:3|date:"d/m/Y H:i" }}</p>
-                    {% if assinatura_atual.status == 'vencida' %}
-                        <p class="text-muted small">(Sua assinatura original do plano {{ assinatura_atual.plano.get_nome_display }} está vencida, mas a cortesia permite o uso.)</p>
+    <div class="card-body">
+        <ul class="nav nav-tabs mb-3" id="assinaturaTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="atual-tab" data-bs-toggle="tab" data-bs-target="#atual" type="button" role="tab">Assinatura Atual</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico" type="button" role="tab">Histórico</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="assinaturaTabsContent">
+            <div class="tab-pane fade show active" id="atual" role="tabpanel">
+                <div class="container-fluid px-4">
+                    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+                    <ol class="breadcrumb mb-4">
+                        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+                        <li class="breadcrumb-item active">{{ titulo_pagina }}</li>
+                    </ol>
+                    {% include 'partials/_messages.html' %}
+                    {% if tempo_cortesia_restante %}
+                    <div class="card text-white bg-info mb-4 shadow">
+                        <div class="card-body text-center">
+                            <h4 class="card-title mb-2"><i class="fas fa-stopwatch me-2"></i>Período de Cortesia Ativo!</h4>
+                            <p class="lead mb-0">
+                                Sua assinatura expira em: 
+                                <strong>{{ tempo_cortesia_restante.dias }} dia(s), {{ tempo_cortesia_restante.horas }} hora(s) e {{ tempo_cortesia_restante.minutos }} minuto(s).</strong>
+                            </p>
+                            <p class="small mt-1">Escolha um plano abaixo para não perder o acesso ao sistema.</p>
+                        </div>
+                    </div>
                     {% endif %}
-                {% else %}
-                    <p><strong>Status:</strong> <span class="badge bg-{% if assinatura_atual.status == 'ativa' or assinatura_atual.status == 'gratuita' %}success{% elif assinatura_atual.status == 'pendente_pagamento' %}warning{% else %}danger{% endif %}">{{ assinatura_atual.get_status_display }}</span></p>
-                {% endif %}
-
-                {% if assinatura_atual.ciclo_pagamento %}
-                    <p><strong>Ciclo de Pagamento:</strong> {{ assinatura_atual.get_ciclo_pagamento_display }}</p>
-                {% endif %}
-                <p><strong>Início da Vigência:</strong> {{ assinatura_atual.data_inicio|date:"d/m/Y H:i" }}</p>
-                {% if assinatura_atual.data_fim %}
-                    <p><strong>Fim da Vigência:</strong> {{ assinatura_atual.data_fim|date:"d/m/Y H:i" }}</p>
-                {% else %}
-                    {% if assinatura_atual.status == 'gratuita' %}
-                        <p><strong>Fim da Vigência:</strong> Indeterminado (Plano Gratuito)</p>
-                    {% endif %}
-                {% endif %}
-
-                {% if aviso_vencimento_proximo and not assinatura_atual.is_periodo_cortesia_valido %}
-                    <div class="alert alert-warning mt-2" role="alert">
-                        Atenção! Sua assinatura {% if dias_para_vencer == 0 %}vence hoje{% elif dias_para_vencer == 1 %}vence amanhã{% else %}vence em {{ dias_para_vencer }} dias{% endif %}. Considere renovar seu plano.
-                    </div>
-                {% endif %}
-
-                {% if assinatura_atual.plano.nome == 'gratuito' and not ministerio.verificar_elegibilidade_plano_gratuito and not assinatura_atual.is_periodo_cortesia_valido %}
-                    <div class="alert alert-warning mt-2" role="alert">
-                        Atenção: Sua ministério não parece mais ser elegível para o plano gratuito. Considere atualizar seu plano.
-                    </div>
-                {% endif %}
-            {% else %}
-                <p>Você ainda não possui uma assinatura ativa ou selecionou um plano.</p>
-                
-                {% if not assinatura_atual and ministerio.verificar_elegibilidade_plano_gratuito %}
-                    <div class="alert alert-info mt-2">
-                        Sua ministério parece ser elegível para o plano gratuito. Se ele não foi atribuído automaticamente, isso pode ocorrer após a aprovação da sua ministério ou cadastro da primeira igreja.
-                    </div>
-                {% endif %}
-            {% endif %}
-        </div>
-    </div>
-
-    {% if mostrar_opcao_cortesia %}
-    <div class="card mb-4 border-warning">
-        <div class="card-header bg-warning text-dark">
-            <i class="fas fa-gift me-1"></i>
-            Oportunidade: Período de Cortesia
-        </div>
-        <div class="card-body">
-            <h4 class="card-title">Assinatura Vencida</h4>
-            <p>Notamos que sua assinatura está vencida. Entendemos que imprevistos acontecem!</p>
-            <p>Gostaria de ativar um <strong>período de cortesia de 3 dias</strong> para continuar usando o sistema normalmente enquanto regulariza seu pagamento?</p>
-            <hr>
-            <form method="POST" class="mb-0">
-                {% csrf_token %}
-                <input type="hidden" name="ativar_cortesia" value="true">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-check-circle me-2"></i>Sim, ativar 3 dias de cortesia
-                </button>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-tags me-1"></i>
-            Escolha ou Altere seu Plano
-        </div>
-        <div class="card-body">
-
-
-
-
-            {% if planos_disponiveis %}
-            <p>Selecione um dos planos abaixo para sua ministério. Planos anuais incluem um desconto!</p>
-                <div class="row">
-                    {% for plano in planos_disponiveis %}
-                        {% if plano.preco_mensal > 0 %} {# Não mostrar o plano gratuito aqui #}
-                        <div class="col-lg-4 mb-4">
-                            <div class="card h-100 shadow-sm {% if assinatura_atual and assinatura_atual.plano.id == plano.id %}border-primary{% endif %}">
-                                <div class="card-header {% if assinatura_atual and assinatura_atual.plano.id == plano.id %}bg-primary text-white{% else %}bg-light{% endif %}">
-                                    <h5 class="card-title mb-0 text-center">{{ plano.get_nome_display }}</h5>
-                                </div>
-                                <div class="card-body d-flex flex-column">
-                                    <p class="card-text text-muted text-center">{{ plano.descricao|default:"Ideal para sua necessidade." }}</p>
-                                    <ul class="list-unstyled mt-3 mb-4">
-                                        <li><i class="fas fa-check text-success me-2"></i>
-                                            Até <strong>{% if plano.limite_membros == 0 %}pessoas ilimitadas{% else %}{{ plano.limite_membros }} pessoas ativas{% endif %}</strong>
-                                        </li>
-                                        <li><i class="fas fa-check text-success me-2"></i>
-                                            Até <strong>{% if plano.limite_igrejas == 0 %}ilimitadas{% elif plano.limite_igrejas == 1 %}1 igreja{% else %}{{ plano.limite_igrejas }} igrejas{% endif %}</strong>
-                                        </li>
-                                        <li><i class="fas fa-check {% if plano.permite_modulo_comunicacao %}text-success{% else %}text-muted{% endif %} me-2"></i>Módulo de Comunicação</li>
-                                        <li><i class="fas fa-check {% if plano.suporte_prioritario %}text-success{% else %}text-muted{% endif %} me-2"></i>Suporte Prioritário</li>
-                                    </ul>
-                                    
-                                    <div class="mt-auto">
-                                        <form method="POST" class="d-grid gap-2">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="plano_id" value="{{ plano.id }}">
-                                            
-                                            {% if plano.preco_mensal > 0 %}
-                                            <button type="submit" name="ciclo_pagamento" value="mensal" class="btn btn-outline-primary">
-                                                Assinar Mensal: <strong>R$ {{ plano.preco_mensal|floatformat:2|intcomma }}</strong>
-                                            </button>
-                                            {% endif %}
-
-                                            {% if plano.preco_anual > 0 %}
-                                            <button type="submit" name="ciclo_pagamento" value="anual" class="btn btn-primary">
-                                                Assinar Anual: <strong>R$ {{ plano.preco_anual|floatformat:2|intcomma }}</strong>
-                                                <span class="badge bg-warning text-dark ms-2">Economize!</span>
-                                            </button>
-                                            {% endif %}
-                                        </form>
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-file-signature me-1"></i>
+                            Sua Assinatura Atual
+                        </div>
+                        <div class="card-body">
+                            {% if assinatura_atual %}
+                                <p><strong>Plano:</strong> {{ assinatura_atual.plano.get_nome_display|default:"N/D" }}</p>
+                                {% if assinatura_atual.is_periodo_cortesia_valido %}
+                                    <p><strong>Status:</strong> <span class="badge bg-info">Período de Cortesia Ativo</span></p>
+                                    <p><strong>Cortesia iniciada em:</strong> {{ assinatura_atual.data_inicio_cortesia|date:"d/m/Y H:i" }}</p>
+                                    <p><strong>Cortesia válida até:</strong> {{ assinatura_atual.data_inicio_cortesia|add_timedelta_days:3|date:"d/m/Y H:i" }}</p>
+                                    {% if assinatura_atual.status == 'vencida' %}
+                                        <p class="text-muted small">(Sua assinatura original do plano {{ assinatura_atual.plano.get_nome_display }} está vencida, mas a cortesia permite o uso.)</p>
+                                    {% endif %}
+                                {% else %}
+                                    <p><strong>Status:</strong> <span class="badge bg-{% if assinatura_atual.status == 'ativa' or assinatura_atual.status == 'gratuita' %}success{% elif assinatura_atual.status == 'pendente_pagamento' %}warning{% else %}danger{% endif %}">{{ assinatura_atual.get_status_display }}</span></p>
+                                {% endif %}
+                                {% if assinatura_atual.ciclo_pagamento %}
+                                    <p><strong>Ciclo de Pagamento:</strong> {{ assinatura_atual.get_ciclo_pagamento_display }}</p>
+                                {% endif %}
+                                <p><strong>Início da Vigência:</strong> {{ assinatura_atual.data_inicio|date:"d/m/Y H:i" }}</p>
+                                {% if assinatura_atual.data_fim %}
+                                    <p><strong>Fim da Vigência:</strong> {{ assinatura_atual.data_fim|date:"d/m/Y H:i" }}</p>
+                                {% else %}
+                                    {% if assinatura_atual.status == 'gratuita' %}
+                                        <p><strong>Fim da Vigência:</strong> Indeterminado (Plano Gratuito)</p>
+                                    {% endif %}
+                                {% endif %}
+                                {% if aviso_vencimento_proximo and not assinatura_atual.is_periodo_cortesia_valido %}
+                                    <div class="alert alert-warning mt-2" role="alert">
+                                        Atenção! Sua assinatura {% if dias_para_vencer == 0 %}vence hoje{% elif dias_para_vencer == 1 %}vence amanhã{% else %}vence em {{ dias_para_vencer }} dias{% endif %}. Considere renovar seu plano.
                                     </div>
-                                </div>
-
-
+                                {% endif %}
+                                {% if assinatura_atual.plano.nome == 'gratuito' and not ministerio.verificar_elegibilidade_plano_gratuito and not assinatura_atual.is_periodo_cortesia_valido %}
+                                    <div class="alert alert-warning mt-2" role="alert">
+                                        Atenção: Sua ministério não parece mais ser elegível para o plano gratuito. Considere atualizar seu plano.
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <p>Você ainda não possui uma assinatura ativa ou selecionou um plano.</p>
+                                {% if not assinatura_atual and ministerio.verificar_elegibilidade_plano_gratuito %}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if assinatura_atual and assinatura_atual.periodo_cortesia_ativo %}
+                        {% if not assinatura_atual.is_periodo_cortesia_valido %}
+                            <div class="alert alert-info mb-4">
+                                <i class="fas fa-info-circle me-1"></i>
+                                O período de cortesia já foi utilizado para esta assinatura. Caso precise de mais tempo, entre em contato com o suporte.
+                            </div>
+                        {% endif %}
+                    {% elif mostrar_opcao_cortesia %}
+                        <div class="card mb-4 border-warning">
+                            <div class="card-header bg-warning text-dark">
+                                <i class="fas fa-gift me-1"></i>
+                                Oportunidade: Período de Cortesia
+                            </div>
+                            <div class="card-body">
+                                <h4 class="card-title">Assinatura Vencida</h4>
+                                <p>Notamos que sua assinatura está vencida. Entendemos que imprevistos acontecem!</p>
+                                <p>Gostaria de ativar um <strong>período de cortesia de 3 dias</strong> para continuar usando o sistema normalmente enquanto regulariza seu pagamento?</p>
+                                <hr>
+                                <form method="POST" class="mb-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="ativar_cortesia" value="true">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-check-circle me-2"></i>Sim, ativar 3 dias de cortesia
+                                    </button>
+                                </form>
                             </div>
                         </div>
-                          {% endif %}
-                    {% endfor %}
+                    {% endif %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="fas fa-tags me-1"></i>
+                            Escolha ou Altere seu Plano
+                        </div>
+                        <div class="card-body">
+                            {% if planos_disponiveis %}
+                                <p>Selecione um dos planos abaixo para sua ministério. Planos anuais incluem um desconto!</p>
+                                <div class="row">
+                                    {% for plano in planos_disponiveis %}
+                                        <div class="col-lg-4 mb-4">
+                                            <div class="card h-100 shadow-sm {% if assinatura_atual and assinatura_atual.plano.id == plano.id %}border-primary{% endif %}">
+                                                <div class="card-header {% if assinatura_atual and assinatura_atual.plano.id == plano.id %}bg-primary text-white{% else %}bg-light{% endif %}">
+                                                    <h5 class="card-title mb-0 text-center">{{ plano.get_nome_display }}</h5>
+                                                </div>
+                                                <div class="card-body d-flex flex-column">
+                                                    <p class="card-text text-muted text-center">{{ plano.descricao|default:"Ideal para sua necessidade." }}</p>
+                                                    <ul class="list-unstyled mt-3 mb-4">
+                                                        <li><i class="fas fa-check text-success me-2"></i>
+                                                            Até <strong>{% if plano.limite_membros == 0 %}pessoas ilimitadas{% else %}{{ plano.limite_membros }} pessoas ativas{% endif %}</strong>
+                                                        </li>
+                                                        <li><i class="fas fa-check text-success me-2"></i>
+                                                            Até <strong>{% if plano.limite_igrejas == 0 %}ilimitadas{% elif plano.limite_igrejas == 1 %}1 igreja{% else %}{{ plano.limite_igrejas }} igrejas{% endif %}</strong>
+                                                        </li>
+                                                        <li><i class="fas fa-check {% if plano.permite_modulo_comunicacao %}text-success{% else %}text-muted{% endif %} me-2"></i>Módulo de Comunicação</li>
+                                                        <li><i class="fas fa-check {% if plano.suporte_prioritario %}text-success{% else %}text-muted{% endif %} me-2"></i>Suporte Prioritário</li>
+                                                    </ul>
+                                                    <div class="mt-auto">
+                                                        <form method="POST" class="d-grid gap-2">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="plano_id" value="{{ plano.id }}">
+                                                            {% if plano.preco_mensal > 0 or plano.preco_anual > 0 %}
+                                                            <div class="form-group mb-2">
+                                                                <input type="text" name="stripe_coupon" class="form-control" placeholder="Cupom de desconto (opcional)">
+                                                            </div>
+                                                            {% endif %}
+                                                            {% if plano.preco_mensal > 0 %}
+                                                            <button type="submit" name="ciclo_pagamento" value="mensal" class="btn btn-outline-primary">
+                                                                Assinar Mensal: <strong>R$ {{ plano.preco_mensal|floatformat:2|intcomma }}</strong>
+                                                            </button>
+                                                            {% endif %}
+                                                            {% if plano.preco_mensal == 0 %}
+                                                                {% total_membros_ministerio ministerio as total_membros %}
+                                                                {% if plano.limite_membros and total_membros > plano.limite_membros %}
+                                                                    <div class="alert alert-warning p-2 mb-2 text-center">
+                                                                        <strong>Limite excedido:</strong> Este plano permite até {{ plano.limite_membros }} pessoas. Seu ministério possui {{ total_membros }} membros.
+                                                                    </div>
+                                                                    <button type="button" class="btn btn-success" disabled>
+                                                                        Assinar Gratuito
+                                                                    </button>
+                                                                {% else %}
+                                                                    <button type="submit" name="ciclo_pagamento" value="mensal" class="btn btn-success">
+                                                                        Assinar Gratuito
+                                                                    </button>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                            {% if plano.preco_anual > 0 %}
+                                                            <button type="submit" name="ciclo_pagamento" value="anual" class="btn btn-primary">
+                                                                Assinar Anual: <strong>R$ {{ plano.preco_anual|floatformat:2|intcomma }}</strong>
+                                                                <span class="badge bg-warning text-dark ms-2">Economize!</span>
+                                                            </button>
+                                                            {% endif %}
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p>Não há planos pagos disponíveis no momento. Se você acredita que isso é um erro, entre em contato com o suporte.</p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-            {% else %}
-                <p>Não há planos pagos disponíveis no momento. Se você acredita que isso é um erro, entre em contato com o suporte.</p>
-            {% endif %}
+            </div>
+            <div class="tab-pane fade" id="historico" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead>
+                            <tr>
+                                <th>Data Início</th>
+                                <th>Data Fim</th>
+                                <th>Tipo</th>
+                                <th>Plano</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Observação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for evento in historico_assinatura %}
+                            <tr>
+                                <td>{{ evento.data_inicio|date:"d/m/Y H:i" }}</td>
+                                <td>{% if evento.data_fim %}{{ evento.data_fim|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td>
+                                <td>{{ evento.get_tipo_display }}</td>
+                                <td>{{ evento.plano.get_nome_display|default:"N/D" }}</td>
+                                <td>R$ {{ evento.valor|floatformat:2 }}</td>
+                                <td>
+                                    {% if evento.status == 'paga' %}
+                                        <span class="badge bg-success">Paga</span>
+                                    {% elif evento.status == 'expirada' %}
+                                        <span class="badge bg-danger">Expirada</span>
+                                    {% elif evento.status == 'a_vencer' %}
+                                        <span class="badge bg-warning text-dark">A Vencer</span>
+                                    {% elif evento.status == 'vencida' %}
+                                        <span class="badge bg-secondary">Vencida</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ evento.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ evento.observacao|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="7" class="text-center">Nenhum evento registrado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
+    <!-- ...restante do conteúdo da página, como cards de planos, banners, formulários, etc... -->
 </div>
 {% endblock content %}

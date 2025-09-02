@@ -161,58 +161,21 @@ def adicionar_igreja(request):
     if request.method == 'POST':
         form = IgrejaForm(request.POST)
         if form.is_valid():
-            try:
-                igreja = form.save(commit=False)
-                igreja.ministerio = ministerio # Associa ao ministério do usuário
-                igreja.save()
-                messages.success(request, f'Igreja "{igreja.nome_igreja}" criada com sucesso!')
-                return redirect('configuracao:lista_igrejas')
-            except Exception as e:
-                # Tratar erro de unicidade se houver (ex: CNPJ único)
-                logger.exception(f"Erro ao salvar nova igreja para ministério {ministerio.id}")
-                messages.error(request, f'Erro ao salvar igreja: {e}')
-        else:
-            messages.error(request, 'Por favor, corrija os erros no formulário.')
-    else:
-        form = IgrejaForm()
-
-    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Adicionar Nova Igreja'}
-    return render(request, 'configuracao/igrejas/form_igreja.html', context)
-
-@login_required
-def editar_igreja(request, pk):
-    """ Edita uma igreja existente da ministério do usuário. """
-    ministerio = get_ministerio_or_error(request)
-    # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('secretaria:index') # Ou 'dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
-        #   
-    igreja = get_object_or_404(Igreja, pk=pk, ministerio=ministerio)
-
-    if request.method == 'POST':
-        form = IgrejaForm(request.POST, instance=igreja)
-        if form.is_valid():
-            try:
-                form.save()
-                messages.success(request, f'Igreja "{igreja.nome_igreja}" atualizada com sucesso!')
-                return redirect('configuracao:lista_igrejas')
-            except Exception as e:
-                logger.exception(f"Erro ao editar igreja {pk} para ministério {ministerio.id}")
-                messages.error(request, f'Erro ao salvar igreja: {e}')
+            igreja = form.save(commit=False)
+            igreja.ministerio = ministerio # Associa ao ministério do usuário
+            igreja.save()
+            messages.success(request, f'Igreja "{igreja.nome_igreja}" adicionada com sucesso!')
+            return redirect('configuracao:lista_igrejas')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
             # print("ERROS NO FORMULÁRIO:", form.errors.as_json()) # Removido para produção
-
     else:
-        form = IgrejaForm(instance=igreja)
+        form = IgrejaForm()
 
     context = {
         'form': form,
-    'ministerio': ministerio,
-        'titulo_pagina': f'Editar Igreja: {igreja.nome_igreja}',
-        'igreja': igreja
+        'ministerio': ministerio,
+        'titulo_pagina': 'Adicionar Nova Igreja',
     }
     return render(request, 'configuracao/igrejas/form_igreja.html', context)
 
@@ -403,82 +366,101 @@ def adicionar_igreja(request):
 
 @login_required
 def gerenciar_assinatura(request):
+    # Obter a ministério diretamente do perfil do usuário
+    ministerio = get_ministerio_or_error(request)
+    assinatura_atual = AssinaturaMinisterio.objects.filter(ministerio=ministerio).order_by('-data_inicio').first()
+    planos_disponiveis = Plano.objects.filter(ativo=True, is_visible=True)
+
+    # Verifica se o plano gratuito está ativo e o limite foi excedido
+    if assinatura_atual and assinatura_atual.status == 'gratuita' and assinatura_atual.plano and assinatura_atual.plano.preco_mensal == 0:
+        total_membros = 0
+        for igreja in ministerio.igrejas.all():
+            total_membros += igreja.membros.count()
+        if assinatura_atual.plano.limite_membros and total_membros > assinatura_atual.plano.limite_membros:
+            assinatura_atual.status = 'vencida'
+            assinatura_atual.save()
     """
     Permite ao administrador da ministério visualizar os planos disponíveis,
     ver sua assinatura atual e escolher/alterar um plano.
     """
-    # ministerio = get_ministerio_or_error(request) # REMOVER ESTA LINHA
+    # Obter a ministério diretamente do perfil do usuário
+    ministerio = get_ministerio_or_error(request)
+    assinatura_atual = AssinaturaMinisterio.objects.filter(ministerio=ministerio).order_by('-data_inicio').first()
+    planos_disponiveis = Plano.objects.filter(ativo=True, is_visible=True)
 
-    # Obter a ministério diretamente do perfil do usuário,
-    # permitindo acesso mesmo que a ministério esteja inativa.
-    ministerio = None
-    if hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.ministerio:
-        ministerio = request.user.perfil.ministerio
-    else:
-        # Este caso não deveria ocorrer para um usuário logado com perfil,
-        # mas é uma segurança.
-        messages.error(request, "Não foi possível identificar sua ministério. Por favor, contate o suporte.")
-        return redirect('login') # Redireciona para login ou página de erro
-
-    # Se a ministério existe, mas não está ativa, exibe uma mensagem de aviso, mas continua
-    if not ministerio.ativo:
-        messages.warning(request, f"Sua ministério '{ministerio.nome_fantasia}' ainda não está ativa. Você pode configurar sua assinatura enquanto aguarda a aprovação do sistema.")
-    assinatura_atual = None
-    try:
-        assinatura_atual = ministerio.assinatura # Usando o related_name='assinatura'
-    except AssinaturaMinisterio.DoesNotExist:
-        # Se não existe, pode ser uma ministério nova que não passou pela lógica de atribuição
-        # ou uma que ainda não escolheu um plano.
-        pass
-    except AttributeError: # Caso o related_name 'assinatura' não exista por algum motivo
-        logger.warning(f"Ministério {ministerio.id} não possui o atributo 'assinatura'. Verifique o related_name no modelo AssinaturaMinisterio.")
-
-     # Tenta criar assinatura gratuita se elegível e não tiver nenhuma, e o plano gratuito estiver ativo
-    if not assinatura_atual and ministerio.verificar_elegibilidade_plano_gratuito():
-        try:
-            plano_gratuito = Plano.objects.get(nome='gratuito', ativo=True) # Verifica se o plano gratuito está ativo
-            assinatura_atual, criada = AssinaturaMinisterio.objects.get_or_create(
-                ministerio=ministerio,
-                defaults={
-                    'plano': plano_gratuito,
-                    'data_inicio': timezone.now(),
-                    'status': 'gratuita'
-                }
-            )
-            if criada:
-                messages.info(request, "Seu plano gratuito foi ativado.")
-        except Plano.DoesNotExist:
-            logger.warning("Plano 'gratuito' ativo não encontrado para atribuição automática.")
-
-    # Planos ativos, excluindo o "gratuito" se a ministério não for elegível ou se já tiver um plano pago
-    planos_disponiveis = Plano.objects.filter(is_visible=True, ativo=True).order_by('preco_mensal')
     mostrar_opcao_cortesia = False
 
+    # Consulta histórico de mensalidades e cortesias
+    historico_assinatura = ministerio.historicos_assinatura.select_related('plano').order_by('-data_inicio')
+
     if request.method == 'POST':
+        # --- LÓGICA PARA ATIVAR CORTESIA ---
+        if request.POST.get('ativar_cortesia') == 'true':
+            # Só permite cortesia se não há cortesia válida e houve pagamento após a última cortesia
+            ultima_cortesia = ministerio.historicos_assinatura.filter(tipo='cortesia').order_by('-data_inicio').first()
+            ultimo_pagamento = ministerio.historicos_assinatura.filter(tipo='mensalidade', status='paga').order_by('-data_inicio').first()
+            pode_ativar = False
+            if assinatura_atual and assinatura_atual.status == 'vencida' and not assinatura_atual.is_periodo_cortesia_valido():
+                if not ultima_cortesia or (ultimo_pagamento and ultimo_pagamento.data_inicio > ultima_cortesia.data_fim):
+                    pode_ativar = True
+            if pode_ativar:
+                assinatura_atual.periodo_cortesia_ativo = True
+                assinatura_atual.data_inicio_cortesia = timezone.now()
+                assinatura_atual.save()
+                # Registrar evento no histórico
+                from configuracao.models import HistoricoAssinatura
+                HistoricoAssinatura.objects.create(
+                    ministerio=ministerio,
+                    plano=assinatura_atual.plano,
+                    tipo='cortesia',
+                    valor=0.00,
+                    status='a_vencer',
+                    data_inicio=assinatura_atual.data_inicio_cortesia,
+                    data_fim=assinatura_atual.data_inicio_cortesia + timedelta(days=3),
+                    observacao='Cortesia ativada automaticamente.'
+                )
+                messages.success(request, "Período de cortesia de 3 dias ativado! Você pode usar o sistema normalmente.")
+                return redirect('configuracao:gerenciar_assinatura')
+            else:
+                messages.error(request, "Não foi possível ativar o período de cortesia. É necessário realizar um pagamento antes de ativar nova cortesia.")
+            return redirect('configuracao:gerenciar_assinatura')
+        # --- FIM LÓGICA CORTESIA ---
         plano_id_selecionado = request.POST.get('plano_id')
         ciclo_pagamento_selecionado = request.POST.get('ciclo_pagamento') # 'mensal' ou 'anual'
+        stripe_coupon = request.POST.get('stripe_coupon')
         if not plano_id_selecionado or not ciclo_pagamento_selecionado:
             messages.error(request, "Nenhum plano foi selecionado.")
             return redirect('configuracao:gerenciar_assinatura')
-
         try:
-            # --- LÓGICA PARA ATIVAR CORTESIA ---
-            if request.POST.get('ativar_cortesia') == 'true':
-                if assinatura_atual and assinatura_atual.status == 'vencida' and not assinatura_atual.is_periodo_cortesia_valido():
-                    assinatura_atual.periodo_cortesia_ativo = True
-                    assinatura_atual.data_inicio_cortesia = timezone.now()
-                    assinatura_atual.save()
-                    messages.success(request, "Período de cortesia de 3 dias ativado! Você pode usar o sistema normalmente.")
-                    return redirect('configuracao:gerenciar_assinatura')
-                else:
-                    messages.error(request, "Não foi possível ativar o período de cortesia no momento.")
-                return redirect('configuracao:gerenciar_assinatura')
-
-            # --- FIM LÓGICA CORTESIA ---
-            # Processamento normal de escolha de plano
             plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
 
-            # Determina qual ID de preço do Stripe usar
+            # Se o plano é gratuito, verifica limite de membros antes de ativar
+            if plano_escolhido.preco_mensal == 0:
+                total_membros = ministerio.membros.count()
+                if plano_escolhido.limite_membros and total_membros > plano_escolhido.limite_membros:
+                    messages.error(request, f"Este plano permite até {plano_escolhido.limite_membros} pessoas. Seu ministério possui {total_membros} membros. Faça um upgrade para um plano maior.")
+                    return redirect('configuracao:gerenciar_assinatura')
+                assinatura, criada = AssinaturaMinisterio.objects.get_or_create(
+                    ministerio=ministerio,
+                    defaults={
+                        'plano': plano_escolhido,
+                        'data_inicio': timezone.now(),
+                        'status': 'gratuita',
+                        'ciclo_pagamento': ciclo_pagamento_selecionado,
+                        'data_fim': None,
+                    }
+                )
+                if not criada:
+                    assinatura.plano = plano_escolhido
+                    assinatura.data_inicio = timezone.now()
+                    assinatura.status = 'gratuita'
+                    assinatura.ciclo_pagamento = ciclo_pagamento_selecionado
+                    assinatura.data_fim = None
+                    assinatura.save()
+                messages.success(request, "Plano gratuito ativado com sucesso!")
+                return redirect('configuracao:gerenciar_assinatura')
+
+            # Processamento normal de escolha de plano pago
             if ciclo_pagamento_selecionado == 'anual':
                 stripe_price_id = plano_escolhido.stripe_price_id_anual
             else: # 'mensal'
@@ -488,53 +470,49 @@ def gerenciar_assinatura(request):
                 messages.error(request, "Este plano não está configurado para pagamento online. Contate o suporte.")
                 return redirect('configuracao:gerenciar_assinatura')
 
-           
-            
-
-            # Cria a sessão de checkout do Stripe
-            checkout_session = stripe.checkout.Session.create(
-                line_items=[
+            checkout_params = {
+                'line_items': [
                     {
                         'price': stripe_price_id,
                         'quantity': 1,
                     },
                 ],
-                mode='subscription',
-                success_url=request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=success',
-                cancel_url=request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=cancelled',
-                # Passa metadados para identificar o usuário e a ministério no webhook
-                metadata={
+                'mode': 'subscription',
+                'success_url': request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=success',
+                'cancel_url': request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=cancelled',
+                'metadata': {
                     'ministerio_id': ministerio.id,
                     'user_id': request.user.id,
                     'plano_id': plano_escolhido.id,
                     'ciclo_pagamento': ciclo_pagamento_selecionado,
                 }
-            )
+            }
+            if stripe_coupon:
+                checkout_params['discounts'] = [{ 'coupon': stripe_coupon }]
 
-            # Redireciona o usuário para a página de pagamento do Stripe
+            checkout_session = stripe.checkout.Session.create(**checkout_params)
+
             return redirect(checkout_session.url, code=303)
-
-            
         except Plano.DoesNotExist:
             messages.error(request, "O plano selecionado não é válido ou não está mais disponível.")
+            return redirect('configuracao:gerenciar_assinatura')
         except Exception as e:
             logger.error(f"Erro ao processar escolha de plano para ministério {ministerio.id}: {e}")
             messages.error(request, "Ocorreu um erro ao processar sua solicitação. Tente novamente.")
-        return redirect('configuracao:gerenciar_assinatura')
+            return redirect('configuracao:gerenciar_assinatura')
     
     # Lógica para mostrar opção de cortesia no GET
-    if assinatura_atual and assinatura_atual.status == 'vencida' and \
-       not assinatura_atual.is_periodo_cortesia_valido():
+    if assinatura_atual and assinatura_atual.status == 'vencida' and not assinatura_atual.is_periodo_cortesia_valido():
         mostrar_opcao_cortesia = True
 
     aviso_vencimento_proximo = False
     dias_para_vencer = None
     if assinatura_atual and assinatura_atual.data_fim and assinatura_atual.status == 'ativa':
         dias_para_vencer_calc = (assinatura_atual.data_fim - timezone.now()).days
-        if 0 <= dias_para_vencer_calc <= 7: # Se vence nos próximos 7 dias
+        if 0 <= dias_para_vencer_calc <= 7:
             aviso_vencimento_proximo = True
             dias_para_vencer = dias_para_vencer_calc
-    # --- NOVA LÓGICA PARA CONTAGEM REGRESSIVA DA CORTESIA ---
+
     tempo_cortesia_restante = None
     if assinatura_atual and assinatura_atual.is_periodo_cortesia_valido():
         data_fim_cortesia = assinatura_atual.data_inicio_cortesia + timedelta(days=3)
@@ -545,7 +523,6 @@ def gerenciar_assinatura(request):
                 'horas': tempo_restante.seconds // 3600,
                 'minutos': (tempo_restante.seconds % 3600) // 60,
             }
-    # --- FIM NOVA LÓGICA ---
 
     context = {
         'ministerio': ministerio,
@@ -555,9 +532,9 @@ def gerenciar_assinatura(request):
         'aviso_vencimento_proximo': aviso_vencimento_proximo,
         'dias_para_vencer': dias_para_vencer,
         'mostrar_opcao_cortesia': mostrar_opcao_cortesia,
-        'tempo_cortesia_restante': tempo_cortesia_restante, # Passa para o template
+        'tempo_cortesia_restante': tempo_cortesia_restante,
     }
-    
+    context['historico_assinatura'] = historico_assinatura
     return render(request, 'configuracao/assinatura/gerenciar_assinatura.html', context)
 
 # Adicionar ao final de c:\Gereigreja\configuracao\views.py

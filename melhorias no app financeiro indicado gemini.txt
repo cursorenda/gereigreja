@@ -509,26 +509,34 @@ depois mudar Django~=3.2 para Django==5.2 e PostgreSQL 10.23 para versao 14 - o 
 A chave SMTP foi gerada com sucesso. Copie esta chave e a salve em um local seguro. Por motivos de segurança, não podemos mostrá-la novamente a você:
 xsmtpsib-cfb0a4c4c63c5919662db2720a70a7953d6b9435da5c61f1570c445e8602aa6d-GvfzS4gIT0CQxmPZ
 
-DATABASES = {
-    'default': {
-    # Exemplo antigo removido: configuração SQLite
-
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-
-    }
-}
-
-AWS_ACCESS_KEY_ID = 'AKIA3ZLQNTWD3PAUL3ED'
-AWS_SECRET_ACCESS_KEY = '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'
-AWS_STORAGE_BUCKET_NAME = 'gereigreja-media'
-AWS_S3_REGION_NAME = ''us-east-2'
 
 
+Aqui estão sugestões para evoluir a gestão de templates/Comunicação de e-mail no Gereigreja:
 
+Adicionar mais templates úteis
 
+Confirmação de cadastro de membro
+Notificação de evento
+Boletim informativo mensal
+Confirmação de doação/recebimento
+Permitir edição web dos templates
+
+Criar uma interface para admins editarem o HTML dos templates diretamente pelo painel.
+Salvar versões personalizadas por igreja/ministério.
+Pré-visualização dinâmica
+
+Permitir que o admin insira dados de exemplo (nome, data, valores) e visualize o template com esses dados.
+Restaurar para padrão
+
+Botão para restaurar o template para o padrão original, caso o admin faça alterações que não goste.
+Controle de permissões
+
+Permitir que apenas usuários com permissão de admin possam editar templates.
+Documentação e dicas
+
+Adicionar dicas sobre variáveis disponíveis em cada template (ex: {{ nome }}, {{ igreja_nome }}, etc).
+Histórico de alterações
+
+Guardar histórico das edições dos templates para auditoria e reversão.
+
+Outra Melhoria seria, um relatorio de todos os ultimos emails enviados para organizaçao.

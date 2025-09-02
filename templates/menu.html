@@ -149,10 +149,28 @@
                 Novidades do Sistema
             </a>
             {# --- NOVO LINK PARA MURAL DE AVISOS --- #}
-            <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div> {# Ícone diferente para mural #}
-                Mural de Avisos
+            <div class="sb-sidenav-menu-heading">Comunicação</div>
+            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseComunicacao" aria-expanded="false" aria-controls="collapseComunicacao">
+                <div class="sb-nav-link-icon"><i class="fas fa-comments"></i></div>
+                Comunicação
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
+            <div class="collapse" id="collapseComunicacao" aria-labelledby="headingComunicacao" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    <a class="nav-link" href="{% url 'comunicacao:enviar_email_massa' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-paper-plane"></i></div>
+                        Enviar E-mail em Massa
+                    </a>
+                    <a class="nav-link" href="{% url 'comunicacao:templates_email' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-envelope-open-text"></i></div>
+                        Templates de E-mail
+                    </a>
+                    <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                        Mural de Avisos
+                    </a>
+                </nav>
+            </div>
             {# --- NOVO LINK PARA SUPORTE --- #}
             <a class="nav-link" href="{% url 'suporte:lista_tickets' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-life-ring"></i></div>

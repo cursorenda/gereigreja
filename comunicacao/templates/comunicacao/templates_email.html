@@ -1,0 +1,20 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Templates de E-mail{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Templates de E-mail</h2>
+    <p>Aqui você pode visualizar os modelos de e-mail disponíveis para comunicação.</p>
+    <ul class="list-group mb-4">
+        <li class="list-group-item">
+            <strong>E-mail em Massa</strong><br>
+            <a href="{% url 'comunicacao:visualizar_template_email_massa' %}" target="_blank">Visualizar Template</a>
+        </li>
+        <li class="list-group-item">
+            <strong>Redefinição de Senha</strong><br>
+            <a href="{% url 'comunicacao:visualizar_template_password_reset' %}" target="_blank">Visualizar Template</a>
+        </li>
+        <!-- Adicione outros templates conforme necessário -->
+    </ul>
+    <!-- Edição de templates via web pode ser implementada futuramente para administradores. -->
+</div>
+{% endblock %}

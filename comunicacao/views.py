@@ -1,3 +1,35 @@
+def templates_email(request):
+    """
+    View para exibir os templates de e-mail disponíveis.
+    """
+    return render(request, 'comunicacao/templates_email.html')
+
+def visualizar_template_email_massa(request):
+    """
+    Renderiza o template de e-mail em massa para visualização.
+    """
+    contexto = {
+        'assunto': 'Exemplo de Assunto',
+        'mensagem': 'Este é um exemplo de mensagem para o e-mail em massa.',
+        'ministerio_nome': 'Nome do Ministério',
+        'igreja_nome': 'Nome da Igreja',
+        'remetente_email': 'contato@exemplo.com',
+    }
+    return render(request, 'comunicacao/email/email_massa_template.html', contexto)
+
+def visualizar_template_password_reset(request):
+    """
+    Renderiza o template de redefinição de senha para visualização.
+    """
+    contexto = {
+        'site_name': 'Gereigreja',
+        'protocol': 'https',
+        'domain': 'gereigreja.site',
+        'uid': 'uid-exemplo',
+        'token': 'token-exemplo',
+        'user': type('User', (), {'get_username': lambda self: 'usuario_exemplo'})(),
+    }
+    return render(request, 'contas/password_reset_email.html', contexto)
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -234,10 +266,21 @@ def enviar_email_massa(request):
                 return redirect('comunicacao:enviar_email_massa')
 
             try:
+                igreja_nome = None
+                remetente_email = settings.DEFAULT_FROM_EMAIL
+                # Se o filtro igrejas_destino retornar só uma igreja, use ela
+                if igrejas_destino and igrejas_destino.count() == 1:
+                    igreja = igrejas_destino.first()
+                    igreja_nome = getattr(igreja, 'nome_igreja', None)
+                    if getattr(igreja, 'email', None):
+                        remetente_email = igreja.email
+
                 html_message = render_to_string('comunicacao/email/email_massa_template.html', {
                     'assunto': assunto,
                     'mensagem': mensagem,
                     'ministerio_nome': ministerio.nome_fantasia,
+                    'igreja_nome': igreja_nome,
+                    'remetente_email': remetente_email,
                 })
                 send_mail(
                     assunto,
