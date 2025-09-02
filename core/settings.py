@@ -329,7 +329,7 @@ DEFAULT_FROM_EMAIL = 'Gereigreja <nao-responda@gereigreja.site>' # E-mail que ap
 SERVER_EMAIL = DEFAULT_FROM_EMAIL # Para e-mails de erro do servidor (enviados para ADMINS)
 ADMINS = [('sr. Júlio ', 'juliobsouza24@gmail.com')] # E-mail para onde o Django envia erros críticos
 
-SITE_ID = 1
+SITE_ID = 2
 
 # --- STRIPE CONFIGURATION ---
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')

@@ -314,7 +314,7 @@ def marcar_notificacao_lida(request, pk):
 @login_required
 @verificar_assinatura_valida
 def marcar_todas_notificacoes_lidas(request):
-    ministerio = get_ministerio_or_404(request)
+    ministerio = get_ministerio_or_error(request)
     Notificacao.objects.filter(user=request.user, ministerio=ministerio, is_read=False).update(is_read=True)
     messages.success(request, "Todas as notificações foram marcadas como lidas.")
     return redirect('comunicacao:lista_notificacoes')
