@@ -146,11 +146,13 @@ def lista_usuarios_org(request):
         logger.exception(f"Erro ao listar usuários/convites para ministério {org_id}")
         messages.error(request, f"Ocorreu um erro ao listar os usuários e convites: {e}")
         return redirect('secretaria:dashboard')
+
     # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin ministerio').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar usuários.")
         return redirect('secretaria:index')
     # --- FIM DA VERIFICAÇÃO ---
+
     usuarios_org = User.objects.filter(
         perfil__ministerio=ministerio
     ).select_related('perfil').prefetch_related('groups').order_by('first_name', 'last_name')
@@ -174,7 +176,7 @@ def enviar_convite(request):
         ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
         return redirect('login')
-    if not request.user.groups.filter(name='Admin ministerio').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar usuários.")
         return redirect('secretaria:index')
 
@@ -344,7 +346,7 @@ def cancelar_convite(request, pk):
         ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
         return redirect('login')
-    if not request.user.groups.filter(name='Admin ministerio').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar usuários.")
         return redirect('secretaria:index')
     convite = get_object_or_404(
@@ -454,7 +456,7 @@ def enviar_link_reset_senha(request, user_pk):
         ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
         return redirect('login')
-    if not request.user.groups.filter(name='Admin ministerio').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para realizar esta ação.")
         return redirect('secretaria:index')
 
@@ -503,7 +505,7 @@ def alternar_status_usuario_org(request, user_pk):
         ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
         return redirect('login')
-    if not request.user.groups.filter(name='Admin ministerio').exists():
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar usuários.")
         return redirect('secretaria:index')
     usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__ministerio=ministerio)

@@ -497,7 +497,6 @@ Solução: Criar "gatilhos" no sistema. O mais fácil e de maior impacto é o de
 Resumo e Próximo Passo
 Seu projeto é fantástico e muito avançado. Para garantir seu sucesso a longo prazo, a ordem de prioridades é clara:
 
-Fundação: Mude o banco de dados para PostgreSQL e automatize os backups. Isso não é uma funcionalidade visível, mas é a apólice de seguro do seu negócio.
 Qualidade: Refatore as views mais complexas para facilitar a manutenção futura.
 Valor: Comece a planejar o módulo "Jornada do Visitante" e implemente as notificações automáticas.
 Minha recomendação é focar 100% na migração do banco de dados como a próxima tarefa. É a mais crítica de todas. Depois que a base estiver sólida, podemos voltar a adicionar as funcionalidades incríveis que você planejou.
@@ -540,3 +539,22 @@ Histórico de alterações
 Guardar histórico das edições dos templates para auditoria e reversão.
 
 Outra Melhoria seria, um relatorio de todos os ultimos emails enviados para organizaçao.
+
+5. Lista de melhorias sugeridas para seu arquivo de melhorias
+Melhorias sugeridas:
+
+Refatorar o uso de variáveis de ambiente com django-environ.
+Adicionar um arquivo .env.example para facilitar onboarding.
+Garantir que todos os apps tenham testes automatizados (tests.py ou pasta tests/).
+Adicionar monitoramento de erros e performance (ex: Sentry).
+Documentar políticas de backup e restore.
+Adicionar scripts de deploy e rollback.
+Revisar permissões e roles de usuários, usando grupos e permissões do Django.
+Adicionar testes para middlewares customizados.
+Garantir que pastas de backup e logs estejam no .gitignore.
+Revisar e remover comentários desatualizados no código.
+Adicionar documentação de onboarding para novos desenvolvedores.
+Implementar alternância entre Cloudinary e FileSystemStorage conforme ambiente.
+Revisar duplicidade de handlers no logging.
+Adicionar testes de integração para regras de negócio críticas.
+Adicionar verificação de permissões nas views e templates.

@@ -1,0 +1,122 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina|default:"Editar Ministério" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:"Editar Ministério" }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'configuracao:detalhes_ministerio' %}">Meu Ministério</a></li>
+        <li class="breadcrumb-item active">Editar</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-edit me-1"></i> Editar Dados da Ministério
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.logo.id_for_label }}" class="form-label">{{ form.logo.label }}:</label>
+                        {{ form.logo }}
+                        {% if form.logo.help_text %}
+                            <div class="form-text">{{ form.logo.help_text|safe }}</div>
+                        {% endif %}
+                        {% if form.logo.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.logo.errors|join:", " }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.nome_fantasia.id_for_label }}" class="form-label">{{ form.nome_fantasia.label }}:</label>
+                        {{ form.nome_fantasia }}
+                        {% if form.nome_fantasia.errors %}<div class="invalid-feedback d-block">{{ form.nome_fantasia.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.razao_social.id_for_label }}" class="form-label">{{ form.razao_social.label }}:</label>
+                        {{ form.razao_social }}
+                        {% if form.razao_social.errors %}<div class="invalid-feedback d-block">{{ form.razao_social.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }}:</label>
+                        {{ form.cnpj }}
+                        {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
+                        {{ form.telefone }}
+                        {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <hr class="my-3">
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
+                        {{ form.cep }}
+                        {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-8 mb-3">
+                        <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
+                        {{ form.rua }}
+                        {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.numero.id_for_label }}" class="form-label">{{ form.numero.label }}:</label>
+                        {{ form.numero }}
+                        {% if form.numero.errors %}<div class="invalid-feedback d-block">{{ form.numero.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-8 mb-3">
+                        <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
+                        {{ form.complemento }}
+                        {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.bairro.id_for_label }}" class="form-label">{{ form.bairro.label }}:</label>
+                        {{ form.bairro }}
+                        {% if form.bairro.errors %}<div class="invalid-feedback d-block">{{ form.bairro.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
+                        {{ form.cidade }}
+                        {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
+                        {{ form.estado }}
+                        {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
+                    </div>
+                </div>
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Salvar Alterações
+                </button>
+                <a href="{% url 'configuracao:detalhes_ministerio' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+<script>
+    $(document).ready(function(){
+        $('#id_cnpj').mask('00.000.000/0000-00');
+        $('#id_cep').mask('00000-000');
+        $('#id_telefone').mask('(00) 00000-0000');
+    });
+</script>
+{% endblock extra_js %}

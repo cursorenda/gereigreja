@@ -108,7 +108,7 @@ def get_ministerio_or_error(request):
         raise Http404("Ministério não encontrada para o usuário.")
     
     if not ministerio.ativo:
-        # messages.warning(request, f"A ministério '{ministerio.nome_fantasia}' não está ativa. Contate o suporte do sistema.")
+        messages.warning(request, f"A ministério '{ministerio.nome_fantasia}' não está ativa. Contate o suporte do sistema.")
         raise PermissionDenied(f"Acesso negado: Ministério '{ministerio.nome_fantasia}' inativa.")
     
     # --- VERIFICAÇÃO DO STATUS DA ASSINATURA ---

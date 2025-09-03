@@ -39,8 +39,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-r$cs+v_ad_nqus
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Em produção, defina a variável de ambiente DJANGO_DEBUG='False' no painel da hospedagem.
-DEBUG = os.environ.get('DJANGO_DEBUG', 'false') == 'false' # Será True se DJANGO_DEBUG='True' ou não definida, False se DJANGO_DEBUG='False'
-
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 # ALLOWED_HOSTS deve conter os domínios/IPs que servirão sua aplicação.
 ALLOWED_HOSTS = ['gereigreja.site', 'www.gereigreja.site', '199.167.147.66', 'localhost', '127.0.0.1']
 

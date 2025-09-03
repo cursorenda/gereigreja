@@ -96,7 +96,7 @@
                 {# --- Links de Configuração da Ministério (SÓ PARA NÃO SUPERUSUÁRIOS E NO GRUPO CERTO) --- #}
                 {% if not user.is_superuser and user.groups.all %} {# Verifica se tem grupos associados #}
                 {% for group in user.groups.all %}
-                    {% if group.name == 'Admin ministerio' %} {# Verifica se está no grupo específico #}
+                    {% if group.name == 'Admin Ministerio' %} {# Verifica se está no grupo específico #}
                         <li>
                             <a class="dropdown-item" href="{% url 'configuracao:lista_igrejas' %}">
                                 <i class="fas fa-church fa-fw me-1 text-muted"></i>Gerenciar Igrejas
@@ -104,7 +104,7 @@
                         </li>
                         <li>
                             <a class="dropdown-item" href="{% url 'configuracao:detalhes_ministerio' %}">
-                                <i class="fas fa-sitemap fa-fw me-1 text-muted"></i>Minha Ministério
+                                <i class="fas fa-sitemap fa-fw me-1 text-muted"></i>Meu Ministério
                             </a>
                         </li>
                         <li>
@@ -126,7 +126,7 @@
 
                     {# --- Links da Conta do Usuário (Para TODOS os logados) --- #}
                     {# Apenas Admin da Ministério pode gerenciar a assinatura #}
-                    {% if 'Admin ministerio' in user.groups.all|join:", " %}
+                    {% if 'Admin Ministerio' in user.groups.all|join:", " %}
                         <li><a class="dropdown-item" href="{% url 'configuracao:gerenciar_assinatura' %}">
                             <i class="fas fa-credit-card fa-fw me-1 text-muted"></i>Gerenciar Assinatura
                         </a></li>

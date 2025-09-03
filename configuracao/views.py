@@ -118,6 +118,8 @@ def lista_igrejas(request):
     """ Lista as igrejas da ministério do usuário logado. """
     ministerio = get_ministerio_or_error(request)
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
+    grupos_usuario = list(request.user.groups.values_list('name', flat=True))
+    logger.debug(f"Usuário {request.user.username} pertence aos grupos: {grupos_usuario}")
     if not request.user.groups.filter(name='Admin Ministerio').exists():
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
@@ -223,7 +225,7 @@ def excluir_igreja(request, pk):
 # ... (imports e views existentes) ...
 
 # ====================================================
-# ========= INÍCIO: VIEWS PARA MINHA MINISTÉRIO =========
+# ========= INÍCIO: VIEWS PARA MEU MINISTÉRIO =========
 # ====================================================
 
 @login_required
@@ -289,7 +291,7 @@ def editar_ministerio(request):
 #     pass
 
 # ==================================================
-# ========= FIM: VIEWS PARA MINHA MINISTÉRIO =========
+# ========= FIM: VIEWS PARA MEU MINISTÉRIO =========
 # ==================================================
 
 

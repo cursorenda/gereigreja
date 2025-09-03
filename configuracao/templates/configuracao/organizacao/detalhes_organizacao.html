@@ -1,13 +1,13 @@
 {% extends 'base_com_menu.html' %}
 
-{% block title %}Minha Ministério: {{ ministerio.nome_fantasia }}{% endblock %}
+{% block title %}Meu Ministério: {{ ministerio.nome_fantasia }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Minha Ministério</h1>
+    <h1 class="mt-4">Meu Ministério</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Minha Ministério</li>
+        <li class="breadcrumb-item active">Meu Ministério</li>
     </ol>
 
     {# Mensagens #}
