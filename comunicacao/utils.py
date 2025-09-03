@@ -14,7 +14,7 @@ def can_manage_avisos(user):
     # Verifica se o usuário tem um perfil e uma ministério associada
     if hasattr(user, 'perfil') and user.perfil and user.perfil.ministerio:
         # Permite se for staff (acesso ao admin) ou pertencer a grupos específicos
-        # ou se for o administrador principal da ministério.
+        # ou se for o administrador principal do ministério.
         is_admin_org = user.perfil.ministerio.administrador_principal == user
         return user.is_staff or user.groups.filter(name__in=['Admin Ministerio', 'ComunicacaoManager']).exists() or is_admin_org
     return False
@@ -22,7 +22,7 @@ def can_manage_avisos(user):
 def can_view_avisos(user):
     """
     Verifica se o usuário pode visualizar avisos.
-    Por padrão, todos os usuários autenticados da ministério podem ver.
+    Por padrão, todos os usuários autenticados do ministério podem ver.
     """
     if not user.is_authenticated:
         return False

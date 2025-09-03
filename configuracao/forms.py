@@ -142,7 +142,7 @@ class IgrejaForm(forms.ModelForm):
 
 # --- FORMULÁRIO PARA EDITAR DADOS DA MINISTÉRIO (PELO ADMIN DA ORG) ---
 class MinisterioEditForm(forms.ModelForm):
-    """ Formulário para o Admin da Org editar dados da própria ministério """
+    """ Formulário para o Admin do Minist. editar dados da própria ministério """
     # Sobrescrever o campo estado para garantir o widget correto se necessário
     # Embora o modelo já tenha choices, definir explicitamente aqui é seguro
     estado = forms.ChoiceField(

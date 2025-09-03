@@ -35,7 +35,7 @@ class CategoriaDespesa(models.Model):
         # db_table = 'categoria_despesa'
         verbose_name = "Categoria de Despesa"
         verbose_name_plural = "Categorias de Despesas"
-        # Garantir que o nome seja único DENTRO de cada ministério
+        # Garantir que o nome seja único DENTRO de cado ministério
         unique_together = ('ministerio', 'nome')
 
 

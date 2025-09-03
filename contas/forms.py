@@ -39,12 +39,12 @@ class RegistroForm(forms.Form):
 
     # Campos da Ministério
     nome_fantasia_org = forms.CharField(
-        label="Nome da Ministério/Ministério",
+        label="Nome do Ministério",
         max_length=150,
-        required=True, # Nome da ministério é obrigatório
+        required=True, # Nome do ministério é obrigatório
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Ministério Exemplo Central'})
     )
-    # Adicionar outros campos opcionais da ministério se desejar coletar no registro
+    # Adicionar outros campos opcionais do ministério se desejar coletar no registro
     # Ex: telefone_org = forms.CharField(required=False, ...)
 
     # Validações
@@ -105,7 +105,7 @@ class ConviteForm(forms.Form):
 
         return email
 # --- FIM FORMULÁRIO DE CONVITE ---
-    # Opcional: Validação para nome da ministério (ex: verificar se já existe?)
+    # Opcional: Validação para nome do ministério (ex: verificar se já existe?)
     # def clean_nome_fantasia_org(self):
     #     nome = self.cleaned_data.get('nome_fantasia_org')
     #     if nome and Ministerio.objects.filter(nome_fantasia__iexact=nome).exists():

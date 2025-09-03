@@ -89,35 +89,46 @@ def registrar_usuario_e_org(request):
                         ministerio=nova_ministerio
                     )
 
-                     # --- LÓGICA PARA ATRIBUIR PLANO GRATUITO SE ELEGÍVEL ---
+                    # --- LÓGICA PARA ATRIBUIR PLANO GRATUITO SE ELEGÍVEL ---
                     try:
-                        plano_gratuito = Plano.objects.get(nome='gratuito')
-                        # Verifica se o plano gratuito está ativo E se a ministério é elegível
-
-                        if plano_gratuito.ativo and nova_ministerio.verificar_elegibilidade_plano_gratuito():
+                        plano_pioneiro = Plano.objects.get(nome='pioneiro')
+                        # Verifica se o plano pioneiro está ativo E se a ministério é elegível
+                        if plano_pioneiro.ativo and nova_ministerio.verificar_elegibilidade_plano_gratuito():
                             AssinaturaMinisterio.objects.create(
                                 ministerio=nova_ministerio,
-                                plano=plano_gratuito,
+                                plano=plano_pioneiro,
                                 data_inicio=timezone.now(),
-                                # data_fim pode ser nulo ou uma data muito no futuro para gratuito
-                                status='gratuita' # Usar o status 'gratuita'
+                                status='gratuita'
                             )
-                            logger.info(f"Ministério '{nome_fantasia_org}' elegível e atribuída ao plano Gratuito.")
+                            # Ativa automaticamente o ministério se for pioneiro
+                            nova_ministerio.ativo = True
+                            nova_ministerio.save(update_fields=['ativo'])
+                            # Adiciona o usuário ao grupo Admin Ministerio
+                            from django.contrib.auth.models import Group
+                            grupo_admin, _ = Group.objects.get_or_create(name='Admin Ministerio')
+                            novo_usuario.groups.add(grupo_admin)
+                            logger.info(f"Usuário '{email}' adicionado ao grupo Admin Ministerio.")
+                            logger.info(f"Ministério '{nome_fantasia_org}' ativado automaticamente no plano Pioneiro.")
+                            logger.info(f"Novo usuário '{email}' e ministério '{nome_fantasia_org}' registrados e ativados com sucesso.")
+                            login(request, novo_usuario)
+                            # Atualiza a sessão para refletir os novos grupos
+                            from django.contrib.auth import update_session_auth_hash
+                            update_session_auth_hash(request, novo_usuario)
+                            messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o da ministério "{nome_fantasia_org}" foram concluídos e ativados. Aproveite o sistema!')
+                            return redirect('secretaria:dashboard')
                         else:
                             # Opcional: Criar uma assinatura pendente para um plano padrão ou deixar sem assinatura
-                            logger.info(f"Ministério '{nome_fantasia_org}' não elegível para plano Gratuito no momento do registro.")
+                            logger.info(f"Ministério '{nome_fantasia_org}' não elegível para plano Pioneiro no momento do registro.")
+                            messages.info(request, f'Seu cadastro foi realizado, mas aguarda aprovação do administrador.')
+                            return redirect('contas:aguardando_aprovacao')
                     except Plano.DoesNotExist:
-                        logger.warning("Plano 'gratuito' não encontrado no banco de dados. Não será ofertado automaticamente.")
+                        logger.warning("Plano 'pioneiro' não encontrado no banco de dados. Não será ofertado automaticamente.")
+                        messages.info(request, f'Seu cadastro foi realizado, mas aguarda aprovação do administrador.')
+                        return redirect('contas:aguardando_aprovacao')
                     except Exception as e_plano:
                         logger.error(f"Erro ao tentar atribuir plano para '{nome_fantasia_org}': {e_plano}")
-                    # --- FIM DA LÓGICA DO PLANO ---
-
-
-
-                logger.info(f"Novo usuário '{email}' e ministério '{nome_fantasia_org}' registrados com sucesso.")
-                login(request, novo_usuario)
-                messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o da ministério "{nome_fantasia_org}" foram concluídos. Sua ministério aguarda aprovação do administrador do sistema.')
-                return redirect('contas:aguardando_aprovacao') # Redireciona para a página de aguardando aprovação
+                        messages.info(request, f'Seu cadastro foi realizado, mas aguarda aprovação do administrador.')
+                        return redirect('contas:aguardando_aprovacao')
             except Exception as e: # Captura exceções da criação de usuário/org ou da lógica de plano
                 logger.exception(f"Erro durante o registro do usuário {email} ou ministério {nome_fantasia_org}: {e}")
                 messages.error(request, f"Ocorreu um erro inesperado durante o registro: {e}. Por favor, tente novamente ou contate o suporte.")
@@ -136,7 +147,7 @@ def registrar_usuario_e_org(request):
 # --- VIEW LISTAR USUÁRIOS E CONVITES ---
 @login_required
 def lista_usuarios_org(request):
-    """ Lista os usuários associados E os convites pendentes da ministério. """
+    """ Lista os usuários associados E os convites pendentes do ministério. """
     try:
         ministerio = get_ministerio_or_error(request) # Levanta exceção se não for admin de org
     except (PermissionDenied, Http404):
@@ -152,7 +163,6 @@ def lista_usuarios_org(request):
         messages.error(request, "Você não tem permissão para gerenciar usuários.")
         return redirect('secretaria:index')
     # --- FIM DA VERIFICAÇÃO ---
-
     usuarios_org = User.objects.filter(
         perfil__ministerio=ministerio
     ).select_related('perfil').prefetch_related('groups').order_by('first_name', 'last_name')
@@ -171,7 +181,7 @@ def lista_usuarios_org(request):
 # --- VIEW ENVIAR CONVITE ---
 @login_required
 def enviar_convite(request):
-    """ View para o Admin da Org enviar um convite para um novo usuário. """
+    """ View para o Admin do Minist. enviar um convite para um novo usuário. """
     try:
         ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
@@ -272,7 +282,7 @@ def aceitar_convite(request, token):
                     convite.data_aceite = timezone.now()
                     convite.save()
 
-                messages.success(request, f"Convite aceito! Você agora faz parte da ministério {convite.ministerio.nome_fantasia}.")
+                messages.success(request, f"Convite aceito! Você agora faz parte do ministério {convite.ministerio.nome_fantasia}.")
                 return redirect('secretaria:dashboard')
             except Exception as e:
                  logger.exception(f"Erro ao aceitar convite (logado) para {convite.email_convidado}, token {token}")
@@ -372,7 +382,7 @@ def cancelar_convite(request, pk):
 # --- VIEW EDITAR PAPÉIS/GRUPOS ---
 @login_required
 def editar_papeis_usuario(request, user_pk):
-    """ Permite ao Admin da Org editar os grupos (papéis) e igrejas permitidas de um usuário. """
+    """ Permite ao Admin do Minist. editar os grupos (papéis) e igrejas permitidas de um usuário. """
     try:
         ministerio = get_ministerio_or_error(request)
         # Busca o usuário alvo e seu perfil, garantindo que pertence à ministério
@@ -448,7 +458,7 @@ def editar_papeis_usuario(request, user_pk):
 @login_required
 def enviar_link_reset_senha(request, user_pk):
     """
-    View para o Admin da Org enviar um link de redefinição de senha
+    View para o Admin do Minist. enviar um link de redefinição de senha
     para um usuário específico.
     """
     # 1. Validação de permissão
@@ -500,7 +510,7 @@ def enviar_link_reset_senha(request, user_pk):
 # --- VIEW ATIVAR/DESATIVAR USUÁRIO ---
 @login_required
 def alternar_status_usuario_org(request, user_pk):
-    """ Ativa ou desativa um usuário dentro da ministério (requer POST). """
+    """ Ativa ou desativa um usuário dentro do ministério (requer POST). """
     try:
         ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):

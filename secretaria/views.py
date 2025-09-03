@@ -133,9 +133,9 @@ def index(request):
             titulo_contextual += " (Consolidado)"
         # Se não houver igreja ativa nem igrejas permitidas (exceto para admin org que vê tudo),
         # os counts permanecerão zero, o que é correto.
-        # Para Admin Org, get_allowed_churches_for_membros deve retornar todas da ministério.
+        # Para Admin Org, get_allowed_churches_for_membros deve retornar todas do ministério.
         
-        if membros_base_qs.exists() or (is_admin_org(request.user) and not request.igreja_ativa): # Garante que Admin Org veja dados da ministério se nenhuma igreja ativa
+        if membros_base_qs.exists() or (is_admin_org(request.user) and not request.igreja_ativa): # Garante que Admin Org veja dados do ministério se nenhuma igreja ativa
             if is_admin_org(request.user) and not request.igreja_ativa and not allowed_churches_secretaria.exists(): # Caso específico de Admin Org sem igrejas no perfil e sem igreja ativa
                 membros_base_qs = Membro.objects.filter(igreja__ministerio=ministerio)
 
@@ -218,7 +218,7 @@ def dashboard(request):
             status_pessoa__considerar_ativo_relatorios=True # Alterado
         )
         titulo_contextual_dashboard += " (Visão Consolidada)"
-    elif is_admin_org(request.user): # Admin da Org sem igrejas no perfil e sem igreja ativa
+    elif is_admin_org(request.user): # Admin do Minist. sem igrejas no perfil e sem igreja ativa
         membros_para_relatorios = Membro.objects.filter(
             igreja__ministerio=ministerio,
             status_pessoa__considerar_ativo_relatorios=True # Alterado
@@ -403,7 +403,7 @@ def lista_membros(request): # noqa: E302
         membros_queryset = Membro.objects.filter(igreja=request.igreja_ativa)
     elif allowed_churches.exists():
         membros_queryset = Membro.objects.filter(igreja__in=allowed_churches)
-    elif is_admin_org(request.user): # Admin da Org sem igrejas no perfil e sem igreja ativa
+    elif is_admin_org(request.user): # Admin do Minist. sem igrejas no perfil e sem igreja ativa
         membros_queryset = Membro.objects.filter(igreja__ministerio=ministerio)
     else:
         membros_queryset = Membro.objects.none()
@@ -825,7 +825,7 @@ def ficha_membro_impressao(request, membro_id): # noqa: E302
 
     context = {
         'membro': membro,
-        'ministerio_sistema': ministerio, # Para diferenciar da ministério do membro, se necessário
+        'ministerio_sistema': ministerio, # Para diferenciar do ministério do membro, se necessário
         'titulo_pagina': f"Ficha Cadastral - {membro.nome}",
         # Passar dados relacionados específicos se o template precisar deles de forma mais direta
         # Ex: 'contatos': membro.contatos_set.first() # Se for OneToOne ou você só quer o primeiro

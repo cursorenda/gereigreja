@@ -62,13 +62,13 @@ class EmailMassaForm(forms.Form):
 
     # Critérios de seleção de destinatários
     # Nota: Estes querysets serão filtrados no __init__ do formulário
-    # para garantir que apenas dados da ministério do usuário sejam exibidos.
+    # para garantir que apenas dados do ministério do usuário sejam exibidos.
     igrejas_destino = forms.ModelMultipleChoiceField(
         queryset=Igreja.objects.none(),
         label="Enviar para Igrejas Específicas",
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
-        help_text="Selecione uma ou mais igrejas. Se nenhuma for selecionada, o e-mail será enviado para todos os membros da ministério."
+        help_text="Selecione uma ou mais igrejas. Se nenhuma for selecionada, o e-mail será enviado para todos os membros do ministério."
     )
     tipos_pessoa = forms.ModelMultipleChoiceField(
         queryset=TipoPessoa.objects.none(),

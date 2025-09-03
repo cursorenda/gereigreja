@@ -65,7 +65,7 @@ class PerfilUsuarioInline(admin.StackedInline): # Ou admin.TabularInline
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
-         # Filtrar igrejas permitidas para mostrar apenas as da ministério selecionada
+         # Filtrar igrejas permitidas para mostrar apenas as do ministério selecionada
          # Isso requer um pouco de Javascript no admin ou uma abordagem mais complexa.
          # Por enquanto, mostra todas as igrejas. O admin precisa ter cuidado.
          if db_field.name == "igrejas_permitidas":

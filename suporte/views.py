@@ -11,7 +11,7 @@ from django.db.models import Q
 @verificar_assinatura_valida
 def lista_tickets(request):
     ministerio = get_ministerio_or_error(request)
-    # Admin da Org vê todos os tickets da ministério, usuário comum vê apenas os seus.
+    # Admin do Minist. vê todos os tickets do ministério, usuário comum vê apenas os seus.
     if request.user.groups.filter(name='Admin Ministerio').exists():
         tickets_qs = Ticket.objects.filter(ministerio=ministerio)
     else:

@@ -1017,7 +1017,7 @@ def excluir_conta_bancaria(request, pk): # noqa: E302
 # --- Fechamento de Caixa (Refatorado) ---
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_fechamentos_caixa(request): # noqa: E302
-    """ Lista os fechamentos de caixa da ministério. """
+    """ Lista os fechamentos de caixa do ministério. """
     ministerio = get_ministerio_or_error(request)
     
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
@@ -1381,7 +1381,7 @@ def relatorio_mensal_detalhe(request, pk): # noqa: E302
 
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_fornecedores(request):
-    """ Lista os fornecedores da ministério, com filtros. """
+    """ Lista os fornecedores do ministério, com filtros. """
     ministerio = get_ministerio_or_error(request)
     try:
         # Fornecedores são ligados diretamente à ministério, não precisam de filtro de igreja
@@ -1453,7 +1453,7 @@ def criar_fornecedor(request): # noqa: E302
 
 @check_permission(has_finance_edit_permission) # MODIFICADO
 def editar_fornecedor(request, pk): # noqa: E302
-    """ Edita um fornecedor existente da ministério. """
+    """ Edita um fornecedor existente do ministério. """
     ministerio = get_ministerio_or_error(request)
     # Validação de ministério já feita no get_object_or_404
     fornecedor = get_object_or_404(Fornecedor, pk=pk, ministerio=ministerio)
@@ -1579,7 +1579,7 @@ def excluir_categoria_despesa(request, pk): # noqa: E302
 
 @check_permission(has_finance_view_permission) # MODIFICADO
 def lista_contas_pagar(request): # noqa: E302
-    """ Lista as contas a pagar da ministério, com filtros. """
+    """ Lista as contas a pagar do ministério, com filtros. """
     ministerio = get_ministerio_or_error(request)
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     

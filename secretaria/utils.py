@@ -35,7 +35,7 @@ def is_tesoureiro(user):
 # Nova função para líder da secretaria
 def is_secretaria_leader(user):
     """ Verifica se o usuário é Admin da Ministério ou pertence ao grupo 'Lideranca Secretaria'. """
-    if is_admin_org(user): # Admin da Org também é considerado líder da secretaria
+    if is_admin_org(user): # Admin do Minist. também é considerado líder da secretaria
         return True
     return _user_in_group(user, 'Lideranca Secretaria')
 
@@ -59,7 +59,7 @@ def get_allowed_churches_for_membros(user, ministerio_param=None): # Adicionado 
     # mas a assinatura da função precisa aceitar o argumento.
     """
     Retorna um QuerySet das Igrejas que o usuário tem permissão para acessar no contexto de membros.
-    - Admin Org ou Líder Secretaria: Todas as igrejas da ministério ou as permitidas no perfil + subordinadas.
+    - Admin Org ou Líder Secretaria: Todas as igrejas do ministério ou as permitidas no perfil + subordinadas.
     - Secretário, Líder Igreja, Tesoureiro (não líderes): Igrejas associadas no PerfilUsuario.
     - Outros: Nenhuma igreja.
     - Retorna QuerySet vazio se o usuário não tiver perfil/ministério ou permissão de visualização.
@@ -78,7 +78,7 @@ def get_allowed_churches_for_membros(user, ministerio_param=None): # Adicionado 
         igrejas_base_permitidas = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
 
         
-        # Se for Admin da Org e não tiver igrejas específicas no perfil, vê todas da ministério
+        # Se for Admin do Minist. e não tiver igrejas específicas no perfil, vê todas do ministério
         if is_admin_org(user) and not igrejas_base_permitidas.exists():
             return Igreja.objects.filter(ministerio=ministerio)
 

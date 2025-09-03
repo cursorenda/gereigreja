@@ -69,7 +69,7 @@ def pode_editar_configuracao_org(user):
 @login_required
 def configuracao_view(request):
     """
-    View principal de configuração. Lista as igrejas da ministério do usuário logado.
+    View principal de configuração. Lista as igrejas do ministério do usuário logado.
     """
     try:
         perfil = request.user.perfil
@@ -115,7 +115,7 @@ def configuracao_view(request):
 # --- Views Adicionais (CRUD de Igrejas) ---
 @login_required
 def lista_igrejas(request):
-    """ Lista as igrejas da ministério do usuário logado. """
+    """ Lista as igrejas do ministério do usuário logado. """
     ministerio = get_ministerio_or_error(request)
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
     grupos_usuario = list(request.user.groups.values_list('name', flat=True))
@@ -230,7 +230,7 @@ def excluir_igreja(request, pk):
 
 @login_required
 def detalhes_ministerio(request):
-    """ Exibe os detalhes da ministério do usuário logado. """
+    """ Exibe os detalhes do ministério do usuário logado. """
     # A função get_ministerio_or_error já busca a ministério correta
     # e trata os casos de erro (não logado, superuser, sem perfil, sem org)
     ministerio = get_ministerio_or_error(request)
@@ -242,8 +242,8 @@ def detalhes_ministerio(request):
         return render(request, 'configuracao/ministerio/detalhes_ministerio.html', context)
     except Exception as e:
         # Captura erro inesperado ao renderizar (menos provável aqui)
-        logger.exception(f"Erro ao exibir detalhes da ministério {ministerio.id}")
-        messages.error(request, f"Ocorreu um erro ao carregar os detalhes da ministério: {e}")
+        logger.exception(f"Erro ao exibir detalhes do ministério {ministerio.id}")
+        messages.error(request, f"Ocorreu um erro ao carregar os detalhes do ministério: {e}")
         return redirect('secretaria:dashboard') # Redireciona para o dashboard principal
 
 # View para editar (a implementar depois)
@@ -251,7 +251,7 @@ def detalhes_ministerio(request):
 # --- NOVA VIEW ---
 @login_required
 def editar_ministerio(request):
-    """ Permite ao Admin da Org editar os dados da sua própria ministério. """
+    """ Permite ao Admin do Minist. editar os dados da sua própria ministério. """
     ministerio = get_ministerio_or_error(request) # Pega a ministério do usuário
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
     if not request.user.groups.filter(name='Admin Ministerio').exists():
@@ -265,12 +265,12 @@ def editar_ministerio(request):
         if form.is_valid():
             try:
                 form.save()
-                messages.success(request, 'Dados da ministério atualizados com sucesso!')
+                messages.success(request, 'Dados do ministério atualizados com sucesso!')
                 # Redireciona de volta para a página de detalhes
                 return redirect('configuracao:detalhes_ministerio')
             except Exception as e:
                 logger.exception(f"Erro ao salvar ministério {ministerio.id}")
-                messages.error(request, f'Erro ao salvar dados da ministério: {e}')
+                messages.error(request, f'Erro ao salvar dados do ministério: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
@@ -382,7 +382,7 @@ def gerenciar_assinatura(request):
             assinatura_atual.status = 'vencida'
             assinatura_atual.save()
     """
-    Permite ao administrador da ministério visualizar os planos disponíveis,
+    Permite ao administrador do ministério visualizar os planos disponíveis,
     ver sua assinatura atual e escolher/alterar um plano.
     """
     # Obter a ministério diretamente do perfil do usuário

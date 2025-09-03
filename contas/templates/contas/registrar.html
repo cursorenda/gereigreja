@@ -74,14 +74,14 @@
 
                         <hr class="my-4">
 
-                        <h5 class="mb-3">Dados da Ministério</h5>
+                        <h5 class="mb-3">Dados do Ministério</h5>
                         <div class="form-floating mb-3">
                             {{ form.nome_fantasia_org }}
                             <label for="{{ form.nome_fantasia_org.id_for_label }}">{{ form.nome_fantasia_org.label }}</label>
                         </div>
                          {% if form.nome_fantasia_org.errors %}<div class="invalid-feedback d-block">{{ form.nome_fantasia_org.errors|striptags }}</div>{% endif %}
 
-                        {# Adicionar outros campos da ministério aqui se foram adicionados ao form #}
+                        {# Adicionar outros campos do ministério aqui se foram adicionados ao form #}
 
                         <div class="mt-4 mb-0">
                             <div class="d-grid">

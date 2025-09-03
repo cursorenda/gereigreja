@@ -77,7 +77,7 @@ def lista_avisos(request):
         # Por enquanto, mostra os que não têm igrejas_destino (para toda org)
         # ou os que têm alguma igreja destino (se o usuário for admin da org, por exemplo)
         # Para simplificar, se não há igreja ativa, mostramos os que são para toda a ministério.
-        # Se o usuário for admin da org, ele verá todos os avisos da ministério de qualquer forma.
+        # Se o usuário for admin da org, ele verá todos os avisos do ministério de qualquer forma.
         avisos_qs = avisos_qs.filter(igrejas_destino__isnull=True).distinct()
 
     # Adicionar filtros de busca se necessário (ex: por título)

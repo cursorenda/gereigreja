@@ -60,7 +60,7 @@ def is_finance_leader(user):
 def get_allowed_churches_for_user(user):
     """
     Retorna um QuerySet das Igrejas que o usuário tem permissão para acessar financeiramente.
-    - Admin Org: Todas as igrejas da ministério.
+    - Admin Org: Todas as igrejas do ministério.
     - Tesoureiro, Líder: Igrejas associadas no PerfilUsuario.
     - Outros: Nenhuma igreja.
     - Retorna QuerySet vazio se o usuário não tiver perfil/ministério ou permissão de visualização.
@@ -84,7 +84,7 @@ def get_allowed_churches_for_user(user):
         # talvez a regra seja ver apenas as Sede/Regionais? Vamos assumir que Admin Org vê tudo
         # e Líder Financeiro vê as permitidas + subordinadas.
         if is_admin_org(user) and not igrejas_base_permitidas.exists():
-             # Admin Org sem igrejas permitidas explicitamente vê todas da ministério
+             # Admin Org sem igrejas permitidas explicitamente vê todas do ministério
              return Igreja.objects.filter(ministerio=ministerio)
 
         # Coletar todas as igrejas permitidas, incluindo subordinadas recursivamente

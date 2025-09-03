@@ -329,7 +329,7 @@ class ContaPagarForm(forms.ModelForm):
             # Estes querysets também devem ser vazios se não houver ministério
             self.fields['fornecedor'].queryset = Fornecedor.objects.none()
             self.fields['categoria'].queryset = CategoriaDespesa.objects.none()
-        # --- Lógica para filtrar campos dependentes da ministério (fornecedor, categoria) ---
+        # --- Lógica para filtrar campos dependentes do ministério (fornecedor, categoria) ---
         # Esta lógica deve rodar sempre que a ministério estiver disponível,
         # independentemente de como o campo 'igreja' foi filtrado.
         if ministerio:
@@ -345,7 +345,7 @@ class ContaPagarForm(forms.ModelForm):
             
             self.fields['fornecedor'].queryset = fornecedores_ativos_da_org
             self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(ministerio=ministerio)
-        # --- Fim Lógica para filtrar campos dependentes da ministério ---
+        # --- Fim Lógica para filtrar campos dependentes do ministério ---
 
 
         self.fields['igreja'].empty_label = "Selecione a Igreja"

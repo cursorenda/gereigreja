@@ -5,7 +5,7 @@ from django.contrib.auth.models import User, Group # Importar User e Group
 from configuracao.models import PerfilUsuario # Importar PerfilUsuario
 from configuracao.models import Igreja, Ministerio # Importar Igreja e Ministerio
 # --- IMPORTAR UTILS DE PERMISSÃO ---
-from .utils import is_admin_org # Para verificar se o usuário é admin da ministério
+from .utils import is_admin_org # Para verificar se o usuário é admin do ministério
 
 class MembroForm(forms.ModelForm):
     # ... (campos genero, estado_civil, escolaridade como estão) ...
@@ -108,11 +108,11 @@ class MembroForm(forms.ModelForm):
 
         # Filtra o queryset de 'igreja'
         if user and not is_admin_org(user) and allowed_churches is not None:
-            # Se não for admin da ministério, filtra pelas igrejas permitidas
+            # Se não for admin do ministério, filtra pelas igrejas permitidas
             self.fields['igreja'].queryset = allowed_churches
         elif ministerio:
-            # Se for admin da ministério ou não houver filtro específico de allowed_churches,
-            # mostra todas as igrejas da ministério do usuário.
+            # Se for admin do ministério ou não houver filtro específico de allowed_churches,
+            # mostra todas as igrejas do ministério do usuário.
             self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
         else:
              # Se não houver ministério (erro?), não mostra nenhuma igreja
@@ -255,7 +255,7 @@ class MembroUserManagementForm(forms.Form):
         # Popula o queryset de grupos com todos os grupos do sistema
         self.fields['grupos'].queryset = Group.objects.all().order_by('name')
 
-        # Popula o queryset de igrejas permitidas com as igrejas da ministério
+        # Popula o queryset de igrejas permitidas com as igrejas do ministério
         if self.ministerio:
             self.fields['igrejas_permitidas'].queryset = Igreja.objects.filter(ministerio=self.ministerio).order_by('nome_igreja')
         else:

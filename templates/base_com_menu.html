@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
-{% load financeiro_tags %} {# Carrega nossos template tags do app financeiro #}
+{% load financeiro_tags %}
+{% load grupo_tags %}
 
 
 <html lang="pt-BR"> {# Alterado para pt-BR #}
@@ -176,7 +177,7 @@
             </div>
             <div class="offcanvas-body p-0">
                 <nav class="sb-sidenav accordion sb-sidenav-dark h-100" id="sidenavAccordionMobile">
-                    {% if user.is_staff %}
+                    {% if user.is_staff or user|has_group:'Admin Ministerio' %}
                         {% include 'menu.html' %}
                     {% else %}
                         <div class="sb-sidenav-menu">
@@ -211,7 +212,7 @@
         <!-- Sidebar normal para desktop -->
         <div id="layoutSidenav_nav" class="d-none d-lg-block">
             <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
-                {% if user.is_staff %}
+                {% if user.is_staff or user|has_group:'Admin Ministerio' %}
                     {% include 'menu.html' %}
                 {% else %}
                     <div class="sb-sidenav-menu">

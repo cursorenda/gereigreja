@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 
 def pode_editar_configuracao_org(user):
     """
-    Verifica se o usuário tem permissão para editar configurações da ministério.
+    Verifica se o usuário tem permissão para editar configurações do ministério.
     Exemplo: Ser do grupo 'Admin Ministerio'.
     """
     if not user.is_authenticated:
