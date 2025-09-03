@@ -111,10 +111,13 @@
                 </nav>
             </div>
                         {# --- NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}
+            {% load igreja_tags %}
             {% user_is_secretaria_leader_tag request.user as can_see_lideranca_secretaria %}
             {% user_is_finance_leader request.user as can_see_lideranca_financeira %}
 
-            {% if can_see_lideranca_secretaria or can_see_lideranca_financeira %}
+            {% with request.user.perfil.ministerio as ministerio %}
+                {% if can_see_lideranca_secretaria or can_see_lideranca_financeira %}
+                    {% if ministerio|igrejas_ativas_count > 1 %}
                 <div class="sb-sidenav-menu-heading">Liderança</div>
                 <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLiderancaPaineis" aria-expanded="false" aria-controls="collapseLiderancaPaineis">
                     <div class="sb-nav-link-icon"><i class="fas fa-user-tie"></i></div>
@@ -138,6 +141,8 @@
                     </nav>
                 </div>
             {% endif %}
+        {% endif %}
+    {% endwith %}
             {# --- FIM NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}
   
         {% endif %} {# Fim do bloco de menu completo para ministério ativa #}
