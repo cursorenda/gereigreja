@@ -21,4 +21,7 @@ urlpatterns = [
     path('membros/<int:membro_id>/historico/adicionar-manual/', views.adicionar_historico_status_manual, name='adicionar_historico_status_manual'),
     # --- URL PARA O PORTAL DO MEMBRO ---
     path('portal/', views.portal_membro, name='portal_membro'),
+
+    # Endpoint AJAX para autocomplete de nomes de membros
+    path('ajax/autocomplete_nome_membro/', views.autocomplete_nome_membro, name='autocomplete_nome_membro'),
 ]

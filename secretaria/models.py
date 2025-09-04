@@ -130,7 +130,19 @@ class Membro(models.Model):
     data_casamento = models.DateField(blank=True, null=True)
     # Adicionar outros campos conforme necessário
 
-    # --- PROPRIEDADE OPCIONAL (Útil para templates/admin) ---
+    # --- CAMPO TIPO DE ENTRADA (Somente para membros) ---
+    TIPO_ENTRADA_CHOICES = [
+        ('BATISMO', 'Batismo'),
+        ('ACLAMACAO', 'Aclamação'),
+        ('CARTA', 'Carta de Mudança'),
+        ('OUTRO', 'Outro'),
+    ]
+    tipo_entrada = models.CharField(
+        max_length=20,
+        choices=TIPO_ENTRADA_CHOICES,
+        blank=True, null=True,
+        verbose_name="Tipo de Entrada (se membro)"
+    )
     @property
     def is_ativo_para_relatorios(self):
         """Verifica se o status_pessoa do membro permite inclusão em relatórios.""" # noqa: E501
@@ -171,41 +183,36 @@ class Membro(models.Model):
 
         changed_tipo = not is_new and self.tipo_pessoa_id != self._original_tipo_pessoa_id
         changed_status = not is_new and self.status_pessoa_id != self._original_status_pessoa_id
+        changed_entrada = not is_new and hasattr(self, '_original_tipo_entrada') and self.tipo_entrada != self._original_tipo_entrada
 
-        logger.debug(f"  changed_tipo: {changed_tipo}, changed_status: {changed_status}")
+        logger.debug(f"  changed_tipo: {changed_tipo}, changed_status: {changed_status}, changed_entrada: {changed_entrada}")
 
         tipo_anterior_obj = None
         status_anterior_obj = None
+        entrada_anterior = getattr(self, '_original_tipo_entrada', None)
 
         if not is_new:
             if changed_tipo and self._original_tipo_pessoa_id:
-                
-                
                 try:
                     tipo_anterior_obj = TipoPessoa.objects.get(pk=self._original_tipo_pessoa_id)
-                    logger.debug(f"  Fetched tipo_anterior_obj: {tipo_anterior_obj}")
                 except TipoPessoa.DoesNotExist:
-                    logger.warning(f"  TipoPessoa with pk={self._original_tipo_pessoa_id} not found for tipo_anterior_obj.") # noqa: E501
+                    tipo_anterior_obj = None
             if changed_status and self._original_status_pessoa_id:
                 try:
                     status_anterior_obj = StatusPessoa.objects.get(pk=self._original_status_pessoa_id)
-                    logger.debug(f"  Fetched status_anterior_obj: {status_anterior_obj}")
                 except StatusPessoa.DoesNotExist:
-                    logger.warning(f"  StatusPessoa with pk={self._original_status_pessoa_id} not found for status_anterior_obj.") # noqa: E501
+                    status_anterior_obj = None
 
-
-        # A linha self.chave_or_uuid = self.chave or uuid.uuid4().hex foi removida.
         super().save(*args, **kwargs)
 
-         # --- ADICIONAR LÓGICA PARA CRIAR StatusHistorico ---
-        if is_new or changed_tipo or changed_status:
-            logger.debug(f"  Creating StatusHistorico. is_new={is_new}, changed_tipo={changed_tipo}, changed_status={changed_status}") # noqa: E501
-            
+        # --- ADICIONAR LÓGICA PARA CRIAR StatusHistorico ---
+        if is_new or changed_tipo or changed_status or changed_entrada:
             observ_parts = []
             if is_new:
                 observ_parts.append("Registro inicial do membro.")
                 if self.tipo_pessoa: observ_parts.append(f"Tipo definido como '{self.tipo_pessoa.nome}'.")
                 if self.status_pessoa: observ_parts.append(f"Status definido como '{self.status_pessoa.nome}'.")
+                if self.tipo_entrada: observ_parts.append(f"Tipo de entrada: '{self.get_tipo_entrada_display()}'.")
             else:
                 if changed_tipo:
                     old_tipo_name = tipo_anterior_obj.nome if tipo_anterior_obj else "Nenhum"
@@ -215,8 +222,12 @@ class Membro(models.Model):
                     old_status_name = status_anterior_obj.nome if status_anterior_obj else "Nenhum"
                     new_status_name = self.status_pessoa.nome if self.status_pessoa else "Nenhum"
                     observ_parts.append(f"Status alterado de '{old_status_name}' para '{new_status_name}'.")
-            
-            final_observacao = " ".join(observ_parts) if observ_parts else "Alteração de tipo/status registrada."
+                if changed_entrada:
+                    old_entrada = dict(self.TIPO_ENTRADA_CHOICES).get(entrada_anterior, entrada_anterior) or "Nenhum"
+                    new_entrada = self.get_tipo_entrada_display() or "Nenhum"
+                    observ_parts.append(f"Tipo de entrada alterado de '{old_entrada}' para '{new_entrada}'.")
+
+            final_observacao = " ".join(observ_parts) if observ_parts else "Alteração registrada."
 
             try:
                 StatusHistorico.objects.create(
@@ -228,16 +239,13 @@ class Membro(models.Model):
                     registrado_por=current_user,
                     observacao=final_observacao
                 )
-                logger.info(f"  StatusHistorico created for membro {self.pk} ({self.nome_completo})")
             except Exception as e:
-                logger.error(f"  Error creating StatusHistorico for membro {self.pk} ({self.nome_completo}): {e}", exc_info=True) # noqa: E501
+                logger.error(f"  Error creating StatusHistorico for membro {self.pk} ({self.nome_completo}): {e}", exc_info=True)
 
-        # --- FIM DA LÓGICA PARA CRIAR StatusHistorico ---
         # Atualiza os valores originais para a próxima comparação de save
-        # ESTA PARTE É CRUCIAL PARA QUE O HISTÓRICO FUNCIONE EM SAVES SUBSEQUENTES
         self._original_tipo_pessoa_id = self.tipo_pessoa_id
         self._original_status_pessoa_id = self.status_pessoa_id
-        # logger.debug(f"Membro SAVE end for {self.pk}: new orig_tipo_id={self._original_tipo_pessoa_id}, new orig_status_id={self._original_status_pessoa_id}") # noqa: E501
+        self._original_tipo_entrada = self.tipo_entrada
 
 
     def __str__(self):

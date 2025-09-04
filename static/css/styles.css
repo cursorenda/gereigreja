@@ -1,3 +1,10 @@
+/* REMOVIDO: container-fluid customizado para deixar apenas Bootstrap controlar largura */
+/* .container-fluid {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+} */
 /* Sidebar menu ultra-compact override */
 .sb-sidenav-menu .nav-link {
   padding-top: 0.05rem !important;

@@ -28,7 +28,6 @@ Passos para implementar:
 
 Buscar e substituir todas as ocorrências de igrejas_org por igrejas_para_filtro_template nas views e templates do app financeiro.
 Testar os filtros de igreja nas telas do financeiro para garantir que tudo continua funcionando.
-implementar no cadastro de membro modo de entrada do membro : batismo, aclamação, carta... ?
 implementar na tela de cadsaatro de membro, quando for cadastrar uma pessoa, ao escrever o primeiro nome, que apareça todas pessoas que tem a inicial daquele nome para nao termos membros repetidos no sistema.
 
 preciso de uma pagina de vendas para este sistema, mas esta pagina precisa ter implementada estrategias de GEO,

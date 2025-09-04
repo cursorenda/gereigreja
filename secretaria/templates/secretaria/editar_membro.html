@@ -1,7 +1,7 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
 {% load humanize %} {# Essencial para formatar valores monetários #}
-
+{% load secretaria_extras %}
 {% block title %}Editar Membro: {{ form.instance.nome|default:"Membro" }}{% endblock %}
 
 {% block content %}
@@ -62,19 +62,19 @@
                                 {% endif %}
                                 <div class="mb-3">
                                     <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
-                                    {{ form.foto }}
+                                    {{ form.foto|add_class:'form-control' }}
                                     {% if form.foto.errors %}<div class="invalid-feedback d-block">{% for error in form.foto.errors %}{{ error }}{% endfor %}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-9">
                                 <div class="mb-3">
                                     <label for="{{ form.nome.id_for_label }}" class="form-label">{{ form.nome.label }}:</label>
-                                    {{ form.nome }}
+                                    {{ form.nome|add_class:'form-control' }}
                                     {% if form.nome.errors %}<div class="invalid-feedback d-block">{{ form.nome.errors|striptags }}</div>{% endif %}
                                 </div>
                                 <div class="mb-3">
                                     <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
-                                    {{ form.apelido }}
+                                    {{ form.apelido|add_class:'form-control' }}
                                     {% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
                                 </div>
 
@@ -83,14 +83,14 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="{{ form.tipo_pessoa.id_for_label }}" class="form-label">{{ form.tipo_pessoa.label }}:</label>
-                                            {{ form.tipo_pessoa }}
+                                            {{ form.tipo_pessoa|add_class:'form-control' }}
                                              {% if form.tipo_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa.errors|striptags }}</div>{% endif %}
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">{{ form.status_pessoa.label }}:</label>
-                                            {{ form.status_pessoa }}
+                                            {{ form.status_pessoa|add_class:'form-control' }}
                                              {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
                                         </div>
                                     </div>
@@ -102,17 +102,24 @@
                         <!-- Seção: Informações da Igreja -->
                         <h5 class="mt-4 mb-3 border-bottom pb-2">Informações da Igreja</h5>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
-                                    {{ form.igreja }}
+                                    {{ form.igreja|add_class:'form-control' }}
                                     {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.tipo_entrada.id_for_label }}" class="form-label">{{ form.tipo_entrada.label }}:</label>
+                                    {{ form.tipo_entrada|add_class:'form-control' }}
+                                    {% if form.tipo_entrada.errors %}<div class="invalid-feedback d-block">{{ form.tipo_entrada.errors|striptags }}</div>{% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="{{ form.data_entrada.id_for_label }}" class="form-label">{{ form.data_entrada.label }}:</label>
-                                    {{ form.data_entrada }}
+                                    {{ form.data_entrada|add_class:'form-control' }}
                                     {% if form.data_entrada.errors %}<div class="invalid-feedback d-block">{{ form.data_entrada.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
@@ -121,32 +128,31 @@
                         <!-- Seção: Dados Pessoais -->
                         <h5 class="mt-4 mb-3 border-bottom pb-2">Dados Pessoais</h5>
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.nascimento.id_for_label }}" class="form-label">{{ form.nascimento.label }}:</label>
-                                    {{ form.nascimento }}
+                                    {{ form.nascimento|add_class:'form-control' }}
                                     {% if form.nascimento.errors %}<div class="invalid-feedback d-block">{{ form.nascimento.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.genero.id_for_label }}" class="form-label">{{ form.genero.label }}:</label>
-                                    {{ form.genero }}
+                                    {{ form.genero|add_class:'form-control' }}
                                     {% if form.genero.errors %}<div class="invalid-feedback d-block">{{ form.genero.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                  <div class="mb-3">
+                            <div class="col-md-3">
+                                <div class="mb-3">
                                     <label for="{{ form.nacionalidade.id_for_label }}" class="form-label">{{ form.nacionalidade.label }}:</label>
-                                    {{ form.nacionalidade }}
+                                    {{ form.nacionalidade|add_class:'form-control' }}
                                     {% if form.nacionalidade.errors %}<div class="invalid-feedback d-block">{{ form.nacionalidade.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-4">
-
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.naturalidade.id_for_label }}" class="form-label">{{ form.naturalidade.label }}:</label>
-                                    {{ form.naturalidade }}
+                                    {{ form.naturalidade|add_class:'form-control' }}
                                     {% if form.naturalidade.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
@@ -158,40 +164,56 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.cpf.id_for_label }}" class="form-label">{{ form.cpf.label }}:</label>
-                                    {{ form.cpf }}
+                                    {{ form.cpf|add_class:'form-control' }}
                                     {% if form.cpf.errors %}<div class="invalid-feedback d-block">{{ form.cpf.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.rg.id_for_label }}" class="form-label">{{ form.rg.label }}:</label>
-                                    {{ form.rg }}
+                                    {{ form.rg|add_class:'form-control' }}
                                     {% if form.rg.errors %}<div class="invalid-feedback d-block">{{ form.rg.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Seção: Vida Civil e Profissional -->
-                        <h5 class="mt-4 mb-3 border-bottom pb-2">Vida Civil e Profissional</h5>
+                        <h5 class="mt-4 mb-3 border-bottom pb-2">Vida Civil e Familiar</h5>
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="{{ form.estado_civil.id_for_label }}" class="form-label">{{ form.estado_civil.label }}:</label>
-                                    {{ form.estado_civil }}
+                                    {{ form.estado_civil|add_class:'form-control' }}
                                     {% if form.estado_civil.errors %}<div class="invalid-feedback d-block">{{ form.estado_civil.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="{{ form.profissao.id_for_label }}" class="form-label">{{ form.profissao.label }}:</label>
-                                    {{ form.profissao }}
-                                    {% if form.profissao.errors %}<div class="invalid-feedback d-block">{{ form.profissao.errors|striptags }}</div>{% endif %}
+                                    <label for="{{ form.conjuge.id_for_label }}" class="form-label">{{ form.conjuge.label }}:</label>
+                                    {{ form.conjuge|add_class:'form-control' }}
+                                    {% if form.conjuge.errors %}<div class="invalid-feedback d-block">{{ form.conjuge.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
+                                    <label for="{{ form.data_casamento.id_for_label }}" class="form-label">{{ form.data_casamento.label }}:</label>
+                                    {{ form.data_casamento|add_class:'form-control' }}
+                                    {% if form.data_casamento.errors %}<div class="invalid-feedback d-block">{{ form.data_casamento.errors|striptags }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.profissao.id_for_label }}" class="form-label">{{ form.profissao.label }}:</label>
+                                    {{ form.profissao|add_class:'form-control' }}
+                                    {% if form.profissao.errors %}<div class="invalid-feedback d-block">{{ form.profissao.errors|striptags }}</div>{% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
                                     <label for="{{ form.escolaridade.id_for_label }}" class="form-label">{{ form.escolaridade.label }}:</label>
-                                    {{ form.escolaridade }}
+                                    {{ form.escolaridade|add_class:'form-control' }}
                                     {% if form.escolaridade.errors %}<div class="invalid-feedback d-block">{{ form.escolaridade.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
@@ -203,14 +225,14 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.nome_pai.id_for_label }}" class="form-label">{{ form.nome_pai.label }}:</label>
-                                    {{ form.nome_pai }}
+                                    {{ form.nome_pai|add_class:'form-control' }}
                                     {% if form.nome_pai.errors %}<div class="invalid-feedback d-block">{{ form.nome_pai.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.nome_mae.id_for_label }}" class="form-label">{{ form.nome_mae.label }}:</label>
-                                    {{ form.nome_mae }}
+                                    {{ form.nome_mae|add_class:'form-control' }}
                                     {% if form.nome_mae.errors %}<div class="invalid-feedback d-block">{{ form.nome_mae.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
@@ -222,28 +244,28 @@
                              <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
-                                    {{ form.cep }}
+                                    {{ form.cep|add_class:'form-control' }}
                                     {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-5">
                                 <div class="mb-3">
                                     <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
-                                    {{ form.rua }}
+                                    {{ form.rua|add_class:'form-control' }}
                                     {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-2">
                                 <div class="mb-3">
                                     <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
-                                    {{ form.numero_casa }}
+                                    {{ form.numero_casa|add_class:'form-control' }}
                                     {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-2">
                                 <div class="mb-3">
                                     <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
-                                    {{ form.pais }}
+                                    {{ form.pais|add_class:'form-control' }}
                                     {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
@@ -252,67 +274,48 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
-                                    {{ form.bairro_distrito }}
+                                    {{ form.bairro_distrito|add_class:'form-control' }}
                                     {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
-                                    {{ form.cidade }}
+                                    {{ form.cidade|add_class:'form-control' }}
                                     {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-2">
                                 <div class="mb-3">
                                     <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
-                                    {{ form.estado }}
+                                    {{ form.estado|add_class:'form-control' }}
                                     {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-3">
                                  <div class="mb-3">
                                     <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
-                                    {{ form.email }}
+                                    {{ form.email|add_class:'form-control' }}
                                     {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
-                                    {{ form.telefone }}
+                                    {{ form.telefone|add_class:'form-control' }}
                                     {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12">
+                            <div class="col-md-9">
                                 <div class="mb-3">
                                     <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
-                                    {{ form.complemento }}
+                                    {{ form.complemento|add_class:'form-control' }}
                                     {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Seção: Família (Cônjuge) -->
-                        <h5 class="mt-4 mb-3 border-bottom pb-2">Família (Cônjuge)</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.conjuge.id_for_label }}" class="form-label">{{ form.conjuge.label }}:</label>
-                                    {{ form.conjuge }}
-                                    {% if form.conjuge.errors %}<div class="invalid-feedback d-block">{{ form.conjuge.errors|striptags }}</div>{% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.data_casamento.id_for_label }}" class="form-label">{{ form.data_casamento.label }}:</label>
-                                    {{ form.data_casamento }}
-                                    {% if form.data_casamento.errors %}<div class="invalid-feedback d-block">{{ form.data_casamento.errors|striptags }}</div>{% endif %}
-                                </div>
-                            </div>
-                        </div>
 
 
                         <hr>

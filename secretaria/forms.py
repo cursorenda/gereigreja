@@ -47,17 +47,39 @@ class MembroForm(forms.ModelForm):
 
     class Meta:
         model = Membro
-        # --- ADICIONAR 'igreja' AOS FIELDS ---
         fields = [
-            'igreja', # Adicionado aqui
-            'nome', 'apelido', 'cpf', 'rg', 'naturalidade', 'nascimento', 'genero', 'tipo_pessoa', 'status_pessoa', # Adicionados novos campos
-            'estado_civil', 'profissao', 'escolaridade', 'nome_pai', 'nome_mae', 'cep', 'pais', 'estado', 'nacionalidade', # Adicionado nacionalidade
-            'cidade', 'bairro_distrito', 'rua', 'numero_casa', 'complemento', 'telefone', 
-            'data_entrada', 'conjuge', 'data_casamento', # Removido 'status' antigo
-            'foto', 'email'  # Adicionar o novo campo de foto e o email
-
+            'igreja',
+            'nome', 'apelido', 'cpf', 'rg', 'naturalidade', 'nascimento', 'genero', 'tipo_pessoa', 'status_pessoa',
+            'estado_civil', 'profissao', 'escolaridade', 'nome_pai', 'nome_mae', 'cep', 'pais', 'estado', 'nacionalidade',
+            'cidade', 'bairro_distrito', 'rua', 'numero_casa', 'complemento', 'telefone',
+            'data_entrada', 'conjuge', 'data_casamento',
+            'foto', 'email',
+            'tipo_entrada', # Novo campo
         ]
-        # --- FIM ADIÇÃO ---
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo_pessoa = cleaned_data.get('tipo_pessoa')
+        tipo_entrada = cleaned_data.get('tipo_entrada')
+        # Só exige tipo_entrada se tipo_pessoa for "membro"
+        if tipo_pessoa and hasattr(tipo_pessoa, 'nome') and tipo_pessoa.nome.lower() == 'membro':
+            if not tipo_entrada:
+                self.add_error('tipo_entrada', 'Informe o tipo de entrada para membros.')
+        else:
+            cleaned_data['tipo_entrada'] = None
+        return cleaned_data
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Exibe o campo tipo_entrada só se tipo_pessoa for "membro"
+        if 'tipo_pessoa' in self.data:
+            tipo_id = self.data.get('tipo_pessoa')
+            try:
+                tipo_obj = TipoPessoa.objects.get(pk=tipo_id)
+                if tipo_obj.nome.lower() != 'membro':
+                    self.fields['tipo_entrada'].widget = forms.HiddenInput()
+            except TipoPessoa.DoesNotExist:
+                self.fields['tipo_entrada'].widget = forms.HiddenInput()
+        elif self.instance and self.instance.tipo_pessoa and self.instance.tipo_pessoa.nome.lower() != 'membro':
+            self.fields['tipo_entrada'].widget = forms.HiddenInput()
 
         widgets = {
             # ... (widgets existentes) ...
@@ -90,12 +112,12 @@ class MembroForm(forms.ModelForm):
 
         }
         # Adicionar classes Bootstrap para outros campos se desejar
-        for field_name in fields:
+        for field_name in self.fields:
             if field_name not in widgets: # Evita sobrescrever widgets já definidos
-                if isinstance(Membro._meta.get_field(field_name), (forms.fields.ChoiceField, forms.ModelChoiceField)):
-                    widgets[field_name] = forms.Select(attrs={'class': 'form-select'})
+                if isinstance(self.fields[field_name], (forms.ChoiceField, forms.ModelChoiceField)):
+                    self.fields[field_name].widget = forms.Select(attrs={'class': 'form-select'})
                 else:
-                    widgets[field_name] = forms.TextInput(attrs={'class': 'form-control'})
+                    self.fields[field_name].widget.attrs.update({'class': 'form-control'})
 
     # --- ADICIONAR/MODIFICAR __INIT__ ---
     def __init__(self, *args, **kwargs):

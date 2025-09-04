@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 # c:\Gereigreja\secretaria\views.py
 from configuracao.models import AssinaturaMinisterio
 from django.shortcuts import render, redirect, get_object_or_404
@@ -22,7 +23,28 @@ from django.db.models import Count, Q, F, Value, Case, When, BooleanField # Adic
 from django.urls import reverse_lazy # Para login_url
 from core.decorators import check_permission # <<< ADICIONE ESTA LINHA
 from django.utils.crypto import get_random_string # Para gerar senhas aleatórias
+# --- AUTOCOMPLETE DE NOMES DE MEMBROS (AJAX) ---
+from django.views.decorators.http import require_GET
 
+
+@login_required
+@require_GET
+def autocomplete_nome_membro(request):
+    """
+    Endpoint AJAX para autocomplete de nomes de membros.
+    Retorna uma lista de nomes de membros que começam com o termo pesquisado (case-insensitive),
+    filtrando apenas membros visíveis ao usuário logado.
+    """
+    term = request.GET.get('term', '').strip()
+    results = []
+    if term:
+        allowed_churches = get_allowed_churches_for_membros(request.user)
+        membros_qs = Membro.objects.filter(
+            igreja__in=allowed_churches,
+            nome__istartswith=term
+        ).order_by('nome')[:10]  # Limita a 10 sugestões
+        results = list(membros_qs.values_list('nome', flat=True))
+    return JsonResponse(results, safe=False)
 # --- IMPORTAR UTILS DE PERMISSÃO PARA secretaria (Consolidado) ---
 from django.db.models.functions import Extract # Adicione esta linha para Extract
 from .utils import has_membro_view_permission, has_membro_edit_permission, get_allowed_churches_for_membros, is_secretaria_leader, is_admin_org # Adicionar is_secretaria_leader

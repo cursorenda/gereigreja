@@ -1,0 +1,8 @@
+{% load secretaria_extras %}
+{% for field in fields %}
+	<div class="mb-3">
+		<label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}:</label>
+		{{ field|add_class:'form-control' }}
+		{% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|striptags }}</div>{% endif %}
+	</div>
+{% endfor %}
