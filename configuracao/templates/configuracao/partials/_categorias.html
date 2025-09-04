@@ -1,0 +1,83 @@
+{# Parcial para aba de Categorias de Despesa - inclua aqui sua listagem ou formulário de categorias #}
+{% load static %}
+{% load humanize %}
+
+{# Mensagens #}
+{% include 'partials/_messages.html' %}
+
+{# Padronização: header com busca/filtro e botão igual Fornecedores #}
+{% include 'partials/_messages.html' %}
+<div class="card mb-4">
+	<div class="card-header">
+		<div class="row align-items-center g-2">
+			<div class="col-auto">
+				<i class="fas fa-tags me-1"></i>
+				<strong>Lista de Categorias ({{ categorias.count }})</strong>
+			</div>
+			{% if can_edit_finance %}
+			<div class="col-auto ms-auto">
+				<a href="{% url 'financeiro:cadastrar_categoria_despesa' %}" class="btn btn-success">
+					<i class="fas fa-plus"></i> Adicionar Nova Categoria
+				</a>
+			</div>
+			{% endif %}
+		</div>
+	</div>
+	<div class="card-body">
+		<form method="GET" action="" class="row g-3 mb-3 align-items-center">
+			<div class="col-md-6">
+				<label for="searchCategoria" class="visually-hidden">Buscar</label>
+				<input type="text" class="form-control" id="searchCategoria" placeholder="Buscar por nome da categoria..." name="q" value="{{ current_q|default:'' }}">
+			</div>
+			<div class="col-auto">
+				<button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Filtrar</button>
+				<a href="" class="btn btn-outline-warning ms-2" title="Limpar Filtros"><i class="fas fa-times"></i></a>
+			</div>
+		</form>
+		{% if categorias %}
+			<div class="table-responsive">
+				<table class="table table-striped table-bordered table-hover mb-0" style="width:100%;">
+					<thead class="table-light">
+						<tr>
+							<th>Nome da Categoria</th>
+							{% if can_edit_finance %}
+							<th class="text-center" style="width: 15%;">Ações</th>
+							{% endif %}
+						</tr>
+					</thead>
+					<tbody>
+						{% for categoria in categorias %}
+						<tr style="height: 48px; vertical-align: middle;">
+							<td style="vertical-align: middle;">{{ categoria.nome }}</td>
+							{% if can_edit_finance %}
+							<td class="text-center align-middle">
+								<div class="d-flex justify-content-center align-items-center gap-1 flex-nowrap">
+									<a href="{% url 'financeiro:editar_categoria_despesa' categoria.pk %}" class="btn btn-outline-primary btn-sm" title="Editar">
+										<i class="fas fa-edit"></i>
+									</a>
+									<form action="{% url 'financeiro:excluir_categoria_despesa' categoria.pk %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir a categoria &quot;{{ categoria.nome }}&quot;? Esta ação não pode ser desfeita.');" style="margin:0;">
+										{% csrf_token %}
+										<button type="submit" class="btn btn-outline-danger btn-sm" title="Excluir">
+											<i class="fas fa-trash"></i>
+										</button>
+									</form>
+								</div>
+							</td>
+							{% endif %}
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		{% else %}
+			<p class="text-center text-muted">Nenhuma categoria de despesa cadastrada ainda.</p>
+			{% if can_edit_finance %}
+			<div class="text-center">
+				 <a href="{% url 'financeiro:cadastrar_categoria_despesa' %}" class="btn btn-success">
+					<i class="fas fa-plus"></i> Adicionar Primeira Categoria
+				</a>
+			</div>
+			{% endif %}
+		{% endif %}
+	</div>
+</div>

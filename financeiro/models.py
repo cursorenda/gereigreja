@@ -26,6 +26,7 @@ class CategoriaDespesa(models.Model):
     )
     # --- FIM ADIÇÃO ---
     nome = models.CharField(max_length=100, verbose_name="Nome da Categoria") # Remover unique=True global
+    padrao_global = models.BooleanField(default=False, verbose_name="Padrão Global?")
 
     def __str__(self):
         return self.nome
@@ -316,6 +317,8 @@ class ContaBancaria(models.Model):
         help_text="Este saldo é atualizado automaticamente pelas transações.",
         editable=False # Geralmente não é editável diretamente pelo usuário no form
     )
+    padrao_global = models.BooleanField(default=False, verbose_name="Padrão Global?")
+
     def __str__(self):
         return f"{self.nome_identificacao} ({self.igreja.nome_igreja})"
     
@@ -413,6 +416,7 @@ class Fornecedor(models.Model):
     endereco = models.TextField(blank=True, null=True, verbose_name="Endereço")
     observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
     ativo = models.BooleanField(default=True, verbose_name="Ativo?")
+    padrao_global = models.BooleanField(default=False, verbose_name="Padrão Global?")
 
     class Meta:
         verbose_name = "Fornecedor"
@@ -421,6 +425,7 @@ class Fornecedor(models.Model):
         # Garante nome único por ministério
         unique_together = ('ministerio', 'nome')
 
+    padrao_global = models.BooleanField(default=False, verbose_name="Padrão Global?")
     def __str__(self):
         return self.nome
 

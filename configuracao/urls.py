@@ -38,6 +38,7 @@ urlpatterns = [
     path('igrejas/<int:igreja_id>/editar-config/', views.editar_igreja_config, name='editar_igreja_config'), # Nova URL
     path('igrejas/<int:igreja_id>/excluir/', views.excluir_igreja, name='excluir_igreja'),    
     path('definir-igreja-ativa/', views.set_active_church, name='set_active_church'), # Nova URL
+    path('configuracoes/', views.configuracoes_sistema, name='configuracoes_sistema'),
 
     
     # ==================================================

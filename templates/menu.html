@@ -81,36 +81,24 @@
                         <div class="sb-nav-link-icon"><i class="fas fa-list-alt"></i></div>
                         Obrigações
                     </a>
-                    <a class="nav-link" href="{% url 'financeiro:lista_fornecedores' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-truck"></i></div>
-                        Fornecedores
-                    </a>
                 </nav>
             </div>
 
             {# Submenu Gerenciar Financeiro #}
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseGerenciarFinanceiro" aria-expanded="false" aria-controls="collapseGerenciarFinanceiro">
                 <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
-                Gerenciar
+                Caixa
                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
             <div class="collapse" id="collapseGerenciarFinanceiro" aria-labelledby="headingGerenciarFinanceiro" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
-                    <a class="nav-link" href="{% url 'financeiro:lista_categorias_despesa' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-tags"></i></div>
-                        Categorias de Despesa
-                    </a>
                     <a class="nav-link" href="{% url 'financeiro:lista_fechamentos_caixa' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-archive"></i></div>
                         Fechamentos de Caixa
                     </a>
-                    <a class="nav-link" href="{% url 'financeiro:lista_contas_bancarias' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-university"></i></div>
-                        Contas Bancárias
-                    </a>
                 </nav>
             </div>
-                        {# --- NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}
+            {# --- NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}
             {% load igreja_tags %}
             {% user_is_secretaria_leader_tag request.user as can_see_lideranca_secretaria %}
             {% user_is_finance_leader request.user as can_see_lideranca_financeira %}
@@ -145,13 +133,19 @@
     {% endwith %}
             {# --- FIM NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}
   
+
         {% endif %} {# Fim do bloco de menu completo para ministério ativa #}
 
-        {# Link de Novidades sempre visível para usuários autenticados (não superusuários) #}
+        {# Seção Sistema: Novidades e Configurações do Sistema #}
         {% if request.user.is_authenticated and not request.user.is_superuser %}
+            <div class="sb-sidenav-menu-heading">Sistema</div>
             <a class="nav-link" href="{% url 'configuracao:lista_atualizacoes_sistema' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
                 Novidades do Sistema
+            </a>
+            <a class="nav-link" href="{% url 'configuracao:configuracoes_sistema' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
+                Configurações do Sistema
             </a>
             {# --- NOVO LINK PARA MURAL DE AVISOS --- #}
             <div class="sb-sidenav-menu-heading">Comunicação</div>
@@ -183,20 +177,6 @@
             </a>
         {% endif %}
 
-        <!-- Seção de Configurações -->
-        <div class="sb-sidenav-menu-heading">Configurações</div>
-        <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseConfiguracao">
-            <div class="sb-nav-link-icon"><i class="fas fa-cog"></i></div>
-            Configurações
-            <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
-        </a>
-        <div class="collapse" id="collapseConfiguracao" data-bs-parent="#sidenavAccordion">
-            <nav class="sb-sidenav-menu-nested nav">
-                <a class="nav-link" href="{% url 'configuracao:validar_imagens' %}">
-                    <div class="sb-nav-link-icon"><i class="fas fa-images"></i></div>
-                    Validar Imagens
-                </a>
-            </nav>
-        </div>
+        
     </div>
 </div>

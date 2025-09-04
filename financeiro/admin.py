@@ -6,15 +6,15 @@ from .models import (
 
 @admin.register(CategoriaDespesa)
 class CategoriaDespesaAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'ministerio')
-    list_filter = ('ministerio',)
+    list_display = ('nome', 'ministerio', 'padrao_global')
+    list_filter = ('ministerio', 'padrao_global')
     search_fields = ('nome', 'ministerio__nome_fantasia')
     autocomplete_fields = ['ministerio']
 
 @admin.register(ContaBancaria)
 class ContaBancariaAdmin(admin.ModelAdmin):
-    list_display = ('nome_identificacao', 'igreja', 'tipo', 'saldo_atual')
-    list_filter = ('igreja__ministerio', 'igreja', 'tipo')
+    list_display = ('nome_identificacao', 'igreja', 'tipo', 'saldo_atual', 'padrao_global')
+    list_filter = ('igreja__ministerio', 'igreja', 'tipo', 'padrao_global')
     search_fields = ('nome_identificacao', 'igreja__nome_igreja')
     readonly_fields = ('saldo_atual',)
     autocomplete_fields = ['igreja']
@@ -45,8 +45,8 @@ class FechamentoCaixaAdmin(admin.ModelAdmin):
 
 @admin.register(Fornecedor)
 class FornecedorAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'ministerio', 'cnpj_cpf', 'ativo')
-    list_filter = ('ministerio', 'ativo')
+    list_display = ('nome', 'ministerio', 'cnpj_cpf', 'ativo', 'padrao_global')
+    list_filter = ('ministerio', 'ativo', 'padrao_global')
     search_fields = ('nome', 'cnpj_cpf', 'ministerio__nome_fantasia')
     autocomplete_fields = ['ministerio']
 

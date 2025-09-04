@@ -1,0 +1,76 @@
+{# Parcial para aba de Bancos - inclua aqui sua listagem ou formulário de contas bancárias #}
+{% load static %}
+{% load humanize %}
+
+{# Padronização: header com busca/filtro e botão igual Fornecedores #}
+{% include 'partials/_messages.html' %}
+<div class="card mb-4">
+	<div class="card-header">
+		<div class="row align-items-center g-2">
+			<div class="col-auto">
+				<i class="fas fa-university me-1"></i>
+				<strong>Lista de Contas Bancárias/Caixas</strong>
+			</div>
+			{% if can_edit_finance %}
+			<div class="col-auto ms-auto">
+				<a href="{% url 'financeiro:criar_conta_bancaria' %}" class="btn btn-success">
+					<i class="fas fa-plus"></i> Nova Conta/Caixa
+				</a>
+			</div>
+			{% endif %}
+		</div>
+	</div>
+	<div class="card-body">
+		<form method="GET" action="" class="row g-3 mb-3 align-items-center">
+			<div class="col-md-6">
+				<label for="searchConta" class="visually-hidden">Buscar</label>
+				<input type="text" class="form-control" id="searchConta" placeholder="Buscar por nome, banco, agência..." name="q" value="{{ current_q|default:'' }}">
+			</div>
+			<div class="col-auto">
+				<button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Filtrar</button>
+				<a href="" class="btn btn-outline-warning ms-2" title="Limpar Filtros"><i class="fas fa-times"></i></a>
+			</div>
+		</form>
+		{% if contas_bancarias %}
+		<div class="table-responsive">
+			<table class="table table-striped table-bordered">
+				<thead>
+					<tr>
+						<th>Igreja</th>
+						<th>Nome/Identificação</th>
+						<th>Tipo</th>
+						<th>Instituição Bancária</th>
+						<th>Agência</th>
+						<th>Conta</th>
+						<th class="text-end">Saldo Inicial</th>
+						<th class="text-end">Saldo Atual</th>
+						{% if can_edit_finance %}<th>Ações</th>{% endif %}
+					</tr>
+				</thead>
+				<tbody>
+					{% for conta in contas_bancarias %}
+					<tr>
+						<td>{{ conta.igreja.nome_igreja }}</td>
+						<td>{{ conta.nome_identificacao }}</td>
+						<td>{{ conta.get_tipo_display }}</td>
+						<td>{{ conta.instituicao_bancaria|default_if_none:"" }}</td>
+						<td>{{ conta.agencia|default_if_none:"" }}</td>
+						<td>{{ conta.conta|default_if_none:"" }}</td>
+						<td class="text-end">R$ {{ conta.saldo_inicial|intcomma }}</td>
+						<td class="text-end">R$ {{ conta.saldo_atual|intcomma }}</td>
+						{% if can_edit_finance %}
+						<td>
+							<a href="{% url 'financeiro:editar_conta_bancaria' conta.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Editar"><i class="fas fa-edit"></i></a>
+							<a href="{% url 'financeiro:excluir_conta_bancaria' conta.pk %}" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="fas fa-trash"></i></a>
+						</td>
+						{% endif %}
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+		{% else %}
+		<p>Nenhuma conta bancária/caixa cadastrada para as igrejas que você tem acesso.</p>
+		{% endif %}
+	</div>
+</div>

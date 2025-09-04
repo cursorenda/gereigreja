@@ -1,0 +1,35 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Configurações do Sistema{% endblock %}
+
+{% block content %}
+<div>
+    <h1 class="mt-4">Configurações do Sistema</h1>
+    <ul class="nav nav-tabs" id="configTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="bancos-tab" data-bs-toggle="tab" data-bs-target="#bancos" type="button" role="tab" aria-controls="bancos" aria-selected="true">Bancos</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="fornecedores-tab" data-bs-toggle="tab" data-bs-target="#fornecedores" type="button" role="tab" aria-controls="fornecedores" aria-selected="false">Fornecedores</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="categorias-tab" data-bs-toggle="tab" data-bs-target="#categorias" type="button" role="tab" aria-controls="categorias" aria-selected="false">Categorias de Despesa</button>
+        </li>
+        <!-- Adicione mais abas conforme necessário -->
+    </ul>
+    <div class="tab-content mt-3" id="configTabsContent">
+        <div class="tab-pane fade show active" id="bancos" role="tabpanel" aria-labelledby="bancos-tab">
+            {% include 'configuracao/partials/_bancos.html' %}
+        </div>
+        <div class="tab-pane fade" id="fornecedores" role="tabpanel" aria-labelledby="fornecedores-tab">
+            {% include 'configuracao/partials/_fornecedores.html' %}
+        </div>
+        <div class="tab-pane fade" id="categorias" role="tabpanel" aria-labelledby="categorias-tab">
+            {% include 'configuracao/partials/_categorias.html' %}
+        </div>
+        <!-- Adicione mais conteúdos de abas conforme necessário -->
+    </div>
+    <!-- Fim do bloco principal -->
+</div>
+{% endblock %}

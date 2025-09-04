@@ -1,3 +1,24 @@
+/* Sidebar menu ultra-compact override */
+.sb-sidenav-menu .nav-link {
+  padding-top: 0.05rem !important;
+  padding-bottom: 0.05rem !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  line-height: 1 !important;
+  font-size: 0.97em !important;
+}
+.sb-sidenav-menu-heading {
+  margin-top: 0.2rem !important;
+  margin-bottom: 0.2rem !important;
+  line-height: 1.1 !important;
+  font-size: 0.98em !important;
+}
+/* Força menu lateral compacto: mais específico e com !important */
+.sb-sidenav-menu .nav-link {
+  padding-top: 0.15rem !important;
+  padding-bottom: 0.15rem !important;
+  line-height: 1.05 !important;
+}
 @charset "UTF-8";
 /*!
 * Start Bootstrap - SB Admin v7.0.7 (https://startbootstrap.com/template/sb-admin)
@@ -3635,13 +3656,15 @@ textarea.form-control-lg {
   list-style: none;
 }
 
+/* Compact menu: reduce vertical spacing */
 .nav-link {
   display: block;
-  padding: var(--bs-nav-link-padding-y) var(--bs-nav-link-padding-x);
+  padding: 0.25rem 1rem; /* reduced vertical padding */
   font-size: var(--bs-nav-link-font-size);
   font-weight: var(--bs-nav-link-font-weight);
   color: var(--bs-nav-link-color);
   text-decoration: none;
+  line-height: 1.1; /* reduced line height */
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
 }
 @media (prefers-reduced-motion: reduce) {

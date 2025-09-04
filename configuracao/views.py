@@ -1,3 +1,31 @@
+from django.shortcuts import render
+
+def configuracoes_sistema(request):
+    # Buscar o ministério do usuário logado
+    perfil = getattr(request.user, 'perfil', None)
+    ministerio = getattr(perfil, 'ministerio', None)
+
+    categorias = []
+    fornecedores = []
+    contas_bancarias = []
+    can_edit_finance = False
+    if ministerio:
+        from financeiro.models import CategoriaDespesa, Fornecedor, ContaBancaria
+        from financeiro.utils import has_finance_edit_permission
+        categorias = CategoriaDespesa.objects.filter(ministerio=ministerio)
+        fornecedores = Fornecedor.objects.filter(ministerio=ministerio)
+        igrejas = Igreja.objects.filter(ministerio=ministerio)
+        contas_bancarias = ContaBancaria.objects.filter(igreja__in=igrejas)
+        can_edit_finance = has_finance_edit_permission(request.user)
+
+    context = {
+        'categorias': categorias,
+        'fornecedores': fornecedores,
+        'contas_bancarias': contas_bancarias,
+        'ministerio': ministerio,
+        'can_edit_finance': can_edit_finance,
+    }
+    return render(request, 'configuracao/configuracoes_sistema.html', context)
 # configuracao/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
