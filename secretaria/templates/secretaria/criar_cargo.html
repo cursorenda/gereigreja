@@ -1,0 +1,20 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<h1>Novo Cargo</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="mb-3">
+        <label for="id_cargo" class="form-label">Nome do Cargo</label>
+    {{ form.cargo }}
+        {{ form.cargo.errors }}
+    </div>
+    <div class="mb-3">
+        <label for="id_grupo_permissao" class="form-label">Grupo de Permissão (opcional)</label>
+    {{ form.grupo_permissao }}
+        {{ form.grupo_permissao.errors }}
+    </div>
+    <button type="submit" class="btn btn-success">Salvar</button>
+    <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

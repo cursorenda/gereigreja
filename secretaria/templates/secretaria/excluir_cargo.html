@@ -1,0 +1,23 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<h1>Excluir Cargo</h1>
+<p>Tem certeza que deseja excluir o cargo <strong>{{ cargo.cargo }}</strong>?</p>
+{% if ocupantes.exists %}
+    <div class="alert alert-warning">
+        <strong>Atenção:</strong> Este cargo possui ocupantes e não pode ser excluído.<br>
+        Ocupantes:
+        <ul>
+        {% for oc in ocupantes %}
+            <li>{{ oc.membro.nome }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+    <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Voltar</a>
+{% else %}
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Excluir</button>
+        <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+{% endif %}
+{% endblock %}

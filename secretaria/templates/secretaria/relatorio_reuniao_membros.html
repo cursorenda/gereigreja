@@ -1,0 +1,67 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Reunião de Membros e Santa Ceia - Nº ATA</title>
+    <style>
+    body { font-family: Arial, sans-serif; margin: 30px 55px; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+    .header img { height: 105px; }
+        .header-center { text-align: center; flex: 1; }
+    .titulo { font-size: 1.3em; font-weight: bold; margin-bottom: 2px; }
+    .subtitulo { font-size: 0.9em; margin-bottom: 2px; }
+    .info { font-size: 0.8em; margin-bottom: 2px; }
+        .linha { border-bottom: 1px solid #ccc; margin: 8px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th, td { border: 1px solid #888; padding: 0; text-align: left; font-size: 0.80em; line-height: 1; }
+    th { background: #f2f2f2; }
+    .num { width: 32px; text-align: center; }
+    .nome-membro { width: 220px; }
+    .observacao { width: 110px; text-align: center; }
+    .assinatura { width: 180px; height: 28px; }
+    .presenca { width: 40px; text-align: center; }
+        @media print {
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="{{ logo_igreja_url }}" alt="Logo Igreja">
+        <div class="header-center">
+            <div class="titulo">Reunião de Membros e Santa Ceia - Nº ATA:</div>
+            <div class="subtitulo">{{ nome_igreja }}</div>
+            <div class="info">{{ bairro }}, {{ cidade }}</div>
+            <div class="info">{{ nome_ministerio }}</div>
+            <div class="info">Pastor Local: {{ pastor_local }}{% if pastor_regional %} | Pastor Regional: {{ pastor_regional }}{% endif %}</div>
+            <div class="info"><strong>Data da Reunião de Membros: {{ data_reuniao }}</strong></div>
+        </div>
+        <img src="{{ logo_ministerio_url }}" alt="Logo Ministério">
+    </div>
+    <div class="linha"></div>
+    <table>
+        <thead>
+            <tr>
+                <th class="num">Nº</th>
+                <th class="nome-membro">Nome do Membro</th>
+                <th class="observacao">Observação</th>
+                <th class="assinatura">Assinatura</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for membro in membros %}
+            <tr>
+                <td class="num">{{ forloop.counter }}</td>
+                <td class="nome-membro">{{ membro.nome }}</td>
+                <td class="observacao"></td>
+                <td class="assinatura"></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div class="no-print" style="margin-top:20px;">
+        <button onclick="window.print()">Imprimir</button>
+    </div>
+</body>
+</html>

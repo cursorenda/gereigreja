@@ -1,0 +1,65 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<h1>Gerenciar Ocupantes do Cargo: {{ cargo.cargo }}</h1>
+<form method="post" id="ocupantes-form">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label for="id_membro" class="form-label">Adicionar membro ao cargo:</label>
+        <select id="id_membro" class="form-select">
+            <option value="">Selecione um membro</option>
+            {% for membro in membros %}
+                <option value="{{ membro.chave }}">{{ membro.nome }}</option>
+            {% endfor %}
+        </select>
+        <button type="button" class="btn btn-primary mt-2" id="btn-adicionar">Adicionar</button>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Ocupantes atuais:</label>
+        <ul id="ocupantes-lista" class="list-group mb-2">
+            <!-- Ocupantes serão inseridos aqui via JS -->
+        </ul>
+    </div>
+    <input type="hidden" name="ocupantes" id="id_ocupantes_hidden">
+    <button type="submit" class="btn btn-success">Salvar Ocupantes</button>
+    <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Voltar</a>
+</form>
+<script>
+    // Lista inicial de ocupantes vindos do backend
+    let ocupantes = {{ ocupantes_iniciais|safe }};
+    let membros = {};
+    {% for membro in membros %}
+        membros["{{ membro.chave }}"] = "{{ membro.nome|escapejs }}";
+    {% endfor %}
+
+    function renderOcupantes() {
+        const ul = document.getElementById('ocupantes-lista');
+        ul.innerHTML = '';
+        ocupantes.forEach(function(id) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.textContent = membros[id];
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-danger btn-sm';
+            btn.textContent = 'Remover';
+            btn.onclick = function() {
+                ocupantes = ocupantes.filter(x => x !== id);
+                renderOcupantes();
+            };
+            li.appendChild(btn);
+            ul.appendChild(li);
+        });
+        document.getElementById('id_ocupantes_hidden').value = ocupantes.join(',');
+    }
+    document.getElementById('btn-adicionar').onclick = function() {
+        const select = document.getElementById('id_membro');
+        const id = parseInt(select.value);
+        if (id && !ocupantes.includes(id)) {
+            ocupantes.push(id);
+            renderOcupantes();
+        }
+        select.value = '';
+    };
+    renderOcupantes();
+</script>
+{% endblock %}

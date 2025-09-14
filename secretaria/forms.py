@@ -1,5 +1,62 @@
-# c:\Gereigreja\secretaria\forms.py
 from django import forms
+from django.contrib.auth import get_user_model
+from .models import Membro
+
+class AssociarUsuarioMembroForm(forms.Form):
+    membro_id = forms.IntegerField(widget=forms.HiddenInput)
+    usuario = forms.ModelChoiceField(
+        queryset=get_user_model().objects.none(),
+        required=True,
+        label="Usuário do Sistema",
+        widget=forms.Select(attrs={'class': 'form-select usuario-autocomplete'})
+    )
+    sugestao_usuario_id = forms.IntegerField(widget=forms.HiddenInput, required=False)
+
+    def __init__(self, *args, **kwargs):
+        membro = kwargs.pop('membro', None)
+        super().__init__(*args, **kwargs)
+        User = get_user_model()
+        # Só permite usuários não associados a membros
+        usuarios_disponiveis = User.objects.filter(membro_secretaria__isnull=True)
+        self.fields['usuario'].queryset = usuarios_disponiveis
+        self.fields['usuario'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username} ({obj.email})"
+        if membro:
+            self.fields['membro_id'].initial = membro.pk
+            # Sugestão automática: usuário com mesmo e-mail
+            sugestao = usuarios_disponiveis.filter(email__iexact=membro.email).first() if membro.email else None
+            if sugestao:
+                self.fields['usuario'].initial = sugestao.pk
+                self.fields['sugestao_usuario_id'].initial = sugestao.pk
+                self.fields['usuario'].widget.attrs['data-sugestao'] = '1'
+            else:
+                self.fields['usuario'].widget.attrs['data-sugestao'] = '0'
+# Formulário para gerenciar ocupantes de um cargo
+from .models import MembrosCargos, Membro
+
+class GerenciarOcupantesForm(forms.Form):
+    ocupantes = forms.ModelMultipleChoiceField(
+        queryset=Membro.objects.all().order_by('nome'),
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 12}),
+        required=False,
+        label='Ocupantes do Cargo',
+        help_text='Selecione os membros que ocuparão este cargo.'
+    )
+from django.contrib.auth.models import Group
+from .models import Cargos
+# Formulário para cadastro/edição de cargos
+class CargosForm(forms.ModelForm):
+    class Meta:
+        model = Cargos
+        fields = ['cargo', 'grupo_permissao']
+        widgets = {
+            'cargo': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100, 'placeholder': 'Nome do cargo'}),
+            'grupo_permissao': forms.Select(attrs={'class': 'form-select'}),
+        }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cargo'].label = 'Nome do Cargo'
+        self.fields['grupo_permissao'].label = 'Grupo de Permissão (opcional)'
+        self.fields['grupo_permissao'].required = False
 from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico # Adicionado StatusHistorico
 from django.contrib.auth.models import User, Group # Importar User e Group
 from configuracao.models import PerfilUsuario # Importar PerfilUsuario

@@ -22,15 +22,4 @@ def criar_categorias_padrao_ministerio(sender, instance, created, **kwargs):
                 observacoes=forn.observacoes,
                 ativo=forn.ativo
             )
-        # Copia contas bancárias padrão global
-        for conta in ContaBancaria.objects.filter(padrao_global=True):
-            ContaBancaria.objects.get_or_create(
-                igreja=None,
-                nome_identificacao=conta.nome_identificacao,
-                tipo=conta.tipo,
-                instituicao_bancaria=conta.instituicao_bancaria,
-                agencia=conta.agencia,
-                conta=conta.conta,
-                saldo_inicial=conta.saldo_inicial,
-                saldo_atual=conta.saldo_inicial
-            )
+    # (Removido) Não criar contas bancárias padrão global aqui, pois não há igreja ainda.

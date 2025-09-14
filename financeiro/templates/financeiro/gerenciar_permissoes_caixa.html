@@ -1,0 +1,31 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Permissões do Caixa: {{ caixa.nome_identificacao }}{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h2 class="mt-4 mb-3">Permissões do Caixa: {{ caixa.nome_identificacao }}</h2>
+  <form method="post">
+    {% csrf_token %}
+    <table class="table table-bordered table-hover">
+      <thead>
+        <tr>
+          <th>Usuário</th>
+          <th>Visualizar</th>
+          <th>Transferir</th>
+          <th>Editar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for usuario in usuarios %}
+        <tr>
+          <td>{{ usuario.get_full_name|default:usuario.username }}</td>
+          <td><input type="checkbox" name="user_{{ usuario.id }}_visualizar" {% if permissoes_dict[usuario.id]|default_if_none:'' and permissoes_dict[usuario.id].pode_visualizar %}checked{% endif %}></td>
+          <td><input type="checkbox" name="user_{{ usuario.id }}_transferir" {% if permissoes_dict[usuario.id]|default_if_none:'' and permissoes_dict[usuario.id].pode_transferir %}checked{% endif %}></td>
+          <td><input type="checkbox" name="user_{{ usuario.id }}_editar" {% if permissoes_dict[usuario.id]|default_if_none:'' and permissoes_dict[usuario.id].pode_editar %}checked{% endif %}></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="submit" class="btn btn-primary">Salvar Permissões</button>
+  </form>
+</div>
+{% endblock %}

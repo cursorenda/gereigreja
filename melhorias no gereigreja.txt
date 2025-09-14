@@ -28,11 +28,7 @@ Passos para implementar:
 
 Buscar e substituir todas as ocorrências de igrejas_org por igrejas_para_filtro_template nas views e templates do app financeiro.
 Testar os filtros de igreja nas telas do financeiro para garantir que tudo continua funcionando.
-implementar na tela de cadsaatro de membro, quando for cadastrar uma pessoa, ao escrever o primeiro nome, que apareça todas pessoas que tem a inicial daquele nome para nao termos membros repetidos no sistema.
 
-preciso de uma pagina de vendas para este sistema, mas esta pagina precisa ter implementada estrategias de GEO,
-Investindo em conteudo que sustente sozinho: atualizado, util e com contexto claro; sendo feito com modelos que IA adoram 
-Aqui está uma organização mais estruturada para a implementação no seu programa de gerenciamento de igrejas:
 
 instalar e trabalhar com REDIS, para melhorar a velocidade de consultas para usuarios.
 ## **1. Melhorias Urgentes**
@@ -47,24 +43,11 @@ instalar e trabalhar com REDIS, para melhorar a velocidade de consultas para usu
 - **Recados:** Criar sistema de comunicação interna.
 - **Movimentação no Cadastro de Membro:** Incluir histórico financeiro e de edições.
 - **Metas:** Definir metas financeiras e de crescimento de membros.
-- **Histórico de Membros:** Adicionar registros de mudanças e alterações.
-- Inserir Fotos para usuarios no perfil
-- inserir Fotos de Membros
 - Inserir planos de custo para o usuarios
-- Inserir Formas de Pagamentos
 - Graficos para membros no painel liderança
 - Permitir que um líder de Sede filtre para ver os dados consolidados de uma Regional específica).
-- LOGO da igreja na pagina inicial.
-* As contas pagas de conta a pagar precisa aparecer no fechamento de caixa.
-* Pagina onde fica relação de atualizaçoes do sistema para que o usuario saiba as atualizaçoes e novidade.
 * Na lista de entradas e saidas listar o resultado por ordem de coluna "valores, membros, datas,igreja, categoria"---
-* MUDAR tipos_status dividir em 2 partes: 1. tipo_pessoa (quem é), 2. status (situação)
-     visitante — Pessoa que frequenta, mas não é membro.
-     congregado — Pessoa que frequenta regularmente, mas ainda não é membro oficial.
-     novo_convertido — Pessoa recém-convertida, em acompanhamento.
-     membro — Membro regular da igreja.
-     obreiro — Membro com função de liderança (pode incluir pastor, diácono, etc).
- Status: Ativo, inativo, sisciplina, desligado?, transferido?, falecido?
+
 Gostaria que o sistema fizesse historico de tipo e status, onde poderemos visualizar todo o historico do membro/pessoa,
 ou uma linha do tempo para cada membros dentro do caastro dele em uma ABA.
 
@@ -75,10 +58,8 @@ desligamentos, batismo...etc com opçoes de escolher quais os tipos quer que apa
 
 linha do tempo com todos os eventos futuros, cultos e agenda; tendo a opção de marcar o que deseja que apareça na linha do tempo.
 * adicionar logo do ministerio/organização
-- Preciso com urgencia a configurar envios de email que já esta pre-instalado, porem eu nao tinha o cadastro 'BREVO' E AGORA ESTÁ ATIVADA A CONTA.
 ## **2. Observações Gerais**
 ### **Estrutura do Projeto**
-- **Banco de Dados:** Otimizar consultas para grandes volumes de dados (uso de `select_related` e `prefetch_related`).
 - **Testes:** Implementar testes unitários para garantir qualidade e estabilidade.
 - **Documentação:** Melhorar `docstrings` nos modelos, formulários e `views`.
 - Sobre as Notificações de "Conta Vencida" Notificações em tempo real.
@@ -140,22 +121,6 @@ linha do tempo com todos os eventos futuros, cultos e agenda; tendo a opção de
 
 ---
 
-## **Próximos Passos**
-Se quiser aprofundar a análise, o ideal seria revisar:
-1. **Código completo do aplicativo** (modelos, formulários, `views`).
-2. **Estrutura do banco de dados** (esquema de tabelas e relações).
-3. **Requisitos detalhados** (funcionalidades esperadas).
-
-Assim, posso oferecer sugestões ainda mais precisas. O que acha? 🚀
-
-
-
-
-Estado Atual da Funcionalidade "Contas a Pagar":
-
-Pelo código, a funcionalidade de Contas a Pagar parece estar bem estruturada e funcional para o fluxo básico:
-
-Modelos (c:\Gereigreja\financeiro\models.py):
 
 Existe um modelo Fornecedor para cadastrar os credores. Ele está associado à Ministerio.
 Existe um modelo ContaPagar que representa uma obrigação ou uma parcela a ser paga. Ele está associado à Ministerio, Igreja (responsável pela conta), Fornecedor, e opcionalmente a uma CategoriaDespesa.
@@ -169,45 +134,7 @@ ContaPagarForm: Para criar/editar as obrigações/parcelas. Filtra igrejas, forn
 RegistrarPagamentoContaPagarForm: Um formulário específico para registrar os detalhes do pagamento de uma ContaPagar existente. Ele sugere o valor_pago com base no valor da conta e filtra as ContaBancarias pela organização.
 Views (c:\Gereigreja\financeiro\views.py):
 
-lista_fornecedores: Lista fornecedores da organização, com filtros e controle de status ativo.
-criar_fornecedor, editar_fornecedor, alternar_status_fornecedor: Views para gerenciar fornecedores. A exclusão direta é substituída por alternar_status_fornecedor.
-lista_contas_pagar: Lista as contas a pagar da organização, filtradas por igreja permitida, com vários filtros (busca, status, vencimento, igreja, fornecedor).
-criar_conta_pagar: Cria uma nova ContaPagar, associando-a à organização e ao usuário logado, definindo o status inicial como 'PEN'.
-editar_conta_pagar: Permite editar contas com status 'PEN' ou 'VEN'.
-detalhe_conta_pagar: Exibe os detalhes completos de uma ContaPagar.
-cancelar_conta_pagar: Marca uma conta com status 'PEN' ou 'VEN' como 'CAN'.
-registrar_pagamento_conta_pagar: Permite registrar o pagamento de contas com status 'PEN' ou 'VEN'. Esta view atualiza o saldo_atual da ContaBancaria selecionada, subtraindo o valor_pago (ajustado por juros/multa e desconto).
-URLs (c:\Gereigreja\financeiro\urls.py):
 
-URLs definidas para todas as views mencionadas.
-Permissões (c:\Gereigreja\financeiro\utils.py):
-
-As views são protegidas por @user_passes_test usando has_finance_view_permission (para ver listas/detalhes) e has_finance_edit_permission (para criar/editar/cancelar/pagar).
-get_allowed_churches_for_user filtra os dados por igreja permitida para o usuário.
-Pontos Fortes da Implementação Atual:
-
-Boa separação de modelos (Fornecedor, ContaPagar).
-Fluxo de criação, listagem, detalhe e registro de pagamento/cancelamento bem definido.
-Controle de status (PEN, PAG, VEN, CAN).
-Atualização automática do saldo da ContaBancaria ao registrar pagamento.
-Filtros úteis na lista de contas a pagar.
-Uso de transações atômicas (transaction.atomic) no registro de pagamento para garantir consistência.
-Permissões bem aplicadas nas views.
-Oportunidades de Melhoria e Discussão:
-
-Integração com o Modelo Despesas: Atualmente, uma ContaPagar paga atualiza o saldo da ContaBancaria diretamente. Uma abordagem alternativa seria, ao registrar o pagamento de uma ContaPagar, criar automaticamente um registro no modelo Despesas.
-
-Prós:
-Centraliza todas as saídas de caixa no modelo Despesas.
-Permite que o FechamentoCaixa (que hoje só lida com Despesas diretas) inclua as saídas originadas de Contas a Pagar.
-Simplifica a lógica de atualização de saldo (apenas o modelo Despesas precisaria atualizar o saldo da ContaBancaria).
-Melhora a rastreabilidade e relatórios consolidados.
-Contras:
-Requer modificações na view registrar_pagamento_conta_pagar para criar a Despesa.
-Requer modificações na view reabrir_fechamento_caixa para, ao reabrir, talvez excluir a Despesa associada ou marcá-la como não fechada.
-Requer adicionar um campo conta_pagar (ForeignKey) no modelo Despesas para vincular a despesa ao seu ContaPagar de origem.
-Dificuldade: Média/Alta. Envolve mudanças em modelos e lógica em várias views.
-Tratamento de Contas Vencidas: A propriedade is_vencida existe, mas a atualização automática do status para 'VEN' não está ativa por padrão (o código está comentado na view lista_contas_pagar).
 
 Melhoria: Ativar a atualização automática do status 'VEN' (talvez em um sinal ou em uma tarefa agendada, ou descomentando na view de listagem, embora isso possa impactar a performance em listas grandes).
 Dificuldade: Fácil/Média (dependendo da abordagem - sinal ou tarefa agendada é mais robusto).
@@ -458,12 +385,6 @@ Adicionar um gráfico de "Categorias de Receita": Similar ao que fizemos para as
 
 
 
-
-
-Migrar o Banco de Dados para PostgreSQL (ou MySQL)
-
-Problema: Bancos de dados como SQLite são ótimos para testes e prototipagem, mas não lidam bem com múltiplos usuários escrevendo dados ao mesmo tempo. Em um sistema SaaS como o seu, isso pode levar a erros de concorrência, lentidão e potencial corrupção de dados à medida que mais igrejas começarem a usar o sistema simultaneamente.
-Solução (Urgente): Migrar para um sistema de banco de dados cliente-servidor como o PostgreSQL. Ele é gratuito, extremamente robusto, recomendado pelo Django e suportado pela maioria das hospedagens, incluindo a sua. Esta é a mudança técnica mais importante que você pode fazer para garantir a estabilidade e escalabilidade do Gereigreja.
 Implementar uma Estratégia de Backup Automatizado
 
 Problema: A funcionalidade de backup manual que existe é um bom recurso, mas depender de uma ação manual de um superusuário para fazer backups é arriscado. Em caso de falha no servidor ou erro humano, dados valiosos de todas as igrejas podem ser perdidos permanentemente.
@@ -557,3 +478,78 @@ Implementar alternância entre Cloudinary e FileSystemStorage conforme ambiente.
 Revisar duplicidade de handlers no logging.
 Adicionar testes de integração para regras de negócio críticas.
 Adicionar verificação de permissões nas views e templates.
+
+mudanças: inserir mais coisas no home.
+mudar dashboard para painel secretaria
+inserir paginação em membros
+inserir mais filtros na pagina de membros
+organizar por tema de coluna
+consertar grafico Perfil dos Dizimistas por Tipo (Em Aberto)
+em lista de receitas e despesas trocar botao para mesma linha do filtro no lado diretório
+botao novo fechamento colocar na mesma linha de  Fechamentos Registrados
+enviar email em massa nao esta com link quebrado e mural de aviso e suporte ou deve ser permissao que deve ser mostrado msg de permissao.
+Permitir que o admin defina uma mensagem ou banner rotativo.
+Espaço para a missão/visão da igreja ou mensagem institucional.
+
+
+1. Experiência do Usuário (UX)
+Busca Global: Adicione uma barra de busca global para membros, usuários, cargos, eventos, etc.
+Filtros Avançados: Permita filtrar membros por status, cargos, igreja, faixa etária, etc.
+Feedback Visual: Use mais alertas, badges e tooltips para informar ações e status ao usuário.
+Confirmação de Ações Sensíveis: Adicione modais de confirmação para exclusão e associações críticas.
+2. Segurança e Permissões
+Permissões Granulares: Use o Django Guardian ou regras customizadas para permitir permissões por objeto (ex: só editar membros da própria igreja).
+Logs de Auditoria: Registre todas as ações sensíveis (associação, alteração de cargos, permissões) para rastreabilidade.
+2FA (Autenticação em Duas Etapas): Para administradores e pastores, considere implementar 2FA.
+3. Performance e Escalabilidade
+Paginação: Implemente paginação em todas as listas grandes (membros, usuários, cargos).
+Consultas Otimizadas: Use select_related e prefetch_related para evitar N+1 queries.
+Cache: Considere cachear menus, dashboards e relatórios que mudam pouco.
+4. Integração e Comunicação
+Notificações Internas: Adicione um sistema de notificações para avisar sobre pendências, aniversários, eventos, etc.
+Integração com WhatsApp/Telegram: Para avisos rápidos a membros ou grupos.
+Exportação de Dados: Permita exportar listas e relatórios em PDF/Excel.
+5. Usabilidade Administrativa
+Gestão de Backups: Interface para baixar/restaurar backups diretamente pelo painel.
+Gestão de Permissões: Tela visual para ver e editar permissões de grupos e usuários.
+Histórico de Login: Mostre o último acesso de cada usuário.
+6. Acessibilidade e Inclusão
+Acessibilidade: Garanta contraste, navegação por teclado e uso de ARIA nos templates.
+Tradução: Use o sistema de internacionalização do Django para facilitar tradução futura.
+7. Documentação e Suporte
+Ajuda Contextual: Adicione ícones de ajuda com explicações rápidas nos formulários.
+Documentação Online: Disponibilize um manual do usuário acessível pelo sistema.
+8. Automatização e Inteligência
+Sugestão Automática de Cargos: Sugira cargos com base em perfil ou histórico do membro.
+Relatórios Inteligentes: Dashboards com insights automáticos (ex: membros inativos, aniversariantes do mês, etc).
+Se quiser priorizar alguma dessas áreas, posso detalhar como implementar ou já começar a aplicar as melhorias! Qual dessas sugestões faz mais sentido para você agora?
+
+Como isolar ainda mais (sugestões práticas)
+Interfaces/Services:
+Crie funções de serviço (ex: em financeiro/services.py) para interagir com outros apps, ao invés de acessar models diretamente. Isso centraliza e documenta as dependências.
+
+Signals locais:
+Prefira signals que atuam apenas dentro do próprio app. Se precisar de integração, use eventos explícitos (ex: chame uma função de outro app, não um signal).
+
+Apps utilitários:
+Se há lógica compartilhada, crie um app common ou core_utils para funções genéricas, evitando dependências cruzadas.
+
+APIs internas:
+Use métodos públicos (ex: Igreja.get_conta_padrao()) ao invés de acessar atributos diretamente de outro app.
+
+Testes isolados:
+Garanta que cada app tenha seus próprios testes e que possam rodar isoladamente.
+
+Templates e static isolados:
+Use namespaces nos templates e arquivos estáticos para evitar conflitos.
+
+Evite circularidade:
+Nunca faça imports cruzados entre apps no topo dos arquivos. Use imports locais dentro de funções quando necessário.
+
+Documentação de dependências:
+Mantenha um README em cada app explicando de quais outros apps ele depende.
+
+Limite do isolamento
+No Django, apps nunca são 100% isolados se há relações entre dados (ex: igreja, membro, conta). O objetivo é minimizar o acoplamento e tornar as dependências explícitas e fáceis de manter.
+
+

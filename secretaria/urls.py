@@ -1,3 +1,5 @@
+
+from .views import associar_usuarios_membros
 # c:\Gereigreja\secretaria\urls.py
 
 from django.urls import path
@@ -22,6 +24,15 @@ urlpatterns = [
     # --- URL PARA O PORTAL DO MEMBRO ---
     path('portal/', views.portal_membro, name='portal_membro'),
 
-    # Endpoint AJAX para autocomplete de nomes de membros
     path('ajax/autocomplete_nome_membro/', views.autocomplete_nome_membro, name='autocomplete_nome_membro'),
+    # Relatório de reunião de membros
+    path('relatorio/reuniao-membros/', views.relatorio_reuniao_membros, name='relatorio_reuniao_membros'),
+    path('linha-do-tempo/', views.linha_do_tempo, name='linha_do_tempo'),
+    # --- NOVA URL PARA LISTAGEM DE CARGOS ---
+    path('cargos/', views.lista_cargos, name='lista_cargos'),
+    path('cargos/novo/', views.criar_cargo, name='criar_cargo'),
+    path('cargos/<int:cargo_id>/editar/', views.editar_cargo, name='editar_cargo'),
+    path('cargos/<int:cargo_id>/excluir/', views.excluir_cargo, name='excluir_cargo'),
+    path('cargos/<int:cargo_id>/ocupantes/', views.gerenciar_ocupantes, name='gerenciar_ocupantes'),
+    path('associar-usuarios-membros/', associar_usuarios_membros, name='associar_usuarios_membros'),
 ]

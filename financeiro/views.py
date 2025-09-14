@@ -1,3 +1,41 @@
+from django.contrib.auth import get_user_model
+from .models import PermissaoCaixa
+from django.contrib.admin.views.decorators import staff_member_required
+# --- Gestão de Permissões de Caixa ---
+from django.contrib.auth.decorators import login_required
+
+@login_required
+@staff_member_required
+
+def gerenciar_permissoes_caixa(request, caixa_id):
+    caixa = get_object_or_404(ContaBancaria, pk=caixa_id)
+    User = get_user_model()
+    # Filtra apenas usuários do mesmo ministério do caixa
+    usuarios = User.objects.filter(is_active=True, perfil__ministerio=caixa.igreja.ministerio)
+    permissoes = PermissaoCaixa.objects.filter(caixa=caixa).select_related('usuario')
+
+    if request.method == 'POST':
+        for usuario in usuarios:
+            prefix = f'user_{usuario.id}_'
+            pode_visualizar = bool(request.POST.get(prefix + 'visualizar'))
+            pode_transferir = bool(request.POST.get(prefix + 'transferir'))
+            pode_editar = bool(request.POST.get(prefix + 'editar'))
+            perm, created = PermissaoCaixa.objects.get_or_create(usuario=usuario, caixa=caixa)
+            perm.pode_visualizar = pode_visualizar
+            perm.pode_transferir = pode_transferir
+            perm.pode_editar = pode_editar
+            perm.save()
+        messages.success(request, 'Permissões atualizadas com sucesso!')
+        return redirect('financeiro:gerenciar_permissoes_caixa', caixa_id=caixa.id)
+
+    # Monta dicionário de permissões atuais
+    permissoes_dict = {p.usuario_id: p for p in permissoes}
+    return render(request, 'financeiro/gerenciar_permissoes_caixa.html', {
+        'caixa': caixa,
+        'usuarios': usuarios,
+        'permissoes_dict': permissoes_dict,
+    })
+from django.db.models import Q
 # c:\Gereigreja\financeiro\views.py
 # financeiro/views.py
 from django.db.models import Count
@@ -120,13 +158,19 @@ def painel_financeiro(request):
         # Base Querysets - AGORA FILTRADOS PELAS IGREJAS PERMITIDAS ou pela igreja selecionada (se permitida)
         # Se igreja_selecionada (do seletor global ou do filtro GET) está definida, filtra por ela
 
+
         if igreja_selecionada_para_dados:
             receitas_base = Receitas.objects.filter(igreja=igreja_selecionada_para_dados)
             despesas_base = Despesas.objects.filter(igreja=igreja_selecionada_para_dados)
-
         else: # Todas as igrejas permitidas para o usuário
             receitas_base = Receitas.objects.filter(igreja__in=allowed_churches) # Já filtrado por allowed_churches
             despesas_base = Despesas.objects.filter(igreja__in=allowed_churches) # Já filtrado por allowed_churches
+
+        # Filtro de caixa
+        caixa_id_filtro = request.GET.get('caixa_filtro')
+        if caixa_id_filtro:
+            receitas_base = receitas_base.filter(conta_bancaria_id=caixa_id_filtro)
+            despesas_base = despesas_base.filter(conta_bancaria_id=caixa_id_filtro)
 
          # --- Base para Contas a Pagar (filtrado por igreja/allowed_churches) ---
         if igreja_selecionada_para_dados:
@@ -431,11 +475,13 @@ def lista_receitas(request): # noqa: E302
             receitas_qs = Receitas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'membro').order_by('-data')
         # --- Fim Lógica de Filtragem Inicial ---
 
+
         # Filtros adicionais do GET
         data_inicio = request.GET.get('data_inicio')
         data_fim = request.GET.get('data_fim')
         categoria = request.GET.get('categoria')
         igreja_id_get = request.GET.get('igreja') # Renomeado
+        caixa_id_filtro = request.GET.get('caixa_filtro')
         # --- LÓGICA DO FILTRO 'fechado' ---
         # Pega o valor do parâmetro, default para 'false' (aberto) se não vier na URL
         fechado_filter = request.GET.get('fechado', 'false')
@@ -443,6 +489,8 @@ def lista_receitas(request): # noqa: E302
         if data_inicio: receitas_qs = receitas_qs.filter(data__gte=data_inicio)
         if data_fim: receitas_qs = receitas_qs.filter(data__lte=data_fim)
         if categoria: receitas_qs = receitas_qs.filter(categoria=categoria)
+        if caixa_id_filtro:
+            receitas_qs = receitas_qs.filter(conta_bancaria_id=caixa_id_filtro)
         # --- Lógica para o filtro de igreja na página (se request.igreja_ativa NÃO estiver definida) ---
 
         if igreja_id_get:
@@ -450,8 +498,7 @@ def lista_receitas(request): # noqa: E302
             if not request.igreja_ativa:
                 if is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists():
                     receitas_qs = receitas_qs.filter(igreja_id=igreja_id_get)
-       
-       
+
         # --- LÓGICA DO FILTRO 'fechado' ---
         fechado_filter = request.GET.get('fechado', 'false')
 
@@ -487,6 +534,7 @@ def lista_receitas(request): # noqa: E302
             # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta no filtro da página
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
+            'contas_bancarias_painel': ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao'),
         }
         return render(request, 'financeiro/receitas/lista_receitas.html', context)
     except Exception as e:
@@ -642,10 +690,12 @@ def lista_despesas(request): # noqa: E302
         
         # Filtros adicionais
 
+
         data_inicio = request.GET.get('data_inicio')
         data_fim = request.GET.get('data_fim')
         categoria_id = request.GET.get('categoria')
         igreja_id_get = request.GET.get('igreja') # Renomeado para evitar conflito com variável de contexto
+        caixa_id_filtro = request.GET.get('caixa_filtro')
         # --- LÓGICA DO FILTRO 'fechado' ---
         # Pega o valor do parâmetro, default para 'false' (aberto) se não vier na URL
         fechado_filter = request.GET.get('fechado', 'false')
@@ -653,6 +703,8 @@ def lista_despesas(request): # noqa: E302
         if data_inicio: despesas_qs = despesas_qs.filter(data__gte=data_inicio)
         if data_fim: despesas_qs = despesas_qs.filter(data__lte=data_fim)
         if categoria_id: despesas_qs = despesas_qs.filter(categoria_id=categoria_id)
+        if caixa_id_filtro:
+            despesas_qs = despesas_qs.filter(conta_bancaria_id=caixa_id_filtro)
         if igreja_id_get:
             # Este filtro só deve ser aplicado se request.igreja_ativa NÃO estiver definida
             if not request.igreja_ativa and (is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists()):
@@ -687,6 +739,7 @@ def lista_despesas(request): # noqa: E302
             # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
+            'contas_bancarias_painel': ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao'),
         }
         return render(request, 'financeiro/despesas/lista_despesas.html', context)
     except Exception as e:
@@ -2187,3 +2240,38 @@ def painel_lideranca_financeiro(request):
             'erro_painel': True, 
             'ministerio_usuario': ministerio_usuario
         })
+
+
+# --- Transferência entre Caixas ---
+from .models import TransferenciaCaixa
+from .forms import TransferenciaCaixaForm
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def transferencia_caixa_create(request):
+    if request.method == 'POST':
+        form = TransferenciaCaixaForm(request.POST)
+        if form.is_valid():
+            transferencia = form.save(commit=False)
+            transferencia.usuario = request.user
+            transferencia.save()
+            messages.success(request, 'Transferência realizada com sucesso.')
+            return redirect('financeiro:nova_transferencia_caixa')
+    else:
+        form = TransferenciaCaixaForm()
+
+    # Histórico de transferências (todas)
+    transferencias = TransferenciaCaixa.objects.select_related('caixa_origem', 'caixa_destino', 'usuario').order_by('-data')[:50]
+
+    # Auditoria (ações principais)
+    # Exemplo: logs fictícios, substitua por integração real se necessário
+    auditoria = [
+        {'acao': 'Transferência criada', 'usuario': t.usuario.get_full_name() if t.usuario else 'N/A', 'data': t.data, 'detalhes': f'{t.valor} de {t.caixa_origem} para {t.caixa_destino}'}
+        for t in transferencias
+    ]
+
+    return render(request, 'financeiro/transferencia_caixa_form.html', {
+        'form': form,
+        'transferencias': transferencias,
+        'auditoria': auditoria,
+    })

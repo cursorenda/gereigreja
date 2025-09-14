@@ -1,0 +1,35 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<h1>Cargos da Igreja</h1>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nome do Cargo</th>
+            <th>Grupo de Permissão</th>
+            <th>Ocupantes</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cargo in cargos %}
+        <tr>
+            <td>{{ cargo.cargo }}</td>
+            <td>{% if cargo.grupo_permissao %}{{ cargo.grupo_permissao.name }}{% else %}<span class="text-muted">Nenhum</span>{% endif %}</td>
+            <td>
+                {% for ocupante in cargo.ocupantes %}
+                    {{ ocupante.nome }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                    <span class="text-muted">Nenhum</span>
+                {% endfor %}
+            </td>
+            <td>
+                <a href="{% url 'secretaria:editar_cargo' cargo.id %}" class="btn btn-sm btn-primary">Editar</a>
+                <a href="{% url 'secretaria:gerenciar_ocupantes' cargo.id %}" class="btn btn-sm btn-warning">Ocupantes</a>
+                <a href="{% url 'secretaria:excluir_cargo' cargo.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza que deseja excluir este cargo?');">Excluir</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'secretaria:criar_cargo' %}" class="btn btn-success">Novo Cargo</a>
+{% endblock %}

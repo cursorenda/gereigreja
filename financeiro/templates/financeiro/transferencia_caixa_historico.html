@@ -1,0 +1,26 @@
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th>Data</th>
+      <th>Caixa Origem</th>
+      <th>Caixa Destino</th>
+      <th>Valor</th>
+      <th>Usuário</th>
+      <th>Observação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in transferencias %}
+    <tr>
+      <td>{{ t.data|date:'d/m/Y H:i' }}</td>
+      <td>{{ t.caixa_origem.nome_identificacao }}</td>
+      <td>{{ t.caixa_destino.nome_identificacao }}</td>
+      <td>{{ t.valor|floatformat:2 }}</td>
+      <td>{{ t.usuario.get_full_name|default:t.usuario.username }}</td>
+      <td>{{ t.observacao }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">Nenhuma transferência encontrada.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -1,131 +1,324 @@
-from django.http import JsonResponse
-# c:\Gereigreja\secretaria\views.py
-from configuracao.models import AssinaturaMinisterio
+# Decorators precisam ser importados antes do uso
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
+from .forms import AssociarUsuarioMembroForm
+# Função de permissão para uso em decorators (deve vir antes do uso)
+def is_admin_or_pastor(user):
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+
+# --- Associação em massa de membros a usuários ---
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def associar_usuarios_membros(request):
+    membros_sem_usuario = Membro.objects.filter(usuario__isnull=True).order_by('nome')
+    User = get_user_model()
+    sugestoes = {}
+    if request.method == 'POST':
+        forms_list = []
+        for membro in membros_sem_usuario:
+            form = AssociarUsuarioMembroForm(request.POST, prefix=str(membro.pk), membro=membro)
+            if form.is_valid():
+                usuario = form.cleaned_data['usuario']
+                membro.usuario = usuario
+                membro.save()
+            # Guardar sugestão para template
+            sugestao_id = form.fields['sugestao_usuario_id'].initial
+            sugestoes[membro.pk] = int(sugestao_id) if sugestao_id else None
+            forms_list.append(form)
+        messages.success(request, 'Associações salvas com sucesso!')
+        return redirect('secretaria:associar_usuarios_membros')
+    else:
+        forms_list = []
+        for m in membros_sem_usuario:
+            form = AssociarUsuarioMembroForm(prefix=str(m.pk), membro=m)
+            sugestao_id = form.fields['sugestao_usuario_id'].initial
+            sugestoes[m.pk] = int(sugestao_id) if sugestao_id else None
+            forms_list.append(form)
+    context = {
+        'membros_sem_usuario': membros_sem_usuario,
+        'forms_list': forms_list,
+        'sugestoes': sugestoes,
+    }
+    return render(request, 'secretaria/associar_usuarios_membros.html', context)
+
+# Função de permissão para uso em decorators (deve vir antes do uso)
+def is_admin_or_pastor(user):
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import HttpResponse, JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from core.decorators import check_permission # Importar o novo decorator
-from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
-from .forms import MembroForm, StatusHistoricoManualForm, MembroUserManagementForm
-from django.http import HttpResponse, Http404
-from datetime import datetime
-from django.conf import settings
-import os
-import shutil
-import logging
-import zipfile
-from django.db.models import Count, Q
-import json
-from django.contrib.auth.decorators import login_required, user_passes_test # Adicionado user_passes_test
-from configuracao.models import PerfilUsuario, Ministerio, Igreja, AssinaturaMinisterio # Adicionado Igreja e AssinaturaMinisterio
 from django.core.exceptions import PermissionDenied
-from datetime import datetime, date # Importe 'date' aqui também
-from django.db.models import Count, Q, F, Value, Case, When, BooleanField # Adicione F, Value, Case, When, BooleanField
-from django.urls import reverse_lazy # Para login_url
-from core.decorators import check_permission # <<< ADICIONE ESTA LINHA
-from django.utils.crypto import get_random_string # Para gerar senhas aleatórias
-# --- AUTOCOMPLETE DE NOMES DE MEMBROS (AJAX) ---
 from django.views.decorators.http import require_GET
+from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
+from django.db.models.functions import Extract
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+from django import forms
+
+# Gerenciar ocupantes do cargo
+from .forms import GerenciarOcupantesForm
 
 
 @login_required
+@user_passes_test(is_admin_or_pastor)
+def gerenciar_ocupantes(request, cargo_id):
+    cargo = get_object_or_404(Cargos, id=cargo_id)
+    membros = list(Membro.objects.all().order_by('nome'))
+    ocupantes_atual = list(Membro.objects.filter(membroscargos__cargo=cargo))
+    if request.method == 'POST':
+        ocupantes_ids = request.POST.get('ocupantes', '')
+        if ocupantes_ids:
+            ids = [int(i) for i in ocupantes_ids.split(',') if i.isdigit()]
+            novos_ocupantes = Membro.objects.filter(chave__in=ids)
+        else:
+            novos_ocupantes = Membro.objects.none()
+        # Remove todos os ocupantes antigos desse cargo
+        MembrosCargos.objects.filter(cargo=cargo).exclude(membro__in=novos_ocupantes).delete()
+        # Adiciona novos ocupantes (evita duplicidade)
+        for membro in novos_ocupantes:
+            MembrosCargos.objects.get_or_create(cargo=cargo, membro=membro)
+        messages.success(request, 'Ocupantes do cargo atualizados com sucesso!')
+        return redirect('secretaria:lista_cargos')
+    else:
+        ocupantes_iniciais = [m.chave for m in ocupantes_atual]
+    return render(request, 'secretaria/gerenciar_ocupantes.html', {
+        'cargo': cargo,
+        'membros': membros,
+        'ocupantes_iniciais': ocupantes_iniciais,
+    })
+
+
+
+# Função de permissão para uso em decorators (deve vir antes do uso)
+def is_admin_or_pastor(user):
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+
+# Exclusão de cargo
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def excluir_cargo(request, cargo_id):
+    cargo = get_object_or_404(Cargos, id=cargo_id)
+    ocupantes = cargo.membroscargos_set.all()
+    if request.method == 'POST':
+        if ocupantes.exists():
+            messages.error(request, 'Não é possível excluir um cargo que possui ocupantes.')
+            return redirect('secretaria:lista_cargos')
+        cargo.delete()
+        messages.success(request, 'Cargo excluído com sucesso!')
+        return redirect('secretaria:lista_cargos')
+    return render(request, 'secretaria/excluir_cargo.html', {'cargo': cargo, 'ocupantes': ocupantes})
+from django.http import HttpResponse, JsonResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from django.views.decorators.http import require_GET
+from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
+from django.db.models.functions import Extract
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+from django import forms
+# --- STUBS PARA CRIAR E EDITAR CARGO ---
+from django.http import HttpResponse
+
+
+from .forms import CargosForm
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def criar_cargo(request):
+    if request.method == 'POST':
+        form = CargosForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Cargo criado com sucesso!')
+            return redirect('secretaria:lista_cargos')
+    else:
+        form = CargosForm()
+    return render(request, 'secretaria/criar_cargo.html', {'form': form})
+
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def editar_cargo(request, cargo_id):
+    cargo = get_object_or_404(Cargos, id=cargo_id)
+    if request.method == 'POST':
+        form = CargosForm(request.POST, instance=cargo)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Cargo atualizado com sucesso!')
+            return redirect('secretaria:lista_cargos')
+    else:
+        form = CargosForm(instance=cargo)
+    return render(request, 'secretaria/editar_cargo.html', {'form': form, 'cargo': cargo})
+
+# --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import HttpResponse, JsonResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from django.views.decorators.http import require_GET
+from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
+from django.db.models.functions import Extract
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+from django import forms
+
+def is_admin_or_pastor(user):
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+from .models import Cargos, MembrosCargos
+# --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import HttpResponse, JsonResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from django.views.decorators.http import require_GET
+from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
+from django.db.models.functions import Extract
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+from django import forms
+
+# --- Função de permissão para uso em decorators ---
+def is_admin_or_pastor(user):
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+
+# --- VIEW: LISTA DE CARGOS ---
+from .models import Cargos, MembrosCargos
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def lista_cargos(request):
+    cargos = Cargos.objects.all().prefetch_related('membroscargos_set__membro', 'grupo_permissao')
+    # Adiciona uma propriedade para facilitar o acesso aos ocupantes
+    for cargo in cargos:
+        cargo.ocupantes = [mc.membro for mc in cargo.membroscargos_set.all() if mc.membro]
+    context = {'cargos': cargos}
+    return render(request, 'secretaria/lista_cargos.html', context)
+# --- LINHA DO TEMPO DOS MEMBROS ---
+from django import forms
+from .models import TimelineEvent
+from django.contrib.auth.decorators import login_required, user_passes_test
+
+
+# Apenas para administradores/pastores (ajuste conforme seu sistema de permissões)
+
+# --- IMPORTS PADRÃO PYTHON ---
+import os
+import logging
+from datetime import date, datetime
+import json
+
+# --- IMPORTS DJANGO ---
+from django import forms
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.http import require_GET
+from django.http import JsonResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
+from django.db.models.functions import Extract
+from django.utils.crypto import get_random_string
+from django.utils import timezone
+
+# --- OUTROS IMPORTS DO PROJETO ---
+from .models import TimelineEvent, Membro, TipoPessoa, StatusPessoa, StatusHistorico, Cargos, MembrosCargos
+from .forms import MembroForm, MembroUserManagementForm, StatusHistoricoManualForm
+from core.utils import get_ministerio_or_error
+from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_view_permission, has_membro_edit_permission
+from core.decorators import check_permission
+from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
+
+# --- Função de permissão para uso em decorators ---
+
+# --- Função de permissão para uso em decorators ---
+def is_admin_or_pastor(user):
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+
+# Formulário de filtro para a linha do tempo
+class TimelineFilterForm(forms.Form):
+    tipo_evento = forms.MultipleChoiceField(
+        choices=TimelineEvent.TIPO_EVENTO_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Tipos de Evento"
+    )
+    data_inicio = forms.DateField(required=False, label="Data inicial", widget=forms.DateInput(attrs={"type": "date"}))
+    data_fim = forms.DateField(required=False, label="Data final", widget=forms.DateInput(attrs={"type": "date"}))
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def linha_do_tempo(request):
+    eventos = TimelineEvent.objects.select_related('membro').all()
+    form = TimelineFilterForm(request.GET or None)
+
+    if form.is_valid():
+        tipos = form.cleaned_data.get('tipo_evento')
+        data_inicio = form.cleaned_data.get('data_inicio')
+        data_fim = form.cleaned_data.get('data_fim')
+        if tipos:
+            eventos = eventos.filter(tipo_evento__in=tipos)
+        if data_inicio:
+            eventos = eventos.filter(data__date__gte=data_inicio)
+        if data_fim:
+            eventos = eventos.filter(data__date__lte=data_fim)
+
+    eventos = eventos.order_by('-data')
+    context = {
+        'eventos': eventos,
+        'form': form,
+    }
+    return render(request, 'secretaria/linha_do_tempo.html', context)
+
+from django.views.decorators.http import require_GET
+from django.http import JsonResponse
+
 @require_GET
 def autocomplete_nome_membro(request):
-    """
-    Endpoint AJAX para autocomplete de nomes de membros.
-    Retorna uma lista de nomes de membros que começam com o termo pesquisado (case-insensitive),
-    filtrando apenas membros visíveis ao usuário logado.
-    """
-    term = request.GET.get('term', '').strip()
+    """Retorna nomes de membros para autocomplete AJAX."""
+    termo = request.GET.get('q', '').strip()
     results = []
-    if term:
-        allowed_churches = get_allowed_churches_for_membros(request.user)
-        membros_qs = Membro.objects.filter(
-            igreja__in=allowed_churches,
-            nome__istartswith=term
-        ).order_by('nome')[:10]  # Limita a 10 sugestões
-        results = list(membros_qs.values_list('nome', flat=True))
-    return JsonResponse(results, safe=False)
-# --- IMPORTAR UTILS DE PERMISSÃO PARA secretaria (Consolidado) ---
-from django.db.models.functions import Extract # Adicione esta linha para Extract
-from .utils import has_membro_view_permission, has_membro_edit_permission, get_allowed_churches_for_membros, is_secretaria_leader, is_admin_org # Adicionar is_secretaria_leader
-from financeiro.models import Receitas # Importar o modelo Receitas
-from django.contrib.auth.models import User, Group # Importar User e Group
-from django.db import transaction # Adicionar import para transações atômicas
-from django.urls import reverse
+    if termo:
+        membros = Membro.objects.filter(nome__icontains=termo)[:20]
+        results = [{'id': m.id, 'nome': m.nome} for m in membros]
+    return JsonResponse({'results': results})
+from datetime import date, datetime
+import os
+import shutil
+from django.conf import settings
+from django.http import JsonResponse
+# c:\Gereigreja\secretaria\views.py
+
+from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.http import Http404
+from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
+from .forms import MembroForm, MembroUserManagementForm, StatusHistoricoManualForm
+from core.utils import get_ministerio_or_error
+from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_view_permission, has_membro_edit_permission
+from core.decorators import check_permission
+from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
+from django.db.models.functions import Extract
+from django.utils.crypto import get_random_string
+import json
+import logging
 
 
 
-# Configura o logger (mantido como estava)
 
-
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler = logging.FileHandler('backup_log.txt') # Considere um nome de arquivo mais específico ou um caminho absoluto
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-# --- Função auxiliar para obter ministério (evita repetição) ---
-def get_ministerio_or_error(request):
-    """
-    Obtém a ministério do usuário logado.
-    Levanta PermissionDenied se não autenticado, superuser, ou erro de perfil.
-    Levanta Http404 se o perfil não tem ministério associada.
-    Retorna o objeto Ministerio em caso de sucesso.
-    """
-    if not request.user.is_authenticated:
-        # PermissionDenied é suficiente
-        raise PermissionDenied("Usuário não autenticado.")
-    
-    if request.user.is_superuser:
-        messages.info(request, "Superusuários devem usar o painel Admin para secretaria global.")
-        raise PermissionDenied("Superusuário não acessa esta área.")
-    
-    try:
-        perfil = request.user.perfil
-    except PerfilUsuario.DoesNotExist:
-        messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
-        raise PermissionDenied("Perfil de usuário não encontrado.")
-    
-    ministerio = perfil.ministerio
-    if not ministerio:
-        messages.error(request, "Seu usuário não está associado a nenhuma ministério.")
-        raise Http404("Ministério não encontrada para o usuário.")
-    
-    if not ministerio.ativo:
-        messages.warning(request, f"A ministério '{ministerio.nome_fantasia}' não está ativa. Contate o suporte do sistema.")
-        raise PermissionDenied(f"Acesso negado: Ministério '{ministerio.nome_fantasia}' inativa.")
-
-    # --- VERIFICAÇÃO DO STATUS DA ASSINATURA ---
-    try:
-        assinatura = ministerio.assinatura # Acesso via related_name
-        status_validos = ['ativa', 'gratuita']
-        
-        if assinatura.status not in status_validos:
-            # Se o status não for válido, verifica se a ministério é elegível para o gratuito
-            # OU se um período de cortesia está ativo e válido.
-            if not assinatura.is_periodo_cortesia_valido():
-                # Se não há cortesia válida, e a assinatura não é 'ativa' ou 'gratuita'
-                # E não é o caso de ser 'vencida' mas a ministério ser elegível para o gratuito
-                if not (assinatura.status == 'vencida' and ministerio.verificar_elegibilidade_plano_gratuito()):
-                    # Adiciona mensagem de aviso, mas não bloqueia se estiver indo para a página de assinatura
-                    if not request.user.is_superuser and request.path != reverse('configuracao:gerenciar_assinatura'):
-                        messages.warning(request, f"Sua assinatura do plano {assinatura.plano.get_nome_display() if assinatura.plano else ''} está {assinatura.get_status_display()}. Por favor, regularize sua situação ou ative sua cortesia.")
-                        # Aqui, em vez de raise PermissionDenied, a view chamadora decidirá se redireciona
-                        # para 'configuracao:gerenciar_assinatura' se a assinatura não estiver OK.
-                        # Por enquanto, apenas avisamos. O bloqueio efetivo (redirecionamento) será feito na view.
-
-    except AssinaturaMinisterio.DoesNotExist:
-        # Se não tem assinatura E não é elegível para gratuita
-        if not ministerio.verificar_elegibilidade_plano_gratuito():
-            if not request.user.is_superuser and request.path != reverse('configuracao:gerenciar_assinatura'):
-                    messages.warning(request, "Sua ministério não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia.")# --- FIM VERIFICAÇÃO DA ASSINATURA ---
-    
-    return ministerio
-    
-    # --- Fim função auxiliar ---
 
 
 @login_required
@@ -133,67 +326,212 @@ def index(request):
     if request.user.is_superuser:
         return redirect('admin:index')
 
-    # --- NOVO: Redireciona Membro Comum para o portal ---
     if request.user.groups.filter(name='Membro Comum').exists() and not request.user.is_staff:
         return redirect('secretaria:portal_membro')
 
-    try:
-        ministerio = get_ministerio_or_error(request)
-        total_membros_ativos_count = 0
-        novos_membros_ultimo_mes_count = 0
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches_secretaria = get_allowed_churches_for_membros(request.user)
+    titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
+    membros_para_relatorios = Membro.objects.none()
 
-        titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        membros_para_relatorios = Membro.objects.filter(
+            igreja=request.igreja_ativa,
+            status_pessoa__considerar_ativo_relatorios=True,
+            tipo_pessoa__nome__iexact="Membro"
+        )
+        titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
+    elif allowed_churches_secretaria.exists():
+        membros_para_relatorios = Membro.objects.filter(
+            igreja__in=allowed_churches_secretaria,
+            status_pessoa__considerar_ativo_relatorios=True,
+            tipo_pessoa__nome__iexact="Membro"
+        )
+        titulo_contextual += " (Consolidado)"
+    elif is_admin_org(request.user):
+        membros_para_relatorios = Membro.objects.filter(
+            igreja__ministerio=ministerio,
+            status_pessoa__considerar_ativo_relatorios=True,
+            tipo_pessoa__nome__iexact="Membro"
+        )
+        titulo_contextual += " (Ministério)"
 
-        allowed_churches_secretaria = get_allowed_churches_for_membros(request.user)
-        membros_base_qs = Membro.objects.none()
+    # Gráficos e cards
+    membros_base_para_grafico_status = (
+        Membro.objects.filter(igreja=request.igreja_ativa) if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria
+        else Membro.objects.filter(igreja__in=allowed_churches_secretaria) if allowed_churches_secretaria.exists()
+        else Membro.objects.filter(igreja__ministerio=ministerio) if is_admin_org(request.user)
+        else Membro.objects.none()
+    )
 
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-            membros_base_qs = Membro.objects.filter(igreja=request.igreja_ativa)
-            titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
-        elif allowed_churches_secretaria.exists():
-            membros_base_qs = Membro.objects.filter(igreja__in=allowed_churches_secretaria)
-            titulo_contextual += " (Consolidado)"
-        # Se não houver igreja ativa nem igrejas permitidas (exceto para admin org que vê tudo),
-        # os counts permanecerão zero, o que é correto.
-        # Para Admin Org, get_allowed_churches_for_membros deve retornar todas do ministério.
-        
-        if membros_base_qs.exists() or (is_admin_org(request.user) and not request.igreja_ativa): # Garante que Admin Org veja dados do ministério se nenhuma igreja ativa
-            if is_admin_org(request.user) and not request.igreja_ativa and not allowed_churches_secretaria.exists(): # Caso específico de Admin Org sem igrejas no perfil e sem igreja ativa
-                membros_base_qs = Membro.objects.filter(igreja__ministerio=ministerio)
+    status_data_qs = membros_base_para_grafico_status.values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome')
+    status_data_list = [{'status': item['status_pessoa__nome'], 'total': item['total']} for item in status_data_qs if item['status_pessoa__nome']]
 
-            total_membros_ativos_count = membros_base_qs.filter(
-                # status__considerar_ativo_relatorios=True # Lógica antiga
-                status_pessoa__considerar_ativo_relatorios=True # Nova lógica
-            ).count()
+    genero_data_qs = membros_para_relatorios.values('genero').annotate(total=Count('chave'))
+    genero_map = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
+    aggregated_genero = {}
+    for item in genero_data_qs:
+        genero_display = genero_map.get(item['genero'], 'Não Informado')
+        aggregated_genero[genero_display] = aggregated_genero.get(genero_display, 0) + item['total']
+    genero_data_normalized = [{'genero': key, 'total': value} for key, value in aggregated_genero.items()]
 
-            from datetime import timedelta 
-            um_mes_atras = date.today() - timedelta(days=30)
-            novos_membros_ultimo_mes_count = membros_base_qs.filter(
-                data_entrada__gte=um_mes_atras
-            ).count() 
-        
-                
-        # A variável 'can_view' não estava definida aqui. A permissão é passada ao contexto abaixo.
-        # print(f"DEBUG VIEW: has_membro_view_permission = {has_membro_view_permission(request.user)}") # Exemplo de como poderia ser
-    # print(f"DEBUG VIEW: novos_membros_ultimo_mes_count = {novos_membros_ultimo_mes_count} (Tipo: {type(novos_membros_ultimo_mes_count)})") # Removido para produção
-    # print(f"DEBUG VIEW: total_membros_ativos_count = {total_membros_ativos_count} (Tipo: {type(total_membros_ativos_count)})") # Removido para produção
-        
-        context = {
-            'ministerio': ministerio,
-            'user': request.user,
-            'titulo_pagina': titulo_contextual,
-            'can_view_membros': has_membro_view_permission(request.user), # Permissão para o template
-            'can_edit_membros': has_membro_edit_permission(request.user), # Permissão para o template
+    membros_com_nascimento = membros_para_relatorios.filter(nascimento__isnull=False).values_list('nascimento', flat=True)
+    idades = []
+    hoje_data = date.today()
+    for nascimento in membros_com_nascimento:
+        if nascimento:
+            try:
+                idade = hoje_data.year - nascimento.year - ((hoje_data.month, hoje_data.day) < (nascimento.month, nascimento.day))
+                idades.append(idade)
+            except AttributeError:
+                logger.warning(f"Valor inesperado encontrado para data de nascimento ao calcular idade: {nascimento}")
+        else:
+            logger.warning("Valor None encontrado para nascimento mesmo após filtro isnull=False.")
+    faixas = {
+        '0-5 anos': 0,
+        '6-10 anos': 0,
+        '11-14 anos': 0,
+        '15-17 anos': 0,
+        '18-30 anos': 0,
+        '31-50 anos': 0,
+        '51-65 anos': 0,
+        'Mais de 65 anos': 0,
+        'Não Informado': membros_para_relatorios.filter(nascimento__isnull=True).count()
+    }
+    for idade_val in idades:
+        if 0 <= idade_val <= 5:
+            faixas['0-5 anos'] += 1
+        elif 6 <= idade_val <= 10:
+            faixas['6-10 anos'] += 1
+        elif 11 <= idade_val <= 14:
+            faixas['11-14 anos'] += 1
+        elif 15 <= idade_val <= 17:
+            faixas['15-17 anos'] += 1
+        elif 18 <= idade_val <= 30:
+            faixas['18-30 anos'] += 1
+        elif 31 <= idade_val <= 50:
+            faixas['31-50 anos'] += 1
+        elif 51 <= idade_val <= 65:
+            faixas['51-65 anos'] += 1
+        elif idade_val > 65:
+            faixas['Mais de 65 anos'] += 1
+    faixa_etaria_data = [{'faixa_etaria': k, 'total': v} for k, v in faixas.items()]
 
-            'total_membros_ativos': total_membros_ativos_count,
-            'novos_membros_ultimo_mes': novos_membros_ultimo_mes_count,
-            'proximo_evento': "Nenhum evento próximo.", # Placeholder
-            'igreja_ativa_atual': request.igreja_ativa # Passa a igreja ativa para o template
+    total_membros_dashboard = membros_para_relatorios.count()
 
-        }
-        return render(request, 'secretaria/index.html', context)
-    except (PermissionDenied, Http404):
-         return redirect('login')
+    from datetime import timedelta
+    trinta_dias_atras = hoje_data - timedelta(days=30)
+    novos_membros_30_dias = membros_para_relatorios.filter(data_entrada__gte=trinta_dias_atras).count()
+    aniversariantes_mes_atual_count = membros_para_relatorios.filter(nascimento__month=hoje_data.month).count()
+    idades_para_media = []
+    membros_ativos_com_nascimento = membros_para_relatorios.filter(nascimento__isnull=False).values_list('nascimento', flat=True)
+    for nascimento_dt in membros_ativos_com_nascimento:
+        if nascimento_dt:
+            idade = hoje_data.year - nascimento_dt.year - ((hoje_data.month, hoje_data.day) < (nascimento_dt.month, nascimento_dt.day))
+            idades_para_media.append(idade)
+    media_idade_membros = round(sum(idades_para_media) / len(idades_para_media)) if idades_para_media else 0
+
+    mes_atual = hoje_data.month
+    dia_atual = hoje_data.day
+    aniversariantes_qs = membros_para_relatorios.filter(nascimento__isnull=False).annotate(
+        nascimento_month=Extract('nascimento', 'month'),
+        nascimento_day=Extract('nascimento', 'day'),
+        passed_this_year=Case(
+            When(nascimento_month__lt=mes_atual, then=Value(True)),
+            When(nascimento_month=mes_atual, nascimento_day__lt=dia_atual, then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField()
+        )
+    ).order_by('passed_this_year', 'nascimento_month', 'nascimento_day')
+    limite_aniversariantes = 10
+    aniversariantes_proximos = list(aniversariantes_qs[:limite_aniversariantes])
+
+    # Cards e alertas esperados pelo template
+    # --- Pendências de cadastro ---
+    pendencias_cadastro = membros_para_relatorios.filter(Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email=''))
+    total_pendencias_cadastro = pendencias_cadastro.count()
+
+    # --- Contas vencidas (financeiro) ---
+    igrejas_ids = membros_para_relatorios.values_list('igreja_id', flat=True).distinct()
+    from financeiro.models import ContaPagar
+    contas_vencidas = ContaPagar.objects.filter(
+        igreja_id__in=igrejas_ids,
+        status='VEN'
+    )
+    total_contas_vencidas = contas_vencidas.count()
+    valor_total_contas_vencidas = contas_vencidas.aggregate(total=Sum('valor'))['total'] or 0
+
+    # --- Assinatura prestes a vencer (exemplo: menos de 10 dias) ---
+    assinatura_alerta = None
+    hoje = hoje_data
+    if hasattr(ministerio, 'assinatura') and ministerio.assinatura:
+        dias_restantes = (ministerio.assinatura.data_fim - hoje).days if ministerio.assinatura.data_fim else None
+        if dias_restantes is not None and dias_restantes <= 10 and ministerio.assinatura.status != 'ATIVA':
+            assinatura_alerta = {
+                'dias_restantes': dias_restantes,
+                'status': ministerio.assinatura.get_status_display(),
+            }
+
+    # --- Evolução de membros nos últimos 12 meses (filtrado pelo contexto do dashboard) ---
+    meses = []
+    membros_evolucao = []
+    for i in range(11, -1, -1):
+        mes_ref = (hoje.replace(day=1) - timedelta(days=30*i))
+        ano_mes = mes_ref.strftime('%Y-%m')
+        meses.append(ano_mes)
+        membros_count = membros_para_relatorios.filter(
+            data_entrada__lte=mes_ref.replace(day=28) + timedelta(days=4)
+        ).count()
+        membros_evolucao.append(membros_count)
+
+    # --- Novos membros por mês (últimos 12 meses) ---
+    novos_membros_por_mes = []
+    for i in range(11, -1, -1):
+        mes_ref = (hoje.replace(day=1) - timedelta(days=30*i))
+        ano = mes_ref.year
+        mes = mes_ref.month
+        count = membros_para_relatorios.filter(
+            data_entrada__year=ano,
+            data_entrada__month=mes
+        ).count()
+        novos_membros_por_mes.append(count)
+
+    # --- Aniversariantes (ontem, hoje, amanhã) ---
+    ontem = hoje - timedelta(days=1)
+    amanha = hoje + timedelta(days=1)
+    aniversariantes_hoje = membros_para_relatorios.filter(nascimento__month=hoje.month, nascimento__day=hoje.day)
+    aniversariantes_ontem = membros_para_relatorios.filter(nascimento__month=ontem.month, nascimento__day=ontem.day)
+    aniversariantes_amanha = membros_para_relatorios.filter(nascimento__month=amanha.month, nascimento__day=amanha.day)
+
+    context = {
+        'status_data_json': json.dumps(status_data_list),
+        'genero_data_json': json.dumps(genero_data_normalized),
+        'faixa_etaria_data_json': json.dumps(faixa_etaria_data),
+        'total_membros_dashboard': total_membros_dashboard,
+        'novos_membros_30_dias': novos_membros_30_dias,
+        'aniversariantes_mes_atual_count': aniversariantes_mes_atual_count,
+        'media_idade_membros': media_idade_membros,
+        'ministerio': ministerio,
+        'aniversariantes_proximos': aniversariantes_proximos,
+        'titulo_pagina': titulo_contextual,
+        'igreja_ativa_atual': request.igreja_ativa,
+        # Cards e gráficos esperados pelo template:
+        'total_membros_ativos': total_membros_dashboard,
+        'novos_membros_ultimo_mes': novos_membros_30_dias,
+        'total_pendencias_cadastro': total_pendencias_cadastro,
+        'total_contas_vencidas': total_contas_vencidas,
+        'valor_total_contas_vencidas': valor_total_contas_vencidas,
+        'assinatura_alerta': assinatura_alerta,
+        'evolucao_meses': meses,
+        'evolucao_membros': membros_evolucao,
+        'novos_membros_por_mes': novos_membros_por_mes,
+        'aniversariantes_ontem': aniversariantes_ontem,
+        'aniversariantes_hoje': aniversariantes_hoje,
+        'aniversariantes_amanha': aniversariantes_amanha,
+    }
+    return render(request, 'secretaria/index.html', context)
+
+
 
 
 @login_required
@@ -855,6 +1193,7 @@ def ficha_membro_impressao(request, membro_id): # noqa: E302
     return render(request, 'secretaria/membro/ficha_membro_impressao.html', context)
 # --- FIM NOVA VIEW ---
 
+from secretaria.utils import is_secretaria_leader
 @check_permission(is_secretaria_leader, login_url_name='login') # Ajuste login_url_name se 'core:home' for diferente de 'login'
 def painel_lideranca_secretaria(request): # noqa: E302
     try:
@@ -1162,3 +1501,76 @@ def portal_membro(request):
         'titulo_pagina': "Meu Portal"
     }
     return render(request, 'secretaria/portal_membro.html', context)
+
+
+# ...existing code...
+from django.db.models.functions import Extract
+from django.urls import reverse
+from financeiro.models import Receitas
+from django.db import transaction
+from django.contrib.auth import get_user_model
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
+# --- NOVA VIEW: RELATÓRIO DE REUNIÃO DE MEMBROS ---
+from django.utils import timezone
+@login_required
+def relatorio_reuniao_membros(request):
+    """
+    Gera relatório HTML para impressão da reunião de membros, listando membros ativos em ordem alfabética.
+    """
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user)
+    igreja = None
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        igreja = request.igreja_ativa
+    elif allowed_churches.exists():
+        igreja = allowed_churches.first()
+    else:
+        messages.error(request, "Nenhuma igreja selecionada ou permitida para gerar relatório.")
+        return redirect('secretaria:dashboard')
+
+    # Buscar membros ativos para relatórios
+
+    # Buscar apenas membros do tipo 'Membro' (não visitantes, congregados, etc)
+    membros = Membro.objects.filter(
+        igreja=igreja,
+        tipo_pessoa__nome__in=['Membro', 'Obreiro'],
+        status_pessoa__nome__in=['Ativo', 'Em Disciplina']
+    ).order_by('nome')
+
+    # Dados do cabeçalho
+    nome_igreja = igreja.nome_igreja if hasattr(igreja, 'nome_igreja') else str(igreja)
+    bairro = getattr(igreja, 'bairro', '')
+    cidade = getattr(igreja, 'cidade', '')
+    nome_ministerio = getattr(ministerio, 'nome_fantasia', str(ministerio))
+    pastor_local = getattr(igreja, 'pastor_local', '')
+    pastor_regional = getattr(igreja, 'pastor_regional', '')
+    data_reuniao = timezone.now().strftime('%d de %B de %Y')
+
+
+    # URLs dos logos (preferencialmente logo1 da igreja e logo do ministério)
+    if hasattr(igreja, 'logo1') and igreja.logo1:
+        logo_igreja_url = igreja.logo1.url
+    else:
+        logo_igreja_url = '/static/favicon.ico'
+
+    if hasattr(ministerio, 'logo') and ministerio.logo:
+        logo_ministerio_url = ministerio.logo.url
+    else:
+        logo_ministerio_url = '/static/favicon.ico'
+
+    context = {
+        'membros': membros,
+        'nome_igreja': nome_igreja,
+        'bairro': bairro,
+        'cidade': cidade,
+        'nome_ministerio': nome_ministerio,
+        'pastor_local': pastor_local,
+        'pastor_regional': pastor_regional,
+        'data_reuniao': data_reuniao,
+        'logo_igreja_url': logo_igreja_url,
+        'logo_ministerio_url': logo_ministerio_url,
+    }
+    return render(request, 'secretaria/relatorio_reuniao_membros.html', context)
+# --- FIM NOVA VIEW ---

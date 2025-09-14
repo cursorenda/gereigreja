@@ -60,6 +60,16 @@ def get_membro_foto_upload_path(instance, filename):
 
 
 class Membro(models.Model):
+    # Relacionamento com o usuário do sistema (caso exista)
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='membro_secretaria',
+        verbose_name='Usuário do Sistema',
+        help_text='Usuário do Django vinculado a este membro (opcional).'
+    )
     # Removido db_column='Chave' - Deixe o Django gerenciar o nome da coluna
     chave = models.AutoField(primary_key=True)
     # O campo chave_or_uuid foi removido.
@@ -266,6 +276,14 @@ class Membro(models.Model):
 
 class Cargos(models.Model):
     cargo = models.TextField(unique=True, blank=True, null=True)
+    grupo_permissao = models.ForeignKey(
+        'auth.Group',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name='Grupo de Permissão',
+        help_text='Grupo de permissões do Django vinculado a este cargo (opcional).'
+    )
 
     class Meta:
         # managed = False # Descomente se o Django NÃO deve gerenciar esta tabela
@@ -339,6 +357,26 @@ class Filhos(models.Model):
         verbose_name_plural = "Filhos"
 
 #class Igrejas(models.Model):
+
+# --- Modelo para eventos da linha do tempo dos membros ---
+class TimelineEvent(models.Model):
+    TIPO_EVENTO_CHOICES = [
+        ("entrada", "Entrada"),
+        ("mudanca_tipo", "Mudança de Tipo"),
+        ("mudanca_status", "Mudança de Status"),
+        ("outro", "Outro"),
+    ]
+
+    membro = models.ForeignKey('Membro', on_delete=models.CASCADE, related_name='eventos_linha_tempo')
+    data = models.DateTimeField()
+    tipo_evento = models.CharField(max_length=30, choices=TIPO_EVENTO_CHOICES)
+    descricao = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-data']
+
+    def __str__(self):
+        return f"{self.data:%d/%m/%Y} - {self.membro} - {self.get_tipo_evento_display()}"
  #   nome = models.TextField(blank=True, null=True)
   #  tipo = models.TextField(blank=True, null=True)
    # endereco = models.TextField(blank=True, null=True)

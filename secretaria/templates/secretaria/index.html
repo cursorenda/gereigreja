@@ -1,123 +1,246 @@
+<style>
+            .aniversariantes-centralizado {
+                display: flex;
+                justify-content: center;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+                max-width: 1000px;
+                margin: 0 auto 2rem auto;
+            }
+            .aniversariantes-centralizado > .card {
+                flex: 1 1 220px;
+                max-width: 240px;
+                min-width: 180px;
+            }
+</style>
 {% extends 'base_com_menu.html' %}
 {% load static %}
 
 {% block title %}Bem-vindo(a) - {{ ministerio.nome }}{% endblock %}
 
+
 {% block content %}
 <div class="container-fluid px-4">
-
-    {# --- MENSAGEM DE BOAS-VINDAS --- #}
-    <div class="row justify-content-center mb-4">
-        <div class="col-lg-10 text-center">
-            <h1 class="mt-4 mb-3 display-4">Bem-vindo(a), {{ user.get_full_name|default:user.username }}!</h1>
-            <p class="lead">Gerenciando o Ministério: <strong>{{ ministerio.nome_fantasia }}</strong></p>
-            <div class="card-body text-center"> {# Adicionado text-center para centralizar o logo #}
-                {% if ministerio.logo %}
-                    <img src="{{ ministerio.logo.url }}" alt="Logo {{ ministerio.nome_fantasia|default:'Ministério' }}" class="rounded-circle img-fluid mb-3 shadow-sm" style="width: 150px; height: 150px; object-fit: cover;">
-                {% endif %}
-            <hr class="w-50 mx-auto"> {# Linha horizontal mais curta #}
-        </div>
-    </div>
-
-    {# Mensagens (se houver alguma da view get_ministerio_or_error ou outras) #}
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message|safe }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-
-    {# --- LINKS RÁPIDOS EM CARDS --- #}
-    <div class="row justify-content-center">
+    <!-- MENSAGEM DE BOAS-VINDAS -->
+    <div class="row justify-content-center mb-3">
         <div class="col-lg-10">
-            <div class="row row-cols-1 row-cols-md-3 g-4"> {# 1 coluna em telas pequenas, 3 em médias+ #}
-
-                {# Card para Dashboard #}
-                {# Assumindo que o dashboard é acessível a todos os usuários logados que chegam aqui #}
-                <div class="col">
-                    <a href="{% url 'secretaria:dashboard' %}" class="text-decoration-none"> {# Remover sublinhado do link #}
-                        <div class="card h-100 shadow-sm border-primary"> {# Adicionado shadow-sm #}
-                            <div class="card-body text-center">
-                                <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
-                                <h5 class="card-title">Dashboard</h5>
-                                <p class="card-text">Visão geral com gráficos e estatísticas.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-
-                {# Card para Listar Membros #}
-                {% if can_view_membros %}
-                <div class="col">
-                    <a href="{% url 'secretaria:lista_membros' %}" class="text-decoration-none">
-                        <div class="card h-100 shadow-sm border-secondary">
-                            <div class="card-body text-center">
-                                <i class="fas fa-users fa-3x text-secondary mb-3"></i>
-                                <h5 class="card-title">Listar Membros</h5>
-                                <p class="card-text">Consultar e gerenciar membros.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
+            <div class="d-flex align-items-center justify-content-center flex-wrap gap-4" style="min-height: 120px;">
+                {% if ministerio.logo %}
+                    <img src="{{ ministerio.logo.url }}" alt="Logo {{ ministerio.nome_fantasia|default:'Ministério' }}" class="rounded-circle img-fluid shadow-sm me-4" style="width: 135px; height: 135px; object-fit: cover;">
                 {% endif %}
-
-                {# Card para Adicionar Membro #}
-                {% if can_edit_membros %}
-                <div class="col">
-                    <a href="{% url 'secretaria:cadastrar_membro' %}" class="text-decoration-none">
-                        <div class="card h-100 shadow-sm border-success">
-                            <div class="card-body text-center">
-                                <i class="fas fa-user-plus fa-3x text-success mb-3"></i>
-                                <h5 class="card-title">Adicionar Membro</h5>
-                                <p class="card-text">Cadastrar um novo membro.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                {% endif %}
-
-                {# Card para Backup (apenas para superuser) #}
-                {% if user.is_superuser %}
-                <div class="col">
-                    <a href="{% url 'secretaria:backup_page' %}" class="text-decoration-none">
-                        <div class="card h-100 shadow-sm border-warning">
-                            <div class="card-body text-center">
-                                <i class="fas fa-database fa-3x text-warning mb-3"></i>
-                                <h5 class="card-title">Gerenciar Backups</h5>
-                                <p class="card-text">Fazer backup do banco de dados e arquivos.</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                {% endif %}
-
-                {# Adicione outros links importantes aqui (ex: Eventos, Configurações) #}
-
-            </div> {# Fim da row de cards #}
-        </div> {# Fim da col-lg-10 #}
-    </div> {# Fim da row principal #}
-
-    {# --- INFORMAÇÕES RESUMIDAS (OPCIONAL) --- #}
-    {% if can_view_membros %}
-    <div class="row justify-content-center mt-5">
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title">Informações Rápidas</h5>
-                    <p class="card-text">
-                        Total de pessoas ativas: <strong>{{ total_membros_ativos }}</strong><br>
-                        Novas pessoas no último mês: <strong>{{ novos_membros_ultimo_mes }}</strong><br>
-                        Próximo evento: <strong>{{ proximo_evento|default:"Nenhum evento próximo." }}</strong>
-                   </p>
+                <div class="text-center text-lg-start">
+                    <h1 class="mt-4 mb-2 display-5">Bem-vindo(a), {{ user.get_full_name|default:user.username }}!</h1>
+                    <p class="lead mb-0">Gerenciando o Ministério: <strong>{{ ministerio.nome_fantasia }}</strong></p>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- MENSAGENS DO DJANGO -->
+    {% if messages %}
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message|safe }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
     {% endif %}
 
-</div> {# Fim do container-fluid #}
+    <!-- BOTÕES RÁPIDOS -->
+    <div class="row justify-content-center mb-2">
+        <div class="col-lg-10 text-center">
+            <a href="{% url 'secretaria:dashboard' %}" class="btn btn-outline-primary btn-sm mx-1 mb-2">
+                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+            </a>
+            <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-outline-secondary btn-sm mx-1 mb-2">
+                <i class="fas fa-users me-1"></i> Listar Membros
+            </a>
+        </div>
+    </div>
+
+    <!-- CARDS DE AÇÃO (Adicionar Membro, Backup) -->
+    <div class="row justify-content-center mb-3">
+        {% if can_edit_membros %}
+            <div class="col-auto">
+                <a href="{% url 'secretaria:cadastrar_membro' %}" class="text-decoration-none">
+                    <div class="card h-100 shadow-sm border-success">
+                        <div class="card-body text-center">
+                            <i class="fas fa-user-plus fa-3x text-success mb-3"></i>
+                            <h5 class="card-title">Adicionar Membro</h5>
+                            <p class="card-text">Cadastrar um novo membro.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endif %}
+        {% if user.is_superuser %}
+            <div class="col-auto">
+                <a href="{% url 'secretaria:backup_page' %}" class="text-decoration-none">
+                    <div class="card h-100 shadow-sm border-warning">
+                        <div class="card-body text-center">
+                            <i class="fas fa-database fa-3x text-warning mb-3"></i>
+                            <h5 class="card-title">Gerenciar Backups</h5>
+                            <p class="card-text">Fazer backup do banco de dados e arquivos.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endif %}
+        {# Adicione outros cards de ação aqui se necessário #}
+    </div>
+
+    <!-- CARDS DE INFORMAÇÕES RESUMIDAS -->
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 offset-lg-2 mx-auto text-center">
+            <div class="row row-cols-1 row-cols-md-4 g-4 mb-4 justify-content-center">
+                <!-- Card: Total de membros ativos -->
+                <div class="col">
+                    <div class="card h-100 border-primary shadow-sm text-center">
+                        <div class="card-body">
+                            <i class="fas fa-user-friends fa-2x text-primary mb-2"></i>
+                              <h6 class="card-title">Total de Membros Ativos</h6>
+                            <h3 class="fw-bold">{{ total_membros_ativos }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <!-- Card: Novos membros no último mês -->
+                <div class="col">
+                    <div class="card h-100 border-success shadow-sm text-center">
+                        <div class="card-body">
+                            <i class="fas fa-user-plus fa-2x text-success mb-2"></i>
+                            <h6 class="card-title">Novos no mês</h6>
+                            <h3 class="fw-bold">{{ novos_membros_ultimo_mes }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <!-- Card: Pendências de cadastro -->
+                <div class="col">
+                    <div class="card h-100 border-warning shadow-sm text-center">
+                        <div class="card-body">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                            <h6 class="card-title">Pendências Cadastro</h6>
+                            <h3 class="fw-bold">{{ total_pendencias_cadastro }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <!-- Card: Contas vencidas -->
+                <div class="col">
+                    <div class="card h-100 border-danger shadow-sm text-center">
+                        <div class="card-body">
+                            <i class="fas fa-file-invoice-dollar fa-2x text-danger mb-2"></i>
+                            <h6 class="card-title">Contas Vencidas</h6>
+                            <h3 class="fw-bold">{{ total_contas_vencidas }}</h3>
+                            <div class="small">R$ {{ valor_total_contas_vencidas|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta de assinatura prestes a vencer -->
+            {% if assinatura_alerta %}
+                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                    <i class="fas fa-exclamation-circle fa-2x me-2"></i>
+                    <div>
+                        <strong>Atenção:</strong> Sua assinatura está <b>{{ assinatura_alerta.status }}</b> e restam <b>{{ assinatura_alerta.dias_restantes }}</b> dias para o vencimento.
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Gráfico de evolução de membros -->
+            <div class="card shadow-sm mb-4 mx-auto" style="max-width:700px;">
+                <div class="card-body">
+                    <h5 class="card-title">Evolução de Membros (12 meses)</h5>
+                    <canvas id="evolucaoMembrosChart" height="80"></canvas>
+                </div>
+            </div>
+
+            <!-- Cards de aniversariantes -->
+            <div class="aniversariantes-centralizado mx-auto">
+                <div class="card h-100 border-info shadow-sm text-center">
+                    <div class="card-body">
+                        <i class="fas fa-birthday-cake fa-2x text-info mb-2"></i>
+                        <h6 class="card-title">Aniversariantes Ontem</h6>
+                        {% if aniversariantes_ontem %}
+                            <ul class="list-unstyled mb-0">
+                                {% for m in aniversariantes_ontem %}
+                                    <li>{{ m.nome }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Nenhum</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card h-100 border-info shadow-sm text-center">
+                    <div class="card-body">
+                        <i class="fas fa-birthday-cake fa-2x text-info mb-2"></i>
+                        <h6 class="card-title">Aniversariantes Hoje</h6>
+                        {% if aniversariantes_hoje %}
+                            <ul class="list-unstyled mb-0">
+                                {% for m in aniversariantes_hoje %}
+                                    <li><strong>{{ m.nome }}</strong></li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Nenhum</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card h-100 border-info shadow-sm text-center">
+                    <div class="card-body">
+                        <i class="fas fa-birthday-cake fa-2x text-info mb-2"></i>
+                        <h6 class="card-title">Aniversariantes Amanhã</h6>
+                        {% if aniversariantes_amanha %}
+                            <ul class="list-unstyled mb-0">
+                                {% for m in aniversariantes_amanha %}
+                                    <li>{{ m.nome }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Nenhum</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock content %}
 
-{# Não precisa de extra_js aqui, a menos que adicione algo específico #}
+{% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {{ evolucao_meses|json_script:"evolucaoMeses" }}
+    {{ evolucao_membros|json_script:"evolucaoMembros" }}
+    <script>
+        const evolucaoMeses = JSON.parse(document.getElementById('evolucaoMeses').textContent);
+        const evolucaoMembros = JSON.parse(document.getElementById('evolucaoMembros').textContent);
+        const ctx = document.getElementById('evolucaoMembrosChart').getContext('2d');
+        const evolucaoMembrosChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: evolucaoMeses,
+                datasets: [{
+                    label: 'Membros Ativos',
+                    data: evolucaoMembros,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+{% endblock %}

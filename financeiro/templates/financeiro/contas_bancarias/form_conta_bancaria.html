@@ -75,6 +75,16 @@
                     {% if form.saldo_inicial.errors %}<div class="invalid-feedback d-block">{{ form.saldo_inicial.errors|join:", " }}</div>{% endif %}
                 </div>
 
+                <div class="form-check mb-3">
+                    {{ form.is_principal }}
+                    <label class="form-check-label" for="{{ form.is_principal.id_for_label }}">
+                        Marcar como Caixa Principal da Igreja
+                    </label>
+                    {% if form.is_principal.errors %}
+                        <div class="invalid-feedback d-block">{{ form.is_principal.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+
                 <button type="submit" class="btn btn-primary">Salvar</button>
                 <a href="{% url 'financeiro:lista_contas_bancarias' %}" class="btn btn-secondary">Cancelar</a>
             </form>

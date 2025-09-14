@@ -57,6 +57,17 @@
                 </div>
 
                 <div class="col-md-3">
+                    <label for="caixa_filtro_select" class="form-label">Caixa:</label>
+                    <select name="caixa_filtro" id="caixa_filtro_select" class="form-select form-select-sm">
+                        <option value="" {% if not request.GET.caixa_filtro %}selected{% endif %}>Todos os Caixas</option>
+                        {% for caixa in contas_bancarias_painel %}
+                            <option value="{{ caixa.pk }}" {% if request.GET.caixa_filtro == caixa.pk|stringformat:"s" %}selected{% endif %}>
+                                {{ caixa.nome_identificacao }}{% if caixa.is_principal %} (Principal){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label for="igreja" class="form-label">Igreja:</label>
                     <select name="igreja" id="igreja" class="form-select form-select-sm">
                         <option value="">Todas as Permitidas</option>

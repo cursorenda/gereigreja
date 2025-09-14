@@ -5,3 +5,6 @@ class secretariaConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'secretaria'
     verbose_name = 'secretaria'
+
+    def ready(self):
+        import secretaria.signals

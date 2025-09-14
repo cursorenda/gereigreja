@@ -1,3 +1,4 @@
+
 # financeiro/urls.py
 from django.urls import path, re_path
 from . import views
@@ -8,6 +9,12 @@ urlpatterns = [
     # Painel Financeiro
     path('', views.painel_financeiro, name='painel_financeiro'),
     path('painel-lideranca/', views.painel_lideranca_financeiro, name='painel_lideranca_financeiro'),
+
+    # Gestão de Permissões de Caixa
+    path('contas-bancarias/<int:caixa_id>/permissoes/', views.gerenciar_permissoes_caixa, name='gerenciar_permissoes_caixa'),
+
+    # Transferências entre Caixas
+    path('transferencias/nova/', views.transferencia_caixa_create, name='nova_transferencia_caixa'),
 
     # Receitas
     path('receitas/', views.lista_receitas, name='lista_receitas'),

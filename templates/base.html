@@ -32,11 +32,11 @@
             <footer class="py-4 bg-light mt-auto">
                 <div class="container-fluid px-4">
                     <div class="d-flex align-items-center justify-content-between small">
-                        <div class="text-muted">Copyright &copy; Seu Website {% now "Y" %}</div> {# Ano dinâmico #}
+                        <div class="text-muted">Copyright &copy; {{ SISTEMA_NOME }} {% now "Y" %}</div> {# Ano dinâmico #}
                         <div>
-                            <a href="#">Política de Privacidade</a>
+                            <a href="{% url 'politica_privacidade' %}">Política de Privacidade</a>
                             &middot;
-                            <a href="#">Termos &amp; Condições</a>
+                            <a href="{% url 'termos_condicoes' %}">Termos &amp; Condições</a>
                         </div>
                     </div>
                 </div>

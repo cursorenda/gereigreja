@@ -4,6 +4,7 @@ from .models import (
     Receitas, Despesas, CategoriaDespesa, FechamentoCaixa, ContaBancaria,
     Fornecedor, ContaPagar
 )
+from .models import TransferenciaCaixa
 from configuracao.models import Igreja, Ministerio
 from secretaria.models import Membro
 from decimal import Decimal
@@ -19,6 +20,7 @@ class DateInput(forms.DateInput):
     """Widget para usar input type="date" do HTML5."""
     input_type = 'date'
 
+
 class CategoriaDespesaForm(forms.ModelForm):
     """ Formulário para Categoria de Despesa (ligada à Ministério) """
     class Meta:
@@ -28,13 +30,25 @@ class CategoriaDespesaForm(forms.ModelForm):
             'nome': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
+class TransferenciaCaixaForm(forms.ModelForm):
+    class Meta:
+        model = TransferenciaCaixa
+        fields = ['caixa_origem', 'caixa_destino', 'valor', 'observacao']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['caixa_origem'].queryset = ContaBancaria.objects.all()
+        self.fields['caixa_destino'].queryset = ContaBancaria.objects.all()
+        self.fields['valor'].widget.attrs.update({'class': 'form-control', 'min': '0.01', 'step': '0.01'})
+        self.fields['observacao'].widget.attrs.update({'class': 'form-control'})
+
 class ContaBancariaForm(forms.ModelForm):
     """ Formulário para Conta Bancária (ligada à Igreja) """
     class Meta:
         model = ContaBancaria
         fields = [
             'igreja', 'nome_identificacao', 'tipo',
-            'instituicao_bancaria', 'agencia', 'conta', 'saldo_inicial'
+            'instituicao_bancaria', 'agencia', 'conta', 'saldo_inicial', 'is_principal'
         ]
         widgets = {
             'igreja': forms.Select(attrs={'class': 'form-select'}),
@@ -44,6 +58,7 @@ class ContaBancariaForm(forms.ModelForm):
             'agencia': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'conta': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'saldo_inicial': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'is_principal': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def __init__(self, *args, **kwargs):

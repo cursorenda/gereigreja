@@ -23,6 +23,19 @@
                 </select>
             </div>
 
+            {# Filtro de Caixa #}
+            <div class="input-group input-group-sm w-auto">
+                <label class="input-group-text" for="caixa_filtro_select">Caixa:</label>
+                <select name="caixa_filtro" id="caixa_filtro_select" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="" {% if not request.GET.caixa_filtro %}selected{% endif %}>Todos os Caixas</option>
+                    {% for caixa in contas_bancarias_painel %}
+                        <option value="{{ caixa.pk }}" {% if request.GET.caixa_filtro == caixa.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ caixa.nome_identificacao }}{% if caixa.is_principal %} (Principal){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
             {# Filtro de Período #}
             <div class="input-group input-group-sm w-auto">
                 <label class="input-group-text" for="periodo_filtro_select">Totais:</label>

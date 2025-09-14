@@ -52,7 +52,12 @@
                         {% for conta in contas_bancarias %}
                         <tr>
                             <td>{{ conta.igreja.nome_igreja }}</td>
-                            <td>{{ conta.nome_identificacao }}</td>
+                            <td>
+                                {{ conta.nome_identificacao }}
+                                {% if conta.is_principal %}
+                                    <span class="badge bg-primary ms-2">Caixa Principal</span>
+                                {% endif %}
+                            </td>
                             <td>{{ conta.get_tipo_display }}</td>
                             <td>{{ conta.instituicao_bancaria|default_if_none:"" }}</td>
                             <td>{{ conta.agencia|default_if_none:"" }}</td>
@@ -62,7 +67,8 @@
                             {% if can_edit_finance %}
                             <td>
                                 <a href="{% url 'financeiro:editar_conta_bancaria' conta.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Editar"><i class="fas fa-edit"></i></a>
-                                <a href="{% url 'financeiro:excluir_conta_bancaria' conta.pk %}" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="fas fa-trash"></i></a>
+                                <a href="{% url 'financeiro:excluir_conta_bancaria' conta.pk %}" class="btn btn-sm btn-outline-danger me-1" title="Excluir"><i class="fas fa-trash"></i></a>
+                                <a href="{% url 'financeiro:gerenciar_permissoes_caixa' conta.pk %}" class="btn btn-sm btn-outline-secondary" title="Permissões"><i class="fas fa-user-shield"></i></a>
                             </td>
                             {% endif %}
                         </tr>

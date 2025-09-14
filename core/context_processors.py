@@ -1,3 +1,7 @@
+
+def sistema_nome(request):
+    """Adiciona o nome do sistema ao contexto de todos os templates."""
+    return {'SISTEMA_NOME': 'Gereigreja'}
 from comunicacao.models import Notificacao
 
 def unread_notifications(request):

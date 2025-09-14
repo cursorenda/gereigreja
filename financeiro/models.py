@@ -1,3 +1,58 @@
+
+from django.db import models
+from django.conf import settings
+
+class PermissaoCaixa(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    caixa = models.ForeignKey('ContaBancaria', on_delete=models.CASCADE, related_name='permissoes')
+    pode_visualizar = models.BooleanField(default=True)
+    pode_transferir = models.BooleanField(default=False)
+    pode_editar = models.BooleanField(default=False)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('usuario', 'caixa')
+        verbose_name = 'Permissão de Caixa'
+        verbose_name_plural = 'Permissões de Caixas'
+
+    def __str__(self):
+        return f"{self.usuario} - {self.caixa} ({'Transferir' if self.pode_transferir else 'Visualizar'})"
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.conf import settings
+class TransferenciaCaixa(models.Model):
+    caixa_origem = models.ForeignKey('ContaBancaria', related_name='transferencias_saida', on_delete=models.PROTECT)
+    caixa_destino = models.ForeignKey('ContaBancaria', related_name='transferencias_entrada', on_delete=models.PROTECT)
+    valor = models.DecimalField(max_digits=12, decimal_places=2)
+    data = models.DateTimeField(auto_now_add=True)
+    observacao = models.TextField(blank=True)
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    def clean(self):
+        if self.caixa_origem == self.caixa_destino:
+            raise ValidationError('Caixa de origem e destino devem ser diferentes.')
+        if self.valor <= 0:
+            raise ValidationError('O valor da transferência deve ser maior que zero.')
+        if self.caixa_origem.saldo_atual < self.valor:
+            raise ValidationError('Saldo insuficiente no caixa de origem.')
+
+    def save(self, *args, **kwargs):
+        from django.db import transaction
+        self.clean()
+        with transaction.atomic():
+            # Atualiza os saldos
+            origem = ContaBancaria.objects.select_for_update().get(pk=self.caixa_origem.pk)
+            destino = ContaBancaria.objects.select_for_update().get(pk=self.caixa_destino.pk)
+            origem.saldo_atual -= self.valor
+            destino.saldo_atual += self.valor
+            origem.save(update_fields=['saldo_atual'])
+            destino.save(update_fields=['saldo_atual'])
+            super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'Transferência entre Caixas'
+        verbose_name_plural = 'Transferências entre Caixas'
+        ordering = ['-data']
 # financeiro/models.py
 from django.db import models
 from django.utils import timezone
@@ -295,6 +350,14 @@ class Receitas(models.Model):
 # --- NOVO MODELO: ContaBancaria (Exemplo) ---
 # Se você não tiver, adicione algo assim
 class ContaBancaria(models.Model):
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.is_principal:
+            qs = ContaBancaria.objects.filter(igreja=self.igreja, is_principal=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError("Já existe um caixa principal para esta igreja.")
     TIPO_CONTA_CHOICES = [
         ('bancaria', 'Conta Bancária'),
         ('caixa_fisico', 'Caixa Físico/Carteira'),
@@ -318,6 +381,11 @@ class ContaBancaria(models.Model):
         editable=False # Geralmente não é editável diretamente pelo usuário no form
     )
     padrao_global = models.BooleanField(default=False, verbose_name="Padrão Global?")
+    is_principal = models.BooleanField(
+        default=False,
+        verbose_name="Caixa Principal?",
+        help_text="Marque se este é o caixa principal da igreja. Só deve haver um por igreja."
+    )
 
     def __str__(self):
         return f"{self.nome_identificacao} ({self.igreja.nome_igreja})"

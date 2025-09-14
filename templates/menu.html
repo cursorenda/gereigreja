@@ -1,5 +1,6 @@
 {% load financeiro_tags %} {# Carrega nossos templatetags personalizados #}
 {% load secretaria_tags %} {# Carrega os templatetags da secretaria #}
+{% load secretaria_extras %}
 
 <div class="sb-sidenav-menu">
     <div class="nav">
@@ -39,10 +40,45 @@
             </a>
 
             <div class="sb-sidenav-menu-heading">Secretaria</div>
+
+
+
             <a class="nav-link" href="{% url 'secretaria:lista_membros' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
                 Membros
             </a>
+
+            {% if request.user.is_superuser or request.user|has_group:'Pastor,Administrador,Admin Ministerio,Lider Igreja' %}
+            <a class="nav-link" href="{% url 'secretaria:associar_usuarios_membros' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-user-plus"></i></div>
+                Associar Usuários
+            </a>
+            {% endif %}
+
+            <a class="nav-link" href="{% url 'secretaria:lista_cargos' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
+                Cargos
+            </a>
+
+
+            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseRelatoriosSecretaria" aria-expanded="false" aria-controls="collapseRelatoriosSecretaria">
+                <div class="sb-nav-link-icon"><i class="fas fa-file-alt"></i></div>
+                Relatórios
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+            </a>
+            <div class="collapse" id="collapseRelatoriosSecretaria" aria-labelledby="headingRelatoriosSecretaria" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    <a class="nav-link" href="{% url 'secretaria:linha_do_tempo' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-stream"></i></div>
+                        Linha do Tempo
+                    </a>
+                    <a class="nav-link" href="{% url 'secretaria:relatorio_reuniao_membros' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
+                        Reunião de Membros
+                    </a>
+                </nav>
+            </div>
+
 
             <div class="sb-sidenav-menu-heading">Financeiro</div>
             <a class="nav-link" href="{% url 'financeiro:painel_financeiro' %}">
@@ -50,7 +86,6 @@
                 Painel Financeiro
             </a>
 
-             {# Submenu Lançamentos #}
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLancamentos" aria-expanded="false" aria-controls="collapseLancamentos">
                 <div class="sb-nav-link-icon"><i class="fas fa-exchange-alt"></i></div>
                 Lançamentos
@@ -66,10 +101,31 @@
                         <div class="sb-nav-link-icon"><i class="fas fa-arrow-alt-circle-up text-danger"></i></div>
                         Despesas
                     </a>
+                    <a class="nav-link" href="{% url 'financeiro:nova_transferencia_caixa' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-exchange-alt"></i></div>
+                        Transferências entre Caixas
+                    </a>
                 </nav>
             </div>
 
-            {# Submenu Contas a Pagar #}
+            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseCaixas" aria-expanded="false" aria-controls="collapseCaixas">
+                <div class="sb-nav-link-icon"><i class="fas fa-university"></i></div>
+                Caixas/Bancos
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+            </a>
+            <div class="collapse" id="collapseCaixas" aria-labelledby="headingCaixas" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    <a class="nav-link" href="{% url 'financeiro:lista_contas_bancarias' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
+                        Listar Caixas/Bancos
+                    </a>
+                    <a class="nav-link" href="{% url 'financeiro:lista_fechamentos_caixa' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-lock"></i></div>
+                        Fechamento de Caixa
+                    </a>
+                </nav>
+            </div>
+
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseContasPagar" aria-expanded="false" aria-controls="collapseContasPagar">
                 <div class="sb-nav-link-icon"><i class="fas fa-file-invoice-dollar"></i></div>
                 Contas a Pagar
@@ -79,25 +135,15 @@
                 <nav class="sb-sidenav-menu-nested nav">
                     <a class="nav-link" href="{% url 'financeiro:lista_contas_pagar' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-list-alt"></i></div>
-                        Obrigações
+                        Listar Contas a Pagar
                     </a>
                 </nav>
             </div>
 
-            {# Submenu Gerenciar Financeiro #}
-            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseGerenciarFinanceiro" aria-expanded="false" aria-controls="collapseGerenciarFinanceiro">
-                <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
-                Caixa
-                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+            <a class="nav-link" href="#">
+                <div class="sb-nav-link-icon"><i class="fas fa-chart-bar"></i></div>
+                Relatórios
             </a>
-            <div class="collapse" id="collapseGerenciarFinanceiro" aria-labelledby="headingGerenciarFinanceiro" data-bs-parent="#sidenavAccordion">
-                <nav class="sb-sidenav-menu-nested nav">
-                    <a class="nav-link" href="{% url 'financeiro:lista_fechamentos_caixa' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-archive"></i></div>
-                        Fechamentos de Caixa
-                    </a>
-                </nav>
-            </div>
             {# --- NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}
             {% load igreja_tags %}
             {% user_is_secretaria_leader_tag request.user as can_see_lideranca_secretaria %}

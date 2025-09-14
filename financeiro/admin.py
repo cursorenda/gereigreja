@@ -3,6 +3,7 @@ from .models import (
     Receitas, Despesas, CategoriaDespesa, FechamentoCaixa, ContaBancaria,
     Fornecedor, ContaPagar
 )
+from .models import PermissaoCaixa
 
 @admin.register(CategoriaDespesa)
 class CategoriaDespesaAdmin(admin.ModelAdmin):
@@ -58,3 +59,9 @@ class ContaPagarAdmin(admin.ModelAdmin):
     readonly_fields = ('data_criacao', 'data_atualizacao')
     autocomplete_fields = ['ministerio', 'igreja', 'fornecedor', 'categoria', 'conta_debito']
     date_hierarchy = 'data_vencimento'
+
+@admin.register(PermissaoCaixa)
+class PermissaoCaixaAdmin(admin.ModelAdmin):
+    list_display = ('usuario', 'caixa', 'pode_visualizar', 'pode_transferir', 'pode_editar', 'criado_em')
+    list_filter = ('caixa', 'pode_transferir', 'pode_editar')
+    search_fields = ('usuario__username', 'caixa__nome_identificacao')

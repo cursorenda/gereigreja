@@ -61,7 +61,13 @@ class StatusHistoricoAdmin(admin.ModelAdmin):
     ordering = ('-data_transicao',)
 
 # --- Registre os outros modelos se desejar (descomente/adicione conforme necessário) ---
-# admin.site.register(Cargos)
+
+@admin.register(Cargos)
+class CargosAdmin(admin.ModelAdmin):
+    list_display = ('cargo', 'grupo_permissao')
+    search_fields = ('cargo',)
+    autocomplete_fields = ['grupo_permissao']
+    list_filter = ('grupo_permissao',)
 # admin.site.register(Contatos)
 # admin.site.register(Eventos)
 # admin.site.register(EventosParticipacao)

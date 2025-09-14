@@ -111,7 +111,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.unread_notifications', # Adicionado para o contador de notificações
-
+                'core.context_processors.sistema_nome', # Nome do sistema para o footer
             ],
         },
     },

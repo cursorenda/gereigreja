@@ -1,0 +1,11 @@
+<ul class="list-group">
+  {% for log in auditoria %}
+    <li class="list-group-item">
+      <strong>{{ log.acao }}</strong> - {{ log.usuario }} em {{ log.data|date:'d/m/Y H:i' }}
+      <br>
+      <small>{{ log.detalhes }}</small>
+    </li>
+  {% empty %}
+    <li class="list-group-item">Nenhuma ação registrada.</li>
+  {% endfor %}
+</ul>
