@@ -1,0 +1,95 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Detalhes do Evento{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">{{ evento.titulo }}</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+    <li class="breadcrumb-item active">Detalhes do Evento</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-calendar-alt me-1"></i> {{ evento.titulo }}
+    </div>
+    <div class="card-body">
+      <div class="row mb-4">
+        {% if evento.capa %}
+        <div class="col-md-4 text-center d-flex align-items-start justify-content-center">
+          <img src="{{ evento.capa.url }}" alt="Capa do Evento" class="img-fluid rounded shadow mb-3" style="max-height: 340px; max-width: 100%;">
+        </div>
+        {% endif %}
+        <div class="col-md-8">
+          <div class="row">
+            <div class="col-md-7">
+              <div class="mb-2"><strong>Título:</strong> {{ evento.titulo }}</div>
+              <div class="mb-2"><strong>Tipo:</strong> {{ evento.get_tipo_display }}</div>
+              <div class="mb-2"><strong>Igreja:</strong> {{ evento.igreja }}</div>
+              <div class="mb-2"><strong>Local:</strong> {{ evento.local }}</div>
+              <div class="mb-2"><strong>Responsável:</strong> {{ evento.responsavel }}</div>
+            </div>
+            <div class="col-md-5">
+              <div class="mb-2"><strong>Início:</strong> {{ evento.data_inicio|date:'d/m/Y H:i' }}</div>
+              <div class="mb-2"><strong>Fim:</strong> {{ evento.data_fim|date:'d/m/Y H:i' }}</div>
+              <div class="mb-2"><strong>Criado por:</strong> {{ evento.criado_por }}</div>
+            </div>
+            <div class="col-12 mt-2">
+              <div class="mb-2"><strong>Descrição:</strong><br>{{ evento.descricao }}</div>
+            </div>
+          </div>
+          <div class="row mt-3">
+            <div class="col-12">
+              <h5 class="mb-2 border-bottom pb-1">Recorrência</h5>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-2"><strong>Recorrente?</strong> {{ evento.recorrente|yesno:"Sim,Não" }}</div>
+            </div>
+            {% if evento.recorrente %}
+            <div class="col-md-4">
+              <div class="mb-2"><strong>Frequência:</strong> {{ evento.get_frequencia_display }}</div>
+              <div class="mb-2"><strong>Intervalo:</strong> {{ evento.intervalo }}</div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-2"><strong>Dia(s) da Semana:</strong> {{ evento.dia_semana }}</div>
+              <div class="mb-2"><strong>Semana do Mês:</strong> {{ evento.semana_mes }}</div>
+              <div class="mb-2"><strong>Mês(es) do Ano:</strong> {{ evento.mes_ano }}</div>
+              <div class="mb-2"><strong>Data Fim Recorrência:</strong> {{ evento.data_fim_recorrencia|date:'d/m/Y' }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <strong>Criado por:</strong><br>{{ evento.criado_por }}
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 d-flex gap-2 flex-wrap">
+      {% if evento.anexos.all %}
+      <div class="row mb-4">
+        <div class="col-12">
+          <h5 class="mb-2 border-bottom pb-1">Anexos</h5>
+          <ul class="list-unstyled">
+            {% for anexo in evento.anexos.all %}
+              <li class="mb-1">
+                <a href="{{ anexo.arquivo.url }}" target="_blank">
+                  <i class="fas fa-paperclip me-1"></i>{{ anexo.arquivo.name|cut:'eventos/anexos/' }}
+                </a>
+              </li>
+            {% empty %}
+              <li><small class="text-muted">Nenhum anexo disponível.</small></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+  <a href="{% url 'eventos:marcar_presenca' evento.pk %}" class="btn btn-success">Marcar Presença</a>
+  <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-warning">Editar</a>
+  <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger">Excluir</a>
+  <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-secondary">Voltar</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -553,3 +553,53 @@ Limite do isolamento
 No Django, apps nunca são 100% isolados se há relações entre dados (ex: igreja, membro, conta). O objetivo é minimizar o acoplamento e tornar as dependências explícitas e fáceis de manter.
 
 
+Sugestões de melhorias para o Gereigreja
+Painel de notificações centralizado
+
+Notificações de aniversários, pendências, aprovações e movimentações financeiras em um só lugar, com histórico e filtros.
+Auditoria detalhada
+
+Log de todas as ações importantes (criação, edição, exclusão) por usuário, com visualização fácil para administradores.
+Dashboard personalizável
+
+Permitir que cada usuário escolha quais gráficos, cards e informações deseja ver na tela inicial.
+Relatórios exportáveis
+
+Exportação de relatórios de membros, finanças, eventos e cargos em PDF/Excel, com filtros avançados.
+
+Gestão de documentos
+
+Upload e organização de documentos por igreja, membro ou evento (ex: atas, contratos, certidões).
+Integração com WhatsApp e e-mail
+
+Envio de comunicados, lembretes e convites diretamente pelo sistema, com registro de envio e leitura.
+Fluxo de aprovação para cadastros sensíveis
+
+Aprovação de novos membros, cargos ou movimentações financeiras por usuários com permissão superior.
+Permissões ainda mais granulares
+
+Permitir definir permissões por ação (visualizar, editar, excluir) em cada módulo, não só por cargo.
+API para integração externa
+
+Disponibilizar uma API REST para integração com outros sistemas (ex: contabilidade, aplicativos móveis).
+Acessibilidade e responsividade
+
+Melhorar a experiência em dispositivos móveis e garantir acessibilidade para todos os perfis de usuário.
+Onboarding e tutoriais interativos
+
+Guias passo a passo para novos usuários, com vídeos ou pop-ups explicativos.
+Backup e restauração simplificados
+
+Interface para backup manual/automático e restauração de dados, com logs de segurança.
+
+agenda/eventos:
+Filtros avançados na agenda (por tipo, igreja, período).
+Exportar eventos para Google Calendar/Outlook ou baixar como .ics.
+Busca rápida por título ou descrição.
+Destaque visual para o dia atual.
+Paginação ou navegação rápida entre meses/anos.
+Permitir anexar arquivos/imagens ao evento.
+Notificações automáticas por e-mail/WhatsApp.
+Permitir eventos recorrentes (ex: culto toda semana).
+Visualização semanal e diária mais detalhada.
+Permitir comentários ou confirmações de presença nos eventos.

@@ -275,6 +275,8 @@ class Membro(models.Model):
 
 
 class Cargos(models.Model):
+    def __str__(self):
+        return self.cargo or f"Cargo {self.pk}"
     cargo = models.TextField(unique=True, blank=True, null=True)
     grupo_permissao = models.ForeignKey(
         'auth.Group',

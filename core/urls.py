@@ -6,7 +6,9 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 # Importar a view da landing page
+
 from contas.views import LandingPageView
+from core.views import notificacoes_enviadas_view
 
 
 urlpatterns = [
@@ -28,6 +30,10 @@ urlpatterns = [
     path('', LandingPageView.as_view(), name='landing_page'),
     # O sistema interno (secretaria, etc.) agora começa com '/sistema/'
     path('sistema/', include(('secretaria.urls', 'secretaria'), namespace='secretaria')),
+    path('agenda/', include(('agenda.urls', 'agenda'), namespace='agenda')),
+
+    # Página de acompanhamento de notificações enviadas
+    path('notificacoes-enviadas/', notificacoes_enviadas_view, name='notificacoes_enviadas'),
 
 ]
 

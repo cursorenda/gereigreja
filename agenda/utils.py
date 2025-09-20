@@ -1,0 +1,1 @@
+# Funções utilitárias para agenda

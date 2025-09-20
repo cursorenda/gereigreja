@@ -1,0 +1,34 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Editar Evento - Agenda{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Editar Evento</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
+        <li class="breadcrumb-item active">Editar Evento</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-edit me-1"></i>
+            Editar Evento: {{ evento.titulo }}
+        </div>
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <div class="col-12 d-flex flex-column flex-md-row gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary w-100 w-md-auto mb-2 mb-md-0" aria-label="Salvar alterações"><i class="fas fa-save"></i> Salvar</button>
+                    <a href="{% url 'agenda:detalhe_evento' evento.pk %}" class="btn btn-secondary w-100 w-md-auto" aria-label="Cancelar e voltar">Cancelar</a>
+                </div>
+            </form>
+<style>
+    @media (max-width: 600px) {
+        .form-label { font-size: 0.98rem; }
+        .form-control, .form-select { font-size: 1rem; }
+    }
+</style>
+        </div>
+    </div>
+</div>
+{% endblock %}

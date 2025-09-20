@@ -1,3 +1,18 @@
+from django.db import models
+# --- Configurações Globais do Sistema (Notificações, etc) ---
+class ConfiguracaoSistema(models.Model):
+    ministerio = models.OneToOneField('Ministerio', on_delete=models.CASCADE, related_name='configuracao', verbose_name='Ministério')
+    notificar_eventos = models.BooleanField(default=True, verbose_name='Enviar notificações de eventos?')
+    notificar_aniversarios = models.BooleanField(default=True, verbose_name='Enviar notificações de aniversários?')
+    # Adicione outros tipos de notificação conforme necessário
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuração do Sistema'
+        verbose_name_plural = 'Configurações do Sistema'
+
+    def __str__(self):
+        return f'Configuração de {self.ministerio.nome_fantasia}'
 
 # c:\Gereigreja\configuracao\models.py
 from django.db import models

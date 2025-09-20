@@ -33,10 +33,23 @@
 
 
         {# Menu Completo - Exibido apenas se o usuário tiver uma ministério ATIVA #}
-        {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
+    {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
+
+
             <a class="nav-link" href="{% url 'secretaria:dashboard' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 Dashboard
+            </a>
+
+
+            <div class="sb-sidenav-menu-heading">Agenda & Eventos</div>
+            <a class="nav-link" href="{% url 'agenda:agenda' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-calendar-week"></i></div>
+                Agenda
+            </a>
+            <a class="nav-link" href="{% url 'eventos:lista_eventos' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
+                Eventos
             </a>
 
             <div class="sb-sidenav-menu-heading">Secretaria</div>

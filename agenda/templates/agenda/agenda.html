@@ -1,0 +1,186 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Agenda</h1>
+    <!-- Legenda de cores dos tipos de evento -->
+    <div class="mb-3" id="legenda-tipos-evento">
+        <span class="badge" style="background:#007bff">Culto</span>
+        <span class="badge" style="background:#28a745">Reunião</span>
+        <span class="badge" style="background:#ffc107; color:#212529;">Festa</span>
+        <span class="badge" style="background:#dc3545">Feriado</span>
+        <span class="badge" style="background:#6f42c1">Estudo</span>
+        <span class="badge" style="background:#6c757d">Outro</span>
+    </div>
+
+    <!-- Filtros e busca rápida -->
+    <form id="filtros-agenda" class="row g-2 align-items-end mb-3">
+        <div class="col-md-2">
+            <label for="filtro_tipo" class="form-label mb-0">Tipo</label>
+            <select id="filtro_tipo" class="form-select form-select-sm" name="tipo">
+                <option value="">Todos</option>
+                <option value="culto">Culto</option>
+                <option value="reuniao">Reunião</option>
+                <option value="festa">Festa</option>
+                <option value="feriado">Feriado</option>
+                <option value="estudo">Estudo</option>
+                <option value="outro">Outro</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="filtro_inicio" class="form-label mb-0">Início</label>
+            <input type="date" id="filtro_inicio" name="inicio" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+            <label for="filtro_fim" class="form-label mb-0">Fim</label>
+            <input type="date" id="filtro_fim" name="fim" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+            <label for="filtro_busca" class="form-label mb-0">Busca</label>
+            <input type="text" id="filtro_busca" name="busca" class="form-control form-control-sm" placeholder="Título ou descrição">
+        </div>
+        <div class="col-md-3 d-flex align-items-end gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="limpar-filtros">Limpar</button>
+        </div>
+    </form>
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <div id="calendar"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var filtrosForm = document.getElementById('filtros-agenda');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'pt-br',
+                timeZone: 'America/Sao_Paulo',
+                aspectRatio: window.innerWidth < 600 ? 0.7 : 1.35,
+                height: 'auto',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                buttonText: {
+                    today: 'Hoje',
+                    month: 'Mês',
+                    week: 'Semana',
+                    day: 'Dia'
+                },
+                events: function(fetchInfo, successCallback, failureCallback) {
+                    // Monta os parâmetros dos filtros
+                    var params = new URLSearchParams();
+                    var tipo = document.getElementById('filtro_tipo').value;
+                    var inicio = document.getElementById('filtro_inicio').value;
+                    var fim = document.getElementById('filtro_fim').value;
+                    var busca = document.getElementById('filtro_busca').value;
+                    if (tipo) params.append('tipo', tipo);
+                    // filtro igreja removido
+                    if (inicio) params.append('inicio', inicio);
+                    if (fim) params.append('fim', fim);
+                    if (busca) params.append('busca', busca);
+                    fetch('{% url "agenda:agenda_eventos_json" %}?' + params.toString())
+                        .then(response => response.json())
+                        .then(data => successCallback(data))
+                        .catch(error => failureCallback(error));
+                },
+                eventDidMount: function(info) {
+                    var tooltip = info.event.extendedProps && info.event.extendedProps.descricao ?
+                        info.event.title + "\n" + (info.event.extendedProps.tipo || '') + "\n" + (info.event.extendedProps.local || '') + "\n" + info.event.extendedProps.descricao :
+                        info.event.title;
+                    info.el.setAttribute('title', tooltip);
+                    if (info.event.extendedProps && info.event.extendedProps.tipo && info.event._def.extendedProps.icon) {
+                        var iconClass = info.event._def.extendedProps.icon;
+                        var iconElem = document.createElement('i');
+                        iconElem.className = iconClass + ' me-1';
+                        var titleElem = info.el.querySelector('.fc-event-title') || info.el;
+                        if (titleElem && !titleElem.querySelector('i')) {
+                            titleElem.prepend(iconElem);
+                        }
+                    }
+                },
+                eventClick: function(info) {
+                    var modal = document.getElementById('eventoDetalheModal');
+                    var modalTitle = modal.querySelector('.modal-title');
+                    var modalBody = modal.querySelector('.modal-body');
+                    var iconClass = (info.event.extendedProps && info.event.extendedProps.icon) ? info.event.extendedProps.icon : 'fa-solid fa-calendar';
+                    var iconElem = iconClass ? '<i class="' + iconClass.replace(/"/g, '') + ' me-2"></i>' : '';
+                    modalTitle.innerHTML = iconElem + info.event.title;
+                    var props = info.event.extendedProps;
+                    var html = '';
+                    html += '<div><strong>Tipo:</strong> ' + (props.tipo || '-') + '</div>';
+                    html += '<div><strong>Início:</strong> ' + info.event.start.toLocaleString('pt-BR') + '</div>';
+                    html += '<div><strong>Fim:</strong> ' + (info.event.end ? info.event.end.toLocaleString('pt-BR') : '-') + '</div>';
+                    html += '<div><strong>Local:</strong> ' + (props.local || '-') + '</div>';
+                    html += '<div><strong>Descrição:</strong> ' + (props.descricao || '-') + '</div>';
+                    modalBody.innerHTML = html;
+                    var modalInstance = new bootstrap.Modal(modal);
+                    modalInstance.show();
+                    info.jsEvent.preventDefault();
+                }
+            });
+            calendar.render();
+
+            // Submete o formulário de filtros sem recarregar a página
+            filtrosForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                calendar.refetchEvents();
+            });
+            // Botão limpar filtros
+            document.getElementById('limpar-filtros').addEventListener('click', function() {
+                filtrosForm.reset();
+                calendar.refetchEvents();
+            });
+        });
+    </script>
+
+    <!-- Modal de Detalhes do Evento -->
+    <div class="modal fade" id="eventoDetalheModal" tabindex="-1" aria-labelledby="eventoDetalheModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="eventoDetalheModalLabel">Detalhes do Evento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Detalhes do evento serão preenchidos via JS -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+<style>
+    #calendar {
+        max-width: 900px;
+        margin: 40px auto;
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    /* Destaque para o dia atual no FullCalendar */
+    .fc-day-today {
+        background: #e3f2fd !important;
+        border: 2px solid #1976d2 !important;
+        border-radius: 6px;
+        box-shadow: 0 0 0 2px #1976d233;
+    }
+    @media (max-width: 600px) {
+        #calendar {
+            padding: 5px;
+            font-size: 0.95rem;
+        }
+        .fc-toolbar-title {
+            font-size: 1.1rem !important;
+        }
+        .fc-button {
+            font-size: 0.95rem !important;
+            padding: 0.25rem 0.5rem !important;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,265 @@
+<script>
+function atualizarDataFim() {
+  const dataInicioInput = document.getElementById('id_data_inicio');
+  const qtdDiasInput = document.getElementById('id_quantidade_dias');
+  const horaTerminoInput = document.getElementById('id_hora_termino');
+  const dataFimInput = document.querySelector('input[readonly][class*="form-control"]');
+  if (!dataInicioInput || !qtdDiasInput || !dataFimInput) return;
+  const dataInicioStr = dataInicioInput.value;
+  const qtdDias = parseInt(qtdDiasInput.value);
+  const horaTerminoStr = horaTerminoInput ? horaTerminoInput.value : null;
+  if (dataInicioStr && qtdDias && qtdDias > 0) {
+    const dataInicio = new Date(dataInicioStr);
+    if (!isNaN(dataInicio.getTime())) {
+      // Adiciona qtdDias-1 dias
+      dataInicio.setDate(dataInicio.getDate() + (qtdDias - 1));
+      if (horaTerminoStr) {
+        const [h, m] = horaTerminoStr.split(":");
+        dataInicio.setHours(parseInt(h), parseInt(m));
+      }
+      // Formata para dd/mm/yyyy hh:mm
+      const dia = String(dataInicio.getDate()).padStart(2, '0');
+      const mes = String(dataInicio.getMonth() + 1).padStart(2, '0');
+      const ano = dataInicio.getFullYear();
+      const hora = String(dataInicio.getHours()).padStart(2, '0');
+      const min = String(dataInicio.getMinutes()).padStart(2, '0');
+      dataFimInput.value = `${dia}/${mes}/${ano} ${hora}:${min}`;
+    }
+  } else {
+    dataFimInput.value = '';
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const dataInicioInput = document.getElementById('id_data_inicio');
+  const qtdDiasInput = document.getElementById('id_quantidade_dias');
+  const horaTerminoInput = document.getElementById('id_hora_termino');
+  if (dataInicioInput) dataInicioInput.addEventListener('change', atualizarDataFim);
+  if (qtdDiasInput) qtdDiasInput.addEventListener('input', atualizarDataFim);
+  if (horaTerminoInput) horaTerminoInput.addEventListener('input', atualizarDataFim);
+  atualizarDataFim();
+});
+</script>
+{% extends 'base_com_menu.html' %}
+{% block title %}Editar Evento{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Editar Evento</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+    <li class="breadcrumb-item active">Editar Evento</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <!-- Grid alinhado e aproveitamento total do espaço -->
+        <div class="row mb-4">
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="form-check mb-3">
+              {{ form.incluir_todos_membros }}
+              <label for="id_incluir_todos_membros" class="form-check-label">Incluir todos os membros</label>
+              <small class="text-muted d-block">Marque para incluir todos os membros da igreja como participantes esperados deste evento.</small>
+            </div>
+          </div>
+        </div>
+        <div class="row mb-4">
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="id_tipos_participantes" class="form-label">Tipos de Pessoas Esperadas:</label>
+              {{ form.tipos_participantes }}
+              {% if form.tipos_participantes.errors %}<div class="invalid-feedback d-block">{{ form.tipos_participantes.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="id_status_participantes" class="form-label">Status de Pessoas Esperadas:</label>
+              {{ form.status_participantes }}
+              {% if form.status_participantes.errors %}<div class="invalid-feedback d-block">{{ form.status_participantes.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="id_cargos_participantes" class="form-label">Cargos de Pessoas Esperadas:</label>
+              {{ form.cargos_participantes }}
+              {% if form.cargos_participantes.errors %}<div class="invalid-feedback d-block">{{ form.cargos_participantes.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
+              {{ form.igreja }}
+              {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="{{ form.titulo.id_for_label }}" class="form-label">{{ form.titulo.label }}:</label>
+              {{ form.titulo }}
+              {% if form.titulo.errors %}<div class="invalid-feedback d-block">{{ form.titulo.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mb-3">
+              <label for="{{ form.tipo.id_for_label }}" class="form-label">{{ form.tipo.label }}:</label>
+              {{ form.tipo }}
+              {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.local.id_for_label }}" class="form-label">{{ form.local.label }}:</label>
+              {{ form.local }}
+              {% if form.local.errors %}<div class="invalid-feedback d-block">{{ form.local.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="{{ form.responsavel.id_for_label }}" class="form-label">{{ form.responsavel.label }}:</label>
+              {{ form.responsavel }}
+              {% if form.responsavel.errors %}<div class="invalid-feedback d-block">{{ form.responsavel.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <div class="mb-3">
+              <label for="{{ form.data_inicio.id_for_label }}" class="form-label">{{ form.data_inicio.label }}:</label>
+              {{ form.data_inicio }}
+              {% if form.data_inicio.errors %}<div class="invalid-feedback d-block">{{ form.data_inicio.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-3">
+              <label for="{{ form.quantidade_dias.id_for_label }}" class="form-label">{{ form.quantidade_dias.label }}:</label>
+              {{ form.quantidade_dias }}
+              {% if form.quantidade_dias.errors %}<div class="invalid-feedback d-block">{{ form.quantidade_dias.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-3">
+              <label for="{{ form.hora_termino.id_for_label }}" class="form-label">{{ form.hora_termino.label }}:</label>
+              {{ form.hora_termino }}
+              {% if form.hora_termino.errors %}<div class="invalid-feedback d-block">{{ form.hora_termino.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-3">
+              <label class="form-label">Data de Fim:</label>
+              <input type="text" class="form-control" value="{{ form.instance.data_fim|date:'d/m/Y H:i' }}" readonly>
+            </div>
+          </div>
+        </div>
+        <h5 class="mt-4 mb-3 border-bottom pb-2">Recorrência</h5>
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <div class="form-check mb-3">
+              {{ form.recorrente }}
+              <label for="{{ form.recorrente.id_for_label }}" class="form-check-label">{{ form.recorrente.label }}</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-3">
+              <label for="{{ form.frequencia.id_for_label }}" class="form-label">{{ form.frequencia.label }}:</label>
+              {{ form.frequencia }}
+              {% if form.frequencia.errors %}<div class="invalid-feedback d-block">{{ form.frequencia.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-3">
+              <label for="{{ form.intervalo.id_for_label }}" class="form-label">{{ form.intervalo.label }}:</label>
+              {{ form.intervalo }}
+              {% if form.intervalo.errors %}<div class="invalid-feedback d-block">{{ form.intervalo.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="mb-3">
+              <label for="{{ form.data_fim_recorrencia.id_for_label }}" class="form-label">{{ form.data_fim_recorrencia.label }}:</label>
+              {{ form.data_fim_recorrencia }}
+              {% if form.data_fim_recorrencia.errors %}<div class="invalid-feedback d-block">{{ form.data_fim_recorrencia.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="row mb-4">
+          <div class="col-md-4" id="div_dia_semana">
+            <div class="mb-3">
+              <label for="{{ form.dia_semana.id_for_label }}" class="form-label">{{ form.dia_semana.label }}:</label>
+              {{ form.dia_semana }}
+              {% if form.dia_semana.errors %}<div class="invalid-feedback d-block">{{ form.dia_semana.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4" id="div_semana_mes">
+            <div class="mb-3">
+              <label for="{{ form.semana_mes.id_for_label }}" class="form-label">{{ form.semana_mes.label }}:</label>
+              {{ form.semana_mes }}
+              {% if form.semana_mes.errors %}<div class="invalid-feedback d-block">{{ form.semana_mes.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-4" id="div_mes_ano">
+            <div class="mb-3">
+              <label for="{{ form.mes_ano.id_for_label }}" class="form-label">{{ form.mes_ano.label }}:</label>
+              {{ form.mes_ano }}
+              {% if form.mes_ano.errors %}<div class="invalid-feedback d-block">{{ form.mes_ano.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <script>
+          function toggleRecorrenciaFields() {
+            var freq = document.getElementById('id_frequencia').value;
+            document.getElementById('div_dia_semana').style.display = (freq === 'semanal') ? '' : 'none';
+            document.getElementById('div_semana_mes').style.display = (freq === 'mensal') ? '' : 'none';
+            document.getElementById('div_mes_ano').style.display = (freq === 'anual') ? '' : 'none';
+          }
+          document.addEventListener('DOMContentLoaded', function() {
+            var freq = document.getElementById('id_frequencia');
+            if (freq) {
+              freq.addEventListener('change', toggleRecorrenciaFields);
+              toggleRecorrenciaFields();
+            }
+          });
+        </script>
+        <small class="text-muted">Preencha os campos de recorrência apenas se o evento for repetitivo.</small>
+        <div class="mt-4">
+        <hr class="my-4">
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="id_capa" class="form-label">Capa do Evento:</label>
+              {% if evento.capa %}
+                <div class="mb-2">
+                  <img src="{{ evento.capa.url }}" alt="Capa atual" class="img-thumbnail" style="max-height: 180px;">
+                  <div><small class="text-muted">Capa atual</small></div>
+                </div>
+              {% endif %}
+              {{ form.capa }}
+              {% if form.capa.errors %}<div class="invalid-feedback d-block">{{ form.capa.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label for="id_anexos" class="form-label">Anexos:</label>
+              <input type="file" name="anexos" id="id_anexos" class="form-control" multiple>
+              {% if evento.anexos.all %}
+                <ul class="mt-2">
+                  {% for anexo in evento.anexos.all %}
+                    <li><a href="{{ anexo.arquivo.url }}" target="_blank">{{ anexo.arquivo.name|cut:'eventos/anexos/' }}</a></li>
+                  {% empty %}
+                    <li><small class="text-muted">Nenhum anexo</small></li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,3 +1,19 @@
+
+from django import forms
+from .models import ConfiguracaoSistema
+
+class ConfiguracaoSistemaForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracaoSistema
+        fields = ['notificar_eventos', 'notificar_aniversarios']
+        widgets = {
+            'notificar_eventos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notificar_aniversarios': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'notificar_eventos': 'Enviar notificações de eventos?',
+            'notificar_aniversarios': 'Enviar notificações de aniversários?',
+        }
 # c:\Gereigreja\configuracao\forms.py
 from django import forms
 from .models import ESTADO_CHOICES 

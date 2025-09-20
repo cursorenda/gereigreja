@@ -1,3 +1,44 @@
+from django.contrib.auth.decorators import login_required
+from .forms import ConfiguracaoSistemaForm
+
+# --- NOVA VIEW: Editar Configurações do Sistema (Notificações) ---
+from django.contrib.auth.decorators import user_passes_test
+from .models import ConfiguracaoSistema
+
+def is_admin_ministerio(user):
+    return user.is_authenticated and user.groups.filter(name='Admin Ministerio').exists()
+
+@login_required
+@user_passes_test(is_admin_ministerio)
+def editar_configuracoes_sistema(request):
+    """
+    Permite ao admin/pastor editar as configurações de notificações do sistema para seu ministério.
+    """
+    perfil = getattr(request.user, 'perfil', None)
+    ministerio = getattr(perfil, 'ministerio', None)
+    if not ministerio:
+        messages.error(request, "Seu usuário não está associado a um ministério.")
+        return redirect('configuracao:configuracao')
+
+    config, _ = ConfiguracaoSistema.objects.get_or_create(ministerio=ministerio)
+
+    if request.method == 'POST':
+        form = ConfiguracaoSistemaForm(request.POST, instance=config)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Configurações de notificações atualizadas com sucesso!")
+            return redirect('configuracao:editar_configuracoes_sistema')
+        else:
+            messages.error(request, "Por favor, corrija os erros no formulário.")
+    else:
+        form = ConfiguracaoSistemaForm(instance=config)
+
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': 'Configurações de Notificações',
+    }
+    return render(request, 'configuracao/editar_configuracoes_sistema.html', context)
 from django.shortcuts import render
 
 def configuracoes_sistema(request):
@@ -9,6 +50,7 @@ def configuracoes_sistema(request):
     fornecedores = []
     contas_bancarias = []
     can_edit_finance = False
+    notificacoes_form = None
     if ministerio:
         from financeiro.models import CategoriaDespesa, Fornecedor, ContaBancaria
         from financeiro.utils import has_finance_edit_permission
@@ -17,6 +59,15 @@ def configuracoes_sistema(request):
         igrejas = Igreja.objects.filter(ministerio=ministerio)
         contas_bancarias = ContaBancaria.objects.filter(igreja__in=igrejas)
         can_edit_finance = has_finance_edit_permission(request.user)
+        # Carregar formulário de notificações
+        config, _ = ConfiguracaoSistema.objects.get_or_create(ministerio=ministerio)
+        if request.method == 'POST' and request.POST.get('aba_ativa') == 'notificacoes':
+            notificacoes_form = ConfiguracaoSistemaForm(request.POST, instance=config)
+            if notificacoes_form.is_valid():
+                notificacoes_form.save()
+                messages.success(request, "Configurações de notificações atualizadas com sucesso!")
+        else:
+            notificacoes_form = ConfiguracaoSistemaForm(instance=config)
 
     context = {
         'categorias': categorias,
@@ -24,6 +75,7 @@ def configuracoes_sistema(request):
         'contas_bancarias': contas_bancarias,
         'ministerio': ministerio,
         'can_edit_finance': can_edit_finance,
+        'notificacoes_form': notificacoes_form,
     }
     return render(request, 'configuracao/configuracoes_sistema.html', context)
 # configuracao/views.py

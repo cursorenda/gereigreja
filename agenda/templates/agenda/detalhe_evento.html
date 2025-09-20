@@ -1,0 +1,60 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Detalhes do Evento - Agenda{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Detalhes do Evento</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
+        <li class="breadcrumb-item active">Detalhes do Evento</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-calendar-alt me-1"></i>
+            {{ evento.titulo }}
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Tipo</dt>
+                <dd class="col-sm-9">{{ evento.get_tipo_display }}</dd>
+                <dt class="col-sm-3">Descrição</dt>
+                <dd class="col-sm-9">{{ evento.descricao }}</dd>
+                <dt class="col-sm-3">Local</dt>
+                <dd class="col-sm-9">{{ evento.local }}</dd>
+                <dt class="col-sm-3">Responsável</dt>
+                <dd class="col-sm-9">{{ evento.responsavel }}</dd>
+                <dt class="col-sm-3">Início</dt>
+                <dd class="col-sm-9">{{ evento.data_inicio|date:'d/m/Y H:i' }}</dd>
+                <dt class="col-sm-3">Fim</dt>
+                <dd class="col-sm-9">{{ evento.data_fim|date:'d/m/Y H:i' }}</dd>
+                <dt class="col-sm-3">Recorrente?</dt>
+                <dd class="col-sm-9">{{ evento.recorrente|yesno:"Sim,Não" }}</dd>
+                {% if evento.recorrente %}
+                <dt class="col-sm-3">Frequência</dt>
+                <dd class="col-sm-9">{{ evento.get_frequencia_display }}</dd>
+                <dt class="col-sm-3">Intervalo</dt>
+                <dd class="col-sm-9">{{ evento.intervalo }}</dd>
+                <dt class="col-sm-3">Dia(s) da Semana</dt>
+                <dd class="col-sm-9">{{ evento.dia_semana }}</dd>
+                <dt class="col-sm-3">Semana do Mês</dt>
+                <dd class="col-sm-9">{{ evento.semana_mes }}</dd>
+                <dt class="col-sm-3">Mês(es) do Ano</dt>
+                <dd class="col-sm-9">{{ evento.mes_ano }}</dd>
+                <dt class="col-sm-3">Data Fim Recorrência</dt>
+                <dd class="col-sm-9">{{ evento.data_fim_recorrencia|date:'d/m/Y' }}</dd>
+                {% endif %}
+            </dl>
+            <div class="d-flex flex-column flex-md-row gap-2 mt-3">
+                <a href="{% url 'agenda:editar_evento' evento.pk %}" class="btn btn-warning btn-sm w-100 w-md-auto mb-2 mb-md-0" aria-label="Editar evento"><i class="fas fa-edit"></i> Editar</a>
+                <a href="{% url 'agenda:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm w-100 w-md-auto mb-2 mb-md-0" aria-label="Excluir evento"><i class="fas fa-trash"></i> Excluir</a>
+                <a href="{% url 'agenda:agenda' %}" class="btn btn-secondary btn-sm w-100 w-md-auto" aria-label="Voltar para agenda">Voltar</a>
+            </div>
+<style>
+    @media (max-width: 600px) {
+        .dl-horizontal dt { font-size: 0.98rem; }
+        .dl-horizontal dd { font-size: 1rem; }
+    }
+</style>
+        </div>
+    </div>
+</div>
+{% endblock %}

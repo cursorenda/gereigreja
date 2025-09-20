@@ -1,0 +1,99 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Marcar Presença{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Marcar Presença - {{ evento.titulo }}</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'eventos:detalhe_evento' evento.pk %}">Detalhes do Evento</a></li>
+    <li class="breadcrumb-item active">Marcar Presença</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Presente</th>
+                <th>Nome</th>
+                <th>Status</th>
+                <th>Papel</th>
+                <th>Justificativa de Falta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in participacoes %}
+              <tr>
+                <td class="text-center">
+                  <input type="checkbox" name="presentes" value="{{ p.membro.chave }}" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                </td>
+                <td>{{ p.membro.nome }}</td>
+                <td>
+                  {% if p.status == 'PRESENTE' %}
+                    <span class="badge bg-success">Presente</span>
+                  {% elif p.status == 'AUSENTE' %}
+                    <span class="badge bg-danger">Ausente</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ p.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ p.get_papel_display }}</td>
+                <td>
+                  {% if p.status == 'AUSENTE' or p.status != 'PRESENTE' %}
+                    <select name="justificativa_sel_{{ p.pk }}" class="form-select form-select-sm justificativa-select" data-pk="{{ p.pk }}">
+                      <option value="">Selecione...</option>
+                      <option value="Motivo de saúde" {% if p.justificativa_falta == 'Motivo de saúde' %}selected{% endif %}>Motivo de saúde</option>
+                      <option value="Trabalho/Compromissos profissionais" {% if p.justificativa_falta == 'Trabalho/Compromissos profissionais' %}selected{% endif %}>Trabalho/Compromissos profissionais</option>
+                      <option value="Viagem" {% if p.justificativa_falta == 'Viagem' %}selected{% endif %}>Viagem</option>
+                      <option value="Compromissos familiares" {% if p.justificativa_falta == 'Compromissos familiares' %}selected{% endif %}>Compromissos familiares</option>
+                      <option value="Falecimento na família" {% if p.justificativa_falta == 'Falecimento na família' %}selected{% endif %}>Falecimento na família</option>
+                      <option value="Problemas de transporte" {% if p.justificativa_falta == 'Problemas de transporte' %}selected{% endif %}>Problemas de transporte</option>
+                      <option value="Estudo/Prova" {% if p.justificativa_falta == 'Estudo/Prova' %}selected{% endif %}>Estudo/Prova</option>
+                      <option value="Esquecimento" {% if p.justificativa_falta == 'Esquecimento' %}selected{% endif %}>Esquecimento</option>
+                      <option value="Motivo pessoal" {% if p.justificativa_falta == 'Motivo pessoal' %}selected{% endif %}>Motivo pessoal</option>
+                      <option value="Outro" {% if p.justificativa_falta and p.justificativa_falta|slice:"0:5" == 'Outro' %}selected{% endif %}>Outro</option>
+                    </select>
+                    <input type="text" name="justificativa_outro_{{ p.pk }}" class="form-control form-control-sm mt-1 justificativa-outro" style="display: none;" value="{% if p.justificativa_falta and p.justificativa_falta|slice:'0:5' == 'Outro' %}{{ p.justificativa_falta|cut:'Outro: ' }}{% endif %}" placeholder="Descreva o motivo...">
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.justificativa-select').forEach(function(select) {
+    const pk = select.getAttribute('data-pk');
+    const outroInput = document.querySelector('input[name="justificativa_outro_' + pk + '"]');
+    function toggleOutro() {
+      if (select.value === 'Outro') {
+        outroInput.style.display = '';
+      } else {
+        outroInput.style.display = 'none';
+        outroInput.value = '';
+      }
+    }
+    select.addEventListener('change', toggleOutro);
+    // Inicializa ao carregar
+    toggleOutro();
+  });
+});
+</script>
+{% endblock %}
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-center text-muted">Nenhum participante esperado.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary">Salvar Presenças</button>
+          <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-secondary">Voltar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

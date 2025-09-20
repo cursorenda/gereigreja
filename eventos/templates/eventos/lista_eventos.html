@@ -1,0 +1,100 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Eventos{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Eventos</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Eventos</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-calendar-alt me-1"></i> Lista de Eventos</span>
+      <a href="{% url 'eventos:criar_evento' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Novo Evento</a>
+    </div>
+    <div class="card-body">
+      <form method="get" class="row g-3 mb-4 align-items-end">
+        <div class="col-md-3">
+          <label for="tipo" class="form-label mb-0">Tipo</label>
+          <select name="tipo" id="tipo" class="form-select">
+            <option value="">Todos</option>
+            <option value="culto" {% if request.GET.tipo == 'culto' %}selected{% endif %}>Culto</option>
+            <option value="reuniao" {% if request.GET.tipo == 'reuniao' %}selected{% endif %}>Reunião</option>
+            <option value="festa" {% if request.GET.tipo == 'festa' %}selected{% endif %}>Festa</option>
+            <option value="feriado" {% if request.GET.tipo == 'feriado' %}selected{% endif %}>Feriado</option>
+            <option value="estudo" {% if request.GET.tipo == 'estudo' %}selected{% endif %}>Estudo</option>
+            <option value="outro" {% if request.GET.tipo == 'outro' %}selected{% endif %}>Outro</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="igreja" class="form-label mb-0">Igreja</label>
+          <select name="igreja" id="igreja" class="form-select">
+            <option value="">Todas</option>
+            {% for igreja in igrejas %}
+              <option value="{{ igreja.pk }}" {% if request.GET.igreja == igreja.pk|stringformat:'s' %}selected{% endif %}>{{ igreja.nome_igreja }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="data_inicio" class="form-label mb-0">Início após</label>
+          <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request.GET.data_inicio }}">
+        </div>
+        <div class="col-md-2">
+          <label for="data_fim" class="form-label mb-0">Início até</label>
+          <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <div class="form-check me-2">
+            <input class="form-check-input" type="checkbox" name="mostrar_passados" id="mostrar_passados" {% if mostrar_passados %}checked{% endif %}>
+            <label class="form-check-label" for="mostrar_passados">Mostrar passados</label>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filtrar</button>
+        </div>
+      </form>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Título</th>
+            <th>Data Início</th>
+            <th>Data Fim</th>
+            <th>Igreja</th>
+            <th>Criado por</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for evento in page_obj %}
+          {% if evento.data_inicio.date == today %}
+          <tr class="table-success fw-bold">
+          {% else %}
+          <tr>
+          {% endif %}
+            <td><a href="{% url 'eventos:detalhe_evento' evento.pk %}">{{ evento.titulo }}</a>{% if evento.data_inicio.date == today %} <span class="badge bg-success ms-2">Hoje</span>{% endif %}</td>
+            <td>{{ evento.data_inicio|date:'d/m/Y H:i' }}</td>
+            <td>{{ evento.data_fim|date:'d/m/Y H:i' }}</td>
+            <td>{{ evento.igreja.nome_igreja }}</td>
+            <td>{{ evento.criado_por }}</td>
+            <td>
+              <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-warning btn-sm" title="Editar"><i class="fas fa-edit"></i></a>
+              <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm" title="Excluir"><i class="fas fa-trash"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center">Nenhum evento cadastrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <nav>
+        <ul class="pagination">
+          {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+          {% endif %}
+          <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+          {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+</div>
+{% endblock %}

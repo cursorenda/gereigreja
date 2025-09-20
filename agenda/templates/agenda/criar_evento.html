@@ -1,0 +1,97 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Novo Evento - Agenda{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Novo Evento</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
+        <li class="breadcrumb-item active">Novo Evento</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-calendar-plus me-1"></i>
+            Cadastro de Evento
+        </div>
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-6">
+                    <label for="id_titulo" class="form-label">Título</label>
+                    {{ form.titulo }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_tipo" class="form-label">Tipo</label>
+                    {{ form.tipo }}
+                </div>
+                <div class="col-md-12">
+                    <label for="id_descricao" class="form-label">Descrição</label>
+                    {{ form.descricao }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_local" class="form-label">Local</label>
+                    {{ form.local }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_responsavel" class="form-label">Responsável</label>
+                    {{ form.responsavel }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_data_inicio" class="form-label">Data/Hora Início</label>
+                    {{ form.data_inicio }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_data_fim" class="form-label">Data/Hora Fim</label>
+                    {{ form.data_fim }}
+                </div>
+                <div class="col-md-12">
+                    <div class="form-check form-switch mb-2">
+                        {{ form.recorrente }}
+                        <label class="form-check-label" for="id_recorrente">Evento Recorrente?</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label for="id_frequencia" class="form-label">Frequência</label>
+                    {{ form.frequencia }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_intervalo" class="form-label">Intervalo</label>
+                    {{ form.intervalo }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_dia_semana" class="form-label">Dia(s) da Semana</label>
+                    {{ form.dia_semana }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_semana_mes" class="form-label">Semana do Mês</label>
+                    {{ form.semana_mes }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_mes_ano" class="form-label">Mês(es) do Ano</label>
+                    {{ form.mes_ano }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_data_fim_recorrencia" class="form-label">Data Fim Recorrência</label>
+                    {{ form.data_fim_recorrencia }}
+                </div>
+                <div class="col-12 d-flex flex-column flex-md-row gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary w-100 w-md-auto mb-2 mb-md-0" aria-label="Salvar evento"><i class="fas fa-save"></i> Salvar</button>
+                    <a href="{% url 'agenda:agenda' %}" class="btn btn-secondary w-100 w-md-auto" aria-label="Cancelar e voltar">Cancelar</a>
+                </div>
+<style>
+    @media (max-width: 600px) {
+        .form-label { font-size: 0.98rem; }
+        .form-control, .form-select { font-size: 1rem; }
+        .col-md-6, .col-md-4, .col-md-12, .col-12 { flex: 0 0 100%; max-width: 100%; }
+    }
+</style>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

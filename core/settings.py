@@ -73,6 +73,8 @@ INSTALLED_APPS = [
     'configuracao',
     'contas',
     'comunicacao', 
+    'agenda',  # Novo app de agenda
+    'eventos',  # App de eventos
     'suporte',
     'storages', # <- Move 'storages' here
     'cloudinary',
@@ -171,8 +173,7 @@ USE_THOUSAND_SEPARATOR = True
 # DECIMAL_SEPARATOR = ','
 # THOUSAND_SEPARATOR = '.'
 # NUMBER_GROUPING = 3
-TIME_ZONE = 'UTC'
-
+TIME_ZONE = 'America/Sao_Paulo'
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)

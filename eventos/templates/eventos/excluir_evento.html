@@ -1,0 +1,24 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Excluir Evento{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Excluir Evento</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+    <li class="breadcrumb-item active">Excluir Evento</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-header bg-danger text-white">
+      <i class="fas fa-exclamation-triangle me-1"></i> Confirmação de Exclusão
+    </div>
+    <div class="card-body">
+      <p>Tem certeza que deseja excluir o evento <strong>{{ evento.titulo }}</strong>?</p>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Sim, excluir</button>
+        <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-secondary">Cancelar</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
