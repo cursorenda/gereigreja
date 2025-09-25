@@ -105,20 +105,6 @@ class NotificacaoEnviada(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.titulo} ({self.destinatario})"
-
-
-# --- Notificações Enviadas por E-mail/Sistema ---
-class NotificacaoEnviada(models.Model):
-    TIPO_CHOICES = [
-        ('evento', 'Evento'),
-        ('aniversario', 'Aniversário'),
-        ('outro', 'Outro'),
-    ]
-    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
-    titulo = models.CharField(max_length=200)
-    mensagem = models.TextField()
-    destinatario = models.EmailField()
-    data_envio = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):

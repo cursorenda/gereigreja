@@ -1,0 +1,37 @@
+{% extends 'base_com_menu.html' %}
+{% load escola_biblica_extras %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Avaliações</h2>
+  <a href="{% url 'escola_biblica:avaliacao_create' %}" class="btn btn-success mb-3">Nova Avaliação</a>
+  <table class="table table-striped table-bordered">
+    <thead>
+      <tr>
+        <th>Aluno</th>
+        <th>Lição</th>
+        <th>Nota</th>
+        <th>Participação</th>
+        <th>Observação</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for avaliacao in avaliacoes %}
+      <tr>
+        <td>{{ avaliacao.aluno }}</td>
+        <td>{{ avaliacao.licao }}</td>
+        <td>{{ avaliacao.nota }}</td>
+        <td>{% if avaliacao.participacao %}Sim{% else %}Não{% endif %}</td>
+        <td>{{ avaliacao.observacao|default:"-" }}</td>
+        <td>
+          <a href="{% url 'escola_biblica:avaliacao_edit' avaliacao.pk %}" class="btn btn-sm btn-primary">Editar</a>
+          <a href="{% url 'escola_biblica:avaliacao_delete' avaliacao.pk %}" class="btn btn-sm btn-danger">Excluir</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6">Nenhuma avaliação cadastrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

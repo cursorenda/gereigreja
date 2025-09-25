@@ -1,0 +1,202 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Dashboard EBD{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+	<h1 class="mt-4">Escola Bíblica Dominical</h1>
+	<ol class="breadcrumb mb-4">
+		<li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+		<li class="breadcrumb-item active">EBD</li>
+	</ol>
+
+	<!-- Filtros dinâmicos -->
+	<form method="get" class="row g-2 align-items-end mb-3" id="filtros-dashboard">
+		<div class="col-md-3">
+			<label for="periodo" class="form-label mb-0">Período</label>
+				<input type="month" class="form-control" id="periodo" name="periodo" value="{{ request.GET.periodo|default_if_none:'' }}{% if not request.GET.periodo %}{% now 'Y-m' %}{% endif %}">
+		</div>
+		<div class="col-md-3">
+			<label for="classe" class="form-label mb-0">Classe</label>
+			<select class="form-select" id="classe" name="classe">
+				<option value="">Todas</option>
+				{% for c in classes %}
+					<option value="{{ c.id }}" {% if request.GET.classe == c.id|stringformat:'s' %}selected{% endif %}>{{ c.nome }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="col-md-3">
+			<label for="departamento" class="form-label mb-0">Departamento</label>
+			<select class="form-select" id="departamento" name="departamento">
+				<option value="">Todos</option>
+				{% for key, label in classes.0.DEPARTAMENTO_CHOICES %}
+					<option value="{{ key }}" {% if request.GET.departamento == key %}selected{% endif %}>{{ label }}</option>
+				{% endfor %}
+			</select>
+		</div>
+		<div class="col-md-3">
+			<button type="submit" class="btn btn-primary w-100">Filtrar</button>
+		</div>
+	</form>
+
+	<!-- Cards compactos de resumo -->
+
+	<div class="row mb-2 g-2">
+		<!-- Cards de indicadores principais (6 por linha, todos col-md-2) -->
+		<div class="col-6 col-md-2">
+			<div class="card text-center border-success mb-2">
+				<div class="card-body p-2">
+					<div class="fw-bold text-success"><i class="fas fa-hand-holding-usd"></i> Oferta Total</div>
+					<div class="fs-5">R$ {{ total_oferta|floatformat:2 }}</div>
+				</div>
+			</div>
+		</div>
+		<div class="col-6 col-md-2">
+			<div class="card text-center border-info mb-2">
+				<div class="card-body p-2">
+					<div class="fw-bold text-info"><i class="fas fa-bolt"></i> Engajamento</div>
+					<div class="fs-5">{{ engajamento_percent }}%</div>
+					<small class="d-block">% freq. &ge; 75%</small>
+				</div>
+			</div>
+		</div>
+		<div class="col-6 col-md-2">
+			<div class="card text-center border-danger mb-2">
+				<div class="card-body p-2">
+					<div class="fw-bold text-danger"><i class="fas fa-user-times"></i> Evasão</div>
+					<div class="fs-5">{{ evasao }}</div>
+					<small class="d-block">Inativos no ano</small>
+				</div>
+			</div>
+		</div>
+		<div class="col-6 col-md-2">
+			<div class="card text-center border-primary mb-2">
+				<div class="card-body p-2">
+					<div class="fw-bold text-primary"><i class="fas fa-percentage"></i> Freq. Geral</div>
+					<div class="fs-5">{{ freq_geral }}%</div>
+					<small class="d-block">Média geral</small>
+				</div>
+			</div>
+		</div>
+		<div class="col-6 col-md-2">
+			<div class="card text-center border-success mb-2">
+				<div class="card-body p-2">
+					<div class="fw-bold text-success"><i class="fas fa-user-plus"></i> Alunos Novos</div>
+					<div class="fs-5">{{ alunos_novos }}</div>
+					<small class="d-block">No mês</small>
+				</div>
+			</div>
+		</div>
+		<div class="col-6 col-md-2">
+			<div class="card text-center border-warning mb-2">
+				<div class="card-body p-2">
+					<div class="fw-bold text-warning"><i class="fas fa-random"></i> Transferidos</div>
+					<div class="fs-5">{{ transferidos_mes }}</div>
+					<small class="d-block">No mês</small>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Seção de alertas e insights rápidos (exemplo) -->
+	<div class="row mb-3">
+		<div class="col-md-12">
+			<div class="alert alert-warning d-flex align-items-center" role="alert">
+				<i class="fas fa-exclamation-triangle me-2"></i>
+				<div>
+					<b>Atenção:</b> Evasão acima do normal em 2 classes. Frequência média geral abaixo de 70%.
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+	<div class="row mb-4">
+		<div class="col-md-7">
+			<div class="card mb-3">
+				<div class="card-header bg-light"><b>Evolução de Alunos Ativos (12 meses)</b></div>
+				<div class="card-body">
+					<canvas id="evolucaoAlunosChart"></canvas>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-5">
+			<div class="card mb-3">
+				<div class="card-header bg-light"><b>Distribuição por Faixa Etária</b></div>
+				<div class="card-body">
+					<canvas id="faixaEtariaChart"></canvas>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	{# Serializa os dados para uso seguro em JS #}
+	{{ meses|json_script:"meses-data" }}
+	{{ alunos_evolucao|json_script:"alunos-evolucao-data" }}
+	{{ faixas_etarias_labels|json_script:"faixas-etarias-labels" }}
+	{{ faixas_etarias_counts|json_script:"faixas-etarias-counts" }}
+	<script>
+		// Gráfico de evolução de alunos ativos
+		let ctxEvolucao = document.getElementById('evolucaoAlunosChart').getContext('2d');
+		let mesesEvolucao = JSON.parse(document.getElementById('meses-data').textContent);
+		let alunosEvolucaoData = JSON.parse(document.getElementById('alunos-evolucao-data').textContent);
+		new Chart(ctxEvolucao, {
+			type: 'line',
+			data: {
+				labels: mesesEvolucao,
+				datasets: [{
+					label: 'Alunos Ativos',
+					data: alunosEvolucaoData,
+					borderColor: '#007bff',
+					backgroundColor: 'rgba(0,123,255,0.1)',
+					fill: true,
+					tension: 0.3
+				}]
+			},
+			options: {
+				responsive: true,
+				plugins: { legend: { display: false } },
+				scales: { y: { beginAtZero: true } }
+			}
+		});
+			type: 'line',
+			data: {
+				labels: meses,
+				datasets: [{
+					label: 'Alunos Ativos',
+					data: alunosEvolucao,
+					borderColor: '#007bff',
+					backgroundColor: 'rgba(0,123,255,0.1)',
+					fill: true,
+					tension: 0.3
+				}]
+			},
+			options: {
+				responsive: true,
+				plugins: { legend: { display: false } },
+				scales: { y: { beginAtZero: true } }
+			}
+		});
+
+		// Gráfico de distribuição por faixa etária
+	let ctxFaixa = document.getElementById('faixaEtariaChart').getContext('2d');
+	let faixasLabels = JSON.parse(document.getElementById('faixas-etarias-labels').textContent);
+	let faixasCounts = JSON.parse(document.getElementById('faixas-etarias-counts').textContent);
+	new Chart(ctxFaixa, {
+			type: 'pie',
+			data: {
+				labels: faixasLabels,
+				datasets: [{
+					data: faixasCounts,
+					backgroundColor: ['#007bff','#28a745','#ffc107','#dc3545','#6c757d','#17a2b8']
+				}]
+			},
+			options: {
+				responsive: true,
+				plugins: { legend: { position: 'bottom' } }
+			}
+		});
+	</script>
+
+	</script>
+</div>
+{% endblock %}

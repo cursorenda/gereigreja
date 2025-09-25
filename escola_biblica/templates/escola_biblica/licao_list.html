@@ -1,0 +1,52 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Lições EBD{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Lições</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+        <li class="breadcrumb-item active">Lições</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-book-open me-1"></i>
+            Lições ({{ licoes.count }})
+            <a href="{% url 'escola_biblica:licao_create' %}" class="btn btn-primary btn-sm float-end"><i class="fas fa-plus"></i> Nova Lição</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Turma</th>
+                            <th>Data</th>
+                            <th>Tema</th>
+                            <th>Material</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for licao in licoes %}
+                        <tr>
+                            <td>{{ licao.turma }}</td>
+                            <td>{{ licao.data }}</td>
+                            <td>{{ licao.tema }}</td>
+                            <td>
+                                {% if licao.material %}
+                                    <a href="{{ licao.material.url }}" target="_blank">Download</a>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'escola_biblica:licao_edit' licao.pk %}" class="btn btn-sm btn-warning">Editar</a>
+                                <a href="{% url 'escola_biblica:licao_delete' licao.pk %}" class="btn btn-sm btn-danger">Excluir</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

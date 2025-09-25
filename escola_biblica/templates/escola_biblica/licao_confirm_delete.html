@@ -1,0 +1,25 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Excluir Lição EBD{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Excluir Lição</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:licao_list' %}">Lições</a></li>
+        <li class="breadcrumb-item active">Excluir</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            Confirmação de Exclusão
+        </div>
+        <div class="card-body">
+            <p>Tem certeza que deseja excluir a lição <strong>{{ licao.tema }}</strong>?</p>
+            <form method="post">{% csrf_token %}
+                <button type="submit" class="btn btn-danger">Sim, excluir</button>
+                <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

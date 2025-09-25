@@ -1,0 +1,24 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Transferir Aluno</h2>
+  <div class="alert alert-info">
+    <strong>Aluno:</strong> {{ aluno.nome }}<br>
+    <strong>Turma atual:</strong> {{ turma_origem }}
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="mb-3">
+      <label for="id_turma_destino" class="form-label">Nova Turma</label>
+      {{ form.turma_destino|add_class:'form-select' }}
+    </div>
+    <div class="mb-3">
+      <label for="id_motivo" class="form-label">Motivo</label>
+      {{ form.motivo|add_class:'form-control' }}
+    </div>
+    <button type="submit" class="btn btn-success">Transferir</button>
+    <a href="{% url 'escola_biblica:aluno_list' %}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

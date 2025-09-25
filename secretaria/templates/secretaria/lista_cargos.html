@@ -13,7 +13,7 @@
     <tbody>
         {% for cargo in cargos %}
         <tr>
-            <td>{{ cargo.cargo }}</td>
+            <td>{{ cargo.nome }}</td>
             <td>{% if cargo.grupo_permissao %}{{ cargo.grupo_permissao.name }}{% else %}<span class="text-muted">Nenhum</span>{% endif %}</td>
             <td>
                 {% for ocupante in cargo.ocupantes %}

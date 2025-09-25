@@ -1,0 +1,83 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Turmas EBD{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Turmas da Escola Bíblica</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+        <li class="breadcrumb-item active">Turmas</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-chalkboard-teacher me-1"></i>
+            Turmas ({{ turmas.count }})
+            <a href="{% url 'escola_biblica:turma_create' %}" class="btn btn-primary btn-sm float-end"><i class="fas fa-plus"></i> Nova Turma</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome</th>
+                            <th>Classe</th>
+                            <th>Ano Letivo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for turma in turmas %}
+                        <tr>
+                            <td>{{ turma.nome }}</td>
+                            <td>{{ turma.classe }}</td>
+                            <td>{{ turma.ano_letivo }}</td>
+                            <td>
+                                <a href="{% url 'escola_biblica:chamada_presenca' turma.id %}" class="btn btn-outline-success btn-sm" title="Chamada de Presença">
+                                    <i class="fas fa-clipboard-check"></i> Chamada
+                                </a>
+                                <a href="{% url 'escola_biblica:turma_edit' turma.id %}" class="btn btn-warning btn-sm ms-1" title="Editar Turma">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                                <a href="{% url 'escola_biblica:turma_delete' turma.id %}" class="btn btn-danger btn-sm ms-1" title="Excluir Turma">
+                                    <i class="fas fa-trash"></i> Excluir
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                                </table>
+                                {% if turmas.has_other_pages %}
+                                <nav aria-label="Navegação de páginas">
+                                    <ul class="pagination justify-content-center">
+                                        {% if turmas.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ turmas.previous_page_number }}" aria-label="Anterior">
+                                                    <span aria-hidden="true">&laquo;</span>
+                                                </a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                                        {% endif %}
+                                        {% for num in turmas.paginator.page_range %}
+                                            {% if turmas.number == num %}
+                                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                            {% else %}
+                                                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if turmas.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ turmas.next_page_number }}" aria-label="Próxima">
+                                                    <span aria-hidden="true">&raquo;</span>
+                                                </a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

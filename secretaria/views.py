@@ -57,18 +57,24 @@ from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
 from django.db.models.functions import Extract
 from django.utils.crypto import get_random_string
 from django.utils import timezone
+import zipfile
 from django import forms
 
 # Gerenciar ocupantes do cargo
-from .forms import GerenciarOcupantesForm
 
+from .forms import GerenciarOcupantesForm, CargoForm
+
+
+
+# --- NOVA VIEW: Gerenciar Ocupantes (usando novos modelos) ---
+from .models import Cargo, MembroCargo
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def gerenciar_ocupantes(request, cargo_id):
-    cargo = get_object_or_404(Cargos, id=cargo_id)
+    cargo = get_object_or_404(Cargo, id=cargo_id)
     membros = list(Membro.objects.all().order_by('nome'))
-    ocupantes_atual = list(Membro.objects.filter(membroscargos__cargo=cargo))
+    ocupantes_atual = list(MembroCargo.objects.filter(cargo=cargo).select_related('membro'))
     if request.method == 'POST':
         ocupantes_ids = request.POST.get('ocupantes', '')
         if ocupantes_ids:
@@ -77,14 +83,14 @@ def gerenciar_ocupantes(request, cargo_id):
         else:
             novos_ocupantes = Membro.objects.none()
         # Remove todos os ocupantes antigos desse cargo
-        MembrosCargos.objects.filter(cargo=cargo).exclude(membro__in=novos_ocupantes).delete()
+        MembroCargo.objects.filter(cargo=cargo).exclude(membro__in=novos_ocupantes).delete()
         # Adiciona novos ocupantes (evita duplicidade)
         for membro in novos_ocupantes:
-            MembrosCargos.objects.get_or_create(cargo=cargo, membro=membro)
+            MembroCargo.objects.get_or_create(cargo=cargo, membro=membro, defaults={'data_inicio': timezone.now().date()})
         messages.success(request, 'Ocupantes do cargo atualizados com sucesso!')
         return redirect('secretaria:lista_cargos')
     else:
-        ocupantes_iniciais = [m.chave for m in ocupantes_atual]
+        ocupantes_iniciais = [mc.membro.chave for mc in ocupantes_atual]
     return render(request, 'secretaria/gerenciar_ocupantes.html', {
         'cargo': cargo,
         'membros': membros,
@@ -99,11 +105,12 @@ def is_admin_or_pastor(user):
     return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
 
 # Exclusão de cargo
+
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def excluir_cargo(request, cargo_id):
-    cargo = get_object_or_404(Cargos, id=cargo_id)
-    ocupantes = cargo.membroscargos_set.all()
+    cargo = get_object_or_404(Cargo, id=cargo_id)
+    ocupantes = MembroCargo.objects.filter(cargo=cargo)
     if request.method == 'POST':
         if ocupantes.exists():
             messages.error(request, 'Não é possível excluir um cargo que possui ocupantes.')
@@ -126,34 +133,36 @@ from django import forms
 from django.http import HttpResponse
 
 
-from .forms import CargosForm
+
+
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def criar_cargo(request):
     if request.method == 'POST':
-        form = CargosForm(request.POST)
+        form = CargoForm(request.POST)
         if form.is_valid():
             form.save()
             messages.success(request, 'Cargo criado com sucesso!')
             return redirect('secretaria:lista_cargos')
     else:
-        form = CargosForm()
+        form = CargoForm()
     return render(request, 'secretaria/criar_cargo.html', {'form': form})
+
 
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def editar_cargo(request, cargo_id):
-    cargo = get_object_or_404(Cargos, id=cargo_id)
+    cargo = get_object_or_404(Cargo, id=cargo_id)
     if request.method == 'POST':
-        form = CargosForm(request.POST, instance=cargo)
+        form = CargoForm(request.POST, instance=cargo)
         if form.is_valid():
             form.save()
             messages.success(request, 'Cargo atualizado com sucesso!')
             return redirect('secretaria:lista_cargos')
     else:
-        form = CargosForm(instance=cargo)
+        form = CargoForm(instance=cargo)
     return render(request, 'secretaria/editar_cargo.html', {'form': form, 'cargo': cargo})
 
 # --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
@@ -172,7 +181,7 @@ from django import forms
 def is_admin_or_pastor(user):
     grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
     return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
-from .models import Cargos, MembrosCargos
+
 # --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, JsonResponse, Http404
@@ -192,15 +201,16 @@ def is_admin_or_pastor(user):
     return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
 
 # --- VIEW: LISTA DE CARGOS ---
-from .models import Cargos, MembrosCargos
 
+
+
+# --- NOVA VIEW: Lista deCargo (usando novos modelos) ---
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def lista_cargos(request):
-    cargos = Cargos.objects.all().prefetch_related('membroscargos_set__membro', 'grupo_permissao')
-    # Adiciona uma propriedade para facilitar o acesso aos ocupantes
+    cargos = Cargo.objects.all().prefetch_related('membrocargo_set__membro', 'grupo_permissao')
     for cargo in cargos:
-        cargo.ocupantes = [mc.membro for mc in cargo.membroscargos_set.all() if mc.membro]
+        cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro]
     context = {'cargos': cargos}
     return render(request, 'secretaria/lista_cargos.html', context)
 # --- LINHA DO TEMPO DOS MEMBROS ---
@@ -231,7 +241,7 @@ from django.utils.crypto import get_random_string
 from django.utils import timezone
 
 # --- OUTROS IMPORTS DO PROJETO ---
-from .models import TimelineEvent, Membro, TipoPessoa, StatusPessoa, StatusHistorico, Cargos, MembrosCargos
+from .models import TimelineEvent, Membro, TipoPessoa, StatusPessoa, StatusHistorico
 from .forms import MembroForm, MembroUserManagementForm, StatusHistoricoManualForm
 from core.utils import get_ministerio_or_error
 from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_view_permission, has_membro_edit_permission
@@ -1013,102 +1023,6 @@ def criar_membro(request): # noqa: E302
     return render(request, 'secretaria/criar_membro.html', context)
 
 
-# --- Views de Backup (Restritas a Superusuários) ---
-@check_permission(lambda u: u.is_superuser, login_url_name='admin:login')
-def backup_database_view(request): # Adicionado 'request'
-    data_hora_atual = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    backup_dir = os.path.join(settings.BASE_DIR, 'backup')
-    os.makedirs(backup_dir, exist_ok=True)
-    backup_file = f"backup_banco_{data_hora_atual}.backup"
-    backup_path = os.path.join(backup_dir, backup_file)
-    db_path = settings.DATABASES['default']['NAME']
-    try:
-        shutil.copy2(db_path, backup_path)
-        logger.info(f"Backup do banco de dados realizado com sucesso em: {backup_path}")
-        return True, backup_path
-    except Exception as e:
-        logger.error(f"Erro ao realizar backup do banco de dados: {e}")
-        return False, None
-
-@check_permission(lambda u: u.is_superuser, login_url_name='admin:login')
-def backup_site_files_view(request): # noqa: E302
-    data_hora_atual = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    backup_dir = os.path.join(settings.BASE_DIR, 'backup')
-    os.makedirs(backup_dir, exist_ok=True)
-    backup_file = f"backup_arquivos_{data_hora_atual}.zip"
-    backup_path = os.path.join(backup_dir, backup_file)
-    site_path = settings.BASE_DIR
-    folders_to_ignore = [
-        os.path.join(settings.BASE_DIR, 'backup'),
-        os.path.join(settings.BASE_DIR, 'static'), # Se staticfiles_dirs estiver configurado, pode ser redundante
-        os.path.join(settings.BASE_DIR, 'staticfiles'), # Diretório do collectstatic
-        os.path.join(settings.BASE_DIR, 'media'),
-        os.path.join(settings.BASE_DIR, '__pycache__'),
-        os.path.join(settings.BASE_DIR, '.venv'),
-        os.path.join(settings.BASE_DIR, 'venv'),
-        os.path.join(settings.BASE_DIR, '.git'),
-        # Adicionar outros diretórios/arquivos se necessário
-    ]
-    try:
-        logger.info(f"Iniciando backup dos arquivos do site.")
-        with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for root, dirs, files in os.walk(site_path):
-                # Ignorar diretórios
-                dirs[:] = [d for d in dirs if os.path.join(root, d) not in folders_to_ignore and not d.startswith('.') and d != '__pycache__']
-
-                if any(root.startswith(folder) for folder in folders_to_ignore):
-                    continue
-
-                for file in files:
-                    if file.startswith('.'):
-                        continue
-                    file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, site_path)
-                    zipf.write(file_path, arcname=relative_path)
-        logger.info(f"Backup dos arquivos do site realizado com sucesso em: {backup_path}")
-        return True, backup_path
-    except Exception as e:
-        logger.exception(f"Erro ao realizar backup dos arquivos do site")
-        return False, None
-
-@check_permission(lambda u: u.is_superuser, login_url_name='admin:login') # MODIFICADO para alinhar com as permissões de backup
-def backup_page(request): # noqa: E302
-    if request.method == 'POST':
-        fazer_backup_database = 'backup_database' in request.POST
-        fazer_backup_files = 'backup_files' in request.POST
-        storage = messages.get_messages(request)
-        storage.used = True
-        db_success, file_success = None, None
-        db_path, file_path = None, None
-
-        if fazer_backup_database:
-            db_success, db_path = backup_database_view(request) # Passado 'request'
-        if fazer_backup_files:
-            file_success, file_path = backup_site_files_view(request) # Passado 'request'
-
-        if fazer_backup_database and fazer_backup_files:
-            if db_success and file_success:
-                messages.success(request, f'Backup Completo realizado com sucesso! <br>Banco: {db_path} <br> Arquivos: {file_path}')
-            elif db_success:
-                messages.warning(request, f'Backup parcial! <br>Banco: {db_path} <br> Erro nos arquivos.')
-            elif file_success:
-                 messages.warning(request, f'Backup parcial! <br>Arquivos: {file_path} <br> Erro no banco.')
-            else:
-                messages.error(request, 'Erro ao fazer backup do banco de dados e dos arquivos!')
-        elif fazer_backup_database:
-            if db_success:
-                messages.success(request, f'Backup do banco de dados realizado com sucesso: {db_path}')
-            else:
-                messages.error(request, 'Erro ao fazer backup do banco de dados!')
-        elif fazer_backup_files:
-            if file_success:
-                messages.success(request, f'Backup dos arquivos realizado com sucesso: {file_path}')
-            else:
-                messages.error(request, 'Erro ao fazer backup dos arquivos!')
-        else:
-            messages.warning(request, 'Nenhum tipo de backup selecionado!')
-        return redirect('backup_page')
-    return render(request, 'secretaria/backup_page.html')
 
 # --- NOVA VIEW PARA ALTERNAR STATUS DO MEMBRO ---
 @check_permission(has_membro_edit_permission, login_url_name='login')
@@ -1175,8 +1089,8 @@ def ficha_membro_impressao(request, membro_id): # noqa: E302
             'familia_set',
             'filhos_set',
             'observacoes_set',
-            'membroscargos_set', # Para cargos
-            'membroscargos_set__cargo', # Para acessar o nome do cargo
+            'membrocargo_set', # Para cargos (novo related_name padrão)
+            'membrocargo_set__cargo', # Para acessar o nome do cargo
             # Adicione outros prefetch_related para ManyToMany ou Reverse ForeignKeys
         ),
         pk=membro_id, 

@@ -8,7 +8,9 @@ from django.conf.urls.static import static
 # Importar a view da landing page
 
 from contas.views import LandingPageView
+
 from core.views import notificacoes_enviadas_view
+from core.backup_views import backup_urls
 
 
 urlpatterns = [
@@ -35,6 +37,10 @@ urlpatterns = [
     # Página de acompanhamento de notificações enviadas
     path('notificacoes-enviadas/', notificacoes_enviadas_view, name='notificacoes_enviadas'),
 
+    # Escola Bíblica Dominical
+    path('escola_biblica/', include(('escola_biblica.urls', 'escola_biblica'), namespace='escola_biblica')),
+    # URLs de backup
+    *backup_urls,
 ]
 
 

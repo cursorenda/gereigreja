@@ -13,11 +13,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='evento',
-            name='cargos_participantes',
-            field=models.ManyToManyField(blank=True, help_text='Selecione os cargos de pessoas esperadas para este evento.', related_name='eventos_por_cargo', to='secretaria.cargos', verbose_name='Cargos de Pessoas Esperadas'),
-        ),
-        migrations.AddField(
-            model_name='evento',
             name='status_participantes',
             field=models.ManyToManyField(blank=True, help_text='Selecione os status de pessoas esperadas para este evento.', related_name='eventos_por_status', to='secretaria.statuspessoa', verbose_name='Status de Pessoas Esperadas'),
         ),

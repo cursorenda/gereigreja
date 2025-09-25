@@ -8,3 +8,4 @@ class secretariaConfig(AppConfig):
 
     def ready(self):
         import secretaria.signals
+        import secretaria.signals_colaboradores

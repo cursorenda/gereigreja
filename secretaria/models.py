@@ -260,38 +260,32 @@ class Membro(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+# --- MODELOS DE CARGO E VÍNCULO ---
+from django.contrib.auth.models import Group
+
+class Cargo(models.Model):
+    nome = models.CharField(max_length=100, unique=True)
+    grupo_permissao = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return self.nome
+
+class MembroCargo(models.Model):
+    membro = models.ForeignKey('Membro', on_delete=models.CASCADE)
+    cargo = models.ForeignKey(Cargo, on_delete=models.CASCADE)
+    data_inicio = models.DateField()
+    data_fim = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.membro} - {self.cargo} ({self.data_inicio} a {self.data_fim or 'atual'})"
     
     class Meta:
         verbose_name = "Membro"
         verbose_name_plural = "Membros"
-        ordering = ['nome'] # Ordenar por nome por padrão
-        indexes = [
-            models.Index(fields=['nome'], name='nome_idx'),
-            models.Index(fields=['cpf'], name='cpf_idx'),
-            models.Index(fields=['igreja'], name='igreja_idx'), # Adicionei este índice
-            models.Index(fields=['status_pessoa'], name='status_pessoa_idx'), # Adicionei este índice
-            models.Index(fields=['tipo_pessoa'], name='tipo_pessoa_idx'), # Adicionei este índice
-        ]
 
 
-class Cargos(models.Model):
-    def __str__(self):
-        return self.cargo or f"Cargo {self.pk}"
-    cargo = models.TextField(unique=True, blank=True, null=True)
-    grupo_permissao = models.ForeignKey(
-        'auth.Group',
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        verbose_name='Grupo de Permissão',
-        help_text='Grupo de permissões do Django vinculado a este cargo (opcional).'
-    )
-
-    class Meta:
-        # managed = False # Descomente se o Django NÃO deve gerenciar esta tabela
-        db_table = 'cargos'
-        verbose_name = "Cargo"
-        verbose_name_plural = "Cargos"
 
 class Contatos(models.Model):
     membro = models.ForeignKey(Membro, on_delete=models.CASCADE, blank=True, null=True)
@@ -411,16 +405,6 @@ class InfoEclesiastica(models.Model):
         verbose_name_plural = "Informações Eclesiásticas"
 
 
-class MembrosCargos(models.Model):
-    membro = models.ForeignKey(Membro, on_delete=models.CASCADE, blank=True, null=True)
-    cargo = models.ForeignKey(Cargos, on_delete=models.CASCADE, blank=True, null=True)
-
-    class Meta:
-        # managed = False
-        db_table = 'membros_cargos'
-        verbose_name = "Cargo do Membro"
-        verbose_name_plural = "Cargos dos Membros"
-        unique_together = ('membro', 'cargo') # Evita duplicatas
 
 
 class Observacoes(models.Model):

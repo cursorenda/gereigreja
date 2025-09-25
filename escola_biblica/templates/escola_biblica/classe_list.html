@@ -1,0 +1,77 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Classes EBD{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Classes</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+        <li class="breadcrumb-item active">Classes</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-layer-group me-1"></i>
+            Classes ({{ classes.count }})
+            <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-primary btn-sm float-end"><i class="fas fa-plus"></i> Nova Classe</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome</th>
+                            <th>Faixa Etária</th>
+                            <th>Descrição</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for classe in classes %}
+                        <tr>
+                            <td>{{ classe.nome }}</td>
+                            <td>{{ classe.faixa_etaria }}</td>
+                            <td>{{ classe.descricao }}</td>
+                            <td>
+                                <a href="{% url 'escola_biblica:classe_edit' classe.pk %}" class="btn btn-sm btn-warning">Editar</a>
+                                <a href="{% url 'escola_biblica:classe_delete' classe.pk %}" class="btn btn-sm btn-danger">Excluir</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                                </table>
+                                {% if classes.has_other_pages %}
+                                <nav aria-label="Navegação de páginas">
+                                    <ul class="pagination justify-content-center">
+                                        {% if classes.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ classes.previous_page_number }}" aria-label="Anterior">
+                                                    <span aria-hidden="true">&laquo;</span>
+                                                </a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                                        {% endif %}
+                                        {% for num in classes.paginator.page_range %}
+                                            {% if classes.number == num %}
+                                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                            {% else %}
+                                                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if classes.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ classes.next_page_number }}" aria-label="Próxima">
+                                                    <span aria-hidden="true">&raquo;</span>
+                                                </a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

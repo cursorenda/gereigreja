@@ -31,13 +31,6 @@ class Evento(models.Model):
 		verbose_name='Status de Pessoas Esperadas',
 		help_text='Selecione os status de pessoas esperadas para este evento.'
 	)
-	cargos_participantes = models.ManyToManyField(
-		'secretaria.Cargos',
-		blank=True,
-		related_name='eventos_por_cargo',
-		verbose_name='Cargos de Pessoas Esperadas',
-		help_text='Selecione os cargos de pessoas esperadas para este evento.'
-	)
 	capa = models.ImageField(upload_to='eventos/capas/', blank=True, null=True, help_text="Imagem de capa do evento")
 
 	TIPO_EVENTO_CHOICES = [

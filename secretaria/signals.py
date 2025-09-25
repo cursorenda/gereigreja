@@ -1,6 +1,25 @@
+# Imports necessários para signals
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from .models import Membro, TimelineEvent, StatusHistorico, MembrosCargos, Cargos
+from .models import MembroCargo, Cargo
+# --- Sinal para adicionar membro ao grupo de permissão ao atribuir cargo (novo modelo) ---
+@receiver(post_save, sender=MembroCargo)
+def sincroniza_membro_grupo_novo(sender, instance, created, **kwargs):
+    if instance.membro and instance.cargo and instance.cargo.grupo_permissao:
+        user = getattr(instance.membro, 'usuario', None)
+        if user and hasattr(instance.cargo.grupo_permissao, 'user_set'):
+            instance.cargo.grupo_permissao.user_set.add(user)
+
+# --- Sinal para remover membro do grupo de permissão ao remover cargo (novo modelo) ---
+@receiver(post_delete, sender=MembroCargo)
+def remove_membro_do_grupo_novo(sender, instance, **kwargs):
+    if instance.membro and instance.cargo and instance.cargo.grupo_permissao:
+        user = getattr(instance.membro, 'usuario', None)
+        if user and hasattr(instance.cargo.grupo_permissao, 'user_set'):
+            instance.cargo.grupo_permissao.user_set.remove(user)
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from .models import Membro, TimelineEvent, StatusHistorico
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.utils import timezone
@@ -52,22 +71,3 @@ def cria_evento_status_tipo_membro(sender, instance, created, **kwargs):
                 )
 
 
-# --- Sinal para adicionar membro ao grupo de permissão ao atribuir cargo ---
-
-# Sempre sincroniza o grupo ao salvar MembrosCargos
-@receiver(post_save, sender=MembrosCargos)
-def sincroniza_membro_grupo(sender, instance, created, **kwargs):
-    if instance.membro and instance.cargo and instance.cargo.grupo_permissao:
-        user = getattr(instance.membro, 'usuario', None)
-        if user and isinstance(instance.cargo.grupo_permissao, Group):
-            instance.cargo.grupo_permissao.user_set.add(user)
-
-# --- Sinal para remover membro do grupo de permissão ao remover cargo ---
-
-# Remove o usuário do grupo ao remover o vínculo de cargo
-@receiver(post_delete, sender=MembrosCargos)
-def remove_membro_do_grupo(sender, instance, **kwargs):
-    if instance.membro and instance.cargo and instance.cargo.grupo_permissao:
-        user = getattr(instance.membro, 'usuario', None)
-        if user and isinstance(instance.cargo.grupo_permissao, Group):
-            instance.cargo.grupo_permissao.user_set.remove(user)

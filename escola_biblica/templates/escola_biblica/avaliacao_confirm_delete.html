@@ -1,0 +1,12 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Excluir Avaliação</h2>
+  <p>Tem certeza que deseja excluir a avaliação de <strong>{{ avaliacao.aluno }}</strong> para a lição <strong>{{ avaliacao.licao }}</strong>?</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sim, excluir</button>
+    <a href="{% url 'escola_biblica:avaliacao_list' %}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

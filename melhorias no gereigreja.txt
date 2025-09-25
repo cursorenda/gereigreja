@@ -520,7 +520,7 @@ Tradução: Use o sistema de internacionalização do Django para facilitar trad
 Ajuda Contextual: Adicione ícones de ajuda com explicações rápidas nos formulários.
 Documentação Online: Disponibilize um manual do usuário acessível pelo sistema.
 8. Automatização e Inteligência
-Sugestão Automática de Cargos: Sugira cargos com base em perfil ou histórico do membro.
+Sugestão Automática deCargo: Sugira cargos com base em perfil ou histórico do membro.
 Relatórios Inteligentes: Dashboards com insights automáticos (ex: membros inativos, aniversariantes do mês, etc).
 Se quiser priorizar alguma dessas áreas, posso detalhar como implementar ou já começar a aplicar as melhorias! Qual dessas sugestões faz mais sentido para você agora?
 
@@ -603,3 +603,11 @@ Notificações automáticas por e-mail/WhatsApp.
 Permitir eventos recorrentes (ex: culto toda semana).
 Visualização semanal e diária mais detalhada.
 Permitir comentários ou confirmações de presença nos eventos.
+
+agenda pastoral
+ideias para o pastor saber em qual departamento investir mais.
+modelo de escalas
+controle de emprestimos
+inseri nos eventos dirigente e pregador
+
+

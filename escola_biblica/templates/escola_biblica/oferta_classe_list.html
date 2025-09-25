@@ -1,0 +1,34 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Ofertas por Classe</h2>
+  <a href="{% url 'escola_biblica:oferta_classe_create' %}" class="btn btn-success mb-3">Nova Oferta</a>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Classe</th>
+        <th>Data</th>
+        <th>Valor (R$)</th>
+        <th>Observação</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for oferta in ofertas %}
+      <tr>
+        <td>{{ oferta.classe }}</td>
+        <td>{{ oferta.data|date:'d/m/Y' }}</td>
+        <td>{{ oferta.valor|floatformat:2 }}</td>
+        <td>{{ oferta.observacao|default:'-' }}</td>
+        <td>
+          <a href="{% url 'escola_biblica:oferta_classe_edit' oferta.pk %}" class="btn btn-sm btn-primary">Editar</a>
+          <a href="{% url 'escola_biblica:oferta_classe_delete' oferta.pk %}" class="btn btn-sm btn-danger">Excluir</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Nenhuma oferta registrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

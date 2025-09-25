@@ -1,0 +1,43 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Cargos e Funções da EBD{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Cargos e Funções da Escola Bíblica</h2>
+  <form method="get" class="mb-3">
+    <div class="row">
+      <div class="col-md-4">
+        <select name="cargo" class="form-control" onchange="this.form.submit()">
+          <option value="">-- Todos os cargos --</option>
+          {% for cargo in cargos_disponiveis %}
+            <option value="{{ cargo }}" {% if cargo == cargo_selecionado %}selected{% endif %}>{{ cargo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Cargo</th>
+        <th>Email</th>
+        <th>Telefone</th>
+        <th>Usuário</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for colaborador in colaboradores %}
+      <tr>
+        <td>{{ colaborador.membro.nome }}</td>
+        <td>{{ colaborador.cargo.nome }}</td>
+        <td>{{ colaborador.membro.email|default_if_none:"-" }}</td>
+        <td>{{ colaborador.membro.telefone|default_if_none:"-" }}</td>
+        <td>{{ colaborador.membro.usuario.username|default_if_none:"-" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Nenhum ocupante encontrado para este cargo.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

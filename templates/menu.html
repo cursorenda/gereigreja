@@ -1,3 +1,6 @@
+{# --- BLOCO ESCOLA BÍBLICA DOMINICAL (EBD) - deve ficar abaixo de Secretaria --- #}
+
+<!-- O bloco EBD será inserido aqui, logo após o bloco Secretaria -->
 {% load financeiro_tags %} {# Carrega nossos templatetags personalizados #}
 {% load secretaria_tags %} {# Carrega os templatetags da secretaria #}
 {% load secretaria_extras %}
@@ -70,8 +73,9 @@
 
             <a class="nav-link" href="{% url 'secretaria:lista_cargos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
-                Cargos
+               Cargo
             </a>
+
 
 
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseRelatoriosSecretaria" aria-expanded="false" aria-controls="collapseRelatoriosSecretaria">
@@ -89,6 +93,40 @@
                         <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
                         Reunião de Membros
                     </a>
+                </nav>
+            </div>
+
+            <!-- BLOCO ESCOLA DOMINICAL -->
+            <div class="sb-sidenav-menu-heading">ESCOLA DOMINICAL</div>
+            <a class="nav-link" href="{% url 'escola_biblica:dashboard' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
+                Dashboard EBD
+            </a>
+            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseEbdCadastros" aria-expanded="false" aria-controls="collapseEbdCadastros">
+                <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
+                Cadastros
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+            </a>
+            <div class="collapse" id="collapseEbdCadastros" aria-labelledby="headingEbdCadastros" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    <a class="nav-link" href="{% url 'escola_biblica:classe_list' %}"><div class="sb-nav-link-icon"><i class="fas fa-users"></i></div> Modelos de Classe</a>
+                    <a class="nav-link" href="{% url 'escola_biblica:turma_list' %}"><div class="sb-nav-link-icon"><i class="fas fa-user-friends"></i></div> Turmas do Ano</a>
+                    <a class="nav-link" href="{% url 'escola_biblica:licao_list' %}"><div class="sb-nav-link-icon"><i class="fas fa-book"></i></div> Lições</a>
+                    <a class="nav-link" href="{% url 'escola_biblica:avaliacao_list' %}"><div class="sb-nav-link-icon"><i class="fas fa-clipboard-check"></i></div> Avaliações</a>
+                    <a class="nav-link" href="{% url 'escola_biblica:oferta_classe_list' %}"><div class="sb-nav-link-icon"><i class="fas fa-hand-holding-usd"></i></div> Ofertas por Classe</a>
+                    <a class="nav-link" href="{% url 'escola_biblica:cargos_ebd_list' %}"><div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div> Cargos/Funções</a>
+                </nav>
+            </div>
+            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseEbdRelatorios" aria-expanded="false" aria-controls="collapseEbdRelatorios">
+                <div class="sb-nav-link-icon"><i class="fas fa-chart-bar"></i></div>
+                Relatórios
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+            </a>
+            <div class="collapse" id="collapseEbdRelatorios" aria-labelledby="headingEbdRelatorios" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    <a class="nav-link" href="{% url 'escola_biblica:relatorio_frequencia' %}"><div class="sb-nav-link-icon"><i class="fas fa-calendar-check"></i></div> Relatório de Frequência</a>
+                    <a class="nav-link" href="{% url 'escola_biblica:relatorio_alunos' %}"><div class="sb-nav-link-icon"><i class="fas fa-user-graduate"></i></div> Relatório de Alunos</a>
+                    <a class="nav-link" href="{% url 'escola_biblica:aluno_list' %}"><div class="sb-nav-link-icon"><i class="fas fa-list"></i></div> Lista de Alunos</a>
                 </nav>
             </div>
 

@@ -149,8 +149,8 @@
                 <div class="campo"><strong>Status:</strong> {{ membro.status_pessoa.nome|default:"-" }}</div>
                 <div class="campo"><strong>Data de Admissão na Igreja Atual:</strong> {{ membro.data_entrada|date:"d/m/Y"|default:"-" }}</div>
                 <div class="campo"><strong>Cargo(s):</strong> 
-                    {% for mc in membro.membroscargos_set.all %}
-                        {{ mc.cargo.cargo }}{% if not forloop.last %}, {% endif %}
+                    {% for mc in membro.membrocargo_set.all %}
+                        {{ mc.cargo.nome }}{% if not forloop.last %}, {% endif %}
                     {% empty %}
                         -
                     {% endfor %}

@@ -30,12 +30,12 @@ class EventoForm(forms.ModelForm):
 		widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
 		help_text="Selecione os status de pessoas esperadas para este evento."
 	)
-	cargos_participantes = forms.ModelMultipleChoiceField(
+	cargo_participantes = forms.ModelMultipleChoiceField(
 		queryset=None,
 		required=False,
-		label="Cargos de Pessoas Esperadas",
+		label="Cargo de Pessoa Esperada",
 		widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
-		help_text="Selecione os cargos de pessoas esperadas para este evento."
+		help_text="Selecione o cargo da pessoa esperada para este evento."
 	)
 
 	class Meta:
@@ -46,7 +46,7 @@ class EventoForm(forms.ModelForm):
 			# 'data_fim' removido do formulário do usuário
 			'recorrente', 'frequencia', 'intervalo', 'dia_semana', 'semana_mes', 'mes_ano', 'data_fim_recorrencia',
 			'capa',
-			'tipos_participantes', 'status_participantes', 'cargos_participantes',
+			'tipos_participantes', 'status_participantes', 'cargo_participantes',
 			'incluir_todos_membros',
 		]
 		widgets = {
@@ -126,12 +126,12 @@ class EventoForm(forms.ModelForm):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		from secretaria.models import TipoPessoa, StatusPessoa, Cargos
+		from secretaria.models import TipoPessoa, StatusPessoa, Cargo
 		from django.contrib.auth import get_user_model
 		from django.utils import timezone
 		self.fields['tipos_participantes'].queryset = TipoPessoa.objects.all()
 		self.fields['status_participantes'].queryset = StatusPessoa.objects.all()
-		self.fields['cargos_participantes'].queryset = Cargos.objects.all()
+		self.fields['cargo_participantes'].queryset = Cargo.objects.all()
 		self.fields['local'].help_text = 'Informe o ambiente exato (ex: Salão, Sala 1, Sala 2). Eventos em ambientes diferentes podem ocorrer no mesmo horário.'
 
 		# Personaliza o label do campo responsavel para mostrar o nome completo

@@ -1,0 +1,35 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Adicionar/Editar Colaborador EBD{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ vinculo|default:'Novo Colaborador' }}</h1>
+    <form method="post">{% csrf_token %}
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    {{ form.membro.label_tag }}
+                    {{ form.membro|add_attrs:'class=form-select' }}
+                    {% if form.membro.errors %}<div class="invalid-feedback d-block">{{ form.membro.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.cargo.label_tag }}
+                    {{ form.cargo|add_attrs:'class=form-select' }}
+                    {% if form.cargo.errors %}<div class="invalid-feedback d-block">{{ form.cargo.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.data_inicio.label_tag }}
+                    {{ form.data_inicio|add_attrs:'class=form-control' }}
+                    {% if form.data_inicio.errors %}<div class="invalid-feedback d-block">{{ form.data_inicio.errors|striptags }}</div>{% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.data_fim.label_tag }}
+                    {{ form.data_fim|add_attrs:'class=form-control' }}
+                    {% if form.data_fim.errors %}<div class="invalid-feedback d-block">{{ form.data_fim.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
+        <a href="{% url 'secretaria:equipe_ebd_list' %}" class="btn btn-secondary ms-2">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

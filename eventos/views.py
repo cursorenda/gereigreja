@@ -55,7 +55,7 @@ def criar_evento_profissional(request):
 					ev.save()
 					ev.tipos_participantes.set(evento.tipos_participantes.all())
 					ev.status_participantes.set(evento.status_participantes.all())
-					ev.cargos_participantes.set(evento.cargos_participantes.all())
+					ev.cargo_participantes.set(evento.cargo_participantes.all())
 				eventos_criados.append(ev)
 
 			# Geração automática dos participantes esperados para cada evento
@@ -72,8 +72,8 @@ def criar_evento_profissional(request):
 						membros_qs = membros_qs.filter(tipo_pessoa__in=ev.tipos_participantes.all())
 					if ev.status_participantes.exists():
 						membros_qs = membros_qs.filter(status_pessoa__in=ev.status_participantes.all())
-					if ev.cargos_participantes.exists():
-						membros_qs = membros_qs.filter(membroscargos__cargo__in=ev.cargos_participantes.all()).distinct()
+					if ev.cargo_participantes.exists():
+						membros_qs = membros_qs.filter(membroscargos__cargo__in=ev.cargo_participantes.all()).distinct()
 				for membro in membros_qs.distinct():
 					ParticipacaoEvento.objects.get_or_create(
 						evento=ev,
@@ -213,7 +213,7 @@ def editar_evento_profissional(request, pk):
 						ev.save()
 						ev.tipos_participantes.set(evento.tipos_participantes.all())
 						ev.status_participantes.set(evento.status_participantes.all())
-						ev.cargos_participantes.set(evento.cargos_participantes.all())
+						ev.cargo_participantes.set(evento.cargo_participantes.all())
 						eventos_existentes.append(ev)
 					else:
 						ev.data_fim = data_fim
@@ -235,8 +235,8 @@ def editar_evento_profissional(request, pk):
 						membros_qs = membros_qs.filter(tipo_pessoa__in=ev.tipos_participantes.all())
 					if ev.status_participantes.exists():
 						membros_qs = membros_qs.filter(status_pessoa__in=ev.status_participantes.all())
-					if ev.cargos_participantes.exists():
-						membros_qs = membros_qs.filter(membroscargos__cargo__in=ev.cargos_participantes.all()).distinct()
+					if ev.cargo_participantes.exists():
+						membros_qs = membros_qs.filter(membroscargos__cargo__in=ev.cargo_participantes.all()).distinct()
 				# Remove participações de membros que não estão mais no filtro
 				membros_chaves_atuais = set(membros_qs.values_list('chave', flat=True))
 				ParticipacaoEvento.objects.filter(evento=ev).exclude(membro__chave__in=membros_chaves_atuais).delete()

@@ -1,3 +1,4 @@
+# --- CONFIGURAÇÕES DE SEGURANÇA RECOMENDADAS PARA PRODUÇÃO ---
 
 import os
 from pathlib import Path
@@ -14,7 +15,14 @@ CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+
+
 }
+
+# --- CONFIGURAÇÕES DE SEGURANÇA RECOMENDADAS PARA PRODUÇÃO ---
+
+
+# --- CONFIGURAÇÕES DE SEGURANÇA RECOMENDADAS PARA PRODUÇÃO ---
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 if not CLOUDINARY_STORAGE['CLOUD_NAME']:
@@ -39,7 +47,22 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-r$cs+v_ad_nqus
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Em produção, defina a variável de ambiente DJANGO_DEBUG='False' no painel da hospedagem.
+# --- CONFIGURAÇÕES DE SEGURANÇA RECOMENDADAS PARA PRODUÇÃO ---
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True  # Redireciona todo tráfego HTTP para HTTPS
+    SESSION_COOKIE_SECURE = True  # Cookies de sessão só via HTTPS
+    CSRF_COOKIE_SECURE = True  # Cookies CSRF só via HTTPS
+    SECURE_HSTS_SECONDS = 31536000  # HSTS por 1 ano
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_HTTPONLY = True  # Cookies de sessão não acessíveis via JS
+    CSRF_COOKIE_HTTPONLY = True  # Cookies CSRF não acessíveis via JS
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Protege contra CSRF
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SECURE_REFERRER_POLICY = 'same-origin'  # Política de referência
+    SECURE_CONTENT_TYPE_NOSNIFF = True  # Protege contra ataques de MIME
+    X_FRAME_OPTIONS = 'DENY'  # Protege contra clickjacking
 # ALLOWED_HOSTS deve conter os domínios/IPs que servirão sua aplicação.
 ALLOWED_HOSTS = ['gereigreja.site', 'www.gereigreja.site', '199.167.147.66', 'localhost', '127.0.0.1']
 
@@ -76,6 +99,7 @@ INSTALLED_APPS = [
     'agenda',  # Novo app de agenda
     'eventos',  # App de eventos
     'suporte',
+    'escola_biblica',
     'storages', # <- Move 'storages' here
     'cloudinary',
     'cloudinary_storage',

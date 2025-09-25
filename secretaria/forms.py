@@ -31,7 +31,7 @@ class AssociarUsuarioMembroForm(forms.Form):
             else:
                 self.fields['usuario'].widget.attrs['data-sugestao'] = '0'
 # Formulário para gerenciar ocupantes de um cargo
-from .models import MembrosCargos, Membro
+from .models import MembroCargo, Membro
 
 class GerenciarOcupantesForm(forms.Form):
     ocupantes = forms.ModelMultipleChoiceField(
@@ -42,19 +42,20 @@ class GerenciarOcupantesForm(forms.Form):
         help_text='Selecione os membros que ocuparão este cargo.'
     )
 from django.contrib.auth.models import Group
-from .models import Cargos
-# Formulário para cadastro/edição de cargos
-class CargosForm(forms.ModelForm):
+
+# Novo formulário para cadastro/edição de cargos (novo modelo)
+from .models import Cargo
+class CargoForm(forms.ModelForm):
     class Meta:
-        model = Cargos
-        fields = ['cargo', 'grupo_permissao']
+        model = Cargo
+        fields = ['nome', 'grupo_permissao']
         widgets = {
-            'cargo': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100, 'placeholder': 'Nome do cargo'}),
+            'nome': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100, 'placeholder': 'Nome do cargo'}),
             'grupo_permissao': forms.Select(attrs={'class': 'form-select'}),
         }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['cargo'].label = 'Nome do Cargo'
+        self.fields['nome'].label = 'Nome do Cargo'
         self.fields['grupo_permissao'].label = 'Grupo de Permissão (opcional)'
         self.fields['grupo_permissao'].required = False
 from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico # Adicionado StatusHistorico

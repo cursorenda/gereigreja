@@ -1,0 +1,101 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Gráficos EBD{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Estatísticas e Gráficos - EBD</h2>
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <div class="card">
+        <div class="card-header">Alunos por Departamento</div>
+        <div class="card-body">
+          <canvas id="alunosPorDepartamento"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 mb-4">
+      <div class="card">
+        <div class="card-header">Ofertas por Departamento</div>
+        <div class="card-body">
+          <canvas id="ofertasPorDepartamento"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <div class="card">
+        <div class="card-header">Ofertas por Classe</div>
+        <div class="card-body">
+          <canvas id="ofertasPorClasse"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 mb-4">
+      <div class="card">
+        <div class="card-header">Alunos por Classe</div>
+        <div class="card-body">
+          <canvas id="alunosPorClasse"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Dados do backend
+  const alunosPorDepartamento = {{ alunos_por_departamento|safe }};
+  const ofertasPorDepartamento = {{ ofertas_por_departamento|safe }};
+  const ofertasPorClasse = {{ ofertas_por_classe|safe }};
+  const alunosPorClasse = {{ alunos_por_classe|safe }};
+
+  // Gráfico Alunos por Departamento
+  new Chart(document.getElementById('alunosPorDepartamento'), {
+    type: 'pie',
+    data: {
+      labels: Object.keys(alunosPorDepartamento),
+      datasets: [{
+        data: Object.values(alunosPorDepartamento),
+        backgroundColor: ['#007bff', '#ffc107']
+      }]
+    }
+  });
+
+  // Gráfico Ofertas por Departamento
+  new Chart(document.getElementById('ofertasPorDepartamento'), {
+    type: 'pie',
+    data: {
+      labels: Object.keys(ofertasPorDepartamento),
+      datasets: [{
+        data: Object.values(ofertasPorDepartamento),
+        backgroundColor: ['#28a745', '#fd7e14']
+      }]
+    }
+  });
+
+  // Gráfico Ofertas por Classe
+  new Chart(document.getElementById('ofertasPorClasse'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(ofertasPorClasse),
+      datasets: [{
+        label: 'Oferta (R$)',
+        data: Object.values(ofertasPorClasse),
+        backgroundColor: '#17a2b8'
+      }]
+    }
+  });
+
+  // Gráfico Alunos por Classe
+  new Chart(document.getElementById('alunosPorClasse'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(alunosPorClasse),
+      datasets: [{
+        label: 'Alunos',
+        data: Object.values(alunosPorClasse),
+        backgroundColor: '#6f42c1'
+      }]
+    }
+  });
+</script>
+{% endblock %}

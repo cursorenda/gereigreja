@@ -1,6 +1,6 @@
 # secretaria/admin.py
 from django.contrib import admin
-from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, MembrosCargos, Cargos # Adicionado StatusHistorico
+from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, Cargo, MembroCargo # Adicionado StatusHistorico
 from django.utils.html import format_html # Para exibir a imagem
 
 
@@ -62,19 +62,27 @@ class StatusHistoricoAdmin(admin.ModelAdmin):
 
 # --- Registre os outros modelos se desejar (descomente/adicione conforme necessário) ---
 
-@admin.register(Cargos)
-class CargosAdmin(admin.ModelAdmin):
-    list_display = ('cargo', 'grupo_permissao')
-    search_fields = ('cargo',)
+# Admin para o novo modelo Cargo
+@admin.register(Cargo)
+class CargoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'grupo_permissao')
+    search_fields = ('nome',)
     autocomplete_fields = ['grupo_permissao']
     list_filter = ('grupo_permissao',)
+
+# Admin para o novo modelo MembroCargo
+@admin.register(MembroCargo)
+class MembroCargoAdmin(admin.ModelAdmin):
+    list_display = ('membro', 'cargo', 'data_inicio', 'data_fim')
+    search_fields = ('membro__nome', 'cargo__nome')
+    autocomplete_fields = ['membro', 'cargo']
+    list_filter = ('cargo',)
 # admin.site.register(Contatos)
 # admin.site.register(Eventos)
 # admin.site.register(EventosParticipacao)
 # admin.site.register(Familia)
 # admin.site.register(Filhos)
 # admin.site.register(InfoEclesiastica)
-# admin.site.register(MembrosCargos)
 # admin.site.register(Observacoes)
 # admin.site.register(OutrosFamiliares)
 # StatusHistorico já registrado com @admin.register

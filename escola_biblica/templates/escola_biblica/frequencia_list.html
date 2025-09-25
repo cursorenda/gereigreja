@@ -1,0 +1,72 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Frequência EBD{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Frequência</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+        <li class="breadcrumb-item active">Frequência</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-calendar-check me-1"></i>
+            Frequência dos Alunos
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Aluno</th>
+                            <th>Turma</th>
+                            <th>Data</th>
+                            <th>Presente</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for freq in frequencias %}
+                        <tr>
+                            <td>{{ freq.aluno }}</td>
+                            <td>{{ freq.aluno.turma }}</td>
+                            <td>{{ freq.data }}</td>
+                            <td>{{ freq.presente|yesno:'Sim,Não' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                                </table>
+                                {% if frequencias.has_other_pages %}
+                                <nav aria-label="Navegação de páginas">
+                                    <ul class="pagination justify-content-center">
+                                        {% if frequencias.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ frequencias.previous_page_number }}" aria-label="Anterior">
+                                                    <span aria-hidden="true">&laquo;</span>
+                                                </a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                                        {% endif %}
+                                        {% for num in frequencias.paginator.page_range %}
+                                            {% if frequencias.number == num %}
+                                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                            {% else %}
+                                                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if frequencias.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ frequencias.next_page_number }}" aria-label="Próxima">
+                                                    <span aria-hidden="true">&raquo;</span>
+                                                </a>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

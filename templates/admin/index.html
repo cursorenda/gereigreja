@@ -12,14 +12,20 @@
                 <a href="#" class="section" title="Ferramentas do Sistema">Ferramentas do Sistema</a>
             </caption>
             <tbody>
-                <tr class="model-convite"> {# Use uma classe de modelo existente ou crie uma nova #}
+                <tr class="model-convite">
                     <th scope="row">
-                        <a href="{% url 'secretaria:backup_page' %}">Backup do Sistema</a>
+                            <a href="/backup/custom/">Backup Banco (Custom)</a>
                     </th>
                     <td>&nbsp;</td>
                     <td>&nbsp;</td>
                 </tr>
-                {# Adicione mais links de ferramentas aqui se necessário #}
+                <tr class="model-convite">
+                    <th scope="row">
+                            <a href="/backup/sql/">Backup Banco (SQL)</a>
+                    </th>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                </tr>
             </tbody>
         </table>
     </div>

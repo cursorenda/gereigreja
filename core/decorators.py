@@ -81,3 +81,14 @@ def check_permission(test_func, login_url_name=None): # Renomeado o parâmetro p
                 raise PermissionDenied("Você não tem permissão para acessar esta página.")
         return _wrapped_view
     return decorator
+
+# --- DECORATORS EBD ---
+from django.contrib.auth.decorators import user_passes_test
+
+def superintendente_required(view_func):
+    """Permite acesso a superusers ou membros do grupo 'Superintendentes'."""
+    return user_passes_test(lambda u: u.is_superuser or u.groups.filter(name='Superintendentes').exists())(view_func)
+
+def secretaria_ebd_required(view_func):
+    """Permite acesso a superusers, superintendentes ou membros do grupo 'Secretaria EBD'."""
+    return user_passes_test(lambda u: u.is_superuser or u.groups.filter(name__in=['Superintendentes', 'Secretaria EBD']).exists())(view_func)

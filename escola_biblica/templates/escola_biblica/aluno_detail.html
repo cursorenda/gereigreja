@@ -1,0 +1,51 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Perfil do Aluno</h2>
+  <div class="card mb-3">
+    <div class="card-body">
+      <h4 class="card-title">{{ aluno.nome }}</h4>
+      <p><strong>Turma atual:</strong> {{ aluno.turma }}</p>
+      <p><strong>Data de nascimento:</strong> {{ aluno.data_nascimento|date:'d/m/Y' }}</p>
+      <p><strong>Responsável:</strong> {{ aluno.responsavel }}</p>
+      <p><strong>Telefone do responsável:</strong> {{ aluno.telefone_responsavel }}</p>
+      <p><strong>Ativo:</strong> {{ aluno.ativo|yesno:'Sim,Não' }}</p>
+      <a href="{% url 'escola_biblica:aluno_list' %}" class="btn btn-secondary btn-sm">Voltar</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <i class="fas fa-random"></i> Histórico de Transferências
+    </div>
+    <div class="card-body p-0">
+      {% if transferencias %}
+      <table class="table table-striped table-bordered table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Data</th>
+            <th>Turma Origem</th>
+            <th>Turma Destino</th>
+            <th>Motivo</th>
+            <th>Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transferencias %}
+          <tr>
+            <td>{{ t.data_transferencia|date:'d/m/Y' }}</td>
+            <td>{{ t.turma_origem }}</td>
+            <td>{{ t.turma_destino }}</td>
+            <td>{{ t.motivo }}</td>
+            <td>{{ t.usuario_responsavel }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="p-3 text-muted">Nenhuma transferência registrada.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
