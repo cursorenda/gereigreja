@@ -1,4 +1,20 @@
 {% extends 'base_com_menu.html' %}
+<div class="row g-2 mb-3">
+  <div class="col-12">
+    <div class="card mb-2 p-2 bg-light border-info">
+      <div class="fw-bold mb-1">Indicadores de participação por tipo de pessoa (ativos):</div>
+      <div class="text-muted mb-2" style="font-size: 0.95em;">
+        Os indicadores abaixo mostram a presença de membros e congregados ativos em relação ao total esperado e também a composição dos presentes.
+      </div>
+      <ul class="mb-0">
+        <li><strong>Membros ativos presentes:</strong> {{ estatisticas.membros_presentes }} de {{ estatisticas.membros_ativos }} ({{ estatisticas.perc_membros_ativos_participantes|floatformat:1 }}%)</li>
+        <li><strong>Congregados ativos presentes:</strong> {{ estatisticas.congregados_presentes }} de {{ estatisticas.congregados_ativos }} ({{ estatisticas.perc_congregados_ativos_participantes|floatformat:1 }}%)</li>
+        <li><strong>Entre os presentes, % que são membros ativos:</strong> {{ estatisticas.perc_participantes_membros_ativos|floatformat:1 }}%</li>
+        <li><strong>Entre os presentes, % que são congregados ativos:</strong> {{ estatisticas.perc_participantes_congregados_ativos|floatformat:1 }}%</li>
+      </ul>
+    </div>
+  </div>
+</div>
 {% block title %}Detalhes do Evento{% endblock %}
 {% block content %}
 <div class="container-fluid px-4">
@@ -59,9 +75,114 @@
         </div>
       </div>
       <div class="row mb-4">
-        <div class="col-md-6">
-          <div class="mb-3">
-            <strong>Criado por:</strong><br>{{ evento.criado_por }}
+        <div class="col-md-12">
+          <h5 class="mb-3 border-bottom pb-1">Estatísticas do Evento</h5>
+          <!-- Indicadores avançados de participação -->
+          <div class="row g-2 mb-3">
+            <div class="col-12">
+              <div class="card mb-2 p-2 bg-light border-info">
+                <div class="fw-bold mb-1">Indicadores de participação por tipo de pessoa (ativos):</div>
+                <div class="text-muted mb-2" style="font-size: 0.95em;">
+                  Os indicadores abaixo mostram a presença de membros e congregados ativos em relação ao total esperado e também a composição dos presentes.
+                </div>
+                <ul class="mb-0">
+                  <li><strong>Membros ativos presentes:</strong> {{ estatisticas.membros_presentes }} de {{ estatisticas.membros_ativos }} ({{ estatisticas.perc_membros_ativos_participantes|floatformat:1 }}%)</li>
+                  <li><strong>Congregados ativos presentes:</strong> {{ estatisticas.congregados_presentes }} de {{ estatisticas.congregados_ativos }} ({{ estatisticas.perc_congregados_ativos_participantes|floatformat:1 }}%)</li>
+                  <li><strong>Entre os presentes, % que são membros ativos:</strong> {{ estatisticas.perc_participantes_membros_ativos|floatformat:1 }}%</li>
+                  <li><strong>Entre os presentes, % que são congregados ativos:</strong> {{ estatisticas.perc_participantes_congregados_ativos|floatformat:1 }}%</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <!-- Cards de totais -->
+          <div class="row g-2 mb-3">
+            <div class="col-md-3 col-6">
+              <div class="card text-center border-success mb-2"><div class="card-body p-2"><div class="fw-bold">Esperados</div><div class="fs-5">{{ estatisticas.total_esperados }}</div></div></div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="card text-center border-primary mb-2"><div class="card-body p-2"><div class="fw-bold">Presentes</div><div class="fs-5">{{ estatisticas.total_presentes }}</div><div class="small">({{ estatisticas.percentual_presenca|floatformat:1 }}%)</div></div></div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="card text-center border-danger mb-2"><div class="card-body p-2"><div class="fw-bold">Ausentes</div><div class="fs-5">{{ estatisticas.total_ausentes }}</div><div class="small">({{ estatisticas.percentual_ausencia|floatformat:1 }}%)</div></div></div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="card text-center border-warning mb-2"><div class="card-body p-2"><div class="fw-bold">Justificados</div><div class="fs-5">{{ estatisticas.total_justificados }}</div><div class="small">({{ estatisticas.percentual_justificados|floatformat:1 }}%)</div></div></div>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <div class="mb-2"><strong>Distribuição por papel:</strong>
+                <ul class="mb-0">
+                  {% for papel, qtd in estatisticas.por_papel.items %}
+                    <li>
+                      {% if papel == 'PARTICIPANTE' %}Participante{% elif papel == 'ORGANIZADOR' %}Organizador{% elif papel == 'PALESTRANTE' %}Palestrante{% elif papel == 'CONVIDADO' %}Convidado{% else %}{{ papel|title }}{% endif %}: {{ qtd }}
+                    </li>
+                  {% empty %}
+                    <li><em>Nenhum papel registrado.</em></li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-2"><strong>Distribuição por status:</strong>
+                <ul class="mb-0">
+                  {% for status, qtd in estatisticas.por_status.items %}
+                    <li>
+                      {% if status == 'PENDENTE' %}Pendente{% elif status == 'CONFIRMADO' %}Confirmado{% elif status == 'RECUSADO' %}Recusado{% elif status == 'AUSENTE' %}Ausente{% elif status == 'PRESENTE' %}Presente{% else %}{{ status|title }}{% endif %}: {{ qtd }}
+                    </li>
+                  {% empty %}
+                    <li><em>Nenhum status registrado.</em></li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h6 class="mb-2">Lista de Participantes</h6>
+            <form id="filtro-participantes" method="get" class="mb-2">
+              <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <label><input type="checkbox" name="filtro" value="todos" {% if 'todos' in filtros_ativos %}checked{% endif %}> Todos</label>
+                <label><input type="checkbox" name="filtro" value="presentes" {% if 'presentes' in filtros_ativos %}checked{% endif %}> Presentes</label>
+                <label><input type="checkbox" name="filtro" value="ausentes" {% if 'ausentes' in filtros_ativos %}checked{% endif %}> Ausentes</label>
+                <label><input type="checkbox" name="filtro" value="justificados" {% if 'justificados' in filtros_ativos %}checked{% endif %}> Justificados</label>
+                <button type="submit" class="btn btn-outline-primary btn-sm ms-2">Filtrar</button>
+              </div>
+            </form>
+            <form id="exportar-participantes" method="get" action="{% url 'eventos:exportar_participantes_excel' evento.pk %}">
+              {% for f in filtros_ativos %}
+                <input type="hidden" name="filtro" value="{{ f }}">
+              {% endfor %}
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Papel</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for p in participacoes %}
+                      <tr class="participante-row"
+                        data-status="{{ p.status }}"
+                        data-justificado="{% if p.justificativa_falta %}1{% else %}0{% endif %}">
+                        <td>{% if p.membro %}{{ p.membro.nome }}{% else %}{{ p.convidado_nome }}{% endif %}</td>
+                        <td>
+                          {% if p.papel == 'PARTICIPANTE' %}Participante{% elif p.papel == 'ORGANIZADOR' %}Organizador{% elif p.papel == 'PALESTRANTE' %}Palestrante{% elif p.papel == 'CONVIDADO' %}Convidado{% else %}{{ p.papel|title }}{% endif %}
+                        </td>
+                        <td>
+                          {% if p.status == 'PENDENTE' %}Pendente{% elif p.status == 'CONFIRMADO' %}Confirmado{% elif p.status == 'RECUSADO' %}Recusado{% elif p.status == 'AUSENTE' %}Ausente{% elif p.status == 'PRESENTE' %}Presente{% else %}{{ p.status|title }}{% endif %}
+                        </td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="3"><em>Nenhum participante registrado.</em></td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <button type="submit" class="btn btn-info">Exportar</button>
+            </form>
           </div>
         </div>
       </div>
@@ -85,6 +206,7 @@
       </div>
       {% endif %}
   <a href="{% url 'eventos:marcar_presenca' evento.pk %}" class="btn btn-success">Marcar Presença</a>
+  <a href="{% url 'eventos:exportar_participantes_excel' evento.pk %}" class="btn btn-info">Exportar para Excel</a>
   <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-warning">Editar</a>
   <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger">Excluir</a>
   <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-secondary">Voltar</a>

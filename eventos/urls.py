@@ -10,4 +10,5 @@ urlpatterns = [
 	path('editar/<int:pk>/', views.editar_evento_profissional, name='editar_evento'),
 	path('excluir/<int:pk>/', views.excluir_evento_profissional, name='excluir_evento'),
 	path('presenca/<int:pk>/', views.marcar_presenca_evento, name='marcar_presenca'),
+	path('exportar_participantes_excel/<int:pk>/', views.exportar_participantes_excel, name='exportar_participantes_excel'),
 ]

@@ -1,3 +1,57 @@
+from django.db.models import Q
+import openpyxl
+from openpyxl.utils import get_column_letter
+from django.http import HttpResponse
+# Exportação de participantes para Excel
+def exportar_participantes_excel(request, pk):
+	from .models import ParticipacaoEvento, Evento
+	evento = Evento.objects.get(pk=pk)
+	participacoes = ParticipacaoEvento.objects.filter(evento=evento)
+
+	wb = openpyxl.Workbook()
+	ws = wb.active
+	ws.title = "Participantes"
+
+	# Cabeçalho
+	ws.append(["Nome", "Papel", "Status"])
+
+	papel_map = {
+		'PARTICIPANTE': 'Participante',
+		'ORGANIZADOR': 'Organizador',
+		'PALESTRANTE': 'Palestrante',
+		'CONVIDADO': 'Convidado',
+	}
+	status_map = {
+		'PENDENTE': 'Pendente',
+		'CONFIRMADO': 'Confirmado',
+		'RECUSADO': 'Recusado',
+		'AUSENTE': 'Ausente',
+		'PRESENTE': 'Presente',
+	}
+
+	for p in participacoes:
+		nome = p.membro.nome if p.membro else p.convidado_nome
+		papel = papel_map.get(p.papel, p.papel.title())
+		status = status_map.get(p.status, p.status.title())
+		ws.append([nome, papel, status])
+
+	# Ajustar largura das colunas
+	for col in ws.columns:
+		max_length = 0
+		col_letter = get_column_letter(col[0].column)
+		for cell in col:
+			try:
+				if len(str(cell.value)) > max_length:
+					max_length = len(str(cell.value))
+			except:
+				pass
+		ws.column_dimensions[col_letter].width = max_length + 2
+
+	response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+	filename = f"participantes_evento_{evento.pk}.xlsx"
+	response['Content-Disposition'] = f'attachment; filename={filename}'
+	wb.save(response)
+	return response
 from django.contrib.auth.decorators import login_required
 @login_required
 def criar_evento_profissional(request):
@@ -295,4 +349,134 @@ def lista_eventos(request):
 @login_required
 def detalhe_evento_profissional(request, pk):
 	evento = get_object_or_404(Evento, pk=pk)
-	return render(request, 'eventos/detalhe_evento.html', {'evento': evento})
+	# IDs dos tipos de pessoa para "Membro" e "Congregado"
+	from secretaria.models import TipoPessoa, StatusPessoa, Membro
+	from .models import ParticipacaoEvento
+	tipo_membro = TipoPessoa.objects.filter(nome__iexact='Membro').first()
+	tipo_congregado = TipoPessoa.objects.filter(nome__iexact='Congregado').first()
+	status_ativo = StatusPessoa.objects.filter(nome__iexact='Ativo').first()
+
+	# ...
+	# Filtros vindos do GET
+	filtros_ativos = request.GET.getlist('filtro')
+	if not filtros_ativos or 'todos' in filtros_ativos:
+		filtros_ativos = ['todos']
+
+	participacoes = ParticipacaoEvento.objects.filter(evento=evento)
+	# Filtros combinados
+	if 'todos' not in filtros_ativos:
+		q = None
+		if 'presentes' in filtros_ativos:
+			q = (q | Q(status='PRESENTE')) if q else Q(status='PRESENTE')
+		if 'ausentes' in filtros_ativos:
+			q = (q | Q(status='AUSENTE')) if q else Q(status='AUSENTE')
+		if 'justificados' in filtros_ativos:
+			q = (q | (Q(justificativa_falta__isnull=False) & ~Q(justificativa_falta='')) ) if q else (Q(justificativa_falta__isnull=False) & ~Q(justificativa_falta=''))
+		if q:
+			participacoes = participacoes.filter(q)
+
+	# Esperados: membros filtrados por tipos_participantes, status_participantes, incluir_todos_membros
+	membros_esperados = Membro.objects.none()
+	if evento.incluir_todos_membros:
+		membros_esperados = Membro.objects.filter(igreja=evento.igreja)
+	else:
+		tipos = evento.tipos_participantes.all()
+		status = evento.status_participantes.all()
+		qs = Membro.objects.filter(igreja=evento.igreja)
+		if tipos.exists():
+			qs = qs.filter(tipo_pessoa__in=tipos)
+		if status.exists():
+			qs = qs.filter(status_pessoa__in=status)
+		membros_esperados = qs.distinct()
+
+	# Agora sim, cálculos dependentes de membros_esperados
+	membros_ativos = membros_esperados.filter(tipo_pessoa=tipo_membro, status_pessoa=status_ativo) if tipo_membro and status_ativo else membros_esperados.none()
+	congregados_ativos = membros_esperados.filter(tipo_pessoa=tipo_congregado, status_pessoa=status_ativo) if tipo_congregado and status_ativo else membros_esperados.none()
+
+	# Participantes presentes (membros ativos/congregados ativos)
+	participantes_presentes = participacoes.filter(status='PRESENTE')
+	membros_presentes = participantes_presentes.filter(membro__tipo_pessoa=tipo_membro, membro__status_pessoa=status_ativo) if tipo_membro and status_ativo else participantes_presentes.none()
+	congregados_presentes = participantes_presentes.filter(membro__tipo_pessoa=tipo_congregado, membro__status_pessoa=status_ativo) if tipo_congregado and status_ativo else participantes_presentes.none()
+
+	# % de membros ativos participantes (presentes / membros ativos esperados)
+	perc_membros_ativos_participantes = (membros_presentes.count() / membros_ativos.count() * 100) if membros_ativos.count() else 0
+	# % de congregados ativos participantes
+	perc_congregados_ativos_participantes = (congregados_presentes.count() / congregados_ativos.count() * 100) if congregados_ativos.count() else 0
+	# % dos participantes que são membros ativos
+	perc_participantes_membros_ativos = (membros_presentes.count() / participantes_presentes.count() * 100) if participantes_presentes.count() else 0
+	# % dos participantes que são congregados ativos
+	perc_participantes_congregados_ativos = (congregados_presentes.count() / participantes_presentes.count() * 100) if participantes_presentes.count() else 0
+	evento = get_object_or_404(Evento, pk=pk)
+
+	# Filtros vindos do GET
+	filtros_ativos = request.GET.getlist('filtro')
+	if not filtros_ativos or 'todos' in filtros_ativos:
+		filtros_ativos = ['todos']
+
+	participacoes = ParticipacaoEvento.objects.filter(evento=evento)
+	# Filtros combinados
+	if 'todos' not in filtros_ativos:
+		q = None
+		if 'presentes' in filtros_ativos:
+			q = (q | Q(status='PRESENTE')) if q else Q(status='PRESENTE')
+		if 'ausentes' in filtros_ativos:
+			q = (q | Q(status='AUSENTE')) if q else Q(status='AUSENTE')
+		if 'justificados' in filtros_ativos:
+			q = (q | (Q(justificativa_falta__isnull=False) & ~Q(justificativa_falta='')) ) if q else (Q(justificativa_falta__isnull=False) & ~Q(justificativa_falta=''))
+		if q:
+			participacoes = participacoes.filter(q)
+
+	# Esperados: membros filtrados por tipos_participantes, status_participantes, incluir_todos_membros
+	membros_esperados = Membro.objects.none()
+	if evento.incluir_todos_membros:
+		membros_esperados = Membro.objects.filter(igreja=evento.igreja)
+	else:
+		tipos = evento.tipos_participantes.all()
+		status = evento.status_participantes.all()
+		qs = Membro.objects.filter(igreja=evento.igreja)
+		if tipos.exists():
+			qs = qs.filter(tipo_pessoa__in=tipos)
+		if status.exists():
+			qs = qs.filter(status_pessoa__in=status)
+		membros_esperados = qs.distinct()
+
+	total_esperados = membros_esperados.count()
+	qs_participacoes = ParticipacaoEvento.objects.filter(evento=evento)
+	total_presentes = qs_participacoes.filter(status='PRESENTE').count()
+	total_ausentes = qs_participacoes.filter(status='AUSENTE').count()
+	total_justificados = qs_participacoes.filter(status='AUSENTE').exclude(justificativa_falta__isnull=True).exclude(justificativa_falta='').count()
+
+	percentual_presenca = (total_presentes / total_esperados * 100) if total_esperados else 0
+	percentual_ausencia = (total_ausentes / total_esperados * 100) if total_esperados else 0
+	percentual_justificados = (total_justificados / total_esperados * 100) if total_esperados else 0
+
+	from collections import Counter
+	papel_counter = Counter(qs_participacoes.values_list('papel', flat=True))
+	status_counter = Counter(qs_participacoes.values_list('status', flat=True))
+
+	estatisticas = {
+		'total_esperados': total_esperados,
+		'total_presentes': total_presentes,
+		'total_ausentes': total_ausentes,
+		'total_justificados': total_justificados,
+		'percentual_presenca': percentual_presenca,
+		'percentual_ausencia': percentual_ausencia,
+		'percentual_justificados': percentual_justificados,
+		'por_papel': dict(papel_counter),
+		'por_status': dict(status_counter),
+		'perc_membros_ativos_participantes': perc_membros_ativos_participantes,
+		'perc_congregados_ativos_participantes': perc_congregados_ativos_participantes,
+		'perc_participantes_membros_ativos': perc_participantes_membros_ativos,
+		'perc_participantes_congregados_ativos': perc_participantes_congregados_ativos,
+		'membros_ativos': membros_ativos.count(),
+		'congregados_ativos': congregados_ativos.count(),
+		'membros_presentes': membros_presentes.count(),
+		'congregados_presentes': congregados_presentes.count(),
+	}
+
+	return render(request, 'eventos/detalhe_evento.html', {
+		'evento': evento,
+		'estatisticas': estatisticas,
+		'participacoes': participacoes,
+		'filtros_ativos': filtros_ativos,
+	})
