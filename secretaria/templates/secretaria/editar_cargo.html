@@ -5,9 +5,9 @@
     {% csrf_token %}
     {{ form.non_field_errors }}
     <div class="mb-3">
-        <label for="id_cargo" class="form-label">Nome do Cargo</label>
-        {{ form.cargo }}
-        {{ form.cargo.errors }}
+        <label for="id_nome" class="form-label">Nome do Cargo</label>
+        {{ form.nome }}
+        {{ form.nome.errors }}
     </div>
     <div class="mb-3">
         <label for="id_grupo_permissao" class="form-label">Grupo de Permissão (opcional)</label>

@@ -1,6 +1,6 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
-<h1>Gerenciar Ocupantes do Cargo: {{ cargo.cargo }}</h1>
+<h1>Gerenciar Ocupantes do Cargo: {{ cargo.nome }}</h1>
 <form method="post" id="ocupantes-form">
     {% csrf_token %}
     <div class="mb-3">

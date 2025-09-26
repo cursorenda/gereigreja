@@ -611,3 +611,21 @@ controle de emprestimos
 inseri nos eventos dirigente e pregador
 
 
+Sugestões de estatísticas para cada evento:
+
+Participantes esperados (total selecionado ao criar o evento)
+Quantidade de participantes presentes
+% de presença geral (presentes / esperados)
+% de presença por categoria:
+Cooperadores presentes
+Membros ativos presentes
+Congregados ativos presentes
+Visitantes presentes
+Crianças presentes
+Novos convertidos presentes
+Faltas (esperados - presentes)
+% de faltas por categoria
+Participação por faixa etária ou sexo (se disponível)
+Participação por ministério ou grupo (se aplicável)
+Histórico de presença do evento (comparação com eventos anteriores)
+Lista dos que faltaram (com contato para follow-up)

@@ -86,7 +86,14 @@ def gerenciar_ocupantes(request, cargo_id):
         MembroCargo.objects.filter(cargo=cargo).exclude(membro__in=novos_ocupantes).delete()
         # Adiciona novos ocupantes (evita duplicidade)
         for membro in novos_ocupantes:
-            MembroCargo.objects.get_or_create(cargo=cargo, membro=membro, defaults={'data_inicio': timezone.now().date()})
+            # Sempre garantir data_inicio preenchida corretamente
+            vinculo, created = MembroCargo.objects.get_or_create(
+                cargo=cargo, membro=membro,
+                defaults={'data_inicio': timezone.now().date()}
+            )
+            if not vinculo.data_inicio:
+                vinculo.data_inicio = timezone.now().date()
+                vinculo.save()
         messages.success(request, 'Ocupantes do cargo atualizados com sucesso!')
         return redirect('secretaria:lista_cargos')
     else:

@@ -266,8 +266,14 @@ class Membro(models.Model):
 from django.contrib.auth.models import Group
 
 class Cargo(models.Model):
+
     nome = models.CharField(max_length=100, unique=True)
     grupo_permissao = models.ForeignKey(Group, null=True, blank=True, on_delete=models.SET_NULL)
+    is_ebd = models.BooleanField(
+        default=False,
+        verbose_name="É da EBD?",
+        help_text="Marque se este cargo pertence à Escola Bíblica Dominical."
+    )
 
     def __str__(self):
         return self.nome

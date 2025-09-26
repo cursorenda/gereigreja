@@ -191,8 +191,8 @@ def relatorio_frequencia(request):
 def cargos_ebd_list(request):
     from secretaria.models import MembroCargo, Cargo
     cargo_nome = request.GET.get('cargo')
-    cargos_disponiveis = Cargo.objects.values_list('nome', flat=True).distinct()
-    colaboradores = MembroCargo.objects.select_related('membro', 'cargo').all()
+    cargos_disponiveis = Cargo.objects.filter(is_ebd=True).values_list('nome', flat=True).distinct()
+    colaboradores = MembroCargo.objects.select_related('membro', 'cargo').filter(cargo__is_ebd=True)
     if cargo_nome:
         colaboradores = colaboradores.filter(cargo__nome__iexact=cargo_nome)
     return render(request, 'escola_biblica/cargos_ebd_list.html', {

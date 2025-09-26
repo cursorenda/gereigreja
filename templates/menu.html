@@ -59,10 +59,13 @@
 
 
 
+
             <a class="nav-link" href="{% url 'secretaria:lista_membros' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
-                Membros
+                Lista de Membros
             </a>
+
+            {# O link para associação de cargos deve ser feito pelo menu de cargos customizado, não pelo admin do Django #}
 
             {% if request.user.is_superuser or request.user|has_group:'Pastor,Administrador,Admin Ministerio,Lider Igreja' %}
             <a class="nav-link" href="{% url 'secretaria:associar_usuarios_membros' %}">
