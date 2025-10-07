@@ -27,28 +27,26 @@ class StatusPessoaAdmin(admin.ModelAdmin):
 @admin.register(Membro)
 class MembroAdmin(admin.ModelAdmin):
     list_display = (
-        'nome', 'igreja', 
-        'tipo_pessoa', # Novo campo
-        'status_pessoa', # Novo campo       
-         'is_ativo_para_relatorios', # Mostra o resultado da propriedade
-        'genero', 'nascimento', 'telefone' # Adicionei telefone como exemplo
+        'nome', 'igreja', 'tipo_pessoa', 'status_pessoa', 'is_ativo_para_relatorios',
+        'genero', 'nascimento', 'telefone',
+        'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento'
     )
     list_filter = (
-        'igreja',
-        'tipo_pessoa', # Novo campo
-        'status_pessoa', # Novo campo
-        'status_pessoa__considerar_ativo_relatorios', # Filtra pelo flag DENTRO do novo StatusPessoa
-        'genero',
-        'estado_civil',
-        'nascimento' # <-- Adicionado aqui
-
+        'igreja', 'tipo_pessoa', 'status_pessoa', 'status_acompanhamento',
+        'status_pessoa__considerar_ativo_relatorios', 'genero', 'estado_civil', 'nascimento'
     )
-    search_fields = ('nome', 'apelido', 'cpf', 'rg')
-    raw_id_fields = ('igreja', 'tipo_pessoa', 'status_pessoa') # Atualizado para novos campos
-    #date_hierarchy = 'nascimento' # Navegação por data
-    readonly_fields = ('is_ativo_para_relatorios',) # A propriedade não é editável aqui
-    ordering = ('nome',)
-    list_per_page = 25 # Define quantos membros por página no admin
+    search_fields = ('nome', 'apelido', 'cpf', 'rg', 'origem_visita', 'observacoes_visita')
+# Admin para o modelo de acompanhamento de visita
+from .models import AcompanhamentoVisita
+
+@admin.register(AcompanhamentoVisita)
+class AcompanhamentoVisitaAdmin(admin.ModelAdmin):
+    list_display = ('membro', 'data', 'responsavel', 'tipo_contato', 'resultado')
+    list_filter = ('tipo_contato', 'responsavel', 'data')
+    search_fields = ('membro__nome', 'resultado', 'observacao')
+    autocomplete_fields = ['membro', 'responsavel']
+    ordering = ('-data',)
+    list_per_page = 25 # Define quantos acompanhamentos por página no admin
 
 
 @admin.register(StatusHistorico)
@@ -60,7 +58,16 @@ class StatusHistoricoAdmin(admin.ModelAdmin):
     autocomplete_fields = ['membro', 'tipo_pessoa_anterior', 'tipo_pessoa_novo', 'status_pessoa_anterior', 'status_pessoa_novo', 'registrado_por']
     ordering = ('-data_transicao',)
 
-# --- Registre os outros modelos se desejar (descomente/adicione conforme necessário) ---
+
+# --- Admin para Visitante ---
+from .models import Visitante
+
+@admin.register(Visitante)
+class VisitanteAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'igreja', 'data_primeira_visita', 'status_acompanhamento', 'responsavel')
+    list_filter = ('igreja', 'status_acompanhamento', 'responsavel')
+    search_fields = ('nome', 'telefone', 'email', 'origem')
+    ordering = ('-data_primeira_visita', 'nome')
 
 # Admin para o novo modelo Cargo
 @admin.register(Cargo)

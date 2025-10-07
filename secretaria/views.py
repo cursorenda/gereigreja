@@ -1,3 +1,202 @@
+from django.http import JsonResponse
+from django.db import models
+# --- VIEW AJAX: BUSCAR VISITANTES POR NOME OU APELIDO ---
+def buscar_visitantes(request):
+    termo = request.GET.get('q', '').strip()
+    # Busca ignorando acentuação (PostgreSQL: unaccent)
+    import unicodedata
+    from .models import Membro
+    from eventos.models import Evento
+    def remover_acentos(txt):
+        return unicodedata.normalize('NFKD', txt).encode('ASCII', 'ignore').decode('ASCII') if txt else ''
+
+    visitantes = []
+    evento_id = request.GET.get('evento')
+    tipos_ids = []
+    status_ids = []
+    if evento_id:
+        try:
+            evento = Evento.objects.get(pk=evento_id)
+            tipos_ids = list(evento.tipos_participantes.values_list('id', flat=True))
+            status_ids = list(evento.status_participantes.values_list('id', flat=True))
+        except Evento.DoesNotExist:
+            pass
+    if termo:
+        termo_sem_acento = remover_acentos(termo.lower())
+        membros = Membro.objects.all()
+        if tipos_ids:
+            membros = membros.filter(tipo_pessoa_id__in=tipos_ids)
+        if status_ids:
+            membros = membros.filter(status_pessoa_id__in=status_ids)
+        for v in membros:
+            nome = v.nome or ''
+            apelido = v.apelido or ''
+            if termo_sem_acento in remover_acentos(nome.lower()) or termo_sem_acento in remover_acentos(apelido.lower()):
+                visitantes.append({'id': v.chave, 'nome': v.nome, 'apelido': v.apelido})
+            if len(visitantes) >= 20:
+                break
+    return JsonResponse(visitantes, safe=False)
+    return JsonResponse(list(visitantes), safe=False)
+from .forms_presenca_visitante_evento import PresencaVisitanteEventoForm
+from eventos.models import Evento
+from .models import PresencaVisitanteEvento, Visitante
+from django.utils import timezone
+
+# --- VIEW: REGISTRAR PRESENÇA DE VISITANTE EM EVENTO ---
+from django.contrib.auth.decorators import login_required
+@login_required
+def registrar_presenca_visitante_evento(request):
+    hoje = timezone.localdate()
+    fim = hoje + timezone.timedelta(days=7)
+    eventos_do_dia = Evento.objects.filter(data_inicio__date__gte=hoje, data_inicio__date__lte=fim).order_by('data_inicio')
+    evento_id = request.GET.get('evento')
+    evento_selecionado = None
+    pessoas_presentes = []
+    if evento_id:
+        evento_selecionado = Evento.objects.get(pk=evento_id)
+        pessoas_presentes = PresencaVisitanteEvento.objects.filter(evento=evento_selecionado).select_related('membro').order_by('-data_registro')
+    if request.method == 'POST':
+        form = PresencaVisitanteEventoForm(request.POST)
+        if form.is_valid():
+            membro = form.cleaned_data['membro']
+            evento = form.cleaned_data['evento']
+            # Verifica se já existe presença para este membro neste evento
+            if PresencaVisitanteEvento.objects.filter(membro=membro, evento=evento).exists():
+                messages.warning(request, f'A pessoa "{membro.nome}" já está registrada neste evento!')
+            else:
+                presenca = form.save(commit=False)
+                presenca.responsavel_registro = request.user
+                presenca.save()
+                messages.success(request, f'Presença de "{presenca.membro.nome}" registrada no evento!')
+            return redirect(f'?evento={evento.id}')
+    else:
+        form = PresencaVisitanteEventoForm()
+        if evento_selecionado:
+            form.fields['evento'].initial = evento_selecionado.id
+    context = {
+        'form': form,
+        'eventos_do_dia': eventos_do_dia,
+        'evento_selecionado': evento_selecionado,
+        'visitantes_presentes': pessoas_presentes,
+        'titulo_pagina': 'Registrar Presença no Evento',
+    }
+    return render(request, 'secretaria/registrar_presenca_visitante_evento.html', context)
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db.models import Q
+
+from .models import Visitante, AcompanhamentoVisita, Membro
+from .forms_visitante import VisitanteForm
+from .forms_acompanhamento import AcompanhamentoVisitaForm
+from .forms import AssociarUsuarioMembroForm
+
+# --- VIEW: EXCLUIR VISITANTE ---
+@login_required
+def excluir_visitante(request, visitante_id):
+    visitante = get_object_or_404(Visitante, pk=visitante_id)
+    if request.method == 'POST':
+        nome = visitante.nome
+        visitante.delete()
+        messages.success(request, f'Visitante "{nome}" excluído com sucesso!')
+        return redirect('secretaria:lista_visitantes')
+    context = {
+        'visitante': visitante,
+        'titulo_pagina': f'Excluir Visitante: {visitante.nome}',
+    }
+    return render(request, 'secretaria/excluir_visitante.html', context)
+# --- VIEW: EDITAR VISITANTE ---
+@login_required
+def editar_visitante(request, visitante_id):
+    visitante = get_object_or_404(Visitante, pk=visitante_id)
+    if request.method == 'POST':
+        form = VisitanteForm(request.POST, instance=visitante)
+        if form.is_valid():
+            visitante = form.save(commit=False)
+            visitante.responsavel = request.user
+            visitante.save()
+            messages.success(request, f'Visitante "{visitante.nome}" atualizado com sucesso!')
+            return redirect('secretaria:lista_visitantes')
+    else:
+        form = VisitanteForm(instance=visitante)
+    context = {
+        'form': form,
+        'visitante': visitante,
+        'titulo_pagina': f'Editar Visitante: {visitante.nome}',
+    }
+    return render(request, 'secretaria/editar_visitante.html', context)
+
+# --- VIEW: LISTA DE VISITANTES ---
+@login_required
+def lista_visitantes(request):
+    visitantes = Visitante.objects.select_related('igreja', 'responsavel').order_by('-data_primeira_visita', 'nome')
+    query = request.GET.get('q', '').strip()
+    if query:
+        visitantes = visitantes.filter(
+            Q(nome__icontains=query) | Q(telefone__icontains=query) | Q(email__icontains=query)
+        )
+    status = request.GET.get('status')
+    if status:
+        visitantes = visitantes.filter(status_acompanhamento=status)
+    igreja_id = request.GET.get('igreja')
+    if igreja_id:
+        visitantes = visitantes.filter(igreja_id=igreja_id)
+    context = {
+        'visitantes': visitantes,
+        'query': query,
+        'status': status,
+        'igreja_id': igreja_id,
+        'titulo_pagina': 'Lista de Visitantes',
+    }
+    return render(request, 'secretaria/lista_visitantes.html', context)
+
+# --- VIEW: CADASTRAR VISITANTE ---
+@login_required
+def criar_visitante(request):
+    if request.method == 'POST':
+        form = VisitanteForm(request.POST)
+        if form.is_valid():
+            visitante = form.save(commit=False)
+            visitante.responsavel = request.user
+            visitante.save()
+            messages.success(request, f'Visitante "{visitante.nome}" cadastrado com sucesso!')
+            return redirect('secretaria:lista_visitantes')
+    else:
+        form = VisitanteForm()
+    context = {
+        'form': form,
+        'titulo_pagina': 'Cadastrar Novo Visitante',
+    }
+    return render(request, 'secretaria/criar_visitante.html', context)
+from .forms_acompanhamento import AcompanhamentoVisitaForm
+# View para registrar acompanhamento de visita
+from .models import AcompanhamentoVisita, Membro
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def registrar_acompanhamento_visita(request, membro_id):
+    membro = get_object_or_404(Membro, pk=membro_id)
+    if request.method == 'POST':
+        form = AcompanhamentoVisitaForm(request.POST)
+        if form.is_valid():
+            acompanhamento = form.save(commit=False)
+            acompanhamento.membro = membro
+            acompanhamento.responsavel = request.user
+            from django.utils import timezone
+            acompanhamento.data = timezone.now()  # Preenche automaticamente
+            acompanhamento.save()
+            messages.success(request, 'Acompanhamento registrado com sucesso!')
+            return redirect('secretaria:editar_membro', membro_id=membro_id)
+    else:
+        form = AcompanhamentoVisitaForm()
+    acompanhamentos = AcompanhamentoVisita.objects.filter(membro=membro).order_by('-data')
+    context = {
+        'form': form,
+        'membro': membro,
+        'acompanhamentos': acompanhamentos
+    }
+    return render(request, 'secretaria/registrar_acompanhamento_visita.html', context)
 # Decorators precisam ser importados antes do uso
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
@@ -961,14 +1160,30 @@ def editar_membro(request, membro_id): # noqa: E302
         pass  # Bloco mantido para evitar erro de indentação
     # >>> FIM DO LOG ADICIONADO <<<
 
+    # --- FILTRO DE ACOMPANHAMENTO DE VISITA ---
+    acompanhamentos_visita = membro.acompanhamentos_visita.all()
+    filtro_tipo = request.GET.get('filtro_tipo', '').strip()
+    filtro_data = request.GET.get('filtro_data', '').strip()
+    if filtro_tipo:
+        acompanhamentos_visita = acompanhamentos_visita.filter(tipo_contato=filtro_tipo)
+    if filtro_data:
+        try:
+            from datetime import datetime
+            filtro_data_dt = datetime.strptime(filtro_data, '%Y-%m-%d').date()
+            acompanhamentos_visita = acompanhamentos_visita.filter(data__date=filtro_data_dt)
+        except Exception:
+            pass
     context = {
         'form': form,
         'membro_id': membro_id,
         'ministerio': ministerio,
         'titulo_pagina': f'Editar Membro: {membro.nome}',
-        'contribuicoes': contribuicoes, # Passando as contribuições para o template
-        'user_management_form': user_management_form, # Novo formulário
-        'user_associado': user_associado, # Passa o objeto User associado
+        'contribuicoes': contribuicoes,
+        'user_management_form': user_management_form,
+        'user_associado': user_associado,
+        'acompanhamentos_visita': acompanhamentos_visita,
+        'filtro_tipo': filtro_tipo,
+        'filtro_data': filtro_data,
     }
     return render(request, 'secretaria/editar_membro.html', context)
 

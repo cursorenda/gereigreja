@@ -35,4 +35,13 @@ urlpatterns = [
     path('cargos/<int:cargo_id>/excluir/', views.excluir_cargo, name='excluir_cargo'),
     path('cargos/<int:cargo_id>/ocupantes/', views.gerenciar_ocupantes, name='gerenciar_ocupantes'),
     path('associar-usuarios-membros/', associar_usuarios_membros, name='associar_usuarios_membros'),
+    # --- URL para registrar acompanhamento de visita ---
+    path('membros/<int:membro_id>/acompanhamento-visita/', views.registrar_acompanhamento_visita, name='registrar_acompanhamento_visita'),
+        # --- VISITANTES ---
+        path('visitantes/', views.lista_visitantes, name='lista_visitantes'),
+        path('visitantes/cadastrar/', views.criar_visitante, name='cadastrar_visitante'),
+        path('visitantes/<int:visitante_id>/editar/', views.editar_visitante, name='editar_visitante'),
+    path('visitantes/<int:visitante_id>/excluir/', views.excluir_visitante, name='excluir_visitante'),
+    path('recepcao-evento/', views.registrar_presenca_visitante_evento, name='registrar_presenca_visitante_evento'),
+    path('ajax/buscar_visitantes/', views.buscar_visitantes, name='buscar_visitantes'),
 ]

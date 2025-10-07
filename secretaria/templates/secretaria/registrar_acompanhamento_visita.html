@@ -1,0 +1,38 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<h2>Acompanhamento de Visita - {{ membro.nome }}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Registrar Acompanhamento</button>
+</form>
+
+<hr>
+<h3>Histórico de Acompanhamentos</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Responsável</th>
+            <th>Tipo de Contato</th>
+            <th>Resultado</th>
+            <th>Observação</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for acompanhamento in acompanhamentos %}
+        <tr>
+            <td>{{ acompanhamento.data|date:'d/m/Y H:i' }}</td>
+            <td>{{ acompanhamento.responsavel.get_full_name|default:acompanhamento.responsavel.username }}</td>
+            <td>{{ acompanhamento.get_tipo_contato_display }}</td>
+            <td>{{ acompanhamento.resultado }}</td>
+            <td>{{ acompanhamento.observacao }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Nenhum acompanhamento registrado.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'secretaria:editar_membro' membro.pk %}" class="btn btn-secondary">Voltar para o Membro</a>
+{% endblock %}

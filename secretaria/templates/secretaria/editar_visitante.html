@@ -1,0 +1,23 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+{% if messages %}
+  <div class="mt-2">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+<div class="container mt-4">
+  <h2>{{ titulo_pagina }}</h2>
+  <form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+  {{ form.as_p }}
+  <small class="text-muted">Status de acompanhamento: Novo, Em Acompanhamento, Interessado, Não Retornou, Encerrado</small>
+    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+    <a href="{% url 'secretaria:lista_visitantes' %}" class="btn btn-secondary ms-2">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

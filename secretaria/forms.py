@@ -113,6 +113,8 @@ class MembroForm(forms.ModelForm):
             'data_entrada', 'conjuge', 'data_casamento',
             'foto', 'email',
             'tipo_entrada', # Novo campo
+            # --- Novos campos de visitante/acompanhamento ---
+            'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento', 'observacoes_visita'
         ]
     def clean(self):
         cleaned_data = super().clean()
@@ -128,16 +130,30 @@ class MembroForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Exibe o campo tipo_entrada só se tipo_pessoa for "membro"
+        tipo_nome = None
+        tipo_id = None
         if 'tipo_pessoa' in self.data:
             tipo_id = self.data.get('tipo_pessoa')
             try:
                 tipo_obj = TipoPessoa.objects.get(pk=tipo_id)
-                if tipo_obj.nome.lower() != 'membro':
-                    self.fields['tipo_entrada'].widget = forms.HiddenInput()
+                tipo_nome = tipo_obj.nome.lower()
             except TipoPessoa.DoesNotExist:
-                self.fields['tipo_entrada'].widget = forms.HiddenInput()
-        elif self.instance and self.instance.tipo_pessoa and self.instance.tipo_pessoa.nome.lower() != 'membro':
+                tipo_nome = None
+        elif self.instance and self.instance.tipo_pessoa:
+            tipo_nome = self.instance.tipo_pessoa.nome.lower()
+
+        if tipo_nome != 'membro':
             self.fields['tipo_entrada'].widget = forms.HiddenInput()
+
+        # --- CAMPOS ESSENCIAIS PARA VISITANTE ---
+        campos_essenciais_visitante = [
+            'igreja', 'nome', 'apelido', 'telefone', 'email', 'data_primeira_visita',
+            'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento', 'observacoes_visita', 'tipo_pessoa', 'status_pessoa', 'data_entrada'
+        ]
+        if tipo_nome == 'visitante':
+            for field in self.fields:
+                if field not in campos_essenciais_visitante:
+                    self.fields[field].widget = forms.HiddenInput()
 
         widgets = {
             # ... (widgets existentes) ...
@@ -149,7 +165,8 @@ class MembroForm(forms.ModelForm):
             # --- MODIFICAÇÃO AQUI ---
             # Especificar o formato que o widget DateInput deve usar ao renderizar o valor.
             # O input HTML type="date" espera 'YYYY-MM-DD'.
-            'nascimento': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),            'profissao': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50}),
+            'nascimento': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control', 'type': 'date'}),
+            'profissao': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50}),
             'nome_pai': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
             'nome_mae': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
             'cep': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 9}),

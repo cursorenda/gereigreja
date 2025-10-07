@@ -1,13 +1,63 @@
-﻿from django.db import models
-from django.utils import timezone # Adicionar este import
+﻿
+from django.db import models
 from django.utils import timezone
 import uuid # Para nomes de arquivo únicos
 import os   # Para manipulação de caminhos
 from django.conf import settings # Para settings.AUTH_USER_MODEL
-from configuracao.models import Igreja # <--- ADICIONE ESTA LINHA
+from configuracao.models import Igreja
+import logging
+logger = logging.getLogger(__name__)
 
-import logging # Add this
-logger = logging.getLogger(__name__) # Add this
+# --- MODELO DE VISITANTE ---
+class Visitante(models.Model):
+    nome = models.CharField(max_length=100)
+    apelido = models.CharField(max_length=50, blank=True, null=True, help_text="Apelido ou nome pelo qual é conhecido.")
+    telefone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(max_length=100, blank=True, null=True)
+    origem = models.CharField(max_length=100, blank=True, null=True, help_text="Como conheceu a igreja, evento, indicação, etc.")
+    data_primeira_visita = models.DateField(default=timezone.now)
+    status_acompanhamento = models.CharField(max_length=30, choices=[
+        ("novo", "Novo Visitante"),
+        ("em_acompanhamento", "Em Acompanhamento"),
+        ("interessado", "Interessado"),
+        ("nao_retornou", "Não Retornou"),
+        ("encerrado", "Encerrado")
+    ], default="novo")
+    observacoes = models.TextField(blank=True, null=True)
+    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='visitantes_acompanhados')
+    igreja = models.ForeignKey(Igreja, on_delete=models.PROTECT, related_name='visitantes', null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Visitante"
+        verbose_name_plural = "Visitantes"
+        ordering = ['-data_primeira_visita', 'nome']
+
+    def __str__(self):
+        return f"{self.nome} ({self.data_primeira_visita:%d/%m/%Y})"
+
+
+    # --- MODELO DE HISTÓRICO DE INTERAÇÕES DO VISITANTE ---
+    class InteracaoVisitante(models.Model):
+        visitante = models.ForeignKey('Visitante', on_delete=models.CASCADE, related_name='interacoes')
+        data_interacao = models.DateTimeField(default=timezone.now)
+        tipo_interacao = models.CharField(max_length=50, choices=[
+            ('visita', 'Visita'),
+            ('ligacao', 'Ligação'),
+            ('convite', 'Convite'),
+            ('evento', 'Participação em Evento'),
+            ('mensagem', 'Mensagem'),
+            ('outro', 'Outro'),
+        ], default='outro')
+        descricao = models.TextField(blank=True, null=True, help_text='Detalhes da interação ou observações.')
+        responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='interacoes_visitantes')
+
+        class Meta:
+            verbose_name = 'Interação do Visitante'
+            verbose_name_plural = 'Interações dos Visitantes'
+            ordering = ['-data_interacao']
+
+        def __str__(self):
+            return f"{self.visitante.nome} - {self.get_tipo_interacao_display()} ({self.data_interacao:%d/%m/%Y %H:%M})"
 
 
 
@@ -26,6 +76,23 @@ class TipoPessoa(models.Model):
         verbose_name_plural = "Tipos de Pessoas"
         ordering = ['nome']
 
+
+
+# --- MODELO DE PRESENÇA DE VISITANTE EM EVENTO ---
+class PresencaVisitanteEvento(models.Model):
+    membro = models.ForeignKey('Membro', on_delete=models.CASCADE, related_name='presencas_eventos', null=True)
+    evento = models.ForeignKey('eventos.Evento', on_delete=models.CASCADE, related_name='visitantes_presentes')
+    data_registro = models.DateTimeField(default=timezone.now)
+    responsavel_registro = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='presencas_visitantes_registradas')
+
+    class Meta:
+        verbose_name = 'Presença de Pessoa em Evento'
+        verbose_name_plural = 'Presenças de Pessoas em Eventos'
+        unique_together = ('membro', 'evento')
+        ordering = ['-data_registro']
+
+    def __str__(self):
+        return f"{self.membro.nome} em {self.evento.titulo} ({self.data_registro:%d/%m/%Y %H:%M})"
 class StatusPessoa(models.Model):
     nome = models.CharField(max_length=100, unique=True, help_text="Ex: Ativo, Inativo, Em Disciplina, Desligado, Transferido, Falecido")
     descricao = models.TextField(blank=True, null=True, help_text="Descrição adicional do status.")
@@ -114,6 +181,23 @@ class Membro(models.Model):
         null=True, blank=True,
         verbose_name="Foto do Membro"
     )
+    # --- CAMPOS DE VISITANTE/ACOMPANHAMENTO ---
+    data_primeira_visita = models.DateField(blank=True, null=True, verbose_name="Data da Primeira Visita")
+    origem_visita = models.CharField(max_length=100, blank=True, null=True, verbose_name="Origem da Visita", help_text="Ex: Indicação, Redes Sociais, Evento, etc.")
+    responsavel_acompanhamento = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='membros_acompanhados', verbose_name="Responsável pelo Acompanhamento")
+    STATUS_ACOMPANHAMENTO_CHOICES = [
+        ("novo_visitante", "Novo Visitante"),
+        ("em_acompanhamento", "Em Acompanhamento"),
+        ("retornou", "Retornou"),
+        ("interessado_integracao", "Interessado em Integração"),
+        ("convertido", "Convertido"),
+        ("tornou_membro", "Tornou-se Membro"),
+        ("nao_retornou", "Não Retornou"),
+        ("encaminhado_ministerio", "Encaminhado para outro Ministério"),
+        ("encerrado", "Encerrado")
+    ]
+    status_acompanhamento = models.CharField(max_length=30, choices=STATUS_ACOMPANHAMENTO_CHOICES, blank=True, null=True, verbose_name="Status do Acompanhamento")
+    observacoes_visita = models.TextField(blank=True, null=True, verbose_name="Observações do Acompanhamento/Visita")
 
 # --- NOVOS CAMPOS PARA TIPO E STATUS ---
     tipo_pessoa = models.ForeignKey(
@@ -473,3 +557,27 @@ class StatusHistorico(models.Model):
 
     class Meta:
         ordering = ['-data_transicao']
+
+
+# --- MODELO DE ACOMPANHAMENTO DE VISITA ---
+class AcompanhamentoVisita(models.Model):
+    membro = models.ForeignKey(Membro, on_delete=models.CASCADE, related_name='acompanhamentos_visita')
+    data = models.DateTimeField(default=timezone.now)
+    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='acompanhamentos_realizados')
+    tipo_contato = models.CharField(max_length=50, choices=[
+        ("ligacao", "Ligação"),
+        ("visita", "Visita"),
+        ("mensagem", "Mensagem"),
+        ("evento", "Evento"),
+        ("outro", "Outro")
+    ], default="outro")
+    resultado = models.CharField(max_length=100, blank=True, null=True, help_text="Ex: Compareceu, Não respondeu, Interessado, etc.")
+    observacao = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-data']
+        verbose_name = "Acompanhamento de Visita"
+        verbose_name_plural = "Acompanhamentos de Visita"
+
+    def __str__(self):
+        return f"{self.membro} - {self.get_tipo_contato_display()} em {self.data:%d/%m/%Y}"

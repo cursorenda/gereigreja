@@ -52,7 +52,11 @@ def agenda_eventos_json(request):
 	# Retorna todos os eventos do mês atual em formato JSON para o FullCalendar
 	from django.utils import timezone
 	from eventos.models import Evento
-	eventos = Evento.objects.all()
+	from configuracao.models import Igreja
+	ministerio = getattr(getattr(request.user, 'perfil', None), 'ministerio', None)
+	eventos = Evento.objects.none()
+	if ministerio:
+		eventos = Evento.objects.filter(igreja__ministerio=ministerio)
 	# Filtros
 	tipo = request.GET.get('tipo')
 	igreja = request.GET.get('igreja')
@@ -121,10 +125,15 @@ def agenda_view(request):
 		proximo_mes = primeiro_dia.replace(year=primeiro_dia.year+1, month=1, day=1)
 	else:
 		proximo_mes = primeiro_dia.replace(month=primeiro_dia.month+1, day=1)
-	eventos = AgendaEvento.objects.filter(
-		data_inicio__date__gte=primeiro_dia,
-		data_inicio__date__lt=proximo_mes
-	).order_by('data_inicio')
+	from configuracao.models import Igreja
+	ministerio = getattr(getattr(request.user, 'perfil', None), 'ministerio', None)
+	eventos = AgendaEvento.objects.none()
+	if ministerio:
+		eventos = AgendaEvento.objects.filter(
+			igreja__ministerio=ministerio,
+			data_inicio__date__gte=primeiro_dia,
+			data_inicio__date__lt=proximo_mes
+		).order_by('data_inicio')
 	return render(request, 'agenda/agenda.html', {
 		'eventos': eventos,
 		'mes': hoje.strftime('%B'),

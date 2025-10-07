@@ -314,7 +314,13 @@ def editar_evento_profissional(request, pk):
 @login_required
 def lista_eventos(request):
 	from django.utils import timezone
-	eventos = Evento.objects.all().order_by('data_inicio')
+	from configuracao.models import Igreja
+	ministerio = getattr(getattr(request.user, 'perfil', None), 'ministerio', None)
+	eventos = Evento.objects.none()
+	igrejas = Igreja.objects.none()
+	if ministerio:
+		eventos = Evento.objects.filter(igreja__ministerio=ministerio).order_by('data_inicio')
+		igrejas = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
 	# Filtros
 	tipo = request.GET.get('tipo')
 	igreja = request.GET.get('igreja')
@@ -331,8 +337,6 @@ def lista_eventos(request):
 		eventos = eventos.filter(data_inicio__date__gte=data_inicio)
 	if data_fim:
 		eventos = eventos.filter(data_inicio__date__lte=data_fim)
-	from configuracao.models import Igreja
-	igrejas = Igreja.objects.all().order_by('nome_igreja')
 	paginator = Paginator(eventos, 20)
 	page_number = request.GET.get('page')
 	page_obj = paginator.get_page(page_number)
