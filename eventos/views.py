@@ -56,7 +56,7 @@ from django.contrib.auth.decorators import login_required
 @login_required
 def criar_evento_profissional(request):
 	if request.method == 'POST':
-		form = EventoForm(request.POST, request.FILES)
+		form = EventoForm(request.POST, request.FILES, request=request)
 		if form.is_valid():
 			evento = form.save(commit=False)
 			evento.criado_por = request.user
@@ -141,8 +141,11 @@ def criar_evento_profissional(request):
 			messages.success(request, f'{len(eventos_criados)} evento(s) criado(s) com sucesso!')
 			return redirect(reverse('eventos:lista_eventos'))
 	else:
-		form = EventoForm()
-	return render(request, 'eventos/criar_evento.html', {'form': form})
+		form = EventoForm(request=request)
+	igreja_nome = None
+	if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+		igreja_nome = request.igreja_ativa.nome_igreja if hasattr(request.igreja_ativa, 'nome_igreja') else str(request.igreja_ativa)
+	return render(request, 'eventos/criar_evento.html', {'form': form, 'igreja_nome': igreja_nome})
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from .models import ParticipacaoEvento
@@ -315,15 +318,12 @@ def editar_evento_profissional(request, pk):
 def lista_eventos(request):
 	from django.utils import timezone
 	from configuracao.models import Igreja
-	ministerio = getattr(getattr(request.user, 'perfil', None), 'ministerio', None)
+	# Exibe apenas eventos da igreja ativa
 	eventos = Evento.objects.none()
-	igrejas = Igreja.objects.none()
-	if ministerio:
-		eventos = Evento.objects.filter(igreja__ministerio=ministerio).order_by('data_inicio')
-		igrejas = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+	if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+		eventos = Evento.objects.filter(igreja=request.igreja_ativa).order_by('data_inicio')
 	# Filtros
 	tipo = request.GET.get('tipo')
-	igreja = request.GET.get('igreja')
 	data_inicio = request.GET.get('data_inicio')
 	data_fim = request.GET.get('data_fim')
 	mostrar_passados = request.GET.get('mostrar_passados') == 'on'
@@ -331,8 +331,6 @@ def lista_eventos(request):
 		eventos = eventos.filter(data_inicio__gte=timezone.now())
 	if tipo:
 		eventos = eventos.filter(tipo=tipo)
-	if igreja:
-		eventos = eventos.filter(igreja_id=igreja)
 	if data_inicio:
 		eventos = eventos.filter(data_inicio__date__gte=data_inicio)
 	if data_fim:
@@ -343,7 +341,6 @@ def lista_eventos(request):
 	today = timezone.localdate()
 	return render(request, 'eventos/lista_eventos.html', {
 		'page_obj': page_obj,
-		'igrejas': igrejas,
 		'mostrar_passados': mostrar_passados,
 		'today': today,
 	})

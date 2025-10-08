@@ -4,8 +4,10 @@
 {% block title %}Configurações do Sistema{% endblock %}
 
 {% block content %}
-<div>
     <h1 class="mt-4">Configurações do Sistema</h1>
+    <div class="alert alert-info mt-3" role="alert">
+        <strong>Atenção:</strong> Estas configurações afetam <b>todas as igrejas do ministério</b>, não apenas a igreja selecionada no topo do sistema.
+    </div>
     <ul class="nav nav-tabs" id="configTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="fornecedores-tab" data-bs-toggle="tab" data-bs-target="#fornecedores" type="button" role="tab" aria-controls="fornecedores" aria-selected="true">Fornecedores</button>
@@ -58,5 +60,4 @@
         </div>
     </div>
     <!-- Fim do bloco principal -->
-</div>
 {% endblock %}

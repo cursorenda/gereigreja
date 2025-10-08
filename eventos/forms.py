@@ -125,6 +125,8 @@ class EventoForm(forms.ModelForm):
 	)
 
 	def __init__(self, *args, **kwargs):
+		# Espera-se que o request seja passado em kwargs
+		self.request = kwargs.pop('request', None)
 		super().__init__(*args, **kwargs)
 		from secretaria.models import TipoPessoa, StatusPessoa, Cargo
 		from django.contrib.auth import get_user_model
@@ -139,6 +141,12 @@ class EventoForm(forms.ModelForm):
 			User = get_user_model()
 			self.fields['responsavel'].label_from_instance = lambda obj: f"{obj.get_full_name()} ({obj.email})" if obj.get_full_name() else obj.email
 
+		# Se houver request e igreja_ativa, esconde o campo e define o valor inicial
+		if self.request and hasattr(self.request, 'igreja_ativa') and self.request.igreja_ativa:
+			self.fields['igreja'].initial = self.request.igreja_ativa.pk
+			self.fields['igreja'].widget = forms.HiddenInput()
+			self.fields['igreja'].queryset = type(self.request.igreja_ativa)._default_manager.filter(pk=self.request.igreja_ativa.pk)
+
 		# Corrigir datas para o formato do input datetime-local, considerando timezone local
 		instance = kwargs.get('instance')
 		if instance:
@@ -148,6 +156,13 @@ class EventoForm(forms.ModelForm):
 			if instance.data_fim:
 				local_fim = timezone.localtime(instance.data_fim)
 				self.initial['data_fim'] = local_fim.strftime('%Y-%m-%dT%H:%M')
+
+	def clean_igreja(self):
+		# Garante que o valor de igreja seja sempre o da igreja_ativa
+		igreja_field = self.cleaned_data.get('igreja')
+		if self.request and hasattr(self.request, 'igreja_ativa') and self.request.igreja_ativa:
+			return self.request.igreja_ativa
+		return igreja_field
 
 class ParticipacaoEventoForm(forms.ModelForm):
 	class Meta:

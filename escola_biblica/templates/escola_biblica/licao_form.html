@@ -22,29 +22,29 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="{{ form.turma.id_for_label }}" class="form-label">{{ form.turma.label }}:</label>
-                            {{ form.turma|add_class:'form-control'|add_attr:'autofocus,autofocus'|add_attr:'placeholder,Selecione a turma' }}
+                            {{ form.turma|add_class:'form-control'|add_attrs:'autofocus=autofocus,placeholder=Selecione a turma' }}
                             {% if form.turma.errors %}<div class="invalid-feedback d-block">{{ form.turma.errors|striptags }}</div>{% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="{{ form.data.id_for_label }}" class="form-label">{{ form.data.label }}:</label>
-                            {{ form.data|add_class:'form-control'|add_attr:'placeholder,dd/mm/aaaa' }}
+                            {{ form.data|add_class:'form-control'|add_attrs:'placeholder=dd/mm/aaaa' }}
                             {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="{{ form.tema.id_for_label }}" class="form-label">{{ form.tema.label }}:</label>
-                            {{ form.tema|add_class:'form-control'|add_attr:'placeholder,Tema da lição' }}
+                            {{ form.tema|add_class:'form-control'|add_attrs:'placeholder=Tema da lição' }}
                             {% if form.tema.errors %}<div class="invalid-feedback d-block">{{ form.tema.errors|striptags }}</div>{% endif %}
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="{{ form.descricao.id_for_label }}" class="form-label">{{ form.descricao.label }}:</label>
-                            {{ form.descricao|add_class:'form-control'|add_attr:'placeholder,Descrição da lição' }}
+                            {{ form.descricao|add_class:'form-control'|add_attrs:'placeholder=Descrição da lição' }}
                             {% if form.descricao.errors %}<div class="invalid-feedback d-block">{{ form.descricao.errors|striptags }}</div>{% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="{{ form.material.id_for_label }}" class="form-label">{{ form.material.label }}:</label>
-                            {{ form.material|add_class:'form-control'|add_attr:'placeholder,Anexe o material (opcional)' }}
+                            {{ form.material|add_class:'form-control'|add_attrs:'placeholder=Anexe o material (opcional)' }}
                             {% if form.material.errors %}<div class="invalid-feedback d-block">{{ form.material.errors|striptags }}</div>{% endif %}
                         </div>
                     </div>

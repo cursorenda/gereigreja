@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth import get_user_model
 
 class AgendaEvento(models.Model):
+	from configuracao.models import Igreja
+	igreja = models.ForeignKey('configuracao.Igreja', on_delete=models.PROTECT, related_name='agenda_eventos', help_text="Igreja responsável pelo evento (preenchido automaticamente)")
 	TIPO_EVENTO_CHOICES = [
 		("culto", "Culto"),
 		("reuniao", "Reunião"),

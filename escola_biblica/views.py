@@ -144,6 +144,10 @@ def relatorio_frequencia(request):
     turmas = Turma.objects.all()
     classes = Classe.objects.all()
     alunos = Aluno.objects.select_related('turma', 'turma__classe').all()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        turmas = turmas.filter(membros__igreja=request.igreja_ativa).distinct()
+        classes = classes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+        alunos = alunos.filter(turma__membros__igreja=request.igreja_ativa).distinct()
     turma_id = request.GET.get('turma')
     classe_id = request.GET.get('classe')
     inicio = request.GET.get('inicio')
@@ -193,6 +197,8 @@ def cargos_ebd_list(request):
     cargo_nome = request.GET.get('cargo')
     cargos_disponiveis = Cargo.objects.filter(is_ebd=True).values_list('nome', flat=True).distinct()
     colaboradores = MembroCargo.objects.select_related('membro', 'cargo').filter(cargo__is_ebd=True)
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        colaboradores = colaboradores.filter(membro__igreja=request.igreja_ativa)
     if cargo_nome:
         colaboradores = colaboradores.filter(cargo__nome__iexact=cargo_nome)
     return render(request, 'escola_biblica/cargos_ebd_list.html', {
@@ -235,8 +241,12 @@ def graficos_evolucao(request):
 def dashboard_graficos(request):
     departamentos = dict(Classe.DEPARTAMENTO_CHOICES)
     alunos_por_departamento = {d: 0 for d in departamentos.values()}
-    for dep_key, dep_label in departamentos.items():
-        alunos_por_departamento[dep_label] = Aluno.objects.filter(turma__classe__departamento=dep_key).count()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        for dep_key, dep_label in departamentos.items():
+            alunos_por_departamento[dep_label] = Aluno.objects.filter(turma__classe__departamento=dep_key, turma__membros__igreja=request.igreja_ativa).distinct().count()
+    else:
+        for dep_key, dep_label in departamentos.items():
+            alunos_por_departamento[dep_label] = Aluno.objects.filter(turma__classe__departamento=dep_key).count()
 
     ofertas_por_departamento = {d: 0 for d in departamentos.values()}
     for dep_key, dep_label in departamentos.items():
@@ -263,6 +273,8 @@ def dashboard_graficos(request):
 @secretaria_ebd_required
 def oferta_classe_list(request):
     ofertas = OfertaClasse.objects.select_related('classe').order_by('-data')
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        ofertas = ofertas.filter(classe__turma__membros__igreja=request.igreja_ativa).distinct()
     return render(request, 'escola_biblica/oferta_classe_list.html', {'ofertas': ofertas})
 
 @login_required
@@ -308,6 +320,10 @@ def relatorio_alunos(request):
     turmas = Turma.objects.all()
     classes = Classe.objects.all()
     alunos = Aluno.objects.select_related('turma', 'turma__classe').all()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        turmas = turmas.filter(membros__igreja=request.igreja_ativa).distinct()
+        classes = classes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+        alunos = alunos.filter(turma__membros__igreja=request.igreja_ativa).distinct()
     turma_id = request.GET.get('turma')
     classe_id = request.GET.get('classe')
     inicio = request.GET.get('inicio')
@@ -344,6 +360,8 @@ def relatorio_alunos(request):
 @login_required
 def avaliacao_list(request):
     avaliacoes = Avaliacao.objects.select_related('aluno', 'licao').all()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        avaliacoes = avaliacoes.filter(aluno__turma__membros__igreja=request.igreja_ativa).distinct()
     return render(request, 'escola_biblica/avaliacao_list.html', {'avaliacoes': avaliacoes})
 
 @login_required
@@ -385,6 +403,8 @@ def avaliacao_delete(request, pk):
 @login_required
 def licao_list(request):
     licoes = Licao.objects.all()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        licoes = licoes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
     return render(request, 'escola_biblica/licao_list.html', {'licoes': licoes})
 
 @login_required
@@ -427,6 +447,8 @@ def licao_delete(request, pk):
 @login_required
 def classe_list(request):
     classes = Classe.objects.all()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        classes = classes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
     return render(request, 'escola_biblica/classe_list.html', {'classes': classes})
 
 @login_required
@@ -607,6 +629,8 @@ def dashboard(request):
 @login_required
 def aluno_list(request):
     alunos_list = Aluno.objects.all().order_by('nome')
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        alunos_list = alunos_list.filter(turma__membros__igreja=request.igreja_ativa).distinct()
     paginator = Paginator(alunos_list, 20)  # 20 alunos por página
     page = request.GET.get('page')
     try:
@@ -631,6 +655,8 @@ def aluno_create(request):
 @login_required
 def turma_list(request):
     turmas_list = Turma.objects.all().order_by('nome')
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        turmas_list = turmas_list.filter(membros__igreja=request.igreja_ativa).distinct()
     paginator = Paginator(turmas_list, 20)
     page = request.GET.get('page')
     try:

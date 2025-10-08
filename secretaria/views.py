@@ -46,9 +46,16 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 @login_required
 def registrar_presenca_visitante_evento(request):
+    print(f"[DEBUG] igreja_ativa: {getattr(request, 'igreja_ativa', None)} | id: {getattr(getattr(request, 'igreja_ativa', None), 'id', None)} | user: {request.user}")
     hoje = timezone.localdate()
     fim = hoje + timezone.timedelta(days=7)
-    eventos_do_dia = Evento.objects.filter(data_inicio__date__gte=hoje, data_inicio__date__lte=fim).order_by('data_inicio')
+    eventos_do_dia = Evento.objects.none()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        eventos_do_dia = Evento.objects.filter(
+            igreja=request.igreja_ativa,
+            data_inicio__date__gte=hoje,
+            data_inicio__date__lte=fim
+        ).order_by('data_inicio')
     evento_id = request.GET.get('evento')
     evento_selecionado = None
     pessoas_presentes = []
@@ -56,7 +63,7 @@ def registrar_presenca_visitante_evento(request):
         evento_selecionado = Evento.objects.get(pk=evento_id)
         pessoas_presentes = PresencaVisitanteEvento.objects.filter(evento=evento_selecionado).select_related('membro').order_by('-data_registro')
     if request.method == 'POST':
-        form = PresencaVisitanteEventoForm(request.POST)
+        form = PresencaVisitanteEventoForm(request.POST, request=request)
         if form.is_valid():
             membro = form.cleaned_data['membro']
             evento = form.cleaned_data['evento']
@@ -70,7 +77,7 @@ def registrar_presenca_visitante_evento(request):
                 messages.success(request, f'Presença de "{presenca.membro.nome}" registrada no evento!')
             return redirect(f'?evento={evento.id}')
     else:
-        form = PresencaVisitanteEventoForm()
+        form = PresencaVisitanteEventoForm(request=request)
         if evento_selecionado:
             form.fields['evento'].initial = evento_selecionado.id
     context = {
@@ -210,7 +217,9 @@ def is_admin_or_pastor(user):
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def associar_usuarios_membros(request):
-    membros_sem_usuario = Membro.objects.filter(usuario__isnull=True).order_by('nome')
+    membros_sem_usuario = Membro.objects.none()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        membros_sem_usuario = Membro.objects.filter(usuario__isnull=True, igreja=request.igreja_ativa).order_by('nome')
     User = get_user_model()
     sugestoes = {}
     if request.method == 'POST':
@@ -415,8 +424,13 @@ def is_admin_or_pastor(user):
 @user_passes_test(is_admin_or_pastor)
 def lista_cargos(request):
     cargos = Cargo.objects.all().prefetch_related('membrocargo_set__membro', 'grupo_permissao')
-    for cargo in cargos:
-        cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro]
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        # Filtra ocupantes dos cargos pela igreja ativa
+        for cargo in cargos:
+            cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro and mc.membro.igreja_id == request.igreja_ativa.id]
+    else:
+        for cargo in cargos:
+            cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro]
     context = {'cargos': cargos}
     return render(request, 'secretaria/lista_cargos.html', context)
 # --- LINHA DO TEMPO DOS MEMBROS ---
@@ -476,6 +490,8 @@ class TimelineFilterForm(forms.Form):
 @user_passes_test(is_admin_or_pastor)
 def linha_do_tempo(request):
     eventos = TimelineEvent.objects.select_related('membro').all()
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        eventos = eventos.filter(membro__igreja=request.igreja_ativa)
     form = TimelineFilterForm(request.GET or None)
 
     if form.is_valid():

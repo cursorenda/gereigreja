@@ -112,6 +112,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="mb-3">
                       <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
                       {{ form.igreja }}
+                      {% if igreja_nome %}
+                        <div class="form-control bg-light" style="pointer-events:none;">{{ igreja_nome }}</div>
+                      {% endif %}
                       {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
                     </div>
                   </div>

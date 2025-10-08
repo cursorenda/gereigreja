@@ -25,15 +25,7 @@
             <option value="outro" {% if request.GET.tipo == 'outro' %}selected{% endif %}>Outro</option>
           </select>
         </div>
-        <div class="col-md-3">
-          <label for="igreja" class="form-label mb-0">Igreja</label>
-          <select name="igreja" id="igreja" class="form-select">
-            <option value="">Todas</option>
-            {% for igreja in igrejas %}
-              <option value="{{ igreja.pk }}" {% if request.GET.igreja == igreja.pk|stringformat:'s' %}selected{% endif %}>{{ igreja.nome_igreja }}</option>
-            {% endfor %}
-          </select>
-        </div>
+        <!-- Filtro de igreja removido: igreja é definida globalmente pelo seletor do topo -->
         <div class="col-md-2">
           <label for="data_inicio" class="form-label mb-0">Início após</label>
           <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request.GET.data_inicio }}">

@@ -13,13 +13,13 @@ from .forms import AgendaEventoForm
 def editar_evento(request, pk):
 	evento = get_object_or_404(AgendaEvento, pk=pk)
 	if request.method == 'POST':
-		form = AgendaEventoForm(request.POST, instance=evento)
+		form = AgendaEventoForm(request.POST, instance=evento, request=request)
 		if form.is_valid():
 			form.save()
 			messages.success(request, 'Evento atualizado com sucesso!')
 			return redirect(reverse('agenda:detalhe_evento', args=[evento.pk]))
 	else:
-		form = AgendaEventoForm(instance=evento)
+		form = AgendaEventoForm(instance=evento, request=request)
 	return render(request, 'agenda/editar_evento.html', {'form': form, 'evento': evento})
 
 @login_required
@@ -39,13 +39,13 @@ def detalhe_evento(request, pk):
 @login_required
 def criar_evento(request):
 	if request.method == 'POST':
-		form = AgendaEventoForm(request.POST)
+		form = AgendaEventoForm(request.POST, request=request)
 		if form.is_valid():
 			evento = form.save()
 			messages.success(request, 'Evento criado com sucesso!')
 			return redirect(reverse('agenda:agenda'))
 	else:
-		form = AgendaEventoForm()
+		form = AgendaEventoForm(request=request)
 	return render(request, 'agenda/criar_evento.html', {'form': form})
 
 def agenda_eventos_json(request):
@@ -59,14 +59,14 @@ def agenda_eventos_json(request):
 		eventos = Evento.objects.filter(igreja__ministerio=ministerio)
 	# Filtros
 	tipo = request.GET.get('tipo')
-	igreja = request.GET.get('igreja')
+	# Sempre usar igreja_ativa do request, nunca GET
 	inicio = request.GET.get('inicio')
 	fim = request.GET.get('fim')
 	busca = request.GET.get('busca')
 	if tipo:
 		eventos = eventos.filter(tipo=tipo)
-	if igreja:
-		eventos = eventos.filter(igreja_id=igreja)
+	if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+		eventos = eventos.filter(igreja=request.igreja_ativa)
 	if inicio:
 		eventos = eventos.filter(data_inicio__date__gte=inicio)
 	if fim:
@@ -128,9 +128,9 @@ def agenda_view(request):
 	from configuracao.models import Igreja
 	ministerio = getattr(getattr(request.user, 'perfil', None), 'ministerio', None)
 	eventos = AgendaEvento.objects.none()
-	if ministerio:
+	if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
 		eventos = AgendaEvento.objects.filter(
-			igreja__ministerio=ministerio,
+			igreja=request.igreja_ativa,
 			data_inicio__date__gte=primeiro_dia,
 			data_inicio__date__lt=proximo_mes
 		).order_by('data_inicio')
