@@ -647,3 +647,12 @@ Matriz Eisenhower: filtro/priorização de tarefas e pendências.
 Gestão por Projetos: módulo para eventos, campanhas, obras.
 Lean/PDCA: relatórios de melhoria e revisão de processos.
 Esses métodos podem tornar o sistema mais profissional, organizado e útil para todos os cargos da igreja. Se quiser sugestões de como implementar algum deles, posso detalhar!
+
+Cadastro de ministérios (jovens, mulheres, louvor, etc.)
+
+Inventário de equipamentos
+
+Notificações internas para membros
+Modo escuro (Dark Mode)
+
+missao/visao/valores

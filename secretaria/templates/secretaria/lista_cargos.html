@@ -7,6 +7,9 @@
             <th>Nome do Cargo</th>
             <th>Grupo de Permissão</th>
             <th>Ocupantes</th>
+            {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                <th>Igreja</th>
+            {% endif %}
             <th>Ações</th>
         </tr>
     </thead>
@@ -22,6 +25,9 @@
                     <span class="text-muted">Nenhum</span>
                 {% endfor %}
             </td>
+            {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                <td>{{ cargo.igreja.nome_igreja|default:'-' }}</td>
+            {% endif %}
             <td>
                 <a href="{% url 'secretaria:editar_cargo' cargo.id %}" class="btn btn-sm btn-primary">Editar</a>
                 <a href="{% url 'secretaria:gerenciar_ocupantes' cargo.id %}" class="btn btn-sm btn-warning">Ocupantes</a>

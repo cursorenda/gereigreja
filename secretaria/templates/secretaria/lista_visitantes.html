@@ -13,21 +13,21 @@
 {% endif %}
 <div class="container mt-4">
   <h2>{{ titulo_pagina }}</h2>
-  <form method="get" class="row g-2 mb-3">
-    <div class="col-md-4">
+  <form method="get" class="row g-2 mb-3 align-items-center">
+    <div class="col-lg-4 col-12">
       <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Buscar por nome, telefone ou email">
     </div>
-    <div class="col-md-3">
+    <div class="col-lg-3 col-6">
       <select name="status" class="form-select">
         <option value="">Todos os status</option>
-  <option value="novo" {% if status == 'novo' %}selected{% endif %}>Novo Visitante</option>
-  <option value="em_acompanhamento" {% if status == 'em_acompanhamento' %}selected{% endif %}>Em Acompanhamento</option>
-  <option value="interessado" {% if status == 'interessado' %}selected{% endif %}>Interessado</option>
-  <option value="nao_retornou" {% if status == 'nao_retornou' %}selected{% endif %}>Não Retornou</option>
-  <option value="encerrado" {% if status == 'encerrado' %}selected{% endif %}>Encerrado</option>
+        <option value="novo" {% if status == 'novo' %}selected{% endif %}>Novo Visitante</option>
+        <option value="em_acompanhamento" {% if status == 'em_acompanhamento' %}selected{% endif %}>Em Acompanhamento</option>
+        <option value="interessado" {% if status == 'interessado' %}selected{% endif %}>Interessado</option>
+        <option value="nao_retornou" {% if status == 'nao_retornou' %}selected{% endif %}>Não Retornou</option>
+        <option value="encerrado" {% if status == 'encerrado' %}selected{% endif %}>Encerrado</option>
       </select>
     </div>
-    <div class="col-md-3">
+    <div class="col-lg-3 col-6 d-grid gap-2 d-md-block">
       <button type="submit" class="btn btn-primary">Filtrar</button>
       <a href="{% url 'secretaria:cadastrar_visitante' %}" class="btn btn-success ms-2">Novo Visitante</a>
     </div>
@@ -42,7 +42,9 @@
         <th>Data 1ª Visita</th>
         <th>Status</th>
         <th>Responsável</th>
-        <th>Igreja</th>
+        {% if not igreja_selecionada or igreja_selecionada == '0' %}
+          <th>Igreja</th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
@@ -57,7 +59,9 @@
         <td>{{ visitante.data_primeira_visita|date:'d/m/Y' }}</td>
         <td>{{ visitante.get_status_acompanhamento_display }}</td>
         <td>{{ visitante.responsavel.get_full_name|default:visitante.responsavel.username }}</td>
-        <td>{{ visitante.igreja.nome_igreja }}</td>
+        {% if not igreja_selecionada or igreja_selecionada == '0' %}
+          <td>{{ visitante.igreja.nome_igreja }}</td>
+        {% endif %}
         <td>
           <a href="{% url 'secretaria:excluir_visitante' visitante.id %}" class="btn btn-sm btn-danger" title="Excluir visitante">Excluir</a>
         </td>

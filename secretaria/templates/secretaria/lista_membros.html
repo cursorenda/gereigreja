@@ -24,22 +24,44 @@
                 Membros ({{ membros.count }})
             </div>
             <div class="card-body">
-                <form method="GET" action="{% url 'secretaria:lista_membros' %}" class="row g-3 mb-3 align-items-center">
-                    <div class="col-auto flex-grow-1">
-                        <label for="searchQuery" class="visually-hidden">Buscar Membro</label>
-                        <input type="text" class="form-control form-control-sm" id="searchQuery" placeholder="Buscar por nome, apelido..." name="q" value="{{ request.GET.q|default:'' }}">
+                <form method="GET" action="" class="row g-3 mb-3 align-items-center">
+                    <div class="col-lg-3 col-12">
+                        <input type="text" name="nome_apelido" class="form-control form-control-sm" placeholder="Nome ou Apelido" value="{{ request.GET.nome_apelido|default:'' }}">
                     </div>
-                    <div class="col-auto">
+                    <div class="col-lg-2 col-6">
+                        <select name="tipo" id="id_tipo" class="form-select form-select-sm">
+                            <option value="">Tipo</option>
+                            {% for tipo in tipos_pessoa %}
+                              <option value="{{ tipo.id }}" {% if request.GET.tipo == tipo.id|stringformat:'s' %}selected{% endif %}>{{ tipo.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-6">
+                        <select name="status" id="id_status" class="form-select form-select-sm">
+                            <option value="">Status</option>
+                            {% for status in status_pessoa %}
+                              <option value="{{ status.id }}" {% if request.GET.status == status.id|stringformat:'s' %}selected{% endif %}>{{ status.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-6">
+                        <select name="genero" class="form-select form-select-sm">
+                            <option value="">Gênero</option>
+                            <option value="M" {% if request.GET.genero == 'M' %}selected{% endif %}>Masculino</option>
+                            <option value="F" {% if request.GET.genero == 'F' %}selected{% endif %}>Feminino</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-6 d-grid gap-2 d-md-block">
                         <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
-                         {% if request.GET.q %}
-                            <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-outline-secondary btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
-                         {% endif %}
+                        {% if request.GET.q or request.GET.tipo or request.GET.status or request.GET.genero %}
+                            <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
+                        {% endif %}
                     </div>
-                     {% if can_edit_membros %}
-                     <div class="col-auto">
-                         <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Adicionar Membro</a>
+                    {% if can_edit_membros %}
+                    <div class="col-lg-1 col-12 text-end mt-2 mt-lg-0">
+                        <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Adicionar</a>
                     </div>
-                     {% endif %}
+                    {% endif %}
                 </form>
                 {% if membros %} {# Só renderiza a tabela e inicializa DataTables se houver membros #}
 
@@ -52,7 +74,9 @@
                                 <th>Tipo / Status</th>
                                 <th class="text-center">Ativo p/ Relatórios?</th>
                                 <th>Data de Nascimento</th>
-                                <th>Igreja</th>
+                                {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                                    <th>Igreja</th>
+                                {% endif %}
                                 {% if can_edit_membros %}
                                 <th class="text-center">Ações</th>
                                 {% endif %}
@@ -78,7 +102,9 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ membro.nascimento|date:"d/m/Y"|default:"N/I" }}</td>
-                                <td>{{ membro.igreja.nome_igreja|default:"N/A" }}</td>
+                                {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                                    <td>{{ membro.igreja.nome_igreja|default:"N/A" }}</td>
+                                {% endif %}
                                 {% if can_edit_membros %}
                                 <td class="text-center">
                                     <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-outline-primary btn-sm me-1" title="Editar {{ membro.nome }}">

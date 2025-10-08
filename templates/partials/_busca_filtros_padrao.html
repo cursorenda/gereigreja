@@ -1,0 +1,29 @@
+{# Snippet de busca/filtro reutilizável para listas Django #}
+<form method="GET" action="" class="row g-3 mb-3 align-items-center">
+    <div class="col-auto flex-grow-1">
+        <label for="searchQuery" class="visually-hidden">Buscar</label>
+        <input type="text" class="form-control form-control-sm" id="searchQuery" placeholder="Buscar por nome, apelido..." name="q" value="{{ request.GET.q|default:'' }}">
+    </div>
+    {% if igrejas_org %}
+    <div class="col-auto">
+        <select name="igreja" class="form-select form-select-sm">
+            <option value="">Todas as Igrejas</option>
+            {% for igreja in igrejas_org %}
+                <option value="{{ igreja.pk }}" {% if igreja.pk|stringformat:'s' == igreja_selecionada %}selected{% endif %}>{{ igreja.nome_igreja }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    {# Adicione outros filtros aqui, se necessário #}
+    <div class="col-auto">
+        <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+        {% if request.GET.q or request.GET.igreja %}
+            <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
+        {% endif %}
+    </div>
+    {% if can_edit_membros %}
+    <div class="col-auto">
+        <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Adicionar Membro</a>
+    </div>
+    {% endif %}
+</form>

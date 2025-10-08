@@ -39,53 +39,25 @@
     {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
 
 
+
             <a class="nav-link" href="{% url 'secretaria:dashboard' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 Dashboard
             </a>
 
-
-            <div class="sb-sidenav-menu-heading">Agenda & Eventos</div>
-            <a class="nav-link" href="{% url 'agenda:agenda' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-calendar-week"></i></div>
-                Agenda
-            </a>
-
-            <a class="nav-link" href="{% url 'eventos:lista_eventos' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
-                Eventos
-            </a>
-            <a class="nav-link" href="{% url 'secretaria:registrar_presenca_visitante_evento' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-person-booth"></i></div>
-                Recepção de Visitantes
-            </a>
-
             <div class="sb-sidenav-menu-heading">Secretaria</div>
-
-
-
-
             <a class="nav-link" href="{% url 'secretaria:lista_membros' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
-                Lista de Membros
+                Membros
             </a>
-
-            {# O link para associação de cargos deve ser feito pelo menu de cargos customizado, não pelo admin do Django #}
-
-            {% if request.user.is_superuser or request.user|has_group:'Pastor,Administrador,Admin Ministerio,Lider Igreja' %}
+            <a class="nav-link" href="{% url 'secretaria:lista_cargos' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
+                Cargos
+            </a>
             <a class="nav-link" href="{% url 'secretaria:associar_usuarios_membros' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-user-plus"></i></div>
                 Associar Usuários
             </a>
-            {% endif %}
-
-            <a class="nav-link" href="{% url 'secretaria:lista_cargos' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
-               Cargo
-            </a>
-
-
-
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseRelatoriosSecretaria" aria-expanded="false" aria-controls="collapseRelatoriosSecretaria">
                 <div class="sb-nav-link-icon"><i class="fas fa-file-alt"></i></div>
                 Relatórios
@@ -103,6 +75,21 @@
                     </a>
                 </nav>
             </div>
+
+
+
+            <div class="sb-sidenav-menu-heading">Agenda & Eventos</div>
+            <a class="nav-link" href="{% url 'agenda:agenda' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-calendar-week"></i></div>
+                Agenda
+            </a>
+
+            <a class="nav-link" href="{% url 'eventos:lista_eventos' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
+                Eventos
+            </a>
+
+
 
             <!-- BLOCO ESCOLA DOMINICAL -->
             <div class="sb-sidenav-menu-heading">ESCOLA DOMINICAL</div>

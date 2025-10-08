@@ -149,11 +149,14 @@ def lista_visitantes(request):
     igreja_id = request.GET.get('igreja')
     if igreja_id:
         visitantes = visitantes.filter(igreja_id=igreja_id)
+    # Determina igreja_selecionada para o template (compatível com padrão das outras telas)
+    igreja_selecionada = str(igreja_id) if igreja_id else (str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else '0')
     context = {
         'visitantes': visitantes,
         'query': query,
         'status': status,
         'igreja_id': igreja_id,
+        'igreja_selecionada': igreja_selecionada,
         'titulo_pagina': 'Lista de Visitantes',
     }
     return render(request, 'secretaria/lista_visitantes.html', context)
@@ -987,6 +990,12 @@ def dashboard(request):
 
 @check_permission(has_membro_view_permission, login_url_name='login')
 def lista_membros(request): # noqa: E302
+    # Filtro por nome/apelido (busca parcial)
+    nome_apelido = request.GET.get('nome_apelido')
+    if nome_apelido:
+        membros_queryset = membros_queryset.filter(
+            Q(nome__icontains=nome_apelido) | Q(apelido__icontains=nome_apelido)
+        )
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
 
@@ -1018,6 +1027,22 @@ def lista_membros(request): # noqa: E302
     can_edit = has_membro_edit_permission(request.user)
     igrejas_para_filtro_template = allowed_churches if not request.igreja_ativa else Igreja.objects.filter(pk=request.igreja_ativa.pk)
 
+    from .models import TipoPessoa, StatusPessoa
+
+    tipos_pessoa = TipoPessoa.objects.all().order_by('nome')
+    status_pessoa = StatusPessoa.objects.all().order_by('nome')
+
+    # Filtros extras
+    tipo_id = request.GET.get('tipo')
+    if tipo_id:
+        membros_queryset = membros_queryset.filter(tipo_pessoa_id=tipo_id)
+    status_id = request.GET.get('status')
+    if status_id:
+        membros_queryset = membros_queryset.filter(status_pessoa_id=status_id)
+    genero = request.GET.get('genero')
+    if genero:
+        membros_queryset = membros_queryset.filter(genero=genero)
+
     context = {
         'membros': membros_queryset,
         'ministerio': ministerio,
@@ -1026,6 +1051,8 @@ def lista_membros(request): # noqa: E302
         'titulo_pagina': f"Lista de Membros{': ' + request.igreja_ativa.nome_igreja if request.igreja_ativa else ' (Consolidado)'}",
         'igrejas_org': igrejas_para_filtro_template, # Para o filtro da página
         'igreja_selecionada': str(request.igreja_ativa.pk) if request.igreja_ativa else igreja_id_get,
+        'tipos_pessoa': tipos_pessoa,
+        'status_pessoa': status_pessoa,
     }
     return render(request, 'secretaria/lista_membros.html', context)
 
