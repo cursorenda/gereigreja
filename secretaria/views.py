@@ -169,6 +169,12 @@ def criar_visitante(request):
         if form.is_valid():
             visitante = form.save(commit=False)
             visitante.responsavel = request.user
+            # Define a igreja ativa do request
+            if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+                visitante.igreja = request.igreja_ativa
+            # Define a data da primeira visita como hoje
+            from django.utils import timezone
+            visitante.data_primeira_visita = timezone.localdate()
             visitante.save()
             messages.success(request, f'Visitante "{visitante.nome}" cadastrado com sucesso!')
             return redirect('secretaria:lista_visitantes')
@@ -992,14 +998,10 @@ def dashboard(request):
 def lista_membros(request): # noqa: E302
     # Filtro por nome/apelido (busca parcial)
     nome_apelido = request.GET.get('nome_apelido')
-    if nome_apelido:
-        membros_queryset = membros_queryset.filter(
-            Q(nome__icontains=nome_apelido) | Q(apelido__icontains=nome_apelido)
-        )
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
 
-   # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
+    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     if request.igreja_ativa and request.igreja_ativa in allowed_churches:
         membros_queryset = Membro.objects.filter(igreja=request.igreja_ativa)
     elif allowed_churches.exists():
@@ -1009,6 +1011,11 @@ def lista_membros(request): # noqa: E302
     else:
         membros_queryset = Membro.objects.none()
     # --- Fim Lógica de Filtragem Inicial ---
+
+    if nome_apelido:
+        membros_queryset = membros_queryset.filter(
+            Q(nome__icontains=nome_apelido) | Q(apelido__icontains=nome_apelido)
+        )
 
     membros_queryset = membros_queryset.select_related('igreja', 'tipo_pessoa', 'status_pessoa').order_by('nome') # Adicionado tipo_pessoa, status_pessoa
 
@@ -1383,7 +1390,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
         allowed_churches_base_secretaria = get_allowed_churches_for_membros(request.user, ministerio_usuario) # Passa ministerio_usuario
         
     # print(f"DEBUG (Secretaria): Usuário: {request.user.username}, É Líder Secretaria: {is_secretaria_leader(request.user)}") # Removido para produção
-        print(f"DEBUG (Secretaria): allowed_churches_base_secretaria: {list(allowed_churches_base_secretaria)}")
+
         if not allowed_churches_base_secretaria.exists() and not is_admin_org(request.user):
 
             messages.warning(request, "Nenhuma igreja encontrada para visualização no painel de liderança da secretaria.")

@@ -1,0 +1,40 @@
+.font-size-xlarge h1 { font-size: 2.5rem !important; }
+.font-size-large h1 { font-size: 2.1rem !important; }
+.font-size-medium h1 { font-size: 1.7rem !important; }
+.font-size-normal h1 { font-size: 1.4rem !important; }
+
+.font-size-xlarge h2 { font-size: 2rem !important; }
+.font-size-large h2 { font-size: 1.7rem !important; }
+.font-size-medium h2 { font-size: 1.4rem !important; }
+.font-size-normal h2 { font-size: 1.15rem !important; }
+
+.font-size-xlarge h3 { font-size: 1.75rem !important; }
+.font-size-large h3 { font-size: 1.4rem !important; }
+.font-size-medium h3 { font-size: 1.15rem !important; }
+.font-size-normal h3 { font-size: 1rem !important; }
+/* Acessibilidade: tamanhos de fonte para escolha do usuário (usados pelo seletor de acessibilidade)
+   Extra Grande = 16px (100% do navegador)
+   Grande      = 14px (~87%)
+   Médio       = 12px (~75%)
+   Normal      = 11px (~67%)
+*/
+
+.font-size-normal {
+  font-size: 11px !important;
+}
+.font-size-medium {
+  font-size: 12px !important;
+}
+.font-size-large {
+  font-size: 14px !important;
+}
+.font-size-xlarge {
+  font-size: 16px !important;
+}
+
+.font-size-normal .btn, .font-size-medium .btn, .font-size-large .btn, .font-size-xlarge .btn {
+  font-size: inherit !important;
+}
+.font-size-normal .btn, .font-size-medium .btn, .font-size-large .btn, .font-size-xlarge .btn {
+  font-size: inherit !important;
+}

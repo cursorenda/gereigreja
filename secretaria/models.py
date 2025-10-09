@@ -264,22 +264,15 @@ class Membro(models.Model):
         # Armazena os valores originais ao carregar o objeto do banco
         self._original_tipo_pessoa_id = self.tipo_pessoa_id
         self._original_status_pessoa_id = self.status_pessoa_id
-        # logger.debug(f"Membro __init__ for {self.pk} ({self.nome_completo if self.pk else 'NEW'}): orig_tipo_id={self._original_tipo_pessoa_id}, orig_status_id={self._original_status_pessoa_id}") # noqa: E501
 
 
     
     def save(self, *args, **kwargs):
         current_user = kwargs.pop('user', None) # Espera um 'user' opcional de kwargs
         is_new = self._state.adding
-        logger.debug(f"Membro SAVE for {self.pk}/{self.nome_completo if self.pk else 'NEW'}. is_new: {is_new}")
-        logger.debug(f"  Current tipo_id: {self.tipo_pessoa_id}, Original tipo_id: {self._original_tipo_pessoa_id}")
-        logger.debug(f"  Current status_id: {self.status_pessoa_id}, Original status_id: {self._original_status_pessoa_id}")
-
         changed_tipo = not is_new and self.tipo_pessoa_id != self._original_tipo_pessoa_id
         changed_status = not is_new and self.status_pessoa_id != self._original_status_pessoa_id
         changed_entrada = not is_new and hasattr(self, '_original_tipo_entrada') and self.tipo_entrada != self._original_tipo_entrada
-
-        logger.debug(f"  changed_tipo: {changed_tipo}, changed_status: {changed_status}, changed_entrada: {changed_entrada}")
 
         tipo_anterior_obj = None
         status_anterior_obj = None

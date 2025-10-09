@@ -18,6 +18,13 @@
     <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
     {# Seu CSS principal #}
     <link href="{% static 'css/styles.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/layout.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/botoes.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/formularios.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/cores.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/fontes.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/acessibilidade.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/menus.css' %}" rel="stylesheet" />
     {# Bloco para CSS extra das páginas filhas #}
     {% block extra_css %}{% endblock %}
 
@@ -40,6 +47,48 @@
             {% endif %}
         </a>        <!-- Sidebar Toggle-->
         <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>
+
+        <!-- Seletor de tamanho de fonte/tela (Acessibilidade) -->
+        <form class="d-flex align-items-center ms-2" id="fontSizeSelectorForm" autocomplete="off" aria-label="Ajuste de tamanho de fonte">
+            <span class="me-1" style="font-size:1.1em; color:#bbb; line-height:1;">A</span>
+            <select id="fontSizeSelector" class="font-size-selector-custom" title="Ajustar tamanho da fonte">
+                <option value="font-size-xlarge">Extra Grande (100%)</option>
+                <option value="font-size-large">Grande (~87%)</option>
+                <option value="font-size-medium">Médio (~75%)</option>
+                <option value="font-size-normal">Normal (~67%)</option>
+            </select>
+</style>
+<style>
+/* Seletor de tamanho de fonte discreto */
+.font-size-selector-custom {
+    width: 110px;
+    min-width: 0;
+    font-size: 0.95em;
+    padding: 2px 8px 2px 6px;
+    border-radius: 6px;
+    border: 1px solid #bbb;
+    background: #23272b;
+    color: #f8f9fa;
+    height: 28px;
+    line-height: 1.1;
+    box-shadow: none;
+    transition: border-color 0.2s;
+}
+.font-size-selector-custom:focus {
+    border-color: #888;
+    outline: none;
+    box-shadow: 0 0 0 1px #888;
+}
+@media (max-width: 600px) {
+    .font-size-selector-custom {
+        width: 90px;
+        font-size: 0.92em;
+        padding: 1px 4px 1px 4px;
+        height: 24px;
+    }
+}
+</style>
+        </form>
 
           {# --- INÍCIO DO SELETOR DE IGREJA ATIVA --- #}
         {# Este formulário será inserido aqui, antes do menu do usuário à direita #}
@@ -325,5 +374,20 @@
                 }
             });
         }
+
+        // Seletor de tamanho de fonte/tela (Acessibilidade)
+        var body = document.body;
+        var selector = document.getElementById('fontSizeSelector');
+        var fontClasses = ['font-size-normal', 'font-size-medium', 'font-size-large', 'font-size-xlarge'];
+        // Valor padrão agora é 'font-size-normal'
+        var saved = localStorage.getItem('fontSizeClass') || 'font-size-normal';
+        body.classList.remove(...fontClasses);
+        body.classList.add(saved);
+        if (selector) selector.value = saved;
+        if (selector) selector.addEventListener('change', function() {
+            body.classList.remove(...fontClasses);
+            body.classList.add(this.value);
+            localStorage.setItem('fontSizeClass', this.value);
+        });
     });
     </script>

@@ -1,97 +1,103 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
 <div class="container-fluid mt-3 mb-5">
-  <h1 class="mb-4 text-center">{{ titulo_pagina }}</h1>
-  <form method="get" class="mb-3">
-    <label for="evento" class="form-label">Selecione o evento:</label>
-    <select name="evento" id="evento" class="form-select" onchange="this.form.submit()">
-      <option value="">-- Escolha o evento --</option>
-      {% for evento in eventos_do_dia %}
-        <option value="{{ evento.id }}" {% if evento_selecionado and evento.id == evento_selecionado.id %}selected{% endif %}>{{ evento.titulo }} ({{ evento.data_inicio|date:'d/m/Y H:i' }})</option>
-      {% endfor %}
-    </select>
-  </form>
-  {% if eventos_do_dia|length == 0 %}
-    <div class="alert alert-info mt-4">
-      <i class="fas fa-info-circle"></i> Nenhum evento programado para os próximos dias.<br>
-      <span class="small">Cadastre um evento ou aguarde a programação.</span>
-    </div>
-  {% else %}
-    <div class="mb-3 text-muted small"><i class="fas fa-calendar-alt"></i> Mostrando eventos dos próximos 7 dias.</div>
-  {% endif %}
-  {% if evento_selecionado %}
-    <form method="post" class="card p-3 mb-4 shadow-sm">
-      {% csrf_token %}
-      <h5 class="mb-2">Registrar presença</h5>
-      <label for="busca-membro" class="form-label">Buscar pessoa (nome ou apelido):</label>
-      <div style="position:relative;">
-        <input type="text" id="busca-membro" class="form-control mb-2" placeholder="Digite nome ou apelido" autocomplete="off">
-        <ul id="sugestoes-membro" class="list-group" style="position:absolute; top:100%; left:0; right:0; z-index:1000; max-height:220px; overflow-y:auto; display:none;"></ul>
-      </div>
-      <input type="hidden" name="membro" id="membro-id">
-      <script>
-  const buscaInput = document.getElementById('busca-membro');
-  const lista = document.getElementById('sugestoes-membro');
-      buscaInput.addEventListener('input', function() {
-        var q = this.value;
-        if (q.length === 0) {
-          lista.style.display = 'none';
-          lista.innerHTML = '';
-          return;
-        }
-  fetch('/sistema/ajax/buscar_visitantes/?q=' + encodeURIComponent(q) + '&evento=' + encodeURIComponent(document.getElementById('evento').value))
-          .then(response => response.json())
-          .then(data => {
-            lista.innerHTML = '';
-            lista.style.display = 'block';
-            if (data.length === 0) {
-              var li = document.createElement('li');
-              li.className = 'list-group-item text-muted';
-              li.textContent = 'Nenhuma pessoa encontrada';
-              lista.appendChild(li);
-            } else {
-              data.forEach(function(v) {
-                var li = document.createElement('li');
-                li.className = 'list-group-item';
-                li.textContent = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
-                li.style.cursor = 'pointer';
-                li.onclick = function() {
-                  buscaInput.value = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
-                  document.getElementById('membro-id').value = v.id;
-                  lista.innerHTML = '';
-                  lista.style.display = 'none';
-                };
-                lista.appendChild(li);
-              });
-            }
-          });
-      });
-      // Esconde sugestões ao perder o foco
-      buscaInput.addEventListener('blur', function() {
-        setTimeout(function() {
-          lista.style.display = 'none';
-        }, 150);
-      });
-      // Mostra sugestões ao focar se houver texto
-      buscaInput.addEventListener('focus', function() {
-        if (buscaInput.value.length > 0 && lista.innerHTML.length > 0) {
-          lista.style.display = 'block';
-        }
-      });
-      </script>
-  <button type="submit" class="btn btn-success w-100 mt-2">Registrar Presença</button>
+    <h1 class="mb-4">Registrar Presença em Evento</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Recepção</li>
+        <li class="breadcrumb-item active">Registrar Presença em Evento</li>
+    </ol>
+
+    <form method="get" class="mb-3">
+        <label for="evento" class="form-label">Selecione o evento:</label>
+        <select name="evento" id="evento" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Escolha o evento --</option>
+            {% for evento in eventos_do_dia %}
+                <option value="{{ evento.id }}" {% if evento_selecionado and evento.id == evento_selecionado.id %}selected{% endif %}>{{ evento.titulo }} ({{ evento.data_inicio|date:'d/m/Y H:i' }})</option>
+            {% endfor %}
+        </select>
     </form>
-  <h5 class="mb-2">Pessoas presentes hoje</h5>
-    <ul class="list-group mb-3">
-      {% for presenca in visitantes_presentes %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          {{ presenca.membro.nome }}
-          <span class="badge bg-primary">{{ presenca.data_registro|date:'H:i' }}</span>
-        </li>
-      {% empty %}
-        <li class="list-group-item text-center">Nenhuma presença registrada para este evento.</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+    {% if eventos_do_dia|length == 0 %}
+        <div class="alert alert-info mt-4">
+            <i class="fas fa-info-circle"></i> Nenhum evento programado para os próximos dias.<br>
+            <span class="small">Cadastre um evento ou aguarde a programação.</span>
+        </div>
+    {% else %}
+        <div class="mb-3 text-muted small"><i class="fas fa-calendar-alt"></i> Mostrando eventos dos próximos 7 dias.</div>
+    {% endif %}
+    {% if evento_selecionado %}
+        <form method="post" class="card p-3 mb-4 shadow-sm">
+            {% csrf_token %}
+            <h5 class="mb-2">Registrar presença</h5>
+            <label for="busca-membro" class="form-label">Buscar pessoa (nome ou apelido):</label>
+            <div style="position:relative;">
+                <input type="text" id="busca-membro" class="form-control mb-2" placeholder="Digite nome ou apelido" autocomplete="off">
+                <ul id="sugestoes-membro" class="list-group" style="position:absolute; top:100%; left:0; right:0; z-index:1000; max-height:220px; overflow-y:auto; display:none;"></ul>
+            </div>
+            <input type="hidden" name="membro" id="membro-id">
+            <script>
+    const buscaInput = document.getElementById('busca-membro');
+    const lista = document.getElementById('sugestoes-membro');
+            buscaInput.addEventListener('input', function() {
+                var q = this.value;
+                if (q.length === 0) {
+                    lista.style.display = 'none';
+                    lista.innerHTML = '';
+                    return;
+                }
+    fetch('/sistema/ajax/buscar_visitantes/?q=' + encodeURIComponent(q) + '&evento=' + encodeURIComponent(document.getElementById('evento').value))
+                    .then(response => response.json())
+                    .then(data => {
+                        lista.innerHTML = '';
+                        lista.style.display = 'block';
+                        if (data.length === 0) {
+                            var li = document.createElement('li');
+                            li.className = 'list-group-item text-muted';
+                            li.textContent = 'Nenhuma pessoa encontrada';
+                            lista.appendChild(li);
+                        } else {
+                            data.forEach(function(v) {
+                                var li = document.createElement('li');
+                                li.className = 'list-group-item';
+                                li.textContent = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
+                                li.style.cursor = 'pointer';
+                                li.onclick = function() {
+                                    buscaInput.value = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
+                                    document.getElementById('membro-id').value = v.id;
+                                    lista.innerHTML = '';
+                                    lista.style.display = 'none';
+                                };
+                                lista.appendChild(li);
+                            });
+                        }
+                    });
+            });
+            // Esconde sugestões ao perder o foco
+            buscaInput.addEventListener('blur', function() {
+                setTimeout(function() {
+                    lista.style.display = 'none';
+                }, 150);
+            });
+            // Mostra sugestões ao focar se houver texto
+            buscaInput.addEventListener('focus', function() {
+                if (buscaInput.value.length > 0 && lista.innerHTML.length > 0) {
+                    lista.style.display = 'block';
+                }
+            });
+            </script>
+    <button type="submit" class="btn btn-success w-100 mt-2">Registrar Presença</button>
+        </form>
+    <h5 class="mb-2">Pessoas presentes hoje</h5>
+        <ul class="list-group mb-3">
+            {% for presenca in visitantes_presentes %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ presenca.membro.nome }}
+                    <span class="badge bg-primary">{{ presenca.data_registro|date:'H:i' }}</span>
+                </li>
+            {% empty %}
+                <li class="list-group-item text-center">Nenhuma presença registrada para este evento.</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </div>
 {% endblock %}

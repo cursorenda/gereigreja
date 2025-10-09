@@ -102,6 +102,7 @@ linha do tempo com todos os eventos futuros, cultos e agenda; tendo a opção de
 - **WhatsApp automático** e envio de e-mails.
 - **Segmentação:** Mensagens personalizadas para crescimento dos membros.
 - **Jornada do membro:** Pedidos de oração, check-in e emoções.
+Usuario verá uma caixa de msg na tela inicial onde vera´msgs e enviará msg/recado para: Sim mesmo 'lembrar', para sua igreja ou departamento, para 
 
 ### **Relatórios e Estatísticas**
 - **Gráficos financeiros** detalhados.
@@ -656,3 +657,29 @@ Notificações internas para membros
 Modo escuro (Dark Mode)
 
 missao/visao/valores
+
+Título Dinâmico:
+Use uma variável de contexto (ex: titulo_pagina) para o h1, assim o mesmo template pode ser reutilizado e facilita manutenção.
+
+Breadcrumb Consistente:
+Sempre use: Dashboard > Recepção > [Página atual]. Se houver ações específicas (ex: editar visitante), adicione mais um nível.
+
+Botão de Ação Rápida:
+Na lista de visitantes, adicione um botão “Novo Visitante” no card-header, alinhado à direita, para facilitar o cadastro.
+
+Mensagens de Feedback:
+Garanta que todas as ações (salvar, excluir, registrar presença) exibam mensagens de sucesso/erro no topo, usando o bloco de mensagens já incluído.
+
+Acessibilidade:
+Use labels claros e placeholders nos formulários, e garanta contraste suficiente nos botões e alertas.
+
+Ações Contextuais:
+Na lista de visitantes, adicione ícones de ação (editar, excluir, registrar presença) diretamente na tabela, para agilizar o fluxo.
+
+Filtros Avançados:
+Permita filtrar visitantes por data de visita, origem, ou responsável, além do status.
+
+Ajuda/Tooltip:
+Adicione tooltips ou um pequeno ícone de ajuda explicando o que é cada status de visitante ou como funciona o registro de presença.
+
+produtividade para pastor

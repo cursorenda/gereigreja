@@ -6,8 +6,7 @@ class VisitanteForm(forms.ModelForm):
         model = Visitante
         fields = [
             'nome', 'apelido', 'telefone', 'email', 'origem',
-            'data_primeira_visita', 'status_acompanhamento',
-            'observacoes', 'responsavel', 'igreja'
+            'status_acompanhamento', 'observacoes', 'responsavel'
         ]
         widgets = {
             'nome': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
@@ -15,9 +14,7 @@ class VisitanteForm(forms.ModelForm):
             'telefone': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 20}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'maxlength': 100}),
             'origem': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
-            'data_primeira_visita': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'status_acompanhamento': forms.Select(attrs={'class': 'form-select'}),
             'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'responsavel': forms.Select(attrs={'class': 'form-select'}),
-            'igreja': forms.Select(attrs={'class': 'form-select'}),
         }
