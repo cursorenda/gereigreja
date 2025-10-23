@@ -46,6 +46,7 @@
   - **Backend de Mídia:**
     - Integração com Cloudinary para upload e armazenamento de imagens e arquivos de usuários.
     - Correção do backend de mídia no Django, forçando reload do storage após definição do DEFAULT_FILE_STORAGE.
+    - Observação: durante a execução de testes automatizados, o projeto pode usar `core/settings_test.py` que altera o `DEFAULT_FILE_STORAGE` para `django.core.files.storage.FileSystemStorage` (evitando chamadas externas ao Cloudinary). Confirme esse comportamento antes de rodar testes que façam upload.
   - **Limpeza de Código:**
     - Remoção de prints e códigos de debug em toda a base para produção.
   - **Refatoração de Status de Membro:**
@@ -103,7 +104,7 @@
   - **Configuração de E-mail:**
     - Backend, host, porta, SSL/TLS, usuário/senha via variável de ambiente.
     - `DEFAULT_FROM_EMAIL`, `ADMINS`.
-  - `SITE_ID = 1` (para `django.contrib.sites`).
+  - `SITE_ID = 2` (configurado em `core/settings.py`).
 
 ## 8. Próximos Passos / Melhorias Planejadas
 
@@ -160,4 +161,55 @@ Este documento deve ser mantido atualizado conforme o projeto evolui.
 
 
 1. Otimização de Consultas:
+
+## Itens detectados no código (resumo automático)
+
+Durante uma análise automática do repositório foram detectadas integrações, padrões e artefatos que não estavam descritos originalmente neste documento. Abaixo um resumo objetivo para manter a documentação sincronizada com o código:
+
+- Storage e Uploads:
+  - Produção: `cloudinary_storage.storage.MediaCloudinaryStorage` configurado em `core/settings.py` (Cloudinary).
+  - Testes: `django.core.files.storage.FileSystemStorage` configurado em `core/settings_test.py` para testes locais/CI (evita chamadas externas).
+
+- Banco de Dados / Migrações:
+  - Produção: Supabase (PostgreSQL) via configurações em `core/settings.py`.
+  - Observado: dezenas de migrations já criadas; revisar `python manage.py migrate --plan` antes de aplicar em produção.
+
+- Pagamentos e Assinaturas:
+  - Modelos `Plano` e `AssinaturaMinisterio` usam `stripe_price_id` (integração com Stripe esperada).
+
+- Envio de E-mail:
+  - Configuração para Brevo (Sendinblue) via SMTP está presente nas configurações de e-mail.
+
+- Backup e Importação:
+  - Diversos dumps e backups no repositório (arquivos `backup_*.json`, `*.dump`, SQL e SQLite) e scripts/management commands para importação.
+
+- Signals e Side-effects:
+  - Uso de Django signals em apps como `secretaria`, `financeiro` e `comunicacao` para efeitos colaterais (ex.: criar histórico, enviar notificações).
+
+- Templatetags e Utilitários:
+  - Templatetags customizados presentes em `*/templatetags/` (e.g., financeiro, configuracao) para facilitar lógica de templates.
+
+- Frontend e UX:
+  - Uso de helper `injectHtmlWithScripts` para injeção segura de partials com scripts inline.
+  - DataTables e Bootstrap usados para listagens e layouts.
+
+- Management Commands:
+  - Comandos diversos em `*/management/commands/` para backup, importação, testes e utilidades (ex.: `test_create_visitante`).
+
+- Logging:
+  - Logs gravados em `logs/django_errors.log` com RotatingFileHandler; alguns scripts também escrevem/dependem de `debug.log`/`erros.log`.
+
+- Deploy / Infra:
+  - Aplicação projetada para rodar na Render com deploy contínuo; variáveis de ambiente configuradas no painel da Render.
+
+- Storage público/privado e URLs:
+  - Atenção: alterar `DEFAULT_FILE_STORAGE` muda URLs e pode exigir migração de arquivos ou ajustes nos templates.
+
+- Test Settings:
+  - `core/settings_test.py` usa SQLite em memória e FileSystemStorage para testes rápidos; revise antes de executar testes que dependam de storage externo.
+
+- Observações Gerais:
+  - Existem fixtures e dumps contendo referências a IDs e `stripe_price_id`; cuidado ao restaurar estes dados em produção.
+  - Recomenda-se manter um branch separado para alterações de documentação e aplicar mudanças por commit/PR (evita falhas de patching automático).
+
 
