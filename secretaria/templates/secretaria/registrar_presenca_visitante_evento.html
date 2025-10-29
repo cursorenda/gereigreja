@@ -1,97 +1,1563 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
 <div class="container-fluid mt-3 mb-5">
-  <h1 class="mb-4 text-center">{{ titulo_pagina }}</h1>
-  <form method="get" class="mb-3">
-    <label for="evento" class="form-label">Selecione o evento:</label>
-    <select name="evento" id="evento" class="form-select" onchange="this.form.submit()">
-      <option value="">-- Escolha o evento --</option>
-      {% for evento in eventos_do_dia %}
-        <option value="{{ evento.id }}" {% if evento_selecionado and evento.id == evento_selecionado.id %}selected{% endif %}>{{ evento.titulo }} ({{ evento.data_inicio|date:'d/m/Y H:i' }})</option>
-      {% endfor %}
-    </select>
-  </form>
-  {% if eventos_do_dia|length == 0 %}
-    <div class="alert alert-info mt-4">
-      <i class="fas fa-info-circle"></i> Nenhum evento programado para os próximos dias.<br>
-      <span class="small">Cadastre um evento ou aguarde a programação.</span>
-    </div>
-  {% else %}
-    <div class="mb-3 text-muted small"><i class="fas fa-calendar-alt"></i> Mostrando eventos dos próximos 7 dias.</div>
-  {% endif %}
-  {% if evento_selecionado %}
-    <form method="post" class="card p-3 mb-4 shadow-sm">
-      {% csrf_token %}
-      <h5 class="mb-2">Registrar presença</h5>
-      <label for="busca-membro" class="form-label">Buscar pessoa (nome ou apelido):</label>
-      <div style="position:relative;">
-        <input type="text" id="busca-membro" class="form-control mb-2" placeholder="Digite nome ou apelido" autocomplete="off">
-        <ul id="sugestoes-membro" class="list-group" style="position:absolute; top:100%; left:0; right:0; z-index:1000; max-height:220px; overflow-y:auto; display:none;"></ul>
-      </div>
-      <input type="hidden" name="membro" id="membro-id">
-      <script>
-  const buscaInput = document.getElementById('busca-membro');
-  const lista = document.getElementById('sugestoes-membro');
-      buscaInput.addEventListener('input', function() {
-        var q = this.value;
-        if (q.length === 0) {
-          lista.style.display = 'none';
-          lista.innerHTML = '';
-          return;
-        }
-  fetch('/sistema/ajax/buscar_visitantes/?q=' + encodeURIComponent(q) + '&evento=' + encodeURIComponent(document.getElementById('evento').value))
-          .then(response => response.json())
-          .then(data => {
-            lista.innerHTML = '';
-            lista.style.display = 'block';
-            if (data.length === 0) {
-              var li = document.createElement('li');
-              li.className = 'list-group-item text-muted';
-              li.textContent = 'Nenhuma pessoa encontrada';
-              lista.appendChild(li);
-            } else {
-              data.forEach(function(v) {
-                var li = document.createElement('li');
-                li.className = 'list-group-item';
-                li.textContent = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
-                li.style.cursor = 'pointer';
-                li.onclick = function() {
-                  buscaInput.value = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
-                  document.getElementById('membro-id').value = v.id;
-                  lista.innerHTML = '';
-                  lista.style.display = 'none';
-                };
-                lista.appendChild(li);
-              });
-            }
-          });
-      });
-      // Esconde sugestões ao perder o foco
-      buscaInput.addEventListener('blur', function() {
-        setTimeout(function() {
-          lista.style.display = 'none';
-        }, 150);
-      });
-      // Mostra sugestões ao focar se houver texto
-      buscaInput.addEventListener('focus', function() {
-        if (buscaInput.value.length > 0 && lista.innerHTML.length > 0) {
-          lista.style.display = 'block';
-        }
-      });
-      </script>
-  <button type="submit" class="btn btn-success w-100 mt-2">Registrar Presença</button>
+    <h1 class="mb-4">Registro de Visitantes</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Recepção</li>
+    <li class="breadcrumb-item active">Registro de Visitantes</li>
+    </ol>
+
+    <form method="get" action="{% url 'secretaria:registrar_presenca_visitante_evento' %}" class="mb-3 row g-2 align-items-end">
+        <div class="col-12 mb-2 d-flex justify-content-end">
+            <span id="gcp-js-status" class="badge bg-secondary">JS: carregando...</span>
+            <style>
+                /* Garantir que o badge e painéis de debug fiquem ocultos o quanto antes
+                   (colocado aqui para ser parseado antes dos scripts que fazem polling) */
+                #gcp-js-status, #gcp-buscar-debug, #gcp-debug-response { display: none !important; visibility: hidden !important; }
+            </style>
+        </div>
+        <script>
+            // Hooks iniciais de erro posicionados logo após o badge para capturar erros durante o parse/executação da página
+            (function(){
+                try {
+                    var dbg = document.getElementById('gcp-buscar-debug');
+                    function reportError(msg) {
+                        try {
+                            if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'JS Error: ' + msg; }
+                            var badge = document.getElementById('gcp-js-status'); if (badge) { badge.className = 'badge bg-danger'; badge.textContent = 'JS: erro'; }
+                            try { console.error('[gcp] captured error:', msg); } catch(e){}
+                        } catch(e){}
+                    }
+                    window.addEventListener('error', function(ev){ try { reportError(String(ev && (ev.message || ev.error || ev))); } catch(e){} }, true);
+                    window.addEventListener('unhandledrejection', function(ev){ try { reportError('unhandledrejection: ' + (ev && ev.reason ? String(ev.reason) : String(ev))); } catch(e){} }, true);
+                } catch(e) { try { console.warn('[gcp] early error hooks failed', e); } catch(_) {} }
+            })();
+        </script>
+        <div class="col-md-4 col-12">
+            <label for="filtro_eventos" class="form-label">Filtrar eventos:</label>
+            <select name="filtro_eventos" id="filtro_eventos" class="form-select">
+                <option value="proximos" {% if filtro_eventos == 'proximos' %}selected{% endif %}>Próximos 7 dias</option>
+                <option value="ultimos" {% if filtro_eventos == 'ultimos' %}selected{% endif %}>Últimos</option>
+                <option value="sem_visitantes" {% if filtro_eventos == 'sem_visitantes' %}selected{% endif %}>Sem visitantes lançados</option>
+            </select>
+        </div>
+                <div class="col-md-3 col-12 d-flex align-items-end">
+            <div class="w-100">
+                <label for="ultimos_n" class="form-label mb-1">Últimos N:</label>
+                    <div class="d-flex">
+                    <input type="number" name="ultimos_n" id="ultimos_n" min="1" max="50" value="{{ ultimos_n|default:3 }}" class="form-control me-2" style="width:110px;">
+                    <button type="submit" class="btn btn-primary align-self-end" title="Aplicar filtro" aria-label="Filtrar eventos">Filtrar</button>
+                </div>
+            </div>
+        </div>
+                <div class="col-md-5 col-12 d-flex flex-column justify-content-end">
+            <div class="mb-1 text-muted small">
+                {% if filtro_eventos|default:'ultimos' == 'proximos' %}Mostrando eventos dos próximos 7 dias.{% elif filtro_eventos|default:'ultimos' == 'ultimos' %}Mostrando os últimos {{ ultimos_n|default:3 }} eventos.{% elif filtro_eventos|default:'ultimos' == 'sem_visitantes' %}Mostrando eventos sem visitantes lançados.{% endif %}
+            </div>
+                <div class="d-flex align-items-center mb-1">
+                <label for="ultimos_n" class="form-label me-3 mb-0">Eventos:</label>
+                <a href="#eventos-list" class="btn btn-outline-secondary btn-sm" role="button" title="Ir para a lista de eventos" aria-label="Ver lista de eventos">Ver lista</a>
+            </div>
+        </div>
+        
     </form>
-  <h5 class="mb-2">Pessoas presentes hoje</h5>
-    <ul class="list-group mb-3">
-      {% for presenca in visitantes_presentes %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          {{ presenca.membro.nome }}
-          <span class="badge bg-primary">{{ presenca.data_registro|date:'H:i' }}</span>
-        </li>
-      {% empty %}
-        <li class="list-group-item text-center">Nenhuma presença registrada para este evento.</li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+    <section id="eventos-list" class="mb-4">
+                {% if eventos_do_dia|length > 0 %}
+            <div class="list-group mb-3">
+                {% for evento in eventos_do_dia %}
+                    <div class="list-group-item d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="fw-bold">{{ evento.titulo }}</div>
+                            <div class="small text-muted">{{ evento.data_inicio|date:'d/m/Y H:i' }}</div>
+                        </div>
+                        <div class="ms-3">
+                            <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}?evento={{ evento.id }}&filtro_eventos={{ filtro_eventos|urlencode }}&ultimos_n={{ ultimos_n|default:3 }}" class="btn btn-sm btn-primary js-abrir-evento" data-evento="{{ evento.id }}" role="button" title="Abrir evento {{ evento.titulo|escape }}" aria-label="Abrir evento {{ evento.titulo|escape }}" data-loading-text="<span class='spinner-border spinner-border-sm' role='status' aria-hidden='true'></span> Abrindo...">Abrir</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info mt-4">
+                <i class="fas fa-info-circle"></i>
+                {% if filtro_eventos == 'sem_visitantes' %}
+                    Nenhum evento sem visitantes encontrado até hoje.
+                {% else %}
+                    Nenhum evento encontrado com o filtro selecionado.
+                {% endif %}
+                <br>
+                <span class="small">Ajuste os filtros para localizar eventos específicos.</span>
+            </div>
+        {% endif %}
+    </section>
+
+    {% if evento_selecionado %}
+    <form method="post" class="card p-3 mb-4 shadow-sm">
+            {% csrf_token %}
+            <h5 class="mb-2 d-flex align-items-baseline" aria-live="polite">
+                <span>Registrar visitante</span>
+                <small class="text-muted ms-3" title="Data do evento">
+                    <i class="far fa-calendar-alt"></i>
+                    {% comment %} Mostrar dia da semana sem '-feira' e sem horário: 'Sexta, 24/10' {% endcomment %}
+                    {{ evento_selecionado.data_inicio|date:"l"|cut:"-feira"|capfirst }}, {{ evento_selecionado.data_inicio|date:"d/m" }}
+                </small>
+            </h5>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-9 col-12">
+                    <label for="busca-membro" class="form-label">Buscar pessoa (nome ou apelido):</label>
+                    <div style="position:relative;">
+                        <div class="input-group">
+                                <input type="text" id="busca-membro" class="form-control" placeholder="Digite nome ou apelido" autocomplete="off" aria-label="Buscar pessoa">
+                                <div class="btn-group ms-2" role="group" aria-label="Ações de busca">
+                                    <button type="button" id="btn-abrir-criar-visitante" class="btn btn-success" aria-label="Cadastrar novo visitante" title="Cadastrar novo visitante">Cadastrar</button>
+                                </div>
+                            </div>
+                        <ul id="sugestoes-membro" class="list-group" style="position:absolute; top:100%; left:0; right:0; z-index:2200; max-height:220px; overflow-y:auto; display:none;"></ul>
+                    <!-- painel de debug (invisível por padrão). Mantemos o elemento por compatibilidade com o JS,
+                        mas forçamos via CSS que ele nunca apareça na UI de recepção para manter a tela limpa.
+                        Para reativar temporariamente o debug durante suporte, abra o console e execute:
+                          window.__gcp_show_debug = true
+                        e então recarregue a página (ou chame markOK() se disponível).
+                    -->
+                        <style>
+                            /* Força os painéis de debug a ficarem ocultos mesmo que scripts tentem torná-los visíveis */
+                            #gcp-buscar-debug,
+                            /* alguns fluxos inserem <pre id="gcp-debug-response"> dentro do modal; esconder também */
+                            #gcp-debug-response,
+                            /* Esconder também o badge de status JS para não ocupar espaço na UI produtiva. */
+                            #gcp-js-status {
+                                display: none !important;
+                                visibility: hidden !important;
+                                background: transparent !important;
+                                border: none !important;
+                                color: inherit !important;
+                            }
+                        </style>
+                        <pre id="gcp-buscar-debug" style="display:none; background:transparent; padding:8px; border:none; max-height:200px; overflow:auto; margin-top:6px; font-size:12px; z-index:1100; position:relative;"></pre>
+                    </div>
+                    <input type="hidden" name="membro" id="membro-id">
+                    {# Hidden event id so the POST contains the event when submitting the presence form #}
+                    <input type="hidden" name="evento" id="evento-hidden" value="{{ evento_selecionado.id }}">
+                </div>
+                <div class="col-md-3 col-12 d-grid">
+                    <button type="submit" class="btn btn-success">Registrar Presença</button>
+                </div>
+            {# Modal componentizado: inclui partial compartilhado com Lista de Eventos #}
+            {% include 'secretaria/partials/_modal_criar_visitante_presenca.html' %}
+            </div>
+                        <script>
+    // Container de toasts
+        (function(){
+            var toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.position = 'fixed';
+            toastContainer.style.top = '1rem';
+            toastContainer.style.right = '1rem';
+            toastContainer.style.zIndex = 1100;
+            document.body.appendChild(toastContainer);
+        })();
+
+        function showToast(message, type) {
+            // tipo: 'success' | 'danger' | 'info'
+            var container = document.getElementById('toast-container');
+            if (!container) return;
+            var toastEl = document.createElement('div');
+            toastEl.className = 'toast align-items-center text-bg-' + (type || 'info') + ' border-0';
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+            toastEl.style.minWidth = '200px';
+            toastEl.innerHTML = '<div class="d-flex"><div class="toast-body">' + message + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>';
+            container.appendChild(toastEl);
+            var bsToast = new bootstrap.Toast(toastEl, {delay: 4000});
+            bsToast.show();
+            toastEl.addEventListener('hidden.bs.toast', function(){ toastEl.remove(); });
+        }
+        function setBuscaInputValue(suggested) {
+            try {
+                if (!buscaInput) return;
+                // preserva texto digitado se for mais longo que a sugestão
+                if (buscaInput.value && buscaInput.value.length > (suggested || '').length) {
+                    return; // manter o que usuário digitou
+                }
+                buscaInput.value = suggested || '';
+            } catch (e) { console.warn('setBuscaInputValue error', e); }
+        }
+        const buscaInput = document.getElementById('busca-membro');
+        const lista = document.getElementById('sugestoes-membro');
+                // Logger visível na página para usuários sem DevTools verem diagnósticos
+                function gcpLog(msg) {
+                    try {
+                        var dbg = document.getElementById('gcp-buscar-debug');
+                        if (!dbg) {
+                            dbg = document.createElement('pre'); dbg.id = 'gcp-buscar-debug'; dbg.style.background = '#fff3cd'; dbg.style.padding = '8px'; dbg.style.border = '1px solid #ffc107'; dbg.style.maxHeight = '200px'; dbg.style.overflow = 'auto'; dbg.style.display = 'block';
+                            var container = lista && lista.parentNode ? lista.parentNode : document.body;
+                            if (container) container.insertBefore(dbg, container.firstChild);
+                        }
+                        // anexar linha com timestamp
+                        var now = new Date();
+                        var line = '[' + now.toLocaleTimeString() + '] ' + String(msg);
+                        try { dbg.textContent = (dbg.textContent ? dbg.textContent + '\n' : '') + line; } catch(e) { dbg.innerText = (dbg.innerText ? dbg.innerText + '\n' : '') + line; }
+                        dbg.style.display = 'block';
+                    } catch(e) { try { console.warn('gcpLog failed', e); } catch(_) {} }
+                }
+                // Se buscaInput estiver ausente, mostrar mensagem clara na página
+                if (!buscaInput) {
+                    gcpLog('ERRO: input #busca-membro não encontrado no DOM');
+                }
+                // Helper idempotente para (re)anexar o handler de autocomplete em #busca-membro
+                function attachGcpInput() {
+                    try {
+                        var el = document.getElementById('busca-membro');
+                        var listaLocal = document.getElementById('sugestoes-membro');
+                        var dbg = document.getElementById('gcp-buscar-debug');
+                        if (!el || !listaLocal) return false;
+                        if (el.dataset && el.dataset.gcpAttached === '1') return true;
+                        el.dataset.gcpAttached = '1';
+                        var _timer = null;
+                        el.addEventListener('input', function() {
+                            var q = (this.value || '');
+                            try { gcpLog('attachGcpInput input q=' + q); } catch(e){}
+                            if (_timer) clearTimeout(_timer);
+                            _timer = setTimeout(function() {
+                                if (!q || q.length === 0) { listaLocal.style.display='none'; listaLocal.innerHTML=''; return; }
+                                var eventoVal = '';
+                                try { var ev = document.getElementById('evento') || document.getElementById('evento-hidden'); if (ev && ev.value) eventoVal = ev.value; } catch(e){}
+                                var url = (function(){ try { return window.__gcp_buscar_url || '{% url "secretaria:buscar_visitantes" %}'; } catch(e){ return '{% url "secretaria:buscar_visitantes" %}'; } })();
+                                url = url + '?q=' + encodeURIComponent(q) + (eventoVal ? '&evento=' + encodeURIComponent(eventoVal) : '') + '&recepcao=1';
+                                if (dbg) try { dbg.style.display='block'; dbg.textContent='Carregando...'; } catch(e){}
+                                fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}})
+                                    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json().catch(function(){ return null; }); })
+                                    .then(function(json){
+                                        try { if (dbg) dbg.textContent = JSON.stringify(json, null, 2); } catch(e){}
+                                        var data = [];
+                                        try { if (Array.isArray(json)) data = json; else if (json && Array.isArray(json.visitantes)) data = json.visitantes; else if (json && Array.isArray(json.results)) data = json.results; else data = json || []; } catch(e){ data = []; }
+                                        listaLocal.innerHTML = '';
+                                        listaLocal.style.display = 'block';
+                                        if (!Array.isArray(data) || data.length === 0) { var li = document.createElement('li'); li.className='list-group-item text-muted'; li.textContent='Nenhuma pessoa encontrada'; listaLocal.appendChild(li); return; }
+                                        data.forEach(function(v){ try { var li = document.createElement('li'); li.className='list-group-item'; li.textContent = v.nome + (v.apelido ? ' (' + v.apelido + ')' : ''); li.style.cursor='pointer'; li.addEventListener('pointerdown', function(){ try { el.value = v.nome + (v.apelido ? ' (' + v.apelido + ')' : ''); var mid = document.getElementById('membro-id'); if (mid) mid.value = v.id || v.chave || ''; listaLocal.innerHTML=''; listaLocal.style.display='none'; } catch(e){} }); listaLocal.appendChild(li); } catch(e) { console.warn('attachGcpInput populate error', e); } });
+                                    }).catch(function(err){ console.error('attachGcpInput fetch error', err); if (dbg) try { dbg.textContent = 'Erro: ' + String(err); } catch(e){} });
+                            }, 180);
+                        }, false);
+                        return true;
+                    } catch(e) { console.warn('attachGcpInput failed', e); return false; }
+                }
+            // Controles de tempo de execução para o autocomplete (abort e ordenação)
+            var gcp_lastAbortController = null;
+            var gcp_lastRequestId = 0;
+            const GCP_DEBOUNCE_MS = 120; // ajustado para responsividade
+
+            // Auxiliar para injetar HTML e executar scripts inline inseridos via AJAX
+                function injectHtmlWithScripts(container, html) {
+                    if (!container) return;
+                    // Definir o HTML primeiro
+                    container.innerHTML = html;
+                    // Executar scripts dentro do HTML inserido (inline e externos)
+                    var scripts = Array.from(container.querySelectorAll('script'));
+                    for (var i = 0; i < scripts.length; i++) {
+                        var old = scripts[i];
+                        var s = document.createElement('script');
+                        // copiar src ou conteúdo inline
+                        if (old.src) {
+                            s.src = old.src;
+                            // preservar async/defer se presentes
+                            if (old.async) s.async = true;
+                            if (old.defer) s.defer = true;
+                        } else {
+                            try { s.appendChild(document.createTextNode(old.innerHTML)); } catch (e) { s.text = old.innerHTML; }
+                        }
+                        // copiar atributos
+                        for (var j = 0; j < old.attributes.length; j++) {
+                            var attr = old.attributes[j];
+                            if (attr.name !== 'src') s.setAttribute(attr.name, attr.value);
+                        }
+                        // substituir o script antigo pelo novo para que seja executado
+                        old.parentNode.replaceChild(s, old);
+                    }
+                    // Após injetar HTML e executar scripts, o partial injetado pode criar DOM assincronamente
+                    // (scripts externos, execução inline diferida, etc). Repetir algumas vezes antes de considerar que o formulário
+                    // está ausente para evitar falsos positivos.
+                    (function waitForInjectedForm(attemptsLeft, delayMs) {
+                        // aumentar tentativas e atraso para reduzir falsos positivos em conexões lentas
+                        attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 12;
+                        delayMs = typeof delayMs === 'number' ? delayMs : 120;
+                        try {
+                            // tentar múltiplos seletores comuns para o partial do visitante — torna a detecção mais tolerante
+                            var selectorsToTry = ['#form-criar-visitante-modal', '#visitante-form-container form', 'form[data-gcp-ajax="1"]', 'form[id^="form-criar-visitante"]'];
+                            var injectedForm = null;
+                            for (var sIdx = 0; sIdx < selectorsToTry.length; sIdx++) {
+                                try { injectedForm = container.querySelector(selectorsToTry[sIdx]); } catch(e) { injectedForm = null; }
+                                if (injectedForm) break;
+                            }
+                            if (injectedForm) {
+                                // Ensure the auto-submit switch inside the injected partial gets its localStorage behavior
+                                try {
+                                    var switchEl = injectedForm.querySelector('#auto_submit_presenca') || container.querySelector('#auto_submit_presenca');
+                                    if (switchEl) {
+                                        var saved = null;
+                                        try { saved = localStorage.getItem('gcp_auto_submit_presenca'); } catch(e) { saved = null; }
+                                        if (saved !== null) switchEl.checked = saved === '1';
+                                        if (!switchEl.dataset || switchEl.dataset.gcpSwitchAttached !== '1') {
+                                            try { if (switchEl.dataset) switchEl.dataset.gcpSwitchAttached = '1'; } catch(e) {}
+                                            switchEl.addEventListener('change', function(){ try { localStorage.setItem('gcp_auto_submit_presenca', this.checked ? '1' : '0'); } catch(e){} });
+                                        }
+                                    }
+                                } catch(e) { console.warn('Failed to attach auto_submit_presenca behavior', e); }
+                                return;
+                            }
+                        } catch(e) { console.warn('waitForInjectedForm check failed', e); }
+                        if (attemptsLeft > 0) {
+                            setTimeout(function(){ waitForInjectedForm(attemptsLeft - 1, delayMs); }, delayMs);
+                            return;
+                        }
+                        // Exhausted retries: show debug pre and a non-blocking console warning so user can inspect what arrived
+                        try {
+                            console.error('injectHtmlWithScripts: formulário do visitante não encontrado após injeção (retries esgotadas). Conteúdo injetado:');
+                            var pre = document.getElementById('gcp-debug-response');
+                            if (!pre) {
+                                pre = document.createElement('pre');
+                                pre.id = 'gcp-debug-response';
+                                pre.style.maxHeight = '260px';
+                                pre.style.overflow = 'auto';
+                                pre.style.background = '#fff3cd';
+                                pre.style.padding = '8px';
+                                pre.style.border = '1px solid #ffc107';
+                            }
+                            try { pre.textContent = container.innerText || container.innerHTML; } catch(e) { pre.textContent = String(container.innerHTML || '(sem conteúdo)'); }
+                            if (container.firstChild && container.firstChild.id !== 'gcp-debug-response') container.insertBefore(pre, container.firstChild); else if (!container.firstChild) container.appendChild(pre);
+                            try { console.warn('Formulário do visitante não encontrado no modal (diagnóstico): inspecione #gcp-debug-response para o HTML injetado.'); } catch(e) { console.warn('could not write console warning'); }
+                        } catch(e) { console.warn('Failed to insert debug pre for missing injected form', e); }
+                    })(12, 120);
+                }
+
+                // Debounce do campo de busca para reduzir requisições (com AbortController e verificação de requestId)
+                (function(){
+                    var _debounceTimer = null;
+                    buscaInput.addEventListener('input', function() {
+                        var q = this.value;
+                        try { gcpLog('input fired q=' + String(q)); } catch(e){ console.warn('gcpLog error', e); }
+                        if (_debounceTimer) clearTimeout(_debounceTimer);
+                        _debounceTimer = setTimeout(function() {
+                            if (q.length === 0) {
+                                lista.style.display = 'none';
+                                lista.innerHTML = '';
+                                return;
+                            }
+                            // Resolve evento value more robustly (select may not exist when list-group UI is used)
+                            var eventoVal = '';
+                            try {
+                                var evEl = document.getElementById('evento');
+                                if (evEl && evEl.value) eventoVal = evEl.value;
+                                else {
+                                    var eh = document.getElementById('evento-hidden');
+                                    if (eh && eh.value) eventoVal = eh.value;
+                                }
+                            } catch(e) { eventoVal = ''; }
+                            var buscarUrl = '{% url "secretaria:buscar_visitantes" %}';
+                            console.log('[gcp] buscar input fired, url:', buscarUrl, 'q:', q, 'evento:', eventoVal);
+                            // show a visible console.log so it isn't hidden by DevTools filters
+                            console.log('[gcp] buscar will fetch ->', buscarUrl + '?q=' + encodeURIComponent(q) + '&evento=' + encodeURIComponent(eventoVal) + '&recepcao=1');
+                            try { gcpLog('fetching: ' + buscarUrl + '?q=' + encodeURIComponent(q) + '&evento=' + encodeURIComponent(eventoVal) + '&recepcao=1'); } catch(e){}
+                            // Aborta a requisição anterior, se houver
+                            try { if (gcp_lastAbortController) { try { gcp_lastAbortController.abort(); } catch(e){} } } catch(e){}
+                            var controller = new AbortController();
+                            gcp_lastAbortController = controller;
+                            // guarda de ordenação (ignorar respostas antigas)
+                            gcp_lastRequestId += 1;
+                            var thisRequestId = gcp_lastRequestId;
+                            fetch(buscarUrl + '?q=' + encodeURIComponent(q) + '&evento=' + encodeURIComponent(eventoVal) + '&recepcao=1', {headers: {'X-Requested-With': 'XMLHttpRequest','Accept':'application/json'}, signal: controller.signal})
+                                .then(function(response){
+                                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                                    var ct = response.headers.get('content-type') || '';
+                                    if (ct.indexOf('application/json') === -1) return response.text().then(function(t){ try { return JSON.parse(t); } catch(e){ return null; } });
+                                    return response.json().catch(function(){ return null; });
+                                })
+                                .then(function(json){
+                                    // ignorar se estiver obsoleto
+                                    if (thisRequestId !== gcp_lastRequestId) { console.debug('[gcp] ignoring out-of-order response', thisRequestId, gcp_lastRequestId); return; }
+                                    console.log('[gcp] buscar response json (debounce):', json);
+                                    var data = [];
+                                    try {
+                                        if (Array.isArray(json)) data = json;
+                                        else if (json && Array.isArray(json.visitantes)) data = json.visitantes;
+                                        else if (json && Array.isArray(json.results)) data = json.results;
+                                        else if (json && Array.isArray(json.data)) data = json.data;
+                                        else data = json || [];
+                                    } catch(e) { console.warn('buscar_visitantes parse error (debounce):', e, json); }
+                                    // escrever a resposta bruta no painel de debug para diagnóstico
+                                    try { var dbg = document.getElementById('gcp-buscar-debug'); if (dbg) { dbg.textContent = JSON.stringify(json, null, 2) || '(empty)'; dbg.style.display = (data && data.length) ? 'none' : 'block'; } } catch(e) {}
+                                    lista.innerHTML = '';
+                                    lista.style.display = 'block';
+                                    if (!Array.isArray(data) || data.length === 0) {
+                                        // If no results were found when filtering by evento, try global search (no evento param)
+                                        if (eventoVal) {
+                                            var buscarUrlGlobal = '{% url "secretaria:buscar_visitantes" %}';
+                                            console.log('[gcp] fallback global buscar called, url:', buscarUrlGlobal, 'q:', q);
+                                                            fetch(buscarUrlGlobal + '?q=' + encodeURIComponent(q) + '&recepcao=1', {headers: {'X-Requested-With': 'XMLHttpRequest','Accept':'application/json'}})
+                                                                .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json().catch(function(){ return null; }); })
+                                                                .then(function(t){
+                                                                    console.log('[gcp] fallback global response:', t);
+                                                                    var alt = [];
+                                                                    try { if (Array.isArray(t)) alt = t; else if (t && Array.isArray(t.visitantes)) alt = t.visitantes; else if (t && Array.isArray(t.results)) alt = t.results; else alt = t || []; } catch(e) { console.warn('buscar_visitantes global returned non-json:', t); }
+                                                    if (Array.isArray(alt) && alt.length > 0) {
+                                                        lista.innerHTML = '';
+                                                        alt.forEach(function(v){
+                                                            var li = document.createElement('li');
+                                                            li.className = 'list-group-item';
+                                                            li.textContent = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
+                                                            li.style.cursor = 'pointer';
+                                                            li.addEventListener('pointerdown', function() {
+                                                                buscaInput.value = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
+                                                                document.getElementById('membro-id').value = v.id || v.chave || '';
+                                                                lista.innerHTML = '';
+                                                                lista.style.display = 'none';
+                                                            });
+                                                            lista.appendChild(li);
+                                                        });
+                                                        return;
+                                                    }
+                                                    var li = document.createElement('li');
+                                                    li.className = 'list-group-item text-muted';
+                                                    li.textContent = 'Nenhuma pessoa encontrada';
+                                                    lista.appendChild(li);
+                                                    try { var dbg = document.getElementById('gcp-buscar-debug'); if (dbg) { dbg.style.display = 'block'; dbg.textContent = t || '(empty)'; } } catch(e) {}
+                                                    // adiciona opção para cadastrar novo visitante (abre modal e preenche com texto atual)
+                                                    var li2 = document.createElement('li');
+                                                    li2.className = 'list-group-item';
+                                                    var a = document.createElement('button');
+                                                    a.className = 'btn btn-sm btn-success';
+                                                    a.type = 'button';
+                                                    a.textContent = 'Cadastrar visitante';
+                                                    a.addEventListener('pointerdown', function(e) {
+                                                        try { e.preventDefault(); } catch(_) {}
+                                                        // Use the shared helper so prefill/wait/hide-debug behavior is consistent
+                                                        openCriarVisitantePartial();
+                                                    });
+                                                    li2.appendChild(a);
+                                                    lista.appendChild(li2);
+                                                }).catch(function(err){
+                                                    console.error('Erro na busca global fallback:', err);
+                                                    lista.innerHTML = '';
+                                                    var li = document.createElement('li');
+                                                    li.className = 'list-group-item text-danger';
+                                                    li.textContent = 'Erro ao buscar pessoas (ver console).';
+                                                    lista.appendChild(li);
+                                                });
+                                            return;
+                                        }
+                                        var li = document.createElement('li');
+                                        li.className = 'list-group-item text-muted';
+                                        li.textContent = 'Nenhuma pessoa encontrada';
+                                        lista.appendChild(li);
+                            // adiciona opção para cadastrar novo visitante (abre modal e preenche com texto atual)
+                            var li2 = document.createElement('li');
+                            li2.className = 'list-group-item';
+                            var a = document.createElement('button');
+                            a.className = 'btn btn-sm btn-success';
+                            a.type = 'button';
+                            a.textContent = 'Cadastrar visitante';
+                            a.addEventListener('pointerdown', function(e) {
+                                try { e.preventDefault(); } catch(_) {}
+                                openCriarVisitantePartial();
+                            });
+                            li2.appendChild(a);
+                            lista.appendChild(li2);
+                        } else {
+                            data.forEach(function(v) {
+                                var li = document.createElement('li');
+                                li.className = 'list-group-item';
+                                li.textContent = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
+                                li.style.cursor = 'pointer';
+                                li.addEventListener('pointerdown', function(e) {
+                                    var suggested = v.nome + (v.apelido ? ' (' + v.apelido + ')' : '');
+                                    // Se o usuário já digitou mais texto (ex: partial com sobrenome), preserva o texto digitado
+                                    if (buscaInput.value && buscaInput.value.length > suggested.length) {
+                                        // manter o texto digitado
+                                    } else {
+                                        buscaInput.value = suggested;
+                                    }
+                                    document.getElementById('membro-id').value = v.id || v.chave || '';
+                                    lista.innerHTML = '';
+                                    lista.style.display = 'none';
+                                });
+                                lista.appendChild(li);
+                            });
+                        }
+                    }).catch(function(err){
+                        // AbortError is expected when previous requests are cancelled; log quietly
+                        try {
+                            if (err && err.name === 'AbortError') {
+                                console.debug('[gcp] buscar fetch aborted');
+                                return;
+                            }
+                        } catch(e) {}
+                        console.error('[gcp] buscar fetch error', err);
+                        try { var dbg = document.getElementById('gcp-buscar-debug'); if (dbg) dbg.textContent = 'Erro: ' + String(err); } catch(e) {}
+                    });
+                        }, 180);
+                    });
+                })();
+                            // (Test button removed.)
+                // Esconde sugestões ao perder o foco
+                buscaInput.addEventListener('blur', function() {
+                    setTimeout(function() {
+                        lista.style.display = 'none';
+                    }, 150);
+                });
+                // Mostra sugestões ao focar se houver texto
+                buscaInput.addEventListener('focus', function() {
+                    if (buscaInput.value.length > 0 && lista.innerHTML.length > 0) {
+                        lista.style.display = 'block';
+                    }
+                });
+                // Listener para mensagens vindas da janela de cadastro (postMessage) - autopreenche o campo
+                window.addEventListener('message', function(event) {
+                    try {
+                        // Segurança: aceitar apenas mensagens da mesma origem
+                        if (event.origin !== window.location.origin) return;
+                    } catch (e) {
+                        // Em alguns ambientes event.origin pode não estar disponível; abortar
+                        return;
+                    }
+                    var data = event.data || {};
+                    if (data && data.type === 'novo_visitante' && data.visitante) {
+                        var v = data.visitante;
+                        setBuscaInputValue(v.nome + (v.apelido ? ' (' + v.apelido + ')' : ''));
+                        document.getElementById('membro-id').value = v.id || v.chave || '';
+                        lista.innerHTML = '';
+                        lista.style.display = 'none';
+                        buscaInput.focus();
+                        // Opcional: submeter automaticamente o formulário de registro de presença
+                        // document.querySelector('form.card').submit();
+                    }
+                }, false);
+                // helper: tenta resolver um membro pelo nome com retries (remove acentos para comparar)
+                function normalizeText(s) {
+                    try { return (s || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); } catch(e) { return (s || '').toLowerCase().trim(); }
+                }
+
+                async function attemptResolveMemberByName(name, maxRetries, delayMs) {
+                    maxRetries = typeof maxRetries === 'number' ? maxRetries : 3;
+                    delayMs = typeof delayMs === 'number' ? delayMs : 250;
+                    if (!name || !name.trim()) return null;
+                    var q = encodeURIComponent(name);
+                    for (var i = 0; i < maxRetries; i++) {
+                        try {
+                            var resp = await fetch('{% url "secretaria:buscar_visitantes" %}?q=' + q + '&recepcao=1', {headers: {'X-Requested-With': 'XMLHttpRequest','Accept':'application/json'}});
+                            var text = await resp.text();
+                            var cand = [];
+                            try { cand = text ? JSON.parse(text) : []; } catch(e) { console.warn('attemptResolveMemberByName returned non-json:', text); cand = []; }
+                            if (Array.isArray(cand) && cand.length > 0) {
+                                // tentar encontrar correspondência exata no nome ou apelido
+                                var targetNorm = normalizeText(name);
+                                for (var j = 0; j < cand.length; j++) {
+                                    var c = cand[j];
+                                    if (normalizeText(c.nome) === targetNorm || normalizeText(c.apelido) === targetNorm) {
+                                        return c;
+                                    }
+                                }
+                                // se não encontrou exata, mas só há um candidato, usa ele
+                                if (cand.length === 1) return cand[0];
+                                // se tiver múltiplos, retornar o primeiro como fallback
+                                return cand[0];
+                            }
+                        } catch (e) {
+                            console.warn('attemptResolveMemberByName fetch error', e);
+                        }
+                        // aguarda antes de tentar novamente
+                        await new Promise(res => setTimeout(res, delayMs));
+                    }
+                    return null;
+                }
+
+                // --- Código para abrir modal de criação e submeter via AJAX ---
+                // Função utilitária para aguardar que um form/elemento seja injetado dentro de um container
+                function waitForInjectedForm(container, selector, attemptsLeft, delayMs) {
+                    // Support a single selector string or an array of selectors; tentar múltiplos seletores comuns
+                    attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 12;
+                    delayMs = typeof delayMs === 'number' ? delayMs : 120;
+                    var selectors = Array.isArray(selector) ? selector : [selector];
+                    return new Promise(function(resolve) {
+                        (function check(atts) {
+                            try {
+                                if (!container) return resolve(null);
+                                for (var i = 0; i < selectors.length; i++) {
+                                    try {
+                                                var found = container.querySelector(selectors[i]);
+                                                if (found) {
+                                                    try { console.debug('[gcp] waitForInjectedForm matched selector:', selectors[i]); } catch(e) {}
+                                                    return resolve(found);
+                                                }
+                                    } catch(e) { /* ignore selector errors and continue */ }
+                                }
+                            } catch(e) { /* ignore and retry */ }
+                            if (atts <= 0) return resolve(null);
+                            setTimeout(function(){ check(atts - 1); }, delayMs);
+                        })(attemptsLeft);
+                    });
+                }
+
+                // Função reutilizável que abre o modal e carrega o partial (usada pelo handler direto e fallback delegado)
+                async function openCriarVisitantePartial() {
+                    try {
+                        var modalEl = document.getElementById('modalCriarVisitante');
+                        if (!modalEl) {
+                            gcpLog('openCriarVisitantePartial: modal element not found');
+                            return;
+                        }
+                        // hide the visible debug panel while the modal is open to avoid overlay issues
+                        try {
+                            var dbg = document.getElementById('gcp-buscar-debug');
+                            if (dbg) { dbg.__gcp_prev_display = dbg.style.display || ''; dbg.style.display = 'none'; }
+                        } catch(e) { /* ignore */ }
+
+                        var modal = new bootstrap.Modal(modalEl);
+                        // Garantir que a lista de sugestões não permaneça visível por cima do modal
+                        try {
+                            var sugest = document.getElementById('sugestoes-membro');
+                            if (sugest) { sugest.style.display = 'none'; sugest.innerHTML = ''; }
+                        } catch(e) { console.warn('Falha ao esconder sugestoes antes de abrir modal', e); }
+                        modal.show();
+                        // carregar partial (passa o texto atual de busca para prefill)
+                        var q = encodeURIComponent((buscaInput && buscaInput.value) ? buscaInput.value : '');
+                        try {
+                            var response = await fetch('{% url "secretaria:criar_visitante_parcial" %}?q=' + q, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                            var html = await response.text();
+                            var body = document.getElementById('modalCriarVisitanteBody');
+                            injectHtmlWithScripts(body, html);
+                            // give time for scripts to run and DOM to settle; wait for the form element explicitly
+                            var injectedForm = await waitForInjectedForm(body, '#form-criar-visitante-modal', 8, 100);
+                            try { if (typeof attachModalFormHandler === 'function') attachModalFormHandler(); } catch(e){ console.warn('attachModalFormHandler failed', e); }
+                            // Prefill modal fields from the current search text if server didn't prefill
+                            try {
+                                var nomeField = (injectedForm && injectedForm.querySelector('input[name="nome"]')) || body.querySelector('#visitante-form-container input[name="nome"]') || document.querySelector('#form-criar-visitante-modal input[id$="nome"]');
+                                if (nomeField && (!nomeField.value || nomeField.value.trim().length === 0)) {
+                                    try { nomeField.value = (buscaInput && buscaInput.value) ? buscaInput.value : decodeURIComponent(q || ''); } catch(e) {}
+                                    try { nomeField.dispatchEvent(new Event('input')); } catch(e) {}
+                                }
+                            } catch(e) { console.warn('prefill modal nome failed', e); }
+
+                            // Defensive fallback: if server returned a partial without a <form id="form-criar-visitante-modal">,
+                            // attach a minimal handler to the partial's save button (#gcp-save-visitante-btn) that
+                            // gathers inputs inside #visitante-form-container and POSTs them via AJAX, mirroring the main handler.
+                            try {
+                                if (!injectedForm) {
+                                    var container = body.querySelector('#visitante-form-container') || body;
+                                    if (container) {
+                                        var saveBtn = container.querySelector('#gcp-save-visitante-btn');
+                                        if (saveBtn && !saveBtn.dataset.gcpFallbackAttached) {
+                                            saveBtn.dataset.gcpFallbackAttached = '1';
+                                            saveBtn.addEventListener('click', async function(e) {
+                                                try { e.preventDefault(); e.stopPropagation(); } catch(_){}
+                                                var btn = this;
+                                                btn.disabled = true; var old = btn.innerHTML; btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+                                                try {
+                                                    // build FormData by collecting inputs/selects/textareas inside the container
+                                                    var fd = new FormData();
+                                                    var elems = container.querySelectorAll('input, select, textarea');
+                                                    elems.forEach(function(el){
+                                                        if (!el.name) return;
+                                                        if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) return;
+                                                        // For disabled inputs, still include value only if there's a hidden with same name absent
+                                                        fd.append(el.name, el.value == null ? '' : el.value);
+                                                    });
+                                                    // ensure CSRF present
+                                                    try {
+                                                        if (!fd.get('csrfmiddlewaretoken')) {
+                                                            var csrfEl = container.querySelector('input[name="csrfmiddlewaretoken"]');
+                                                            if (csrfEl) fd.append('csrfmiddlewaretoken', csrfEl.value);
+                                                        }
+                                                    } catch(e) {}
+                                                    var url = '{% url "secretaria:criar_visitante_parcial" %}';
+                                                    var resp = await fetch(url, { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd });
+                                                    var text = '';
+                                                    try { text = await resp.text(); } catch(e) { text = ''; }
+                                                    var data = null;
+                                                    try { data = text ? JSON.parse(text) : {}; } catch(e) { data = {'__raw_text': text, '__status': resp.status}; }
+                                                    // show debug pre inside container for easy copy
+                                                    try {
+                                                        var pre = container.querySelector('#gcp-debug-response');
+                                                        if (!pre) {
+                                                            pre = document.createElement('pre'); pre.id = 'gcp-debug-response'; pre.style.maxHeight = '220px'; pre.style.overflow = 'auto'; pre.style.background = '#f8f9fa'; pre.style.padding = '8px'; pre.style.border = '1px solid #ddd'; pre.style.whiteSpace = 'pre-wrap';
+                                                            container.insertBefore(pre, container.firstChild);
+                                                        }
+                                                        try { pre.textContent = text || (data ? JSON.stringify(data, null, 2) : ''); } catch(e) { pre.textContent = text || String(data || ''); }
+                                                    } catch(e) { console.warn('fallback: debug insert failed', e); }
+                                                    if (data && data.visitante) {
+                                                        var v = data.visitante;
+                                                        try { document.getElementById('membro-id').value = v.id || v.chave || ''; } catch(e){}
+                                                        try { if (typeof showToast === 'function') showToast('Visitante criado: ' + (v.nome || ''), 'success'); } catch(e){}
+                                                        try { var modalEl = document.getElementById('modalCriarVisitante'); var modal = bootstrap.Modal.getInstance(modalEl); if (modal) modal.hide(); } catch(e){}
+                                                    } else if (data && data.errors_html) {
+                                                        if (container) container.innerHTML = data.errors_html;
+                                                    } else if (data && data.errors) {
+                                                        if (container) {
+                                                            var html = '<div class="alert alert-danger">';
+                                                            for (var f in data.errors) html += '<strong>'+f+':</strong> '+data.errors[f].join(', ')+'<br/>';
+                                                            html += '</div>';
+                                                            container.insertAdjacentHTML('afterbegin', html);
+                                                        }
+                                                        try { if (typeof showToast === 'function') showToast('Erro ao salvar visitante. Verifique os campos no modal.', 'danger'); } catch(e){}
+                                                    } else if (data && data.error) {
+                                                        if (container) container.insertAdjacentHTML('afterbegin', '<div class="alert alert-danger">' + data.error + '</div>');
+                                                        try { if (typeof showToast === 'function') showToast('Erro ao salvar visitante: ' + data.error, 'danger'); } catch(e){}
+                                                    }
+                                                } catch(err) {
+                                                    console.error('fallback save error', err);
+                                                    try { if (typeof showToast === 'function') showToast('Erro de rede ao salvar visitante.', 'danger'); } catch(e){}
+                                                } finally {
+                                                    try { btn.disabled = false; btn.innerHTML = old; } catch(e){}
+                                                }
+                                            }, false);
+                                        }
+                                    }
+                                }
+                            } catch(e) { console.warn('attach fallback save handler failed', e); }
+                        } catch(err) {
+                            var body = document.getElementById('modalCriarVisitanteBody');
+                            injectHtmlWithScripts(body, '<div class="alert alert-danger">Erro ao carregar formulário.</div>');
+                            console.error('openCriarVisitantePartial fetch error', err);
+                        }
+                    } catch(e) { console.error('openCriarVisitantePartial error', e); }
+                }
+
+                // Handler direto no botão (se o elemento existir)
+                try {
+                    var btnCriar = document.getElementById('btn-abrir-criar-visitante');
+                    if (btnCriar && !btnCriar.dataset.gcpClickAttached) {
+                        btnCriar.dataset.gcpClickAttached = '1';
+                        // click handler tradicional
+                        btnCriar.addEventListener('click', function(e){
+                            try { e.preventDefault(); } catch(_) {}
+                            console.debug('[gcp] btn-abrir-criar-visitante clicked');
+                            openCriarVisitantePartial();
+                        });
+                        // pointerdown fallback (captures touch and some overlay cases earlier than click)
+                        btnCriar.addEventListener('pointerdown', function(e){
+                            try { e.preventDefault(); } catch(_) {}
+                            console.debug('[gcp] btn-abrir-criar-visitante pointerdown');
+                            openCriarVisitantePartial();
+                        });
+                    }
+                } catch(e) { console.warn('attach btn-abrir-criar-visitante failed', e); }
+
+                // Delegated fallback: se o botão foi inserido dinamicamente e o handler direto não foi anexado,
+                // capturamos cliques no documento e reagimos apenas quando o alvo for o botão.
+                (function(){
+                    document.addEventListener('click', function(ev){
+                        try {
+                            var target = ev.target && ev.target.closest && ev.target.closest('#btn-abrir-criar-visitante');
+                            if (!target) return;
+                            // se o handler direto já foi anexado, não duplicar
+                            if (target.dataset && target.dataset.gcpClickAttached === '1') return;
+                            try { ev.preventDefault(); } catch(_) {}
+                            openCriarVisitantePartial();
+                        } catch(e) { console.warn('delegated abrir-criar click handler failed', e); }
+                    }, false);
+                    // delegated pointerdown fallback: captura em casos onde click não chega (overlays/touch)
+                    document.addEventListener('pointerdown', function(ev){
+                        try {
+                            var target = ev.target && ev.target.closest && ev.target.closest('#btn-abrir-criar-visitante');
+                            if (!target) return;
+                            if (target.dataset && target.dataset.gcpClickAttached === '1') return;
+                            try { ev.preventDefault(); } catch(_) {}
+                            console.debug('[gcp] delegated pointerdown for #btn-abrir-criar-visitante');
+                            openCriarVisitantePartial();
+                        } catch(e) { console.warn('delegated abrir-criar pointerdown handler failed', e); }
+                    }, false);
+                })();
+
+                function attachModalFormHandler() {
+                    var form = document.getElementById('form-criar-visitante-modal');
+                    if (!form) return;
+                    // Evita anexar múltiplos handlers ao mesmo form
+                    if (form.dataset && form.dataset.gcpHandlerAttached === '1') return;
+                    try { if (form.dataset) form.dataset.gcpHandlerAttached = '1'; } catch(e) {}
+                    form.addEventListener('submit', function(e) {
+                        try { e.preventDefault(); e.stopPropagation(); } catch(_){}
+                        console.debug('[gcp] attachModalFormHandler submit intercepted');
+                        var btnSave = form.querySelector('button[type="submit"]');
+                        try { var csrfField = form.querySelector('input[name="csrfmiddlewaretoken"]'); console.debug('[gcp] csrf present:', !!csrfField, csrfField && csrfField.value); } catch(_){}
+                        if (btnSave) { btnSave.disabled = true; btnSave.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...'; }
+                        var formData = new FormData(form);
+                        try {
+                            // log full FormData being sent
+                            var fd_entries = [];
+                            formData.forEach(function(v,k){ fd_entries.push([k, v]); });
+                            console.log('criar_visitante_parcial sending FormData (full):', fd_entries);
+                        } catch(e) { console.warn('Failed logging formData', e); }
+                        fetch('{% url "secretaria:criar_visitante_parcial" %}', {
+                            method: 'POST',
+                            headers: {'X-Requested-With': 'XMLHttpRequest'},
+                            body: formData
+                        }).then(async function(r) {
+                            // read raw response text and attempt to parse JSON so we can log non-JSON errors
+                            var text = '';
+                            try { text = await r.text(); } catch(e){ text = ''; }
+                            var data = null;
+                            try {
+                                data = text ? JSON.parse(text) : {};
+                            } catch (e) {
+                                console.error('Resposta não-JSON em criar_visitante_parcial:', text, 'status:', r.status);
+                                data = {'__raw_text': text, '__status': r.status};
+                            }
+                            console.log('criar_visitante_parcial response (parsed):', data);
+                            console.log('criar_visitante_parcial response (raw):', text);
+                            try { if (data && data.visitante) console.log('criar_visitante_parcial visitante object:', data.visitante); } catch(e){}
+                            // Insert a visible debug box in the modal so users can copy the raw response without opening DevTools
+                            try {
+                                var containerDebug = document.getElementById('visitante-form-container');
+                                if (containerDebug) {
+                                    var pre = document.getElementById('gcp-debug-response');
+                                    if (!pre) {
+                                        pre = document.createElement('pre');
+                                        pre.id = 'gcp-debug-response';
+                                        pre.style.maxHeight = '220px';
+                                        pre.style.overflow = 'auto';
+                                        pre.style.background = '#f8f9fa';
+                                        pre.style.padding = '8px';
+                                        pre.style.border = '1px solid #ddd';
+                                        pre.style.whiteSpace = 'pre-wrap';
+                                    }
+                                    try {
+                                        pre.textContent = text || (data ? JSON.stringify(data, null, 2) : '') ;
+                                    } catch(e) { pre.textContent = text || String(data || ''); }
+                                    // prepend so it is visible above the form
+                                    if (containerDebug.firstChild && containerDebug.firstChild.id !== 'gcp-debug-response') {
+                                        containerDebug.insertBefore(pre, containerDebug.firstChild);
+                                    } else if (!containerDebug.firstChild) {
+                                        containerDebug.appendChild(pre);
+                                    }
+                                }
+                            } catch (e) { console.warn('gcp debug insert failed', e); }
+                            return data;
+                        }).then(async function(data) {
+                            if (data.visitante) {
+                                // preencher o campo de busca e membro-id (preferir PK 'id' para compatibilidade com o form)
+                                var v = data.visitante;
+                                setBuscaInputValue(v.nome + (v.apelido ? ' (' + v.apelido + ')' : ''));
+                                // preferir o id (pk) antes da chave para que o campo oculto contenha o pk do modelo
+                                document.getElementById('membro-id').value = v.id || v.chave || '';
+                                // mostrar informação clara de qual id foi gravado (útil para debug)
+                                try { showToast('Visitante criado: id=' + (v.id || v.chave || '(sem id)'), 'success'); } catch(e){}
+                                // verificar se o checkbox de auto-submit está marcado
+                                var chk = document.getElementById('auto_submit_presenca');
+                                var autoSubmit = chk && chk.checked;
+                                // fechar modal
+                                var modalEl = document.getElementById('modalCriarVisitante');
+                                var modal = bootstrap.Modal.getInstance(modalEl);
+                                if (modal) modal.hide();
+                                buscaInput.focus();
+                                // se autoSubmit, registrar presença via AJAX e atualizar a lista
+                                if (autoSubmit) {
+                                    // valor que será enviado (quando presente)
+                                    try {
+                                        var membroParaEnviar = v.id || v.chave || '';
+                                        // Se não houver id/chave no retorno, tentar resolver com retries
+                                        if (!membroParaEnviar) {
+                                            var resolved = await attemptResolveMemberByName(buscaInput.value, 4, 300);
+                                            if (resolved) {
+                                                membroParaEnviar = resolved.id || resolved.chave || '';
+                                                document.getElementById('membro-id').value = membroParaEnviar;
+                                            }
+                                        }
+                                        if (!membroParaEnviar) {
+                                            showToast('Não foi possível identificar a pessoa para registrar presença automaticamente.', 'info');
+                                        } else {
+                                            var presencaUrl = '{% url "secretaria:ajax_registrar_presenca_evento" %}';
+                                            var eventoSelect = document.getElementById('evento');
+                                            var eventoId = eventoSelect ? eventoSelect.value : '';
+                                            var presencaFormData = new FormData();
+                                            presencaFormData.append('evento', eventoId);
+                                            presencaFormData.append('membro', membroParaEnviar);
+                                            // If a session selector exists on the page, include it so backend can mark the correct session
+                                            try {
+                                                var sessaoEl = document.getElementById('sessao') || document.getElementById('sessao-hidden') || document.querySelector('select[name="sessao"]') || document.querySelector('input[name="sessao"]');
+                                                if (sessaoEl && sessaoEl.value) presencaFormData.append('sessao', sessaoEl.value);
+                                            } catch(e) { console.warn('Could not attach sessao to presencaFormData', e); }
+                                            var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]');
+                                            if (csrf) presencaFormData.append('csrfmiddlewaretoken', csrf.value);
+                                            try {
+                                                var p_entries = [];
+                                                presencaFormData.forEach(function(v,k){ p_entries.push([k,v]); });
+                                                console.log('Presença AJAX will send FormData:', p_entries);
+                                            } catch(e) { console.warn('Failed logging presencaFormData', e); }
+                                            var resp = await fetch(presencaUrl, {method: 'POST', body: presencaFormData, headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                                            var json = await resp.json();
+                                            if (json.presenca) {
+                                                if (json.presenca_html) {
+                                                    // insere o fragmento HTML no topo da lista
+                                                    var list = document.getElementById('visitantes-presentes-list');
+                                                    if (list) list.insertAdjacentHTML('afterbegin', json.presenca_html);
+                                                } else {
+                                                    appendPresencaToList(json.presenca);
+                                                }
+                                                showToast('Presença registrada: ' + json.presenca.nome, 'success');
+                                            } else if (json.exists) {
+                                                showToast(json.message || 'Presença já registrada', 'info');
+                                            } else if (json.error) {
+                                                showToast('Erro registrando presença: ' + json.error, 'danger');
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.error('Erro ao registrar presença via AJAX:', err);
+                                    }
+                                }
+                                } else if (data.errors || data.errors_html) {
+                                // mostrar erros no modal (preferir html renderizado do servidor se enviado)
+                                var container = document.getElementById('visitante-form-container');
+                                if (data.errors_html && container) {
+                                    container.innerHTML = data.errors_html;
+                                } else if (data.errors && container) {
+                                    var html = '<div class="alert alert-danger">';
+                                    for (var f in data.errors) {
+                                        html += '<strong>' + f + ':</strong> ' + data.errors[f].join(', ') + '<br>';
+                                    }
+                                    html += '</div>';
+                                    container.insertAdjacentHTML('afterbegin', html);
+                                }
+                                // show toast error
+                                showToast('Erro ao salvar visitante. Verifique os campos no modal.', 'danger');
+                            } else if (data.error) {
+                                var container = document.getElementById('visitante-form-container');
+                                if (container) container.insertAdjacentHTML('afterbegin', '<div class="alert alert-danger">' + data.error + '</div>');
+                                showToast('Erro ao salvar visitante: ' + data.error, 'danger');
+                            }
+                        }).catch(err => {
+                            var container = document.getElementById('visitante-form-container');
+                            if (container) container.insertAdjacentHTML('afterbegin', '<div class="alert alert-danger">Erro de rede ao tentar salvar.</div>');
+                            showToast('Erro de rede ao tentar salvar visitante.', 'danger');
+                        }).finally(function(){
+                            if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save me-1"></i> Salvar visitante'; }
+                        });
+                    });
+                    // Limpa o modal ao ser fechado para evitar forms/handlers antigos
+                    try {
+                        var modalElCleanup = document.getElementById('modalCriarVisitante');
+                        if (modalElCleanup) {
+                            modalElCleanup.addEventListener('hidden.bs.modal', function() {
+                                var body = document.getElementById('modalCriarVisitanteBody');
+                                if (body) body.innerHTML = '<div class="d-flex justify-content-center py-4"><div class="spinner-border text-secondary" role="status"><span class="visually-hidden">Carregando...</span></div></div>';
+                                // restore debug panel visibility if we hid it earlier
+                                try {
+                                    var dbg = document.getElementById('gcp-buscar-debug');
+                                    if (dbg && dbg.__gcp_prev_display !== undefined) {
+                                        dbg.style.display = dbg.__gcp_prev_display || '';
+                                        delete dbg.__gcp_prev_display;
+                                    }
+                                } catch(e) { /* ignore */ }
+                            });
+                        }
+            } catch(e) { /* ignore */ }
+                // Aplicar preferência salva do switch auto_submit_presenca (localStorage)
+                            try {
+                                var saved = localStorage.getItem('gcp_auto_submit_presenca');
+                                var inputSwitch = document.getElementById('auto_submit_presenca');
+                                if (inputSwitch && saved !== null) {
+                                    inputSwitch.checked = saved === '1';
+                                }
+                                if (inputSwitch) {
+                                    inputSwitch.addEventListener('change', function() {
+                                        try { localStorage.setItem('gcp_auto_submit_presenca', this.checked ? '1' : '0'); } catch(e){}
+                                    });
+                                }
+                            } catch(e){ /* ignore */ }
+                }
+
+                // Delegated submit handler (capture) - fallback in case attachModalFormHandler wasn't called
+                (function(){
+                    document.addEventListener('submit', async function(e){
+                        try {
+                            var form = e.target;
+                            if (!form || form.id !== 'form-criar-visitante-modal') return;
+                            // If the explicit handler attached, don't duplicate
+                            if (form.dataset && form.dataset.gcpHandlerAttached === '1') return;
+                            // Intercept native submit and perform AJAX similar to attachModalFormHandler
+                            e.preventDefault();
+                            var btnSave = form.querySelector('button[type="submit"]');
+                            if (btnSave) { btnSave.disabled = true; btnSave.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...'; }
+                            var formData = new FormData(form);
+                            try { var fd_entries = []; formData.forEach(function(v,k){ fd_entries.push([k,v]); }); console.log('Delegated criar_visitante_parcial sending FormData (full):', fd_entries); } catch(e){}
+                            var resp = await fetch('{% url "secretaria:criar_visitante_parcial" %}', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: formData });
+                            var text = '';
+                            try { text = await resp.text(); } catch(e){}
+                            var data = null;
+                            try { data = text ? JSON.parse(text) : {}; } catch(e) { data = {'__raw_text': text, '__status': resp.status}; }
+                            console.log('Delegated criar_visitante_parcial response (parsed):', data);
+                            // Insert debug pre
+                            try {
+                                var containerDebug = document.getElementById('visitante-form-container');
+                                if (containerDebug) {
+                                    var pre = document.getElementById('gcp-debug-response');
+                                    if (!pre) {
+                                        pre = document.createElement('pre'); pre.id = 'gcp-debug-response'; pre.style.maxHeight = '220px'; pre.style.overflow = 'auto'; pre.style.background = '#f8f9fa'; pre.style.padding = '8px'; pre.style.border = '1px solid #ddd'; pre.style.whiteSpace = 'pre-wrap';
+                                    }
+                                    try { pre.textContent = text || (data ? JSON.stringify(data, null, 2) : ''); } catch(e) { pre.textContent = text || String(data || ''); }
+                                    if (containerDebug.firstChild && containerDebug.firstChild.id !== 'gcp-debug-response') containerDebug.insertBefore(pre, containerDebug.firstChild); else if (!containerDebug.firstChild) containerDebug.appendChild(pre);
+                                }
+                            } catch(e) { console.warn('gcp debug insert failed', e); }
+
+                            if (data && data.visitante) {
+                                var v = data.visitante;
+                                // Prefer 'chave' (PK) if present, else try id or chave_str
+                                var membroValor = v.chave || v.id || v.chave_str || v.id_str || '';
+                                try { document.getElementById('membro-id').value = membroValor; } catch(e){}
+                                try { showToast('Visitante criado: id=' + (membroValor || '(sem id)'), 'success'); } catch(e){}
+                                // close modal
+                                var modalEl = document.getElementById('modalCriarVisitante'); var modal = bootstrap.Modal.getInstance(modalEl); if (modal) modal.hide();
+                            } else if (data && data.errors) {
+                                var container = document.getElementById('visitante-form-container'); if (container && data.errors_html) container.innerHTML = data.errors_html; else if (container && data.errors) { var html=''; for(var f in data.errors) html += '<strong>'+f+':</strong> '+data.errors[f].join(', ')+'<br>'; container.insertAdjacentHTML('afterbegin','<div class="alert alert-danger">'+html+'</div>'); }
+                            } else if (data && data.error) {
+                                var container = document.getElementById('visitante-form-container'); if (container) container.insertAdjacentHTML('afterbegin','<div class="alert alert-danger">'+data.error+'</div>');
+                            }
+                            if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save me-1"></i> Salvar visitante'; }
+                        } catch(err) { console.error('Delegated submit handler error', err); }
+                    }, true);
+                })();
+                // Extra fallback: if for some reason the initial listener didn't attach, try to attach again shortly after
+                setTimeout(function(){
+                    try {
+                        var el = document.getElementById('busca-membro');
+                        if (el && (!el.__gcp_listener_attached)) {
+                            el.addEventListener('input', function(){ try { gcpLog('fallback input listener fired q=' + (el.value||'')); } catch(e){} }, false);
+                            el.__gcp_listener_attached = true;
+                            gcpLog('fallback listener attached to #busca-membro');
+                        }
+                    } catch(e) { console.warn('gcp fallback attach failed', e); }
+                }, 300);
+
+                // Explicit click handler for forced save button inside the modal partial
+                (function(){
+                    document.addEventListener('click', async function(e){
+                        try {
+                            // localizar botão alvo primeiro; só impedir o comportamento padrão quando o botão existir
+                            var btn = e.target && (typeof e.target.closest === 'function') && e.target.closest('#gcp-save-visitante-btn');
+                            if (!btn) return;
+                            // prevenir ação padrão e parada de propagação apenas para o botão específico
+                            try { e.preventDefault(); e.stopPropagation(); } catch(_) {}
+                            console.debug('[gcp] forced-save clicked; locating form...');
+                            var form = document.getElementById('form-criar-visitante-modal');
+                            console.debug('[gcp] initial form element from getElementById:', !!form, form && form.dataset ? form.dataset.gcpHandlerAttached : null);
+                            // If form not yet present, fetch the partial into the modal body, then continue
+                            if (!form) {
+                                try {
+                                    var q = encodeURIComponent((document.getElementById('busca-membro')||{}).value || '');
+                                    var getUrl = '{% url "secretaria:criar_visitante_parcial" %}?q=' + q;
+                                    var r = await fetch(getUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                                    var html = await r.text();
+                                    var body = document.getElementById('modalCriarVisitanteBody');
+                                    if (body) injectHtmlWithScripts(body, html);
+                                    // try prefilling the nome input from the current search text (best-effort)
+                                    try {
+                                        var nomeFld = body && body.querySelector && body.querySelector('input[name="nome"]');
+                                        if (nomeFld && (!nomeFld.value || nomeFld.value.trim().length === 0)) {
+                                            nomeFld.value = (document.getElementById('busca-membro')||{}).value || decodeURIComponent(q || '');
+                                            try { nomeFld.dispatchEvent(new Event('input')); } catch(e) {}
+                                        }
+                                    } catch(e) { console.warn('forced-save prefill failed', e); }
+                                    // ensure any handlers are attached
+                                    try { if (typeof attachModalFormHandler === 'function') attachModalFormHandler(); } catch(e){}
+                                    // small delay to let DOM settle
+                                    await new Promise(res => setTimeout(res, 80));
+                                    form = document.getElementById('form-criar-visitante-modal');
+                                } catch(fetchErr) {
+                                    console.error('Erro ao carregar partial no forced-save:', fetchErr);
+                                    showToast('Erro ao carregar formulário do visitante.', 'danger');
+                                    return;
+                                }
+                            }
+                            if (!form) {
+                                // If form is not present, try to fetch and inject the partial into the modal body
+                                try {
+                                    var q = encodeURIComponent((document.getElementById('busca-membro')||{}).value || '');
+                                    var getUrl = '{% url "secretaria:criar_visitante_parcial" %}?q=' + q;
+                                    var r = await fetch(getUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                                    var html = await r.text();
+                                    var body = document.getElementById('modalCriarVisitanteBody');
+                                    if (body) injectHtmlWithScripts(body, html);
+                                    // try prefilling the nome input from the current search text (best-effort)
+                                    try {
+                                        var nomeFld2 = body && body.querySelector && body.querySelector('input[name="nome"]');
+                                        if (nomeFld2 && (!nomeFld2.value || nomeFld2.value.trim().length === 0)) {
+                                            nomeFld2.value = (document.getElementById('busca-membro')||{}).value || decodeURIComponent(q || '');
+                                            try { nomeFld2.dispatchEvent(new Event('input')); } catch(e) {}
+                                        }
+                                    } catch(e) { console.warn('forced-save second prefill failed', e); }
+                                    try { if (typeof attachModalFormHandler === 'function') attachModalFormHandler(); } catch(e){}
+                                    // wait briefly and attempt to find the form inside the modal body specifically
+                                    var attempts = 0;
+                                    var maxAttempts = 6;
+                                    var delay = 150; // ms
+                                    while (attempts < maxAttempts && (!body || !body.querySelector('#form-criar-visitante-modal'))) {
+                                        await new Promise(res => setTimeout(res, delay));
+                                        attempts += 1;
+                                    }
+                                    form = body ? body.querySelector('#form-criar-visitante-modal') : null;
+                                } catch(fetchErr) {
+                                    console.error('Erro ao carregar partial no forced-save:', fetchErr);
+                                }
+                            }
+                            if (!form) {
+                                // Insert modal body HTML into a visible debug box so the user can copy it for diagnosis
+                                try {
+                                    var modalBodyDebug = document.getElementById('modalCriarVisitanteBody');
+                                    if (modalBodyDebug) {
+                                        var preDebug = document.createElement('pre');
+                                        preDebug.id = 'gcp-debug-response';
+                                        preDebug.style.maxHeight = '300px';
+                                        preDebug.style.overflow = 'auto';
+                                        preDebug.style.background = '#fff3cd';
+                                        preDebug.style.padding = '8px';
+                                        preDebug.style.border = '1px solid #ffc107';
+                                        preDebug.style.whiteSpace = 'pre-wrap';
+                                        preDebug.textContent = modalBodyDebug.innerText || modalBodyDebug.innerHTML || '(conteúdo do modal não disponível)';
+                                        modalBodyDebug.insertBefore(preDebug, modalBodyDebug.firstChild);
+                                    }
+                                } catch (e) { console.warn('Could not insert debug box for missing form', e); }
+                                showToast('Formulário do visitante não encontrado no modal.', 'danger');
+                                btn.disabled = false;
+                                return;
+                            }
+                            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+                            var formData = new FormData(form);
+                            try { var fd_entries=[]; formData.forEach((v,k)=>fd_entries.push([k,v])); console.log('gcp forced send FormData:', fd_entries); } catch(e){}
+                            var resp = await fetch('{% url "secretaria:criar_visitante_parcial" %}', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: formData });
+                            var text = '';
+                            try { text = await resp.text(); } catch(e){}
+                            var data = null;
+                            try { data = text ? JSON.parse(text) : {}; } catch(e) { data = {'__raw_text': text, '__status': resp.status}; }
+                            console.log('gcp forced response parsed:', data);
+                            // insert debug pre
+                            try {
+                                var containerDebug = document.getElementById('visitante-form-container');
+                                if (containerDebug) {
+                                    var pre = document.getElementById('gcp-debug-response');
+                                    if (!pre) { pre = document.createElement('pre'); pre.id='gcp-debug-response'; pre.style.maxHeight='220px'; pre.style.overflow='auto'; pre.style.background='#f8f9fa'; pre.style.padding='8px'; pre.style.border='1px solid #ddd'; pre.style.whiteSpace='pre-wrap'; }
+                                    try { pre.textContent = text || (data ? JSON.stringify(data, null, 2) : ''); } catch(e) { pre.textContent = text || String(data||''); }
+                                    if (containerDebug.firstChild && containerDebug.firstChild.id !== 'gcp-debug-response') containerDebug.insertBefore(pre, containerDebug.firstChild); else if (!containerDebug.firstChild) containerDebug.appendChild(pre);
+                                }
+                            } catch(e) { console.warn('gcp debug insert failed', e); }
+
+                            if (data && data.visitante) {
+                                var v = data.visitante; var membroValor = v.chave || v.id || v.chave_str || v.id_str || '';
+                                try { document.getElementById('membro-id').value = membroValor; } catch(e){}
+                                showToast('Visitante criado: id=' + (membroValor || '(sem id)'), 'success');
+                                // auto-submit presence if switch checked
+                                var chk = document.getElementById('auto_submit_presenca');
+                                var autoSubmit = chk && chk.checked;
+                                var modalEl = document.getElementById('modalCriarVisitante'); var modal = bootstrap.Modal.getInstance(modalEl); if (modal) modal.hide();
+                                if (autoSubmit) {
+                                    try {
+                                        var membroParaEnviar = membroValor;
+                                        if (!membroParaEnviar) {
+                                            var resolved = await attemptResolveMemberByName((document.getElementById('busca-membro')||{}).value, 4, 300);
+                                            if (resolved) membroParaEnviar = resolved.id || resolved.chave || '';
+                                        }
+                                        if (!membroParaEnviar) { showToast('Não foi possível identificar a pessoa para registrar presença automaticamente.', 'info'); }
+                                        else {
+                                            var presencaUrl = '{% url "secretaria:ajax_registrar_presenca_evento" %}';
+                                            var eventoSelect = document.getElementById('evento'); var eventoId = eventoSelect ? eventoSelect.value : '';
+                                            var presencaFormData = new FormData(); presencaFormData.append('evento', eventoId); presencaFormData.append('membro', membroParaEnviar);
+                                            try {
+                                                var sessaoEl = document.getElementById('sessao') || document.getElementById('sessao-hidden') || document.querySelector('select[name="sessao"]') || document.querySelector('input[name="sessao"]');
+                                                if (sessaoEl && sessaoEl.value) presencaFormData.append('sessao', sessaoEl.value);
+                                            } catch(e) { console.warn('Could not attach sessao to presencaFormData', e); }
+                                            var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]'); if (csrf) presencaFormData.append('csrfmiddlewaretoken', csrf.value);
+                                            try { var p_entries=[]; presencaFormData.forEach((v,k)=>p_entries.push([k,v])); console.log('Presenca forced FormData:', p_entries); } catch(e){}
+                                            var r = await fetch(presencaUrl, {method:'POST', body: presencaFormData, headers:{'X-Requested-With':'XMLHttpRequest'}});
+                                            var j = await r.json();
+                                            if (j.presenca) { if (j.presenca_html) { var list=document.getElementById('visitantes-presentes-list'); if (list) list.insertAdjacentHTML('afterbegin', j.presenca_html); } else appendPresencaToList(j.presenca); showToast('Presença registrada: '+j.presenca.nome,'success'); }
+                                            else if (j.exists) showToast(j.message || 'Presença já registrada','info'); else if (j.error) showToast('Erro registrando presença: '+j.error,'danger');
+                                        }
+                                    } catch(err) { console.error('Erro auto-presenca forced', err); }
+                                }
+                            } else if (data && data.errors) { var container=document.getElementById('visitante-form-container'); if (container && data.errors_html) container.innerHTML = data.errors_html; else if (container && data.errors) { var html=''; for(var f in data.errors) html += '<strong>'+f+':</strong> '+data.errors[f].join(', ')+'<br>'; container.insertAdjacentHTML('afterbegin','<div class="alert alert-danger">'+html+'</div>'); } showToast('Erro ao salvar visitante. Verifique os campos no modal.','danger'); }
+                            else if (data && data.error) { var container=document.getElementById('visitante-form-container'); if (container) container.insertAdjacentHTML('afterbegin','<div class="alert alert-danger">'+data.error+'</div>'); showToast('Erro ao salvar visitante: '+data.error,'danger'); }
+                            btn.disabled=false; btn.innerHTML = '<i class="fas fa-save me-1"></i> Salvar visitante';
+                        } catch(e) { console.error('gcp forced save error', e); try{ if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save me-1"></i> Salvar visitante';}}catch(_){} }
+                    }, false);
+                })();
+
+                // Handler para botão Abrir (simples: recarrega a página com ?evento=)
+                (function(){
+                    var btnAtualizar = document.getElementById('btn-atualizar-evento');
+                    if (!btnAtualizar) return;
+                    btnAtualizar.addEventListener('click', function() {
+                        var eventoSelect = document.getElementById('evento');
+                        if (eventoSelect && eventoSelect.value) {
+                            var params = new URLSearchParams(window.location.search);
+                            params.set('evento', eventoSelect.value);
+                            try { params.set('filtro_eventos', '{{ filtro_eventos|default:"proximos" }}'); } catch(e) {}
+                            try { params.set('ultimos_n', '{{ ultimos_n|default:3 }}'); } catch(e) {}
+                            // Garantir leading '?'
+                            window.location.search = '?' + params.toString();
+                        } else {
+                            showToast('Selecione um evento antes de abrir.', 'info');
+                        }
+                    });
+                })();
+
+                // Quando o select de evento mudar, buscar presenças via AJAX e atualizar a lista sem reload
+                (function(){
+                    var eventoEl = document.getElementById('evento');
+                    if (!eventoEl) return; // quando estamos renderizando lista de eventos, não há select
+                    eventoEl.addEventListener('change', function() {
+                        // manter o hidden sincronizado com o select
+                        try {
+                            var eh = document.getElementById('evento-hidden');
+                            if (eh) eh.value = this.value || '';
+                        } catch(e) {}
+                        var val = this.value;
+                        var list = document.getElementById('visitantes-presentes-list');
+                        if (!list) return;
+                        if (val) {
+                            var url = '{% url "secretaria:ajax_get_presencas_evento" %}?evento=' + encodeURIComponent(val);
+                            fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                                .then(r => r.json())
+                                .then(j => {
+                                    if (j.html !== undefined) {
+                                        list.innerHTML = j.html;
+                                        showToast('Lista atualizada para o evento selecionado', 'success');
+                                    } else if (j.error) {
+                                        showToast('Erro carregando presenças: ' + j.error, 'danger');
+                                    }
+                                }).catch(err => {
+                                    console.error(err);
+                                    showToast('Erro de rede ao buscar presenças.', 'danger');
+                                });
+                        } else {
+                            // limpar lista
+                            list.innerHTML = '<li class="list-group-item text-center">Nenhuma presença registrada para este evento.</li>';
+                        }
+                    });
+                })();
+
+                // função para inserir presença na lista
+                function appendPresencaToList(presenca) {
+                    var list = document.getElementById('visitantes-presentes-list');
+                    if (!list) return;
+                    var li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    li.dataset.presencaId = presenca.id;
+                    var hora = presenca.hora ? presenca.hora : '';
+                    li.innerHTML = '<div>' + (presenca.nome || '') + (presenca.apelido ? ' (' + presenca.apelido + ')' : '') + '</div><span class="badge bg-primary">' + hora + '</span>';
+                    if (list.firstChild) list.insertBefore(li, list.firstChild);
+                    else list.appendChild(li);
+                }
+                </script>
+        </form>
+                <script>
+                    // Valida o submit do formulário principal: exige membro-id
+                    (function(){
+                        var cardForm = document.querySelector('form.card');
+                        if (!cardForm) return;
+                        cardForm.addEventListener('submit', async function(e){
+                                    // Debug: log current values to help diagnose missing membro-id
+                                    try {
+                                        console.log('DEBUG submit: membro-id=', (document.getElementById('membro-id')||{value:undefined}).value, 'buscaVal=', (buscaInput && buscaInput.value)||'', 'evento-hidden=', (document.getElementById('evento-hidden')||{value:undefined}).value);
+                                    } catch(e) { console.warn('DEBUG submit log failed', e); }
+                                    // If we've already set the flag to allow programmatic submit, let it through
+                                    if (window.__gcp_allow_submit) {
+                                        window.__gcp_allow_submit = false;
+                                        return true;
+                                    }
+                                    var membroHidden = document.getElementById('membro-id');
+                                    var buscaVal = (buscaInput && buscaInput.value) ? buscaInput.value.trim() : '';
+                                    if (!membroHidden || !membroHidden.value) {
+                                        // Try to resolve automatically by searching for a single matching visitante
+                                        if (buscaVal) {
+                                            e.preventDefault();
+                                            try {
+                                                // Não filtrar por evento aqui — buscamos globalmente para aumentar chance de encontrar o visitante recém-criado
+                                                var url = '{% url "secretaria:buscar_visitantes" %}?q=' + encodeURIComponent(buscaVal) + '&recepcao=1';
+                                                console.log('DEBUG will call buscar_visitantes URL:', url);
+                                                var resp = await fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest','Accept':'application/json'}});
+                                                var text = await resp.text();
+                                                var candidates = null;
+                                                try { candidates = text ? JSON.parse(text) : []; } catch(e) { console.warn('buscar_visitantes returned non-json (fallback submit):', text); candidates = []; }
+                                                console.log('DEBUG buscar_visitantes candidates length=', Array.isArray(candidates)?candidates.length:null, 'candidates=', candidates, 'raw=', text);
+                                                if (Array.isArray(candidates) && candidates.length === 1) {
+                                                    var v = candidates[0];
+                                                    membroHidden.value = v.id || v.chave || '';
+                                                    // garantir que o evento-hidden seja atualizado antes do submit
+                                                    try { var eh2 = document.getElementById('evento-hidden'); if (eh2 && document.getElementById('evento')) eh2.value = document.getElementById('evento').value || ''; } catch(e) {}
+                                                    console.log('Auto-resolved membro-id from search:', membroHidden.value);
+                                                    showToast('Pessoa identificada automaticamente.', 'info');
+                                                    // submit programmatically but avoid re-entering this handler
+                                                    window.__gcp_allow_submit = true;
+                                                    cardForm.submit();
+                                                    return;
+                                                } else if (Array.isArray(candidates) && candidates.length > 1) {
+                                                    showToast('Foram encontrados vários resultados. Selecione a pessoa correta nas sugestões.', 'info');
+                                                    return;
+                                                } else {
+                                                    showToast('Pessoa não encontrada. Use o botão Cadastrar para adicionar novo visitante.', 'info');
+                                                    return;
+                                                }
+                                            } catch (err) {
+                                                console.error('Erro buscando visitante de fallback:', err);
+                                                showToast('Erro ao buscar visitantes para tentar resolver automaticamente.', 'danger');
+                                                return;
+                                            }
+                                        }
+                                        // Sem valor para buscar: exigir seleção manual
+                                        e.preventDefault();
+                                        showToast('Selecione uma pessoa antes de registrar presença.', 'danger');
+                                        return;
+                                    } else {
+                                    // diagnóstico: membro-id presente — prosseguir
+                                }
+                                });
+                    })();
+                </script>
+    <h5 class="mb-2">Visitantes presentes hoje</h5>
+        <ul id="visitantes-presentes-list" class="list-group mb-3">
+            {% for presenca in visitantes_presentes %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ presenca.membro.nome }}{% if presenca.membro.apelido %} ({{ presenca.membro.apelido }}){% endif %}
+                    <span class="badge bg-primary">{{ presenca.data_registro|date:'H:i' }}</span>
+                </li>
+            {% empty %}
+                <li class="list-group-item text-center">Nenhuma presença registrada para este evento.</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </div>
+    {% load static %}
+    <script src="{% static 'secretaria/recepcao.js' %}"></script>
+    <script src="{% static 'secretaria/recepcao-bootstrap.js' %}"></script>
+    <script>document.addEventListener('DOMContentLoaded', function(){ if(window.initRecepcaoModal) window.initRecepcaoModal(); });</script>
+    <script>
+    // AJAX: abrir evento sem recarregar a página
+    (function(){
+        function parseHTML(html) {
+            var parser = new DOMParser();
+            return parser.parseFromString(html, 'text/html');
+        }
+
+        async function loadEventHref(href) {
+            try {
+                var resp = await fetch(href, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                var text = await resp.text();
+                var doc = parseHTML(text);
+
+                // localizar formulário de registro e lista de presentes no HTML retornado
+                var newForm = doc.querySelector('form.card');
+                var newList = doc.querySelector('#visitantes-presentes-list');
+
+                var targetForm = document.querySelector('form.card');
+                var targetList = document.querySelector('#visitantes-presentes-list');
+
+                if (newForm) {
+                    if (targetForm) targetForm.replaceWith(newForm);
+                    else {
+                        // inserir após a lista de eventos
+                        var eventosSection = document.getElementById('eventos-list');
+                        if (eventosSection) eventosSection.insertAdjacentElement('afterend', newForm);
+                        else document.body.appendChild(newForm);
+                    }
+                }
+
+                if (newList) {
+                    if (targetList) targetList.replaceWith(newList);
+                    else {
+                        // inserir após o form
+                        var formEl = document.querySelector('form.card');
+                        if (formEl) formEl.insertAdjacentElement('afterend', newList);
+                        else document.body.appendChild(newList);
+                    }
+                }
+
+                // Execute any scripts contained in the fetched document so inline handlers run
+                try {
+                    var fetchedScripts = Array.from(doc.querySelectorAll('script'));
+                    fetchedScripts.forEach(function(old){
+                        try {
+                            var s = document.createElement('script');
+                            if (old.src) {
+                                s.src = old.src;
+                                if (old.async) s.async = true;
+                                if (old.defer) s.defer = true;
+                            } else {
+                                try { s.appendChild(document.createTextNode(old.innerHTML)); } catch(e) { s.text = old.innerHTML; }
+                            }
+                            // copy attributes
+                            for (var ai = 0; ai < (old.attributes && old.attributes.length || 0); ai++) {
+                                var attr = old.attributes[ai];
+                                if (attr && attr.name !== 'src') s.setAttribute(attr.name, attr.value);
+                            }
+                            document.body.appendChild(s);
+                        } catch(e) { console.warn('gcp: failed to execute fetched script', e); }
+                    });
+                } catch(e) { console.warn('gcp: error while executing fetched scripts', e); }
+
+                // Atualizar campo hidden evento-hidden a partir da url
+                try {
+                    var urlObj = new URL(href, window.location.origin);
+                    var eventoParam = urlObj.searchParams.get('evento');
+                    if (eventoParam) {
+                        var eh = document.getElementById('evento-hidden');
+                        if (eh) eh.value = eventoParam;
+                    }
+                    // Atualizar a URL sem reload
+                    try { history.replaceState(null, '', urlObj.pathname + urlObj.search); } catch(e) {}
+                } catch(e) {}
+
+                // Re-attach listeners in the newly injected content if needed
+                try { if (window.initRecepcaoModal) window.initRecepcaoModal(); } catch(e) {}
+                // If available, call the bootstrapper's explicit attach to ensure handlers are wired immediately
+                try { if (window.gcpEnsureAttached) window.gcpEnsureAttached(); } catch(e) { console.warn('gcpEnsureAttached call failed', e); }
+                // Also attempt to (re)attach the inline input handler defined on this page
+                try { if (typeof attachGcpInput === 'function') { attachGcpInput(); } } catch(e) { console.warn('attachGcpInput call failed', e); }
+                // UX: hide the events list to declutter the screen when an event is opened
+                try {
+                    var eventosSection = document.getElementById('eventos-list');
+                    if (eventosSection) {
+                        eventosSection.classList.add('d-none');
+                        // create a small floating button to restore the list
+                        if (!document.getElementById('gcp-show-eventos-btn')) {
+                            var showBtn = document.createElement('button');
+                            showBtn.id = 'gcp-show-eventos-btn';
+                            showBtn.className = 'btn btn-outline-secondary btn-sm';
+                            showBtn.style.position = 'fixed';
+                            showBtn.style.right = '1rem';
+                            showBtn.style.top = '6.5rem';
+                            showBtn.style.zIndex = 1200;
+                            showBtn.setAttribute('aria-label', 'Mostrar lista de eventos');
+                            showBtn.title = 'Mostrar lista de eventos';
+                            showBtn.innerHTML = '<i class="fas fa-list"></i> Mostrar eventos';
+                            showBtn.addEventListener('click', function() {
+                                try { eventosSection.classList.remove('d-none'); } catch(e) {}
+                                try { var b = document.getElementById('gcp-show-eventos-btn'); if (b) b.remove(); } catch(e) {}
+                            });
+                            document.body.appendChild(showBtn);
+                        }
+                    }
+                } catch(e) { console.warn('gcp: could not hide events list after open', e); }
+            } catch (err) {
+                console.error('Erro ao carregar evento via AJAX:', err);
+                try { showToast('Erro ao carregar evento.', 'danger'); } catch(e) {}
+                // Re-throw so callers know the AJAX load failed and can fallback to full navigation
+                throw err;
+            }
+        }
+
+        document.addEventListener('click', function(e){
+            try {
+                var btn = e.target.closest && e.target.closest('#eventos-list a.js-abrir-evento');
+                if (!btn) return;
+                e.preventDefault();
+                var href = btn.getAttribute('href');
+                if (!href) return;
+
+                // show loading state on button (use data-loading-text if provided)
+                var originalHTML = btn.innerHTML;
+                try {
+                    btn.dataset.gcpLoading = '1';
+                    btn.classList.add('disabled');
+                    btn.setAttribute('aria-busy', 'true');
+                    var loadingText = btn.getAttribute('data-loading-text') || '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Abrindo...';
+                    btn.innerHTML = loadingText;
+                } catch(e) {}
+
+                loadEventHref(href).then(function(){
+                    // restored state
+                    try { btn.classList.remove('disabled'); btn.removeAttribute('aria-busy'); btn.innerHTML = originalHTML; delete btn.dataset.gcpLoading; } catch(e) {}
+                    // focus the first focusable element in the injected form for faster workflow
+                    try {
+                        var newForm = document.querySelector('form.card');
+                        if (newForm) {
+                            var firstFocusable = newForm.querySelector('input, select, textarea, button');
+                            if (firstFocusable && typeof firstFocusable.focus === 'function') firstFocusable.focus();
+                        }
+                    } catch(e) { console.warn('Could not focus injected form', e); }
+                }).catch(function(err){
+                    // If AJAX fails, fallback to full navigation to ensure user can still open the event
+                    try { btn.classList.remove('disabled'); btn.removeAttribute('aria-busy'); btn.innerHTML = originalHTML; delete btn.dataset.gcpLoading; } catch(e) {}
+                    try { window.location.href = href; } catch(e) { console.error('Fallback navigation failed', e); }
+                });
+            } catch(err) { console.error(err); }
+        });
+    })();
+    </script>
 {% endblock %}
+
+<script>
+// Lightweight on-page healthcheck to confirm that inline scripts execute. Runs immediately if DOM already ready.
+(function(){
+    // MutationObserver: garante que, se o formulário for injetado por AJAX, reanexamos o autocomplete
+    try {
+        var gcpObserver = new MutationObserver(function(mutations, obs) {
+            try {
+                var el = document.getElementById('busca-membro');
+                if (el) {
+                    try { if (typeof attachGcpInput === 'function') attachGcpInput(); } catch(e) { console.warn('attachGcpInput failed in observer', e); }
+                    try { if (window.gcpEnsureAttached) window.gcpEnsureAttached(); } catch(e) { console.warn('gcpEnsureAttached failed in observer', e); }
+                    // Uma vez que encontramos e reanexamos, podemos desconectar o observer para evitar trabalho extra
+                    try { obs.disconnect(); } catch(e) {}
+                }
+            } catch(e) { console.warn('gcpObserver mutation handler failed', e); }
+        });
+        // Observe whole body subtree; desconecta-se sozinho quando encontrar o elemento
+        try { gcpObserver.observe(document.body, { childList: true, subtree: true }); } catch(e) { /* em alguns contextos document.body pode não estar pronto; healthcheck mais abaixo re-roda attach */ }
+    } catch(e) { console.warn('Failed to create gcp MutationObserver', e); }
+    function markOK() {
+        try {
+            var badge = document.getElementById('gcp-js-status');
+            if (badge) {
+                // Only show the badge when an explicit debug flag is set so it doesn't clutter the UI.
+                try {
+                    if (window.__gcp_show_debug) {
+                        badge.style.display = '';
+                        badge.className = 'badge bg-success';
+                        badge.textContent = 'JS: OK';
+                    } else {
+                        // keep hidden but update attributes for diagnostics via console
+                        badge.dataset.gcpStatus = 'ok';
+                    }
+                } catch(e) {
+                    // fallback: do not show
+                    badge.dataset.gcpStatus = 'ok';
+                }
+            }
+            try { console.info('[gcp] registrar_presenca template JS executed (healthcheck)'); } catch(e) {}
+        } catch(e) { try { console.warn('[gcp] failed to set gcp-js-status', e); } catch(_) {} }
+    }
+    try {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', markOK);
+        } else {
+            // already parsed
+            markOK();
+        }
+    } catch(e) { try { console.warn('[gcp] healthcheck script error', e); } catch(_) {} }
+
+    // Global error handlers to surface issues after initialization
+    try {
+        var dbgEl = document.getElementById('gcp-buscar-debug');
+        window.addEventListener('error', function(ev){ try { if (dbgEl) { dbgEl.style.display='block'; dbgEl.textContent = 'JS Error: '+String(ev && (ev.message || ev.error || ev)); } } catch(e){} }, true);
+        window.addEventListener('unhandledrejection', function(ev){ try { if (dbgEl) { dbgEl.style.display='block'; dbgEl.textContent = 'Unhandled rejection: '+String(ev && ev.reason ? ev.reason : ev); } } catch(e){} }, true);
+    } catch(e){}
+})();
+</script>
+<script>
+// Listener global: quando qualquer modal do Bootstrap for exibido, esconder listas de sugestões
+// Isso evita que elementos como '#sugestoes-membro' permaneçam visíveis por cima do modal
+try {
+    document.addEventListener('show.bs.modal', function(ev) {
+        try {
+            // selecionar por id e por classes/atributos comuns
+            var selectors = ['#sugestoes-membro', '.sugestoes-membro', '.gcp-sugestoes'];
+            selectors.forEach(function(sel) {
+                try {
+                    var nodes = document.querySelectorAll(sel);
+                    nodes.forEach(function(n){ try { n.style.display = 'none'; n.innerHTML = ''; } catch(e){} });
+                } catch(e) {}
+            });
+            // além disso, procurar listas visíveis geradas dinamicamente (listas de autocomplete)
+            var autoLists = document.querySelectorAll('[role="listbox"], [data-gcp-sugestoes]');
+            autoLists.forEach(function(n){ try { n.style.display='none'; n.innerHTML=''; } catch(e){} });
+        } catch(e) { console.warn('global modal show handler failed', e); }
+    }, false);
+} catch(e) { console.warn('Could not attach global show.bs.modal handler', e); }
+</script>
