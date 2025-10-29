@@ -1,9 +1,15 @@
 {% extends 'base_com_menu.html' %}
 {% load secretaria_extras %}
 {% block content %}
-<h1>Associar Usuários a Membros</h1>
-<p>Associe rapidamente membros sem usuário a um usuário do sistema. Apenas membros sem vínculo aparecerão abaixo.</p>
-<form method="post" id="associar-usuarios-membros-form">
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Associar Usuários a Membros</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
+        <li class="breadcrumb-item active">Associar Usuários a Membros</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+    <p>Associe rapidamente membros sem usuário a um usuário do sistema. Apenas membros sem vínculo aparecerão abaixo.</p>
+    <form method="post" id="associar-usuarios-membros-form">
     {% csrf_token %}
     <table class="table table-bordered table-striped">
         <thead>

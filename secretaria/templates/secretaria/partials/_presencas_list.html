@@ -1,0 +1,8 @@
+{% comment %}Lista de presenças usada para atualização parcial via AJAX{% endcomment %}
+{% if presencas and presencas|length > 0 %}
+    {% for p in presencas %}
+        {% include 'secretaria/partials/_presenca_list_item.html' with presenca_id=p.pk presenca_nome=p.membro.nome presenca_hora=p.data_registro|date:'H:i' %}
+    {% endfor %}
+{% else %}
+    <li class="list-group-item text-center">Nenhuma presença registrada para este evento.</li>
+{% endif %}

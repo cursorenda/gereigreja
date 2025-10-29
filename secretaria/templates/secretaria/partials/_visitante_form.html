@@ -1,0 +1,218 @@
+{% load static %}
+{% load secretaria_extras %}
+<div id="visitante-form-container">
+    <!-- Garantir que o form exista com o id esperado pelo cliente e fornecer atributos auxiliares -->
+    <form id="form-criar-visitante-modal" method="POST" enctype="multipart/form-data" data-gcp-ajax="1" role="dialog" aria-label="Formulário criar visitante">
+        {% csrf_token %}
+        {% if tipo_visitante_id %}
+            <input type="hidden" name="tipo_pessoa" value="{{ tipo_visitante_id }}">
+        {% endif %}
+        {% if default_status_id %}
+            <input type="hidden" name="status_pessoa" value="{{ default_status_id }}">
+        {% endif %}
+        {# Always include a hidden igreja input so disabled selects still send the church id; value may be empty string if unknown #}
+        <input type="hidden" name="igreja" value="{{ igreja_inicial_id }}">
+        {% include "partials/_form_errors.html" with form=form %}
+        {% for hidden_field in form.hidden_fields %}
+            {% if hidden_field.errors %}
+                <div class="alert alert-danger" role="alert">Erro no campo oculto {{ hidden_field.name }}: {% for error in hidden_field.errors %}{{ error }} {% endfor %}</div>
+            {% endif %}
+        {% endfor %}
+
+        <div class="row mb-2 align-items-center">
+            <div class="col-md-3 text-center">
+                <img src="{% static 'img/default_avatar.png' %}" alt="Foto do Visitante" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;" id="fotoPreviewModal">
+                <div class="mb-2">
+                    <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
+                    {{ form.foto|add_class:'form-control form-control-sm' }}
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-2">
+                            <label for="{{ form.nome.id_for_label }}" class="form-label">{{ form.nome.label }}:</label>
+                            {{ form.nome|add_class:'form-control form-control-sm' }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-2">
+                            <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
+                            {{ form.apelido|add_class:'form-control form-control-sm' }}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
+                            {% if igreja_inicial_name %}
+                                <input type="text" class="form-control form-control-sm" value="{{ igreja_inicial_name }}" disabled>
+                            {% else %}
+                                {{ form.igreja|add_class:'form-control form-control-sm' }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
+                            {{ form.telefone|add_class:'form-control form-control-sm' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-2">
+            <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
+            {{ form.email|add_class:'form-control form-control-sm' }}
+        </div>
+
+        <div class="mb-2">
+            <label for="{{ form.observacoes_visita.id_for_label }}" class="form-label">{{ form.observacoes_visita.label }}:</label>
+            {{ form.observacoes_visita|add_class:'form-control form-control-sm' }}
+        </div>
+
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" id="auto_submit_presenca" name="auto_submit_presenca" checked>
+                <label class="form-check-label fw-semibold" for="auto_submit_presenca">Registrar presença automaticamente</label>
+            </div>
+            <div class="small text-muted">Se marcado, a presença será registrada imediatamente após salvar o visitante.</div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+            <!-- Force-save button: preferir submit nativo para que handlers delegados capturem; ainda mantemos id para fallback AJAX -->
+            <button type="submit" id="gcp-save-visitante-btn" class="btn btn-primary btn-sm" aria-label="Salvar visitante"><i class="fas fa-save me-1"></i> Salvar visitante</button>
+        </div>
+    </form>
+</div>
+<script>
+// Prevent native submit (Enter key) inside the modal form to avoid full-page navigation.
+(function(){
+    try {
+        var f = document && document.getElementById && document.getElementById('form-criar-visitante-modal');
+        if (!f) return;
+        // prevent Enter key from submitting
+        f.addEventListener('keydown', function(e){
+            if (e.key === 'Enter' && (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) ) {
+                // allow newline in textarea
+                if (e.target.tagName === 'TEXTAREA') return;
+                e.preventDefault();
+                return false;
+            }
+        });
+        // prevent accidental native submit via form.submit()
+        f.addEventListener('submit', function(e){
+            // If our AJAX handler is attached, it will set dataset.gcpHandlerAttached = '1'
+            if (!f.dataset || f.dataset.gcpHandlerAttached !== '1') {
+                e.preventDefault();
+                // provide visible hint
+                try { window.__gcp_last_submit_prevented = Date.now(); } catch(_){}
+            }
+        });
+    } catch(e) { console.warn('gcp partial inline guard failed', e); }
+})();
+</script>
+<script>
+// Inline forced AJAX submit for the visitante form — ensures the partial can submit itself
+(function(){
+    try {
+        var btn = document.getElementById('gcp-save-visitante-btn');
+        if (!btn) return;
+        btn.addEventListener('click', async function(ev){
+            try {
+                ev.preventDefault(); ev.stopPropagation();
+            } catch(_){}
+            var form = document.getElementById('form-criar-visitante-modal');
+            if (!form) {
+                // Não mostrar toast aqui: o código pai possui um fallback que irá carregar o partial
+                // e executar a submissão via AJAX. Apenas logamos para diagnóstico e retornamos.
+                try { console.warn('Formulário do visitante não encontrado no modal. (inline partial)'); } catch(_){ }
+                return;
+            }
+            // build FormData and ensure CSRF included
+            var fd = new FormData(form);
+            var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (csrf && !fd.get('csrfmiddlewaretoken')) fd.append('csrfmiddlewaretoken', csrf.value);
+
+            var url = '{% url "secretaria:criar_visitante_parcial" %}';
+            // visual feedback
+            var oldHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+            try {
+                console.debug('[gcp] criar_visitante_parcial POST to', url);
+                try { var dbg_entries=[]; fd.forEach(function(v,k){ dbg_entries.push([k,v]); }); console.debug('[gcp] FormData', dbg_entries); } catch(e) {}
+                var resp = await fetch(url, { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}, body: fd });
+                var text = await resp.text();
+                var data = null;
+                try { data = text ? JSON.parse(text) : {}; } catch(e) { data = {'__raw_text': text, '__status': resp.status}; }
+                // If JSON visitante present
+                if (data && data.visitante) {
+                    var v = data.visitante;
+                    try { document.getElementById('membro-id').value = v.id || v.chave || ''; } catch(e){}
+                    try { if (typeof showToast === 'function') showToast('Visitante criado: ' + (v.nome || ''), 'success'); else console.log('Visitante criado', v); } catch(e){}
+                    // close modal if available
+                    try { var modalEl = document.getElementById('modalCriarVisitante'); var modal = bootstrap.Modal.getInstance(modalEl); if (modal) modal.hide(); } catch(e){}
+                } else if (data && data.errors_html) {
+                    // render server-provided errors into container
+                    var container = document.getElementById('visitante-form-container');
+                    if (container) container.innerHTML = data.errors_html;
+                } else if (data && data.errors) {
+                    var container = document.getElementById('visitante-form-container');
+                    if (container) {
+                        var html = '<div class="alert alert-danger">';
+                        for (var f in data.errors) html += '<strong>'+f+':</strong> '+data.errors[f].join(', ')+'<br/>';
+                        html += '</div>';
+                        container.insertAdjacentHTML('afterbegin', html);
+                    }
+                } else if (data && data.error) {
+                    try { if (typeof showToast === 'function') showToast('Erro: ' + data.error, 'danger'); else alert(data.error); } catch(e){}
+                } else if (data && data.__raw_text) {
+                    // resposta do servidor não-JSON (HTML ou outro); mostrar em um box de debug não-invasivo
+                    var container = document.getElementById('visitante-form-container');
+                    if (container) {
+                        var preWrap = document.getElementById('gcp-debug-response');
+                        if (!preWrap) {
+                            preWrap = document.createElement('div');
+                            preWrap.id = 'gcp-debug-response';
+                            preWrap.style.maxHeight = '220px';
+                            preWrap.style.overflow = 'auto';
+                            preWrap.style.background = '#fff3cd';
+                            preWrap.style.padding = '8px';
+                            preWrap.style.border = '1px solid #ffc107';
+                            preWrap.style.whiteSpace = 'pre-wrap';
+                            preWrap.style.position = 'relative';
+                            preWrap.style.zIndex = '1';
+                            // botão fechar
+                            var btnClose = document.createElement('button');
+                            btnClose.type = 'button';
+                            btnClose.className = 'btn btn-sm btn-light';
+                            btnClose.style.float = 'right';
+                            btnClose.textContent = 'Fechar';
+                            // permitir que apenas o botão de fechar receba eventos (evita que o painel debug bloqueie o modal)
+                            try { btnClose.style.pointerEvents = 'auto'; } catch(e) {}
+                            try { preWrap.style.pointerEvents = 'none'; } catch(e) {}
+                            btnClose.addEventListener('click', function(){ try { preWrap.style.display='none'; } catch(e){} });
+                            preWrap.appendChild(btnClose);
+                            var pre = document.createElement('pre');
+                            pre.id = 'gcp-debug-response-pre';
+                            pre.style.marginTop = '6px';
+                            preWrap.appendChild(pre);
+                            container.appendChild(preWrap);
+                        }
+                        try { document.getElementById('gcp-debug-response-pre').textContent = data.__raw_text || text || ''; } catch(e) { preWrap.textContent = data.__raw_text || text || ''; }
+                    }
+                }
+            } catch(err) {
+                console.error('Erro ao enviar criar_visitante_parcial inline:', err);
+                try { if (typeof showToast === 'function') showToast('Erro de rede ao salvar visitante.', 'danger'); else alert('Erro de rede ao salvar visitante.'); } catch(e){}
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+        }, false);
+    } catch(e) { console.warn('inline visitor submit attach failed', e); }
+})();
+</script>

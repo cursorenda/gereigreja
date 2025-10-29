@@ -1,0 +1,45 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Linha do Tempo dos Membros</h2>
+    <form method="get" class="mb-4 border rounded p-3 bg-light">
+        <div class="row align-items-end g-2">
+            <div class="col-auto">
+                <label class="form-label mb-1">Tipos de Evento</label><br>
+                {% for checkbox in form.tipo_evento %}
+                    <label class="form-check form-check-inline mb-0">
+                        {{ checkbox.tag }} {{ checkbox.choice_label }}
+                    </label>
+                {% endfor %}
+            </div>
+            <div class="col-auto">
+                <label for="id_data_inicio" class="form-label mb-1">Data inicial</label>
+                {{ form.data_inicio }}
+            </div>
+            <div class="col-auto">
+                <label for="id_data_fim" class="form-label mb-1">Data final</label>
+                {{ form.data_fim }}
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary mt-2">Filtrar</button>
+            </div>
+        </div>
+    </form>
+    <ul class="timeline list-unstyled">
+        {% for evento in eventos %}
+        <li class="mb-3 border-bottom pb-2">
+            <div class="d-flex align-items-center">
+                <span class="badge bg-secondary me-2">{{ evento.data|date:'d/m/Y H:i' }}</span>
+                <strong class="me-2">{{ evento.membro }}</strong>
+                <span class="badge bg-info text-dark me-2">{{ evento.get_tipo_evento_display }}</span>
+            </div>
+            <div class="ms-4 text-muted small">{{ evento.descricao }}</div>
+        </li>
+        {% empty %}
+        <li>Nenhum evento encontrado para os filtros selecionados.</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

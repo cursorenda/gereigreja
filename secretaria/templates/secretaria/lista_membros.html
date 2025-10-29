@@ -16,7 +16,7 @@
             <li class="breadcrumb-item active">Lista de Membros</li>
         </ol>
 
-        {% include 'partials/_messages.html' %}
+
 
         <div class="card mb-4">
             <div class="card-header">
@@ -152,11 +152,11 @@
 {% verbatim %}
 <script>
 $(document).ready(function() {
-       console.log("Documento pronto. Verificando a existência da tabela #membrosTable...");
+    // console.log removido para produção
        // Verifica se a tabela #membrosTable existe no DOM antes de inicializar o DataTables
         // Isso acontece se o bloco {% if membros %} for verdadeiro.
         if ($('#membrosTable').length > 0) {
-            console.log("Tabela #membrosTable ENCONTRADA. DataTables será inicializado.");
+            // console.log removido para produção
             $('#membrosTable').DataTable({
                 "paging": true,
                 "lengthChange": true,
@@ -175,7 +175,7 @@ $(document).ready(function() {
                 ]
             });
         } else {
-            console.log("Tabela #membrosTable NÃO encontrada. DataTables não será inicializado por este script");
+            // console.log removido para produção
         }
     });
 </script> 
