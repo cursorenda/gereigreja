@@ -683,3 +683,31 @@ Ajuda/Tooltip:
 Adicione tooltips ou um pequeno ícone de ajuda explicando o que é cada status de visitante ou como funciona o registro de presença.
 
 produtividade para pastor
+
+modo do visitante ou membro solicitar visita
+
+---
+Últimas alterações aplicadas (2025-10-28):
+
+- Mantido comportamento atual (curto prazo): "fallback" no cliente para submissão do partial de visitante (não alterar essa lógica por enquanto).
+- Suprimido o toast confuso "Formulário do visitante não encontrado no modal" no partial `_visitante_form.html`; o partial agora faz apenas `console.warn` quando o form não é encontrado.
+- Adicionado fallback defensivo no template `registrar_presenca_visitante_evento.html`: se o `<form id="form-criar-visitante-modal">` não for detectado, o código coleta inputs dentro de `#visitante-form-container`, monta um `FormData` (inclui CSRF quando disponível) e faz POST para `{% url "secretaria:criar_visitante_parcial" %}`; a resposta bruta é inserida em `#gcp-debug-response` para diagnóstico.
+- Ajustado o partial `_visitante_form.html` para garantir o form com `id="form-criar-visitante-modal"`, adicionar atributos ARIA e tornar o botão de salvar `type="submit"` (mantendo `id="gcp-save-visitante-btn"`).
+- Logs confirmam que o backend está recebendo as requisições e criando visitantes (ex.: Visitante criado via AJAX: Paula id=1083). O `buscar_visitantes` também aplica o fallback `recepcao=1` quando necessário.
+
+Recomendações / próximos passos (sugestão prática):
+
+1) Monitorar logs por 48 horas e pesquisar entradas onde `igreja_ativa` aparece como `None` — identificar se são requisições sem sessão, prefetch do navegador ou outra origem.
+
+2) Médio prazo (limpeza técnica): centralizar a submissão do partial no template pai e remover o handler inline do partial. Benefício: um único ponto de manutenção e testes mais simples. Checklist:
+    - Remover o bloco de JS inline do partial que intercepta o clique.
+    - Garantir que `registrar_presenca_visitante_evento.html` tenha o handler robusto (já existe fallback).
+    - Rodar testes manuais e automatizados.
+
+3) Alternativa (contrato servidor): garantir que o servidor sempre renderize o partial com `<form id="form-criar-visitante-modal">`. Se optar por isso, envolver deploy que substitua versões antigas do template que possam existir em cache.
+
+4) Acrescentar um teste automatizado rápido (recomendado): script Python que faz GET do partial com sessão, valida a presença do `<form id=...>` no HTML e em seguida faz POST com dados válidos e verifica retorno JSON com `visitante.id`. Posso criar e incluir esse teste se quiser.
+
+5) UX: manter o painel de debug (`#gcp-debug-response`) visível apenas em modo diagnóstico (ou removê-lo do ambiente de produção) para evitar confundir usuários finais.
+
+Se quiser que eu implemente o item 2 (centralizar) ou 4 (adicionar o teste), diga qual e eu aplico agora — caso contrário, deixo registrado aqui e acompanhamos logs.

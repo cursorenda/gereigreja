@@ -5,27 +5,6 @@
   padding-right: 0 !important;
   padding-left: 0 !important;
 } */
-/* Sidebar menu ultra-compact override */
-.sb-sidenav-menu .nav-link {
-  padding-top: 0.05rem !important;
-  padding-bottom: 0.05rem !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  line-height: 1 !important;
-  font-size: 0.97em !important;
-}
-.sb-sidenav-menu-heading {
-  margin-top: 0.2rem !important;
-  margin-bottom: 0.2rem !important;
-  line-height: 1.1 !important;
-  font-size: 0.98em !important;
-}
-/* Força menu lateral compacto: mais específico e com !important */
-.sb-sidenav-menu .nav-link {
-  padding-top: 0.15rem !important;
-  padding-bottom: 0.15rem !important;
-  line-height: 1.05 !important;
-}
 @charset "UTF-8";
 /*!
 * Start Bootstrap - SB Admin v7.0.7 (https://startbootstrap.com/template/sb-admin)
@@ -11016,7 +10995,7 @@ body {
   flex-wrap: nowrap;
 }
 .sb-sidenav .sb-sidenav-menu .nav .sb-sidenav-menu-heading {
-  padding: 1.75rem 1rem 0.75rem;
+  padding: 0.6rem 1rem 0.3rem;
   font-size: 0.75rem;
   font-weight: bold;
   text-transform: uppercase;
@@ -11024,8 +11003,8 @@ body {
 .sb-sidenav .sb-sidenav-menu .nav .nav-link {
   display: flex;
   align-items: center;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+  padding-top: 0.32rem;
+  padding-bottom: 0.32rem;
   position: relative;
 }
 .sb-sidenav .sb-sidenav-menu .nav .nav-link .sb-nav-link-icon {

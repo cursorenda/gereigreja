@@ -1,17 +1,19 @@
 {% extends 'base_com_menu.html' %}
 {% block title %}Eventos{% endblock %}
 {% block content %}
+{% load eventos_extras %}
 <div class="container-fluid px-4">
-  <h1 class="mt-4">Eventos</h1>
-  <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item active">Eventos</li>
-  </ol>
-  <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span><i class="fas fa-calendar-alt me-1"></i> Lista de Eventos</span>
-      <a href="{% url 'eventos:criar_evento' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Novo Evento</a>
-    </div>
-    <div class="card-body">
+    <h1 class="mt-4">Lista de Eventos</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Lista de Eventos</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-calendar-alt me-1"></i> Eventos</span>
+            <a href="{% url 'eventos:criar_evento' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Novo Evento</a>
+        </div>
+        <div class="card-body">
       <form method="get" class="row g-3 mb-4 align-items-end">
         <div class="col-md-3">
           <label for="tipo" class="form-label mb-0">Tipo</label>
@@ -25,20 +27,25 @@
             <option value="outro" {% if request.GET.tipo == 'outro' %}selected{% endif %}>Outro</option>
           </select>
         </div>
+        <div class="col-md-2">
+          <label for="status" class="form-label mb-0">Status</label>
+          <select name="status" id="status" class="form-select">
+            <option value="">Todos</option>
+            <option value="aguardando" {% if request.GET.status == 'aguardando' or request.GET.status == None %}selected{% endif %}>Aguardando</option>
+            <option value="parcial" {% if request.GET.status == 'parcial' %}selected{% endif %}>Parcial</option>
+            <option value="finalizada" {% if request.GET.status == 'finalizada' %}selected{% endif %}>Finalizada</option>
+          </select>
+        </div>
         <!-- Filtro de igreja removido: igreja é definida globalmente pelo seletor do topo -->
         <div class="col-md-2">
           <label for="data_inicio" class="form-label mb-0">Início após</label>
-          <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request.GET.data_inicio }}">
+          <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request.GET.data_inicio|default:data_inicio }}">
         </div>
         <div class="col-md-2">
           <label for="data_fim" class="form-label mb-0">Início até</label>
-          <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim }}">
+          <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim|default:data_fim }}">
         </div>
         <div class="col-md-2 d-flex align-items-end">
-          <div class="form-check me-2">
-            <input class="form-check-input" type="checkbox" name="mostrar_passados" id="mostrar_passados" {% if mostrar_passados %}checked{% endif %}>
-            <label class="form-check-label" for="mostrar_passados">Mostrar passados</label>
-          </div>
           <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filtrar</button>
         </div>
       </form>
@@ -48,7 +55,8 @@
             <th>Título</th>
             <th>Data Início</th>
             <th>Data Fim</th>
-            <th>Igreja</th>
+            {% if mostrar_coluna_igreja %}<th>Igreja</th>{% endif %}
+            <th>Status</th>
             <th>Criado por</th>
             <th>Ações</th>
           </tr>
@@ -63,11 +71,26 @@
             <td><a href="{% url 'eventos:detalhe_evento' evento.pk %}">{{ evento.titulo }}</a>{% if evento.data_inicio.date == today %} <span class="badge bg-success ms-2">Hoje</span>{% endif %}</td>
             <td>{{ evento.data_inicio|date:'d/m/Y H:i' }}</td>
             <td>{{ evento.data_fim|date:'d/m/Y H:i' }}</td>
-            <td>{{ evento.igreja.nome_igreja }}</td>
+            {% if mostrar_coluna_igreja %}<td>{{ evento.igreja.nome_igreja }}</td>{% endif %}
+            <td>
+              {% with status=eventos_status|dict_get:evento.pk %}
+                {% if status == 'aguardando' %}
+                  <span class="badge bg-secondary">Aguardando</span>
+                {% elif status == 'parcial' %}
+                  <span class="badge bg-warning text-dark">Parcial</span>
+                {% elif status == 'finalizada' %}
+                  <span class="badge bg-success">Finalizada</span>
+                {% else %}
+                  <span class="badge bg-light text-dark">-</span>
+                {% endif %}
+              {% endwith %}
+            </td>
             <td>{{ evento.criado_por }}</td>
             <td>
               <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-warning btn-sm" title="Editar"><i class="fas fa-edit"></i></a>
               <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm" title="Excluir"><i class="fas fa-trash"></i></a>
+              {# Registrar presença via modal componentizado #}
+              <button type="button" class="btn btn-primary btn-sm registrar-presenca-btn" data-evento="{{ evento.pk }}" title="Registrar Presença"><i class="fas fa-user-check"></i></button>
             </td>
           </tr>
           {% empty %}
@@ -89,4 +112,9 @@
     </div>
   </div>
 </div>
+  {# Include reception modal partial and static JS init #}
+  {% include 'secretaria/partials/_modal_criar_visitante_presenca.html' %}
+  {% load static %}
+  <script src="{% static 'secretaria/recepcao.js' %}"></script>
+  <script>document.addEventListener('DOMContentLoaded', function(){ if(window.initRecepcaoModal) window.initRecepcaoModal(); });</script>
 {% endblock %}

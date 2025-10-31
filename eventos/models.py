@@ -119,6 +119,10 @@ class ParticipacaoEvento(models.Model):
 		('PRESENTE', 'Presente'),
 	]
 	evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name='participacoes')
+	# Optional session: when an Evento spans multiple days we create
+	# EventoSessao objects (one per day) and link participations to a specific
+	# session so presence/absence can be tracked per day.
+	sessao = models.ForeignKey('EventoSessao', on_delete=models.CASCADE, related_name='participacoes', blank=True, null=True)
 	membro = models.ForeignKey(Membro, on_delete=models.CASCADE, related_name='participacoes_eventos', blank=True, null=True)
 	convidado_nome = models.CharField(max_length=100, blank=True, null=True, help_text="Nome do convidado externo (se não for membro)")
 	convidado_email = models.EmailField(blank=True, null=True)
@@ -140,6 +144,70 @@ class ParticipacaoEvento(models.Model):
 		return f"{self.convidado_nome} (convidado) em {self.evento}"
 
 	class Meta:
-		unique_together = ('evento', 'membro', 'convidado_email')
+		# Include sessao to allow one participation record per member per session.
+		# sessao can be null (for legacy single-event behavior) so uniqueness is
+		# enforced when sessao is set. Databases treat NULLs specially; consider
+		# adding application-level checks if necessary.
+		unique_together = ('evento', 'sessao', 'membro', 'convidado_email')
 		verbose_name = 'Participação em Evento'
 		verbose_name_plural = 'Participações em Eventos'
+
+
+class EventoSessao(models.Model):
+	"""Represents a single day/session of a multi-day Evento.
+
+	Created automatically when an Evento is saved (see post_save signal below).
+	"""
+	evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name='sessoes')
+	numero = models.PositiveIntegerField(help_text='Número da sessão (1..N)')
+	data_inicio = models.DateTimeField()
+	data_fim = models.DateTimeField(blank=True, null=True)
+
+	class Meta:
+		ordering = ['evento', 'numero']
+		unique_together = ('evento', 'numero')
+
+	def __str__(self):
+		return f"{self.evento.titulo} - Dia {self.numero} ({self.data_inicio:%d/%m/%Y})"
+
+
+# Signal: quando um Evento é criado/atualizado, garante que as sessoes existam
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from datetime import timedelta, datetime
+from django.utils import timezone
+
+
+@receiver(post_save, sender=Evento)
+def criar_sessoes_evento(sender, instance, created, **kwargs):
+	"""Gera uma sessão por dia com base em `quantidade_dias` e `data_inicio`.
+
+	Se as sessões já existirem para esse evento, não recriamos (evita perda de
+	dados de presença). Caso queira forçar a recriação, remova as sessões
+	existentes antes.
+	"""
+	if not instance.data_inicio:
+		return
+	# número de sessões que deveria existir
+	total = max(1, instance.quantidade_dias or 1)
+	existing = {s.numero: s for s in instance.sessoes.all()}
+	for i in range(1, total + 1):
+		if i in existing:
+			# já existe, pular
+			continue
+		# calcular data_inicio da sessão i (offset de i-1 dias)
+		session_start = instance.data_inicio + timedelta(days=(i - 1))
+		# determinar data_fim: se hora_termino estiver setada, combine a data com hora
+		if instance.hora_termino:
+			try:
+				# mantém timezone
+				dt = session_start
+				end_dt = datetime.combine(dt.date(), instance.hora_termino)
+				if timezone.is_aware(dt):
+					# interpretar end_dt na mesma timezone de data_inicio
+					end_dt = timezone.make_aware(end_dt, timezone.get_current_timezone())
+			except Exception:
+				end_dt = session_start + timedelta(hours=3)
+		else:
+			end_dt = session_start + timedelta(hours=3)
+		EventoSessao.objects.create(evento=instance, numero=i, data_inicio=session_start, data_fim=end_dt)

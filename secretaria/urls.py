@@ -1,15 +1,11 @@
-
 from .views import associar_usuarios_membros
-# c:\Gereigreja\secretaria\urls.py
-
 from django.urls import path
 from . import views
 
-
-app_name = 'secretaria' # Adicione esta linha
-
+app_name = 'secretaria'
 
 urlpatterns = [
+    path('autocomplete_nome/', views.autocomplete_nome, name='autocomplete_nome'),
     path('', views.index, name='index'), # Esta URL agora será /sistema/
     path('dashboard/', views.dashboard, name='dashboard'),
     path('membros/', views.lista_membros, name='lista_membros'),
@@ -37,11 +33,14 @@ urlpatterns = [
     path('associar-usuarios-membros/', associar_usuarios_membros, name='associar_usuarios_membros'),
     # --- URL para registrar acompanhamento de visita ---
     path('membros/<int:membro_id>/acompanhamento-visita/', views.registrar_acompanhamento_visita, name='registrar_acompanhamento_visita'),
-        # --- VISITANTES ---
-        path('visitantes/', views.lista_visitantes, name='lista_visitantes'),
-        path('visitantes/cadastrar/', views.criar_visitante, name='cadastrar_visitante'),
-        path('visitantes/<int:visitante_id>/editar/', views.editar_visitante, name='editar_visitante'),
-    path('visitantes/<int:visitante_id>/excluir/', views.excluir_visitante, name='excluir_visitante'),
+    # --- VISITANTES (removido: agora visitante é membro com tipo_pessoa=Visitante) ---
     path('recepcao-evento/', views.registrar_presenca_visitante_evento, name='registrar_presenca_visitante_evento'),
     path('ajax/buscar_visitantes/', views.buscar_visitantes, name='buscar_visitantes'),
+    path('visitantes/', views.lista_visitantes, name='lista_visitantes'),
+    path('visitantes/cadastrar/', views.cadastrar_visitante, name='cadastrar_visitante'),
+    path('visitantes/criar-parcial/', views.criar_visitante_parcial, name='criar_visitante_parcial'),
+    path('visitantes/registrar-presenca-ajax/', views.ajax_registrar_presenca_evento, name='ajax_registrar_presenca_evento'),
+    path('visitantes/presencas-por-evento/', views.ajax_get_presencas_evento, name='ajax_get_presencas_evento'),
+    path('autocomplete_nome/', views.autocomplete_nome, name='autocomplete_nome'),
+
 ]

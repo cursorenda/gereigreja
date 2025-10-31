@@ -1,0 +1,8 @@
+/* Customizações de formulários */
+.form-label {
+  font-weight: 500;
+}
+.form-control:focus {
+  border-color: #005fa3;
+  box-shadow: 0 0 0 0.2rem rgba(0,95,163,.15);
+}

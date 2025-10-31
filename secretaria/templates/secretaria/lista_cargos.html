@@ -1,7 +1,14 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
-<h1>Cargos da Igreja</h1>
-<table class="table table-striped">
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Cargos da Igreja</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
+        <li class="breadcrumb-item active">Cargos</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+
+    <table class="table table-striped">
     <thead>
         <tr>
             <th>Nome do Cargo</th>

@@ -1,0 +1,156 @@
+/* landing_page.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+/* --- Header e Hero Section --- */
+.header {
+    background: linear-gradient(135deg, rgba(69, 7, 109, 0.9), rgba(106, 37, 171, 0.9)), url('../img/hero-bg.jpg');
+    background-size: cover;
+    background-position: center center;
+    color: white;
+    padding: 100px 0;
+    text-align: center;
+}
+
+.header h1 {
+    font-weight: 700;
+    font-size: 3.5rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.header .lead {
+    font-size: 1.4rem;
+    font-weight: 300;
+    max-width: 800px;
+    margin: 20px auto 40px auto;
+}
+
+.btn-cta-primary {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+    font-weight: 600;
+    padding: 12px 30px;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.btn-cta-primary:hover {
+    background-color: #ffca2c;
+    border-color: #ffca2c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+}
+
+.btn-cta-secondary {
+    background-color: transparent;
+    border: 2px solid white;
+    color: white;
+    font-weight: 600;
+    padding: 12px 30px;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.btn-cta-secondary:hover {
+    background-color: white;
+    color: #6a25ab;
+}
+
+/* --- Seções --- */
+.section {
+    padding: 80px 0;
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: 60px;
+    font-weight: 700;
+    color: #343a40;
+}
+
+.section-title::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background-color: #6a25ab;
+    margin: 10px auto 0;
+}
+
+/* --- Features Section --- */
+.feature-card {
+    border: none;
+    box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    color: #6a25ab;
+}
+
+/* --- Pricing Section --- */
+.price-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.price-card.highlight {
+    border-color: #6a25ab;
+    border-width: 2px;
+    transform: scale(1.05);
+    box-shadow: 0 10px 40px rgba(106, 37, 171, 0.2);
+}
+
+/* --- FAQ Section --- */
+.accordion-button:not(.collapsed) {
+    color: #ffffff;
+    background-color: #6a25ab;
+}
+
+.accordion-button:focus {
+    box-shadow: 0 0 0 0.25rem rgba(106, 37, 171, 0.25);
+}
+
+/* --- Final CTA Section --- */
+.cta-final {
+    background-color: #343a40;
+    color: white;
+}
+
+.cta-final h2 {
+    font-weight: 700;
+    color: white;
+}
+
+
+/* --- Footer --- */
+.footer {
+    background-color: #343a40;
+    color: #adb5bd;
+    padding: 40px 0;
+}
+
+.footer a {
+    color: #f8f9fa;
+    text-decoration: none;
+}
+
+.footer a:hover {
+    color: #ffc107;
+    text-decoration: underline;
+}

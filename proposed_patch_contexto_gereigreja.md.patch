@@ -1,0 +1,14 @@
+*** Begin Patch
+*** Update File: c:\Gereigreja\contexto_gereigreja.md
+@@
+-  - `SITE_ID = 1` (para `django.contrib.sites`).
++  - `SITE_ID = 2` (configurado em `core/settings.py`).
+@@
+-  - **Backend de Mddia:**
+-    - Integra73o com Cloudinary para upload e armazenamento de imagens e arquivos de usu1rios.
+-    - Corre73o do backend de mddia no Django, for7ando reload do storage ap3s definie7e3o do DEFAULT_FILE_STORAGE.
++  - **Backend de Mddia:**
++    - Integra73o com Cloudinary para upload e armazenamento de imagens e arquivos de usu1rios.
++    - Corre73o do backend de mddia no Django, for7ando reload do storage ap3s definie7e3o do DEFAULT_FILE_STORAGE.
++    - Observae7e3o: durante a execue7e3o de testes automatizados, o projeto utiliza `core/settings_test.py` que altera o `DEFAULT_FILE_STORAGE` para `django.core.files.storage.FileSystemStorage` (evitando chamadas externas ao Cloudinary). Se voca pretende rodar testes locais que toquem upload, confirme esse comportamento.
+*** End Patch

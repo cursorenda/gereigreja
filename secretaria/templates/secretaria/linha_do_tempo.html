@@ -2,44 +2,427 @@
 {% load static %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Linha do Tempo dos Membros</h2>
-    <form method="get" class="mb-4 border rounded p-3 bg-light">
-        <div class="row align-items-end g-2">
-            <div class="col-auto">
-                <label class="form-label mb-1">Tipos de Evento</label><br>
-                {% for checkbox in form.tipo_evento %}
-                    <label class="form-check form-check-inline mb-0">
-                        {{ checkbox.tag }} {{ checkbox.choice_label }}
-                    </label>
+<div class="container-fluid px-4 mt-4">
+    <h1 class="mt-4">Linha do Tempo dos Membros</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Linha do Tempo</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter me-1"></i>
+            Filtros da Linha do Tempo
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3 mb-3 align-items-center">
+                <!-- ...outros filtros... -->
+                <div class="col-xl-2 col-lg-2 col-md-3 col-12">
+                    <label class="form-label mb-1">Tipos de Evento</label>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        {% for checkbox in form.tipo_evento %}
+                            {% if checkbox.choice_label != 'Outro' %}
+                                <div class="form-check me-2 mb-0">
+                                    {{ checkbox.tag }}
+                                    <label class="form-check-label ms-1">{{ checkbox.choice_label }}</label>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-2 col-md-3 col-12" id="filtro-tipo-pessoa-novo" style="display: none;">
+                    <label for="id_tipo_pessoa_novo" class="form-label mb-1">Tipo destino</label>
+                    <div class="d-flex flex-column justify-content-center">
+                        {{ form.tipo_pessoa_novo }}
+                    </div>
+                </div>
+                <div class="col-xl-2 col-lg-2 col-md-3 col-12" id="filtro-status-pessoa-novo" style="display: none;">
+                    <label for="id_status_pessoa_novo" class="form-label mb-1">Status destino</label>
+                    <div class="d-flex flex-column justify-content-center">
+                        {{ form.status_pessoa_novo }}
+                    </div>
+                </div>
+                <div class="col-xl-4 col-lg-5 col-md-7 col-12 d-flex align-items-end gap-2">
+                    <div class="flex-grow-1">
+                        <label for="periodo_predefinido" class="form-label mb-1">Período</label>
+                        <select id="periodo_predefinido" name="periodo_predefinido" class="form-select form-select-sm">
+                            <option value="mes_atual" {% if request.GET.periodo_predefinido == 'mes_atual' or not request.GET.periodo_predefinido %}selected{% endif %}>Mês atual</option>
+                            <option value="ano_atual" {% if request.GET.periodo_predefinido == 'ano_atual' %}selected{% endif %}>Ano atual</option>
+                            <option value="mes_anterior" {% if request.GET.periodo_predefinido == 'mes_anterior' %}selected{% endif %}>Mês anterior</option>
+                            <option value="ano_anterior" {% if request.GET.periodo_predefinido == 'ano_anterior' %}selected{% endif %}>Ano anterior</option>
+                            <option value="tudo" {% if request.GET.periodo_predefinido == 'tudo' %}selected{% endif %}>Mostrar tudo</option>
+                            <option value="personalizado" {% if request.GET.periodo_predefinido == 'personalizado' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                        <input type="hidden" name="periodo_predefinido_hidden" id="periodo_predefinido_hidden" value="{{ request.GET.periodo_predefinido|default:'mes_atual' }}">
+                    </div>
+                    <div class="flex-grow-1 d-none" id="datas-personalizadas">
+                        <label for="id_data_inicio" class="form-label mb-1">Data inicial</label>
+                        <input type="date" name="data_inicio" id="id_data_inicio" class="form-control form-control-sm mb-1" value="{{ form.data_inicio.value|default_if_none:'' }}">
+                        <label for="id_data_fim" class="form-label mb-1">Data final</label>
+                        <input type="date" name="data_fim" id="id_data_fim" class="form-control form-control-sm" value="{{ form.data_fim.value|default_if_none:'' }}">
+                        <div class="form-check mt-1">
+                            <input class="form-check-input" type="checkbox" id="mostrar_anterior" name="mostrar_anterior" value="1" {% if mostrar_anterior %}checked{% endif %}>
+                            <label class="form-check-label" for="mostrar_anterior">Exibir valor anterior</label>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-end">
+                        <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+                    </div>
+                </div>
+            <script>
+            // Função para obter datas do mês/ano atual/anterior
+            function getPeriodoDatas(tipo) {
+                const hoje = new Date();
+                let inicio, fim;
+                if (tipo === 'mes_atual') {
+                    inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+                    fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+                } else if (tipo === 'ano_atual') {
+                    inicio = new Date(hoje.getFullYear(), 0, 1);
+                    fim = new Date(hoje.getFullYear(), 11, 31);
+                } else if (tipo === 'mes_anterior') {
+                    const mesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+                    inicio = new Date(mesAnterior.getFullYear(), mesAnterior.getMonth(), 1);
+                    fim = new Date(mesAnterior.getFullYear(), mesAnterior.getMonth() + 1, 0);
+                } else if (tipo === 'ano_anterior') {
+                    inicio = new Date(hoje.getFullYear() - 1, 0, 1);
+                    fim = new Date(hoje.getFullYear() - 1, 11, 31);
+                } else if (tipo === 'tudo') {
+                    inicio = '';
+                    fim = '';
+                }
+                return {
+                    inicio: inicio ? inicio.toISOString().slice(0, 10) : '',
+                    fim: fim ? fim.toISOString().slice(0, 10) : ''
+                };
+            }
+            document.addEventListener('DOMContentLoaded', function() {
+                const selectPeriodo = document.getElementById('periodo_predefinido');
+                const datasPersonalizadas = document.getElementById('datas-personalizadas');
+                const dataInicio = document.getElementById('id_data_inicio');
+                const dataFim = document.getElementById('id_data_fim');
+                const periodoHidden = document.getElementById('periodo_predefinido_hidden');
+                // Inicialização: esconde campos personalizados se não for personalizado
+                if (selectPeriodo.value !== 'personalizado') {
+                    datasPersonalizadas.classList.add('d-none');
+                    dataInicio.disabled = true;
+                    dataFim.disabled = true;
+                } else {
+                    datasPersonalizadas.classList.remove('d-none');
+                    dataInicio.disabled = false;
+                    dataFim.disabled = false;
+                }
+                selectPeriodo.addEventListener('change', function() {
+                    periodoHidden.value = this.value;
+                    if (this.value === 'personalizado') {
+                        datasPersonalizadas.classList.remove('d-none');
+                        dataInicio.disabled = false;
+                        dataFim.disabled = false;
+                        dataInicio.value = "{{ form.data_inicio.value|default_if_none:'' }}";
+                        dataFim.value = "{{ form.data_fim.value|default_if_none:'' }}";
+                    } else {
+                        datasPersonalizadas.classList.add('d-none');
+                        const datas = getPeriodoDatas(this.value);
+                        dataInicio.value = datas.inicio;
+                        dataFim.value = datas.fim;
+                        dataInicio.disabled = true;
+                        dataFim.disabled = true;
+                    }
+                    if (this.value === 'tudo') {
+                        dataInicio.value = '';
+                        dataFim.value = '';
+                    }
+                });
+                // Se recarregar e for personalizado, mostra campos
+                // Mantém o valor do select e campos ao recarregar
+                periodoHidden.value = selectPeriodo.value;
+                // Ao submeter o formulário, garantir que o valor do select seja enviado
+                const form = selectPeriodo.closest('form');
+                if (form) {
+                    form.addEventListener('submit', function() {
+                        periodoHidden.value = selectPeriodo.value;
+                        if (selectPeriodo.value !== 'personalizado') {
+                            dataInicio.disabled = false;
+                            dataFim.disabled = false;
+                        }
+                    });
+                }
+            });
+            </script>
+                <div class="col-xl-1 col-lg-1 col-md-2 col-12 d-flex align-items-end">
+                    {% if request.GET.tipo_evento or request.GET.data_inicio or request.GET.data_fim or request.GET.mostrar_anterior %}
+                        <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm w-100" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
+                    {% endif %}
+                </div>
+                <!-- Checkbox removido daqui, agora está abaixo do campo Data inicial -->
+            </form>
+            <script>
+            // Exibe os selects de filtro avançado conforme o checkbox
+            function toggleFiltroAvancado() {
+                const mudancaTipo = document.querySelector('input[type=checkbox][value="mudanca_tipo"]');
+                const mudancaStatus = document.querySelector('input[type=checkbox][value="mudanca_status"]');
+                document.getElementById('filtro-tipo-pessoa-novo').style.display = mudancaTipo && mudancaTipo.checked ? '' : 'none';
+                document.getElementById('filtro-status-pessoa-novo').style.display = mudancaStatus && mudancaStatus.checked ? '' : 'none';
+            }
+            document.addEventListener('DOMContentLoaded', function() {
+                toggleFiltroAvancado();
+                document.querySelectorAll('input[type=checkbox][name^=tipo_evento]').forEach(function(cb) {
+                    cb.addEventListener('change', toggleFiltroAvancado);
+                });
+            });
+            </script>
+        </div>
+    </div>
+
+
+    <!-- Timeline centralizada e alternada (dupla por data) -->
+    <div class="timeline-center">
+        {% for data_str, pares in eventos_por_data.items %}
+            <div class="timeline-date-group mb-4">
+                <div class="timeline-date-badge timeline-date-badge-lg">{{ data_str|slice:"8:10" }}/{{ data_str|slice:"5:7" }}/{{ data_str|slice:"0:4" }}</div>
+                {% for par in pares %}
+                <div class="timeline-row-group mb-4">
+                    <div class="timeline-row">
+                        {# Lado esquerdo #}
+                        {% if par.0 %}
+                        <div class="timeline-content card shadow-lg left timeline-hover" data-bs-toggle="tooltip" title="{{ par.0.get_tipo_evento_display }} | De: {{ par.0.valor_anterior|default:'-' }} → Para: {{ par.0.novo_valor|default:'-' }}">
+                            <div class="card-body py-3 px-4">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="timeline-event-icon me-2">
+                                        {% if par.0.tipo_evento == 'entrada' %}<i class="bi bi-person-plus-fill text-primary"></i>{% endif %}
+                                        {% if par.0.tipo_evento == 'mudanca_tipo' %}<i class="bi bi-arrow-left-right text-warning"></i>{% endif %}
+                                        {% if par.0.tipo_evento == 'mudanca_status' %}<i class="bi bi-arrow-repeat text-success"></i>{% endif %}
+                                    </span>
+                                    <strong class="me-2">{{ par.0.nome_abreviado }}</strong>
+                                </div>
+                                <div class="mb-1">
+                                    <span class="badge timeline-type-badge me-2
+                                        {% if par.0.tipo_evento == 'entrada' %}bg-primary
+                                        {% elif par.0.tipo_evento == 'mudanca_tipo' %}bg-warning text-dark
+                                        {% elif par.0.tipo_evento == 'mudanca_status' %}bg-success
+                                        {% else %}bg-info text-dark{% endif %}">
+                                        {{ par.0.get_tipo_evento_display }}
+                                    </span>
+                                    {% if par.0.tipo_evento != 'entrada' %}
+                                        <span class="ms-2">De: <strong>{{ par.0.valor_anterior|default:'-' }}</strong> <i class="bi bi-arrow-right"></i> Para: <strong>{{ par.0.novo_valor|default:'-' }}</strong></span>
+                                    {% else %}
+                                        <span class="ms-2">Novo: <strong>{{ par.0.novo_valor }}</strong></span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="timeline-content"></div>
+                        {% endif %}
+                        <div class="timeline-dot timeline-dot-lg"><i class="bi bi-dot"></i></div>
+                        {# Lado direito #}
+                        {% if par.1 %}
+                        <div class="timeline-content card shadow-lg right timeline-hover" data-bs-toggle="tooltip" title="{{ par.1.get_tipo_evento_display }} | De: {{ par.1.valor_anterior|default:'-' }} → Para: {{ par.1.novo_valor|default:'-' }}">
+                            <div class="card-body py-3 px-4">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="timeline-event-icon me-2">
+                                        {% if par.1.tipo_evento == 'entrada' %}<i class="bi bi-person-plus-fill text-primary"></i>{% endif %}
+                                        {% if par.1.tipo_evento == 'mudanca_tipo' %}<i class="bi bi-arrow-left-right text-warning"></i>{% endif %}
+                                        {% if par.1.tipo_evento == 'mudanca_status' %}<i class="bi bi-arrow-repeat text-success"></i>{% endif %}
+                                    </span>
+                                    <strong class="me-2">{{ par.1.nome_abreviado }}</strong>
+                                </div>
+                                <div class="mb-1">
+                                    <span class="badge timeline-type-badge me-2
+                                        {% if par.1.tipo_evento == 'entrada' %}bg-primary
+                                        {% elif par.1.tipo_evento == 'mudanca_tipo' %}bg-warning text-dark
+                                        {% elif par.1.tipo_evento == 'mudanca_status' %}bg-success
+                                        {% else %}bg-info text-dark{% endif %}">
+                                        {{ par.1.get_tipo_evento_display }}
+                                    </span>
+                                    {% if par.1.tipo_evento != 'entrada' %}
+                                        <span class="ms-2">De: <strong>{{ par.1.valor_anterior|default:'-' }}</strong> <i class="bi bi-arrow-right"></i> Para: <strong>{{ par.1.novo_valor|default:'-' }}</strong></span>
+                                    {% else %}
+                                        <span class="ms-2">Novo: <strong>{{ par.1.novo_valor }}</strong></span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="timeline-content"></div>
+                        {% endif %}
+                    </div>
+                </div>
                 {% endfor %}
             </div>
-            <div class="col-auto">
-                <label for="id_data_inicio" class="form-label mb-1">Data inicial</label>
-                {{ form.data_inicio }}
-            </div>
-            <div class="col-auto">
-                <label for="id_data_fim" class="form-label mb-1">Data final</label>
-                {{ form.data_fim }}
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary mt-2">Filtrar</button>
-            </div>
-        </div>
-    </form>
-    <ul class="timeline list-unstyled">
-        {% for evento in eventos %}
-        <li class="mb-3 border-bottom pb-2">
-            <div class="d-flex align-items-center">
-                <span class="badge bg-secondary me-2">{{ evento.data|date:'d/m/Y H:i' }}</span>
-                <strong class="me-2">{{ evento.membro }}</strong>
-                <span class="badge bg-info text-dark me-2">{{ evento.get_tipo_evento_display }}</span>
-            </div>
-            <div class="ms-4 text-muted small">{{ evento.descricao }}</div>
-        </li>
         {% empty %}
-        <li>Nenhum evento encontrado para os filtros selecionados.</li>
+        <div class="text-center text-muted">Nenhum evento encontrado para os filtros selecionados.</div>
         {% endfor %}
-    </ul>
-</div>
+    </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const chartData = {{ chart_data_json|safe }};
+    const ctx = document.getElementById('timelineChart').getContext('2d');
+    const timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: 'Evolução dos Eventos na Linha do Tempo' }
+            },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { title: { display: true, text: 'Mês' } },
+                y: { title: { display: true, text: 'Quantidade de Eventos' }, beginAtZero: true }
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Custom badge colors */
+.bg-maroon { background-color: #800026 !important; color: #fff !important; }
+.bg-purple { background-color: #b197fc !important; color: #fff !important; }
+/* Timeline centralizada e alternada */
+.timeline-center {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 0 40px 0;
+    background: transparent;
+    z-index: 1;
+}
+.timeline-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+    position: relative;
+    min-height: 40px;
+}
+.timeline-row.right {
+    flex-direction: row-reverse;
+}
+.timeline-content {
+    width: 45%;
+    min-width: 220px;
+    max-width: 400px;
+    z-index: 2;
+}
+.timeline-dot {
+    width: 18px;
+    height: 18px;
+    background: #0d6efd;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #0d6efd33;
+    z-index: 3;
+    margin: 0 20px;
+}
+.timeline-center:before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 100%;
+    background: #dee2e6;
+    z-index: 0;
+    pointer-events: none;
+}
+/* Timeline melhorias visuais */
+.timeline-date-group {
+    text-align: center;
+    position: relative;
+    min-height: 48px;
+}
+.timeline-date-badge {
+/* Badge grande para data centralizada */
+.timeline-date-badge-lg {
+    font-size: 1.35rem;
+    padding: 0.5em 2.2em;
+    margin-bottom: 1.2em;
+    background: #e9ecef;
+    color: #222;
+    box-shadow: 0 2px 12px #0001;
+    border: 1.5px solid #dee2e6;
+    letter-spacing: 0.04em;
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    z-index: 20;
+}
+    display: inline-block;
+    background: #f8f9fa;
+    color: #333;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    padding: 0.3em 1.2em;
+    margin-bottom: 0.7em;
+    box-shadow: 0 1px 4px #0001;
+}
+.timeline-date-badge-sm {
+    font-size: 0.95em;
+    padding: 0.2em 0.7em;
+    border-radius: 12px;
+}
+.timeline-type-badge {
+    font-size: 0.95em;
+    padding: 0.2em 0.7em;
+    border-radius: 12px;
+}
+.timeline-dot-lg {
+    font-size: 2.2em;
+    color: #0d6efd;
+    background: #fff;
+    border-radius: 50%;
+    border: 3px solid #dee2e6;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 20px;
+    box-shadow: 0 0 0 2px #0d6efd33;
+    z-index: 3;
+}
+.timeline-event-icon {
+    font-size: 1.3em;
+    vertical-align: middle;
+}
+.timeline-hover:hover {
+    box-shadow: 0 4px 16px #0d6efd22;
+    border-color: #0d6efd;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+@media (max-width: 900px) {
+    .timeline-content { width: 80%; max-width: 100%; }
+}
+@media (max-width: 700px) {
+    .timeline-row, .timeline-row.right {
+        flex-direction: column !important;
+        align-items: flex-start;
+    }
+    .timeline-content { width: 95%; margin-bottom: 10px; }
+    .timeline-dot { margin: 0 0 10px 0; }
+    .timeline-center:before { left: 16px; width: 4px; }
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

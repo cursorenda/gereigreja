@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% extends 'base_com_menu.html' %}
 {% load static %}
+{% load eventos_extras %}
 
 {% block title %}Novo Evento{% endblock %}
 
@@ -76,76 +77,97 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <!-- Grid alinhado e aproveitamento total do espaço -->
                 <div class="row mb-4">
-        <div class="row mb-4">
-          <div class="col-md-12">
-            <div class="form-check mb-3">
-              {{ form.incluir_todos_membros }}
-              <label for="id_incluir_todos_membros" class="form-check-label">Incluir todos os membros</label>
-              <small class="text-muted d-block">Marque para incluir todos os membros da igreja como participantes esperados deste evento.</small>
+      <div class="row mb-4">
+        <div class="col-md-12">
+          <div class="mb-3">
+            <label class="form-label">Seleção de convidados:</label>
+            <div class="mb-2">
+              <select id="filtro_convidados" class="form-select" style="max-width:350px;display:inline-block;">
+                <option value="membro_obreiro">Apenas Membros/Obreiros</option>
+                <option value="cooperadores">Cooperadores (quem tem cargo)</option>
+                <option value="todos">Todas as pessoas do sistema</option>
+              </select>
+              <span class="ms-2">Status:</span>
+              <label class="ms-1"><input type="checkbox" class="status_filtro" value="ativo" checked> Ativo</label>
+              <label class="ms-1"><input type="checkbox" class="status_filtro" value="desligado" checked> Desligado</label>
+              <label class="ms-1"><input type="checkbox" class="status_filtro" value="disciplina" checked> Em Disciplina</label>
             </div>
+            <label for="id_convidados" class="form-label">Adicionar manualmente:</label>
+            {{ form.convidados }}
+            <small class="form-text text-muted">Você pode buscar e adicionar pessoas individualmente, além dos filtros acima.</small>
+            {% if form.convidados.errors %}<div class="invalid-feedback d-block">{{ form.convidados.errors|striptags }}</div>{% endif %}
           </div>
         </div>
-        <div class="row mb-4">
-          <div class="col-md-4">
-            <div class="mb-3">
-              <label for="id_tipos_participantes" class="form-label">Tipos de Pessoas Esperadas:</label>
-              {{ form.tipos_participantes }}
-              {% if form.tipos_participantes.errors %}<div class="invalid-feedback d-block">{{ form.tipos_participantes.errors|striptags }}</div>{% endif %}
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="mb-3">
-              <label for="id_status_participantes" class="form-label">Status de Pessoas Esperadas:</label>
-              {{ form.status_participantes }}
-              {% if form.status_participantes.errors %}<div class="invalid-feedback d-block">{{ form.status_participantes.errors|striptags }}</div>{% endif %}
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="mb-3">
-              <label for="id_cargo_participantes" class="form-label">Cargos de Pessoas Esperadas:</label>
-              {{ form.cargo_participantes }}
-              {% if form.cargo_participantes.errors %}<div class="invalid-feedback d-block">{{ form.cargo_participantes.errors|striptags }}</div>{% endif %}
-            </div>
-          </div>
-        </div>
-                  <div class="col-md-4">
-                    <div class="mb-3">
-                      <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
-                      {{ form.igreja }}
-                      {% if igreja_nome %}
-                        <div class="form-control bg-light" style="pointer-events:none;">{{ igreja_nome }}</div>
-                      {% endif %}
-                      {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
+      </div>
+      <script>
+        function atualizarConvidadosPorFiltro() {
+          var filtro = $('#filtro_convidados').val();
+          var status = $('.status_filtro:checked').map(function(){return $(this).val();}).get();
+          $.ajax({
+            url: '{% url "eventos:autocomplete_convidados" %}',
+            data: {
+              filtro: filtro,
+              status: status.join(',')
+            },
+            success: function(data) {
+              var $convidados = $('#id_convidados');
+              $convidados.val(null).trigger('change');
+              var ids = data.ids;
+              $convidados.find('option').each(function() {
+                if (ids.includes($(this).val())) {
+                  $(this).prop('selected', true);
+                } else {
+                  $(this).prop('selected', false);
+                }
+              });
+              $convidados.trigger('change');
+              atualizarChipsConvidados();
+            }
+          });
+        }
+        $(document).ready(function() {
+          $('#filtro_convidados, .status_filtro').on('change', atualizarConvidadosPorFiltro);
+        });
+      </script>
+                  <div class="col-12">
+                    <div class="row">
+                      <div class="col-md-8">
+                        <div class="mb-3">
+                          <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
+                          {{ form.igreja|add_class:'form-control' }}
+                          {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
+                        </div>
+                      </div>
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                          <label for="{{ form.titulo.id_for_label }}" class="form-label">{{ form.titulo.label }}:</label>
+                          {{ form.titulo|add_class:'form-control' }}
+                          {% if form.titulo.errors %}<div class="invalid-feedback d-block">{{ form.titulo.errors|striptags }}</div>{% endif %}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="mb-3">
-                      <label for="{{ form.titulo.id_for_label }}" class="form-label">{{ form.titulo.label }}:</label>
-                      {{ form.titulo }}
-                      {% if form.titulo.errors %}<div class="invalid-feedback d-block">{{ form.titulo.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="mb-3">
-                      <label for="{{ form.tipo.id_for_label }}" class="form-label">{{ form.tipo.label }}:</label>
-                      {{ form.tipo }}
-                      {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                </div>
-                <div class="row mb-4">
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="{{ form.local.id_for_label }}" class="form-label">{{ form.local.label }}:</label>
-                      {{ form.local }}
-                      {% if form.local.errors %}<div class="invalid-feedback d-block">{{ form.local.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label for="{{ form.responsavel.id_for_label }}" class="form-label">{{ form.responsavel.label }}:</label>
-                      {{ form.responsavel }}
-                      {% if form.responsavel.errors %}<div class="invalid-feedback d-block">{{ form.responsavel.errors|striptags }}</div>{% endif %}
+                    <div class="row">
+                      <div class="col-md-3">
+                        <div class="mb-3">
+                          <label for="{{ form.tipo.id_for_label }}" class="form-label">{{ form.tipo.label }}:</label>
+                          {{ form.tipo|add_class:'form-select' }}
+                          {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors|striptags }}</div>{% endif %}
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label for="{{ form.local.id_for_label }}" class="form-label">{{ form.local.label }}:</label>
+                          {{ form.local|add_class:'form-control' }}
+                          {% if form.local.errors %}<div class="invalid-feedback d-block">{{ form.local.errors|striptags }}</div>{% endif %}
+                        </div>
+                      </div>
+                      <div class="col-md-3">
+                        <div class="mb-3">
+                          <label for="{{ form.responsavel.id_for_label }}" class="form-label">{{ form.responsavel.label }}:</label>
+                          {{ form.responsavel|add_class:'form-select' }}
+                          {% if form.responsavel.errors %}<div class="invalid-feedback d-block">{{ form.responsavel.errors|striptags }}</div>{% endif %}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -160,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <div class="col-md-3">
                     <div class="mb-3">
                       <label for="{{ form.quantidade_dias.id_for_label }}" class="form-label">{{ form.quantidade_dias.label }}:</label>
-                      {{ form.quantidade_dias }}
+                      {{ form.quantidade_dias|add_class:'form-control' }}
                       {% if form.quantidade_dias.errors %}<div class="invalid-feedback d-block">{{ form.quantidade_dias.errors|striptags }}</div>{% endif %}
                     </div>
                   </div>
@@ -268,6 +290,19 @@ document.addEventListener('DOMContentLoaded', function() {
           <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-secondary">Cancelar</a>
         </div>
       </form>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      $('#id_convidados').select2({
+        width: '100%',
+        placeholder: 'Digite para buscar e selecione...',
+        allowClear: true,
+        language: 'pt-BR',
+      });
+    });
+  </script>
     </div>
   </div>
 </div>

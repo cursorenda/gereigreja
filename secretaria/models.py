@@ -1,6 +1,36 @@
 ﻿
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
+
+class InteracaoPessoa(models.Model):
+    membro = models.ForeignKey('Membro', on_delete=models.CASCADE, related_name='interacoes')
+    data_interacao = models.DateTimeField(default=timezone.now)
+    tipo_interacao = models.CharField(
+        max_length=50,
+        choices=[
+            ('visita', 'Visita'),
+            ('ligacao', 'Ligação'),
+            ('convite', 'Convite'),
+            ('evento', 'Participação em Evento'),
+            ('mensagem', 'Mensagem'),
+            ('outro', 'Outro'),
+        ],
+        default='outro'
+    )
+    descricao = models.TextField(blank=True, null=True)
+    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        verbose_name = 'Interação da Pessoa'
+        verbose_name_plural = 'Interações das Pessoas'
+        ordering = ['-data_interacao']
+
+    def __str__(self):
+        return f"{self.membro.nome} - {self.get_tipo_interacao_display()} ({self.data_interacao:%d/%m/%Y %H:%M})"
+
+from django.db import models
+from django.utils import timezone
 import uuid # Para nomes de arquivo únicos
 import os   # Para manipulação de caminhos
 from django.conf import settings # Para settings.AUTH_USER_MODEL
@@ -8,56 +38,6 @@ from configuracao.models import Igreja
 import logging
 logger = logging.getLogger(__name__)
 
-# --- MODELO DE VISITANTE ---
-class Visitante(models.Model):
-    nome = models.CharField(max_length=100)
-    apelido = models.CharField(max_length=50, blank=True, null=True, help_text="Apelido ou nome pelo qual é conhecido.")
-    telefone = models.CharField(max_length=20, blank=True, null=True)
-    email = models.EmailField(max_length=100, blank=True, null=True)
-    origem = models.CharField(max_length=100, blank=True, null=True, help_text="Como conheceu a igreja, evento, indicação, etc.")
-    data_primeira_visita = models.DateField(default=timezone.now)
-    status_acompanhamento = models.CharField(max_length=30, choices=[
-        ("novo", "Novo Visitante"),
-        ("em_acompanhamento", "Em Acompanhamento"),
-        ("interessado", "Interessado"),
-        ("nao_retornou", "Não Retornou"),
-        ("encerrado", "Encerrado")
-    ], default="novo")
-    observacoes = models.TextField(blank=True, null=True)
-    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='visitantes_acompanhados')
-    igreja = models.ForeignKey(Igreja, on_delete=models.PROTECT, related_name='visitantes', null=True, blank=True)
-
-    class Meta:
-        verbose_name = "Visitante"
-        verbose_name_plural = "Visitantes"
-        ordering = ['-data_primeira_visita', 'nome']
-
-    def __str__(self):
-        return f"{self.nome} ({self.data_primeira_visita:%d/%m/%Y})"
-
-
-    # --- MODELO DE HISTÓRICO DE INTERAÇÕES DO VISITANTE ---
-    class InteracaoVisitante(models.Model):
-        visitante = models.ForeignKey('Visitante', on_delete=models.CASCADE, related_name='interacoes')
-        data_interacao = models.DateTimeField(default=timezone.now)
-        tipo_interacao = models.CharField(max_length=50, choices=[
-            ('visita', 'Visita'),
-            ('ligacao', 'Ligação'),
-            ('convite', 'Convite'),
-            ('evento', 'Participação em Evento'),
-            ('mensagem', 'Mensagem'),
-            ('outro', 'Outro'),
-        ], default='outro')
-        descricao = models.TextField(blank=True, null=True, help_text='Detalhes da interação ou observações.')
-        responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='interacoes_visitantes')
-
-        class Meta:
-            verbose_name = 'Interação do Visitante'
-            verbose_name_plural = 'Interações dos Visitantes'
-            ordering = ['-data_interacao']
-
-        def __str__(self):
-            return f"{self.visitante.nome} - {self.get_tipo_interacao_display()} ({self.data_interacao:%d/%m/%Y %H:%M})"
 
 
 

@@ -51,15 +51,13 @@
                         <tbody>
                             {% for visitante in visitantes %}
                             <tr>
-                                <td>
-                                    <a href="{% url 'secretaria:editar_visitante' visitante.id %}">{{ visitante.nome }}</a>
-                                </td>
+                                <td>{{ visitante.nome }}</td>
                                 <td>{{ visitante.telefone }}</td>
                                 <td>{{ visitante.email }}</td>
-                                <td>{{ visitante.origem }}</td>
+                                <td>{{ visitante.origem_visita }}</td>
                                 <td>{{ visitante.data_primeira_visita|date:'d/m/Y' }}</td>
                                 <td>{{ visitante.get_status_acompanhamento_display }}</td>
-                                <td>{{ visitante.responsavel.get_full_name|default:visitante.responsavel.username }}</td>
+                                <td>{% if visitante.responsavel_acompanhamento %}{{ visitante.responsavel_acompanhamento.get_full_name|default:visitante.responsavel_acompanhamento.username }}{% endif %}</td>
                                 {% if not igreja_selecionada or igreja_selecionada == '0' %}
                                     <td>{{ visitante.igreja.nome_fantasia }}</td>
                                 {% endif %}

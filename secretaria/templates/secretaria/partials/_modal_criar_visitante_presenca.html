@@ -1,0 +1,19 @@
+{# Partial modal usado tanto na Recepção quanto na Lista de Eventos - conteúdo mínimo e corpo dinâmico via AJAX #}
+<div class="modal fade" id="modalCriarVisitante" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cadastrar visitante</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body" id="modalCriarVisitanteBody">
+                <div class="d-flex justify-content-center py-4">
+                    <div class="spinner-border text-secondary" role="status"><span class="visually-hidden">Carregando...</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Container auxiliar para scripts que precisam referenciar o evento/sessao ao abrir o modal #}
+<div id="recepcao-modal-context" style="display:none" data-evento="" data-sessao=""></div>

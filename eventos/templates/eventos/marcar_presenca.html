@@ -12,6 +12,16 @@
     <div class="card-body">
       <form method="post">
         {% csrf_token %}
+        {% if sessoes %}
+        <div class="mb-3">
+          <label class="form-label">Dia:</label>
+          <select name="sessao" class="form-select" onchange="this.form.submit()">
+            {% for s in sessoes %}
+              <option value="{{ s.pk }}" {% if sessao and s.pk == sessao.pk %}selected{% endif %}>Dia {{ s.numero }} - {{ s.data_inicio|date:'d/m/Y' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
         <div class="table-responsive">
           <table class="table table-bordered table-hover align-middle">
             <thead>

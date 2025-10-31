@@ -52,11 +52,12 @@ def has_membro_edit_permission(user):
 # --- Função para Obter Igrejas Permitidas para secretaria de Membros ---
 
 def get_allowed_churches_for_membros(user, ministerio_param=None): # Adicionado ministerio_param
-    # ... lógica existente ...
-    # Agora você pode usar 'ministerio_param' dentro da função se necessário
-    # Por exemplo, para filtrar igrejas pela ministério do líder.
-    # Se a lógica já usa user.perfil.ministerio, pode não precisar de grandes mudanças internas,
-    # mas a assinatura da função precisa aceitar o argumento.
+    # Esta função foi ajustada para aceitar um ministerio_param opcional.
+    # Se fornecido, usaremos esse ministério como contexto de filtro em vez de depender
+    # estritamente de `user.perfil.ministerio`. Isso permite que views que já
+    # resolveram o ministério (ex: via get_ministerio_or_error(request)) passem
+    # o contexto corretamente e evitem retornos vazios por causa de perfis ausentes
+    # ou desencontro de ministérios entre request e user.perfil.
     """
     Retorna um QuerySet das Igrejas que o usuário tem permissão para acessar no contexto de membros.
     - Admin Org ou Líder Secretaria: Todas as igrejas do ministério ou as permitidas no perfil + subordinadas.
@@ -64,14 +65,24 @@ def get_allowed_churches_for_membros(user, ministerio_param=None): # Adicionado 
     - Outros: Nenhuma igreja.
     - Retorna QuerySet vazio se o usuário não tiver perfil/ministério ou permissão de visualização.
     """
-    if not user.is_authenticated or not hasattr(user, 'perfil') or not user.perfil.ministerio:
+    if not user.is_authenticated:
+        return Igreja.objects.none()
+
+    # Preferir o ministerio passado explicitamente; caso contrário, tentar extrair
+    # do perfil do usuário. Se não houver ministério disponível, retornamos vazio.
+    ministerio = ministerio_param
+    if ministerio is None:
+        try:
+            ministerio = user.perfil.ministerio
+        except Exception:
+            ministerio = None
+
+    if not ministerio:
         return Igreja.objects.none()
 
     # Verifica se o usuário tem PELO MENOS permissão de visualização de membros
     if not has_membro_view_permission(user):
         return Igreja.objects.none()
-
-    ministerio = user.perfil.ministerio
 
     # Se o usuário é Admin da Ministério ou Líder da Secretaria, expandir permissões
     if is_secretaria_leader(user):

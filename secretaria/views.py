@@ -1,8 +1,104 @@
+import logging
+from datetime import date, datetime, timedelta
+import os, shutil, json
+
+from django.views.decorators.http import require_GET, require_POST
+from django.http import JsonResponse, HttpResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Q, Count, Sum, Case, When, Value, BooleanField
+from django.conf import settings
+from django.db import models, close_old_connections
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
+
+def is_admin_or_pastor(user):
+    """Permissão: é superuser ou pertence a grupos administrativos/pastorais."""
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    try:
+        return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+    except Exception:
+        return False
+
+# --- AUTOCOMPLETE DE NOMES DE MEMBROS/VISITANTES ---
+@require_GET
+def autocomplete_nome(request):
+    q = request.GET.get('q', '').strip()
+    results = []
+    if q and len(q) >= 1:
+        # import here to avoid top-level import cycles
+        from .models import Membro
+        membros = Membro.objects.filter(nome__istartswith=q).order_by('nome')[:10]
+        for m in membros:
+            results.append({
+                'id': m.pk,
+                'nome': m.nome,
+                'tipo_pessoa': m.tipo_pessoa.nome if getattr(m, 'tipo_pessoa', None) else ''
+            })
+    return JsonResponse({'results': results})
+# --- LISTA DE VISITANTES (usando membros com tipo_pessoa=Visitante) ---
+from django.views.decorators.http import require_POST
+from .models import Membro, TipoPessoa
+@login_required
+def lista_visitantes(request):
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '')
+    igreja_id = request.GET.get('igreja')
+    visitantes = Membro.objects.filter(tipo_pessoa__nome__iexact='Visitante')
+    # Aplicar escopo de igreja/ministerio similar ao usado em `lista_membros`.
+    # Sem esse escopo, visitantes registrados em outras igrejas (ex.: testes) aparecem para todos os usuários.
+    try:
+        from secretaria.utils import get_allowed_churches_for_membros, is_admin_org
+        from core.utils import get_ministerio_or_error
+        ministerio = get_ministerio_or_error(request)
+        allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+        if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            visitantes = visitantes.filter(igreja=request.igreja_ativa)
+        elif allowed_churches.exists():
+            visitantes = visitantes.filter(igreja__in=allowed_churches)
+        elif is_admin_org(request.user):
+            visitantes = visitantes.filter(igreja__ministerio=ministerio)
+        else:
+            visitantes = Membro.objects.none()
+    except Exception as e:
+        # Em caso de erro inesperado, logar e retornar nenhum visitante para evitar vazamento de dados
+        try:
+            logger.exception('Erro ao filtrar visitantes por igreja: %s', e)
+        except Exception:
+            pass
+        visitantes = Membro.objects.none()
+    if query:
+        visitantes = visitantes.filter(
+            Q(nome__icontains=query) | Q(telefone__icontains=query) | Q(email__icontains=query)
+        )
+    if status:
+        visitantes = visitantes.filter(status_acompanhamento=status)
+
+    igreja_selecionada = str(igreja_id) if igreja_id else (str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else '0')
+
+    context = {
+        'visitantes': visitantes,
+        'query': query,
+        'status': status,
+        'igreja_id': igreja_id,
+        'igreja_selecionada': igreja_selecionada,
+        'titulo_pagina': 'Lista de Visitantes',
+    }
+    return render(request, 'secretaria/lista_visitantes.html', context)
 from django.http import JsonResponse
 from django.db import models
+from django.db import close_old_connections
 # --- VIEW AJAX: BUSCAR VISITANTES POR NOME OU APELIDO ---
 def buscar_visitantes(request):
     termo = request.GET.get('q', '').strip()
+    try:
+        logger.info('buscar_visitantes called q=%s user=%s evento=%s', termo, getattr(request, 'user', None), request.GET.get('evento'))
+    except Exception:
+        pass
     # Busca ignorando acentuação (PostgreSQL: unaccent)
     import unicodedata
     from .models import Membro
@@ -24,6 +120,74 @@ def buscar_visitantes(request):
     if termo:
         termo_sem_acento = remover_acentos(termo.lower())
         membros = Membro.objects.all()
+        # Limitar busca às igrejas/ministerio permitidos para o usuário, evitando retornar visitantes de teste
+        try:
+            # Debug bypass: em DEBUG, aceitar parâmetro ?force_global=1 para ignorar escopo de igrejas
+            if getattr(settings, 'DEBUG', False) and request.GET.get('force_global') == '1':
+                membros = Membro.objects.all()
+                # pula a lógica de allowed_churches
+                raise StopIteration
+            from secretaria.utils import get_allowed_churches_for_membros, is_admin_org
+            from core.utils import get_ministerio_or_error
+            ministerio = get_ministerio_or_error(request)
+            allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+
+            # Hotfix for reception page: if the request explicitly indicates it's
+            # coming from the recepção UI (recepcao=1) and there is an active
+            # church on the request, ensure that church is part of the allowed
+            # set. This avoids empty autocomplete results when the user's perfil
+            # is missing or not yet linked to the active church but the
+            # recepcionista is operating within that church.
+            try:
+                if request.GET.get('recepcao') == '1' and hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+                    from configuracao.models import Igreja as _Igreja
+                    # If allowed_churches is a QuerySet, union it with the active church
+                    if getattr(allowed_churches, 'filter', None) is not None:
+                        allowed_churches = allowed_churches | _Igreja.objects.filter(pk=request.igreja_ativa.pk)
+                    else:
+                        # If it's an in-memory iterable (list/tuple), ensure the active church is included
+                        try:
+                            if request.igreja_ativa not in allowed_churches:
+                                allowed_churches = list(allowed_churches) + [request.igreja_ativa]
+                        except Exception:
+                            # As a last resort, make a QuerySet that contains only the active church
+                            allowed_churches = _Igreja.objects.filter(pk=request.igreja_ativa.pk)
+                    try:
+                        logger.debug('buscar_visitantes: recepcao fallback applied; igreja_ativa=%s', request.igreja_ativa)
+                    except Exception:
+                        pass
+            except Exception:
+                # Don't break the search if this fallback fails; continue with original allowed_churches
+                pass
+
+            # Determine escola_qs_kwargs de forma robusta (suporta QuerySet ou lista)
+            escola_qs_kwargs = None
+            if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+                try:
+                    # Se allowed_churches parece um queryset, usar filter().exists()
+                    if getattr(allowed_churches, 'filter', None) and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
+                        escola_qs_kwargs = {'igreja': request.igreja_ativa}
+                    # Se allowed_churches é uma lista/iterable em memória, usar 'in'
+                    elif hasattr(allowed_churches, '__contains__') and request.igreja_ativa in allowed_churches:
+                        escola_qs_kwargs = {'igreja': request.igreja_ativa}
+                except Exception:
+                    escola_qs_kwargs = None
+
+            if escola_qs_kwargs is None:
+                if getattr(allowed_churches, 'exists', None) and allowed_churches.exists():
+                    escola_qs_kwargs = {'igreja__in': allowed_churches}
+                elif ministerio and is_admin_org(request.user):
+                    escola_qs_kwargs = {'igreja__ministerio': ministerio}
+                else:
+                    escola_qs_kwargs = None
+
+            if escola_qs_kwargs is None:
+                membros = Membro.objects.none()
+            else:
+                membros = membros.filter(**escola_qs_kwargs)
+        except Exception:
+            # fallback: deixar `membros` sem filtro (evita quebrar autocomplete por erros de permissão)
+            membros = Membro.objects.all()
         if tipos_ids:
             membros = membros.filter(tipo_pessoa_id__in=tipos_ids)
         if status_ids:
@@ -32,37 +196,158 @@ def buscar_visitantes(request):
             nome = v.nome or ''
             apelido = v.apelido or ''
             if termo_sem_acento in remover_acentos(nome.lower()) or termo_sem_acento in remover_acentos(apelido.lower()):
-                visitantes.append({'id': v.chave, 'nome': v.nome, 'apelido': v.apelido})
+                # Compatibilidade: alguns clientes esperam que `id` seja a chave pública (chave),
+                # outros usam o PK. Fornecemos ambos e também `pk` para evitar ambiguidade.
+                visitantes.append({
+                    'id': (v.chave if getattr(v, 'chave', None) not in (None, '') else v.pk),
+                    'pk': v.pk,
+                    'chave': getattr(v, 'chave', v.pk),
+                    'nome': v.nome,
+                    'apelido': v.apelido
+                })
             if len(visitantes) >= 20:
                 break
+    # debug helper: if ?debug=1 is present, return extra diagnostic info
+    if request.GET.get('debug') == '1':
+        info = {
+            'query': termo,
+            'evento': evento_id,
+            'count': len(visitantes),
+            'visitantes': visitantes,
+        }
+        try:
+            info['allowed_churches'] = str(allowed_churches)
+        except Exception:
+            info['allowed_churches'] = 'n/a'
+        try:
+            logger.debug('buscar_visitantes debug: %s', info)
+        except Exception:
+            pass
+        return JsonResponse(info, safe=False)
+
+    try:
+        # debug log to help diagnose empty autocomplete results
+        try:
+            logger.debug('buscar_visitantes q=%s results=%s', termo, len(visitantes))
+        except Exception:
+            pass
+    except Exception:
+        pass
     return JsonResponse(visitantes, safe=False)
-    return JsonResponse(list(visitantes), safe=False)
 from .forms_presenca_visitante_evento import PresencaVisitanteEventoForm
 from eventos.models import Evento
-from .models import PresencaVisitanteEvento, Visitante
+from .models import PresencaVisitanteEvento
 from django.utils import timezone
 
 # --- VIEW: REGISTRAR PRESENÇA DE VISITANTE EM EVENTO ---
-from django.contrib.auth.decorators import login_required
 @login_required
 def registrar_presenca_visitante_evento(request):
+    # Garantir conexões ativas/recém-abertas (mitiga 'connection already closed')
+    try:
+        close_old_connections()
+    except Exception:
+        pass
     print(f"[DEBUG] igreja_ativa: {getattr(request, 'igreja_ativa', None)} | id: {getattr(getattr(request, 'igreja_ativa', None), 'id', None)} | user: {request.user}")
     hoje = timezone.localdate()
     fim = hoje + timezone.timedelta(days=7)
     eventos_do_dia = Evento.objects.none()
+    # Preparar contexto de igreja/ministerio similar a outras views: suportar igreja_ativa, allowed_churches ou admin do ministério
+    try:
+        from secretaria.utils import get_allowed_churches_for_membros, is_admin_org
+        from core.utils import get_ministerio_or_error
+        ministerio = get_ministerio_or_error(request)
+        allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    except Exception:
+        ministerio = None
+        allowed_churches = Evento.objects.none()
+
+    # Suporta filtros: próximos 7 dias, últimos N eventos (default), e eventos sem visitantes
+    # Por padrão utilizar 'ultimos' com ultimos_n = 3 para a UX de recepção
+    filtro = request.GET.get('filtro_eventos', 'ultimos')
+    try:
+        ultimos_n = int(request.GET.get('ultimos_n', 3))
+    except (TypeError, ValueError):
+        ultimos_n = 3
+
+    # Decide o escopo de igrejas a consultar
+    escola_qs_kwargs = None
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        eventos_do_dia = Evento.objects.filter(
-            igreja=request.igreja_ativa,
-            data_inicio__date__gte=hoje,
-            data_inicio__date__lte=fim
-        ).order_by('data_inicio')
+        try:
+            # Se allowed_churches parece um queryset, usar filter().exists()
+            if getattr(allowed_churches, 'filter', None) and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
+                escola_qs_kwargs = {'igreja': request.igreja_ativa}
+            # Se allowed_churches é uma lista/iterable em memória, usar 'in'
+            elif hasattr(allowed_churches, '__contains__') and request.igreja_ativa in allowed_churches:
+                escola_qs_kwargs = {'igreja': request.igreja_ativa}
+        except Exception:
+            # falha ao testar membership -> continuar para próximos testes
+            escola_qs_kwargs = None
+
+    if escola_qs_kwargs is None:
+        if getattr(allowed_churches, 'exists', None) and allowed_churches.exists():
+            escola_qs_kwargs = {'igreja__in': allowed_churches}
+        elif ministerio and is_admin_org(request.user):
+            escola_qs_kwargs = {'igreja__ministerio': ministerio}
+        else:
+            escola_qs_kwargs = None
+
+    if escola_qs_kwargs is None:
+        eventos_do_dia = Evento.objects.none()
+    else:
+        if filtro == 'ultimos':
+            qs = Evento.objects.filter(
+                **escola_qs_kwargs,
+                data_inicio__date__lte=hoje
+            ).order_by('-data_inicio')[:ultimos_n]
+            # ordenar ascendente para seleção mais natural
+            eventos_do_dia = sorted(list(qs), key=lambda e: e.data_inicio)
+        elif filtro == 'sem_visitantes':
+            # Contar presenças usando related_name definido no modelo de presenças.
+            # O related_name correto é 'visitantes_presentes' (ver choices no erro),
+            # então usamos Count('visitantes_presentes') para criar presencas_count.
+            eventos_do_dia = Evento.objects.annotate(presencas_count=Count('visitantes_presentes')).filter(
+                **escola_qs_kwargs,
+                presencas_count=0,
+                data_inicio__date__lte=hoje
+            ).order_by('data_inicio')
+        else:
+            eventos_do_dia = Evento.objects.filter(
+                **escola_qs_kwargs,
+                data_inicio__date__gte=hoje,
+                data_inicio__date__lte=fim
+            ).order_by('data_inicio')
     evento_id = request.GET.get('evento')
     evento_selecionado = None
     pessoas_presentes = []
     if evento_id:
-        evento_selecionado = Evento.objects.get(pk=evento_id)
-        pessoas_presentes = PresencaVisitanteEvento.objects.filter(evento=evento_selecionado).select_related('membro').order_by('-data_registro')
+        try:
+            evento_selecionado = Evento.objects.get(pk=evento_id)
+            pessoas_presentes = PresencaVisitanteEvento.objects.filter(evento=evento_selecionado).select_related('membro').order_by('-data_registro')
+        except Evento.DoesNotExist:
+            evento_selecionado = None
+            pessoas_presentes = []
+            messages.error(request, 'Evento selecionado não encontrado.')
+        except Exception as e:
+            # Evita 500 quando o banco está indisponível ou outra falha ocorre; registra e mostra mensagem amigável
+            try:
+                logger.exception('Erro ao carregar evento selecionado: %s', e)
+            except Exception:
+                pass
+            evento_selecionado = None
+            pessoas_presentes = []
+            messages.error(request, 'Erro ao carregar o evento selecionado. Verifique os logs.')
     if request.method == 'POST':
+        # short trace id to correlate logs with requests
+        try:
+            import uuid
+            trace_id = uuid.uuid4().hex[:8]
+        except Exception:
+            trace_id = 'na'
+        try:
+            logger.info('registrar_presenca_visitante_evento called trace=%s user=%s POST_keys=%s', trace_id, request.user, list(request.POST.keys()))
+        except Exception:
+            logger.info('registrar_presenca_visitante_evento called (could not format log)')
+
         form = PresencaVisitanteEventoForm(request.POST, request=request)
         if form.is_valid():
             membro = form.cleaned_data['membro']
@@ -74,8 +359,57 @@ def registrar_presenca_visitante_evento(request):
                 presenca = form.save(commit=False)
                 presenca.responsavel_registro = request.user
                 presenca.save()
+                try:
+                    logger.info('registrar_presenca_visitante_evento presenca_saved trace=%s presenca_pk=%s membro=%s evento=%s', trace_id, presenca.pk, getattr(presenca.membro, 'pk', None), getattr(presenca.evento, 'pk', None))
+                except Exception:
+                    logger.info('registrar_presenca_visitante_evento presenca_saved (could not format ids)')
+                # Sincronizar com ParticipacaoEvento (evento.participacoes)
+                try:
+                    from eventos.models import ParticipacaoEvento, EventoSessao
+                    from django.utils import timezone as _tz
+                    sessao_id = None
+                    try:
+                        sessao_id = int(request.POST.get('sessao')) if request.POST.get('sessao') else None
+                    except Exception:
+                        sessao_id = None
+                    if sessao_id:
+                        parts = ParticipacaoEvento.objects.filter(evento=evento, membro=membro, sessao__pk=sessao_id)
+                    else:
+                        parts = ParticipacaoEvento.objects.filter(evento=evento, membro=membro)
+
+                    if parts.exists():
+                        parts.update(status='PRESENTE', confirmado_em=_tz.now(), justificativa_falta='')
+                    else:
+                        # cria uma participação para a sessão especificada (se houver) ou sessao=NULL
+                        sessao_obj = None
+                        if sessao_id:
+                            try:
+                                sessao_obj = EventoSessao.objects.get(pk=sessao_id, evento=evento)
+                            except Exception:
+                                sessao_obj = None
+                        ParticipacaoEvento.objects.create(evento=evento, membro=membro, sessao=sessao_obj, papel='PARTICIPANTE', status='PRESENTE', confirmado_em=_tz.now())
+                except Exception:
+                    try:
+                        logger.exception('Erro ao sincronizar ParticipacaoEvento após registrar PresencaVisitanteEvento')
+                    except Exception:
+                        pass
                 messages.success(request, f'Presença de "{presenca.membro.nome}" registrada no evento!')
-            return redirect(f'?evento={evento.id}')
+            # Redirect back to the same path with the evento querystring.
+            try:
+                return redirect(request.path + f'?evento={evento.id}')
+            except Exception:
+                # Fallback: use simple redirect to the view name if above fails
+                return redirect('secretaria:registrar_presenca_visitante_evento')
+        else:
+            # Log invalid form for diagnosis
+            try:
+                logger.warning('presenca form invalid: errors=%s; POST keys=%s', dict(form.errors), list(request.POST.keys()))
+            except Exception:
+                try:
+                    logger.warning('presenca form invalid; unable to serialize errors; POST keys=%s', list(request.POST.keys()))
+                except Exception:
+                    pass
+            messages.error(request, 'Erro ao registrar presença: verifique se a pessoa e o evento foram selecionados corretamente.')
     else:
         form = PresencaVisitanteEventoForm(request=request)
         if evento_selecionado:
@@ -86,109 +420,145 @@ def registrar_presenca_visitante_evento(request):
         'evento_selecionado': evento_selecionado,
         'visitantes_presentes': pessoas_presentes,
         'titulo_pagina': 'Registrar Presença no Evento',
+        'filtro_eventos': filtro,
+        'ultimos_n': ultimos_n,
     }
     return render(request, 'secretaria/registrar_presenca_visitante_evento.html', context)
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import get_user_model
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
+
+
+@login_required
+@require_POST
+def ajax_registrar_presenca_evento(request):
+    """Endpoint AJAX para registrar presença de visitante em um evento e retornar JSON para atualizar a lista na página."""
+    try:
+        try:
+            close_old_connections()
+        except Exception:
+            pass
+        # generate a short trace id for this AJAX request to correlate logs/responses
+        try:
+            import uuid
+            trace_id = uuid.uuid4().hex[:8]
+        except Exception:
+            trace_id = 'na'
+        try:
+            logger.info('ajax_registrar_presenca_evento called trace=%s user=%s POST_keys=%s', trace_id, request.user, list(request.POST.keys()))
+        except Exception:
+            pass
+        evento_id = request.POST.get('evento') or request.POST.get('evento_id')
+        membro_id = request.POST.get('membro') or request.POST.get('membro_id')
+        try:
+            logger.debug('ajax_registrar_presenca_evento POST keys: %s', list(request.POST.keys()))
+        except Exception:
+            pass
+        if not evento_id or not membro_id:
+            return JsonResponse({'error': 'Evento ou membro não informado.', 'trace_id': trace_id}, status=400)
+        # Tenta localizar evento e membro
+        try:
+            evento = Evento.objects.get(pk=evento_id)
+        except Evento.DoesNotExist:
+            return JsonResponse({'error': 'Evento não encontrado.', 'trace_id': trace_id}, status=404)
+        # membro_id may be numeric or string. Try numeric lookup first, then fallback to matching 'chave'.
+        membro = None
+        try:
+            membro_numeric = None
+            try:
+                membro_numeric = int(membro_id)
+            except Exception:
+                membro_numeric = None
+
+            if membro_numeric is not None:
+                membro = Membro.objects.filter(models.Q(pk=membro_numeric) | models.Q(chave=membro_numeric)).first()
+            if not membro:
+                membro = Membro.objects.filter(models.Q(pk=membro_id) | models.Q(chave=membro_id)).first()
+        except Exception as e:
+            logger.exception('Erro buscando membro para registrar presença: %s', e)
+            membro = None
+        if not membro:
+            return JsonResponse({'error': f'Membro não encontrado (valor enviado: {membro_id}). Verifique se o cadastro foi persistido e tente novamente.', 'trace_id': trace_id}, status=404)
+        # Verifica duplicidade
+        if PresencaVisitanteEvento.objects.filter(membro=membro, evento=evento).exists():
+            return JsonResponse({'exists': True, 'message': 'Presença já registrada.', 'trace_id': trace_id})
+        presenca = PresencaVisitanteEvento(evento=evento, membro=membro, responsavel_registro=request.user)
+        presenca.save()
+        try:
+            logger.info('Presença salva via AJAX: trace=%s presenca_pk=%s membro_chave=%s evento_id=%s', trace_id, presenca.pk, getattr(membro, 'chave', membro.pk), getattr(evento, 'pk', None))
+        except Exception:
+            try:
+                logger.info('Presença salva via AJAX (could not format identifiers)')
+            except Exception:
+                pass
+        # Também sincroniza com ParticipacaoEvento para que a presença apareça
+        try:
+            from eventos.models import ParticipacaoEvento, EventoSessao
+            from django.utils import timezone as _tz
+            sessao_id = None
+            try:
+                sessao_id = int(request.POST.get('sessao')) if request.POST.get('sessao') else None
+            except Exception:
+                sessao_id = None
+
+            if sessao_id:
+                parts = ParticipacaoEvento.objects.filter(evento=evento, membro=membro, sessao__pk=sessao_id)
+            else:
+                parts = ParticipacaoEvento.objects.filter(evento=evento, membro=membro)
+
+            if parts.exists():
+                parts.update(status='PRESENTE', confirmado_em=_tz.now(), justificativa_falta='')
+                try:
+                    logger.info('ParticipacaoEvento updated via AJAX: evento=%s membro_chave=%s sessao=%s count=%s', evento.pk, getattr(membro, 'chave', membro.pk), sessao_id, parts.count())
+                except Exception:
+                    try:
+                        logger.info('ParticipacaoEvento updated via AJAX (could not format identifiers)')
+                    except Exception:
+                        pass
+            else:
+                sessao_obj = None
+                if sessao_id:
+                    try:
+                        sessao_obj = EventoSessao.objects.get(pk=sessao_id, evento=evento)
+                    except Exception:
+                        sessao_obj = None
+                new_part = ParticipacaoEvento.objects.create(evento=evento, membro=membro, sessao=sessao_obj, papel='PARTICIPANTE', status='PRESENTE', confirmado_em=_tz.now())
+                try:
+                    logger.info('ParticipacaoEvento criado via AJAX: pk=%s evento=%s membro_chave=%s sessao=%s', new_part.pk, evento.pk, getattr(membro, 'chave', membro.pk), getattr(sessao_obj, 'pk', None) if sessao_obj else None)
+                except Exception:
+                    try:
+                        logger.info('ParticipacaoEvento criado via AJAX (could not format identifiers)')
+                    except Exception:
+                        pass
+        except Exception:
+            try:
+                logger.exception('Erro ao sincronizar ParticipacaoEvento após ajax_registrar_presenca_evento')
+            except Exception:
+                pass
+        hora = presenca.data_registro.strftime('%H:%M') if presenca.data_registro else ''
+        presenca_data = {'id': presenca.pk, 'nome': membro.nome, 'apelido': getattr(membro, 'apelido', '') or '', 'hora': hora}
+        try:
+            presenca_html = render_to_string('secretaria/partials/_presenca_list_item.html', {
+                'presenca_id': presenca.pk,
+                'presenca_nome': membro.nome,
+                'presenca_apelido': getattr(membro, 'apelido', '') or '',
+                'presenca_hora': hora
+            }, request=request)
+        except Exception as e:
+            logger.exception('Erro renderizando presenca item: %s', e)
+            presenca_html = ''
+        return JsonResponse({'presenca': presenca_data, 'presenca_html': presenca_html, 'trace_id': trace_id})
+    except Exception as e:
+        logger.exception('Erro ajax_registrar_presenca_evento: %s', e)
+        try:
+            return JsonResponse({'error': str(e), 'trace_id': trace_id}, status=500)
+        except Exception:
+            return JsonResponse({'error': 'Erro interno', 'trace_id': trace_id}, status=500)
+from django.views.decorators.http import require_GET
 from django.db.models import Q
 
-from .models import Visitante, AcompanhamentoVisita, Membro
-from .forms_visitante import VisitanteForm
+from .models import AcompanhamentoVisita, Membro
+
 from .forms_acompanhamento import AcompanhamentoVisitaForm
 from .forms import AssociarUsuarioMembroForm
 
-# --- VIEW: EXCLUIR VISITANTE ---
-@login_required
-def excluir_visitante(request, visitante_id):
-    visitante = get_object_or_404(Visitante, pk=visitante_id)
-    if request.method == 'POST':
-        nome = visitante.nome
-        visitante.delete()
-        messages.success(request, f'Visitante "{nome}" excluído com sucesso!')
-        return redirect('secretaria:lista_visitantes')
-    context = {
-        'visitante': visitante,
-        'titulo_pagina': f'Excluir Visitante: {visitante.nome}',
-    }
-    return render(request, 'secretaria/excluir_visitante.html', context)
-# --- VIEW: EDITAR VISITANTE ---
-@login_required
-def editar_visitante(request, visitante_id):
-    visitante = get_object_or_404(Visitante, pk=visitante_id)
-    if request.method == 'POST':
-        form = VisitanteForm(request.POST, instance=visitante)
-        if form.is_valid():
-            visitante = form.save(commit=False)
-            visitante.responsavel = request.user
-            visitante.save()
-            messages.success(request, f'Visitante "{visitante.nome}" atualizado com sucesso!')
-            return redirect('secretaria:lista_visitantes')
-    else:
-        form = VisitanteForm(instance=visitante)
-    context = {
-        'form': form,
-        'visitante': visitante,
-        'titulo_pagina': f'Editar Visitante: {visitante.nome}',
-    }
-    return render(request, 'secretaria/editar_visitante.html', context)
-
-# --- VIEW: LISTA DE VISITANTES ---
-@login_required
-def lista_visitantes(request):
-    visitantes = Visitante.objects.select_related('igreja', 'responsavel').order_by('-data_primeira_visita', 'nome')
-    query = request.GET.get('q', '').strip()
-    if query:
-        visitantes = visitantes.filter(
-            Q(nome__icontains=query) | Q(telefone__icontains=query) | Q(email__icontains=query)
-        )
-    status = request.GET.get('status')
-    if status:
-        visitantes = visitantes.filter(status_acompanhamento=status)
-    igreja_id = request.GET.get('igreja')
-    if igreja_id:
-        visitantes = visitantes.filter(igreja_id=igreja_id)
-    # Determina igreja_selecionada para o template (compatível com padrão das outras telas)
-    igreja_selecionada = str(igreja_id) if igreja_id else (str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else '0')
-    context = {
-        'visitantes': visitantes,
-        'query': query,
-        'status': status,
-        'igreja_id': igreja_id,
-        'igreja_selecionada': igreja_selecionada,
-        'titulo_pagina': 'Lista de Visitantes',
-    }
-    return render(request, 'secretaria/lista_visitantes.html', context)
-
-# --- VIEW: CADASTRAR VISITANTE ---
-@login_required
-def criar_visitante(request):
-    if request.method == 'POST':
-        form = VisitanteForm(request.POST)
-        if form.is_valid():
-            visitante = form.save(commit=False)
-            visitante.responsavel = request.user
-            # Define a igreja ativa do request
-            if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-                visitante.igreja = request.igreja_ativa
-            # Define a data da primeira visita como hoje
-            from django.utils import timezone
-            visitante.data_primeira_visita = timezone.localdate()
-            visitante.save()
-            messages.success(request, f'Visitante "{visitante.nome}" cadastrado com sucesso!')
-            return redirect('secretaria:lista_visitantes')
-    else:
-        form = VisitanteForm()
-    context = {
-        'form': form,
-        'titulo_pagina': 'Cadastrar Novo Visitante',
-    }
-    return render(request, 'secretaria/criar_visitante.html', context)
-from .forms_acompanhamento import AcompanhamentoVisitaForm
-# View para registrar acompanhamento de visita
-from .models import AcompanhamentoVisita, Membro
-from django.contrib.auth.decorators import login_required
 
 @login_required
 def registrar_acompanhamento_visita(request, membro_id):
@@ -213,14 +583,8 @@ def registrar_acompanhamento_visita(request, membro_id):
         'acompanhamentos': acompanhamentos
     }
     return render(request, 'secretaria/registrar_acompanhamento_visita.html', context)
-# Decorators precisam ser importados antes do uso
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import get_user_model
-from .forms import AssociarUsuarioMembroForm
-# Função de permissão para uso em decorators (deve vir antes do uso)
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+    
+
 
 # --- Associação em massa de membros a usuários ---
 @login_required
@@ -259,21 +623,12 @@ def associar_usuarios_membros(request):
     }
     return render(request, 'secretaria/associar_usuarios_membros.html', context)
 
-# Função de permissão para uso em decorators (deve vir antes do uso)
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
 
-from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
 from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
 from django.db.models.functions import Extract
 from django.utils.crypto import get_random_string
-from django.utils import timezone
 import zipfile
 from django import forms
 
@@ -322,12 +677,6 @@ def gerenciar_ocupantes(request, cargo_id):
     })
 
 
-
-# Função de permissão para uso em decorators (deve vir antes do uso)
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
-
 # Exclusão de cargo
 
 @login_required
@@ -343,16 +692,6 @@ def excluir_cargo(request, cargo_id):
         messages.success(request, 'Cargo excluído com sucesso!')
         return redirect('secretaria:lista_cargos')
     return render(request, 'secretaria/excluir_cargo.html', {'cargo': cargo, 'ocupantes': ocupantes})
-from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
-from django import forms
 # --- STUBS PARA CRIAR E EDITAR CARGO ---
 from django.http import HttpResponse
 
@@ -389,40 +728,6 @@ def editar_cargo(request, cargo_id):
         form = CargoForm(instance=cargo)
     return render(request, 'secretaria/editar_cargo.html', {'form': form, 'cargo': cargo})
 
-# --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
-from django import forms
-
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
-
-# --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
-from django import forms
-
-# --- Função de permissão para uso em decorators ---
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
 
 # --- VIEW: LISTA DE CARGOS ---
 
@@ -443,35 +748,507 @@ def lista_cargos(request):
     context = {'cargos': cargos}
     return render(request, 'secretaria/lista_cargos.html', context)
 # --- LINHA DO TEMPO DOS MEMBROS ---
-from django import forms
 from .models import TimelineEvent
-from django.contrib.auth.decorators import login_required, user_passes_test
 
 
 # Apenas para administradores/pastores (ajuste conforme seu sistema de permissões)
 
 # --- IMPORTS PADRÃO PYTHON ---
 import os
-import logging
 from datetime import date, datetime
 import json
 
 # --- IMPORTS DJANGO ---
-from django import forms
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.decorators.http import require_GET
 from django.http import JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
 
 # --- OUTROS IMPORTS DO PROJETO ---
 from .models import TimelineEvent, Membro, TipoPessoa, StatusPessoa, StatusHistorico
 from .forms import MembroForm, MembroUserManagementForm, StatusHistoricoManualForm
+
+# Helper: instantiate MembroForm safely when some versions of the class do not accept
+# extra kwargs like ministerio/user/allowed_churches/igreja_inicial. This tries
+# the normal instantiation first and on TypeError falls back to removing those
+# kwargs and then applies minimal queryset/initial adjustments expected by views.
+def safe_instantiate_membroform(*args, **kwargs):
+    extras = ('ministerio', 'user', 'allowed_churches', 'igreja_inicial')
+    try:
+        return MembroForm(*args, **kwargs)
+    except TypeError as e:
+        # try remove known extras and instantiate
+        filtered = kwargs.copy()
+        for k in extras:
+            filtered.pop(k, None)
+        try:
+            inst = MembroForm(*args, **filtered)
+        except TypeError:
+            # last-resort: call without kwargs
+            try:
+                inst = MembroForm(*args[:2]) if args else MembroForm()
+            except Exception:
+                inst = MembroForm()
+
+        # apply minimal post-init adjustments expected by views
+        try:
+            ministerio = kwargs.get('ministerio')
+            user = kwargs.get('user')
+            allowed_churches = kwargs.get('allowed_churches')
+            igreja_inicial = kwargs.get('igreja_inicial')
+            if hasattr(inst, 'fields'):
+                if 'igreja' in inst.fields:
+                    try:
+                        if user and not is_admin_org(user) and allowed_churches is not None:
+                            inst.fields['igreja'].queryset = allowed_churches
+                        elif ministerio:
+                            inst.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+                        else:
+                            inst.fields['igreja'].queryset = Igreja.objects.none()
+                    except Exception:
+                        pass
+                    try:
+                        if igreja_inicial and getattr(inst.fields['igreja'].queryset, 'filter', None):
+                            if inst.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
+                                inst.initial.setdefault('igreja', igreja_inicial)
+                                inst.fields['igreja'].disabled = True
+                    except Exception:
+                        pass
+                if 'tipo_pessoa' in inst.fields:
+                    try:
+                        inst.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
+                    except Exception:
+                        pass
+                if 'status_pessoa' in inst.fields:
+                    try:
+                        inst.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return inst
+from django.urls import reverse
+# --- VIEW PARA CADASTRAR VISITANTE (cria membro com tipo_pessoa=Visitante) ---
+@login_required
+def cadastrar_visitante(request):
+    from .models import TipoPessoa
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    igreja_inicial_para_form = None
+    # Busca o tipo_pessoa Visitante
+    try:
+        tipo_visitante = TipoPessoa.objects.get(nome__iexact='Visitante')
+    except TipoPessoa.DoesNotExist:
+        messages.error(request, "Tipo de pessoa 'Visitante' não encontrado. Cadastre o tipo primeiro.")
+        return redirect('secretaria:lista_visitantes')
+
+    if not is_admin_org(request.user) and not allowed_churches.exists():
+        messages.error(request, "Você não tem permissão para adicionar visitantes ou não está associado a nenhuma igreja específica.")
+        return redirect('secretaria:lista_visitantes')
+
+    if request.method == 'POST':
+        form = MembroForm(request.POST, request.FILES,
+                          ministerio=ministerio,
+                          user=request.user,
+                          allowed_churches=allowed_churches,
+                          igreja_inicial=request.igreja_ativa)
+        if form.is_valid():
+            try:
+                visitante = form.save(commit=False)
+                visitante.tipo_pessoa = tipo_visitante
+                # Definir status_pessoa como 'Ativo' automaticamente
+                from .models import StatusPessoa
+                try:
+                    status_ativo = StatusPessoa.objects.get(nome__iexact='Ativo')
+                    visitante.status_pessoa = status_ativo
+                except StatusPessoa.DoesNotExist:
+                    messages.error(request, "Status 'Ativo' não encontrado. Cadastre o status primeiro.")
+                    return redirect('secretaria:lista_visitantes')
+                if not is_admin_org(request.user) and visitante.igreja not in allowed_churches:
+                    messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
+                else:
+                    visitante.save(user=request.user)
+                    messages.success(request, f"Visitante '{visitante.nome}' cadastrado com sucesso!")
+                    # Se a janela foi aberta a partir da recepção, não redirecionamos: retornamos o template com dados do visitante
+                    if request.GET.get('opener') == 'recepcao':
+                        import json
+                        created_visitante = {
+                            'id': visitante.pk,
+                            'chave': getattr(visitante, 'chave', visitante.pk),
+                            'nome': visitante.nome,
+                            'apelido': visitante.apelido
+                        }
+                        context = {
+                            'form': form,
+                            'ministerio': ministerio,
+                            'titulo_pagina': 'Cadastrar Novo Visitante',
+                            'created_visitante_json': json.dumps(created_visitante)
+                        }
+                        return render(request, 'secretaria/criar_visitante.html', context)
+                    return redirect('secretaria:lista_visitantes')
+            except Exception as e:
+                logger.exception(f"Erro ao salvar novo visitante para ministério {ministerio.id}")
+                messages.error(request, f"Ocorreu um erro ao salvar o visitante: {e}")
+        else:
+            messages.error(request, "Erro ao cadastrar visitante. Verifique os campos.")
+    else:
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            igreja_inicial_para_form = request.igreja_ativa
+        elif allowed_churches.count() == 1:
+            igreja_inicial_para_form = allowed_churches.first()
+
+        form = MembroForm(ministerio=ministerio,
+                          user=request.user,
+                          allowed_churches=allowed_churches,
+                          igreja_inicial=igreja_inicial_para_form)
+        # Pré-seleciona o tipo_pessoa como Visitante
+        form.fields['tipo_pessoa'].initial = tipo_visitante.pk
+        form.fields['tipo_pessoa'].widget = forms.HiddenInput()
+
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': 'Cadastrar Novo Visitante'
+    }
+    return render(request, 'secretaria/criar_visitante.html', context)
+
+
+@login_required
+def criar_visitante_parcial(request):
+    """Retorna o formulário parcial do visitante para uso em modal (GET) ou processa criação via AJAX (POST -> JSON)."""
+    try:
+        close_old_connections()
+    except Exception:
+        pass
+    # Debug writes for visitante creation are controlled by Django's settings.DEBUG.
+    # Temporary forcing toggles were removed to avoid writing debug files in production.
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user)
+
+    if request.method == 'POST':
+        # Accept POSTs even if the client did not set the X-Requested-With header.
+        # Some browsers or user actions may submit the form as a regular POST; in that case
+        # we still want to process the creation and return structured JSON instead of
+        # rendering the partial HTML (which causes the browser to navigate to the partial).
+        is_ajax = bool(request.headers.get('x-requested-with') == 'XMLHttpRequest')
+        try:
+            logger.debug('criar_visitante_parcial called via POST; is_ajax=%s; POST keys=%s', is_ajax, list(request.POST.keys()))
+        except Exception:
+            pass
+        # Log incoming POST keys for easier debugging when the client reports missing IDs
+        try:
+            logger.debug('criar_visitante_parcial POST keys (before injection): %s', list(request.POST.keys()))
+        except Exception:
+            pass
+
+        # Ensure the POST contains the required tipo_pessoa (Visitante) and a sensible default status_pessoa
+        try:
+            tipo_visitante = TipoPessoa.objects.get(nome__iexact='Visitante')
+        except TipoPessoa.DoesNotExist:
+            return JsonResponse({'error': "Tipo 'Visitante' não encontrado."}, status=400)
+
+        # Escolher um status padrão (preferir 'Ativo' se existir, senão o primeiro disponível)
+        try:
+            from .models import StatusPessoa
+            default_status = StatusPessoa.objects.filter(nome__iexact='Ativo').first() or StatusPessoa.objects.first()
+        except Exception:
+            default_status = None
+
+        # Copy POST data and inject tipo_pessoa and status_pessoa so form validation passes
+        data = request.POST.copy()
+        data['tipo_pessoa'] = str(tipo_visitante.pk)
+        if default_status:
+            data['status_pessoa'] = str(default_status.pk)
+        # If the POST did not include 'igreja', default to the current active church (server-side safety)
+        try:
+            if (not data.get('igreja') or str(data.get('igreja')).strip() == ''):
+                if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+                    data['igreja'] = str(request.igreja_ativa.pk)
+                elif allowed_churches and getattr(allowed_churches, 'exists', None) and allowed_churches.exists():
+                    # fallback: use the first allowed church
+                    try:
+                        data['igreja'] = str(allowed_churches.first().pk)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        try:
+            logger.debug('criar_visitante_parcial POST keys (after injection): %s', list(data.keys()))
+        except Exception:
+            pass
+
+        # For visitante creation, some choice fields in MembroForm are required but
+        # the modal/client typically sends a minimal payload. Inject sensible
+        # defaults for those required choice fields so validation passes.
+        try:
+            # genero choices: ('M','F') - default to 'M'
+            if not data.get('genero'):
+                data['genero'] = 'M'
+            # estado_civil choices include 'Solteiro' - default to 'Solteiro'
+            if not data.get('estado_civil'):
+                data['estado_civil'] = 'Solteiro'
+            # escolaridade: choose a safe default matching choices in forms
+            if not data.get('escolaridade'):
+                data['escolaridade'] = 'Sem Escolaridade'
+        except Exception:
+            pass
+
+        try:
+            form = MembroForm(data, request.FILES,
+                              ministerio=ministerio,
+                              user=request.user,
+                              allowed_churches=allowed_churches,
+                              igreja_inicial=request.igreja_ativa)
+        except Exception as e:
+            # Write an ephemeral debug entry and return structured JSON so the client
+            # does not receive a full HTML error page (which causes navigation).
+            try:
+                # Log sanitized payload via logger instead of writing ad-hoc files.
+                payload = {k: request.POST.getlist(k) for k in request.POST.keys()}
+                # sanitize: remove long values and potential sensitive keys
+                SENSITIVE_KEYS = {'senha', 'password', 'ssn', 'cpf', 'rg'}
+                def _sanitize(v):
+                    try:
+                        if isinstance(v, list):
+                            return [str(x)[:200] for x in v]
+                        return str(v)[:200]
+                    except Exception:
+                        return '[unserializable]'
+                sanitized = {k: _sanitize(v) for k, v in payload.items() if k.lower() not in SENSITIVE_KEYS}
+                logger.debug('visitante create - form_init_error - user=%s exception=%s post=%s', request.user, e, sanitized)
+            except Exception:
+                logger.debug('visitante create - failed to log form_init_error', exc_info=True)
+
+            logger.exception('Erro ao instanciar MembroForm na criar_visitante_parcial: %s', e)
+            return JsonResponse({'error': 'Erro interno ao preparar o formulário. Verifique os logs.'}, status=500)
+
+        if form.is_valid():
+            visitante = form.save(commit=False)
+            visitante.tipo_pessoa = tipo_visitante
+            if default_status and not visitante.status_pessoa:
+                visitante.status_pessoa = default_status
+            try:
+                visitante.save(user=request.user)
+            except Exception as e:
+                logger.exception('Erro ao salvar visitante via AJAX: %s', e)
+                # Ephemeral debug via logger with sanitized payload
+                try:
+                    import json as _json
+                    payload = {k: request.POST.getlist(k) for k in request.POST.keys()}
+                    SENSITIVE_KEYS = {'senha', 'password', 'ssn', 'cpf', 'rg'}
+                    def _sanitize(v):
+                        try:
+                            if isinstance(v, list):
+                                return [str(x)[:200] for x in v]
+                            return str(v)[:200]
+                        except Exception:
+                            return '[unserializable]'
+                    sanitized = {k: _sanitize(v) for k, v in payload.items() if k.lower() not in SENSITIVE_KEYS}
+                    logger.debug('visitante create - save_error - user=%s exception=%s post=%s', request.user, e, sanitized)
+                except Exception:
+                    logger.debug('visitante create - failed to log save_error', exc_info=True)
+                return JsonResponse({'error': str(e)}, status=500)
+            # Provide both numeric and string forms to avoid client-side ambiguity
+            created = {
+                'id': visitante.pk,
+                'chave': getattr(visitante, 'chave', visitante.pk),
+                'id_str': str(getattr(visitante, 'pk', '')),
+                'chave_str': str(getattr(visitante, 'chave', getattr(visitante, 'pk', ''))),
+                'nome': visitante.nome,
+                'apelido': visitante.apelido or ''
+            }
+            # Verifica persistência no banco
+            try:
+                persisted = Membro.objects.filter(pk=visitante.pk).exists()
+            except Exception as e:
+                persisted = False
+                logger.exception('Erro verificando persistência do visitante: %s', e)
+            logger.info('Visitante criado via AJAX: %s (id=%s) persisted=%s', visitante.nome, visitante.pk, persisted)
+            # If the client requested automatic presence registration, attempt to create it
+            auto_submit_flag = (data.get('auto_submit_presenca') or request.POST.get('auto_submit_presenca') or request.GET.get('auto_submit_presenca'))
+            evento_id_for_auto = (data.get('evento') or request.POST.get('evento') or request.GET.get('evento'))
+
+            presenca_payload = None
+            presenca_html = ''
+            if auto_submit_flag and evento_id_for_auto:
+                try:
+                    # reuse logic similar to ajax_registrar_presenca_evento to create presence
+                    from .models import PresencaVisitanteEvento
+                    from eventos.models import ParticipacaoEvento, EventoSessao, Evento
+                    from django.utils import timezone as _tz
+
+                    evento_obj = Evento.objects.get(pk=evento_id_for_auto)
+                    presenca_obj = PresencaVisitanteEvento(evento=evento_obj, membro=visitante, responsavel_registro=request.user)
+                    presenca_obj.save()
+
+                    # sync ParticipacaoEvento
+                    sessao_id = None
+                    try:
+                        sessao_val = data.get('sessao') or request.POST.get('sessao') or request.GET.get('sessao')
+                        sessao_id = int(sessao_val) if sessao_val else None
+                    except Exception:
+                        sessao_id = None
+
+                    if sessao_id:
+                        parts = ParticipacaoEvento.objects.filter(evento=evento_obj, membro=visitante, sessao__pk=sessao_id)
+                    else:
+                        parts = ParticipacaoEvento.objects.filter(evento=evento_obj, membro=visitante)
+
+                    if parts.exists():
+                        parts.update(status='PRESENTE', confirmado_em=_tz.now(), justificativa_falta='')
+                    else:
+                        sessao_obj = None
+                        if sessao_id:
+                            try:
+                                sessao_obj = EventoSessao.objects.get(pk=sessao_id, evento=evento_obj)
+                            except Exception:
+                                sessao_obj = None
+                        ParticipacaoEvento.objects.create(evento=evento_obj, membro=visitante, sessao=sessao_obj, papel='PARTICIPANTE', status='PRESENTE', confirmado_em=_tz.now())
+
+                    hora = presenca_obj.data_registro.strftime('%H:%M') if getattr(presenca_obj, 'data_registro', None) else ''
+                    presenca_payload = {
+                        'id': presenca_obj.pk,
+                        'nome': visitante.nome,
+                        'apelido': getattr(visitante, 'apelido', '') or '',
+                        'hora': hora
+                    }
+
+                    try:
+                        presenca_html = render_to_string('secretaria/partials/_presenca_list_item.html', {
+                            'presenca_id': presenca_obj.pk,
+                            'presenca_nome': visitante.nome,
+                            'presenca_apelido': getattr(visitante, 'apelido', '') or '',
+                            'presenca_hora': hora
+                        }, request=request)
+                    except Exception:
+                        presenca_html = ''
+                except Exception:
+                    # Log but don't fail the visitor creation when presence creation fails
+                    logger.exception('Erro criando presença automaticamente após criar visitante via AJAX')
+
+            resp = {'visitante': created, 'saved': True, 'found_in_db': bool(persisted)}
+            if presenca_payload:
+                resp.update({'presenca': presenca_payload, 'presenca_html': presenca_html})
+            return JsonResponse(resp)
+        else:
+            # Retorna erros do form para o cliente renderizar
+            errors = {k: [str(e) for e in v] for k, v in form.errors.items()}
+            # Renderiza o partial com erros para facilitar exibição no modal
+            try:
+                errors_html = render_to_string('secretaria/partials/_visitante_form.html', {'form': form, 'ministerio': ministerio}, request=request)
+            except Exception:
+                errors_html = ''
+            # Também logar os dados recebidos para diagnóstico e escrever debug, se em DEBUG
+            try:
+                logger.warning('Form inválido ao criar visitante via AJAX: %s; POST keys: %s', errors, list(request.POST.keys()))
+            except Exception:
+                logger.warning('Form inválido ao criar visitante via AJAX: %s', errors)
+            try:
+                try:
+                    import json as _json
+                    payload = {k: request.POST.getlist(k) for k in request.POST.keys()}
+                    SENSITIVE_KEYS = {'senha', 'password', 'ssn', 'cpf', 'rg'}
+                    def _sanitize(v):
+                        try:
+                            if isinstance(v, list):
+                                return [str(x)[:200] for x in v]
+                            return str(v)[:200]
+                        except Exception:
+                            return '[unserializable]'
+                    sanitized = {k: _sanitize(v) for k, v in payload.items() if k.lower() not in SENSITIVE_KEYS}
+                    logger.debug('visitante create - validation_failed - user=%s post=%s errors=%s', request.user, sanitized, errors)
+                except Exception:
+                    logger.debug('visitante create - failed to log validation_failed', exc_info=True)
+            except Exception:
+                pass
+            return JsonResponse({'errors': errors, 'errors_html': errors_html}, status=400)
+
+    # GET -> render partial
+    # Determine igreja inicial for the form: prefer request.igreja_ativa, else fall back to the first allowed church (if any)
+    try:
+        igreja_inicial_for_form = request.igreja_ativa if hasattr(request, 'igreja_ativa') and request.igreja_ativa else (allowed_churches.first() if allowed_churches and getattr(allowed_churches, 'exists', None) and allowed_churches.exists() else None)
+    except Exception:
+        igreja_inicial_for_form = None
+
+    # Prefer server-side prefill: if ?q= is present, pass it as initial for the 'nome' field
+    q = request.GET.get('q')
+    form_init_kwargs = {'ministerio': ministerio, 'user': request.user, 'allowed_churches': allowed_churches, 'igreja_inicial': igreja_inicial_for_form}
+    if q:
+        # pass initial so the ModelForm renders the value directly into the widget
+        form_init_kwargs['initial'] = {'nome': q}
+    try:
+        form = MembroForm(**form_init_kwargs)
+    except Exception as e:
+        try:
+            logger.debug('visitante create - form_init_get_error - user=%s exception=%s', request.user, e)
+        except Exception:
+            logger.debug('visitante create - failed to log form_init_get_error', exc_info=True)
+
+        logger.exception('Erro ao instanciar MembroForm (GET) na criar_visitante_parcial: %s', e)
+        # Fallback: try to instantiate with safest available defaults, then last-resort bare form
+        try:
+            form = MembroForm(ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial_for_form)
+        except Exception:
+            try:
+                form = MembroForm(ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
+            except Exception:
+                # Last-resort fallback: instantiate with the minimal sensible context
+                # so that ModelChoiceFields (tipo/status/igreja) have their querysets populated
+                try:
+                    form = MembroForm(ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
+                except Exception:
+                    # If even that fails, fall back to a bare form to avoid raising further
+                    form = MembroForm()
+    q = request.GET.get('q')
+    if q:
+        # prefill the 'nome' field with the query if provided
+        try:
+            form.initial['nome'] = q
+            if 'nome' in form.fields:
+                form.fields['nome'].initial = q
+        except Exception:
+            pass
+
+    # Ensure the partial knows which tipo/status will be applied so we can render hidden inputs
+    try:
+        tipo_visitante = TipoPessoa.objects.get(nome__iexact='Visitante')
+    except TipoPessoa.DoesNotExist:
+        tipo_visitante = None
+    try:
+        default_status = StatusPessoa.objects.filter(nome__iexact='Ativo').first() or StatusPessoa.objects.first()
+    except Exception:
+        default_status = None
+    # Ensure the form's igreja queryset includes the active church so the select shows the correct value
+    try:
+        if hasattr(request, 'igreja_ativa') and request.igreja_ativa and 'igreja' in form.fields:
+            igreja_field_qs = form.fields['igreja'].queryset
+            try:
+                if not igreja_field_qs.filter(pk=request.igreja_ativa.pk).exists():
+                    from configuracao.models import Igreja as _Igreja
+                    # prepend the active church to the queryset so it appears in the select
+                    form.fields['igreja'].queryset = _Igreja.objects.filter(pk=request.igreja_ativa.pk) | igreja_field_qs
+            except Exception:
+                # fallback: set queryset to include at least the active church
+                try:
+                    from configuracao.models import Igreja as _Igreja
+                    form.fields['igreja'].queryset = _Igreja.objects.filter(pk=request.igreja_ativa.pk)
+                except Exception:
+                    pass
+            # set initial if not already set
+            try:
+                if not form.initial.get('igreja'):
+                    form.initial['igreja'] = request.igreja_ativa
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    return render(request, 'secretaria/partials/_visitante_form.html', {
+        'form': form,
+        'ministerio': ministerio,
+        'tipo_visitante_id': tipo_visitante.pk if tipo_visitante else '',
+        'default_status_id': default_status.pk if default_status else '',
+        'igreja_inicial_id': (igreja_inicial_for_form.pk if igreja_inicial_for_form else ''),
+        'igreja_inicial_name': (getattr(igreja_inicial_for_form, 'nome_igreja', str(igreja_inicial_for_form)) if igreja_inicial_for_form else '')
+    })
 from core.utils import get_ministerio_or_error
 from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_view_permission, has_membro_edit_permission
 from core.decorators import check_permission
@@ -479,50 +1256,195 @@ from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
 
 # --- Função de permissão para uso em decorators ---
 
-# --- Função de permissão para uso em decorators ---
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
 
-# Formulário de filtro para a linha do tempo
-class TimelineFilterForm(forms.Form):
-    tipo_evento = forms.MultipleChoiceField(
-        choices=TimelineEvent.TIPO_EVENTO_CHOICES,
-        required=False,
-        widget=forms.CheckboxSelectMultiple,
-        label="Tipos de Evento"
-    )
-    data_inicio = forms.DateField(required=False, label="Data inicial", widget=forms.DateInput(attrs={"type": "date"}))
-    data_fim = forms.DateField(required=False, label="Data final", widget=forms.DateInput(attrs={"type": "date"}))
+@login_required
+@require_GET
+def ajax_get_presencas_evento(request):
+    """Retorna fragmento HTML com as presenças do evento (para atualização parcial)."""
+    try:
+        close_old_connections()
+    except Exception:
+        pass
+    evento_id = request.GET.get('evento')
+    if not evento_id:
+        return JsonResponse({'error': 'evento não informado.'}, status=400)
+    try:
+        evento = Evento.objects.get(pk=evento_id)
+    except Evento.DoesNotExist:
+        return JsonResponse({'error': 'evento não encontrado.'}, status=404)
+    presencas = PresencaVisitanteEvento.objects.filter(evento=evento).select_related('membro').order_by('-data_registro')
+    try:
+        html = render_to_string('secretaria/partials/_presencas_list.html', {'presencas': presencas}, request=request)
+    except Exception as e:
+        logger.exception('Erro renderizando partial de presenças: %s', e)
+        return JsonResponse({'error': str(e)}, status=500)
+    # Retorna o fragmento HTML pronto para injeção via AJAX
+    return JsonResponse({'html': html})
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def linha_do_tempo(request):
-    eventos = TimelineEvent.objects.select_related('membro').all()
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        eventos = eventos.filter(membro__igreja=request.igreja_ativa)
-    form = TimelineFilterForm(request.GET or None)
+    from collections import OrderedDict, defaultdict
+    import json
+    from itertools import zip_longest
+    from .models import TimelineEvent, StatusHistorico
+    # from .forms import TimelineFilterForm  # Removed: defined locally below
+    TIPO_COLORS = {
+        'membro': 'bg-primary',
+        'visitante': 'bg-info',
+        'obreiro': 'bg-success',
+        'congregado': 'bg-warning',
+        'novo convertido': 'bg-secondary',
+    }
+    STATUS_COLORS = {
+        'ativo': 'bg-success',
+        'inativo': 'bg-secondary',
+        'em disciplina': 'bg-warning',
+        'desligado': 'bg-danger',
+        'transferido': 'bg-info',
+        'falecido': 'bg-dark',
+    }
+    # Minimal local TimelineFilterForm to avoid importing the full forms module here.
+    # This mirrors the expected cleaned_data keys used below: tipo_evento, data_inicio, data_fim,
+    # tipo_pessoa_novo, status_pessoa_novo. If you have a canonical form in .forms, it can replace this.
+    from django import forms as _forms
+    class TimelineFilterForm(_forms.Form):
+        tipo_evento = _forms.MultipleChoiceField(required=False, choices=getattr(TimelineEvent, 'TIPO_EVENTO_CHOICES', []))
+        data_inicio = _forms.DateField(required=False)
+        data_fim = _forms.DateField(required=False)
+        tipo_pessoa_novo = _forms.ModelMultipleChoiceField(required=False, queryset=TipoPessoa.objects.all())
+        status_pessoa_novo = _forms.ModelMultipleChoiceField(required=False, queryset=StatusPessoa.objects.all())
 
+    form = TimelineFilterForm(request.GET or None)
+    eventos_timeline = []
+    # 1. Eventos de entrada (TimelineEvent)
+    eventos_entrada_qs = TimelineEvent.objects.select_related('membro')
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        eventos_entrada_qs = eventos_entrada_qs.filter(membro__igreja=request.igreja_ativa)
+    eventos_entrada_qs = eventos_entrada_qs.filter(tipo_evento='entrada')
+    tipos = []
+    data_inicio = None
+    data_fim = None
+    tipos_pessoa_novo = None
+    status_pessoa_novo = None
     if form.is_valid():
-        tipos = form.cleaned_data.get('tipo_evento')
+        tipos = form.cleaned_data.get('tipo_evento') or []
         data_inicio = form.cleaned_data.get('data_inicio')
         data_fim = form.cleaned_data.get('data_fim')
-        if tipos:
-            eventos = eventos.filter(tipo_evento__in=tipos)
+        tipos_pessoa_novo = form.cleaned_data.get('tipo_pessoa_novo')
+        status_pessoa_novo = form.cleaned_data.get('status_pessoa_novo')
+    if not request.GET or not any(k.startswith('tipo_evento') for k in request.GET.keys()):
+        tipos = [c[0] for c in TimelineEvent.TIPO_EVENTO_CHOICES]
+    if tipos and 'entrada' in tipos:
         if data_inicio:
-            eventos = eventos.filter(data__date__gte=data_inicio)
+            eventos_entrada_qs = eventos_entrada_qs.filter(data__date__gte=data_inicio)
         if data_fim:
-            eventos = eventos.filter(data__date__lte=data_fim)
+            eventos_entrada_qs = eventos_entrada_qs.filter(data__date__lte=data_fim)
+        for evento in eventos_entrada_qs:
+            nomes = evento.membro.nome.split() if evento.membro and evento.membro.nome else []
+            evento.nome_abreviado = ' '.join(nomes[:3]) if len(nomes) >= 3 else ' '.join(nomes) if len(nomes) >= 1 else '(Sem nome)'
+            evento.tipo_evento_origem = 'entrada'
+            evento.novo_valor = 'Entrada'
+            evento.valor_anterior = ''
+            evento.badge_tipo_class = TIPO_COLORS.get('membro', 'bg-primary')
+            evento.data_evento = evento.data
+            evento.data = evento.data
+            eventos_timeline.append(evento)
+    # 2. Eventos de transição real (StatusHistorico)
+    transicoes_qs = StatusHistorico.objects.select_related('membro', 'tipo_pessoa_anterior', 'tipo_pessoa_novo', 'status_pessoa_anterior', 'status_pessoa_novo')
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        transicoes_qs = transicoes_qs.filter(membro__igreja=request.igreja_ativa)
+    if data_inicio:
+        transicoes_qs = transicoes_qs.filter(data_transicao__date__gte=data_inicio)
+    if data_fim:
+        transicoes_qs = transicoes_qs.filter(data_transicao__date__lte=data_fim)
+    # Determine which transition types were requested in the filter (fall back to tipos)
+    tipos_transicao = tipos or []
+    # Iterate over status history transitions and add timeline events for tipo/status changes
+    for t in transicoes_qs:
+        nome_abreviado = '(Sem nome)'
+        try:
+            if t.membro and getattr(t.membro, 'nome', None):
+                nomes = t.membro.nome.split()
+                nome_abreviado = ' '.join(nomes[:3]) if len(nomes) >= 3 else ' '.join(nomes) if len(nomes) >= 1 else '(Sem nome)'
+        except Exception:
+            nome_abreviado = '(Sem nome)'
 
-    eventos = eventos.order_by('-data')
+        # Mudança de tipo
+        if 'tipo' in tipos_transicao and t.tipo_pessoa_anterior != t.tipo_pessoa_novo:
+            if not tipos_pessoa_novo or t.tipo_pessoa_novo in tipos_pessoa_novo:
+                evento = type('EventoTimeline', (), {})()
+                evento.nome_abreviado = nome_abreviado
+                evento.tipo_evento = 'mudanca_tipo'
+                evento.novo_valor = t.tipo_pessoa_novo.nome if t.tipo_pessoa_novo else ''
+                evento.valor_anterior = t.tipo_pessoa_anterior.nome if t.tipo_pessoa_anterior else ''
+                evento.badge_tipo_class = TIPO_COLORS.get((getattr(t.tipo_pessoa_novo, 'nome', '') or '').strip().lower(), 'bg-secondary')
+                evento.data_evento = t.data_transicao
+                evento.data = t.data_transicao
+                evento.membro = t.membro
+                evento.origem_statushistorico = True
+                evento.get_tipo_evento_display = lambda: "Mudança de Tipo"
+                eventos_timeline.append(evento)
+
+        # Mudança de status
+        if 'status' in tipos_transicao and t.status_pessoa_anterior != t.status_pessoa_novo:
+            if not status_pessoa_novo or t.status_pessoa_novo in status_pessoa_novo:
+                evento = type('EventoTimeline', (), {})()
+                evento.nome_abreviado = nome_abreviado
+                evento.tipo_evento = 'mudanca_status'
+                evento.novo_valor = t.status_pessoa_novo.nome if t.status_pessoa_novo else ''
+                evento.valor_anterior = t.status_pessoa_anterior.nome if t.status_pessoa_anterior else ''
+                evento.badge_status_class = STATUS_COLORS.get((getattr(t.status_pessoa_novo, 'nome', '') or '').strip().lower(), 'bg-warning')
+                evento.data_evento = t.data_transicao
+                evento.data = t.data_transicao
+                evento.membro = t.membro
+                evento.origem_statushistorico = True
+                evento.get_tipo_evento_display = lambda: "Mudança de Status"
+                eventos_timeline.append(evento)
+    # Agrupa por data e em pares para alternância visual
+    eventos_timeline = sorted(eventos_timeline, key=lambda e: e.data_evento, reverse=True)
+    eventos_por_data = OrderedDict()
+    eventos_por_data_tmp = OrderedDict()
+    for evento in eventos_timeline:
+        data_str = evento.data_evento.strftime('%Y-%m-%d')
+        if data_str not in eventos_por_data_tmp:
+            eventos_por_data_tmp[data_str] = []
+        eventos_por_data_tmp[data_str].append(evento)
+    from itertools import zip_longest
+    for data_str, eventos in eventos_por_data_tmp.items():
+        pares = [list(filter(None, par)) for par in zip_longest(*(iter(eventos),) * 2)]
+        for par in pares:
+            eventos_por_data.setdefault(data_str, []).append(par)
+    # Dados para gráfico (opcional)
+    eventos_por_mes_tipo = defaultdict(lambda: defaultdict(int))
+    for evento in eventos_timeline:
+        mes = evento.data.strftime('%Y-%m')
+        eventos_por_mes_tipo[mes][evento.get_tipo_evento_display()] += 1
+    meses = sorted(eventos_por_mes_tipo.keys())
+    tipos_set = set()
+    for tipo_dict in eventos_por_mes_tipo.values():
+        tipos_set.update(tipo_dict.keys())
+    tipos_list = sorted(tipos_set)
+    chart_labels = meses
+    chart_datasets = []
+    for tipo in tipos_list:
+        data = [eventos_por_mes_tipo[mes].get(tipo, 0) for mes in meses]
+        chart_datasets.append({
+            'label': tipo,
+            'data': data,
+        })
+    chart_data = {
+        'labels': chart_labels,
+        'datasets': chart_datasets,
+    }
     context = {
-        'eventos': eventos,
+        'eventos_por_data': eventos_por_data,
         'form': form,
+        'chart_data_json': json.dumps(chart_data),
+        'mostrar_anterior': request.GET.get('mostrar_anterior'),
     }
     return render(request, 'secretaria/linha_do_tempo.html', context)
 
-from django.views.decorators.http import require_GET
-from django.http import JsonResponse
 
 @require_GET
 def autocomplete_nome_membro(request):
@@ -533,29 +1455,11 @@ def autocomplete_nome_membro(request):
         membros = Membro.objects.filter(nome__icontains=termo)[:20]
         results = [{'id': m.id, 'nome': m.nome} for m in membros]
     return JsonResponse({'results': results})
-from datetime import date, datetime
-import os
 import shutil
-from django.conf import settings
-from django.http import JsonResponse
 # c:\Gereigreja\secretaria\views.py
 
-from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
-from .forms import MembroForm, MembroUserManagementForm, StatusHistoricoManualForm
-from core.utils import get_ministerio_or_error
-from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_view_permission, has_membro_edit_permission
-from core.decorators import check_permission
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-import json
-import logging
 
 
 
@@ -571,7 +1475,7 @@ def index(request):
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
-    allowed_churches_secretaria = get_allowed_churches_for_membros(request.user)
+    allowed_churches_secretaria = get_allowed_churches_for_membros(request.user, ministerio)
     titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
     membros_para_relatorios = Membro.objects.none()
 
@@ -1690,16 +2594,12 @@ def portal_membro(request):
 
 
 # ...existing code...
-from django.db.models.functions import Extract
-from django.urls import reverse
 from financeiro.models import Receitas
 from django.db import transaction
-from django.contrib.auth import get_user_model
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 # --- NOVA VIEW: RELATÓRIO DE REUNIÃO DE MEMBROS ---
-from django.utils import timezone
 @login_required
 def relatorio_reuniao_membros(request):
     """

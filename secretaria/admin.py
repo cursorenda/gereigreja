@@ -59,15 +59,6 @@ class StatusHistoricoAdmin(admin.ModelAdmin):
     ordering = ('-data_transicao',)
 
 
-# --- Admin para Visitante ---
-from .models import Visitante
-
-@admin.register(Visitante)
-class VisitanteAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'igreja', 'data_primeira_visita', 'status_acompanhamento', 'responsavel')
-    list_filter = ('igreja', 'status_acompanhamento', 'responsavel')
-    search_fields = ('nome', 'telefone', 'email', 'origem')
-    ordering = ('-data_primeira_visita', 'nome')
 
 # Admin para o novo modelo Cargo
 @admin.register(Cargo)

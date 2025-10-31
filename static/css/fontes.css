@@ -1,3 +1,20 @@
+.font-size-normal .form-control.bg-light,
+.font-size-medium .form-control.bg-light,
+.font-size-large .form-control.bg-light,
+.font-size-xlarge .form-control.bg-light {
+  font-size: unset !important;
+}
+.font-size-inherit {
+  font-size: inherit !important;
+}
+.font-size-normal .form-control, .font-size-medium .form-control, .font-size-large .form-control, .font-size-xlarge .form-control {
+  font-size: inherit !important;
+}
+.font-size-normal select, .font-size-medium select, .font-size-large select, .font-size-xlarge select,
+.font-size-normal input, .font-size-medium input, .font-size-large input, .font-size-xlarge input,
+.font-size-normal .form-select, .font-size-medium .form-select, .font-size-large .form-select, .font-size-xlarge .form-select {
+  font-size: inherit !important;
+}
 .font-size-xlarge h1 { font-size: 2.5rem !important; }
 .font-size-large h1 { font-size: 2.1rem !important; }
 .font-size-medium h1 { font-size: 1.7rem !important; }
