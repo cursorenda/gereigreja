@@ -1,7 +1,28 @@
-from django.views.decorators.http import require_GET
-from django.http import JsonResponse
-from django.shortcuts import render
-from django.db.models import Q
+import logging
+from datetime import date, datetime, timedelta
+import os, shutil, json
+
+from django.views.decorators.http import require_GET, require_POST
+from django.http import JsonResponse, HttpResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Q, Count, Sum, Case, When, Value, BooleanField
+from django.conf import settings
+from django.db import models, close_old_connections
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
+
+def is_admin_or_pastor(user):
+    """Permissão: é superuser ou pertence a grupos administrativos/pastorais."""
+    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    try:
+        return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+    except Exception:
+        return False
 
 # --- AUTOCOMPLETE DE NOMES DE MEMBROS/VISITANTES ---
 @require_GET
@@ -20,7 +41,6 @@ def autocomplete_nome(request):
             })
     return JsonResponse({'results': results})
 # --- LISTA DE VISITANTES (usando membros com tipo_pessoa=Visitante) ---
-from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from .models import Membro, TipoPessoa
 @login_required
@@ -72,7 +92,6 @@ def lista_visitantes(request):
 from django.http import JsonResponse
 from django.db import models
 from django.db import close_old_connections
-from django.conf import settings
 # --- VIEW AJAX: BUSCAR VISITANTES POR NOME OU APELIDO ---
 def buscar_visitantes(request):
     termo = request.GET.get('q', '').strip()
@@ -215,14 +234,12 @@ def buscar_visitantes(request):
     except Exception:
         pass
     return JsonResponse(visitantes, safe=False)
-    return JsonResponse(list(visitantes), safe=False)
 from .forms_presenca_visitante_evento import PresencaVisitanteEventoForm
 from eventos.models import Evento
 from .models import PresencaVisitanteEvento
 from django.utils import timezone
 
 # --- VIEW: REGISTRAR PRESENÇA DE VISITANTE EM EVENTO ---
-from django.contrib.auth.decorators import login_required
 @login_required
 def registrar_presenca_visitante_evento(request):
     # Garantir conexões ativas/recém-abertas (mitiga 'connection already closed')
@@ -534,12 +551,7 @@ def ajax_registrar_presenca_evento(request):
             return JsonResponse({'error': str(e), 'trace_id': trace_id}, status=500)
         except Exception:
             return JsonResponse({'error': 'Erro interno', 'trace_id': trace_id}, status=500)
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import get_user_model
-from django.shortcuts import render, redirect, get_object_or_404
-from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET
-from django.contrib import messages
 from django.db.models import Q
 
 from .models import AcompanhamentoVisita, Membro
@@ -547,11 +559,6 @@ from .models import AcompanhamentoVisita, Membro
 from .forms_acompanhamento import AcompanhamentoVisitaForm
 from .forms import AssociarUsuarioMembroForm
 
-
-from .forms_acompanhamento import AcompanhamentoVisitaForm
-# View para registrar acompanhamento de visita
-from .models import AcompanhamentoVisita, Membro
-from django.contrib.auth.decorators import login_required
 
 @login_required
 def registrar_acompanhamento_visita(request, membro_id):
@@ -576,14 +583,8 @@ def registrar_acompanhamento_visita(request, membro_id):
         'acompanhamentos': acompanhamentos
     }
     return render(request, 'secretaria/registrar_acompanhamento_visita.html', context)
-# Decorators precisam ser importados antes do uso
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import get_user_model
-from .forms import AssociarUsuarioMembroForm
-# Função de permissão para uso em decorators (deve vir antes do uso)
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+    
+
 
 # --- Associação em massa de membros a usuários ---
 @login_required
@@ -622,21 +623,12 @@ def associar_usuarios_membros(request):
     }
     return render(request, 'secretaria/associar_usuarios_membros.html', context)
 
-# Função de permissão para uso em decorators (deve vir antes do uso)
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
 
-from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
 from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
 from django.db.models.functions import Extract
 from django.utils.crypto import get_random_string
-from django.utils import timezone
 import zipfile
 from django import forms
 
@@ -685,12 +677,6 @@ def gerenciar_ocupantes(request, cargo_id):
     })
 
 
-
-# Função de permissão para uso em decorators (deve vir antes do uso)
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
-
 # Exclusão de cargo
 
 @login_required
@@ -706,16 +692,6 @@ def excluir_cargo(request, cargo_id):
         messages.success(request, 'Cargo excluído com sucesso!')
         return redirect('secretaria:lista_cargos')
     return render(request, 'secretaria/excluir_cargo.html', {'cargo': cargo, 'ocupantes': ocupantes})
-from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
-from django import forms
 # --- STUBS PARA CRIAR E EDITAR CARGO ---
 from django.http import HttpResponse
 
@@ -752,40 +728,6 @@ def editar_cargo(request, cargo_id):
         form = CargoForm(instance=cargo)
     return render(request, 'secretaria/editar_cargo.html', {'form': form, 'cargo': cargo})
 
-# --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
-from django import forms
-
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
-
-# --- IMPORTS DJANGO (antes de qualquer uso de decorador) ---
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import HttpResponse, JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.views.decorators.http import require_GET
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
-from django import forms
-
-# --- Função de permissão para uso em decorators ---
-def is_admin_or_pastor(user):
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
-    return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
 
 # --- VIEW: LISTA DE CARGOS ---
 
@@ -806,31 +748,18 @@ def lista_cargos(request):
     context = {'cargos': cargos}
     return render(request, 'secretaria/lista_cargos.html', context)
 # --- LINHA DO TEMPO DOS MEMBROS ---
-from django import forms
 from .models import TimelineEvent
-from django.contrib.auth.decorators import login_required, user_passes_test
 
 
 # Apenas para administradores/pastores (ajuste conforme seu sistema de permissões)
 
 # --- IMPORTS PADRÃO PYTHON ---
 import os
-import logging
 from datetime import date, datetime
 import json
 
 # --- IMPORTS DJANGO ---
-from django import forms
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.decorators.http import require_GET
 from django.http import JsonResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-from django.utils import timezone
 
 # --- OUTROS IMPORTS DO PROJETO ---
 from .models import TimelineEvent, Membro, TipoPessoa, StatusPessoa, StatusHistorico
@@ -897,7 +826,6 @@ def safe_instantiate_membroform(*args, **kwargs):
         return inst
 from django.urls import reverse
 # --- VIEW PARA CADASTRAR VISITANTE (cria membro com tipo_pessoa=Visitante) ---
-from django.contrib.auth.decorators import login_required
 @login_required
 def cadastrar_visitante(request):
     from .models import TipoPessoa
@@ -1517,8 +1445,6 @@ def linha_do_tempo(request):
     }
     return render(request, 'secretaria/linha_do_tempo.html', context)
 
-from django.views.decorators.http import require_GET
-from django.http import JsonResponse
 
 @require_GET
 def autocomplete_nome_membro(request):
@@ -1529,29 +1455,11 @@ def autocomplete_nome_membro(request):
         membros = Membro.objects.filter(nome__icontains=termo)[:20]
         results = [{'id': m.id, 'nome': m.nome} for m in membros]
     return JsonResponse({'results': results})
-from datetime import date, datetime
-import os
 import shutil
-from django.conf import settings
-from django.http import JsonResponse
 # c:\Gereigreja\secretaria\views.py
 
-from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
-from .forms import MembroForm, MembroUserManagementForm, StatusHistoricoManualForm
-from core.utils import get_ministerio_or_error
-from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_view_permission, has_membro_edit_permission
-from core.decorators import check_permission
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-import json
-import logging
 
 
 
@@ -2686,16 +2594,12 @@ def portal_membro(request):
 
 
 # ...existing code...
-from django.db.models.functions import Extract
-from django.urls import reverse
 from financeiro.models import Receitas
 from django.db import transaction
-from django.contrib.auth import get_user_model
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 # --- NOVA VIEW: RELATÓRIO DE REUNIÃO DE MEMBROS ---
-from django.utils import timezone
 @login_required
 def relatorio_reuniao_membros(request):
     """

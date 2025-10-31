@@ -348,7 +348,7 @@ class ContaPagarForm(forms.ModelForm):
         # Esta lógica deve rodar sempre que a ministério estiver disponível,
         # independentemente de como o campo 'igreja' foi filtrado.
         if ministerio:
-            print("DEBUG: Ministerio está disponível. Filtrando fornecedores e categorias.") # <--- Novo debug print
+
             
             logger.info(f"[ContaPagarForm.__init__] (Bloco IF ministerio) Verificando fornecedores para ministerio ID: {ministerio.pk if ministerio else 'N/A'}")
 

@@ -1,0 +1,13 @@
+{
+  "language": "pt-BR",
+  "always_respond_in_portuguese": true,
+  "enforce_language": true,
+  "auto_apply_preferences": true,
+  "auto_read_contexto_gereigreja_md": true,
+  "contexto_mode": "summarize_and_apply_with_notice",
+  "notes": [
+    "Edite este arquivo para adicionar preferências que eu devo sempre lembrar (por exemplo: 'compact_responses': true).",
+    "Campos novos: auto_apply_preferences (bool), auto_read_contexto_gereigreja_md (bool), contexto_mode (string).",
+    "Para desativar a leitura automática altere 'auto_read_contexto_gereigreja_md' para false."
+  ]
+}

@@ -87,19 +87,26 @@ Este documento foi reorganizado para facilitar a leitura por diferentes público
 
 ## Sumário (TOC)
 
-- Quickstart (desenvolvimento)
-- Operação / Produção
-- Infra & Deploy (Render, DB, Storage)
-- Integrações externas (Stripe, Brevo, Cloudinary)
-- Desenvolvimento e CI (tests, settings_test, commands)
-- Apps e arquitetura (resumo por app)
-- Runbook (migrate, backup, restore, testes de webhooks)
-- Contribuição e convenções
-- Roadmap / Melhorias planejadas
-- Apêndice: inventário técnico (commands, templatetags, backups)
+- [Quickstart (desenvolvimento)](#quickstart)
+- [Operação / Produção](#operacao)
+- [Infra & Deploy (Render, DB, Storage)](#infra-deploy)
+- [Integrações externas (Stripe, Brevo, Cloudinary)](#integracoes-externas)
+- [Desenvolvimento e CI (tests, settings_test, commands)](#desenvolvimento-ci)
+- [Apps e arquitetura (resumo por app)](#apps-e-arquitetura)
+- [Runbook (migrate, backup, restore, testes de webhooks)](#runbook)
+- [Contribuição e convenções](#contribuicao)
+- [Roadmap / Melhorias planejadas](#roadmap)
+- [Apêndice: inventário técnico (commands, templatetags, backups)](#apendice)
+
+### Como usar este documento
+
+- O TOC acima contém links diretos para cada seção principal.
+- Em cada grande seção há um link "↑ Voltar ao Sumário" que retorna ao topo.
+- Para contribuições, crie PRs pequenos e focados (um tópico por PR).
 
 ---
 
+<a id="quickstart"></a>
 ## Quickstart (desenvolvimento)
 
 Rápido para começar em um ambiente local (Windows / PowerShell):
@@ -136,6 +143,9 @@ Nota: `core/settings_test.py` usa `FileSystemStorage` e SQLite em memória para 
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="operacao"></a>
 ## Operação / Produção
 
 Seções e checklists para operadores:
@@ -147,6 +157,9 @@ Seções e checklists para operadores:
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="infra-deploy"></a>
 ## Infra & Deploy
 
 ### Render
@@ -174,6 +187,9 @@ Seções e checklists para operadores:
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="integracoes-externas"></a>
 ## Integrações externas
 
 ### Stripe
@@ -194,6 +210,9 @@ Seções e checklists para operadores:
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="desenvolvimento-ci"></a>
 ## Desenvolvimento e CI
 
 ### Settings de teste
@@ -217,6 +236,9 @@ Execute `python manage.py <comando> --help` para ver opções.
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="apps-e-arquitetura"></a>
 ## Apps e arquitetura (resumo por app)
 
 - `core`: configurações globais, middleware, context processors.
@@ -230,6 +252,9 @@ Detalhes e pontos de entrada (views/urls) podem ser consultados diretamente nos 
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="runbook"></a>
 ## Runbook operacional (passos rápidos)
 
 1. Backup do banco (antes de mudanças críticas)
@@ -258,6 +283,9 @@ stripe listen --forward-to localhost:8000/webhooks/stripe
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="seguranca"></a>
 ## Segurança e dados sensíveis
 
 - Não commitar `.env` nem backups contendo dados sensíveis.
@@ -265,6 +293,9 @@ stripe listen --forward-to localhost:8000/webhooks/stripe
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="contribuicao"></a>
 ## Contribuição
 
 - Recomenda-se adicionar `CONTRIBUTING.md` e `DEPLOY.md` no repositório.
@@ -274,6 +305,9 @@ stripe listen --forward-to localhost:8000/webhooks/stripe
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="roadmap"></a>
 ## Roadmap / Melhorias planejadas (resumo)
 
 - Otimização de consultas (`select_related` / `prefetch_related`).
@@ -283,6 +317,9 @@ stripe listen --forward-to localhost:8000/webhooks/stripe
 
 ---
 
+[↑ Voltar ao Sumário](#sumário-toc)
+
+<a id="apendice"></a>
 ## Apêndice — inventário técnico
 
 - Management commands: ver `*/management/commands/`.
@@ -293,6 +330,8 @@ stripe listen --forward-to localhost:8000/webhooks/stripe
   - `DEFAULT_FILE_STORAGE` em produção aponta para Cloudinary.
 
 ---
+
+[↑ Voltar ao Sumário](#sumário-toc)
 
 Este documento foi reorganizado para facilitar navegação e manutenção. Se quiser, posso também gerar arquivos separados (`CONTRIBUTING.md`, `DEPLOY.md`, `BACKUPS.md`) e commitar na mesma branch.
 

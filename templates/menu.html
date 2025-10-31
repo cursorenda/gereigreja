@@ -78,6 +78,15 @@
 
 
 
+            <div class="sb-sidenav-menu-heading">Recepção</div>
+            <a class="nav-link" href="{% url 'secretaria:lista_visitantes' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
+                Lista de Visitantes
+            </a>
+            <a class="nav-link" href="{% url 'secretaria:registrar_presenca_visitante_evento' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-clipboard-check"></i></div>
+                Registro de Visitantes
+            </a>
             <div class="sb-sidenav-menu-heading">Agenda & Eventos</div>
             <a class="nav-link" href="{% url 'agenda:agenda' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-calendar-week"></i></div>

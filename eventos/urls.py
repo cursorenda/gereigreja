@@ -5,6 +5,7 @@ app_name = 'eventos'
 
 urlpatterns = [
 	path('novo/', views.criar_evento_profissional, name='criar_evento'),
+	path('autocomplete-convidados/', views.autocomplete_convidados, name='autocomplete_convidados'),
 	path('lista/', views.lista_eventos, name='lista_eventos'),
 	path('detalhe/<int:pk>/', views.detalhe_evento_profissional, name='detalhe_evento'),
 	path('editar/<int:pk>/', views.editar_evento_profissional, name='editar_evento'),

@@ -102,6 +102,7 @@ linha do tempo com todos os eventos futuros, cultos e agenda; tendo a opção de
 - **WhatsApp automático** e envio de e-mails.
 - **Segmentação:** Mensagens personalizadas para crescimento dos membros.
 - **Jornada do membro:** Pedidos de oração, check-in e emoções.
+Usuario verá uma caixa de msg na tela inicial onde vera´msgs e enviará msg/recado para: Sim mesmo 'lembrar', para sua igreja ou departamento, para 
 
 ### **Relatórios e Estatísticas**
 - **Gráficos financeiros** detalhados.
@@ -656,3 +657,57 @@ Notificações internas para membros
 Modo escuro (Dark Mode)
 
 missao/visao/valores
+
+Título Dinâmico:
+Use uma variável de contexto (ex: titulo_pagina) para o h1, assim o mesmo template pode ser reutilizado e facilita manutenção.
+
+Breadcrumb Consistente:
+Sempre use: Dashboard > Recepção > [Página atual]. Se houver ações específicas (ex: editar visitante), adicione mais um nível.
+
+Botão de Ação Rápida:
+Na lista de visitantes, adicione um botão “Novo Visitante” no card-header, alinhado à direita, para facilitar o cadastro.
+
+Mensagens de Feedback:
+Garanta que todas as ações (salvar, excluir, registrar presença) exibam mensagens de sucesso/erro no topo, usando o bloco de mensagens já incluído.
+
+Acessibilidade:
+Use labels claros e placeholders nos formulários, e garanta contraste suficiente nos botões e alertas.
+
+Ações Contextuais:
+Na lista de visitantes, adicione ícones de ação (editar, excluir, registrar presença) diretamente na tabela, para agilizar o fluxo.
+
+Filtros Avançados:
+Permita filtrar visitantes por data de visita, origem, ou responsável, além do status.
+
+Ajuda/Tooltip:
+Adicione tooltips ou um pequeno ícone de ajuda explicando o que é cada status de visitante ou como funciona o registro de presença.
+
+produtividade para pastor
+
+modo do visitante ou membro solicitar visita
+
+---
+Últimas alterações aplicadas (2025-10-28):
+
+- Mantido comportamento atual (curto prazo): "fallback" no cliente para submissão do partial de visitante (não alterar essa lógica por enquanto).
+- Suprimido o toast confuso "Formulário do visitante não encontrado no modal" no partial `_visitante_form.html`; o partial agora faz apenas `console.warn` quando o form não é encontrado.
+- Adicionado fallback defensivo no template `registrar_presenca_visitante_evento.html`: se o `<form id="form-criar-visitante-modal">` não for detectado, o código coleta inputs dentro de `#visitante-form-container`, monta um `FormData` (inclui CSRF quando disponível) e faz POST para `{% url "secretaria:criar_visitante_parcial" %}`; a resposta bruta é inserida em `#gcp-debug-response` para diagnóstico.
+- Ajustado o partial `_visitante_form.html` para garantir o form com `id="form-criar-visitante-modal"`, adicionar atributos ARIA e tornar o botão de salvar `type="submit"` (mantendo `id="gcp-save-visitante-btn"`).
+- Logs confirmam que o backend está recebendo as requisições e criando visitantes (ex.: Visitante criado via AJAX: Paula id=1083). O `buscar_visitantes` também aplica o fallback `recepcao=1` quando necessário.
+
+Recomendações / próximos passos (sugestão prática):
+
+1) Monitorar logs por 48 horas e pesquisar entradas onde `igreja_ativa` aparece como `None` — identificar se são requisições sem sessão, prefetch do navegador ou outra origem.
+
+2) Médio prazo (limpeza técnica): centralizar a submissão do partial no template pai e remover o handler inline do partial. Benefício: um único ponto de manutenção e testes mais simples. Checklist:
+    - Remover o bloco de JS inline do partial que intercepta o clique.
+    - Garantir que `registrar_presenca_visitante_evento.html` tenha o handler robusto (já existe fallback).
+    - Rodar testes manuais e automatizados.
+
+3) Alternativa (contrato servidor): garantir que o servidor sempre renderize o partial com `<form id="form-criar-visitante-modal">`. Se optar por isso, envolver deploy que substitua versões antigas do template que possam existir em cache.
+
+4) Acrescentar um teste automatizado rápido (recomendado): script Python que faz GET do partial com sessão, valida a presença do `<form id=...>` no HTML e em seguida faz POST com dados válidos e verifica retorno JSON com `visitante.id`. Posso criar e incluir esse teste se quiser.
+
+5) UX: manter o painel de debug (`#gcp-debug-response`) visível apenas em modo diagnóstico (ou removê-lo do ambiente de produção) para evitar confundir usuários finais.
+
+Se quiser que eu implemente o item 2 (centralizar) ou 4 (adicionar o teste), diga qual e eu aplico agora — caso contrário, deixo registrado aqui e acompanhamos logs.

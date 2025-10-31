@@ -24,41 +24,41 @@
     <li class="breadcrumb-item active">Detalhes do Evento</li>
   </ol>
   <div class="card mb-4">
-    <div class="card-header">
-      <i class="fas fa-calendar-alt me-1"></i> {{ evento.titulo }}
+    <div class="card-header d-flex align-items-center">
+      <i class="fas fa-calendar-alt me-1"></i>
+      <div class="d-flex align-items-center">
+        <span class="me-2">{{ evento.titulo }}</span>
+        {% if sessoes and sessoes|length > 1 and sessao %}
+          <span class="badge bg-info text-dark">Sessão {{ sessao.numero }} — {{ sessao.data_inicio|date:'d/m/Y' }}</span>
+        {% endif %}
+      </div>
     </div>
     <div class="card-body">
-      <div class="row mb-4">
+  <div class="row mb-2">
         {% if evento.capa %}
-        <div class="col-md-4 text-center d-flex align-items-start justify-content-center">
-          <img src="{{ evento.capa.url }}" alt="Capa do Evento" class="img-fluid rounded shadow mb-3" style="max-height: 340px; max-width: 100%;">
+        <div class="col-md-3 text-center d-flex align-items-start justify-content-center">
+          <img src="{{ evento.capa.url }}" alt="Capa do Evento" class="img-fluid rounded shadow mb-2" style="max-height: 180px; max-width: 100%;">
         </div>
         {% endif %}
-        <div class="col-md-8">
+        <div class="col-md-9">
           <div class="row">
             <div class="col-md-7">
-              <div class="mb-2"><strong>Título:</strong> {{ evento.titulo }}</div>
-              <div class="mb-2"><strong>Tipo:</strong> {{ evento.get_tipo_display }}</div>
-              <div class="mb-2"><strong>Igreja:</strong> {{ evento.igreja }}</div>
-              <div class="mb-2"><strong>Local:</strong> {{ evento.local }}</div>
-              <div class="mb-2"><strong>Responsável:</strong> {{ evento.responsavel }}</div>
+              <div class="mb-1"><strong>Título:</strong> {{ evento.titulo }}</div>
+              <div class="mb-1"><strong>Tipo:</strong> {{ evento.get_tipo_display }}</div>
+              <div class="mb-1"><strong>Igreja:</strong> {{ evento.igreja.nome_igreja }}</div>
+              <div class="mb-0 mt-1"><strong>Local:</strong> {{ evento.local }}</div>
+              <div class="mt-1 mb-0 lh-sm"><strong>Descrição:</strong></div>
+              <div class="mb-0 lh-sm">{{ evento.descricao }}</div>
             </div>
             <div class="col-md-5">
-              <div class="mb-2"><strong>Início:</strong> {{ evento.data_inicio|date:'d/m/Y H:i' }}</div>
-              <div class="mb-2"><strong>Fim:</strong> {{ evento.data_fim|date:'d/m/Y H:i' }}</div>
-              <div class="mb-2"><strong>Criado por:</strong> {{ evento.criado_por }}</div>
-            </div>
-            <div class="col-12 mt-2">
-              <div class="mb-2"><strong>Descrição:</strong><br>{{ evento.descricao }}</div>
+              <div class="mb-1"><strong>Início:</strong> {{ evento.data_inicio|date:'d/m/Y H:i' }}</div>
+              <div class="mb-1"><strong>Fim:</strong> {{ evento.data_fim|date:'d/m/Y H:i' }}</div>
+              <div class="mb-1"><strong>Criado por:</strong> {{ evento.criado_por }}</div>
+              <div class="mb-1"><strong>Responsável:</strong> {{ evento.responsavel }}</div>
+              <div class="mb-1"><strong>Recorrente?</strong> {{ evento.recorrente|yesno:"Sim,Não" }}</div>
             </div>
           </div>
           <div class="row mt-3">
-            <div class="col-12">
-              <h5 class="mb-2 border-bottom pb-1">Recorrência</h5>
-            </div>
-            <div class="col-md-4">
-              <div class="mb-2"><strong>Recorrente?</strong> {{ evento.recorrente|yesno:"Sim,Não" }}</div>
-            </div>
             {% if evento.recorrente %}
             <div class="col-md-4">
               <div class="mb-2"><strong>Frequência:</strong> {{ evento.get_frequencia_display }}</div>
@@ -140,7 +140,26 @@
 
           <div class="mb-4">
             <h6 class="mb-2">Lista de Participantes</h6>
+            {% if sessoes and sessoes|length > 1 %}
+              <div class="mb-3">
+                <form method="get" class="d-inline-block me-2">
+                  <label class="me-2">Sessão:</label>
+                  <select name="sessao" onchange="this.form.submit()" class="form-select d-inline-block" style="width:auto; display:inline-block;">
+                    {% for s in sessoes %}
+                      <option value="{{ s.pk }}" {% if sessao and s.pk == sessao.pk %}selected{% endif %}>Dia {{ s.numero }} - {{ s.data_inicio|date:'d/m/Y' }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+              </div>
+            {% endif %}
+            <div class="mb-2">
+              <small class="text-muted">Nota: a lista de participantes e as estatísticas abaixo estão filtradas pela sessão selecionada. Altere a sessão para ver participantes/outros totais por dia.</small>
+            </div>
+
             <form id="filtro-participantes" method="get" class="mb-2">
+              {% if sessao %}
+                <input type="hidden" name="sessao" value="{{ sessao.pk }}">
+              {% endif %}
               <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
                 <label><input type="checkbox" name="filtro" value="todos" {% if 'todos' in filtros_ativos %}checked{% endif %}> Todos</label>
                 <label><input type="checkbox" name="filtro" value="presentes" {% if 'presentes' in filtros_ativos %}checked{% endif %}> Presentes</label>
@@ -153,6 +172,9 @@
               {% for f in filtros_ativos %}
                 <input type="hidden" name="filtro" value="{{ f }}">
               {% endfor %}
+              {% if sessao %}
+                <input type="hidden" name="sessao" value="{{ sessao.pk }}">
+              {% endif %}
               <div class="table-responsive">
                 <table class="table table-sm table-bordered align-middle">
                   <thead>
@@ -172,7 +194,23 @@
                           {% if p.papel == 'PARTICIPANTE' %}Participante{% elif p.papel == 'ORGANIZADOR' %}Organizador{% elif p.papel == 'PALESTRANTE' %}Palestrante{% elif p.papel == 'CONVIDADO' %}Convidado{% else %}{{ p.papel|title }}{% endif %}
                         </td>
                         <td>
-                          {% if p.status == 'PENDENTE' %}Pendente{% elif p.status == 'CONFIRMADO' %}Confirmado{% elif p.status == 'RECUSADO' %}Recusado{% elif p.status == 'AUSENTE' %}Ausente{% elif p.status == 'PRESENTE' %}Presente{% else %}{{ p.status|title }}{% endif %}
+                          {% if p.status == 'PRESENTE' %}
+                            <span class="badge bg-success">Presente</span>
+                          {% elif p.status == 'AUSENTE' %}
+                            {% if p.justificativa_falta %}
+                              <span class="badge bg-warning text-dark">Justificado</span>
+                            {% else %}
+                              <span class="badge bg-danger">Ausente</span>
+                            {% endif %}
+                          {% elif p.status == 'PENDENTE' %}
+                            <span class="badge bg-secondary">Pendente</span>
+                          {% elif p.status == 'CONFIRMADO' %}
+                            <span class="badge bg-primary">Confirmado</span>
+                          {% elif p.status == 'RECUSADO' %}
+                            <span class="badge bg-dark">Recusado</span>
+                          {% else %}
+                            <span class="badge bg-light text-dark">{{ p.status|title }}</span>
+                          {% endif %}
                         </td>
                       </tr>
                     {% empty %}

@@ -113,7 +113,7 @@ from .forms import UserEditForm, PerfilUsuarioEditForm
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-import pdb # Importar o módulo pdb
+
 from django.contrib.admin.views.decorators import staff_member_required
 from configuracao.models import PerfilUsuario
 import boto3
