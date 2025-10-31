@@ -96,9 +96,11 @@ venv.bak/
 backup/
 *.bak
 *~
+*.dump
+melhorias no gereigreja.txt
 
-contexto_gereigreja.md
-melhorias no app financeiro indicado gemini.txt
-
-#Outras Pastas
+# --- Project-specific files you likely don't want versioned ---
 logs/
+contexto_gereigreja.md
+
+# Keep these lists intentional: add other patterns if you discover more artifacts to ignore.
