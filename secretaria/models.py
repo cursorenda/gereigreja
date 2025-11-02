@@ -106,7 +106,7 @@ def get_membro_foto_upload_path(instance, filename):
     return os.path.join('fotos_membros', igreja_folder, unique_filename)
 
 
-class Membro(models.Model):
+class Pessoa(models.Model):
     # Relacionamento com o usuário do sistema (caso exista)
     usuario = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -317,6 +317,15 @@ class Membro(models.Model):
 
     def __str__(self):
         return self.nome
+
+# Compatibilidade: manter a classe `Membro` como proxy para permitir
+# que código existente que importa/usa `Membro` continue funcionando
+# enquanto migramos referências para `Pessoa` de forma incremental.
+class Membro(Pessoa):
+    class Meta:
+        proxy = True
+        verbose_name = "Membro (compat)"
+        verbose_name_plural = "Membros (compat)"
 
 
 # --- MODELOS DE CARGO E VÍNCULO ---
