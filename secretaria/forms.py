@@ -114,7 +114,7 @@ class MembroForm(forms.ModelForm):
         tipo_entrada = cleaned_data.get('tipo_entrada')
         if tipo_pessoa and hasattr(tipo_pessoa, 'nome') and tipo_pessoa.nome.lower() == 'membro':
             if not tipo_entrada:
-                self.add_error('tipo_entrada', 'Informe o tipo de entrada para membros.')
+                self.add_error('tipo_entrada', 'Informe o tipo de entrada para pessoas com tipo "Membro".')
         else:
             cleaned_data['tipo_entrada'] = None
         return cleaned_data
@@ -187,7 +187,7 @@ class MembroUserManagementForm(forms.Form):
         max_length=254,
         required=True,
         widget=forms.EmailInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
-        help_text="Este é o e-mail do membro. Será usado como login do usuário."
+        help_text="Este é o e-mail da pessoa. Será usado como login do usuário."
     )
     is_active = forms.BooleanField(
         label="Usuário Ativo?",

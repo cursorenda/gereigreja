@@ -97,13 +97,13 @@ class StatusPessoa(models.Model):
 
 # --- Função para upload_to da foto do Membro ---
 def get_membro_foto_upload_path(instance, filename):
-    """ Gera um caminho de upload único para as fotos dos membros. """
+    """ Gera um caminho de upload único para as fotos das pessoas. """
     ext = os.path.splitext(filename)[1]
     # Cria um nome de arquivo único que não depende do PK do objeto.
-    unique_filename = f"membro_foto_{uuid.uuid4().hex}{ext}"
+    unique_filename = f"pessoa_foto_{uuid.uuid4().hex}{ext}"
     # Organiza em uma pasta pela igreja, se disponível.
     igreja_folder = f'igreja_{instance.igreja_id}' if instance.igreja_id else 'sem_igreja'
-    return os.path.join('fotos_membros', igreja_folder, unique_filename)
+    return os.path.join('fotos_pessoas', igreja_folder, unique_filename)
 
 
 class Pessoa(models.Model):
@@ -157,9 +157,9 @@ class Pessoa(models.Model):
     # O campo 'status' antigo foi removido.
 
     foto = models.ImageField(
-        upload_to='fotos_membros/%Y/%m/%d/',
+        upload_to='fotos_pessoas/%Y/%m/%d/',
         null=True, blank=True,
-        verbose_name="Foto do Membro"
+        verbose_name="Foto da Pessoa"
     )
     # --- CAMPOS DE VISITANTE/ACOMPANHAMENTO ---
     data_primeira_visita = models.DateField(blank=True, null=True, verbose_name="Data da Primeira Visita")
@@ -228,7 +228,7 @@ class Pessoa(models.Model):
         return False
     @property
     def nome_completo(self):
-        """Retorna o nome completo do membro."""
+        """Retorna o nome completo da pessoa."""
         parts = [self.nome]
         # Adicione outras partes do nome se existirem, ex: self.sobrenome
         # if self.sobrenome:
@@ -276,7 +276,7 @@ class Pessoa(models.Model):
         if is_new or changed_tipo or changed_status or changed_entrada:
             observ_parts = []
             if is_new:
-                observ_parts.append("Registro inicial do membro.")
+                observ_parts.append("Registro inicial da pessoa.")
                 if self.tipo_pessoa: observ_parts.append(f"Tipo definido como '{self.tipo_pessoa.nome}'.")
                 if self.status_pessoa: observ_parts.append(f"Status definido como '{self.status_pessoa.nome}'.")
                 if self.tipo_entrada: observ_parts.append(f"Tipo de entrada: '{self.get_tipo_entrada_display()}'.")
@@ -307,7 +307,7 @@ class Pessoa(models.Model):
                     observacao=final_observacao
                 )
             except Exception as e:
-                logger.error(f"  Error creating StatusHistorico for membro {self.pk} ({self.nome_completo}): {e}", exc_info=True)
+                logger.error(f"  Error creating StatusHistorico for pessoa {self.pk} ({self.nome_completo}): {e}", exc_info=True)
 
         # Atualiza os valores originais para a próxima comparação de save
         self._original_tipo_pessoa_id = self.tipo_pessoa_id
