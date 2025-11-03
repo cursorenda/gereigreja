@@ -42,7 +42,8 @@ class GerenciarOcupantesForm(forms.Form):
         widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 12}),
         required=False,
         label='Ocupantes do Cargo',
-        help_text='Selecione os membros que ocuparão este cargo.'
+        # Apenas UI: trocar o texto para usar 'pessoas' em vez de 'membros'
+        help_text='Selecione as pessoas que ocuparão este cargo.'
     )
 
 
@@ -179,6 +180,13 @@ class StatusHistoricoManualForm(forms.ModelForm):
         if membro_inicial:
             self.initial['membro'] = membro_inicial
             self.fields['membro'].disabled = True
+        # Apenas UI: garantir que o rótulo exibido para o campo 'membro' seja 'Pessoa'
+        try:
+            if 'membro' in self.fields:
+                self.fields['membro'].label = 'Pessoa'
+        except Exception:
+            # não interrompe a inicialização do formulário em caso de comportamento inesperado
+            pass
 
 
 class MembroUserManagementForm(forms.Form):
