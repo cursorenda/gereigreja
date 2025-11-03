@@ -38,7 +38,7 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-    // Adiciona funcionalidade de busca aos campos de membro.
+    // Adiciona funcionalidade de busca ao campo de pessoa.
     $(document).ready(function() {
         $('#id_membro').select2({
             ajax: {
@@ -63,7 +63,7 @@
                 },
                 cache: true
             },
-            placeholder: 'Digite para Buscar o Membro',
+            placeholder: 'Digite para Buscar a Pessoa',
             minimumInputLength: 1,
             templateResult: formatRepo,
             templateSelection: formatRepoSelection
