@@ -25,7 +25,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="text-xs font-weight-bold text-uppercase mb-1">Membros Ativos</div>
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Pessoas Ativas</div>
                                 <div class="h5 mb-0 font-weight-bold">{{ total_membros_dashboard|intcomma }}</div>
                             </div>
                             <i class="fas fa-users fa-2x text-gray-300"></i>
@@ -44,7 +44,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="text-xs font-weight-bold text-uppercase mb-1">Novos Membros (30d)</div>
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Novas Pessoas (30d)</div>
                                 <div class="h5 mb-0 font-weight-bold">{{ novos_membros_30_dias|intcomma }}</div>
                             </div>
                             <i class="fas fa-user-plus fa-2x text-gray-300"></i>
@@ -82,7 +82,7 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="text-xs font-weight-bold text-uppercase mb-1">Média de Idade (Ativos)</div>
+                                <div class="text-xs font-weight-bold text-uppercase mb-1">Média de Idade (Pessoas Ativas)</div>
                                 <div class="h5 mb-0 font-weight-bold">{{ media_idade_membros|intcomma }} anos</div>
                             </div>
                             <i class="fas fa-child fa-2x text-gray-500"></i> {# text-gray-500 para contraste #}
@@ -103,7 +103,7 @@
                 <div class="card mb-4">
                     <div class="card-header">
                         <i class="fas fa-chart-pie me-1"></i>
-                        Membros por Status
+                        Pessoas por Status
                     </div>
                     <div class="card-body" style="height: 350px;"><canvas id="statusChart"></canvas></div>
                 </div>
@@ -112,7 +112,7 @@
                 <div class="card mb-4">
                     <div class="card-header">
                         <i class="fas fa-venus-mars me-1"></i>
-                        Membros por Gênero
+                        Pessoas por Gênero
                     </div>
                     <div class="card-body" style="height: 350px;"><canvas id="generoChart"></canvas></div>
                 </div>
@@ -121,7 +121,7 @@
                 <div class="card mb-4">
                     <div class="card-header">
                         <i class="fas fa-chart-bar me-1"></i>
-                        Membros por Faixa Etária
+                        Pessoas por Faixa Etária
                     </div>
                     <div class="card-body" style="height: 350px;"><canvas id="faixaEtariaChart"></canvas></div>
                 </div>
