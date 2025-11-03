@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 type: 'doughnut',
                 data: {
                     labels: statusLabels,
-                    datasets: [{ label: 'Membros', data: statusTotals, borderWidth: 1 }]
+                    datasets: [{ label: 'Pessoas', data: statusTotals, borderWidth: 1 }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
             });
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 data: {
                     labels: generoLabels,
                     datasets: [{
-                        label: 'Membros',
+                        label: 'Pessoas',
                         data: generoTotals,
                         backgroundColor: backgroundColorsGenero, // Cores aplicadas aqui
                         borderWidth: 1
@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 type: 'bar',
                 data: {
                     labels: faixaEtariaLabels,
-                    datasets: [{ label: 'Nº de Membros', data: faixaEtariaTotals, borderWidth: 1 }]
+                    datasets: [{ label: 'Nº de Pessoas', data: faixaEtariaTotals, borderWidth: 1 }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
             });
