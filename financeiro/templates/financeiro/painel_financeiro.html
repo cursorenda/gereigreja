@@ -202,8 +202,8 @@
                                                 {% else %}
                                                     {{ receita.membro.user.username|truncatechars:20 }}
                                                 {% endif %}
-                                            {% else %}
-                                                {{ receita.membro.nome_completo|default:receita.membro.nome|default:receita.membro.pk|default:"Membro S/ Usuário"|truncatechars:20 }}
+                                                {% else %}
+                                                    {{ receita.membro.nome_completo|default:receita.membro.nome|default:receita.membro.pk|default:"Pessoa S/ Usuário"|truncatechars:20 }}
                                             {% endif %}
                                         {% else %}
                                             Anônimo ({{ receita.get_categoria_display }})

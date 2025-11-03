@@ -56,7 +56,7 @@
                         <tr>
                             <th>Data</th>
                             <th>Categoria</th>
-                            <th>Membro/Origem</th>
+                            <th>Pessoa/Origem</th>
                             <th>Forma Pgto</th>
                             <th class="text-end">Valor</th>
                         </tr>
@@ -68,7 +68,7 @@
                             <td>{{ receita.get_categoria_display }}</td>
                             <td>
                                 {% if receita.membro %}
-                                    {{ receita.membro.nome|default:"Membro Inválido"|truncatechars:30 }}
+                                    {{ receita.membro.nome|default:"Pessoa Inválida"|truncatechars:30 }}
                                 {% elif receita.observacao %}
                                     {{ receita.observacao|truncatechars:30 }} {# Mostrar observação se não houver membro #}
                                 {% else %}
