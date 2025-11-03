@@ -520,7 +520,7 @@ def gerenciar_assinatura(request):
             if plano_escolhido.preco_mensal == 0:
                 total_membros = ministerio.membros.count()
                 if plano_escolhido.limite_membros and total_membros > plano_escolhido.limite_membros:
-                    messages.error(request, f"Este plano permite até {plano_escolhido.limite_membros} pessoas. Seu ministério possui {total_membros} membros. Faça um upgrade para um plano maior.")
+                    messages.error(request, f"Este plano permite até {plano_escolhido.limite_membros} pessoas. Seu ministério possui {total_membros} pessoas. Faça um upgrade para um plano maior.")
                     return redirect('configuracao:gerenciar_assinatura')
                 assinatura, criada = AssinaturaMinisterio.objects.get_or_create(
                     ministerio=ministerio,

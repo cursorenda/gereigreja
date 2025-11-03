@@ -46,7 +46,7 @@ class AvisoForm(forms.ModelForm):
 
 class EmailMassaForm(forms.Form):
     """
-    Formulário para envio de e-mails em massa para membros.
+    Formulário para envio de e-mails em massa para pessoas.
     Permite selecionar destinatários por diversos critérios.
     """
     assunto = forms.CharField(
@@ -68,14 +68,14 @@ class EmailMassaForm(forms.Form):
         label="Enviar para Igrejas Específicas",
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
-        help_text="Selecione uma ou mais igrejas. Se nenhuma for selecionada, o e-mail será enviado para todos os membros do ministério."
+    help_text="Selecione uma ou mais igrejas. Se nenhuma for selecionada, o e-mail será enviado para todas as pessoas do ministério."
     )
     tipos_pessoa = forms.ModelMultipleChoiceField(
         queryset=TipoPessoa.objects.none(),
         label="Filtrar por Tipo de Pessoa",
         required=False,
         widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
-        help_text="Ex: Membro, Visitante, Obreiro."
+    help_text="Ex: Membro, Visitante, Obreiro."
     )
     status_pessoa = forms.ModelMultipleChoiceField(
         queryset=StatusPessoa.objects.none(),
@@ -85,17 +85,17 @@ class EmailMassaForm(forms.Form):
         help_text="Ex: Ativo, Inativo, Em Disciplina."
     )
     apenas_ativos_para_relatorios = forms.BooleanField(
-        label="Apenas Membros Ativos para Relatórios?",
+    label="Apenas Pessoas Ativas para Relatórios?",
         required=False,
         initial=True,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        help_text="Marque para enviar apenas para membros cujo status é considerado ativo para relatórios."
+    help_text="Marque para enviar apenas para pessoas cujo status é considerado ativo para relatórios."
     )
     aniversariantes_do_mes = forms.BooleanField(
         label="Apenas Aniversariantes do Mês Atual?",
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        help_text="Marque para enviar apenas para membros que fazem aniversário no mês atual."
+    help_text="Marque para enviar apenas para pessoas que fazem aniversário no mês atual."
     )
 
     def __init__(self, *args, **kwargs):
