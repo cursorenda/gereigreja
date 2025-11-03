@@ -2,15 +2,15 @@
 {% load static %}
 {% load secretaria_extras %}
 
-{% block title %}{{ titulo_pagina|default:"Cadastrar Novo Membro" }}{% endblock %}
+{% block title %}{{ titulo_pagina|default:"Cadastrar Nova Pessoa" }}{% endblock %}
 
 {% block content %}
 
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Cadastrar Novo Membro</h1>
+    <h1 class="mt-4">Cadastrar Nova Pessoa</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Membros</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Pessoas</a></li>
         <li class="breadcrumb-item active">Cadastrar</li>
     </ol>
 
@@ -19,7 +19,7 @@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-user-plus me-1"></i>
-            Dados do Novo Membro
+            Dados da Nova Pessoa
         </div>
         <div class="card-body">
             <form method="POST" action="{% url 'secretaria:cadastrar_membro' %}" enctype="multipart/form-data">
@@ -37,7 +37,7 @@
 
                 <div class="row mb-4 align-items-center">
                     <div class="col-md-3 text-center">
-                        <img src="{% static 'img/default_avatar.png' %}" alt="Foto do Membro" class="img-fluid rounded-circle mb-2" style="width: 150px; height: 150px; object-fit: cover;" id="fotoPreviewCriar">
+                        <img src="{% static 'img/default_avatar.png' %}" alt="Foto da Pessoa" class="img-fluid rounded-circle mb-2" style="width: 150px; height: 150px; object-fit: cover;" id="fotoPreviewCriar">
                         <div class="mb-3">
                             <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
                             {{ form.foto|add_class:'form-control' }}
@@ -293,7 +293,7 @@
                 </div>
 
                 <hr>
-                <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Membro</button>
+                <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Pessoa</button>
                 <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
             </form>
         </div>
@@ -346,7 +346,7 @@
             }
         });
 
-        // --- Autocomplete de nome do membro ---
+        // --- Autocomplete de nome da pessoa ---
         var $nomeInput = $('#id_nome');
         var $autocompleteList = $('#autocomplete-nome-list');
 
