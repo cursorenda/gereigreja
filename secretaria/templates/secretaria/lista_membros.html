@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Lista de Membros - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
+{% block title %}Lista de Pessoas - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
@@ -10,7 +10,7 @@
 
 {% block content %}
     <div class="container-fluid px-4">
-        <h1 class="mt-4">Lista de Membros</h1>
+    <h1 class="mt-4">Lista de Pessoas</h1>
         <ol class="breadcrumb mb-4">
             <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
             <li class="breadcrumb-item active">Lista de Membros</li>
@@ -21,7 +21,7 @@
         <div class="card mb-4">
             <div class="card-header">
                 <i class="fas fa-users me-1"></i>
-                Membros ({{ membros.count }})
+                Pessoas ({{ membros.count }})
             </div>
             <div class="card-body">
                 <form method="GET" action="" class="row g-3 mb-3 align-items-center">
@@ -136,9 +136,9 @@
                 </div>
                 {% else %} {# Se não houver membros (após a busca do Django) #}
                     <div class="alert alert-info text-center mt-3" role="alert">
-                        Nenhum membro encontrado com os filtros aplicados, verifique acentos "´,~,^,".
+                        Nenhuma pessoa encontrada com os filtros aplicados, verifique acentos "´,~,^,".
                         {% if can_edit_membros %}
-                            <a href="{% url 'secretaria:cadastrar_membro' %}" class="ms-2">Adicionar um novo?</a>
+                            <a href="{% url 'secretaria:cadastrar_membro' %}" class="ms-2">Adicionar uma nova?</a>
                         {% endif %}
                     </div>
                 {% endif %} {# Fim do if membros #}

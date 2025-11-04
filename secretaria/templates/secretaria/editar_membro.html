@@ -2,22 +2,22 @@
 {% load static %}
 {% load humanize %} {# Essencial para formatar valores monetários #}
 {% load secretaria_extras %}
-{% block title %}Editar Membro: {{ form.instance.nome|default:"Membro" }}{% endblock %}
+{% block title %}Editar Pessoa: {{ form.instance.nome|default:"Pessoa" }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Editar Membro</h1>
+    <h1 class="mt-4">Editar Pessoa</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Membros</a></li>
-        <li class="breadcrumb-item active">Editar: {{ form.instance.nome|default:"Membro" }}</li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Pessoas</a></li>
+    <li class="breadcrumb-item active">Editar: {{ form.instance.nome|default:"Pessoa" }}</li>
     </ol>
 
 
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-edit me-1"></i>
-            Editar Dados de: {{ form.instance.nome|default:"Membro" }}
+            Editar Dados de: {{ form.instance.nome|default:"Pessoa" }}
         </div>
 
         <div class="card-body">
@@ -358,7 +358,7 @@
                         </div>
                     {% else %}
                         <div class="alert alert-info mt-3" role="alert">
-                            Nenhuma contribuição registrada para este membro.
+                            Nenhuma contribuição registrada para esta pessoa.
                         </div>
                     {% endif %}
                 </div>
@@ -490,7 +490,7 @@
                         </form> 
                     {% else %}
                         <div class="alert alert-warning mt-3" role="alert">
-                            Para gerenciar o acesso ao sistema, primeiro salve o cadastro do membro com um endereço de e-mail válido.
+                            Para gerenciar o acesso ao sistema, primeiro salve o cadastro da pessoa com um endereço de e-mail válido.
                         </div>
                     {% endif %}   
                 </div>
@@ -506,10 +506,10 @@
                             <i class="fas fa-user-check me-1"></i> Registrar Novo Acompanhamento
                         </button>
                         <div class="alert alert-warning mt-2" role="alert">
-                            Salve o cadastro do membro antes de registrar acompanhamento de visita.
+                            Salve o cadastro da pessoa antes de registrar acompanhamento de visita.
                         </div>
                     {% endif %}
-                    <p class="text-muted">Acompanhe e registre contatos, visitas e interações com este membro/visitante.</p>
+                    <p class="text-muted">Acompanhe e registre contatos, visitas e interações com esta pessoa/visitante.</p>
                     <hr>
                     <form method="get" class="row g-2 mb-3">
         <div class="col-md-4">

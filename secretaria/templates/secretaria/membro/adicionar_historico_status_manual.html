@@ -8,8 +8,8 @@
     <h1 class="mt-4">{{ titulo_pagina|default:"Adicionar Histórico Manual de Tipo/Status" }}</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        {% if membro_obj %}
-            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Membros</a></li>
+            {% if membro_obj %}
+            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Pessoas</a></li>
             <li class="breadcrumb-item"><a href="{% url 'secretaria:editar_membro' membro_id=membro_obj.pk %}">Editar: {{ membro_obj.nome }}</a></li>
             <li class="breadcrumb-item active">Adicionar Histórico Manual</li>
         {% else %}
