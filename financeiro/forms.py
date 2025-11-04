@@ -123,7 +123,9 @@ class ReceitaForm(forms.ModelForm):
             self.fields['igreja'].queryset = Igreja.objects.none()
 
         self.fields['igreja'].empty_label = "Selecione a Igreja"
-        self.fields['membro'].empty_label = "Selecione o Membro (Opcional)"
+        # Somente UI: usar 'Pessoa' no rótulo visível e no texto do empty_label
+        self.fields['membro'].label = "Pessoa (Opcional)"
+        self.fields['membro'].empty_label = "Selecione a Pessoa (Opcional)"
         self.fields['membro'].required = False
         self.fields['conta_bancaria'].empty_label = "Selecione a Conta/Caixa de Destino (Opcional)"
         self.fields['conta_bancaria'].required = False
