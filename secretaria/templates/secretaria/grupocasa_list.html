@@ -1,0 +1,89 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }} - {{ ministerio.nome_fantasia|default:'Ministério' }}{% endblock %}
+
+{% block content %}
+  <div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+      <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+      <li class="breadcrumb-item active">{{ titulo_pagina }}</li>
+    </ol>
+
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <i class="fas fa-home me-1"></i>
+          Grupos / Casas
+          <small class="text-muted ms-2">({{ grupos.count }})</small>
+          {% if request.igreja_ativa %}
+            <small class="text-muted ms-3">— {{ request.igreja_ativa.nome_igreja }}</small>
+          {% endif %}
+        </div>
+        <div>
+          <a class="btn btn-sm btn-primary" href="{% url 'secretaria:criar_grupo_casa' %}"><i class="fas fa-plus me-1"></i> Novo Grupo</a>
+          {% if can_agrupar_grupos %}
+            <a class="btn btn-sm btn-outline-secondary ms-2" href="{% url 'secretaria:agrupar_grupos_preview' %}"><i class="fas fa-layer-group me-1"></i> Atualizar Grupos/Casas</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="get" action="" class="row g-3 mb-3 align-items-center">
+          <div class="col-md-8 col-12">
+            <input type="text" name="q" class="form-control form-control-sm" placeholder="Buscar por rua, nome do responsável ou CEP" value="{{ query|default:'' }}">
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+          </div>
+        </form>
+
+        <div class="table-responsive">
+          <table class="table table-striped table-bordered table-hover table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>Nome / Responsável</th>
+                <th>Endereço</th>
+                {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                <th>Igreja</th>
+                {% endif %}
+                <th class="text-center">Membros</th>
+                <th class="text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for g in grupos %}
+              <tr>
+                <td>
+                  <span class="align-middle me-2" style="display:inline-block; vertical-align:middle;">
+                    <!-- Inline SVG casa pequeno -->
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10.5z" fill="#6c757d"/>
+                    </svg>
+                  </span>
+                  <span style="vertical-align:middle;">{{ g.nome|default:'-' }}</span><br>
+                  <small>{{ g.responsavel }}</small>
+                </td>
+                <td>{{ g.rua }} {% if g.numero %}, {{ g.numero }}{% endif %} {% if g.complemento %}- {{ g.complemento }}{% endif %}<br>{{ g.bairro }} {{ g.cidade }} {{ g.cep }}</td>
+                {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                <td>{{ g.igreja.nome_igreja }}</td>
+                {% endif %}
+                <td class="text-center">{{ g.pessoas.count }}</td>
+                <td class="text-center">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'secretaria:detalhe_grupo_casa' g.id %}">Ver / Registrar Visita</a>
+                  {% if can_edit_grupo %}
+                    <a class="btn btn-sm btn-outline-secondary ms-1" href="{% url 'secretaria:editar_grupo_casa' g.id %}">Editar</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5">Nenhum grupo encontrado.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+{% endblock %}
