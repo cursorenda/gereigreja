@@ -152,6 +152,16 @@ class Pessoa(models.Model):
     nacionalidade = models.CharField(max_length=50, blank=True, null=True, verbose_name="Nacionalidade") # NOVO CAMPO
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name="E-mail Pessoal") # NOVO CAMPO
     complemento = models.CharField(max_length=100, blank=True, null=True)
+    # Grupo/Casa/Família: referenciar uma unidade residencial ou grupo familiar
+    grupo_casa = models.ForeignKey(
+        'GrupoCasa',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='pessoas',
+        verbose_name='Grupo/Casa/Família',
+        help_text='Vínculo opcional a um grupo/casa que agrega pessoas pelo mesmo endereço'
+    )
     telefone = models.CharField(max_length=15, blank=True, null=True) # Adicionar máscara JS no template
     data_entrada = models.DateField(default=timezone.now, blank=True, null=True) # Usar default=timezone.now?
     # O campo 'status' antigo foi removido.
@@ -326,6 +336,60 @@ class Membro(Pessoa):
         proxy = True
         verbose_name = "Membro (compat)"
         verbose_name_plural = "Membros (compat)"
+
+
+# --- Modelo para agrupar pessoas que moram no mesmo endereço / família / casa ---
+class GrupoCasa(models.Model):
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='grupos_casa',
+        verbose_name='Igreja'
+    )
+    nome = models.CharField(max_length=150, blank=True, null=True, help_text='Nome do grupo/casa ou responsável (opcional)')
+    rua = models.CharField(max_length=255, blank=True, null=True)
+    numero = models.CharField(max_length=50, blank=True, null=True)
+    complemento = models.CharField(max_length=100, blank=True, null=True)
+    bairro = models.CharField(max_length=100, blank=True, null=True)
+    cidade = models.CharField(max_length=100, blank=True, null=True)
+    estado = models.CharField(max_length=50, blank=True, null=True)
+    cep = models.CharField(max_length=9, blank=True, null=True)
+    referencia = models.TextField(blank=True, null=True)
+    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                   help_text='Usuário responsável por este grupo/casa (pastor/líder)')
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Grupo / Casa / Família'
+        verbose_name_plural = 'Grupos / Casas / Famílias'
+        unique_together = (('igreja','rua','numero','complemento','cep'),)
+        indexes = [
+            models.Index(fields=['igreja','rua','numero','cep']),
+        ]
+
+    def __str__(self):
+        if self.nome:
+            return f"{self.nome} ({self.rua or ''} {self.numero or ''})"
+        return f"{self.rua or 'Endereço não informado'} {self.numero or ''}"
+
+
+class VisitaGrupoCasa(models.Model):
+    grupo_casa = models.ForeignKey(GrupoCasa, on_delete=models.CASCADE, related_name='visitas')
+    data = models.DateTimeField(default=timezone.now)
+    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    tipo = models.CharField(max_length=50, choices=[('visita','Visita'),('ligacao','Ligação'),('outro','Outro')], default='visita')
+    resultado = models.CharField(max_length=100, blank=True, null=True)
+    observacao = models.TextField(blank=True, null=True)
+    num_membros = models.PositiveIntegerField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Visita por Grupo/Casa'
+        verbose_name_plural = 'Visitas por Grupo/Casa'
+
+    def __str__(self):
+        return f"Visita {self.grupo_casa} em {self.data:%d/%m/%Y %H:%M}"
 
 
 # --- MODELOS DE CARGO E VÍNCULO ---
@@ -546,6 +610,8 @@ class AcompanhamentoVisita(models.Model):
     membro = models.ForeignKey(Membro, on_delete=models.CASCADE, related_name='acompanhamentos_visita')
     data = models.DateTimeField(default=timezone.now)
     responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='acompanhamentos_realizados')
+    # Referência opcional a uma visita registrada por GrupoCasa
+    visita_grupo_casa = models.ForeignKey('VisitaGrupoCasa', null=True, blank=True, on_delete=models.SET_NULL, related_name='acompanhamentos')
     tipo_contato = models.CharField(max_length=50, choices=[
         ("ligacao", "Ligação"),
         ("visita", "Visita"),

@@ -1,6 +1,6 @@
 # secretaria/admin.py
 from django.contrib import admin
-from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, Cargo, MembroCargo # Adicionado StatusHistorico
+from .models import Membro, Pessoa, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, Cargo, MembroCargo, GrupoCasa, VisitaGrupoCasa # Adicionado StatusHistorico
 from django.utils.html import format_html # Para exibir a imagem
 
 
@@ -44,7 +44,7 @@ class AcompanhamentoVisitaAdmin(admin.ModelAdmin):
     list_display = ('membro', 'data', 'responsavel', 'tipo_contato', 'resultado')
     list_filter = ('tipo_contato', 'responsavel', 'data')
     search_fields = ('membro__nome', 'resultado', 'observacao')
-    autocomplete_fields = ['membro', 'responsavel']
+    autocomplete_fields = ['membro', 'responsavel', 'visita_grupo_casa']
     ordering = ('-data',)
     list_per_page = 25 # Define quantos acompanhamentos por página no admin
 
@@ -67,6 +67,28 @@ class CargoAdmin(admin.ModelAdmin):
     search_fields = ('nome',)
     autocomplete_fields = ['grupo_permissao']
     list_filter = ('grupo_permissao',)
+
+
+# Admin para GrupoCasa
+@admin.register(GrupoCasa)
+class GrupoCasaAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'igreja', 'rua', 'numero', 'cidade', 'cep', 'responsavel', 'qtd_pessoas')
+    search_fields = ('nome', 'rua', 'cidade', 'cep')
+    list_filter = ('igreja', 'cidade')
+    autocomplete_fields = ['responsavel', 'igreja']
+
+    def qtd_pessoas(self, obj):
+        return obj.pessoas.count()
+    qtd_pessoas.short_description = 'Quantidade de Pessoas'
+
+
+# Admin para VisitaGrupoCasa
+@admin.register(VisitaGrupoCasa)
+class VisitaGrupoCasaAdmin(admin.ModelAdmin):
+    list_display = ('grupo_casa', 'data', 'responsavel', 'tipo', 'num_membros')
+    list_filter = ('tipo', 'responsavel', 'data')
+    search_fields = ('grupo_casa__nome', 'grupo_casa__rua')
+    autocomplete_fields = ['grupo_casa', 'responsavel']
 
 # Admin para o novo modelo MembroCargo
 @admin.register(MembroCargo)

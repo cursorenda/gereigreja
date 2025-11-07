@@ -1,0 +1,95 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }} - {{ ministerio.nome_fantasia|default:'Ministério' }}{% endblock %}
+
+{% block content %}
+    <div class="container-fluid px-4">
+        <h1 class="mt-4">{{ titulo_pagina }}</h1>
+        <ol class="breadcrumb mb-4">
+            <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_grupos_casa' %}">Grupos / Casas</a></li>
+            <li class="breadcrumb-item active">Detalhe</li>
+        </ol>
+
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>Informações do Grupo</div>
+                            <div>
+                                {% if can_edit_grupo %}
+                                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'secretaria:editar_grupo_casa' grupo.id %}">Editar Grupo</a>
+                                {% endif %}
+                                {% if can_agrupar_local %}
+                                    <form method="post" action="{% url 'secretaria:reagrupar_grupo_casa' grupo.id %}" style="display:inline">{% csrf_token %}
+                                        <button class="btn btn-sm btn-outline-success ms-1" type="submit">Reagrupar moradores</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    <div class="card-body">
+                        <p><strong>Nome:</strong> {{ grupo.nome|default:'-' }}</p>
+                        <p><strong>Endereço:</strong> {{ grupo.rua }} {% if grupo.numero %}, {{ grupo.numero }}{% endif %} {% if grupo.complemento %}- {{ grupo.complemento }}{% endif %}</p>
+                        <p><strong>Bairro:</strong> {{ grupo.bairro }} <strong>Cidade:</strong> {{ grupo.cidade }} <strong>CEP:</strong> {{ grupo.cep }}</p>
+                        <p><strong>Igreja:</strong> {{ grupo.igreja.nome_igreja }}</p>
+                        <p><strong>Responsável:</strong> {{ grupo.responsavel }}</p>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">pessoas ({{ membros.count }})</div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for m in membros %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ m.nome }}</strong><br>
+                                    <small>{{ m.telefone }} {{ m.email }}</small>
+                                </div>
+                                <div>
+                                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'secretaria:editar_membro' m.pk %}">Editar</a>
+                                </div>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item">Nenhum membro vinculado a este grupo.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card mb-3">
+                    <div class="card-header">Registrar Visita</div>
+                    <div class="card-body">
+                        {% include 'secretaria/_visita_form.html' %}
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header">Visitas recentes</div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for v in visitas %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <strong>{{ v.get_tipo_display }}</strong> — {{ v.data|date:'d/m/Y H:i' }}<br>
+                                        <small>{{ v.resultado }}</small>
+                                    </div>
+                                    <div>
+                                        <small>{{ v.responsavel }}</small>
+                                    </div>
+                                </div>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item">Nenhuma visita registrada.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

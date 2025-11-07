@@ -23,6 +23,10 @@ from .models import Membro, TimelineEvent, StatusHistorico
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.utils import timezone
+from django.db.models.signals import pre_save
+from django.db import transaction
+from .models import GrupoCasa
+import unicodedata, re
 
 # Cria evento ao cadastrar novo membro
 @receiver(post_save, sender=Membro)
@@ -69,5 +73,151 @@ def cria_evento_status_tipo_membro(sender, instance, created, **kwargs):
                     tipo_evento='mudanca_tipo',
                     descricao=f"Mudança de tipo: {instance.tipo_pessoa_anterior} → {instance.tipo_pessoa_novo}"
                 )
+
+
+# -------------------------
+# Associação segura de GrupoCasa
+# -------------------------
+def _normalize_text(s: str) -> str:
+    if not s:
+        return ''
+    s = str(s).strip().lower()
+    s = unicodedata.normalize('NFKD', s)
+    s = ''.join([c for c in s if not unicodedata.combining(c)])
+    s = re.sub(r"\s+", ' ', s)
+    s = re.sub(r"[^0-9a-z ]", ' ', s)
+    s = re.sub(r"\s+", ' ', s)
+    return s.strip()
+
+
+@receiver(pre_save, sender=Membro)
+def _cache_prev_address(sender, instance, **kwargs):
+    """Armazena os valores anteriores de endereço para detectar mudanças no post_save."""
+    try:
+        if not instance.pk:
+            instance._prev_address = None
+            return
+        prev = sender.objects.filter(pk=instance.pk).values('rua', 'numero_casa', 'complemento', 'cep', 'grupo_casa_id').first()
+        instance._prev_address = prev
+    except Exception:
+        instance._prev_address = None
+
+
+@receiver(post_save, sender=Membro)
+def associar_grupo_casa_por_endereco(sender, instance, created, **kwargs):
+    """Associa automaticamente a um GrupoCasa EXISTENTE quando o endereço do membro criar/alterar
+    e existir um grupo com endereço normalizado igual. Não cria novos grupos. Atualiza via queryset
+    para evitar recursão de sinais.
+    Regras de segurança:
+      - Só associa se encontrar um GrupoCasa já existente com mesmo endereço normalizado.
+      - Não remove associação existente a menos que o endereço mude e exista outro GrupoCasa correspondente.
+      - Evita chamar instance.save() dentro do signal; usa update() para prevenir loops.
+    """
+    try:
+        # Só operar quando há dados mínimos de endereço
+        rua = (instance.rua or '').strip()
+        numero = (instance.numero_casa or '').strip()
+        complemento = (instance.complemento or '').strip()
+        cep = (instance.cep or '').strip()
+        if not (rua or cep or numero):
+            return
+
+        prev = getattr(instance, '_prev_address', None)
+        changed = False
+        if prev is None:
+            # novo membro
+            changed = True
+        else:
+            # comparar campos normalizados
+            prev_rua = prev.get('rua') or ''
+            prev_num = prev.get('numero_casa') or ''
+            prev_comp = prev.get('complemento') or ''
+            prev_cep = prev.get('cep') or ''
+            if _normalize_text(prev_rua) != _normalize_text(rua) or _normalize_text(prev_num) != _normalize_text(numero) or _normalize_text(prev_comp) != _normalize_text(complemento) or (prev_cep or '').strip() != cep:
+                changed = True
+
+        if not changed and instance.grupo_casa_id:
+            # nada a fazer
+            return
+
+        # Buscar GrupoCasa candidato(s) na mesma igreja (quando disponível)
+        candidates = GrupoCasa.objects.all()
+        if instance.igreja_id:
+            candidates = candidates.filter(igreja_id=instance.igreja_id)
+        # otimização: filtrar por CEP quando disponível
+        if cep:
+            candidates = candidates.filter(cep__iexact=cep)
+
+        target = None
+        n_rua = _normalize_text(rua)
+        n_num = _normalize_text(numero)
+        n_comp = _normalize_text(complemento)
+        # Percorrer candidatos e comparar com normalização
+        for c in candidates:
+            if _normalize_text(c.rua) == n_rua and _normalize_text(c.numero or '') == n_num and _normalize_text(c.complemento or '') == n_comp:
+                target = c
+                break
+
+        if not target:
+            # Nenhum GrupoCasa existente encontrado — avaliar criação automática
+            try:
+                # Buscar outros membros no mesmo endereço (normalizado) na mesma igreja
+                from .models import Membro as _Membro
+                n_matches = 0
+                matching_ids = []
+                n_rua = _normalize_text(rua)
+                n_num = _normalize_text(numero)
+                n_comp = _normalize_text(complemento)
+                qs = _Membro.objects.all()
+                if instance.igreja_id:
+                    qs = qs.filter(igreja_id=instance.igreja_id)
+                # otimizar por CEP se disponível
+                if cep:
+                    qs = qs.filter(cep__iexact=cep)
+
+                # iterar e comparar normalizado (limitado a 200 para segurança)
+                for m in qs[:200]:
+                    if m.pk == instance.pk:
+                        continue
+                    if _normalize_text(m.rua) == n_rua and _normalize_text(m.numero_casa or '') == n_num and _normalize_text(m.complemento or '') == n_comp:
+                        n_matches += 1
+                        matching_ids.append(m.pk)
+
+                # Se encontrarmos pelo menos 1 outro membro (total >=2), então criar GrupoCasa e associar
+                if n_matches >= 1:
+                    from django.db import transaction as _transaction
+                    with _transaction.atomic():
+                        # criar ou obter GrupoCasa (usar valores brutos, sem normalização)
+                        group_defaults = {'nome': None, 'bairro': getattr(instance, 'bairro_distrito', None)}
+                        group, created_group = GrupoCasa.objects.get_or_create(
+                            igreja_id=instance.igreja_id if instance.igreja_id else None,
+                            rua=rua or None,
+                            numero=numero or None,
+                            complemento=complemento or None,
+                            cep=cep or None,
+                            defaults=group_defaults
+                        )
+                        # Construir lista de pks a atualizar (inclui o instance)
+                        to_update = matching_ids + [instance.pk]
+                        # Atualizar via queryset para evitar recursão
+                        _Membro.objects.filter(pk__in=to_update).update(grupo_casa=group)
+                        target = group
+                else:
+                    # não criar com apenas uma pessoa: segurança
+                    return
+            except Exception:
+                # Em caso de erro, não bloquear o fluxo principal
+                import logging
+                logging.getLogger(__name__).exception('Erro ao avaliar/criar GrupoCasa automaticamente')
+
+        # Se já está associado ao mesmo, nada a fazer
+        if instance.grupo_casa_id == target.id:
+            return
+
+        # Atualiza via queryset para evitar disparar post_save recursivo
+        sender.objects.filter(pk=instance.pk).update(grupo_casa=target)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Erro no signal associar_grupo_casa_por_endereco')
 
 

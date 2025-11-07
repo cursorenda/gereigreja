@@ -554,10 +554,11 @@ def ajax_registrar_presenca_evento(request):
 from django.views.decorators.http import require_GET
 from django.db.models import Q
 
-from .models import AcompanhamentoVisita, Membro
+from .models import AcompanhamentoVisita, Membro, GrupoCasa, VisitaGrupoCasa
 
 from .forms_acompanhamento import AcompanhamentoVisitaForm
 from .forms import AssociarUsuarioMembroForm
+from .forms_grupocasa import GrupoCasaForm
 
 
 @login_required
@@ -1896,6 +1897,305 @@ def dashboard(request):
 
     }
     return render(request, 'dashboard.html', context)
+
+
+@login_required
+def lista_grupos_casa(request):
+    """Lista de GrupoCasa (casas/famílias) com escopo por igreja/ministerio semelhante a outras views."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+
+    qs = []
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        qs = GrupoCasa.objects.filter(igreja=request.igreja_ativa)
+    elif allowed_churches.exists():
+        qs = GrupoCasa.objects.filter(igreja__in=allowed_churches)
+    elif is_admin_org(request.user):
+        qs = GrupoCasa.objects.filter(igreja__ministerio=ministerio)
+    else:
+        qs = GrupoCasa.objects.none()
+
+    q = request.GET.get('q')
+    if q:
+        qs = qs.filter(Q(rua__icontains=q) | Q(nome__icontains=q) | Q(bairro__icontains=q) | Q(cep__icontains=q))
+
+    qs = qs.order_by('rua', 'numero')
+    # Permissão para exibir botão de agrupamento na UI
+    can_agrupar = is_admin_or_pastor(request.user)
+    # Permissão para editar grupos (pode ser mais restrita se necessário)
+    try:
+        can_edit_grupo = is_admin_or_pastor(request.user) or has_membro_edit_permission(request.user)
+    except Exception:
+        can_edit_grupo = is_admin_or_pastor(request.user)
+
+    context = {
+        'grupos': qs.select_related('igreja', 'responsavel'),
+        'titulo_pagina': 'Grupos / Casas',
+        'query': q,
+        'ministerio': ministerio,
+        'igreja_selecionada': str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else (request.GET.get('igreja') or ''),
+        'can_agrupar_grupos': can_agrupar,
+        'can_edit_grupo': can_edit_grupo,
+    }
+    return render(request, 'secretaria/grupocasa_list.html', context)
+
+
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def agrupar_grupos_preview(request):
+    """Preview das mudanças que o agrupamento faria. Mostra agrupamentos detectados por endereço."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    from .models import Membro
+    from .utils import agrupar_preview_for_queryset
+
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        people_qs = Membro.objects.filter(igreja=request.igreja_ativa)
+    elif allowed_churches.exists():
+        people_qs = Membro.objects.filter(igreja__in=allowed_churches)
+    elif is_admin_org(request.user):
+        people_qs = Membro.objects.filter(igreja__ministerio=ministerio)
+    else:
+        people_qs = Membro.objects.none()
+
+    # considerar apenas pessoas com endereço mínimo (rua ou cep)
+    people_qs = people_qs.filter(Q(rua__isnull=False) | Q(cep__isnull=False)).order_by('rua', 'numero_casa')
+
+    rows = agrupar_preview_for_queryset(people_qs)
+    # filtrar apenas grupos com 2+ pessoas para aplicar
+    to_apply = [r for r in rows if r.get('count', 0) >= 2]
+
+    context = {
+        'rows': rows,
+        'to_apply_count': len(to_apply),
+        'titulo_pagina': 'Preview: Agrupar Grupos / Casas por Endereço',
+    }
+    return render(request, 'secretaria/agrupar_grupos_preview.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+@require_POST
+def agrupar_grupos_apply(request):
+    """Aplica o agrupamento (cria GrupoCasa e associa pessoas).
+    Esta view recalcula o preview e aplica apenas os agrupamentos com 2+ pessoas.
+    """
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    from .models import Membro
+    from .utils import agrupar_preview_for_queryset, agrupar_apply_from_preview
+
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        people_qs = Membro.objects.filter(igreja=request.igreja_ativa)
+    elif allowed_churches.exists():
+        people_qs = Membro.objects.filter(igreja__in=allowed_churches)
+    elif is_admin_org(request.user):
+        people_qs = Membro.objects.filter(igreja__ministerio=ministerio)
+    else:
+        people_qs = Membro.objects.none()
+
+    people_qs = people_qs.filter(Q(rua__isnull=False) | Q(cep__isnull=False)).order_by('rua', 'numero_casa')
+    rows = agrupar_preview_for_queryset(people_qs)
+    to_apply = [r for r in rows if r.get('count', 0) >= 2]
+
+    result = {'created': 0, 'updated': 0}
+    if to_apply:
+        result = agrupar_apply_from_preview(to_apply)
+        messages.success(request, f"Agrupamento aplicado: {result.get('created', 0)} grupos criados, {result.get('updated', 0)} pessoas atualizadas.")
+    else:
+        messages.info(request, 'Nenhum agrupamento com 2+ pessoas detectado; nada foi aplicado.')
+
+    return redirect('secretaria:lista_grupos_casa')
+
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+@require_POST
+def reagrupar_grupo_casa(request, grupo_id):
+    """Reagrupar moradores do GrupoCasa: recalcula preview para as pessoas deste grupo e aplica apenas os agrupamentos relevantes.
+    Fluxo seguro: só executa para membros do próprio grupo/igreja no escopo do usuário.
+    """
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    grupo = get_object_or_404(GrupoCasa, pk=grupo_id)
+
+    # Verifica escopo
+    try:
+        if not (request.igreja_ativa and request.igreja_ativa in allowed_churches) and allowed_churches.exists():
+            if grupo.igreja not in allowed_churches and not is_admin_org(request.user):
+                raise PermissionError('Sem permissão para reagrupar este grupo')
+    except PermissionError:
+        raise Http404()
+
+    from .models import Membro
+    from .utils import agrupar_preview_for_queryset, agrupar_apply_from_preview
+
+    people_qs = Membro.objects.filter(grupo_casa=grupo)
+    # considerar apenas com endereço mínimo
+    people_qs = people_qs.filter(Q(rua__isnull=False) | Q(cep__isnull=False)).order_by('rua', 'numero_casa')
+
+    rows = agrupar_preview_for_queryset(people_qs)
+    to_apply = [r for r in rows if r.get('count', 0) >= 2]
+
+    if to_apply:
+        result = agrupar_apply_from_preview(to_apply)
+        messages.success(request, f"Reagrupamento aplicado: {result.get('created',0)} grupos criados, {result.get('updated',0)} pessoas atualizadas.")
+    else:
+        messages.info(request, 'Nenhum agrupamento com 2+ pessoas detectado para este grupo; nada foi aplicado.')
+
+    return redirect('secretaria:detalhe_grupo_casa', grupo_id=grupo.id)
+
+
+@login_required
+def detalhe_grupo_casa(request, grupo_id):
+    """Detalhe de GrupoCasa; GET mostra membros e histórico de visitas, POST cria VisitaGrupoCasa e opcionalmente AcompanhamentoVisita para todos."""
+    grupo = get_object_or_404(GrupoCasa, pk=grupo_id)
+    # verificar permissão/escopo similar a outras views
+    try:
+        ministerio = get_ministerio_or_error(request)
+        allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+        if not (request.igreja_ativa and request.igreja_ativa in allowed_churches) and allowed_churches.exists():
+            if grupo.igreja not in allowed_churches and not is_admin_org(request.user):
+                raise PermissionError('Sem permissão para acessar este grupo')
+    except PermissionError:
+        raise Http404()
+
+    membros = grupo.pessoas.all().select_related('tipo_pessoa', 'status_pessoa')
+    visitas = grupo.visitas.all().order_by('-data')[:50]
+
+    if request.method == 'POST':
+        # criar visita
+        from .forms_grupocasa import VisitaGrupoCasaForm
+        form = VisitaGrupoCasaForm(request.POST)
+        if form.is_valid():
+            from django.db import transaction
+            with transaction.atomic():
+                visita = form.save(commit=False)
+                visita.grupo_casa = grupo
+                visita.responsavel = request.user
+                visita.num_membros = membros.count()
+                visita.save()
+                # criar acompanhamentos se solicitado
+                if form.cleaned_data.get('marcar_todos'):
+                    acompanhamentos = []
+                    for p in membros:
+                        acompanhamentos.append(AcompanhamentoVisita(
+                            membro=p,
+                            responsavel=request.user,
+                            visita_grupo_casa=visita,
+                            tipo_contato='visita',
+                            resultado=form.cleaned_data.get('resultado') or '',
+                            observacao=form.cleaned_data.get('observacao') or ''
+                        ))
+                    AcompanhamentoVisita.objects.bulk_create(acompanhamentos)
+                messages.success(request, 'Visita registrada com sucesso!')
+                return redirect('secretaria:detalhe_grupo_casa', grupo_id=grupo.id)
+        else:
+            messages.error(request, 'Erro ao registrar visita. Verifique os campos.')
+    else:
+        from .forms_grupocasa import VisitaGrupoCasaForm
+        form = VisitaGrupoCasaForm()
+
+    # Permissão para aplicar agrupamento localmente (reagrupar moradores)
+    try:
+        can_agrupar_local = is_admin_or_pastor(request.user)
+    except Exception:
+        can_agrupar_local = False
+
+    context = {
+        'grupo': grupo,
+        'membros': membros,
+        'visitas': visitas,
+        'form': form,
+        'titulo_pagina': f'Grupo / Casa: {grupo.nome or (grupo.rua or "")}',
+        'ministerio': ministerio,
+        'can_edit_grupo': (is_admin_or_pastor(request.user) or has_membro_edit_permission(request.user)),
+        'can_agrupar_local': can_agrupar_local,
+    }
+    return render(request, 'secretaria/grupocasa_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def criar_grupo_casa(request):
+    """Cria um novo GrupoCasa. Se houver `request.igreja_ativa`, vincula automaticamente."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+
+    if request.method == 'POST':
+        form = GrupoCasaForm(request.POST)
+        if form.is_valid():
+            grupo = form.save(commit=False)
+            # determinar igreja alvo
+            if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
+                grupo.igreja = request.igreja_ativa
+            else:
+                # se só houver uma igreja permitida, usar ela
+                try:
+                    if getattr(allowed_churches, 'count', None) and allowed_churches.count() == 1:
+                        grupo.igreja = allowed_churches.first()
+                except Exception:
+                    pass
+            grupo.responsavel = request.user
+            if not getattr(grupo, 'igreja', None):
+                messages.error(request, 'Não foi possível determinar a igreja para o novo grupo. Verifique sua seleção de igreja/permissões.')
+            else:
+                grupo.save()
+                messages.success(request, 'Grupo/Casa criado com sucesso!')
+                return redirect('secretaria:detalhe_grupo_casa', grupo_id=grupo.id)
+    else:
+        form = GrupoCasaForm()
+
+    context = {
+        'form': form,
+        'titulo_pagina': 'Criar Novo Grupo / Casa',
+        'ministerio': ministerio,
+    }
+    return render(request, 'secretaria/grupocasa_form.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_pastor)
+def editar_grupo_casa(request, grupo_id):
+    """Editar um GrupoCasa existente. Sem migrações de modelo — apenas edição via form."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    grupo = get_object_or_404(GrupoCasa, pk=grupo_id)
+
+    # Verifica escopo: só permitir se o grupo pertence às igrejas permitidas do usuário
+    try:
+        if not (request.igreja_ativa and request.igreja_ativa in allowed_churches) and allowed_churches.exists():
+            if grupo.igreja not in allowed_churches and not is_admin_org(request.user):
+                raise PermissionError('Sem permissão para editar este grupo')
+    except PermissionError:
+        raise Http404()
+
+    if request.method == 'POST':
+        form = GrupoCasaForm(request.POST, instance=grupo)
+        if form.is_valid():
+            grupo_editado = form.save(commit=False)
+            # Permitir alteração de igreja somente se o usuário tiver permissão nessa igreja
+            try:
+                if not is_admin_org(request.user) and getattr(grupo_editado, 'igreja', None) and grupo_editado.igreja not in allowed_churches:
+                    messages.error(request, 'Igreja selecionada inválida para sua permissão.')
+                else:
+                    grupo_editado.save()
+                    messages.success(request, 'Grupo/Casa atualizado com sucesso!')
+                    return redirect('secretaria:detalhe_grupo_casa', grupo_id=grupo.id)
+            except Exception as e:
+                logger.exception('Erro ao salvar grupo: %s', e)
+                messages.error(request, f'Erro ao salvar o grupo: {e}')
+    else:
+        form = GrupoCasaForm(instance=grupo)
+
+    context = {
+        'form': form,
+        'titulo_pagina': f'Editar Grupo / Casa: {grupo.nome or grupo.rua}',
+        'ministerio': ministerio,
+        'grupo': grupo,
+    }
+    return render(request, 'secretaria/grupocasa_form.html', context)
 
 
 @check_permission(has_membro_view_permission, login_url_name='login')

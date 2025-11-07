@@ -1,0 +1,30 @@
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-2">
+        {{ form.data.label_tag }}
+        {{ form.data }}
+        <small class="form-text text-muted">Escolha data e hora da visita (fuso local). Use o seletor para ajustar a hora; se não alterar a hora, será usada a hora atual.</small>
+      </div>
+      <div class="mb-2">
+        {{ form.tipo.label_tag }}
+        {{ form.tipo }}
+      </div>
+      <div class="mb-2">
+        {{ form.resultado.label_tag }}
+        {{ form.resultado }}
+      </div>
+      <div class="mb-2">
+        {{ form.observacao.label_tag }}
+        {{ form.observacao }}
+      </div>
+      <div class="form-check mb-2">
+        {{ form.marcar_todos }} {{ form.marcar_todos.label_tag }}
+      </div>
+      <div>
+        <button class="btn btn-success">Registrar Visita</button>
+      </div>
+    </form>
+  </div>
+</div>

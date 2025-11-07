@@ -42,5 +42,13 @@ urlpatterns = [
     path('visitantes/registrar-presenca-ajax/', views.ajax_registrar_presenca_evento, name='ajax_registrar_presenca_evento'),
     path('visitantes/presencas-por-evento/', views.ajax_get_presencas_evento, name='ajax_get_presencas_evento'),
     path('autocomplete_nome/', views.autocomplete_nome, name='autocomplete_nome'),
+    # URLs para Grupos/Casas
+    path('grupos-casa/', views.lista_grupos_casa, name='lista_grupos_casa'),
+    path('grupos-casa/criar/', views.criar_grupo_casa, name='criar_grupo_casa'),
+    path('grupos-casa/<int:grupo_id>/editar/', views.editar_grupo_casa, name='editar_grupo_casa'),
+    path('grupos-casa/<int:grupo_id>/', views.detalhe_grupo_casa, name='detalhe_grupo_casa'),
+    path('grupos-casa/<int:grupo_id>/reagrupar/', views.reagrupar_grupo_casa, name='reagrupar_grupo_casa'),
+    path('grupos-casa/agrupar/preview/', views.agrupar_grupos_preview, name='agrupar_grupos_preview'),
+    path('grupos-casa/agrupar/aplicar/', views.agrupar_grupos_apply, name='agrupar_grupos_apply'),
 
 ]
