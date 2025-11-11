@@ -51,6 +51,15 @@
                             <option value="F" {% if request.GET.genero == 'F' %}selected{% endif %}>Feminino</option>
                         </select>
                     </div>
+                    <div class="col-lg-3 col-12">
+                        <select name="tags" multiple class="form-select form-select-sm" style="min-width:120px;">
+                            <option value="">Tags</option>
+                            {% for tag in todas_tags %}
+                                <option value="{{ tag.id }}" {% if tag.id|stringformat:'s' in tags_selecionadas %}selected{% endif %} style="background-color:{{ tag.cor }};color:#fff;">{{ tag.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Filtrar por uma ou mais tags</small>
+                    </div>
                     <div class="col-lg-2 col-6 d-grid gap-2 d-md-block">
                         <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
                         {% if request.GET.q or request.GET.tipo or request.GET.status or request.GET.genero %}
@@ -85,7 +94,16 @@
                         <tbody>
                             {% for membro in membros %}
                             <tr class="{% if not membro.is_ativo_para_relatorios %}table-secondary text-muted{% endif %}">
-                                <td>{{ membro.nome }} {% if membro.apelido %}({{ membro.apelido }}){% endif %}</td>
+                                <td>
+                                    {{ membro.nome }} {% if membro.apelido %}({{ membro.apelido }}){% endif %}
+                                    {% if membro.tags.all %}
+                                        <span class="ms-1">
+                                            {% for tag in membro.tags.all %}
+                                                <span class="badge" style="background-color: {{ tag.cor }}; color: #fff;">{{ tag.nome }}</span>
+                                            {% endfor %}
+                                        </span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ membro.get_genero_display|default:"N/I" }}</td>
                                 <td>                                   
                                     {% if membro.tipo_pessoa %} {{ membro.tipo_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Tipo</span> {% endif %}
@@ -129,7 +147,6 @@
                                 {% endif %}
                             </tr>
                             {% empty %}
-                        
                             {% endfor %}
                         </tbody>
                     </table>

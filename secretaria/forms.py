@@ -6,6 +6,8 @@ from django.contrib.auth.models import Group
 from configuracao.models import PerfilUsuario, Igreja, Ministerio
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 from .utils import is_admin_org, get_allowed_churches_for_membros
+from .models import Tag
+
 
 
 class AssociarUsuarioMembroForm(forms.Form):
@@ -63,6 +65,8 @@ class CargoForm(forms.ModelForm):
         self.fields['grupo_permissao'].required = False
 
 
+
+# --- MembroForm unificado ---
 class MembroForm(forms.ModelForm):
     genero = forms.ChoiceField(
         choices=[('M', 'Masculino'), ('F', 'Feminino')],
@@ -76,24 +80,12 @@ class MembroForm(forms.ModelForm):
         choices=[('Ensino Fundamental Incompleto', 'Ensino Fundamental Incompleto'), ('Ensino Fundamental Completo', 'Ensino Fundamental Completo'), ('Ensino Médio Incompleto', 'Ensino Médio Incompleto'), ('Ensino Médio Completo', 'Ensino Médio Completo'), ('Ensino Superior Incompleto', 'Ensino Superior Incompleto'), ('Ensino Superior Completo', 'Ensino Superior Completo'), ('Pós-graduação', 'Pós-graduação'), ('Mestrado', 'Mestrado'), ('Sem Escolaridade', 'Sem Escolaridade'), ('Doutorado', 'Doutorado')],
         widget=forms.Select(attrs={'class': 'form-control'})
     )
-
-    tipo_pessoa = forms.ModelChoiceField(
-        queryset=TipoPessoa.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        empty_label="Selecione o Tipo",
-        required=True
-    )
-    status_pessoa = forms.ModelChoiceField(
-        queryset=StatusPessoa.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        empty_label="Selecione o Status",
-        required=True
-    )
-    igreja = forms.ModelChoiceField(
-        queryset=Igreja.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-select'}),
-        label="Igreja",
-        empty_label="Selecione a igreja"
+    tags = forms.ModelMultipleChoiceField(
+        queryset=Tag.objects.all().order_by('nome'),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
+        label='Tags',
+        help_text='Segure Ctrl para selecionar múltiplas tags'
     )
 
     class Meta:
@@ -106,8 +98,35 @@ class MembroForm(forms.ModelForm):
             'data_entrada', 'conjuge', 'data_casamento',
             'foto', 'email',
             'tipo_entrada',
-            'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento', 'observacoes_visita'
+            'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento', 'observacoes_visita',
+            'tags'
         ]
+
+    def __init__(self, *args, **kwargs):
+        ministerio = kwargs.pop('ministerio', None)
+        user = kwargs.pop('user', None)
+        allowed_churches = kwargs.pop('allowed_churches', None)
+        igreja_inicial = kwargs.pop('igreja_inicial', None)
+        super().__init__(*args, **kwargs)
+        # Widgets/classes
+        for field_name in self.fields:
+            if isinstance(self.fields[field_name], (forms.ChoiceField, forms.ModelChoiceField)):
+                self.fields[field_name].widget.attrs.setdefault('class', 'form-select')
+            else:
+                self.fields[field_name].widget.attrs.setdefault('class', 'form-control')
+        # Querysets dinâmicos
+        self.fields['tags'].queryset = Tag.objects.all().order_by('nome')
+        self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
+        self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
+        self.fields['igreja'].queryset = Igreja.objects.none()
+        if user and not is_admin_org(user) and allowed_churches is not None:
+            self.fields['igreja'].queryset = allowed_churches
+        elif ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        # Pré-seleção e desabilitação de igreja
+        if igreja_inicial and self.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
+            self.initial['igreja'] = igreja_inicial
+            self.fields['igreja'].disabled = True
 
     def clean(self):
         cleaned_data = super().clean()
@@ -120,19 +139,15 @@ class MembroForm(forms.ModelForm):
             cleaned_data['tipo_entrada'] = None
         return cleaned_data
 
-    def __init__(self, *args, **kwargs):
-        # remove any view-specific context kwargs so BaseModelForm.__init__ doesn't error
-        ministerio = kwargs.pop('ministerio', None)
-        user = kwargs.pop('user', None)
-        allowed_churches = kwargs.pop('allowed_churches', None)
-        igreja_inicial = kwargs.pop('igreja_inicial', None)
-        super().__init__(*args, **kwargs)
-        # basic initial/widget setup; views may have passed ministerio/user/allowed_churches
-        for field_name in self.fields:
-            if isinstance(self.fields[field_name], (forms.ChoiceField, forms.ModelChoiceField)):
-                self.fields[field_name].widget.attrs.setdefault('class', 'form-select')
-            else:
-                self.fields[field_name].widget.attrs.setdefault('class', 'form-control')
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            self.save_m2m()
+            tags = self.cleaned_data.get('tags')
+            if tags is not None:
+                instance.tags.set(tags)
+        return instance
 
 
 class StatusHistoricoManualForm(forms.ModelForm):
@@ -326,6 +341,13 @@ from .utils import is_admin_org, get_allowed_churches_for_membros # Para verific
 
 class MembroForm(forms.ModelForm):
     # ... (campos genero, estado_civil, escolaridade como estão) ...
+    tags = forms.ModelMultipleChoiceField(
+        queryset=Tag.objects.all().order_by('nome'),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6}),
+        label='Tags',
+        help_text='Segure Ctrl para selecionar múltiplas tags'
+    )
     genero = forms.ChoiceField(
         choices=[('M', 'Masculino'), ('F', 'Feminino')],
         widget=forms.Select(attrs={'class': 'form-control'})
@@ -340,124 +362,51 @@ class MembroForm(forms.ModelForm):
     )
     # O campo 'status' antigo foi removido.
     # Adicionando os novos campos:
-    from django import forms
-    from django.contrib.auth import get_user_model
-    from .models import Membro
+    tipo_pessoa = forms.ModelChoiceField(
+        queryset=TipoPessoa.objects.none(), # Será filtrado no __init__
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        empty_label="Selecione o Tipo",
+        required=True # Ajuste conforme o modelo (agora é obrigatório)
+    )
+    status_pessoa = forms.ModelChoiceField(
+        queryset=StatusPessoa.objects.none(), # Será filtrado no __init__
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        empty_label="Selecione o Status",
+        required=True # Ajuste conforme o modelo (agora é obrigatório)
 
-    class AssociarUsuarioMembroForm(forms.Form):
-        membro_id = forms.IntegerField(widget=forms.HiddenInput)
-        usuario = forms.ModelChoiceField(
-            queryset=get_user_model().objects.none(),
-            required=True,
-            label="Usuário do Sistema",
-            widget=forms.Select(attrs={'class': 'form-select usuario-autocomplete'})
-        )
-        sugestao_usuario_id = forms.IntegerField(widget=forms.HiddenInput, required=False)
+    )
+    # --- ADICIONAR CAMPO IGREJA ---
+    igreja = forms.ModelChoiceField(
+        queryset=Igreja.objects.none(), # Queryset inicial vazio, será filtrado no __init__
+        widget=forms.Select(attrs={'class': 'form-select'}), # Usar form-select para consistência
+        label="Igreja",
+        empty_label="Selecione a igreja"
+    )
+    # --- FIM ADIÇÃO ---
 
-        def __init__(self, *args, **kwargs):
-            membro = kwargs.pop('membro', None)
-            super().__init__(*args, **kwargs)
-            User = get_user_model()
-            # Só permite usuários não associados a membros
-            usuarios_disponiveis = User.objects.filter(membro_secretaria__isnull=True)
-            self.fields['usuario'].queryset = usuarios_disponiveis
-            self.fields['usuario'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username} ({obj.email})"
-            if membro:
-                self.fields['membro_id'].initial = membro.pk
-                # Sugestão automática: usuário com mesmo e-mail
-                sugestao = usuarios_disponiveis.filter(email__iexact=membro.email).first() if membro.email else None
-                if sugestao:
-                    self.fields['usuario'].initial = sugestao.pk
-                    self.fields['sugestao_usuario_id'].initial = sugestao.pk
-                    self.fields['usuario'].widget.attrs['data-sugestao'] = '1'
-                else:
-                    self.fields['usuario'].widget.attrs['data-sugestao'] = '0'
-    # Formulário para gerenciar ocupantes de um cargo
-    from .models import MembroCargo, Membro
-
-    class GerenciarOcupantesForm(forms.Form):
-        ocupantes = forms.ModelMultipleChoiceField(
-            queryset=Membro.objects.all().order_by('nome'),
-            widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 12}),
-            required=False,
-            label='Ocupantes do Cargo',
-            help_text='Selecione os membros que ocuparão este cargo.'
-        )
-    from django.contrib.auth.models import Group
-
-    # Novo formulário para cadastro/edição de cargos (novo modelo)
-    from .models import Cargo
-    class CargoForm(forms.ModelForm):
-        class Meta:
-            model = Cargo
-            fields = ['nome', 'grupo_permissao']
-            widgets = {
-                'nome': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100, 'placeholder': 'Nome do cargo'}),
-                'grupo_permissao': forms.Select(attrs={'class': 'form-select'}),
-            }
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.fields['nome'].label = 'Nome do Cargo'
-            self.fields['grupo_permissao'].label = 'Grupo de Permissão (opcional)'
-            self.fields['grupo_permissao'].required = False
-    from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico # Adicionado StatusHistorico
-    from django.contrib.auth.models import User, Group # Importar User e Group
-    from configuracao.models import PerfilUsuario # Importar PerfilUsuario
-    from configuracao.models import Igreja, Ministerio # Importar Igreja e Ministerio
-    # --- IMPORTAR UTILS DE PERMISSÃO ---
-    from .utils import is_admin_org # Para verificar se o usuário é admin do ministério
-
-    class MembroForm(forms.ModelForm):
-        # ... (campos genero, estado_civil, escolaridade como estão) ...
-        genero = forms.ChoiceField(
-            choices=[('M', 'Masculino'), ('F', 'Feminino')],
-            widget=forms.Select(attrs={'class': 'form-control'})
-        )
-        estado_civil = forms.ChoiceField(
-            choices=[('Solteiro', 'Solteiro'), ('Casado', 'Casado'), ('Divorciado', 'Divorciado'), ('Amasiado', 'Amasiado'), ('Viuvo', 'Viuvo')],
-            widget=forms.Select(attrs={'class': 'form-control'})
-        )
-        escolaridade = forms.ChoiceField(
-            choices=[('Ensino Fundamental Incompleto', 'Ensino Fundamental Incompleto'), ('Ensino Fundamental Completo', 'Ensino Fundamental Completo'), ('Ensino Médio Incompleto', 'Ensino Médio Incompleto'), ('Ensino Médio Completo', 'Ensino Médio Completo'), ('Ensino Superior Incompleto', 'Ensino Superior Incompleto'), ('Ensino Superior Completo', 'Ensino Superior Completo'), ('Pós-graduação', 'Pós-graduação'), ('Mestrado', 'Mestrado'), ('Sem Escolaridade', 'Sem Escolaridade'), ('Doutorado', 'Doutorado')],
-            widget=forms.Select(attrs={'class': 'form-control'})
-        )
-        # O campo 'status' antigo foi removido.
-        # Adicionando os novos campos:
-        tipo_pessoa = forms.ModelChoiceField(
-            queryset=TipoPessoa.objects.none(), # Será filtrado no __init__
-            widget=forms.Select(attrs={'class': 'form-control'}),
-            empty_label="Selecione o Tipo",
-            required=True # Ajuste conforme o modelo (agora é obrigatório)
-        )
-        status_pessoa = forms.ModelChoiceField(
-            queryset=StatusPessoa.objects.none(), # Será filtrado no __init__
-            widget=forms.Select(attrs={'class': 'form-control'}),
-            empty_label="Selecione o Status",
-            required=True # Ajuste conforme o modelo (agora é obrigatório)
-
-        )
-        # --- ADICIONAR CAMPO IGREJA ---
-        igreja = forms.ModelChoiceField(
-            queryset=Igreja.objects.none(), # Queryset inicial vazio, será filtrado no __init__
-            widget=forms.Select(attrs={'class': 'form-select'}), # Usar form-select para consistência
-            label="Igreja",
-            empty_label="Selecione a igreja"
-        )
-        # --- FIM ADIÇÃO ---
-
-        class Meta:
-            model = Membro
-            fields = [
-                'igreja',
-                'nome', 'apelido', 'cpf', 'rg', 'naturalidade', 'nascimento', 'genero', 'tipo_pessoa', 'status_pessoa',
-                'estado_civil', 'profissao', 'escolaridade', 'nome_pai', 'nome_mae', 'cep', 'pais', 'estado', 'nacionalidade',
-                'cidade', 'bairro_distrito', 'rua', 'numero_casa', 'complemento', 'telefone',
-                'data_entrada', 'conjuge', 'data_casamento',
-                'foto', 'email',
-                'tipo_entrada', # Novo campo
-                # --- Novos campos de visitante/acompanhamento ---
-                'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento', 'observacoes_visita'
-            ]
+    class Meta:
+        model = Membro
+        fields = [
+            'igreja',
+            'nome', 'apelido', 'cpf', 'rg', 'naturalidade', 'nascimento', 'genero', 'tipo_pessoa', 'status_pessoa',
+            'estado_civil', 'profissao', 'escolaridade', 'nome_pai', 'nome_mae', 'cep', 'pais', 'estado', 'nacionalidade',
+            'cidade', 'bairro_distrito', 'rua', 'numero_casa', 'complemento', 'telefone',
+            'data_entrada', 'conjuge', 'data_casamento',
+            'foto', 'email',
+            'tipo_entrada', # Novo campo
+            # --- Novos campos de visitante/acompanhamento ---
+            'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento', 'observacoes_visita',
+            'tags'
+        ]
+        def save(self, commit=True):
+            instance = super().save(commit=False)
+            if commit:
+                instance.save()
+                self.save_m2m()
+                tags = self.cleaned_data.get('tags')
+                if tags is not None:
+                    instance.tags.set(tags)
+            return instance
         def clean(self):
             cleaned_data = super().clean()
             tipo_pessoa = cleaned_data.get('tipo_pessoa')
@@ -494,7 +443,7 @@ class MembroForm(forms.ModelForm):
             ]
             if tipo_nome == 'visitante':
                 for field in self.fields:
-                    if field not in campos_essenciais_visitante:
+                    if field not in campos_essenciais_visitante and field != 'tags':
                         self.fields[field].widget = forms.HiddenInput()
 
             widgets = {
@@ -562,10 +511,10 @@ class MembroForm(forms.ModelForm):
                 self.fields['igreja'].disabled = True
 
        
-            # Popula os querysets para os novos campos tipo_pessoa e status_pessoa
-            # Se TipoPessoa e StatusPessoa forem globais (não ligados à ministério):
+            # Popula os querysets para os novos campos tipo_pessoa, status_pessoa e tags
             self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
             self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
+            self.fields['tags'].queryset = Tag.objects.all().order_by('nome')
             # Se forem específicos por ministério, você precisaria filtrar aqui, por exemplo:
             # if ministerio:
             #     self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.filter(ministerio=ministerio).order_by('nome')
@@ -859,8 +808,17 @@ if 'MembroForm' in globals():
                 except Exception:
                     pass
 
-        # Replace/ensure module-level MembroForm points to canonical implementation
-        MembroForm = _CanonicalMembroForm
     except Exception:
         # If anything here fails, do not break module import
         pass
+
+from django import forms
+from .models import Tag
+
+class TagForm(forms.ModelForm):
+    class Meta:
+        model = Tag
+        fields = ['nome', 'cor', 'descricao']
+        widgets = {
+            'cor': forms.TextInput(attrs={'type': 'color'}),
+        }

@@ -54,6 +54,18 @@
                 <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
                 Cargos
             </a>
+                <a class="nav-link" href="{% url 'secretaria:lista_grupos_casa' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-house-user"></i></div>
+                    Grupos / Casas
+                </a>
+                <a class="nav-link" href="{% url 'secretaria:acompanhamentos_visita' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
+                    Visitas Individuais
+                </a>
+            <a class="nav-link" href="{% url 'secretaria:criar_tag' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-tags"></i></div>
+                Gerenciar Tags
+            </a>
             <a class="nav-link" href="{% url 'secretaria:associar_usuarios_membros' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-user-plus"></i></div>
                 Associar Usuários

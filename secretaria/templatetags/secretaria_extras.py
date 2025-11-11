@@ -5,7 +5,10 @@ register = template.Library()
 
 @register.filter(name='add_class')
 def add_class(field, css_class):
-    return field.as_widget(attrs={**field.field.widget.attrs, 'class': css_class})
+    if hasattr(field, 'as_widget'):
+        attrs = getattr(field.field.widget, 'attrs', {})
+        return field.as_widget(attrs={**attrs, 'class': css_class})
+    return field  # Retorna o campo sem alteração se não for um campo de formulário
 
 @register.filter(name='has_group')
 def has_group(user, group_names):

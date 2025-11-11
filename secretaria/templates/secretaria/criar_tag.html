@@ -1,0 +1,84 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Criar Tag{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4"><i class="fas fa-tags me-2"></i>Criar Nova Tag</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Pessoas</a></li>
+        <li class="breadcrumb-item active">Criar Tag</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-tags me-1"></i>Nova Tag
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <label for="id_nome" class="form-label">Nome da Tag</label>
+                        {{ form.nome }}
+                        <small class="text-muted">Ex: pai, batizado, doente</small>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="id_cor" class="form-label">Cor</label>
+                        {{ form.cor }}
+                        <small class="text-muted">Hex (ex: #FF0000)</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_descricao" class="form-label">Descrição</label>
+                        {{ form.descricao|safe }}
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                var desc = document.getElementById('id_descricao');
+                                if (desc) {
+                                    desc.rows = 1;
+                                    desc.style.minHeight = '2.2em';
+                                    desc.style.resize = 'vertical';
+                                }
+                            });
+                        </script>
+                        <small class="text-muted">Opcional</small>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success">Salvar</button>
+                    <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary ms-2">Cancelar</a>
+                </div>
+            </form>
+            <hr>
+            <h5 class="mt-4 mb-3"><i class="fas fa-list me-2"></i>Tags Existentes</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 80px;">Cor</th>
+                            <th style="width: 120px;">Nome</th>
+                            <th>Descrição</th>
+                            <th style="width: 180px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tag in all_tags %}
+                        <tr>
+                            <td>
+                                <span class="badge" style="background-color: {{ tag.cor }}; color: #fff; min-width: 60px; display: inline-block;">{{ tag.cor }}</span>
+                            </td>
+                            <td><strong>{{ tag.nome }}</strong></td>
+                            <td>{{ tag.descricao|default:"-" }}</td>
+                            <td class="text-nowrap">
+                                <a href="{% url 'secretaria:editar_tag' tag.id %}" class="btn btn-sm btn-primary me-1"><i class="fas fa-edit"></i> Editar</a>
+                                <a href="{% url 'secretaria:excluir_tag' tag.id %}" class="btn btn-sm btn-danger"><i class="fas fa-trash-alt"></i> Excluir</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted">Nenhuma tag cadastrada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

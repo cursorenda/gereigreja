@@ -315,15 +315,70 @@
                                 </div>
                             </div>
                         </div>
-
                         <!-- Seção: Família (Cônjuge) -->
-
+                        <div class="row">
+                        <!-- Seção: Família (Cônjuge) removida para evitar campos vazios/indesejados acima das tags -->
+                        <div class="row align-items-end" style="margin-bottom:0;">
+                            <div class="col-md-6">
+                                <div class="mb-1">
+                                    <label for="{{ form.profissao_conjuge.id_for_label }}" class="form-label">{{ form.profissao_conjuge.label }}:</label>
+                                    {{ form.profissao_conjuge }}
+                                    {% if form.profissao_conjuge.errors %}<div class="invalid-feedback d-block">{{ form.profissao_conjuge.errors|striptags }}</div>{% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-1">
+                                    <label for="{{ form.escolaridade_conjuge.id_for_label }}" class="form-label">{{ form.escolaridade_conjuge.label }}:</label>
+                                    {{ form.escolaridade_conjuge }}
+                                    {% if form.escolaridade_conjuge.errors %}<div class="invalid-feedback d-block">{{ form.escolaridade_conjuge.errors|striptags }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.tags.id_for_label }}" class="form-label">Tags:</label>
+                            {{ form.tags }}
+                            <small class="text-muted">Segure Ctrl para selecionar múltiplas tags</small>
+                            {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
+                            <div id="selected-tags-preview" class="mt-2"></div>
+                            <script>
+                                var allTags = [
+                                    {% for tag in form.fields.tags.queryset %}
+                                        {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
+                                    {% endfor %}
+                                ];
+                                function updateTagBadges() {
+                                    var select = document.getElementById('id_tags');
+                                    var preview = document.getElementById('selected-tags-preview');
+                                    preview.innerHTML = '';
+                                    var selected = Array.from(select.selectedOptions).map(function(opt){ return parseInt(opt.value); });
+                                    allTags.forEach(function(tag){
+                                        if (selected.includes(tag.id)) {
+                                            var badge = document.createElement('span');
+                                            badge.className = 'badge';
+                                            badge.style.backgroundColor = tag.cor;
+                                            badge.style.color = '#fff';
+                                            badge.style.fontSize = '1em';
+                                            badge.style.marginRight = '4px';
+                                            badge.textContent = tag.nome;
+                                            preview.appendChild(badge);
+                                        }
+                                    });
+                                }
+                                document.addEventListener('DOMContentLoaded', function(){
+                                    var select = document.getElementById('id_tags');
+                                    if (select) {
+                                        select.addEventListener('change', updateTagBadges);
+                                        updateTagBadges();
+                                    }
+                                });
+                            </script>
+                        </div>
 
                         <hr>
-                         <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Alterações</button>
-                        <button type="submit" name="submit_membro_form" value="_save_and_continue" class="btn btn-info"><i class="fas fa-sync-alt me-1"></i> Salvar e Continuar Editando</button>
-
-                        <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Pessoa</button>
+                            <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+                        </div>
                     </form>
                 </div>
 

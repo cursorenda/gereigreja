@@ -1,0 +1,27 @@
+{% extends 'base_com_menu.html' %}
+{% block title %}Excluir Tag{% endblock %}
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4"><i class="fas fa-trash-alt me-2"></i>Excluir Tag</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:criar_tag' %}">Gerenciar Tags</a></li>
+        <li class="breadcrumb-item active">Excluir Tag</li>
+    </ol>
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-trash-alt me-1"></i>Confirmar Exclusão
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <p>Tem certeza que deseja excluir a tag <strong>{{ tag.nome }}</strong>?</p>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                    <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-secondary ms-2">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,7 +1,7 @@
+from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag
 import logging
 from datetime import date, datetime, timedelta
 import os, shutil, json
-
 from django.views.decorators.http import require_GET, require_POST
 from django.http import JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
@@ -11,7 +11,75 @@ from django.db import models, close_old_connections
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
+from django.urls import reverse
+
+# --- VIEW PARA EDITAR TAG ---
+@login_required
+def editar_tag(request, tag_id):
+    tag = get_object_or_404(Tag, pk=tag_id)
+    if not request.user.is_staff:
+        return redirect('login')
+    if request.method == 'POST':
+        form = TagForm(request.POST, instance=tag)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Tag atualizada com sucesso!')
+            return redirect('secretaria:criar_tag')
+    else:
+        form = TagForm(instance=tag)
+    return render(request, 'secretaria/editar_tag.html', {'form': form, 'tag': tag})
+
+# --- VIEW PARA EXCLUIR TAG ---
+@login_required
+def excluir_tag(request, tag_id):
+    tag = get_object_or_404(Tag, pk=tag_id)
+    if not request.user.is_staff:
+        return redirect('login')
+    if request.method == 'POST':
+        tag.delete()
+        messages.success(request, 'Tag excluída com sucesso!')
+        return redirect('secretaria:criar_tag')
+    return render(request, 'secretaria/excluir_tag.html', {'tag': tag})
 from django.template.loader import render_to_string
+
+
+@login_required
+def lista_acompanhamentos_visita(request):
+    """Listagem geral de acompanhamentos de visita com filtros padrão."""
+    qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel').all()
+    membros = Membro.objects.all().order_by('nome')
+    tipos = TipoPessoa.objects.all().order_by('nome')
+    # Filtros
+    membro_id = request.GET.get('membro')
+    tipo_contato = request.GET.get('tipo_contato')
+    data_ini = request.GET.get('data_ini')
+    data_fim = request.GET.get('data_fim')
+    igreja_id = request.GET.get('igreja')
+    if membro_id:
+        qs = qs.filter(membro_id=membro_id)
+    if tipo_contato:
+        qs = qs.filter(tipo_contato=tipo_contato)
+    if data_ini:
+        qs = qs.filter(data__gte=data_ini)
+    if data_fim:
+        qs = qs.filter(data__lte=data_fim)
+    if igreja_id:
+        qs = qs.filter(membro__igreja_id=igreja_id)
+    qs = qs.order_by('-data')
+    context = {
+        'acompanhamentos': qs,
+        'membros': membros,
+        'tipos': tipos,
+        'filtros': {
+            'membro': membro_id,
+            'tipo_contato': tipo_contato,
+            'data_ini': data_ini,
+            'data_fim': data_fim,
+            'igreja': igreja_id,
+        },
+        'titulo_pagina': 'Acompanhamentos de Visita',
+    }
+    return render(request, 'secretaria/acompanhamentos_visita_list.html', context)
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -551,11 +619,6 @@ def ajax_registrar_presenca_evento(request):
             return JsonResponse({'error': str(e), 'trace_id': trace_id}, status=500)
         except Exception:
             return JsonResponse({'error': 'Erro interno', 'trace_id': trace_id}, status=500)
-from django.views.decorators.http import require_GET
-from django.db.models import Q
-
-from .models import AcompanhamentoVisita, Membro, GrupoCasa, VisitaGrupoCasa
-
 from .forms_acompanhamento import AcompanhamentoVisitaForm
 from .forms import AssociarUsuarioMembroForm
 from .forms_grupocasa import GrupoCasaForm
@@ -1046,7 +1109,6 @@ def criar_visitante_parcial(request):
                     logger.debug('visitante create - save_error - user=%s exception=%s post=%s', request.user, e, sanitized)
                 except Exception:
                     logger.debug('visitante create - failed to log save_error', exc_info=True)
-                return JsonResponse({'error': str(e)}, status=500)
             # Provide both numeric and string forms to avoid client-side ambiguity
             created = {
                 'id': visitante.pk,
@@ -1768,9 +1830,9 @@ def dashboard(request):
     )
     genero_map = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
     aggregated_genero = {}
-    for item in genero_data_qs:
-        genero_display = genero_map.get(item['genero'], 'Não Informado')
-        aggregated_genero[genero_display] = aggregated_genero.get(genero_display, 0) + item['total']
+    for item_gen in genero_data_qs:
+        genero_display = genero_map.get(item_gen['genero'], 'Não Informado')
+        aggregated_genero[genero_display] = aggregated_genero.get(genero_display, 0) + item_gen['total']
     genero_data_normalized = [{'genero': key, 'total': value} for key, value in aggregated_genero.items()]
     logger.info(f"Dashboard - Gênero Data Normalized (Filtrado e Agregado): {genero_data_normalized}")
 
@@ -1976,7 +2038,6 @@ def agrupar_grupos_preview(request):
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
-@require_POST
 def agrupar_grupos_apply(request):
     """Aplica o agrupamento (cria GrupoCasa e associa pessoas).
     Esta view recalcula o preview e aplica apenas os agrupamentos com 2+ pessoas.
@@ -2011,7 +2072,6 @@ def agrupar_grupos_apply(request):
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
-@require_POST
 def reagrupar_grupo_casa(request, grupo_id):
     """Reagrupar moradores do GrupoCasa: recalcula preview para as pessoas deste grupo e aplica apenas os agrupamentos relevantes.
     Fluxo seguro: só executa para membros do próprio grupo/igreja no escopo do usuário.
@@ -2238,8 +2298,7 @@ def lista_membros(request): # noqa: E302
     can_edit = has_membro_edit_permission(request.user)
     igrejas_para_filtro_template = allowed_churches if not request.igreja_ativa else Igreja.objects.filter(pk=request.igreja_ativa.pk)
 
-    from .models import TipoPessoa, StatusPessoa
-
+    from .models import TipoPessoa, StatusPessoa, Tag
     tipos_pessoa = TipoPessoa.objects.all().order_by('nome')
     status_pessoa = StatusPessoa.objects.all().order_by('nome')
 
@@ -2254,6 +2313,12 @@ def lista_membros(request): # noqa: E302
     if genero:
         membros_queryset = membros_queryset.filter(genero=genero)
 
+    # --- FILTRO POR TAGS ---
+    tag_ids = request.GET.getlist('tags')
+    if tag_ids:
+        membros_queryset = membros_queryset.filter(tags__in=tag_ids).distinct()
+    todas_tags = Tag.objects.all().order_by('nome')
+
     context = {
         'membros': membros_queryset,
         'ministerio': ministerio,
@@ -2264,6 +2329,8 @@ def lista_membros(request): # noqa: E302
         'igreja_selecionada': str(request.igreja_ativa.pk) if request.igreja_ativa else igreja_id_get,
         'tipos_pessoa': tipos_pessoa,
         'status_pessoa': status_pessoa,
+        'todas_tags': todas_tags,
+        'tags_selecionadas': tag_ids,
     }
     return render(request, 'secretaria/lista_membros.html', context)
 
@@ -2310,7 +2377,7 @@ def editar_membro(request, membro_id): # noqa: E302
                    
                    
                     else:
-                        membro_editado.save(user=request.user) # Passa o usuário
+                        form.save(commit=True) # Salva via formulário, garantindo tags
                         messages.success(request, f'Membro "{membro_editado.nome}" atualizado com sucesso!')
                         # Verifica o VALOR do botão pressionado, não a presença de uma chave.
                         # O botão "Salvar e Continuar" envia o valor "_save_and_continue".
@@ -2665,6 +2732,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
                 try:
                     igreja_em_foco_obj = allowed_churches_base_secretaria.get(pk=igreja_id_filtro_selecionado_template_lider_sec)
                     ver_apenas_entidade_foco = False 
+                    ver_apenas_entidade_foco = False 
                     # Título será definido ao construir pks_to_include
 
                 except Igreja.DoesNotExist:
@@ -2960,3 +3028,23 @@ def relatorio_reuniao_membros(request):
     }
     return render(request, 'secretaria/relatorio_reuniao_membros.html', context)
 # --- FIM NOVA VIEW ---
+
+from .models import Tag
+from .forms import TagForm
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+
+@login_required
+def criar_tag(request):
+    if not request.user.is_staff:
+        return redirect('login')
+    if request.method == 'POST':
+        form = TagForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('secretaria:lista_membros')
+    else:
+        form = TagForm()
+    # Fetch all tags to display below the form
+    all_tags = Tag.objects.all().order_by('nome')
+    return render(request, 'secretaria/criar_tag.html', {'form': form, 'all_tags': all_tags})

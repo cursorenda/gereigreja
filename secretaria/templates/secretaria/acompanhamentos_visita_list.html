@@ -1,0 +1,77 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+  <div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+      <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+      <li class="breadcrumb-item active">{{ titulo_pagina }}</li>
+    </ol>
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="fas fa-user-check me-1"></i>
+        Visitas Individuais ({{ acompanhamentos|length }})
+      </div>
+      <div class="card-body">
+        <form method="get" class="row g-3 mb-3">
+  <div class="col-md-3">
+    <label>Membro</label>
+    <select name="membro" class="form-select">
+      <option value="">Todos</option>
+      {% for membro in membros %}
+        <option value="{{ membro.pk }}" {% if filtros.membro == membro.pk|stringformat:'s' %}selected{% endif %}>{{ membro.nome }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label>Tipo de Contato</label>
+    <select name="tipo_contato" class="form-select">
+      <option value="">Todos</option>
+      <option value="visita" {% if filtros.tipo_contato == 'visita' %}selected{% endif %}>Visita</option>
+      <option value="ligacao" {% if filtros.tipo_contato == 'ligacao' %}selected{% endif %}>Ligação</option>
+      <option value="outro" {% if filtros.tipo_contato == 'outro' %}selected{% endif %}>Outro</option>
+    </select>
+  </div>
+  <div class="col-md-2">
+    <label>Data Inicial</label>
+    <input type="date" name="data_ini" class="form-control" value="{{ filtros.data_ini }}">
+  </div>
+  <div class="col-md-2">
+    <label>Data Final</label>
+    <input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}">
+  </div>
+  <div class="col-md-1 d-flex align-items-end">
+    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+  </div>
+</form>
+        <div class="table-responsive">
+          <table class="table table-striped table-bordered table-hover table-sm">
+  <thead>
+    <tr>
+      <th>Data</th>
+      <th>Membro</th>
+      <th>Tipo</th>
+      <th>Resultado</th>
+      <th>Responsável</th>
+      <th>Observação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in acompanhamentos %}
+    <tr>
+      <td>{{ a.data|date:'d/m/Y H:i' }}</td>
+      <td>{{ a.membro.nome }}</td>
+      <td>{{ a.get_tipo_contato_display }}</td>
+      <td>{{ a.resultado }}</td>
+      <td>{{ a.responsavel.get_full_name|default:a.responsavel.username }}</td>
+      <td>{{ a.observacao }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">Nenhum acompanhamento encontrado.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+        </div>
+      </div>
+    </div>
+  {% endblock %}

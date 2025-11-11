@@ -1,6 +1,12 @@
 # secretaria/admin.py
 from django.contrib import admin
-from .models import Membro, Pessoa, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, Cargo, MembroCargo, GrupoCasa, VisitaGrupoCasa # Adicionado StatusHistorico
+from .models import Membro, Pessoa, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, Cargo, MembroCargo, GrupoCasa, VisitaGrupoCasa, Tag # Adicionado Tag
+# Admin para Tag de Pessoa
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'cor', 'descricao')
+    search_fields = ('nome', 'descricao')
+    ordering = ('nome',)
 from django.utils.html import format_html # Para exibir a imagem
 
 
@@ -33,9 +39,10 @@ class MembroAdmin(admin.ModelAdmin):
     )
     list_filter = (
         'igreja', 'tipo_pessoa', 'status_pessoa', 'status_acompanhamento',
-        'status_pessoa__considerar_ativo_relatorios', 'genero', 'estado_civil', 'nascimento'
+        'status_pessoa__considerar_ativo_relatorios', 'genero', 'estado_civil', 'nascimento', 'tags'
     )
     search_fields = ('nome', 'apelido', 'cpf', 'rg', 'origem_visita', 'observacoes_visita')
+    filter_horizontal = ('tags',)
 # Admin para o modelo de acompanhamento de visita
 from .models import AcompanhamentoVisita
 

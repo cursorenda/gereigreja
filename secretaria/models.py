@@ -1,45 +1,27 @@
 ﻿
+
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
-
-class InteracaoPessoa(models.Model):
-    membro = models.ForeignKey('Membro', on_delete=models.CASCADE, related_name='interacoes')
-    data_interacao = models.DateTimeField(default=timezone.now)
-    tipo_interacao = models.CharField(
-        max_length=50,
-        choices=[
-            ('visita', 'Visita'),
-            ('ligacao', 'Ligação'),
-            ('convite', 'Convite'),
-            ('evento', 'Participação em Evento'),
-            ('mensagem', 'Mensagem'),
-            ('outro', 'Outro'),
-        ],
-        default='outro'
-    )
-    descricao = models.TextField(blank=True, null=True)
-    responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
-
-    class Meta:
-        verbose_name = 'Interação da Pessoa'
-        verbose_name_plural = 'Interações das Pessoas'
-        ordering = ['-data_interacao']
-
-    def __str__(self):
-        return f"{self.membro.nome} - {self.get_tipo_interacao_display()} ({self.data_interacao:%d/%m/%Y %H:%M})"
-
-from django.db import models
-from django.utils import timezone
 import uuid # Para nomes de arquivo únicos
 import os   # Para manipulação de caminhos
-from django.conf import settings # Para settings.AUTH_USER_MODEL
 from configuracao.models import Igreja
 import logging
 logger = logging.getLogger(__name__)
 
+# --- MODELO GLOBAL DE TAG ---
+class Tag(models.Model):
+    nome = models.CharField(max_length=50, unique=True, help_text="Nome da tag (ex: pai, batizado, doente)")
+    cor = models.CharField(max_length=7, default="#2196F3", help_text="Cor em hexadecimal (ex: #FF0000)")
+    descricao = models.TextField(blank=True, null=True, help_text="Descrição opcional da tag.")
 
+    def __str__(self):
+        return self.nome
 
+    class Meta:
+        verbose_name = "Tag de Pessoa"
+        verbose_name_plural = "Tags de Pessoas"
+        ordering = ['nome']
 
 # --- NOVOS MODELOS ---
 class TipoPessoa(models.Model):
@@ -55,7 +37,6 @@ class TipoPessoa(models.Model):
         verbose_name = "Tipo de Pessoa"
         verbose_name_plural = "Tipos de Pessoas"
         ordering = ['nome']
-
 
 
 # --- MODELO DE PRESENÇA DE VISITANTE EM EVENTO ---
@@ -152,6 +133,14 @@ class Pessoa(models.Model):
     nacionalidade = models.CharField(max_length=50, blank=True, null=True, verbose_name="Nacionalidade") # NOVO CAMPO
     email = models.EmailField(max_length=100, blank=True, null=True, verbose_name="E-mail Pessoal") # NOVO CAMPO
     complemento = models.CharField(max_length=100, blank=True, null=True)
+    # --- CAMPO TAGS ---
+    tags = models.ManyToManyField(
+        Tag,
+        blank=True,
+        related_name='pessoas',
+        verbose_name='Tags',
+        help_text='Tags para segmentação flexível de membros (ex: batizado, líder, doente)'
+    )
     # Grupo/Casa/Família: referenciar uma unidade residencial ou grupo familiar
     grupo_casa = models.ForeignKey(
         'GrupoCasa',

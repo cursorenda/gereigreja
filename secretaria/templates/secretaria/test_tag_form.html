@@ -1,0 +1,14 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Teste de Campo Tags</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="id_tags" class="form-label">Tags de Teste:</label>
+            {{ form.tags }}
+        </div>
+        <button type="submit" class="btn btn-primary">Testar</button>
+    </form>
+</div>
+{% endblock %}

@@ -292,6 +292,81 @@
                     </div>
                 </div>
 
+                <!-- Seção: Tags -->
+                <h5 class="mt-4 mb-3 border-bottom pb-2">Tags</h5>
+                <div class="mb-1" style="margin-bottom:0;">
+                    <label class="form-label">Tags disponíveis:</label>
+                    <div id="tag-badges-list" class="d-flex flex-row flex-wrap align-items-center gap-2" style="max-width: 500px;">
+                        {% for tag in form.fields.tags.queryset %}
+                            <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }};color:#fff;font-size:1em;padding:6px 18px;border-radius:18px;min-width:60px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 3px rgba(0,0,0,0.07);" data-tag-id="{{ tag.id }}">{{ tag.nome }}</button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="tags" id="id_tags_hidden" value="{% for tag in form.initial.tags %}{{ tag.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                    <label class="form-label mt-3">Tags já selecionadas:</label>
+                    <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1" style="max-width: 500px;"></div>
+                    <small class="text-muted">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
+                    {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
+                    <script>
+                        var allTags = [
+                            {% for tag in form.fields.tags.queryset %}
+                                {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
+                            {% endfor %}
+                        ];
+                        function getSelectedTags() {
+                            var val = document.getElementById('id_tags_hidden').value;
+                            if (!val) return [];
+                            return val.split(',').map(function(x){return parseInt(x);}).filter(Boolean);
+                        }
+                        function setSelectedTags(arr) {
+                            document.getElementById('id_tags_hidden').value = arr.join(',');
+                        }
+                        function renderSelectedTags() {
+                            var selected = getSelectedTags();
+                            var preview = document.getElementById('selected-tags-preview');
+                            preview.innerHTML = '';
+                            allTags.forEach(function(tag){
+                                if (selected.includes(tag.id)) {
+                                    var badge = document.createElement('button');
+                                    badge.type = 'button';
+                                    badge.className = 'badge tag-badge-selected';
+                                    badge.style.backgroundColor = tag.cor;
+                                    badge.style.color = '#fff';
+                                    badge.style.fontSize = '1em';
+                                    badge.style.padding = '6px 18px';
+                                    badge.style.borderRadius = '18px';
+                                    badge.style.minWidth = '60px';
+                                    badge.style.maxWidth = '120px';
+                                    badge.style.whiteSpace = 'nowrap';
+                                    badge.style.overflow = 'hidden';
+                                    badge.style.textOverflow = 'ellipsis';
+                                    badge.style.boxShadow = '0 1px 3px rgba(0,0,0,0.07)';
+                                    badge.style.marginRight = '0';
+                                    badge.textContent = tag.nome;
+                                    badge.setAttribute('data-tag-id', tag.id);
+                                    badge.onclick = function(){
+                                        var arr = getSelectedTags().filter(function(tid){return tid !== tag.id;});
+                                        setSelectedTags(arr);
+                                        renderSelectedTags();
+                                    };
+                                    preview.appendChild(badge);
+                                }
+                            });
+                        }
+                        document.addEventListener('DOMContentLoaded', function(){
+                            document.querySelectorAll('.tag-badge-select').forEach(function(btn){
+                                btn.addEventListener('click', function(){
+                                    var tagId = parseInt(btn.getAttribute('data-tag-id'));
+                                    var arr = getSelectedTags();
+                                    if (!arr.includes(tagId)) arr.push(tagId);
+                                    setSelectedTags(arr);
+                                    renderSelectedTags();
+                                });
+                            });
+                            renderSelectedTags();
+                        });
+                    </script>
+                </div>
+
                 <hr>
                 <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Pessoa</button>
                 <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>

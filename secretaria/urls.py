@@ -1,11 +1,14 @@
 from .views import associar_usuarios_membros
 from django.urls import path
 from . import views
+from .views_test_tag import test_tag_form_view
 
 app_name = 'secretaria'
 
 urlpatterns = [
     path('autocomplete_nome/', views.autocomplete_nome, name='autocomplete_nome'),
+    # Página geral de acompanhamentos de visita
+    path('acompanhamentos-visita/', views.lista_acompanhamentos_visita, name='acompanhamentos_visita'),
     path('', views.index, name='index'), # Esta URL agora será /sistema/
     path('dashboard/', views.dashboard, name='dashboard'),
     path('membros/', views.lista_membros, name='lista_membros'),
@@ -50,5 +53,10 @@ urlpatterns = [
     path('grupos-casa/<int:grupo_id>/reagrupar/', views.reagrupar_grupo_casa, name='reagrupar_grupo_casa'),
     path('grupos-casa/agrupar/preview/', views.agrupar_grupos_preview, name='agrupar_grupos_preview'),
     path('grupos-casa/agrupar/aplicar/', views.agrupar_grupos_apply, name='agrupar_grupos_apply'),
+    path('tags/criar/', views.criar_tag, name='criar_tag'),
+    path('tags/<int:tag_id>/editar/', views.editar_tag, name='editar_tag'),
+    path('tags/<int:tag_id>/excluir/', views.excluir_tag, name='excluir_tag'),
+    # URL de teste para o formulário de tags
+    path('test-tag-form/', test_tag_form_view, name='test_tag_form'),
 
 ]
