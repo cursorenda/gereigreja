@@ -69,12 +69,36 @@
                                     <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">{{ form.status_pessoa.label }}:</label>
                                     {{ form.status_pessoa|add_class:'form-control' }}
                                     {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
+                                    <div id="sub-status-inativo-wrapper" style="margin-top:10px;">
+                                        <label for="{{ form.sub_status_inativo.id_for_label }}" class="form-label">{{ form.sub_status_inativo.label }}:</label>
+                                        {{ form.sub_status_inativo|add_class:'form-control' }}
+                                        <small class="text-muted">Preencha apenas se o status for inativo.</small>
+                                        {% if form.sub_status_inativo.errors %}<div class="invalid-feedback d-block">{{ form.sub_status_inativo.errors|striptags }}</div>{% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <hr>
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        var statusField = document.getElementById('{{ form.status_pessoa.id_for_label }}');
+                        var subStatusWrapper = document.getElementById('sub-status-inativo-wrapper');
+                        function toggleSubStatus() {
+                            var selected = statusField.options[statusField.selectedIndex].text.trim().toLowerCase();
+                            if (selected === 'inativo') {
+                                subStatusWrapper.style.display = '';
+                            } else {
+                                subStatusWrapper.style.display = 'none';
+                                var subStatusInput = subStatusWrapper.querySelector('select, input');
+                                if (subStatusInput) subStatusInput.value = '';
+                            }
+                        }
+                        statusField.addEventListener('change', toggleSubStatus);
+                        toggleSubStatus();
+                    });
+                    </script>
 
                 <!-- Seção: Informações da Igreja -->
                 <h5 class="mt-4 mb-3 border-bottom pb-2">Informações da Igreja</h5>

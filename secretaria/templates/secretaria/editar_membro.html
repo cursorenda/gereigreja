@@ -93,6 +93,32 @@
                                             <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">{{ form.status_pessoa.label }}:</label>
                                             {{ form.status_pessoa|add_class:'form-control' }}
                                              {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
+                                                <div id="sub-status-inativo-wrapper" style="margin-top:10px;">
+                                                    <label for="{{ form.sub_status_inativo.id_for_label }}" class="form-label">{{ form.sub_status_inativo.label }}:</label>
+                                                    {{ form.sub_status_inativo }}
+                                                    <small class="text-muted">Preencha apenas se o status for inativo.</small>
+                                                    {% if form.sub_status_inativo.errors %}<div class="invalid-feedback d-block">{{ form.sub_status_inativo.errors|striptags }}</div>{% endif %}
+                                                </div>
+                                                <script>
+                                                document.addEventListener('DOMContentLoaded', function() {
+                                                    var statusField = document.getElementById('{{ form.status_pessoa.id_for_label }}');
+                                                    var subStatusWrapper = document.getElementById('sub-status-inativo-wrapper');
+                                                    // Começa oculto
+                                                    subStatusWrapper.style.display = 'none';
+                                                    function toggleSubStatus() {
+                                                        var selectedText = statusField.options[statusField.selectedIndex].text.trim().toLowerCase();
+                                                        if (selectedText === 'inativo') {
+                                                            subStatusWrapper.style.display = '';
+                                                        } else {
+                                                            subStatusWrapper.style.display = 'none';
+                                                            var subStatusInput = subStatusWrapper.querySelector('select, input');
+                                                            if (subStatusInput) subStatusInput.value = '';
+                                                        }
+                                                    }
+                                                    statusField.addEventListener('change', toggleSubStatus);
+                                                    toggleSubStatus();
+                                                });
+                                                </script>
                                         </div>
                                     </div>
                                 </div>
@@ -335,42 +361,66 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="{{ form.tags.id_for_label }}" class="form-label">Tags:</label>
-                            {{ form.tags }}
-                            <small class="text-muted">Segure Ctrl para selecionar múltiplas tags</small>
-                            {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
-                            <div id="selected-tags-preview" class="mt-2"></div>
-                            <script>
-                                var allTags = [
+                                <label class="form-label">Tags disponíveis:</label>
+                                <div id="tag-badges-list" class="d-flex flex-row flex-wrap align-items-center gap-2" style="max-width: 500px;">
                                     {% for tag in form.fields.tags.queryset %}
-                                        {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
+                                        <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }};color:#fff;font-size:1em;padding:6px 18px;border-radius:18px;min-width:60px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 3px rgba(0,0,0,0.07);" data-tag-id="{{ tag.id }}">{{ tag.nome }}</button>
                                     {% endfor %}
-                                ];
-                                function updateTagBadges() {
-                                    var select = document.getElementById('id_tags');
-                                    var preview = document.getElementById('selected-tags-preview');
-                                    preview.innerHTML = '';
-                                    var selected = Array.from(select.selectedOptions).map(function(opt){ return parseInt(opt.value); });
-                                    allTags.forEach(function(tag){
-                                        if (selected.includes(tag.id)) {
-                                            var badge = document.createElement('span');
-                                            badge.className = 'badge';
-                                            badge.style.backgroundColor = tag.cor;
-                                            badge.style.color = '#fff';
-                                            badge.style.fontSize = '1em';
-                                            badge.style.marginRight = '4px';
-                                            badge.textContent = tag.nome;
-                                            preview.appendChild(badge);
-                                        }
-                                    });
-                                }
-                                document.addEventListener('DOMContentLoaded', function(){
-                                    var select = document.getElementById('id_tags');
-                                    if (select) {
-                                        select.addEventListener('change', updateTagBadges);
-                                        updateTagBadges();
+                                </div>
+                                <input type="hidden" name="tags" id="id_tags_hidden" value="{% for tag in form.initial.tags %}{{ tag.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                                <label class="form-label mt-3">Tags já selecionadas:</label>
+                                <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1" style="max-width: 500px;"></div>
+                                <small class="text-muted">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
+                                {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
+                                <script>
+                                    var allTags = [
+                                        {% for tag in form.fields.tags.queryset %}
+                                            {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
+                                        {% endfor %}
+                                    ];
+                                    function getSelectedTags() {
+                                        var val = document.getElementById('id_tags_hidden').value;
+                                        if (!val) return [];
+                                        return val.split(',').map(function(x){return parseInt(x);}).filter(Boolean);
                                     }
-                                });
+                                    function setSelectedTags(arr) {
+                                        document.getElementById('id_tags_hidden').value = arr.join(',');
+                                    }
+                                    function renderSelectedTags() {
+                                        var selected = getSelectedTags();
+                                        var preview = document.getElementById('selected-tags-preview');
+                                        preview.innerHTML = '';
+                                        allTags.forEach(function(tag){
+                                            if (selected.includes(tag.id)) {
+                                                var badge = document.createElement('span');
+                                                badge.className = 'badge tag-badge-selected';
+                                                badge.style.backgroundColor = tag.cor;
+                                                badge.style.color = '#fff';
+                                                badge.style.fontSize = '1em';
+                                                badge.style.marginRight = '4px';
+                                                badge.textContent = tag.nome;
+                                                badge.setAttribute('data-tag-id', tag.id);
+                                                badge.onclick = function(){
+                                                    var arr = getSelectedTags().filter(function(tid){return tid !== tag.id;});
+                                                    setSelectedTags(arr);
+                                                    renderSelectedTags();
+                                                };
+                                                preview.appendChild(badge);
+                                            }
+                                        });
+                                    }
+                                    document.querySelectorAll('.tag-badge-select').forEach(function(btn){
+                                        btn.onclick = function(){
+                                            var tagId = parseInt(btn.getAttribute('data-tag-id'));
+                                            var arr = getSelectedTags();
+                                            if (!arr.includes(tagId)) arr.push(tagId);
+                                            setSelectedTags(arr);
+                                            renderSelectedTags();
+                                        };
+                                    });
+                                    renderSelectedTags();
+                                </script>
+                            <script type="application/json" id="all-tags-data">[{% for tag in form.fields.tags.queryset %}{"id":{{ tag.id }},"nome":"{{ tag.nome|escapejs }}","cor":"{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]</script>
                             </script>
                         </div>
 

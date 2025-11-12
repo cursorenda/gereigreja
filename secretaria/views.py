@@ -2300,7 +2300,7 @@ def lista_membros(request): # noqa: E302
 
     from .models import TipoPessoa, StatusPessoa, Tag
     tipos_pessoa = TipoPessoa.objects.all().order_by('nome')
-    status_pessoa = StatusPessoa.objects.all().order_by('nome')
+    status_pessoa = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
 
     # Filtros extras
     tipo_id = request.GET.get('tipo')

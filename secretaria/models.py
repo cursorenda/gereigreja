@@ -153,7 +153,21 @@ class Pessoa(models.Model):
     )
     telefone = models.CharField(max_length=15, blank=True, null=True) # Adicionar máscara JS no template
     data_entrada = models.DateField(default=timezone.now, blank=True, null=True) # Usar default=timezone.now?
-    # O campo 'status' antigo foi removido.
+
+    # Sub status para membros inativos
+    SUB_STATUS_INATIVO_CHOICES = [
+        ('FALECIDO', 'Falecido'),
+        ('MUDOU', 'Mudou (outro ministério ou denominação)'),
+        ('TRANSFERIDO', 'Transferido (outra congregação do mesmo ministério)'),
+    ]
+    sub_status_inativo = models.CharField(
+        max_length=20,
+        choices=SUB_STATUS_INATIVO_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name="Sub status (se inativo)",
+        help_text="Preencha apenas se o status for inativo."
+    )
 
     foto = models.ImageField(
         upload_to='fotos_pessoas/%Y/%m/%d/',
