@@ -29,7 +29,7 @@ class VisitantePresencaFlowTest(TestCase):
 
         # Create TipoPessoa 'Visitante' and StatusPessoa 'Ativo'
         self.tipo_visitante, _ = TipoPessoa.objects.get_or_create(nome='Visitante')
-        self.status_ativo, _ = StatusPessoa.objects.get_or_create(nome='Ativo', defaults={'considerar_ativo_relatorios': True})
+        self.status_ativo, _ = StatusPessoa.objects.get_or_create(nome='Ativo')
 
         # Create an Evento in the igreja
         now = timezone.now()

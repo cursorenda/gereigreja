@@ -19,7 +19,7 @@ class AjaxRegistrarPresencaEventoTest(TestCase):
 
         # tipos e status necessários
         self.tipo_visitante = TipoPessoa.objects.create(nome='Visitante')
-        self.status_ativo = StatusPessoa.objects.create(nome='Ativo', considerar_ativo_relatorios=True)
+        self.status_ativo = StatusPessoa.objects.create(nome='Ativo')
 
         # criar evento
         self.evento = Evento.objects.create(

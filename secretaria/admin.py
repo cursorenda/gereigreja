@@ -21,8 +21,8 @@ class TipoPessoaAdmin(admin.ModelAdmin):
 
 @admin.register(StatusPessoa)
 class StatusPessoaAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'considerar_ativo_relatorios', 'cor_associada', 'descricao')
-    list_filter = ('considerar_ativo_relatorios',)
+    list_display = ('nome', 'cor_associada', 'descricao')
+    list_filter = ()
     search_fields = ('nome',)
     ordering = ('nome',)
 
@@ -33,13 +33,13 @@ class StatusPessoaAdmin(admin.ModelAdmin):
 @admin.register(Membro)
 class MembroAdmin(admin.ModelAdmin):
     list_display = (
-        'nome', 'igreja', 'tipo_pessoa', 'status_pessoa', 'is_ativo_para_relatorios',
+        'nome', 'igreja', 'tipo_pessoa', 'status_pessoa',
         'genero', 'nascimento', 'telefone',
         'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento'
     )
     list_filter = (
         'igreja', 'tipo_pessoa', 'status_pessoa', 'status_acompanhamento',
-        'status_pessoa__considerar_ativo_relatorios', 'genero', 'estado_civil', 'nascimento', 'tags'
+        'genero', 'estado_civil', 'nascimento', 'tags'
     )
     search_fields = ('nome', 'apelido', 'cpf', 'rg', 'origem_visita', 'observacoes_visita')
     filter_horizontal = ('tags',)

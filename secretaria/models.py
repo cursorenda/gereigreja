@@ -57,10 +57,6 @@ class PresencaVisitanteEvento(models.Model):
 class StatusPessoa(models.Model):
     nome = models.CharField(max_length=100, unique=True, help_text="Ex: Ativo, Inativo, Em Disciplina, Desligado, Transferido, Falecido")
     descricao = models.TextField(blank=True, null=True, help_text="Descrição adicional do status.")
-    considerar_ativo_relatorios = models.BooleanField(
-        default=True,
-        help_text="Marque se pessoas com este status devem ser consideradas ativas em relatórios de membresia."
-    )
     cor_associada = models.CharField(
         max_length=7, blank=True, null=True, help_text="Cor em hexadecimal (ex: #FF0000) para UI."
     )
@@ -230,15 +226,7 @@ class Pessoa(models.Model):
         blank=True, null=True,
         verbose_name="Tipo de Entrada (se membro)"
     )
-    @property
-    def is_ativo_para_relatorios(self):
-        """Verifica se o status_pessoa do membro permite inclusão em relatórios.""" # noqa: E501
-        if self.status_pessoa: # Agora verifica o novo campo
-            return self.status_pessoa.considerar_ativo_relatorios
-
-        # Defina o comportamento padrão se o membro não tiver status
-        # False é geralmente mais seguro para relatórios
-        return False
+    # Propriedade removida: agora a lógica de ativo para relatórios depende apenas de status_pessoa.nome == 'Ativo'
     @property
     def nome_completo(self):
         """Retorna o nome completo da pessoa."""

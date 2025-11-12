@@ -1,4 +1,4 @@
-from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag
+from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag, GrupoCasa
 import logging
 from datetime import date, datetime, timedelta
 import os, shutil, json
@@ -1545,23 +1545,20 @@ def index(request):
     if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
         membros_para_relatorios = Membro.objects.filter(
             igreja=request.igreja_ativa,
-            status_pessoa__considerar_ativo_relatorios=True,
             tipo_pessoa__nome__iexact="Membro"
-        )
+        ).exclude(status_pessoa__nome__iexact="Inativo")
         titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
     elif allowed_churches_secretaria.exists():
         membros_para_relatorios = Membro.objects.filter(
             igreja__in=allowed_churches_secretaria,
-            status_pessoa__considerar_ativo_relatorios=True,
             tipo_pessoa__nome__iexact="Membro"
-        )
+        ).exclude(status_pessoa__nome__iexact="Inativo")
         titulo_contextual += " (Consolidado)"
     elif is_admin_org(request.user):
         membros_para_relatorios = Membro.objects.filter(
             igreja__ministerio=ministerio,
-            status_pessoa__considerar_ativo_relatorios=True,
             tipo_pessoa__nome__iexact="Membro"
-        )
+        ).exclude(status_pessoa__nome__iexact="Inativo")
         titulo_contextual += " (Ministério)"
 
     # Gráficos e cards
@@ -1776,21 +1773,18 @@ def dashboard(request):
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
         membros_para_relatorios = Membro.objects.filter(
-            igreja=request.igreja_ativa,
-            status_pessoa__considerar_ativo_relatorios=True # CORRIGIDO AQUI
-        )
+            igreja=request.igreja_ativa
+        ).exclude(status_pessoa__nome__iexact="Inativo")
         titulo_contextual_dashboard = f"Dashboard - Igreja: {request.igreja_ativa.nome_igreja}"
     elif allowed_churches_secretaria.exists():
         membros_para_relatorios = Membro.objects.filter(
-            igreja__in=allowed_churches_secretaria,
-            status_pessoa__considerar_ativo_relatorios=True # Alterado
-        )
+            igreja__in=allowed_churches_secretaria
+        ).exclude(status_pessoa__nome__iexact="Inativo")
         titulo_contextual_dashboard += " (Visão Consolidada)"
     elif is_admin_org(request.user): # Admin do Minist. sem igrejas no perfil e sem igreja ativa
         membros_para_relatorios = Membro.objects.filter(
-            igreja__ministerio=ministerio,
-            status_pessoa__considerar_ativo_relatorios=True # Alterado
-        )
+            igreja__ministerio=ministerio
+        ).exclude(status_pessoa__nome__iexact="Inativo")
         titulo_contextual_dashboard += " (Visão da Ministério)"
     else:
         # Se não tem igreja ativa, nem igrejas permitidas (e não é admin org),

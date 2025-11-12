@@ -28,37 +28,36 @@
                     <div class="col-lg-3 col-12">
                         <input type="text" name="nome_apelido" class="form-control form-control-sm" placeholder="Nome ou Apelido" value="{{ request.GET.nome_apelido|default:'' }}">
                     </div>
-                    <div class="col-lg-2 col-6">
-                        <select name="tipo" id="id_tipo" class="form-select form-select-sm">
+                    <div class="col-lg-1 col-4">
+                        <select name="tipo" id="id_tipo" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
                             <option value="">Tipo</option>
                             {% for tipo in tipos_pessoa %}
                               <option value="{{ tipo.id }}" {% if request.GET.tipo == tipo.id|stringformat:'s' %}selected{% endif %}>{{ tipo.nome }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-lg-2 col-6">
-                        <select name="status" id="id_status" class="form-select form-select-sm">
+                    <div class="col-lg-1 col-4">
+                        <select name="status" id="id_status" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
                             <option value="">Status</option>
                             {% for status in status_pessoa %}
                               <option value="{{ status.id }}" {% if request.GET.status == status.id|stringformat:'s' %}selected{% endif %}>{{ status.nome }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-lg-2 col-6">
-                        <select name="genero" class="form-select form-select-sm">
+                    <div class="col-lg-1 col-4">
+                        <select name="genero" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
                             <option value="">Gênero</option>
                             <option value="M" {% if request.GET.genero == 'M' %}selected{% endif %}>Masculino</option>
                             <option value="F" {% if request.GET.genero == 'F' %}selected{% endif %}>Feminino</option>
                         </select>
                     </div>
-                    <div class="col-lg-3 col-12">
-                        <select name="tags" multiple class="form-select form-select-sm" style="min-width:120px;">
+                    <div class="col-lg-1 col-4">
+                        <select name="tags" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
                             <option value="">Tags</option>
                             {% for tag in todas_tags %}
-                                <option value="{{ tag.id }}" {% if tag.id|stringformat:'s' in tags_selecionadas %}selected{% endif %} style="background-color:{{ tag.cor }};color:#fff;">{{ tag.nome }}</option>
+                                <option value="{{ tag.id }}" {% if tag.id|stringformat:'s' in tags_selecionadas %}selected{% endif %}>{{ tag.nome }}</option>
                             {% endfor %}
                         </select>
-                        <small class="text-muted">Filtrar por uma ou mais tags</small>
                     </div>
                     <div class="col-lg-2 col-6 d-grid gap-2 d-md-block">
                         <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
@@ -81,7 +80,6 @@
                                 <th>Nome</th>
                                 <th>Gênero</th>
                                 <th>Tipo / Status</th>
-                                <th class="text-center">Ativo p/ Relatórios?</th>
                                 <th>Data de Nascimento</th>
                                 {% if not igreja_selecionada or igreja_selecionada == '0' %}
                                     <th>Igreja</th>
@@ -93,7 +91,7 @@
                         </thead>
                         <tbody>
                             {% for membro in membros %}
-                            <tr class="{% if not membro.is_ativo_para_relatorios %}table-secondary text-muted{% endif %}">
+                            <tr>
                                 <td>
                                     {{ membro.nome }} {% if membro.apelido %}({{ membro.apelido }}){% endif %}
                                     {% if membro.tags.all %}
@@ -112,13 +110,6 @@
 
                                 
                                 </td>
-                                <td class="text-center">
-                                    {% if membro.is_ativo_para_relatorios %}
-                                        <i class="fas fa-check-circle text-success" title="Sim"></i>
-                                    {% else %}
-                                        <i class="fas fa-times-circle text-danger" title="Não"></i>
-                                    {% endif %}
-                                </td>
                                 <td>{{ membro.nascimento|date:"d/m/Y"|default:"N/I" }}</td>
                                 {% if not igreja_selecionada or igreja_selecionada == '0' %}
                                     <td>{{ membro.igreja.nome_igreja|default:"N/A" }}</td>
@@ -129,24 +120,11 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-sm btn-outline-info me-1" title="Ver Ficha para Impressão" target="_blank">
-                                                <i class="fas fa-print"></i>
-                                            </a>
-                                    <form action="{% url 'secretaria:alternar_status_membro' membro.chave %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja alterar o status de atividade (para relatórios) deste membro?');">
-                                        {% csrf_token %}
-                                        {% if membro.is_ativo_para_relatorios %}
-                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Marcar como Inativo para Relatórios">
-                                                <i class="fas fa-user-slash"></i>
-                                            </button>
-                                        {% else %}
-                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Marcar como Ativo para Relatórios">
-                                                <i class="fas fa-user-check"></i>
-                                            </button>
-                                        {% endif %}
-                                    </form>
+                                        <i class="fas fa-print"></i>
+                                    </a>
                                 </td>
                                 {% endif %}
                             </tr>
-                            {% empty %}
                             {% endfor %}
                         </tbody>
                     </table>
