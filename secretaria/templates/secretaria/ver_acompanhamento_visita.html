@@ -1,0 +1,32 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Detalhes do Acompanhamento</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:acompanhamentos_visita' %}">Acompanhamentos</a></li>
+    <li class="breadcrumb-item active">Detalhes</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-eye me-1"></i>
+      Detalhes do acompanhamento
+    </div>
+    <div class="card-body">
+      <dl class="row">
+        <dt class="col-sm-3">Nome</dt>
+        <dd class="col-sm-9">{{ acompanhamento.membro.nome }}</dd>
+        <dt class="col-sm-3">Data</dt>
+        <dd class="col-sm-9">{{ acompanhamento.data|date:'d/m/Y H:i' }}</dd>
+        <dt class="col-sm-3">Tipo de Contato</dt>
+        <dd class="col-sm-9">{{ acompanhamento.get_tipo_contato_display }}</dd>
+        <dt class="col-sm-3">Resultado</dt>
+        <dd class="col-sm-9">{{ acompanhamento.resultado }}</dd>
+        <dt class="col-sm-3">Observação</dt>
+        <dd class="col-sm-9">{{ acompanhamento.observacao }}</dd>
+      </dl>
+      <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-vibrant-blue">Voltar</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

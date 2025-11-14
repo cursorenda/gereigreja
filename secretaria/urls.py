@@ -6,6 +6,10 @@ from .views_test_tag import test_tag_form_view
 app_name = 'secretaria'
 
 urlpatterns = [
+    path('acompanhamento-visita/<int:acompanhamento_id>/ver/', views.ver_acompanhamento_visita, name='ver_acompanhamento_visita'),
+    path('acompanhamento-visita/<int:acompanhamento_id>/editar/', views.editar_acompanhamento_visita, name='editar_acompanhamento_visita'),
+    path('acompanhamento-visita/<int:acompanhamento_id>/excluir/', views.excluir_acompanhamento_visita, name='excluir_acompanhamento_visita'),
+    path('acompanhamentos-visita/escolher-pessoa/', views.escolher_pessoa_para_acompanhamento, name='escolher_pessoa_para_acompanhamento'),
     path('autocomplete_nome/', views.autocomplete_nome, name='autocomplete_nome'),
     # Página geral de acompanhamentos de visita
     path('acompanhamentos-visita/', views.lista_acompanhamentos_visita, name='acompanhamentos_visita'),

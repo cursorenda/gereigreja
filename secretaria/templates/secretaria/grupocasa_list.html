@@ -10,6 +10,7 @@
       <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
       <li class="breadcrumb-item active">{{ titulo_pagina }}</li>
     </ol>
+    {% include 'partials/_messages.html' %}
 
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
@@ -21,20 +22,18 @@
             <small class="text-muted ms-3">— {{ request.igreja_ativa.nome_igreja }}</small>
           {% endif %}
         </div>
-        <div>
-          <a class="btn btn-sm btn-primary" href="{% url 'secretaria:criar_grupo_casa' %}"><i class="fas fa-plus me-1"></i> Novo Grupo</a>
-          {% if can_agrupar_grupos %}
-            <a class="btn btn-sm btn-outline-secondary ms-2" href="{% url 'secretaria:agrupar_grupos_preview' %}"><i class="fas fa-layer-group me-1"></i> Atualizar Grupos/Casas</a>
-          {% endif %}
-        </div>
       </div>
       <div class="card-body">
         <form method="get" action="" class="row g-3 mb-3 align-items-center">
-          <div class="col-md-8 col-12">
+          <div class="col-md-6 col-12">
             <input type="text" name="q" class="form-control form-control-sm" placeholder="Buscar por rua, nome do responsável ou CEP" value="{{ query|default:'' }}">
           </div>
-          <div class="col-auto">
-            <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+          <div class="col-auto d-flex gap-2">
+            <button class="btn btn-vibrant-blue btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+            <a class="btn btn-vibrant-green btn-sm" href="{% url 'secretaria:criar_grupo_casa' %}"><i class="fas fa-plus me-1"></i> Novo Grupo</a>
+            {% if can_agrupar_grupos %}
+              <a class="btn btn-vibrant-yellow btn-sm d-flex align-items-center" href="{% url 'secretaria:agrupar_grupos_preview' %}"><i class="fas fa-layer-group me-1"></i><span style="margin-left: 0.4em;">Atualizar Grupos/Casas</span></a>
+            {% endif %}
           </div>
         </form>
 
@@ -70,9 +69,9 @@
                 {% endif %}
                 <td class="text-center">{{ g.pessoas.count }}</td>
                 <td class="text-center">
-                  <a class="btn btn-sm btn-outline-primary" href="{% url 'secretaria:detalhe_grupo_casa' g.id %}">Ver / Registrar Visita</a>
+                  <a class="btn btn-vibrant-blue btn-sm" href="{% url 'secretaria:detalhe_grupo_casa' g.id %}"><i class="fas fa-eye me-1"></i> Ver / Registrar Visita</a>
                   {% if can_edit_grupo %}
-                    <a class="btn btn-sm btn-outline-secondary ms-1" href="{% url 'secretaria:editar_grupo_casa' g.id %}">Editar</a>
+                    <a class="btn btn-vibrant-blue btn-sm ms-1" href="{% url 'secretaria:editar_grupo_casa' g.id %}"><i class="fas fa-edit me-1"></i> Editar</a>
                   {% endif %}
                 </td>
               </tr>

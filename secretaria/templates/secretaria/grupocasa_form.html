@@ -2,21 +2,20 @@
 {% load static %}
 
 {% block content %}
-<div class="container">
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">{{ titulo_pagina }}</h5>
-      <a href="{% url 'secretaria:lista_grupos_casa' %}" class="btn btn-sm btn-outline-secondary">Voltar à lista</a>
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:'Novo Grupo / Casa' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_grupos_casa' %}">Grupos / Casas</a></li>
+        <li class="breadcrumb-item active">{{ titulo_pagina|default:'Novo Grupo / Casa' }}</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+    <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-home me-1"></i>
+      <span class="fw-bold">{{ titulo_pagina|default:'Novo Grupo / Casa' }}</span>
     </div>
-    <div class="card-body">
-      <style>
-        /* Compact form tweaks local to this template */
-        .compact-form .mb-3 { margin-bottom: .5rem; }
-        .compact-form .form-label { font-size: .9rem; margin-bottom: .25rem; }
-        .compact-form .form-control, .compact-form .form-select, .compact-form textarea { padding: .35rem .5rem; font-size: .9rem; }
-        .compact-form .form-text { font-size: .78rem; margin-top: .15rem; }
-        .compact-form .small-help { font-size: .78rem; color: #6c757d; }
-      </style>
+        <div class="card-body">
 
       <form method="post" novalidate class="compact-form">
         {% csrf_token %}
@@ -82,11 +81,11 @@
 
         <div class="mt-2">
           {% if grupo %}
-            <button class="btn btn-primary btn-sm" type="submit">Salvar</button>
-            <a class="btn btn-outline-secondary btn-sm ms-2" href="{% url 'secretaria:detalhe_grupo_casa' grupo.id %}">Cancelar</a>
+            <button class="btn btn-vibrant-blue btn-sm" type="submit"><i class="fas fa-save me-1"></i> Salvar</button>
+            <a class="btn btn-cancel btn-sm ms-2" href="{% url 'secretaria:detalhe_grupo_casa' grupo.id %}">Cancelar</a>
           {% else %}
-            <button class="btn btn-primary btn-sm" type="submit">Criar Grupo</button>
-            <a class="btn btn-outline-secondary btn-sm ms-2" href="{% url 'secretaria:lista_grupos_casa' %}">Cancelar</a>
+            <button class="btn btn-vibrant-green btn-sm" type="submit"><i class="fas fa-plus me-1"></i> Criar Grupo</button>
+            <a class="btn btn-cancel btn-sm ms-2" href="{% url 'secretaria:lista_grupos_casa' %}">Cancelar</a>
           {% endif %}
         </div>
 

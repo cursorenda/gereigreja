@@ -1,12 +1,36 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
-<div class="container-fluid mt-3 mb-5">
-    <h1 class="mb-4">Registro de Visitantes</h1>
+<style>
+    .btn-vibrant-orange {
+        color: #fff !important;
+        background: linear-gradient(90deg, #ff9800 0%, #ffc107 100%) !important;
+        border: none !important;
+        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.15) !important;
+        transition: background 0.2s, box-shadow 0.2s !important;
+    }
+    .btn-vibrant-orange:hover, .btn-vibrant-orange:focus {
+        background: linear-gradient(90deg, #ff9800 0%, #ffb300 100%) !important;
+        box-shadow: 0 4px 16px rgba(255, 152, 0, 0.25) !important;
+        color: #fff !important;
+    }
+    .btn-vibrant-orange:active {
+        background: linear-gradient(90deg, #fb8c00 0%, #ffa726 100%) !important;
+        color: #fff !important;
+    }
+</style>
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Registro de Visitantes</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
         <li class="breadcrumb-item active">Recepção</li>
-    <li class="breadcrumb-item active">Registro de Visitantes</li>
+        <li class="breadcrumb-item active">Registro de Visitantes</li>
     </ol>
+    <div class="card mb-4 border rounded shadow-sm">
+        <div class="card-header">
+            <i class="fas fa-users me-1"></i>
+            Visitantes do Evento
+        </div>
+        <div class="card-body">
 
     <form method="get" action="{% url 'secretaria:registrar_presenca_visitante_evento' %}" class="mb-3 row g-2 align-items-end">
         <div class="col-12 mb-2 d-flex justify-content-end">
@@ -34,45 +58,48 @@
                 } catch(e) { try { console.warn('[gcp] early error hooks failed', e); } catch(_) {} }
             })();
         </script>
-        <div class="col-md-4 col-12">
-            <label for="filtro_eventos" class="form-label">Filtrar eventos:</label>
-            <select name="filtro_eventos" id="filtro_eventos" class="form-select">
+        <div class="col-lg-3 col-12">
+            <select name="filtro_eventos" id="filtro_eventos" class="form-select form-control-sm" style="height:38px;min-height:38px;max-height:38px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Filtre os eventos por período ou status de visitantes.">
                 <option value="proximos" {% if filtro_eventos == 'proximos' %}selected{% endif %}>Próximos 7 dias</option>
                 <option value="ultimos" {% if filtro_eventos == 'ultimos' %}selected{% endif %}>Últimos</option>
                 <option value="sem_visitantes" {% if filtro_eventos == 'sem_visitantes' %}selected{% endif %}>Sem visitantes lançados</option>
             </select>
         </div>
-                <div class="col-md-3 col-12 d-flex align-items-end">
-            <div class="w-100">
-                <label for="ultimos_n" class="form-label mb-1">Últimos N:</label>
-                    <div class="d-flex">
-                    <input type="number" name="ultimos_n" id="ultimos_n" min="1" max="50" value="{{ ultimos_n|default:3 }}" class="form-control me-2" style="width:110px;">
-                    <button type="submit" class="btn btn-primary align-self-end" title="Aplicar filtro" aria-label="Filtrar eventos">Filtrar</button>
-                </div>
-            </div>
+        <div class="col-lg-3 col-12">
+            <input type="text" name="busca_evento" id="busca_evento" class="form-control form-control-sm" style="height:38px;min-height:38px;max-height:38px;" placeholder="Nome ou título do evento" value="{{ request.GET.busca_evento|default:'' }}" data-bs-toggle="tooltip" data-bs-placement="top" title="Digite parte do nome ou título para localizar eventos específicos.">
+    <script>
+    // Inicializa tooltips Bootstrap nos campos de filtro e busca
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+    </script>
         </div>
-                <div class="col-md-5 col-12 d-flex flex-column justify-content-end">
-            <div class="mb-1 text-muted small">
-                {% if filtro_eventos|default:'ultimos' == 'proximos' %}Mostrando eventos dos próximos 7 dias.{% elif filtro_eventos|default:'ultimos' == 'ultimos' %}Mostrando os últimos {{ ultimos_n|default:3 }} eventos.{% elif filtro_eventos|default:'ultimos' == 'sem_visitantes' %}Mostrando eventos sem visitantes lançados.{% endif %}
+            <div class="col-lg-4 col-12 d-flex align-items-center gap-2">
+                <button type="submit" class="btn btn-vibrant-blue btn-sm shadow border rounded" style="width:120px;min-width:100px;max-width:140px;" title="Buscar eventos" aria-label="Buscar eventos">
+                    <i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span>
+                </button>
+                <button id="btn-atualizar-eventos" type="button" class="btn btn-vibrant-orange btn-sm shadow border rounded" style="width:120px;min-width:100px;max-width:140px;height:38px;min-height:38px;max-height:38px;" title="Atualizar lista de eventos" aria-label="Atualizar lista de eventos">
+                    <i class="fas fa-sync-alt"></i><span style="margin-left: 0.4em;">Atualizar</span>
+                </button>
             </div>
-                <div class="d-flex align-items-center mb-1">
-                <label for="ultimos_n" class="form-label me-3 mb-0">Eventos:</label>
-                <a href="#eventos-list" class="btn btn-outline-secondary btn-sm" role="button" title="Ir para a lista de eventos" aria-label="Ver lista de eventos">Ver lista</a>
-            </div>
-        </div>
-        
-    </form>
+        </form>
     <section id="eventos-list" class="mb-4">
                 {% if eventos_do_dia|length > 0 %}
             <div class="list-group mb-3">
                 {% for evento in eventos_do_dia %}
-                    <div class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="list-group-item d-flex justify-content-between align-items-start {% if evento_selecionado and evento_selecionado.id == evento.id %}border border-3 border-primary bg-light{% endif %}">
                         <div>
                             <div class="fw-bold">{{ evento.titulo }}</div>
                             <div class="small text-muted">{{ evento.data_inicio|date:'d/m/Y H:i' }}</div>
+                            {% if evento_selecionado and evento_selecionado.id == evento.id %}
+                                <span class="badge bg-primary ms-1">Evento aberto</span>
+                            {% endif %}
                         </div>
                         <div class="ms-3">
-                            <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}?evento={{ evento.id }}&filtro_eventos={{ filtro_eventos|urlencode }}&ultimos_n={{ ultimos_n|default:3 }}" class="btn btn-sm btn-primary js-abrir-evento" data-evento="{{ evento.id }}" role="button" title="Abrir evento {{ evento.titulo|escape }}" aria-label="Abrir evento {{ evento.titulo|escape }}" data-loading-text="<span class='spinner-border spinner-border-sm' role='status' aria-hidden='true'></span> Abrindo...">Abrir</a>
+                            <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}?evento={{ evento.id }}&filtro_eventos={{ filtro_eventos|urlencode }}&ultimos_n={{ ultimos_n|default:3 }}" class="btn btn-vibrant-blue btn-sm js-abrir-evento d-flex align-items-center gap-1" data-evento="{{ evento.id }}" role="button" title="Abrir evento {{ evento.titulo|escape }}" aria-label="Abrir evento {{ evento.titulo|escape }}" data-loading-text="<span class='spinner-border spinner-border-sm' role='status' aria-hidden='true'></span> Abrindo..."><i class="fas fa-folder-open"></i><span>Abrir</span></a>
                         </div>
                     </div>
                 {% endfor %}
@@ -92,7 +119,7 @@
     </section>
 
     {% if evento_selecionado %}
-    <form method="post" class="card p-3 mb-4 shadow-sm">
+    <form method="post" class="card p-3 mb-4 shadow-sm border rounded">
             {% csrf_token %}
             <h5 class="mb-2 d-flex align-items-baseline" aria-live="polite">
                 <span>Registrar visitante</span>
@@ -102,6 +129,13 @@
                     {{ evento_selecionado.data_inicio|date:"l"|cut:"-feira"|capfirst }}, {{ evento_selecionado.data_inicio|date:"d/m" }}
                 </small>
             </h5>
+            <!-- Toast de confirmação visual -->
+            <div id="toast-presenca" class="toast align-items-center text-bg-success border-0 position-fixed top-0 end-0 m-3" role="alert" aria-live="assertive" aria-atomic="true" style="z-index: 1200; display: none; min-width: 220px;">
+                <div class="d-flex">
+                    <div class="toast-body" id="toast-presenca-msg">Presença registrada com sucesso!</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+                </div>
+            </div>
             <div class="row g-2 align-items-end">
                 <div class="col-md-9 col-12">
                     <label for="busca-membro" class="form-label">Buscar pessoa (nome ou apelido):</label>
@@ -145,6 +179,36 @@
             {# Modal componentizado: inclui partial compartilhado com Lista de Eventos #}
             {% include 'secretaria/partials/_modal_criar_visitante_presenca.html' %}
             </div>
+            <script>
+            // Exibe toast de confirmação ao registrar presença
+            document.addEventListener('DOMContentLoaded', function() {
+                var form = document.querySelector('form.card');
+                if (!form) return;
+                form.addEventListener('submit', function(e) {
+                    // Aguarda submit normal, depois exibe toast se não houver erro
+                    setTimeout(function() {
+                        var toastEl = document.getElementById('toast-presenca');
+                        var toastMsg = document.getElementById('toast-presenca-msg');
+                        if (!toastEl || !toastMsg) return;
+                        // Verifica se há mensagem de erro na página
+                        var erro = document.querySelector('.alert-danger');
+                        if (erro) {
+                            toastEl.classList.remove('text-bg-success');
+                            toastEl.classList.add('text-bg-danger');
+                            toastMsg.textContent = 'Erro ao registrar presença.';
+                        } else {
+                            toastEl.classList.remove('text-bg-danger');
+                            toastEl.classList.add('text-bg-success');
+                            toastMsg.textContent = 'Presença registrada com sucesso!';
+                        }
+                        toastEl.style.display = 'block';
+                        var bsToast = new bootstrap.Toast(toastEl, {delay: 3500});
+                        bsToast.show();
+                        toastEl.addEventListener('hidden.bs.toast', function(){ toastEl.style.display = 'none'; });
+                    }, 600);
+                });
+            });
+            </script>
                         <script>
     // Container de toasts
         (function(){
@@ -633,11 +697,6 @@
                                 var nomeField = (injectedForm && injectedForm.querySelector('input[name="nome"]')) || body.querySelector('#visitante-form-container input[name="nome"]') || document.querySelector('#form-criar-visitante-modal input[id$="nome"]');
                                 if (nomeField && (!nomeField.value || nomeField.value.trim().length === 0)) {
                                     try { nomeField.value = (buscaInput && buscaInput.value) ? buscaInput.value : decodeURIComponent(q || ''); } catch(e) {}
-                                    try { nomeField.dispatchEvent(new Event('input')); } catch(e) {}
-                                }
-                            } catch(e) { console.warn('prefill modal nome failed', e); }
-
-                            // Defensive fallback: if server returned a partial without a <form id="form-criar-visitante-modal">,
                             // attach a minimal handler to the partial's save button (#gcp-save-visitante-btn) that
                             // gathers inputs inside #visitante-form-container and POSTs them via AJAX, mirroring the main handler.
                             try {
@@ -1311,6 +1370,14 @@
                     })();
                 </script>
     <h5 class="mb-2">Visitantes presentes hoje</h5>
+        <div class="d-flex align-items-center mb-2">
+            <h5 class="mb-0 me-2">Visitantes presentes hoje</h5>
+            {% if evento_selecionado %}
+            <button type="button" id="btn-atualizar-visitantes" class="btn btn-outline-primary btn-sm" title="Atualizar lista de visitantes" data-bs-toggle="tooltip" data-bs-placement="top">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+            {% endif %}
+        </div>
         <ul id="visitantes-presentes-list" class="list-group mb-3">
             {% for presenca in visitantes_presentes %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -1326,7 +1393,34 @@
     {% load static %}
     <script src="{% static 'secretaria/recepcao.js' %}"></script>
     <script src="{% static 'secretaria/recepcao-bootstrap.js' %}"></script>
-    <script>document.addEventListener('DOMContentLoaded', function(){ if(window.initRecepcaoModal) window.initRecepcaoModal(); });</script>
+    <script>document.addEventListener('DOMContentLoaded', function(){
+        if(window.initRecepcaoModal) window.initRecepcaoModal();
+        // Handler do botão de atualizar visitantes presentes
+        var btnAtualizar = document.getElementById('btn-atualizar-visitantes');
+        if (btnAtualizar) {
+            btnAtualizar.addEventListener('click', function() {
+                var eventoId = document.getElementById('evento-hidden') ? document.getElementById('evento-hidden').value : '';
+                if (!eventoId) return;
+                btnAtualizar.disabled = true;
+                btnAtualizar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Atualizando...';
+                fetch('{% url "secretaria:ajax_get_presencas_evento" %}?evento=' + encodeURIComponent(eventoId), {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                    .then(r => r.json())
+                    .then(j => {
+                        var list = document.getElementById('visitantes-presentes-list');
+                        if (j.html !== undefined && list) {
+                            list.innerHTML = j.html;
+                        }
+                        btnAtualizar.disabled = false;
+                        btnAtualizar.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar';
+                    })
+                    .catch(err => {
+                        btnAtualizar.disabled = false;
+                        btnAtualizar.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar';
+                        alert('Erro ao atualizar lista de visitantes.');
+                    });
+            });
+        }
+    });</script>
     <script>
     // AJAX: abrir evento sem recarregar a página
     (function(){

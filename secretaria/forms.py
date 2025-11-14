@@ -24,7 +24,7 @@ class AssociarUsuarioMembroForm(forms.Form):
         membro = kwargs.pop('membro', None)
         super().__init__(*args, **kwargs)
         User = get_user_model()
-        usuarios_disponiveis = User.objects.filter(membro_secretaria__isnull=True)
+        usuarios_disponiveis = User.objects.filter(membro_secretaria__isnull=True)[:100]
         self.fields['usuario'].queryset = usuarios_disponiveis
         self.fields['usuario'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username} ({obj.email})"
         if membro:
@@ -511,5 +511,7 @@ class TagForm(forms.ModelForm):
         model = Tag
         fields = ['nome', 'cor', 'descricao']
         widgets = {
-            'cor': forms.TextInput(attrs={'type': 'color'}),
+            'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome da tag', 'style': 'max-width: 180px; display: inline-block;'}),
+            'cor': forms.TextInput(attrs={'type': 'color', 'class': 'form-control-color', 'style': 'max-width: 60px; display: inline-block;'}),
+            'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 1, 'placeholder': 'Descrição (opcional)', 'style': 'max-width: 220px; display: inline-block;'}),
         }

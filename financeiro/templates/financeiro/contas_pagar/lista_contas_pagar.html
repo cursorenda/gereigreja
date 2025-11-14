@@ -63,12 +63,12 @@
                      </select>
                 </div>
                 <div class="col-auto">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Filtrar</button>
-                    <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-sm btn-outline-warning ms-1" title="Limpar Filtros"><i class="fas fa-times"></i></a>
+                    <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Filtrar</span></button>
+                    <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-sm btn-outline-warning ms-1" title="Limpar Filtros"><i class="fas fa-times"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 </div>
                 {% if can_edit_finance %}
                  <div class="col-auto ms-auto"> {# Botão Adicionar à direita #}
-                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Adicionar Conta/Parcela</a>
+                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar Conta/Parcela</span></a>
                 </div>
                 {% endif %}
             </form>

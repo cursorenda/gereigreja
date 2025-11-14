@@ -12,6 +12,65 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
+
+# --- VIEWS DE AÇÕES RÁPIDAS DE ACOMPANHAMENTO ---
+@login_required
+def ver_acompanhamento_visita(request, acompanhamento_id):
+    acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
+    return render(request, 'secretaria/ver_acompanhamento_visita.html', {'acompanhamento': acompanhamento})
+
+@login_required
+def editar_acompanhamento_visita(request, acompanhamento_id):
+    acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
+    from .forms_acompanhamento import AcompanhamentoVisitaForm
+    if request.method == 'POST':
+        form = AcompanhamentoVisitaForm(request.POST, instance=acompanhamento)
+        if form.is_valid():
+            form.save()
+            return redirect('secretaria:acompanhamentos_visita')
+    else:
+        form = AcompanhamentoVisitaForm(instance=acompanhamento)
+    return render(request, 'secretaria/editar_acompanhamento_visita.html', {'form': form, 'acompanhamento': acompanhamento})
+
+@login_required
+def excluir_acompanhamento_visita(request, acompanhamento_id):
+    acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
+    if request.method == 'POST':
+        acompanhamento.delete()
+        return redirect('secretaria:acompanhamentos_visita')
+    return render(request, 'secretaria/excluir_acompanhamento_visita.html', {'acompanhamento': acompanhamento})
+
+# --- VIEW PARA ESCOLHER PESSOA PARA REGISTRAR ACOMPANHAMENTO ---
+@login_required
+def escolher_pessoa_para_acompanhamento(request):
+    nome = request.GET.get('nome', '').strip()
+    tipo_pessoa_id = request.GET.get('tipo_pessoa')
+    qs = Membro.objects.select_related('tipo_pessoa').all()
+    if nome:
+        qs = qs.filter(nome__icontains=nome)
+    if tipo_pessoa_id:
+        qs = qs.filter(tipo_pessoa_id=tipo_pessoa_id)
+    tipos = TipoPessoa.objects.all().order_by('nome')
+    context = {
+        'pessoas': qs.order_by('nome')[:100],
+        'tipos': tipos,
+    }
+    return render(request, 'secretaria/escolher_pessoa_para_acompanhamento.html', context)
+from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag, GrupoCasa
+import logging
+from datetime import date, datetime, timedelta
+import os, shutil, json
+from django.views.decorators.http import require_GET, require_POST
+from django.http import JsonResponse, HttpResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Q, Count, Sum, Case, When, Value, BooleanField
+from django.conf import settings
+from django.db import models, close_old_connections
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
+from django.urls import reverse
 
 # --- VIEW PARA EDITAR TAG ---
 @login_required
@@ -46,17 +105,18 @@ from django.template.loader import render_to_string
 @login_required
 def lista_acompanhamentos_visita(request):
     """Listagem geral de acompanhamentos de visita com filtros padrão."""
-    qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel').all()
-    membros = Membro.objects.all().order_by('nome')
+    qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel', 'membro__tipo_pessoa').all()
     tipos = TipoPessoa.objects.all().order_by('nome')
-    # Filtros
-    membro_id = request.GET.get('membro')
+    nome = request.GET.get('nome', '').strip()
+    tipo_pessoa_id = request.GET.get('tipo_pessoa')
     tipo_contato = request.GET.get('tipo_contato')
     data_ini = request.GET.get('data_ini')
     data_fim = request.GET.get('data_fim')
     igreja_id = request.GET.get('igreja')
-    if membro_id:
-        qs = qs.filter(membro_id=membro_id)
+    if nome:
+        qs = qs.filter(membro__nome__icontains=nome)
+    if tipo_pessoa_id:
+        qs = qs.filter(membro__tipo_pessoa_id=tipo_pessoa_id)
     if tipo_contato:
         qs = qs.filter(tipo_contato=tipo_contato)
     if data_ini:
@@ -68,10 +128,10 @@ def lista_acompanhamentos_visita(request):
     qs = qs.order_by('-data')
     context = {
         'acompanhamentos': qs,
-        'membros': membros,
         'tipos': tipos,
         'filtros': {
-            'membro': membro_id,
+            'nome': nome,
+            'tipo_pessoa': tipo_pessoa_id,
             'tipo_contato': tipo_contato,
             'data_ini': data_ini,
             'data_fim': data_fim,
@@ -146,15 +206,28 @@ def lista_visitantes(request):
     if status:
         visitantes = visitantes.filter(status_acompanhamento=status)
 
+    # Paginação
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    page = request.GET.get('page', 1)
+    paginator = Paginator(visitantes, 20)  # 20 visitantes por página
+    try:
+        visitantes_page = paginator.page(page)
+    except PageNotAnInteger:
+        visitantes_page = paginator.page(1)
+    except EmptyPage:
+        visitantes_page = paginator.page(paginator.num_pages)
+
     igreja_selecionada = str(igreja_id) if igreja_id else (str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else '0')
 
     context = {
-        'visitantes': visitantes,
+        'visitantes': visitantes_page,
         'query': query,
         'status': status,
         'igreja_id': igreja_id,
         'igreja_selecionada': igreja_selecionada,
         'titulo_pagina': 'Lista de Visitantes',
+        'paginator': paginator,
+        'page_obj': visitantes_page,
     }
     return render(request, 'secretaria/lista_visitantes.html', context)
 from django.http import JsonResponse
@@ -310,6 +383,7 @@ from django.utils import timezone
 # --- VIEW: REGISTRAR PRESENÇA DE VISITANTE EM EVENTO ---
 @login_required
 def registrar_presenca_visitante_evento(request):
+    busca_evento = request.GET.get('busca_evento', '').strip()
     # Garantir conexões ativas/recém-abertas (mitiga 'connection already closed')
     try:
         close_old_connections()
@@ -366,24 +440,29 @@ def registrar_presenca_visitante_evento(request):
             qs = Evento.objects.filter(
                 **escola_qs_kwargs,
                 data_inicio__date__lte=hoje
-            ).order_by('-data_inicio')[:ultimos_n]
-            # ordenar ascendente para seleção mais natural
+            )
+            if busca_evento:
+                qs = qs.filter(titulo__icontains=busca_evento)
+            qs = qs.order_by('-data_inicio')[:ultimos_n]
             eventos_do_dia = sorted(list(qs), key=lambda e: e.data_inicio)
         elif filtro == 'sem_visitantes':
-            # Contar presenças usando related_name definido no modelo de presenças.
-            # O related_name correto é 'visitantes_presentes' (ver choices no erro),
-            # então usamos Count('visitantes_presentes') para criar presencas_count.
-            eventos_do_dia = Evento.objects.annotate(presencas_count=Count('visitantes_presentes')).filter(
+            qs = Evento.objects.annotate(presencas_count=Count('visitantes_presentes')).filter(
                 **escola_qs_kwargs,
                 presencas_count=0,
                 data_inicio__date__lte=hoje
-            ).order_by('data_inicio')
+            )
+            if busca_evento:
+                qs = qs.filter(titulo__icontains=busca_evento)
+            eventos_do_dia = qs.order_by('data_inicio')
         else:
-            eventos_do_dia = Evento.objects.filter(
+            qs = Evento.objects.filter(
                 **escola_qs_kwargs,
                 data_inicio__date__gte=hoje,
                 data_inicio__date__lte=fim
-            ).order_by('data_inicio')
+            )
+            if busca_evento:
+                qs = qs.filter(titulo__icontains=busca_evento)
+            eventos_do_dia = qs.order_by('data_inicio')
     evento_id = request.GET.get('evento')
     evento_selecionado = None
     pessoas_presentes = []
@@ -633,20 +712,20 @@ def registrar_acompanhamento_visita(request, membro_id):
             acompanhamento = form.save(commit=False)
             acompanhamento.membro = membro
             acompanhamento.responsavel = request.user
-            from django.utils import timezone
-            acompanhamento.data = timezone.now()  # Preenche automaticamente
             acompanhamento.save()
             messages.success(request, 'Acompanhamento registrado com sucesso!')
             return redirect('secretaria:editar_membro', membro_id=membro_id)
     else:
-        form = AcompanhamentoVisitaForm()
-    acompanhamentos = AcompanhamentoVisita.objects.filter(membro=membro).order_by('-data')
-    context = {
-        'form': form,
-        'membro': membro,
-        'acompanhamentos': acompanhamentos
-    }
-    return render(request, 'secretaria/registrar_acompanhamento_visita.html', context)
+        now = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+        initial = {'data': now.strftime('%Y-%m-%dT%H:%M')}
+        form = AcompanhamentoVisitaForm(initial=initial)
+        acompanhamentos = AcompanhamentoVisita.objects.filter(membro=membro).order_by('-data')
+        context = {
+            'form': form,
+            'membro': membro,
+            'acompanhamentos': acompanhamentos
+        }
+        return render(request, 'secretaria/registrar_acompanhamento_visita.html', context)
     
 
 
@@ -657,17 +736,27 @@ def associar_usuarios_membros(request):
     membros_sem_usuario = Membro.objects.none()
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
         membros_sem_usuario = Membro.objects.filter(usuario__isnull=True, igreja=request.igreja_ativa).order_by('nome')
+
+    # Paginação
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    page = request.GET.get('page', 1)
+    paginator = Paginator(membros_sem_usuario, 15)  # 15 membros por página
+    try:
+        membros_page = paginator.page(page)
+    except PageNotAnInteger:
+        membros_page = paginator.page(1)
+    except EmptyPage:
+        membros_page = paginator.page(paginator.num_pages)
     User = get_user_model()
     sugestoes = {}
     if request.method == 'POST':
         forms_list = []
-        for membro in membros_sem_usuario:
+        for membro in membros_page:
             form = AssociarUsuarioMembroForm(request.POST, prefix=str(membro.pk), membro=membro)
             if form.is_valid():
                 usuario = form.cleaned_data['usuario']
                 membro.usuario = usuario
                 membro.save()
-            # Guardar sugestão para template
             sugestao_id = form.fields['sugestao_usuario_id'].initial
             sugestoes[membro.pk] = int(sugestao_id) if sugestao_id else None
             forms_list.append(form)
@@ -675,15 +764,17 @@ def associar_usuarios_membros(request):
         return redirect('secretaria:associar_usuarios_membros')
     else:
         forms_list = []
-        for m in membros_sem_usuario:
+        for m in membros_page:
             form = AssociarUsuarioMembroForm(prefix=str(m.pk), membro=m)
             sugestao_id = form.fields['sugestao_usuario_id'].initial
             sugestoes[m.pk] = int(sugestao_id) if sugestao_id else None
             forms_list.append(form)
     context = {
-        'membros_sem_usuario': membros_sem_usuario,
+        'membros_sem_usuario': membros_page,
         'forms_list': forms_list,
         'sugestoes': sugestoes,
+        'paginator': paginator,
+        'page_obj': membros_page,
     }
     return render(request, 'secretaria/associar_usuarios_membros.html', context)
 
@@ -806,10 +897,18 @@ def lista_cargos(request):
         # Filtra ocupantes dos cargos pela igreja ativa
         for cargo in cargos:
             cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro and mc.membro.igreja_id == request.igreja_ativa.id]
+            # Define a igreja do cargo como a igreja ativa
+            cargo.igreja = request.igreja_ativa
     else:
         for cargo in cargos:
             cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro]
-    context = {'cargos': cargos}
+            # Tenta pegar a igreja do primeiro ocupante, se existir
+            cargo.igreja = cargo.ocupantes[0].igreja if cargo.ocupantes else None
+    igreja_selecionada = str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else '0'
+    context = {
+        'cargos': cargos,
+        'igreja_selecionada': igreja_selecionada,
+    }
     return render(request, 'secretaria/lista_cargos.html', context)
 # --- LINHA DO TEMPO DOS MEMBROS ---
 from .models import TimelineEvent
@@ -1347,10 +1446,17 @@ def ajax_get_presencas_evento(request):
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def linha_do_tempo(request):
+    # Força valor padrão do filtro período
+    periodo_predefinido = request.GET.get('periodo_predefinido')
+    # Se não houver filtro, redireciona para a página já filtrando por 'mes_atual'
+    if not periodo_predefinido and not request.GET:
+        from django.urls import reverse
+        return redirect(f"{reverse('secretaria:linha_do_tempo')}?periodo_predefinido=mes_atual")
+    # ...existing code...
     from collections import OrderedDict, defaultdict
     import json
     from itertools import zip_longest
-    from .models import TimelineEvent, StatusHistorico
+    from .models import TimelineEvent, StatusHistorico, StatusPessoa, TipoPessoa
     # from .forms import TimelineFilterForm  # Removed: defined locally below
     TIPO_COLORS = {
         'membro': 'bg-primary',
@@ -1379,109 +1485,121 @@ def linha_do_tempo(request):
         status_pessoa_novo = _forms.ModelMultipleChoiceField(required=False, queryset=StatusPessoa.objects.all())
 
     form = TimelineFilterForm(request.GET or None)
+    print('linha_do_tempo: form.is_valid =', form.is_valid())
+    print('linha_do_tempo: cleaned_data =', getattr(form, 'cleaned_data', {}))
     eventos_timeline = []
-    # 1. Eventos de entrada (TimelineEvent)
-    eventos_entrada_qs = TimelineEvent.objects.select_related('membro')
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        eventos_entrada_qs = eventos_entrada_qs.filter(membro__igreja=request.igreja_ativa)
-    eventos_entrada_qs = eventos_entrada_qs.filter(tipo_evento='entrada')
-    tipos = []
-    data_inicio = None
-    data_fim = None
-    tipos_pessoa_novo = None
-    status_pessoa_novo = None
-    if form.is_valid():
-        tipos = form.cleaned_data.get('tipo_evento') or []
-        data_inicio = form.cleaned_data.get('data_inicio')
-        data_fim = form.cleaned_data.get('data_fim')
-        tipos_pessoa_novo = form.cleaned_data.get('tipo_pessoa_novo')
-        status_pessoa_novo = form.cleaned_data.get('status_pessoa_novo')
-    if not request.GET or not any(k.startswith('tipo_evento') for k in request.GET.keys()):
-        tipos = [c[0] for c in TimelineEvent.TIPO_EVENTO_CHOICES]
-    if tipos and 'entrada' in tipos:
-        if data_inicio:
-            eventos_entrada_qs = eventos_entrada_qs.filter(data__date__gte=data_inicio)
-        if data_fim:
-            eventos_entrada_qs = eventos_entrada_qs.filter(data__date__lte=data_fim)
-        for evento in eventos_entrada_qs:
-            nomes = evento.membro.nome.split() if evento.membro and evento.membro.nome else []
-            evento.nome_abreviado = ' '.join(nomes[:3]) if len(nomes) >= 3 else ' '.join(nomes) if len(nomes) >= 1 else '(Sem nome)'
-            evento.tipo_evento_origem = 'entrada'
-            evento.novo_valor = 'Entrada'
-            evento.valor_anterior = ''
-            evento.badge_tipo_class = TIPO_COLORS.get('membro', 'bg-primary')
-            evento.data_evento = evento.data
-            evento.data = evento.data
-            eventos_timeline.append(evento)
-    # 2. Eventos de transição real (StatusHistorico)
-    transicoes_qs = StatusHistorico.objects.select_related('membro', 'tipo_pessoa_anterior', 'tipo_pessoa_novo', 'status_pessoa_anterior', 'status_pessoa_novo')
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        transicoes_qs = transicoes_qs.filter(membro__igreja=request.igreja_ativa)
+    # Filtros do formulário
+    from django.utils import timezone
+    tipos_evento = form.cleaned_data.get('tipo_evento') if form.is_valid() else []
+    data_inicio = form.cleaned_data.get('data_inicio') if form.is_valid() else None
+    data_fim = form.cleaned_data.get('data_fim') if form.is_valid() else None
+    # Se filtro é 'mes_atual' e não há datas, preencher datas do mês atual
+    if periodo_predefinido == 'mes_atual' and not data_inicio and not data_fim:
+        hoje = datetime.today()
+        data_inicio = hoje.replace(day=1)
+        # Último dia do mês
+        if hoje.month == 12:
+            data_fim = hoje.replace(year=hoje.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            data_fim = hoje.replace(month=hoje.month + 1, day=1) - timedelta(days=1)
+        from django.utils import timezone
+        data_inicio = timezone.make_aware(datetime.combine(data_inicio, datetime.min.time()))
+        data_fim = timezone.make_aware(datetime.combine(data_fim, datetime.max.time()))
+    tipos_pessoa_novo = form.cleaned_data.get('tipo_pessoa_novo') if form.is_valid() else None
+    status_pessoa_novo = form.cleaned_data.get('status_pessoa_novo') if form.is_valid() else None
+    # Corrige datas para timezone-aware
     if data_inicio:
-        transicoes_qs = transicoes_qs.filter(data_transicao__date__gte=data_inicio)
+        data_inicio = timezone.make_aware(datetime.combine(data_inicio, datetime.min.time()))
     if data_fim:
-        transicoes_qs = transicoes_qs.filter(data_transicao__date__lte=data_fim)
-    # Determine which transition types were requested in the filter (fall back to tipos)
-    tipos_transicao = tipos or []
-    # Iterate over status history transitions and add timeline events for tipo/status changes
-    for t in transicoes_qs:
-        nome_abreviado = '(Sem nome)'
-        try:
-            if t.membro and getattr(t.membro, 'nome', None):
-                nomes = t.membro.nome.split()
-                nome_abreviado = ' '.join(nomes[:3]) if len(nomes) >= 3 else ' '.join(nomes) if len(nomes) >= 1 else '(Sem nome)'
-        except Exception:
-            nome_abreviado = '(Sem nome)'
+        data_fim = timezone.make_aware(datetime.combine(data_fim, datetime.max.time()))
 
-        # Mudança de tipo
-        if 'tipo' in tipos_transicao and t.tipo_pessoa_anterior != t.tipo_pessoa_novo:
-            if not tipos_pessoa_novo or t.tipo_pessoa_novo in tipos_pessoa_novo:
-                evento = type('EventoTimeline', (), {})()
-                evento.nome_abreviado = nome_abreviado
-                evento.tipo_evento = 'mudanca_tipo'
-                evento.novo_valor = t.tipo_pessoa_novo.nome if t.tipo_pessoa_novo else ''
-                evento.valor_anterior = t.tipo_pessoa_anterior.nome if t.tipo_pessoa_anterior else ''
-                evento.badge_tipo_class = TIPO_COLORS.get((getattr(t.tipo_pessoa_novo, 'nome', '') or '').strip().lower(), 'bg-secondary')
-                evento.data_evento = t.data_transicao
-                evento.data = t.data_transicao
-                evento.membro = t.membro
-                evento.origem_statushistorico = True
-                evento.get_tipo_evento_display = lambda: "Mudança de Tipo"
-                eventos_timeline.append(evento)
+    # Eventos de entrada
+    entrada_qs = TimelineEvent.objects.select_related('membro')
+    if tipos_evento:
+        entrada_qs = entrada_qs.filter(tipo_evento__in=tipos_evento)
+    if data_inicio:
+        entrada_qs = entrada_qs.filter(data__gte=data_inicio)
+    if data_fim:
+        entrada_qs = entrada_qs.filter(data__lte=data_fim)
+    for evento in entrada_qs:
+        evento.data_evento = getattr(evento, 'data', None)
+        if hasattr(evento, 'tipo_pessoa_novo') and evento.tipo_evento == 'entrada':
+            evento.valor_anterior = '-'
+            evento.novo_valor = getattr(evento, 'tipo_pessoa_novo', None)
+            nome = evento.membro.nome if hasattr(evento, 'membro') and evento.membro else 'Alguém'
+            tipo = evento.novo_valor if evento.novo_valor else 'membro'
+            evento.descricao_evento = f"{nome} entrou como {tipo}" if tipo else f"{nome} entrou"
+        else:
+            evento.valor_anterior = getattr(evento, 'valor_anterior', '-')
+            evento.novo_valor = getattr(evento, 'novo_valor', '-')
+            nome = evento.membro.nome if hasattr(evento, 'membro') and evento.membro else 'Alguém'
+            tipo = evento.novo_valor if evento.novo_valor else 'membro'
+            evento.descricao_evento = f"{nome} mudou para {tipo}" if tipo else f"{nome} teve uma mudança"
+        if (
+            hasattr(evento, 'membro') and evento.membro and getattr(evento.membro, 'nome', None)
+            and (
+                (hasattr(evento, 'valor_anterior') and evento.valor_anterior and evento.valor_anterior != '-') or
+                (hasattr(evento, 'novo_valor') and evento.novo_valor and evento.novo_valor != '-')
+            )
+        ):
+            eventos_timeline.append(evento)
 
-        # Mudança de status
-        if 'status' in tipos_transicao and t.status_pessoa_anterior != t.status_pessoa_novo:
-            if not status_pessoa_novo or t.status_pessoa_novo in status_pessoa_novo:
-                evento = type('EventoTimeline', (), {})()
-                evento.nome_abreviado = nome_abreviado
-                evento.tipo_evento = 'mudanca_status'
-                evento.novo_valor = t.status_pessoa_novo.nome if t.status_pessoa_novo else ''
-                evento.valor_anterior = t.status_pessoa_anterior.nome if t.status_pessoa_anterior else ''
-                evento.badge_status_class = STATUS_COLORS.get((getattr(t.status_pessoa_novo, 'nome', '') or '').strip().lower(), 'bg-warning')
-                evento.data_evento = t.data_transicao
-                evento.data = t.data_transicao
-                evento.membro = t.membro
-                evento.origem_statushistorico = True
-                evento.get_tipo_evento_display = lambda: "Mudança de Status"
-                eventos_timeline.append(evento)
-    # Agrupa por data e em pares para alternância visual
+    # Transições
+    transicao_qs = StatusHistorico.objects.select_related('membro', 'status_pessoa_anterior', 'status_pessoa_novo', 'tipo_pessoa_anterior', 'tipo_pessoa_novo')
+    if data_inicio:
+        transicao_qs = transicao_qs.filter(data_transicao__gte=data_inicio)
+    if data_fim:
+        transicao_qs = transicao_qs.filter(data_transicao__lte=data_fim)
+    if tipos_pessoa_novo:
+        transicao_qs = transicao_qs.filter(tipo_pessoa_novo__in=tipos_pessoa_novo)
+    if status_pessoa_novo:
+        transicao_qs = transicao_qs.filter(status_pessoa_novo__in=status_pessoa_novo)
+    for transicao in transicao_qs:
+        transicao.data_evento = getattr(transicao, 'data_transicao', None)
+        if hasattr(transicao, 'tipo_pessoa_anterior') and hasattr(transicao, 'tipo_pessoa_novo') and transicao.tipo_pessoa_anterior != transicao.tipo_pessoa_novo:
+            transicao.get_tipo_evento_display = lambda: "Mudança de Tipo"
+            transicao.tipo_evento = 'mudanca_tipo'
+            transicao.valor_anterior = transicao.tipo_pessoa_anterior.nome if transicao.tipo_pessoa_anterior else '-'
+            transicao.novo_valor = transicao.tipo_pessoa_novo.nome if transicao.tipo_pessoa_novo else '-'
+            nome = transicao.membro.nome if hasattr(transicao, 'membro') and transicao.membro else 'Alguém'
+            tipo = transicao.novo_valor if transicao.novo_valor else 'membro'
+            transicao.descricao_evento = f"{nome} virou {tipo}"
+        elif hasattr(transicao, 'status_pessoa_anterior') and hasattr(transicao, 'status_pessoa_novo') and transicao.status_pessoa_anterior != transicao.status_pessoa_novo:
+            transicao.get_tipo_evento_display = lambda: "Mudança de Status"
+            transicao.tipo_evento = 'mudanca_status'
+            transicao.valor_anterior = transicao.status_pessoa_anterior.nome if transicao.status_pessoa_anterior else '-'
+            transicao.novo_valor = transicao.status_pessoa_novo.nome if transicao.status_pessoa_novo else '-'
+            nome = transicao.membro.nome if hasattr(transicao, 'membro') and transicao.membro else 'Alguém'
+            status = transicao.novo_valor if transicao.novo_valor else 'ativo'
+            transicao.descricao_evento = f"{nome} ficou {status}"
+        else:
+            transicao.get_tipo_evento_display = lambda: "Mudança de Tipo/Status"
+            transicao.tipo_evento = 'mudanca_tipo_status'
+            transicao.valor_anterior = '-'
+            transicao.novo_valor = '-'
+            nome = transicao.membro.nome if hasattr(transicao, 'membro') and transicao.membro else 'Alguém'
+            transicao.descricao_evento = f"{nome} teve uma mudança"
+        if (
+            hasattr(transicao, 'membro') and transicao.membro and getattr(transicao.membro, 'nome', None)
+            and (
+                (hasattr(transicao, 'valor_anterior') and transicao.valor_anterior and transicao.valor_anterior != '-') or
+                (hasattr(transicao, 'novo_valor') and transicao.novo_valor and transicao.novo_valor != '-')
+            )
+        ):
+            eventos_timeline.append(transicao)
+
+    # Agrupa apenas por data, sem pares (cada evento é um card)
     eventos_timeline = sorted(eventos_timeline, key=lambda e: e.data_evento, reverse=True)
     eventos_por_data = OrderedDict()
-    eventos_por_data_tmp = OrderedDict()
     for evento in eventos_timeline:
         data_str = evento.data_evento.strftime('%Y-%m-%d')
-        if data_str not in eventos_por_data_tmp:
-            eventos_por_data_tmp[data_str] = []
-        eventos_por_data_tmp[data_str].append(evento)
-    from itertools import zip_longest
-    for data_str, eventos in eventos_por_data_tmp.items():
-        pares = [list(filter(None, par)) for par in zip_longest(*(iter(eventos),) * 2)]
-        for par in pares:
-            eventos_por_data.setdefault(data_str, []).append(par)
+        if data_str not in eventos_por_data:
+            eventos_por_data[data_str] = []
+        eventos_por_data[data_str].append(evento)
     # Dados para gráfico (opcional)
     eventos_por_mes_tipo = defaultdict(lambda: defaultdict(int))
     for evento in eventos_timeline:
-        mes = evento.data.strftime('%Y-%m')
+        mes = evento.data_evento.strftime('%Y-%m') if evento.data_evento else ''
         eventos_por_mes_tipo[mes][evento.get_tipo_evento_display()] += 1
     meses = sorted(eventos_por_mes_tipo.keys())
     tipos_set = set()
@@ -1500,12 +1618,19 @@ def linha_do_tempo(request):
         'labels': chart_labels,
         'datasets': chart_datasets,
     }
+    from .models import StatusPessoa
+    status_pessoa_list = StatusPessoa.objects.all().order_by('nome')
     context = {
         'eventos_por_data': eventos_por_data,
         'form': form,
         'chart_data_json': json.dumps(chart_data),
         'mostrar_anterior': request.GET.get('mostrar_anterior'),
+        'status_pessoa_list': status_pessoa_list,
+        'periodo_predefinido': request.GET.get('periodo_predefinido', 'mes_atual'),
     }
+    logger = logging.getLogger('django')
+    logger.warning(f"linha_do_tempo: eventos_timeline={len(eventos_timeline)}, eventos_por_data={len(eventos_por_data)}")
+    print(f"linha_do_tempo: eventos_timeline={len(eventos_timeline)}, eventos_por_data={len(eventos_por_data)}")
     return render(request, 'secretaria/linha_do_tempo.html', context)
 
 
@@ -2277,6 +2402,17 @@ def lista_membros(request): # noqa: E302
 
     membros_queryset = membros_queryset.select_related('igreja', 'tipo_pessoa', 'status_pessoa').order_by('nome') # Adicionado tipo_pessoa, status_pessoa
 
+    # Paginação igual associar_usuarios_membros
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    page = request.GET.get('page', 1)
+    paginator = Paginator(membros_queryset, 25)  # 25 membros por página
+    try:
+        membros_page = paginator.page(page)
+    except PageNotAnInteger:
+        membros_page = paginator.page(1)
+    except EmptyPage:
+        membros_page = paginator.page(paginator.num_pages)
+
 
     query = request.GET.get('q')
     if query:
@@ -2298,23 +2434,23 @@ def lista_membros(request): # noqa: E302
 
     # Filtros extras
     tipo_id = request.GET.get('tipo')
-    if tipo_id:
+    if tipo_id and tipo_id.isdigit():
         membros_queryset = membros_queryset.filter(tipo_pessoa_id=tipo_id)
     status_id = request.GET.get('status')
-    if status_id:
+    if status_id and status_id.isdigit():
         membros_queryset = membros_queryset.filter(status_pessoa_id=status_id)
     genero = request.GET.get('genero')
     if genero:
         membros_queryset = membros_queryset.filter(genero=genero)
 
     # --- FILTRO POR TAGS ---
-    tag_ids = request.GET.getlist('tags')
+    tag_ids = [tid for tid in request.GET.getlist('tags') if tid and tid.isdigit()]
     if tag_ids:
         membros_queryset = membros_queryset.filter(tags__in=tag_ids).distinct()
     todas_tags = Tag.objects.all().order_by('nome')
 
     context = {
-        'membros': membros_queryset,
+        'membros': membros_page,
         'ministerio': ministerio,
         'query': query,
         'can_edit_membros': can_edit,
@@ -2325,6 +2461,8 @@ def lista_membros(request): # noqa: E302
         'status_pessoa': status_pessoa,
         'todas_tags': todas_tags,
         'tags_selecionadas': tag_ids,
+        'paginator': paginator,
+        'page_obj': membros_page,
     }
     return render(request, 'secretaria/lista_membros.html', context)
 

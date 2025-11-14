@@ -1,0 +1,35 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Excluir Acompanhamento</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:acompanhamentos_visita' %}">Acompanhamentos</a></li>
+    <li class="breadcrumb-item active">Excluir</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-trash me-1"></i>
+      Confirmar exclusão
+    </div>
+    <div class="card-body">
+      <p>Tem certeza que deseja excluir este acompanhamento?</p>
+      <dl class="row">
+        <dt class="col-sm-3">Nome</dt>
+        <dd class="col-sm-9">{{ acompanhamento.membro.nome }}</dd>
+        <dt class="col-sm-3">Data</dt>
+        <dd class="col-sm-9">{{ acompanhamento.data|date:'d/m/Y H:i' }}</dd>
+        <dt class="col-sm-3">Tipo de Contato</dt>
+        <dd class="col-sm-9">{{ acompanhamento.get_tipo_contato_display }}</dd>
+        <dt class="col-sm-3">Resultado</dt>
+        <dd class="col-sm-9">{{ acompanhamento.resultado }}</dd>
+      </dl>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-1"></i> Excluir</button>
+        <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-cancel ms-2">Cancelar</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

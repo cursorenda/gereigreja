@@ -17,7 +17,7 @@
     <form method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger">Excluir</button>
-        <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Cancelar</a>
+    <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-cancel">Cancelar</a>
     </form>
 {% endif %}
 {% endblock %}

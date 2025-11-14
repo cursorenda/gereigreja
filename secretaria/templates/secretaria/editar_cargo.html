@@ -1,7 +1,20 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
-<h1>Editar Cargo</h1>
-<form method="post">
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Editar Cargo</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_cargos' %}">Cargos</a></li>
+        <li class="breadcrumb-item active">Editar Cargo</li>
+    </ol>
+    {% include 'partials/_messages.html' %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-briefcase me-1"></i>
+            Editar Cargo
+        </div>
+        <div class="card-body">
+            <form method="post">
     {% csrf_token %}
     {{ form.non_field_errors }}
     <div class="mb-3">
@@ -14,7 +27,12 @@
         {{ form.grupo_permissao }}
         {{ form.grupo_permissao.errors }}
     </div>
-    <button type="submit" class="btn btn-success">Salvar</button>
-    <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Cancelar</a>
-</form>
+
+                <button type="submit" class="btn btn-vibrant-blue"><i class="fas fa-save me-1"></i><span style="margin-left: 0.4em;">Salvar</span></button>
+                <button type="submit" class="btn btn-continue ms-2" name="submit_cargo_continue" value="continue"><i class="fas fa-save me-1"></i><span style="margin-left: 0.4em;">Salvar e continuar</span></button>
+                <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-cancel">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

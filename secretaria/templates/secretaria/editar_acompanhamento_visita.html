@@ -1,0 +1,26 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Editar Acompanhamento</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:acompanhamentos_visita' %}">Acompanhamentos</a></li>
+    <li class="breadcrumb-item active">Editar</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-edit me-1"></i>
+      Editar acompanhamento
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {% include "partials/_form_errors.html" with form=form %}
+        {{ form.as_p }}
+  <button type="submit" class="btn btn-vibrant-green"><i class="fas fa-save me-1"></i><span style="margin-left: 0.4em;">Salvar</span></button>
+        <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-cancel ms-2">Cancelar</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

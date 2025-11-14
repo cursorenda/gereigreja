@@ -17,19 +17,6 @@
         <div class="card-body">
             <form method="get" class="row g-3 mb-3 align-items-center">
                 <!-- ...outros filtros... -->
-                <div class="col-xl-2 col-lg-2 col-md-3 col-12">
-                    <label class="form-label mb-1">Tipos de Evento</label>
-                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                        {% for checkbox in form.tipo_evento %}
-                            {% if checkbox.choice_label != 'Outro' %}
-                                <div class="form-check me-2 mb-0">
-                                    {{ checkbox.tag }}
-                                    <label class="form-check-label ms-1">{{ checkbox.choice_label }}</label>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
                 <div class="col-xl-2 col-lg-2 col-md-3 col-12" id="filtro-tipo-pessoa-novo" style="display: none;">
                     <label for="id_tipo_pessoa_novo" class="form-label mb-1">Tipo destino</label>
                     <div class="d-flex flex-column justify-content-center">
@@ -46,14 +33,13 @@
                     <div class="flex-grow-1">
                         <label for="periodo_predefinido" class="form-label mb-1">Período</label>
                         <select id="periodo_predefinido" name="periodo_predefinido" class="form-select form-select-sm">
-                            <option value="mes_atual" {% if request.GET.periodo_predefinido == 'mes_atual' or not request.GET.periodo_predefinido %}selected{% endif %}>Mês atual</option>
-                            <option value="ano_atual" {% if request.GET.periodo_predefinido == 'ano_atual' %}selected{% endif %}>Ano atual</option>
-                            <option value="mes_anterior" {% if request.GET.periodo_predefinido == 'mes_anterior' %}selected{% endif %}>Mês anterior</option>
-                            <option value="ano_anterior" {% if request.GET.periodo_predefinido == 'ano_anterior' %}selected{% endif %}>Ano anterior</option>
-                            <option value="tudo" {% if request.GET.periodo_predefinido == 'tudo' %}selected{% endif %}>Mostrar tudo</option>
-                            <option value="personalizado" {% if request.GET.periodo_predefinido == 'personalizado' %}selected{% endif %}>Personalizado</option>
+                            <option value="mes_atual" {% if periodo_predefinido == 'mes_atual' or not periodo_predefinido %}selected{% endif %}>Mês atual</option>
+                            <option value="ano_atual" {% if periodo_predefinido == 'ano_atual' %}selected{% endif %}>Ano atual</option>
+                            <option value="mes_anterior" {% if periodo_predefinido == 'mes_anterior' %}selected{% endif %}>Mês anterior</option>
+                            <option value="ano_anterior" {% if periodo_predefinido == 'ano_anterior' %}selected{% endif %}>Ano anterior</option>
+                            <option value="tudo" {% if periodo_predefinido == 'tudo' %}selected{% endif %}>Mostrar tudo</option>
+                            <option value="personalizado" {% if periodo_predefinido == 'personalizado' %}selected{% endif %}>Personalizado</option>
                         </select>
-                        <input type="hidden" name="periodo_predefinido_hidden" id="periodo_predefinido_hidden" value="{{ request.GET.periodo_predefinido|default:'mes_atual' }}">
                     </div>
                     <div class="flex-grow-1 d-none" id="datas-personalizadas">
                         <label for="id_data_inicio" class="form-label mb-1">Data inicial</label>
@@ -65,8 +51,23 @@
                             <label class="form-check-label" for="mostrar_anterior">Exibir valor anterior</label>
                         </div>
                     </div>
-                    <div class="d-flex align-items-end">
-                        <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-vibrant-blue btn-sm" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                        <a href="{{ request.path }}" class="btn btn-vibrant btn-sm" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var limparBtn = document.querySelector('a[title="Limpar Busca"]');
+    var selectPeriodo = document.getElementById('periodo_predefinido');
+    if (limparBtn && selectPeriodo) {
+        limparBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            selectPeriodo.value = 'mes_atual';
+            // Submete o form com o valor padrão
+            limparBtn.closest('form').submit();
+        });
+    }
+});
+</script>
                     </div>
                 </div>
             <script>
@@ -101,58 +102,36 @@
                 const datasPersonalizadas = document.getElementById('datas-personalizadas');
                 const dataInicio = document.getElementById('id_data_inicio');
                 const dataFim = document.getElementById('id_data_fim');
-                const periodoHidden = document.getElementById('periodo_predefinido_hidden');
                 // Inicialização: esconde campos personalizados se não for personalizado
                 if (selectPeriodo.value !== 'personalizado') {
                     datasPersonalizadas.classList.add('d-none');
-                    dataInicio.disabled = true;
-                    dataFim.disabled = true;
+                    // Preenche datas conforme período inicial
+                    const datas = getPeriodoDatas(selectPeriodo.value);
+                    dataInicio.value = datas.inicio;
+                    dataFim.value = datas.fim;
                 } else {
                     datasPersonalizadas.classList.remove('d-none');
-                    dataInicio.disabled = false;
-                    dataFim.disabled = false;
                 }
                 selectPeriodo.addEventListener('change', function() {
-                    periodoHidden.value = this.value;
                     if (this.value === 'personalizado') {
                         datasPersonalizadas.classList.remove('d-none');
-                        dataInicio.disabled = false;
-                        dataFim.disabled = false;
-                        dataInicio.value = "{{ form.data_inicio.value|default_if_none:'' }}";
-                        dataFim.value = "{{ form.data_fim.value|default_if_none:'' }}";
+                        dataInicio.value = '';
+                        dataFim.value = '';
                     } else {
                         datasPersonalizadas.classList.add('d-none');
                         const datas = getPeriodoDatas(this.value);
                         dataInicio.value = datas.inicio;
                         dataFim.value = datas.fim;
-                        dataInicio.disabled = true;
-                        dataFim.disabled = true;
                     }
                     if (this.value === 'tudo') {
                         dataInicio.value = '';
                         dataFim.value = '';
                     }
                 });
-                // Se recarregar e for personalizado, mostra campos
-                // Mantém o valor do select e campos ao recarregar
-                periodoHidden.value = selectPeriodo.value;
-                // Ao submeter o formulário, garantir que o valor do select seja enviado
-                const form = selectPeriodo.closest('form');
-                if (form) {
-                    form.addEventListener('submit', function() {
-                        periodoHidden.value = selectPeriodo.value;
-                        if (selectPeriodo.value !== 'personalizado') {
-                            dataInicio.disabled = false;
-                            dataFim.disabled = false;
-                        }
-                    });
-                }
             });
             </script>
                 <div class="col-xl-1 col-lg-1 col-md-2 col-12 d-flex align-items-end">
-                    {% if request.GET.tipo_evento or request.GET.data_inicio or request.GET.data_fim or request.GET.mostrar_anterior %}
-                        <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm w-100" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
-                    {% endif %}
+                    {# Botão Limpar removido daqui, agora está alinhado ao lado do Buscar #}
                 </div>
                 <!-- Checkbox removido daqui, agora está abaixo do campo Data inicial -->
             </form>
@@ -172,96 +151,58 @@
             });
             </script>
         </div>
-    </div>
-
-
-    <!-- Timeline centralizada e alternada (dupla por data) -->
-    <div class="timeline-center">
-        {% for data_str, pares in eventos_por_data.items %}
+        <!-- Timeline centralizada e alternada (dupla por data) -->
+        <div class="timeline-center">
+            {% for data_str, eventos in eventos_por_data.items %}
             <div class="timeline-date-group mb-4">
                 <div class="timeline-date-badge timeline-date-badge-lg">{{ data_str|slice:"8:10" }}/{{ data_str|slice:"5:7" }}/{{ data_str|slice:"0:4" }}</div>
-                {% for par in pares %}
+                {% for evento in eventos %}
                 <div class="timeline-row-group mb-4">
-                    <div class="timeline-row">
-                        {# Lado esquerdo #}
-                        {% if par.0 %}
-                        <div class="timeline-content card shadow-lg left timeline-hover" data-bs-toggle="tooltip" title="{{ par.0.get_tipo_evento_display }} | De: {{ par.0.valor_anterior|default:'-' }} → Para: {{ par.0.novo_valor|default:'-' }}">
-                            <div class="card-body py-3 px-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <span class="timeline-event-icon me-2">
-                                        {% if par.0.tipo_evento == 'entrada' %}<i class="bi bi-person-plus-fill text-primary"></i>{% endif %}
-                                        {% if par.0.tipo_evento == 'mudanca_tipo' %}<i class="bi bi-arrow-left-right text-warning"></i>{% endif %}
-                                        {% if par.0.tipo_evento == 'mudanca_status' %}<i class="bi bi-arrow-repeat text-success"></i>{% endif %}
-                                    </span>
-                                    <strong class="me-2">{{ par.0.nome_abreviado }}</strong>
-                                </div>
-                                <div class="mb-1">
-                                    <span class="badge timeline-type-badge me-2
-                                        {% if par.0.tipo_evento == 'entrada' %}bg-primary
-                                        {% elif par.0.tipo_evento == 'mudanca_tipo' %}bg-warning text-dark
-                                        {% elif par.0.tipo_evento == 'mudanca_status' %}bg-success
-                                        {% else %}bg-info text-dark{% endif %}">
-                                        {{ par.0.get_tipo_evento_display }}
-                                    </span>
-                                    {% if par.0.tipo_evento != 'entrada' %}
-                                        <span class="ms-2">De: <strong>{{ par.0.valor_anterior|default:'-' }}</strong> <i class="bi bi-arrow-right"></i> Para: <strong>{{ par.0.novo_valor|default:'-' }}</strong></span>
-                                    {% else %}
-                                        <span class="ms-2">Novo: <strong>{{ par.0.novo_valor }}</strong></span>
+                    <div class="timeline-row" style="min-height:32px;">
+                        <div class="timeline-row {% if forloop.counter0|divisibleby:2 %}left{% else %}right{% endif %}">
+                            <div class="timeline-content card shadow-lg timeline-hover {% if evento.tipo_evento == 'entrada' %}card-entrada{% elif evento.tipo_evento == 'mudanca_tipo' %}card-mudanca-tipo{% elif evento.tipo_evento == 'mudanca_status' %}card-mudanca-status{% endif %}" data-bs-toggle="tooltip" title="{{ evento.get_tipo_evento_display }} | De: {{ evento.valor_anterior|default:'-' }} → Para: {{ evento.novo_valor|default:'-' }}">
+                                <div class="card-body py-2 px-3" style="padding-top:0.6rem;padding-bottom:0.6rem;">
+                                    <div class="mb-2">
+                                        {% if evento.tipo_evento == 'entrada' %}
+                                            <span class="badge bg-success" style="font-size:0.85em;">Entrada</span>
+                                        {% elif evento.tipo_evento == 'mudanca_tipo' %}
+                                            <span class="badge bg-primary" style="font-size:0.85em;">Mudança de Tipo</span>
+                                        {% elif evento.tipo_evento == 'mudanca_status' %}
+                                            <span class="badge bg-warning text-dark" style="font-size:0.85em;">Mudança de Status</span>
+                                        {% elif evento.novo_valor and evento.novo_valor|lower == 'desligado' %}
+                                            <span class="badge bg-danger" style="font-size:0.85em;">Saída</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="timeline-event-icon me-2">
+                                            {% if evento.tipo_evento == 'entrada' %}<i class="bi bi-person-plus-fill text-primary"></i>{% endif %}
+                                            {% if evento.tipo_evento == 'mudanca_tipo' %}<i class="bi bi-arrow-left-right text-warning"></i>{% endif %}
+                                            {% if evento.tipo_evento == 'mudanca_status' %}<i class="bi bi-arrow-repeat text-success"></i>{% endif %}
+                                            {% if evento.novo_valor and evento.novo_valor|lower == 'desligado' %}❌{% endif %}
+                                            {% if evento.novo_valor and evento.novo_valor|lower == 'em disciplina' %}⚠️{% endif %}
+                                            {% if evento.novo_valor and evento.novo_valor|lower == 'ativo' %}✅{% endif %}
+                                        </span>
+                                        <span class="fw-bold" style="font-size:0.9rem;">{{ evento.membro.nome }}</span>
+                                    </div>
+                                    {% if evento.valor_anterior and evento.valor_anterior != '-' %}
+                                        <div class="mb-1 text-muted" style="font-size:0.6rem;">de: <span class="fw-bold">{{ evento.valor_anterior }}</span></div>
+                                    {% endif %}
+                                    <div class="text-center mb-1" style="font-size:0.7rem;">Tornou</div>
+                                    {% if evento.novo_valor and evento.novo_valor != '-' %}
+                                        <div class="text-center mb-2">
+                                            <span class="fw-bold px-2 py-1 rounded" style="background:#0d6efd;color:#fff;font-size:0.7rem;border:1px solid #0d6efd;display:inline-block;">{{ evento.novo_valor }}</span>
+                                        </div>
                                     {% endif %}
                                 </div>
                             </div>
+                            <div class="timeline-dot timeline-dot-lg"><i class="bi bi-dot"></i></div>
                         </div>
-                        {% else %}
-                        <div class="timeline-content"></div>
-                        {% endif %}
-                        <div class="timeline-dot timeline-dot-lg"><i class="bi bi-dot"></i></div>
-                        {# Lado direito #}
-                        {% if par.1 %}
-                        <div class="timeline-content card shadow-lg right timeline-hover" data-bs-toggle="tooltip" title="{{ par.1.get_tipo_evento_display }} | De: {{ par.1.valor_anterior|default:'-' }} → Para: {{ par.1.novo_valor|default:'-' }}">
-                            <div class="card-body py-3 px-4">
-                                <div class="d-flex align-items-center mb-2">
-                                    <span class="timeline-event-icon me-2">
-                                        {% if par.1.tipo_evento == 'entrada' %}<i class="bi bi-person-plus-fill text-primary"></i>{% endif %}
-                                        {% if par.1.tipo_evento == 'mudanca_tipo' %}<i class="bi bi-arrow-left-right text-warning"></i>{% endif %}
-                                        {% if par.1.tipo_evento == 'mudanca_status' %}<i class="bi bi-arrow-repeat text-success"></i>{% endif %}
-                                    </span>
-                                    <strong class="me-2">{{ par.1.nome_abreviado }}</strong>
-                                </div>
-                                <div class="mb-1">
-                                    <span class="badge timeline-type-badge me-2
-                                        {% if par.1.tipo_evento == 'entrada' %}bg-primary
-                                        {% elif par.1.tipo_evento == 'mudanca_tipo' %}bg-warning text-dark
-                                        {% elif par.1.tipo_evento == 'mudanca_status' %}bg-success
-                                        {% else %}bg-info text-dark{% endif %}">
-                                        {{ par.1.get_tipo_evento_display }}
-                                    </span>
-                                    {% if par.1.tipo_evento != 'entrada' %}
-                                        <span class="ms-2">De: <strong>{{ par.1.valor_anterior|default:'-' }}</strong> <i class="bi bi-arrow-right"></i> Para: <strong>{{ par.1.novo_valor|default:'-' }}</strong></span>
-                                    {% else %}
-                                        <span class="ms-2">Novo: <strong>{{ par.1.novo_valor }}</strong></span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="timeline-content"></div>
-                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
             </div>
-        {% empty %}
-        <div class="text-center text-muted">Nenhum evento encontrado para os filtros selecionados.</div>
-        {% endfor %}
-    </div>
-    </div>
+            {% endfor %}
 {% endblock %}
-
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    const chartData = {{ chart_data_json|safe }};
-    const ctx = document.getElementById('timelineChart').getContext('2d');
     const timelineChart = new Chart(ctx, {
         type: 'line',
         data: chartData,
@@ -277,12 +218,27 @@
                 y: { title: { display: true, text: 'Quantidade de Eventos' }, beginAtZero: true }
             }
         }
+
     });
 </script>
-{% endblock %}
 
 {% block extra_css %}
 <style>
+/* Gradiente para cards de mudança de status */
+.card-mudanca-status {
+    background: linear-gradient(90deg, #fff4e3 0%, #ffd8b3 100%);
+    border: 1.5px solid #ffd8b3;
+}
+/* Gradiente para cards de mudança de tipo */
+.card-mudanca-tipo {
+    background: linear-gradient(90deg, #e3f0ff 0%, #b3d8ff 100%);
+    border: 1.5px solid #b3d8ff;
+}
+/* Gradiente para cards de entrada */
+.card-entrada {
+    background: linear-gradient(90deg, #d4f8e8 0%, #b6f0c2 100%);
+    border: 1.5px solid #b6f0c2;
+}
 /* Custom badge colors */
 .bg-maroon { background-color: #800026 !important; color: #fff !important; }
 .bg-purple { background-color: #b197fc !important; color: #fff !important; }

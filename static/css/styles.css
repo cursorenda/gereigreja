@@ -1,3 +1,24 @@
+.btn-vibrant-orange {
+  color: #fff !important;
+  background: linear-gradient(90deg, #ff9800 0%, #ffc107 100%) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.15) !important;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s !important;
+}
+.btn-vibrant-orange:hover, .btn-vibrant-orange:focus {
+  background: linear-gradient(90deg, #ff9800 0%, #ffb300 100%) !important;
+  box-shadow: 0 8px 24px rgba(255, 152, 0, 0.25) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+}
+.btn-vibrant-orange:active {
+  background: linear-gradient(90deg, #fb8c00 0%, #ffa726 100%) !important;
+  color: #fff !important;
+  transform: none;
+}
+
+/* Botão laranja vibrante com gradiente, brilho e hover igual ao btn-vibrant-blue */
+
 /* REMOVIDO: container-fluid customizado para deixar apenas Bootstrap controlar largura */
 /* .container-fluid {
   max-width: 100vw !important;

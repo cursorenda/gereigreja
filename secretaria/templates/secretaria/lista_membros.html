@@ -59,17 +59,15 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-lg-2 col-6 d-grid gap-2 d-md-block">
-                        <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+                    <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
+                        <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
                         {% if request.GET.q or request.GET.tipo or request.GET.status or request.GET.genero %}
-                            <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
+                            <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                        {% endif %}
+                        {% if can_edit_membros %}
+                            <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-green" style="margin-left:0;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span></a>
                         {% endif %}
                     </div>
-                    {% if can_edit_membros %}
-                    <div class="col-lg-1 col-12 text-end mt-2 mt-lg-0">
-                        <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Adicionar</a>
-                    </div>
-                    {% endif %}
                 </form>
                 {% if membros %} {# Só renderiza a tabela e inicializa DataTables se houver membros #}
 
@@ -116,11 +114,13 @@
                                 {% endif %}
                                 {% if can_edit_membros %}
                                 <td class="text-center">
-                                    <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-outline-primary btn-sm me-1" title="Editar {{ membro.nome }}">
+                                    <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-blue btn-icon me-1" title="Editar {{ membro.nome }}">
                                         <i class="fas fa-edit"></i>
+                                        <span style="margin-left: 0.4em;">Editar</span>
                                     </a>
-                                    <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-sm btn-outline-info me-1" title="Ver Ficha para Impressão" target="_blank">
+                                    <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant btn-icon me-1" title="Ver Ficha para Impressão" target="_blank">
                                         <i class="fas fa-print"></i>
+                                        <span style="margin-left: 0.4em;">Imprimir</span>
                                     </a>
                                 </td>
                                 {% endif %}
@@ -137,6 +137,34 @@
                         {% endif %}
                     </div>
                 {% endif %} {# Fim do if membros #}
+
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Paginação de membros" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ page_obj.previous_page_number }}">Anterior</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                        {% endif %}
+                        {% for num in paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item"><a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ num }}">{{ num }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ page_obj.next_page_number }}">Próxima</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">Próxima</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
 
             </div>
         </div>
