@@ -16,6 +16,9 @@
             <button class="nav-link" id="categorias-tab" data-bs-toggle="tab" data-bs-target="#categorias" type="button" role="tab" aria-controls="categorias" aria-selected="false">Categorias de Despesa</button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ebd-tab" data-bs-toggle="tab" data-bs-target="#ebd" type="button" role="tab" aria-controls="ebd" aria-selected="false">Escola Bíblica</button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="notificacoes-tab" data-bs-toggle="tab" data-bs-target="#notificacoes" type="button" role="tab" aria-controls="notificacoes" aria-selected="false">Notificações</button>
         </li>
     </ul>
@@ -25,6 +28,9 @@
         </div>
         <div class="tab-pane fade" id="categorias" role="tabpanel" aria-labelledby="categorias-tab">
             {% include 'configuracao/partials/_categorias.html' %}
+        </div>
+        <div class="tab-pane fade" id="ebd" role="tabpanel" aria-labelledby="ebd-tab">
+            {% include 'configuracao/partials/_ebd.html' %}
         </div>
         <div class="tab-pane fade" id="notificacoes" role="tabpanel" aria-labelledby="notificacoes-tab">
             {% if notificacoes_form %}

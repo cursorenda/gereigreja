@@ -1,0 +1,26 @@
+{% extends 'base_com_menu.html' %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 pt-2 pb-1">
+  <h3 class="fw-bold text-primary mb-2" style="letter-spacing:1px; padding-left:2rem;">
+    {% block nome_departamento %}{% endblock %}
+  </h3>
+</div>
+<div class="container-fluid px-0 pt-2 pb-1">
+  <nav aria-label="breadcrumb" class="mb-3 mt-2" style="padding-left:2rem;">
+    <ol class="breadcrumb">
+      {% block breadcrumb_items %}{% endblock %}
+    </ol>
+  </nav>
+</div>
+{% block card_header_gradiente %}{% endblock %}
+<div class="card mb-4 shadow-sm" style="border-radius:12px; min-height:56px;">
+  <div style="padding:0;">
+    {% block card_principal %}
+      {% block conteudo_principal %}{% endblock %}
+    {% endblock %}
+  </div>
+</div>
+{% endblock %}

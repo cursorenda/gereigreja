@@ -1,5 +1,20 @@
-{% extends 'base_com_menu.html' %}
-{% block content %}
+{% extends 'base_com_sistema.html' %}
+{% block title %}Registro de Visitantes{% endblock %}
+{% block nome_departamento %}Recepção{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Recepção</li>
+    <li class="breadcrumb-item active">Registro de Visitantes</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-users me-2"></i>
+        <span style="font-size:1.1rem; font-weight:600;">Visitantes do Evento</span>
+    </div>
+</div>
+{% endblock %}
+{% block conteudo_principal %}
 <style>
     .btn-vibrant-orange {
         color: #fff !important;
@@ -18,21 +33,14 @@
         color: #fff !important;
     }
 </style>
+<div style="height:16px;"></div>
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Registro de Visitantes</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Recepção</li>
-        <li class="breadcrumb-item active">Registro de Visitantes</li>
-    </ol>
-    <div class="card mb-4 border rounded shadow-sm">
-        <div class="card-header">
-            <i class="fas fa-users me-1"></i>
-            Visitantes do Evento
-        </div>
-        <div class="card-body">
+    <div class="card-body">
 
     <form method="get" action="{% url 'secretaria:registrar_presenca_visitante_evento' %}" class="mb-3 row g-2 align-items-end">
+        <style>
+        .card { border-radius: 0 !important; }
+        </style>
         <div class="col-12 mb-2 d-flex justify-content-end">
             <span id="gcp-js-status" class="badge bg-secondary">JS: carregando...</span>
             <style>

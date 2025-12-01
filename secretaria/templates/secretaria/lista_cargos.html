@@ -1,82 +1,86 @@
-{% extends 'base_com_menu.html' %}
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Cargos da Igreja</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
-        <li class="breadcrumb-item active">Cargos</li>
-    </ol>
+
+{% extends 'base_com_sistema.html' %}
+{% block title %}Cargos da Igreja{% endblock %}
+{% block nome_departamento %}Cargos{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
+    <li class="breadcrumb-item active">Cargos</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:0 !important; border-bottom-left-radius:0 !important; border-bottom-right-radius:0 !important; padding-left:2rem;">
+    <div class="d-flex align-items-center" style="gap:0.5rem;">
+        <i class="fas fa-briefcase me-1"></i>
+        <span style="font-size:1.1rem; font-weight:600;">Cargos da Igreja</span>
+        <small class="text-muted ms-3">({{ cargos|length }})</small>
+    </div>
+</div>
+{% endblock %}
+{% block conteudo_principal %}
     {% include 'partials/_messages.html' %}
-
-
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-briefcase me-1"></i>
-            Cargos da Igreja ({{ cargos|length }})
+    <style>
+        .card { border-radius: 0 !important; }
+        .card-header + form { margin-top: 32px; }
+    </style>
+    <form method="GET" action="" class="row g-3 mb-3 align-items-center">
+        <div class="col-lg-3 col-12">
+            <input type="text" name="nome_cargo" class="form-control form-control-sm" placeholder="Nome do Cargo" value="{{ request.GET.nome_cargo|default:'' }}">
         </div>
-        <div class="card-body">
-            <form method="GET" action="" class="row g-3 mb-3 align-items-center">
-                <div class="col-lg-3 col-12">
-                    <input type="text" name="nome_cargo" class="form-control form-control-sm" placeholder="Nome do Cargo" value="{{ request.GET.nome_cargo|default:'' }}">
-                </div>
-                <div class="col-lg-2 col-6">
-                    <select name="grupo_permissao" class="form-select form-select-sm">
-                        <option value="">Grupo de Permissão</option>
-                        {% for grupo in grupos_permissao %}
-                            <option value="{{ grupo.id }}" {% if request.GET.grupo_permissao == grupo.id|stringformat:'s' %}selected{% endif %}>{{ grupo.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-lg-2 col-6">
-                    <input type="text" name="ocupante" class="form-control form-control-sm" placeholder="Ocupante" value="{{ request.GET.ocupante|default:'' }}">
-                </div>
-                {# Filtro de igreja removido, pois já existe seletor global #}
-                <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
-                    <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                    {% if request.GET.nome_cargo or request.GET.grupo_permissao or request.GET.ocupante or request.GET.igreja %}
-                        <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
-                    {% endif %}
-                    <a href="{% url 'secretaria:criar_cargo' %}" class="btn btn-vibrant-green btn-icon"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Novo Cargo</span></a>
-                </div>
-            </form>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Nome do Cargo</th>
-                        <th>Grupo de Permissão</th>
-                        <th>Ocupantes</th>
-                        {% if not igreja_selecionada or igreja_selecionada == '0' %}
-                            <th>Igreja</th>
-                        {% endif %}
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cargo in cargos %}
-                    <tr>
-                        <td>{{ cargo.nome }}</td>
-                        <td>{% if cargo.grupo_permissao %}{{ cargo.grupo_permissao.name }}{% else %}<span class="text-muted">Nenhum</span>{% endif %}</td>
-                        <td>
-                            {% for ocupante in cargo.ocupantes %}
-                                {{ ocupante.nome }}{% if not forloop.last %}, {% endif %}
-                            {% empty %}
-                                <span class="text-muted">Nenhum</span>
-                            {% endfor %}
-                        </td>
-                        {% if not igreja_selecionada or igreja_selecionada == '0' %}
-                            <td>{{ cargo.igreja.nome_igreja|default:'-' }}</td>
-                        {% endif %}
-                        <td>
-                            <a href="{% url 'secretaria:editar_cargo' cargo.id %}" class="btn btn-vibrant-blue btn-icon btn-sm me-1"><i class="fas fa-edit"></i><span style="margin-left: 0.4em;">Editar</span></a>
-                            <a href="{% url 'secretaria:gerenciar_ocupantes' cargo.id %}" class="btn btn-vibrant-yellow btn-icon btn-sm me-1"><i class="fas fa-users"></i><span style="margin-left: 0.4em;">Ocupantes</span></a>
-                            <a href="{% url 'secretaria:excluir_cargo' cargo.id %}" class="btn btn-vibrant-red btn-icon btn-sm" onclick="return confirm('Tem certeza que deseja excluir este cargo?');"><i class="fas fa-trash-alt"></i><span style="margin-left: 0.4em;">Excluir</span></a>
-                        </td>
-                    </tr>
+        <div class="col-lg-2 col-6">
+            <select name="grupo_permissao" class="form-select form-select-sm">
+                <option value="">Grupo de Permissão</option>
+                {% for grupo in grupos_permissao %}
+                    <option value="{{ grupo.id }}" {% if request.GET.grupo_permissao == grupo.id|stringformat:'s' %}selected{% endif %}>{{ grupo.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-2 col-6">
+            <input type="text" name="ocupante" class="form-control form-control-sm" placeholder="Ocupante" value="{{ request.GET.ocupante|default:'' }}">
+        </div>
+        {# Filtro de igreja removido, pois já existe seletor global #}
+        <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
+            <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+            {% if request.GET.nome_cargo or request.GET.grupo_permissao or request.GET.ocupante or request.GET.igreja %}
+                <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+            {% endif %}
+            <a href="{% url 'secretaria:criar_cargo' %}" class="btn btn-vibrant-green btn-icon"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Novo Cargo</span></a>
+        </div>
+    </form>
+    <div class="table-responsive">
+        <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nome do Cargo</th>
+                <th>Grupo de Permissão</th>
+                <th>Ocupantes</th>
+                {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                    <th>Igreja</th>
+                {% endif %}
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cargo in cargos %}
+            <tr>
+                <td>{{ cargo.nome }}</td>
+                <td>{% if cargo.grupo_permissao %}{{ cargo.grupo_permissao.name }}{% else %}<span class="text-muted">Nenhum</span>{% endif %}</td>
+                <td>
+                    {% for ocupante in cargo.ocupantes %}
+                        {{ ocupante.nome }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                        <span class="text-muted">Nenhum</span>
                     {% endfor %}
-                </tbody>
-                </table>
-            </div>
-        </div>
+                </td>
+                {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                    <td>{{ cargo.igreja.nome_igreja|default:'-' }}</td>
+                {% endif %}
+                <td>
+                    <a href="{% url 'secretaria:editar_cargo' cargo.id %}" class="btn btn-vibrant-blue btn-icon btn-sm me-1"><i class="fas fa-edit"></i><span style="margin-left: 0.4em;">Editar</span></a>
+                    <a href="{% url 'secretaria:gerenciar_ocupantes' cargo.id %}" class="btn btn-vibrant-yellow btn-icon btn-sm me-1"><i class="fas fa-users"></i><span style="margin-left: 0.4em;">Ocupantes</span></a>
+                    <a href="{% url 'secretaria:excluir_cargo' cargo.id %}" class="btn btn-vibrant-red btn-icon btn-sm" onclick="return confirm('Tem certeza que deseja excluir este cargo?');"><i class="fas fa-trash-alt"></i><span style="margin-left: 0.4em;">Excluir</span></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
     </div>
 {% endblock %}

@@ -1,24 +1,39 @@
 {% extends 'base_com_menu.html' %}
+{% load secretaria_extras %}
 {% block content %}
-<div class="container mt-4">
-  <h2>Transferir Aluno</h2>
-  <div class="alert alert-info">
-    <strong>Aluno:</strong> {{ aluno.nome }}<br>
-    <strong>Turma atual:</strong> {{ turma_origem }}
+<div class="container-fluid px-4">
+  <h1 class="mt-4">Transferir Aluno</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'escola_biblica:aluno_list' %}">Alunos</a></li>
+    <li class="breadcrumb-item active">Transferir</li>
+  </ol>
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-random me-1"></i> Transferência de Aluno
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info mb-4">
+        <strong>Aluno:</strong> {{ aluno.nome }}<br>
+        <strong>Turma atual:</strong> {{ turma_origem }}
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="mb-3">
+          <label for="id_turma_destino" class="form-label">Nova Turma</label>
+          {{ form.turma_destino|add_class:'form-select' }}
+        </div>
+        <div class="mb-3">
+          <label for="id_motivo" class="form-label">Motivo</label>
+          {{ form.motivo|add_class:'form-control' }}
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-3">
+          <button type="submit" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:120px; height:40px; font-weight:600; border-radius:8px;" title="Transferir Aluno"><i class="fas fa-random me-1"></i> Transferir</button>
+          <a href="{% url 'escola_biblica:aluno_list' %}" class="btn btn-cancel btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Cancelar"><i class="fas fa-times me-1"></i> Cancelar</a>
+        </div>
+      </form>
+    </div>
   </div>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    <div class="mb-3">
-      <label for="id_turma_destino" class="form-label">Nova Turma</label>
-      {{ form.turma_destino|add_class:'form-select' }}
-    </div>
-    <div class="mb-3">
-      <label for="id_motivo" class="form-label">Motivo</label>
-      {{ form.motivo|add_class:'form-control' }}
-    </div>
-    <button type="submit" class="btn btn-success">Transferir</button>
-    <a href="{% url 'escola_biblica:aluno_list' %}" class="btn btn-secondary">Cancelar</a>
-  </form>
 </div>
 {% endblock %}

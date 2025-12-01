@@ -45,4 +45,7 @@ urlpatterns = [
 
     # Listagem dinâmica de cargos/funções
     path('cargos-ebd/', views.cargos_ebd_list, name='cargos_ebd_list'),
+    path('licoes/gerar_cronograma/', views.gerar_cronograma, name='gerar_cronograma'),
+    # AJAX: retorna nome do professor da turma
+    path('get_professor/', views.get_professor_nome, name='get_professor_nome'),
 ]

@@ -51,6 +51,7 @@ def configuracoes_sistema(request):
     contas_bancarias = []
     can_edit_finance = False
     notificacoes_form = None
+    ebd_form = None
     if ministerio:
         from financeiro.models import CategoriaDespesa, Fornecedor, ContaBancaria
         from financeiro.utils import has_finance_edit_permission
@@ -59,8 +60,9 @@ def configuracoes_sistema(request):
         igrejas = Igreja.objects.filter(ministerio=ministerio)
         contas_bancarias = ContaBancaria.objects.filter(igreja__in=igrejas)
         can_edit_finance = has_finance_edit_permission(request.user)
-        # Carregar formulário de notificações
         config, _ = ConfiguracaoSistema.objects.get_or_create(ministerio=ministerio)
+
+        # Notificações
         if request.method == 'POST' and request.POST.get('aba_ativa') == 'notificacoes':
             notificacoes_form = ConfiguracaoSistemaForm(request.POST, instance=config)
             if notificacoes_form.is_valid():
@@ -69,6 +71,15 @@ def configuracoes_sistema(request):
         else:
             notificacoes_form = ConfiguracaoSistemaForm(instance=config)
 
+        # EBD
+        if request.method == 'POST' and request.POST.get('aba_ativa') == 'ebd':
+            ebd_form = ConfiguracaoSistemaForm(request.POST, instance=config)
+            if ebd_form.is_valid():
+                ebd_form.save()
+                messages.success(request, "Configuração da Escola Bíblica atualizada com sucesso!")
+        else:
+            ebd_form = ConfiguracaoSistemaForm(instance=config)
+
     context = {
         'categorias': categorias,
         'fornecedores': fornecedores,
@@ -76,6 +87,7 @@ def configuracoes_sistema(request):
         'ministerio': ministerio,
         'can_edit_finance': can_edit_finance,
         'notificacoes_form': notificacoes_form,
+        'ebd_form': ebd_form,
     }
     return render(request, 'configuracao/configuracoes_sistema.html', context)
 # configuracao/views.py

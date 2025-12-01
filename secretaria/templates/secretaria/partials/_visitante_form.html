@@ -70,7 +70,11 @@
 
         <div class="mb-2">
             <label for="{{ form.observacoes_visita.id_for_label }}" class="form-label">{{ form.observacoes_visita.label }}:</label>
-            {{ form.observacoes_visita|add_class:'form-control form-control-sm' }}
+            {% if form.observacoes_visita.field.widget.input_type == 'textarea' %}
+                <textarea name="{{ form.observacoes_visita.html_name }}" id="{{ form.observacoes_visita.id_for_label }}" class="form-control form-control-sm" style="height:30px !important; min-height:30px !important; max-height:30px !important;" rows="1">{{ form.observacoes_visita.value }}</textarea>
+            {% else %}
+                {{ form.observacoes_visita|add_class:'form-control form-control-sm' }}
+            {% endif %}
         </div>
 
         <div class="mb-3">
@@ -81,9 +85,8 @@
             <div class="small text-muted">Se marcado, a presença será registrada imediatamente após salvar o visitante.</div>
         </div>
         <div class="d-flex justify-content-end gap-2 mt-3">
-            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-            <!-- Force-save button: preferir submit nativo para que handlers delegados capturem; ainda mantemos id para fallback AJAX -->
-            <button type="submit" id="gcp-save-visitante-btn" class="btn btn-primary btn-sm" aria-label="Salvar visitante"><i class="fas fa-save me-1"></i> Salvar visitante</button>
+            <button type="button" class="btn btn-cancel btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" data-bs-dismiss="modal" title="Cancelar e fechar o formulário"><i class="fas fa-times me-1"></i> Cancelar</button>
+            <button type="submit" id="gcp-save-visitante-btn" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:140px; height:40px; font-weight:600; border-radius:8px;" aria-label="Salvar visitante" title="Salvar visitante e registrar presença"><i class="fas fa-save me-1"></i> Salvar visitante</button>
         </div>
     </form>
 </div>

@@ -1,19 +1,25 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% load secretaria_extras %}
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Associar Usuários a Membros</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
-        <li class="breadcrumb-item active">Associar Usuários a Membros</li>
-    </ol>
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-users me-1"></i>
-            Usuários sem associação ({{ membros_sem_usuario|length }})
-        </div>
-        <div class="card-body">
+{% block title %}Associar Usuários a Membros{% endblock %}
+{% block nome_departamento %}Associações{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:index' %}">Home</a></li>
+    <li class="breadcrumb-item active">Associar Usuários a Membros</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-users me-2"></i>
+        <span style="font-size:1.1rem; font-weight:600;">Usuários sem associação ({{ membros_sem_usuario|length }})</span>
+    </div>
+</div>
+{% endblock %}
+{% block conteudo_principal %}
+            <div style="height:16px;"></div>
             <form method="get" action="" class="row g-3 mb-3 align-items-center">
+                <style>
+                .card { border-radius: 0 !important; }
+                </style>
                 <div class="col-lg-3 col-12">
                     <input type="text" name="nome" class="form-control form-control-sm" placeholder="Nome do membro" value="{{ request.GET.nome|default:'' }}">
                 </div>

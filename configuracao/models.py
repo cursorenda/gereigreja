@@ -4,6 +4,19 @@ class ConfiguracaoSistema(models.Model):
     ministerio = models.OneToOneField('Ministerio', on_delete=models.CASCADE, related_name='configuracao', verbose_name='Ministério')
     notificar_eventos = models.BooleanField(default=True, verbose_name='Enviar notificações de eventos?')
     notificar_aniversarios = models.BooleanField(default=True, verbose_name='Enviar notificações de aniversários?')
+    EBD_PERIODO_CHOICES = [
+        ('trimestre', 'Trimestre'),
+        ('quadrimestre', 'Quadrimestre'),
+        ('semestre', 'Semestre'),
+        ('ano', 'Ano'),
+    ]
+    ebd_periodo = models.CharField(
+        max_length=20,
+        choices=EBD_PERIODO_CHOICES,
+        default='trimestre',
+        verbose_name='Período da Escola Bíblica',
+        help_text='Selecione o período utilizado para a EBD (trimestre, quadrimestre, semestre, ano).'
+    )
     # Adicione outros tipos de notificação conforme necessário
     atualizado_em = models.DateTimeField(auto_now=True)
 

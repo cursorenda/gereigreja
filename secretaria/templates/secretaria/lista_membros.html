@@ -1,174 +1,162 @@
-{% extends 'base_com_menu.html' %}
-{% load static %}
-{% load humanize %}
 
-{% block title %}Lista de Pessoas - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% extends 'base_com_sistema.html' %}
+{% block title %}Lista de Pessoas{% endblock %}
+{% block nome_departamento %}Membros{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Lista de Membros</li>
 {% endblock %}
-
-{% block content %}
-    <div class="container-fluid px-4">
-    <h1 class="mt-4">Lista de Pessoas</h1>
-        <ol class="breadcrumb mb-4">
-            <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-            <li class="breadcrumb-item active">Lista de Membros</li>
-        </ol>
-
-
-
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="fas fa-users me-1"></i>
-                Pessoas ({{ membros.count }})
-            </div>
-            <div class="card-body">
-                <form method="GET" action="" class="row g-3 mb-3 align-items-center">
-                    <div class="col-lg-3 col-12">
-                        <input type="text" name="nome_apelido" class="form-control form-control-sm" placeholder="Nome ou Apelido" value="{{ request.GET.nome_apelido|default:'' }}">
-                    </div>
-                    <div class="col-lg-1 col-4">
-                        <select name="tipo" id="id_tipo" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
-                            <option value="">Tipo</option>
-                            {% for tipo in tipos_pessoa %}
-                              <option value="{{ tipo.id }}" {% if request.GET.tipo == tipo.id|stringformat:'s' %}selected{% endif %}>{{ tipo.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-lg-1 col-4">
-                        <select name="status" id="id_status" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
-                            <option value="">Status</option>
-                            {% for status in status_pessoa %}
-                              <option value="{{ status.id }}" {% if request.GET.status == status.id|stringformat:'s' %}selected{% endif %}>{{ status.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-lg-1 col-4">
-                        <select name="genero" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
-                            <option value="">Gênero</option>
-                            <option value="M" {% if request.GET.genero == 'M' %}selected{% endif %}>Masculino</option>
-                            <option value="F" {% if request.GET.genero == 'F' %}selected{% endif %}>Feminino</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-1 col-4">
-                        <select name="tags" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
-                            <option value="">Tags</option>
-                            {% for tag in todas_tags %}
-                                <option value="{{ tag.id }}" {% if tag.id|stringformat:'s' in tags_selecionadas %}selected{% endif %}>{{ tag.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
-                        <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                        {% if request.GET.q or request.GET.tipo or request.GET.status or request.GET.genero %}
-                            <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
-                        {% endif %}
-                        {% if can_edit_membros %}
-                            <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-green" style="margin-left:0;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span></a>
-                        {% endif %}
-                    </div>
-                </form>
-                {% if membros %} {# Só renderiza a tabela e inicializa DataTables se houver membros #}
-
-                <div class="table-responsive">
-                    <table id="membrosTable" class="table table-striped table-bordered table-hover table-sm">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nome</th>
-                                <th>Gênero</th>
-                                <th>Tipo / Status</th>
-                                <th>Data de Nascimento</th>
-                                {% if not igreja_selecionada or igreja_selecionada == '0' %}
-                                    <th>Igreja</th>
-                                {% endif %}
-                                {% if can_edit_membros %}
-                                <th class="text-center">Ações</th>
-                                {% endif %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for membro in membros %}
-                            <tr>
-                                <td>
-                                    {{ membro.nome }} {% if membro.apelido %}({{ membro.apelido }}){% endif %}
-                                    {% if membro.tags.all %}
-                                        <span class="ms-1">
-                                            {% for tag in membro.tags.all %}
-                                                <span class="badge" style="background-color: {{ tag.cor }}; color: #fff;">{{ tag.nome }}</span>
-                                            {% endfor %}
-                                        </span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ membro.get_genero_display|default:"N/I" }}</td>
-                                <td>                                   
-                                    {% if membro.tipo_pessoa %} {{ membro.tipo_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Tipo</span> {% endif %}
-                                    / 
-                                    {% if membro.status_pessoa %} {{ membro.status_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Status</span> {% endif %}
-
-                                
-                                </td>
-                                <td>{{ membro.nascimento|date:"d/m/Y"|default:"N/I" }}</td>
-                                {% if not igreja_selecionada or igreja_selecionada == '0' %}
-                                    <td>{{ membro.igreja.nome_igreja|default:"N/A" }}</td>
-                                {% endif %}
-                                {% if can_edit_membros %}
-                                <td class="text-center">
-                                    <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-blue btn-icon me-1" title="Editar {{ membro.nome }}">
-                                        <i class="fas fa-edit"></i>
-                                        <span style="margin-left: 0.4em;">Editar</span>
-                                    </a>
-                                    <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant btn-icon me-1" title="Ver Ficha para Impressão" target="_blank">
-                                        <i class="fas fa-print"></i>
-                                        <span style="margin-left: 0.4em;">Imprimir</span>
-                                    </a>
-                                </td>
-                                {% endif %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %} {# Se não houver membros (após a busca do Django) #}
-                    <div class="alert alert-info text-center mt-3" role="alert">
-                        Nenhuma pessoa encontrada com os filtros aplicados, verifique acentos "´,~,^,".
-                        {% if can_edit_membros %}
-                            <a href="{% url 'secretaria:cadastrar_membro' %}" class="ms-2">Adicionar uma nova?</a>
-                        {% endif %}
-                    </div>
-                {% endif %} {# Fim do if membros #}
-
-                {% if page_obj.has_other_pages %}
-                <nav aria-label="Paginação de membros" class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ page_obj.previous_page_number }}">Anterior</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
-                        {% endif %}
-                        {% for num in paginator.page_range %}
-                            {% if page_obj.number == num %}
-                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                <li class="page-item"><a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ num }}">{{ num }}</a></li>
-                            {% endif %}
-                        {% endfor %}
-                        {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ page_obj.next_page_number }}">Próxima</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">Próxima</span></li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
-
-            </div>
-        </div>
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:0 !important; padding-left:2rem;">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-users me-1"></i>
+        <span style="font-size:1.1rem; font-weight:600;">Membros</span>
+        <small class="text-muted ms-3">({{ membros.count }})</small>
     </div>
+</div>
+{% endblock %}
+{% block conteudo_principal %}
+    <style>
+        .card { border-radius: 0 !important; }
+        .card-header + form { margin-top: 32px; }
+    </style>
+    <form method="GET" action="" class="row g-3 mb-3 align-items-center">
+        <div class="col-lg-3 col-12">
+            <input type="text" name="nome_apelido" class="form-control form-control-sm" placeholder="Nome ou Apelido" value="{{ request.GET.nome_apelido|default:'' }}">
+        </div>
+        <div class="col-lg-1 col-4">
+            <select name="tipo" id="id_tipo" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
+                <option value="">Tipo</option>
+                {% for tipo in tipos_pessoa %}
+                  <option value="{{ tipo.id }}" {% if request.GET.tipo == tipo.id|stringformat:'s' %}selected{% endif %}>{{ tipo.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-1 col-4">
+            <select name="status" id="id_status" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
+                <option value="">Status</option>
+                {% for status in status_pessoa %}
+                  <option value="{{ status.id }}" {% if request.GET.status == status.id|stringformat:'s' %}selected{% endif %}>{{ status.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-1 col-4">
+            <select name="genero" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
+                <option value="">Gênero</option>
+                <option value="M" {% if request.GET.genero == 'M' %}selected{% endif %}>Masculino</option>
+                <option value="F" {% if request.GET.genero == 'F' %}selected{% endif %}>Feminino</option>
+            </select>
+        </div>
+        <div class="col-lg-1 col-4">
+            <select name="tags" class="form-select form-select-sm" style="min-width:80px;max-width:110px;">
+                <option value="">Tags</option>
+                {% for tag in todas_tags %}
+                    <option value="{{ tag.id }}" {% if tag.id|stringformat:'s' in tags_selecionadas %}selected{% endif %}>{{ tag.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
+            <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+            {% if request.GET.q or request.GET.tipo or request.GET.status or request.GET.genero %}
+                <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+            {% endif %}
+            {% if can_edit_membros %}
+                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-green" style="margin-left:0;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span></a>
+            {% endif %}
+        </div>
+    </form>
+    {% if membros %}
+    <div class="table-responsive">
+        <table id="membrosTable" class="table table-striped table-bordered table-hover table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>Nome</th>
+                    <th>Gênero</th>
+                    <th>Tipo / Status</th>
+                    <th>Data de Nascimento</th>
+                    {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                        <th>Igreja</th>
+                    {% endif %}
+                    {% if can_edit_membros %}
+                    <th class="text-center">Ações</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for membro in membros %}
+                <tr>
+                    <td>
+                        {{ membro.nome }} {% if membro.apelido %}({{ membro.apelido }}){% endif %}
+                        {% if membro.tags.all %}
+                            <span class="ms-1">
+                                {% for tag in membro.tags.all %}
+                                    <span class="badge" style="background-color: {{ tag.cor }}; color: #fff;">{{ tag.nome }}</span>
+                                {% endfor %}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>{{ membro.get_genero_display|default:"N/I" }}</td>
+                    <td>                                   
+                        {% if membro.tipo_pessoa %} {{ membro.tipo_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Tipo</span> {% endif %}
+                        / 
+                        {% if membro.status_pessoa %} {{ membro.status_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Status</span> {% endif %}
+                    </td>
+                    <td>{{ membro.nascimento|date:"d/m/Y"|default:"N/I" }}</td>
+                    {% if not igreja_selecionada or igreja_selecionada == '0' %}
+                        <td>{{ membro.igreja.nome_igreja|default:"N/A" }}</td>
+                    {% endif %}
+                    {% if can_edit_membros %}
+                    <td class="text-center">
+                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-blue btn-icon me-1" title="Editar {{ membro.nome }}">
+                            <i class="fas fa-edit"></i>
+                            <span style="margin-left: 0.4em;">Editar</span>
+                        </a>
+                        <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant btn-icon me-1" title="Ver Ficha para Impressão" target="_blank">
+                            <i class="fas fa-print"></i>
+                            <span style="margin-left: 0.4em;">Imprimir</span>
+                        </a>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="alert alert-info text-center mt-3" role="alert">
+            Nenhuma pessoa encontrada com os filtros aplicados, verifique acentos "´,~,^,".
+            {% if can_edit_membros %}
+                <a href="{% url 'secretaria:cadastrar_membro' %}" class="ms-2">Adicionar uma nova?</a>
+            {% endif %}
+        </div>
+    {% endif %}
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Paginação de membros" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ page_obj.previous_page_number }}">Anterior</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+            {% endif %}
+            {% for num in paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET.nome_apelido %}nome_apelido={{ request.GET.nome_apelido }}&{% endif %}{% if request.GET.tipo %}tipo={{ request.GET.tipo }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.genero %}genero={{ request.GET.genero }}&{% endif %}{% for tag in request.GET.tags %}tags={{ tag }}&{% endfor %}page={{ page_obj.next_page_number }}">Próxima</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Próxima</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 {% endblock %}
 
 {% block extra_js %}

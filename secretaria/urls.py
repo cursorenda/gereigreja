@@ -16,6 +16,13 @@ urlpatterns = [
     path('', views.index, name='index'), # Esta URL agora será /sistema/
     path('dashboard/', views.dashboard, name='dashboard'),
     path('membros/', views.lista_membros, name='lista_membros'),
+    # Etapa 1: Pré-cadastro (dados básicos)
+    path('membros/pre-cadastro/', views.pre_cadastro, name='pre_cadastro'),
+    # Etapa 2: Cadastro detalhado (dados adicionais)
+    path('membros/cadastro-detalhado/<int:pessoa_id>/', views.cadastro_detalhado, name='cadastro_detalhado'),
+    # Etapa 3: Cadastro complementar (histórico, tags, acompanhamento)
+    path('membros/cadastro-complementar/<int:pessoa_id>/', views.cadastro_complementar, name='cadastro_complementar'),
+    # Cadastro antigo (pode ser removido após migração)
     path('membros/cadastrar/', views.criar_membro, name='cadastrar_membro'),
     path('membros/<int:membro_id>/editar/', views.editar_membro, name='editar_membro'),
     # path('backup/', views.backup_page, name='backup_page'),  # Removido: backup antigo (SQLite)

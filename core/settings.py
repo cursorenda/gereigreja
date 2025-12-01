@@ -244,7 +244,7 @@ LOGGING = {
         },
         'django': {
             'handlers': ['file', 'console'],
-            'level': 'ERROR',
+            'level': 'INFO',
             'propagate': False,
         },
         'secretaria': {

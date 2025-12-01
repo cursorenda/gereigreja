@@ -1,20 +1,21 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% load static %}
-
-{% block content %}
-<div class="container-fluid px-4 mt-4">
-    <h1 class="mt-4">Linha do Tempo dos Membros</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Linha do Tempo</li>
-    </ol>
-
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-filter me-1"></i>
-            Filtros da Linha do Tempo
-        </div>
-        <div class="card-body">
+{% block title %}Linha do Tempo dos Membros{% endblock %}
+{% block nome_departamento %}Linha do Tempo{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Linha do Tempo</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-filter me-2"></i>
+        <span style="font-size:1.1rem; font-weight:600;">Filtros da Linha do Tempo</span>
+    </div>
+</div>
+{% endblock %}
+{% block conteudo_principal %}
+            <div style="height:16px;"></div>
             <form method="get" class="row g-3 mb-3 align-items-center">
                 <!-- ...outros filtros... -->
                 <div class="col-xl-2 col-lg-2 col-md-3 col-12" id="filtro-tipo-pessoa-novo" style="display: none;">
@@ -224,6 +225,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% block extra_css %}
 <style>
+/* Remove borda arredondada do card principal para padronizar com demais páginas */
+.card { border-radius: 0 !important; }
 /* Gradiente para cards de mudança de status */
 .card-mudanca-status {
     background: linear-gradient(90deg, #fff4e3 0%, #ffd8b3 100%);

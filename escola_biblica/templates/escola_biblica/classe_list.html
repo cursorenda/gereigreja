@@ -1,76 +1,101 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% block title %}Classes EBD{% endblock %}
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Classes</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
-        <li class="breadcrumb-item active">Classes</li>
-    </ol>
-    {% include 'partials/_messages.html' %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-layer-group me-1"></i>
-            Classes ({{ classes.count }})
-            <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-primary btn-sm float-end"><i class="fas fa-plus"></i> Nova Classe</a>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-bordered table-hover table-sm">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Nome</th>
-                            <th>Faixa Etária</th>
-                            <th>Descrição</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for classe in classes %}
-                        <tr>
-                            <td>{{ classe.nome }}</td>
-                            <td>{{ classe.faixa_etaria }}</td>
-                            <td>{{ classe.descricao }}</td>
-                            <td>
-                                <a href="{% url 'escola_biblica:classe_edit' classe.pk %}" class="btn btn-sm btn-warning">Editar</a>
-                                <a href="{% url 'escola_biblica:classe_delete' classe.pk %}" class="btn btn-sm btn-danger">Excluir</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                                </table>
-                                {% if classes.has_other_pages %}
-                                <nav aria-label="Navegação de páginas">
-                                    <ul class="pagination justify-content-center">
-                                        {% if classes.has_previous %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ classes.previous_page_number }}" aria-label="Anterior">
-                                                    <span aria-hidden="true">&laquo;</span>
-                                                </a>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
-                                        {% endif %}
-                                        {% for num in classes.paginator.page_range %}
-                                            {% if classes.number == num %}
-                                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                                            {% else %}
-                                                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-                                            {% endif %}
-                                        {% endfor %}
-                                        {% if classes.has_next %}
-                                            <li class="page-item">
-                                                <a class="page-link" href="?page={{ classes.next_page_number }}" aria-label="Próxima">
-                                                    <span aria-hidden="true">&raquo;</span>
-                                                </a>
-                                            </li>
-                                        {% else %}
-                                            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
-                                        {% endif %}
-                                    </ul>
-                                </nav>
-                                {% endif %}
+{% block nome_departamento %}Escola Bíblica Dominical{% endblock %}
+{% block breadcrumb_app %}{% endblock %}
+{% block breadcrumb_page %}
+{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">Escola Dominical</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Modelos de Classe</li>
+{% endblock %}
+{% block conteudo_principal %}
+<div class="card shadow-lg rounded-lg" style="border: none;">
+    <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-layer-group me-2"></i>
+                <span style="font-size:1.1rem; font-weight:600;">Classes</span>
+                <span class="ms-2 text-light" style="font-weight:400;">({{ classes.count }})</span>
             </div>
+            <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Classe</a>
+        </div>
+    </div>
+    <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
+        {% include 'partials/_messages.html' %}
+        <form method="GET" action="" class="row g-3 mb-3 align-items-center">
+            <div class="col-lg-4 col-12">
+                <input type="text" name="nome" class="form-control form-control-sm" placeholder="Nome da Classe" value="{{ request.GET.nome|default:'' }}">
+            </div>
+            <div class="col-lg-3 col-6">
+                <input type="text" name="faixa_etaria" class="form-control form-control-sm" placeholder="Faixa Etária" value="{{ request.GET.faixa_etaria|default:'' }}">
+            </div>
+            <div class="col-lg-2 col-6">
+                <input type="text" name="descricao" class="form-control form-control-sm" placeholder="Descrição" value="{{ request.GET.descricao|default:'' }}">
+            </div>
+            <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
+                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Classe</span></a>
+                {% if request.GET.nome or request.GET.faixa_etaria or request.GET.descricao %}
+                    <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                {% endif %}
+            </div>
+        </form>
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered table-hover table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nome</th>
+                        <th>Faixa Etária</th>
+                        <th>Descrição</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for classe in classes %}
+                    <tr>
+                        <td>{{ classe.nome }}</td>
+                        <td>{{ classe.faixa_etaria }}</td>
+                        <td>{{ classe.descricao }}</td>
+                        <td>
+                            <a href="{% url 'escola_biblica:classe_edit' classe.pk %}" class="btn btn-vibrant-green btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Classe"><i class="fas fa-edit me-1"></i> Editar</a>
+                            <a href="{% url 'escola_biblica:classe_delete' classe.pk %}" class="btn btn-vibrant-danger btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Classe"><i class="fas fa-trash me-1"></i> Excluir</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if classes.has_other_pages %}
+            <nav aria-label="Navegação de páginas">
+                <ul class="pagination justify-content-center">
+                    {% if classes.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ classes.previous_page_number }}" aria-label="Anterior">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                    {% endif %}
+                    {% for num in classes.paginator.page_range %}
+                        {% if classes.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if classes.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ classes.next_page_number }}" aria-label="Próxima">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
         </div>
     </div>
 </div>

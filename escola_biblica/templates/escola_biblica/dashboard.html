@@ -1,127 +1,156 @@
 {% extends 'base_com_menu.html' %}
 {% block title %}Dashboard EBD{% endblock %}
 {% block content %}
+
 <div class="container-fluid px-4">
-	<h1 class="mt-4">Escola Bíblica Dominical</h1>
+	<h1 class="mt-4 fw-bold">Escola Bíblica Dominical</h1>
 	<ol class="breadcrumb mb-4">
 		<li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
 		<li class="breadcrumb-item active">EBD</li>
 	</ol>
 
-	<!-- Filtros dinâmicos -->
-	<form method="get" class="row g-2 align-items-end mb-3" id="filtros-dashboard">
-		<div class="col-md-3">
-			<label for="periodo" class="form-label mb-0">Período</label>
-				<input type="month" class="form-control" id="periodo" name="periodo" value="{{ request.GET.periodo|default_if_none:'' }}{% if not request.GET.periodo %}{% now 'Y-m' %}{% endif %}">
-		</div>
-		<div class="col-md-3">
-			<label for="classe" class="form-label mb-0">Classe</label>
-			<select class="form-select" id="classe" name="classe">
-				<option value="">Todas</option>
-				{% for c in classes %}
-					<option value="{{ c.id }}" {% if request.GET.classe == c.id|stringformat:'s' %}selected{% endif %}>{{ c.nome }}</option>
-				{% endfor %}
-			</select>
-		</div>
-		<div class="col-md-3">
-			<label for="departamento" class="form-label mb-0">Departamento</label>
-			<select class="form-select" id="departamento" name="departamento">
-				<option value="">Todos</option>
-				{% for key, label in classes.0.DEPARTAMENTO_CHOICES %}
-					<option value="{{ key }}" {% if request.GET.departamento == key %}selected{% endif %}>{{ label }}</option>
-				{% endfor %}
-			</select>
-		</div>
-		<div class="col-md-3">
-			<button type="submit" class="btn btn-primary w-100">Filtrar</button>
-		</div>
-	</form>
-
-	<!-- Cards compactos de resumo -->
-
-	<div class="row mb-2 g-2">
-		<!-- Cards de indicadores principais (6 por linha, todos col-md-2) -->
-		<div class="col-6 col-md-2">
-			<div class="card text-center border-success mb-2">
-				<div class="card-body p-2">
-					<div class="fw-bold text-success"><i class="fas fa-hand-holding-usd"></i> Oferta Total</div>
-					<div class="fs-5">R$ {{ total_oferta|floatformat:2 }}</div>
+	<!-- Cards de navegação panorâmica -->
+	<div class="row g-4 mb-4">
+		<!-- Turmas -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:turma_list' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #4f8cff 0%, #6ed6ff 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div>
+							<i class="fas fa-chalkboard-teacher fa-3x mb-2"></i>
+							<h4 class="fw-bold">Turmas</h4>
+							<p class="mb-1">Gerencie todas as turmas da EBD.</p>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">{{ turmas|length }} turmas</span></div>
+					</div>
 				</div>
-			</div>
+			</a>
 		</div>
-		<div class="col-6 col-md-2">
-			<div class="card text-center border-info mb-2">
-				<div class="card-body p-2">
-					<div class="fw-bold text-info"><i class="fas fa-bolt"></i> Engajamento</div>
-					<div class="fs-5">{{ engajamento_percent }}%</div>
-					<small class="d-block">% freq. &ge; 75%</small>
+		<!-- Classes -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:classe_list' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div>
+							<i class="fas fa-users fa-3x mb-2"></i>
+							<h4 class="fw-bold">Classes</h4>
+							<p class="mb-1">Grupos temáticos/faixa etária.</p>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">{{ classes|length }} classes</span></div>
+					</div>
 				</div>
-			</div>
+			</a>
 		</div>
-		<div class="col-6 col-md-2">
-			<div class="card text-center border-danger mb-2">
-				<div class="card-body p-2">
-					<div class="fw-bold text-danger"><i class="fas fa-user-times"></i> Evasão</div>
-					<div class="fs-5">{{ evasao }}</div>
-					<small class="d-block">Inativos no ano</small>
+		<!-- Alunos -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:aluno_list' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div>
+							<i class="fas fa-user-graduate fa-3x mb-2"></i>
+							<h4 class="fw-bold">Alunos</h4>
+							<p class="mb-1">Visualize e gerencie os alunos.</p>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">{{ alunos|length }} alunos</span></div>
+					</div>
 				</div>
-			</div>
+			</a>
 		</div>
-		<div class="col-6 col-md-2">
-			<div class="card text-center border-primary mb-2">
-				<div class="card-body p-2">
-					<div class="fw-bold text-primary"><i class="fas fa-percentage"></i> Freq. Geral</div>
-					<div class="fs-5">{{ freq_geral }}%</div>
-					<small class="d-block">Média geral</small>
+		<!-- Lições -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:licao_list' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div>
+							<i class="fas fa-book-open fa-3x mb-2"></i>
+							<h4 class="fw-bold">Lições</h4>
+							<p class="mb-1">Acompanhe e gere lições/aulas.</p>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">{{ licoes|length }} lições</span></div>
+					</div>
 				</div>
-			</div>
+			</a>
 		</div>
-		<div class="col-6 col-md-2">
-			<div class="card text-center border-success mb-2">
-				<div class="card-body p-2">
-					<div class="fw-bold text-success"><i class="fas fa-user-plus"></i> Alunos Novos</div>
-					<div class="fs-5">{{ alunos_novos }}</div>
-					<small class="d-block">No mês</small>
+		<!-- Frequência -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:frequencia_list' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div>
+							<i class="fas fa-clipboard-check fa-3x mb-2"></i>
+							<h4 class="fw-bold">Frequência</h4>
+							<p class="mb-1">Registre e acompanhe presença.</p>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">{{ freq_geral }}% média</span></div>
+					</div>
 				</div>
-			</div>
+			</a>
 		</div>
-		<div class="col-6 col-md-2">
-			<div class="card text-center border-warning mb-2">
-				<div class="card-body p-2">
-					<div class="fw-bold text-warning"><i class="fas fa-random"></i> Transferidos</div>
-					<div class="fs-5">{{ transferidos_mes }}</div>
-					<small class="d-block">No mês</small>
+		<!-- Avaliações -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:avaliacao_list' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div>
+							<i class="fas fa-star fa-3x mb-2"></i>
+							<h4 class="fw-bold">Avaliações</h4>
+							<p class="mb-1">Notas e participação dos alunos.</p>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">Ver avaliações</span></div>
+					</div>
 				</div>
-			</div>
+			</a>
+		</div>
+		<!-- Ofertas -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:oferta_classe_list' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div>
+							<i class="fas fa-hand-holding-usd fa-3x mb-2"></i>
+							<h4 class="fw-bold">Ofertas</h4>
+							<p class="mb-1">Controle de ofertas por classe.</p>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">R$ {{ total_oferta|floatformat:2 }}</span></div>
+					</div>
+				</div>
+			</a>
+		</div>
+		<!-- Relatórios -->
+		<div class="col-12 col-md-6 col-lg-3">
+			<a href="{% url 'escola_biblica:relatorio_alunos' %}" class="text-decoration-none">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); color: #fff; border-radius: 18px;">
+					<div class="card-body d-flex flex-column justify-content-between">
+						<div class="text-white">
+							<i class="fas fa-chart-bar fa-3x mb-2 text-white"></i>
+							<h4 class="fw-bold text-white">Relatórios</h4>
+							<p class="mb-1 text-white">Relatórios de alunos, frequência, avaliações.</p>
+							<a href="{% url 'escola_biblica:cargos_ebd_list' %}" class="btn btn-link p-0 fw-bold text-white" style="font-size:0.98em; text-decoration:underline;">
+								<i class="fas fa-users me-1 text-white"></i> Cargos e Funções da EBD
+							</a>
+						</div>
+						<div class="mt-2"><span class="badge bg-light text-dark">Ver relatórios</span></div>
+					</div>
+				</div>
+			</a>
 		</div>
 	</div>
 
-	<!-- Seção de alertas e insights rápidos (exemplo) -->
-	<div class="row mb-3">
-		<div class="col-md-12">
-			<div class="alert alert-warning d-flex align-items-center" role="alert">
-				<i class="fas fa-exclamation-triangle me-2"></i>
-				<div>
-					<b>Atenção:</b> Evasão acima do normal em 2 classes. Frequência média geral abaixo de 70%.
-				</div>
-			</div>
-		</div>
-	</div>
+	<!-- Indicadores principais e gráficos -->
 
-
-	<div class="row mb-4">
-		<div class="col-md-7">
-			<div class="card mb-3">
-				<div class="card-header bg-light"><b>Evolução de Alunos Ativos (12 meses)</b></div>
-				<div class="card-body">
+	<div class="row mb-4 g-4 align-items-stretch">
+		<div class="col-md-7 d-flex">
+			<div class="card shadow flex-fill d-flex flex-column" style="border-radius:18px; min-height:340px;">
+				<div class="card-header bg-light" style="border-radius:18px 18px 0 0;"><b>Evolução de Alunos Ativos (12 meses)</b></div>
+				<div class="card-body flex-fill d-flex align-items-center justify-content-center">
 					<canvas id="evolucaoAlunosChart"></canvas>
 				</div>
 			</div>
 		</div>
-		<div class="col-md-5">
-			<div class="card mb-3">
-				<div class="card-header bg-light"><b>Distribuição por Faixa Etária</b></div>
-				<div class="card-body">
+		<div class="col-md-5 d-flex">
+			<div class="card shadow flex-fill d-flex flex-column" style="border-radius:18px; min-height:340px;">
+				<div class="card-header bg-light" style="border-radius:18px 18px 0 0;"><b>Distribuição por Faixa Etária</b></div>
+				<div class="card-body flex-fill d-flex align-items-center justify-content-center">
 					<canvas id="faixaEtariaChart"></canvas>
 				</div>
 			</div>
@@ -129,7 +158,6 @@
 	</div>
 
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-	{# Serializa os dados para uso seguro em JS #}
 	{{ meses|json_script:"meses-data" }}
 	{{ alunos_evolucao|json_script:"alunos-evolucao-data" }}
 	{{ faixas_etarias_labels|json_script:"faixas-etarias-labels" }}
@@ -158,30 +186,12 @@
 				scales: { y: { beginAtZero: true } }
 			}
 		});
-			type: 'line',
-			data: {
-				labels: meses,
-				datasets: [{
-					label: 'Alunos Ativos',
-					data: alunosEvolucao,
-					borderColor: '#007bff',
-					backgroundColor: 'rgba(0,123,255,0.1)',
-					fill: true,
-					tension: 0.3
-				}]
-			},
-			options: {
-				responsive: true,
-				plugins: { legend: { display: false } },
-				scales: { y: { beginAtZero: true } }
-			}
-		});
 
 		// Gráfico de distribuição por faixa etária
-	let ctxFaixa = document.getElementById('faixaEtariaChart').getContext('2d');
-	let faixasLabels = JSON.parse(document.getElementById('faixas-etarias-labels').textContent);
-	let faixasCounts = JSON.parse(document.getElementById('faixas-etarias-counts').textContent);
-	new Chart(ctxFaixa, {
+		let ctxFaixa = document.getElementById('faixaEtariaChart').getContext('2d');
+		let faixasLabels = JSON.parse(document.getElementById('faixas-etarias-labels').textContent);
+		let faixasCounts = JSON.parse(document.getElementById('faixas-etarias-counts').textContent);
+		new Chart(ctxFaixa, {
 			type: 'pie',
 			data: {
 				labels: faixasLabels,
@@ -195,8 +205,6 @@
 				plugins: { legend: { position: 'bottom' } }
 			}
 		});
-	</script>
-
 	</script>
 </div>
 {% endblock %}

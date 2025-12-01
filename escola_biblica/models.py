@@ -1,8 +1,16 @@
-
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
 from secretaria.models import Membro
+
+# --- MODELO DEPARTAMENTO ---
+class Departamento(models.Model):
+    nome = models.CharField(max_length=100, unique=True)
+    descricao = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.nome
+
 
 # Sugestão de nomes para facilitar o cadastro inicial
 DEPARTAMENTOS_SUGERIDOS = [
@@ -17,14 +25,6 @@ DEPARTAMENTOS_SUGERIDOS = [
     "Música",
     "Missões"
 ]
-
-class Departamento(models.Model):
-    nome = models.CharField(max_length=100, unique=True)
-    descricao = models.TextField(blank=True)
-
-    def __str__(self):
-        return self.nome
-
 
 # --- MODELOS DE APOIO PARA EBD ---
 class AnoLetivo(models.Model):
@@ -41,6 +41,31 @@ class AnoLetivo(models.Model):
 
     def __str__(self):
         return str(self.ano)
+
+# --- NOVO MODELO: Período da EBD ---
+class PeriodoEBD(models.Model):
+    """Período da EBD (trimestre, quadrimestre, semestre, ano) vinculado ao ano letivo."""
+    ano_letivo = models.ForeignKey('AnoLetivo', on_delete=models.CASCADE, related_name='periodos')
+    numero = models.PositiveIntegerField(verbose_name='Número do Período')
+    tipo = models.CharField(max_length=20, choices=[
+        ('trimestre', 'Trimestre'),
+        ('quadrimestre', 'Quadrimestre'),
+        ('semestre', 'Semestre'),
+        ('ano', 'Ano'),
+    ], default='trimestre', verbose_name='Tipo de Período')
+    data_inicio = models.DateField()
+    data_fim = models.DateField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('ano_letivo', 'numero', 'tipo')
+        ordering = ['ano_letivo', 'numero']
+        verbose_name = 'Período da EBD'
+        verbose_name_plural = 'Períodos da EBD'
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} {self.numero} ({self.ano_letivo.ano})"
 
 class Classe(models.Model):
     """Classe de alunos da EBD (faixa etária, nome, etc)."""
@@ -83,6 +108,18 @@ class Turma(models.Model):
 
     def __str__(self):
         return f"{self.nome} ({self.ano_letivo})"
+
+    def get_professor_nome(self):
+        from secretaria.models import MembroCargo
+        cargos = MembroCargo.objects.filter(
+            membro__in=self.membros.all(),
+            cargo__is_ebd=True,
+            cargo__nome__icontains='professor',
+            data_fim__isnull=True
+        ).select_related('membro').order_by('membro__nome')
+        if cargos.exists():
+            return cargos.first().membro.nome
+        return ''
 
 class Aluno(models.Model):
     """Aluno matriculado na EBD."""
@@ -131,9 +168,13 @@ class Licao(models.Model):
     """Lição ministrada para uma turma em uma data específica."""
     turma = models.ForeignKey('Turma', on_delete=models.CASCADE)
     data = models.DateField()
-    tema = models.CharField(max_length=200)
+    tema = models.CharField(max_length=200)  # Verifique se o modelo Licao possui os campos: turma, data, tema, material, observacoes, horario, status, professor
     descricao = models.TextField(blank=True)
-    material = models.FileField(upload_to='ebd/licoes/', blank=True, null=True)
+    material = models.CharField(max_length=255, blank=True, null=True)
+    observacoes = models.TextField(blank=True, null=True)
+    horario = models.TimeField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=[('ativa', 'Ativa'), ('rascunho', 'Rascunho')], default='ativa')
+    professor = models.CharField(max_length=100, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -5,14 +5,16 @@ from .models import ConfiguracaoSistema
 class ConfiguracaoSistemaForm(forms.ModelForm):
     class Meta:
         model = ConfiguracaoSistema
-        fields = ['notificar_eventos', 'notificar_aniversarios']
+        fields = ['notificar_eventos', 'notificar_aniversarios', 'ebd_periodo']
         widgets = {
             'notificar_eventos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'notificar_aniversarios': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'notificar_eventos': 'Enviar notificações de eventos?',
             'notificar_aniversarios': 'Enviar notificações de aniversários?',
+            'ebd_periodo': 'Período da Escola Bíblica',
         }
 # c:\Gereigreja\configuracao\forms.py
 from django import forms

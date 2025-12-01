@@ -1,27 +1,51 @@
 {% extends 'base_com_menu.html' %}
 {% load escola_biblica_extras %}
 {% block content %}
-<div class="container mt-4">
-  <h2>{% if avaliacao %}Editar Avaliação{% else %}Nova Avaliação{% endif %}</h2>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    <div class="row">
-      {% for field in form.visible_fields %}
-      <div class="col-md-6 mb-3">
-        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-        {% if forloop.first %}
-          {{ field|add_class:'form-control'|add_attrs:'autofocus=autofocus,placeholder=Preencha este campo' }}
-        {% else %}
-          {{ field|add_class:'form-control'|add_attrs:'placeholder=Preencha este campo' }}
-        {% endif %}
-        {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
-        {% for error in field.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
-      </div>
-      {% endfor %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{% if avaliacao %}Editar Avaliação{% else %}Nova Avaliação{% endif %}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:avaliacao_list' %}">Avaliações</a></li>
+        <li class="breadcrumb-item active">{% if avaliacao %}Editar{% else %}Nova{% endif %} Avaliação</li>
+    </ol>
+    <div class="card mb-4" style="border:1.5px solid #ced4da; border-radius:12px; background:#fff;">
+        <div class="card-header d-flex align-items-center" style="background:#f8f9fa; border-radius:12px 12px 0 0; min-height:40px; border-bottom:1.5px solid #dee2e6;">
+            <i class="fas fa-clipboard-list me-2 text-secondary" style="font-size:1rem;"></i>
+            <span style="font-weight:600;">{% if avaliacao %}Editar Avaliação{% else %}Nova Avaliação{% endif %}</span>
+        </div>
+        <div class="card-body pt-3">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                <div class="row">
+                    {% for field in form.visible_fields %}
+                        {% if field.name == 'participacao' %}
+                        <div class="col-md-6 mb-3 d-flex align-items-center">
+                            <div class="form-check ms-2">
+                                {{ field|add_class:'form-check-input' }}
+                                <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            </div>
+                            {% if field.help_text %}<small class="form-text text-muted ms-2">{{ field.help_text }}</small>{% endif %}
+                            {% for error in field.errors %}<div class="text-danger ms-2">{{ error }}</div>{% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {% if forloop.first %}
+                                {{ field|add_class:'form-control'|add_attrs:'autofocus=autofocus,placeholder=Preencha este campo' }}
+                            {% else %}
+                                {{ field|add_class:'form-control'|add_attrs:'placeholder=Preencha este campo' }}
+                            {% endif %}
+                            {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+                            {% for error in field.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-save"></i> Salvar</button>
+                <a href="{% url 'escola_biblica:avaliacao_list' %}" class="btn btn-cancel ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-times"></i> Cancelar</a>
+            </form>
+        </div>
     </div>
-  <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
-  <a href="{% url 'escola_biblica:avaliacao_list' %}" class="btn btn-secondary ms-2"><i class="fas fa-times"></i> Cancelar</a>
-  </form>
 </div>
 {% endblock %}

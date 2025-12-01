@@ -1,39 +1,58 @@
 {% extends 'base_com_menu.html' %}
 {% load escola_biblica_extras %}
-{% block title %}Cadastro de Lição EBD{% endblock %}
+{% block title %}Cadastro de Lição / Aula EBD{% endblock %}
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">{{ licao|default:'Nova Lição' }}</h1>
+    {% if licao %}
+        <h1 class="mt-4">Editar Lição / Aula</h1>
+    {% else %}
+        <h1 class="mt-4">Nova Lição / Aula</h1>
+    {% endif %}
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:licao_list' %}">Lições</a></li>
-        <li class="breadcrumb-item active">{{ licao|default:'Nova Lição' }}</li>
+    <li class="breadcrumb-item"><a href="{% url 'escola_biblica:licao_list' %}">Lições / Aulas</a></li>
+    <li class="breadcrumb-item active">{% if licao %}Editar Lição / Aula{% else %}Nova Lição / Aula{% endif %}</li>
     </ol>
     {% include 'partials/_messages.html' %}
     {% include 'partials/_form_errors.html' with form=form %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-book-open me-1"></i>
-            {{ licao|default:'Cadastro de Lição' }}
+    <div class="card mb-4" style="border:1.5px solid #ced4da; border-radius:12px; background:#fff;">
+        <div class="card-header d-flex align-items-center" style="background:#f8f9fa; border-radius:12px 12px 0 0; min-height:40px; border-bottom:1.5px solid #dee2e6;">
+            <i class="fas fa-book-open me-2 text-secondary" style="font-size:1rem;"></i>
+            <span style="font-weight:600;">{% if licao %}Editar Lição / Aula{% else %}Nova Lição / Aula{% endif %}</span>
         </div>
-        <div class="card-body">
+        <div class="card-body pt-3">
             <form method="POST" enctype="multipart/form-data">{% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        {{ form.turma.label_tag }}
+                        {{ form.turma }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        {{ form.professor.label_tag }}
+                        {% if form.professor.field.widget.input_type == 'hidden' %}
+                            <input type="text" id="id_professor" name="professor" class="form-control" value="{{ form.professor.value|default_if_none:'' }}" readonly>
+                        {% else %}
+                            {{ form.professor|add_class:'form-control' }}
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.data.label_tag }}
+                        {{ form.data }}
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.turma.id_for_label }}" class="form-label">{{ form.turma.label }}:</label>
-                            {{ form.turma|add_class:'form-control'|add_attrs:'autofocus=autofocus,placeholder=Selecione a turma' }}
-                            {% if form.turma.errors %}<div class="invalid-feedback d-block">{{ form.turma.errors|striptags }}</div>{% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ form.data.id_for_label }}" class="form-label">{{ form.data.label }}:</label>
-                            {{ form.data|add_class:'form-control'|add_attrs:'placeholder=dd/mm/aaaa' }}
-                            {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
-                        </div>
                         <div class="mb-3">
                             <label for="{{ form.tema.id_for_label }}" class="form-label">{{ form.tema.label }}:</label>
                             {{ form.tema|add_class:'form-control'|add_attrs:'placeholder=Tema da lição' }}
                             {% if form.tema.errors %}<div class="invalid-feedback d-block">{{ form.tema.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.material.id_for_label }}" class="form-label">{{ form.material.label }}:</label>
+                            {{ form.material|add_class:'form-control'|add_attrs:'placeholder=Anexe o material (opcional)' }}
+                            {% if form.material.errors %}<div class="invalid-feedback d-block">{{ form.material.errors|striptags }}</div>{% endif %}
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -42,19 +61,38 @@
                             {{ form.descricao|add_class:'form-control'|add_attrs:'placeholder=Descrição da lição' }}
                             {% if form.descricao.errors %}<div class="invalid-feedback d-block">{{ form.descricao.errors|striptags }}</div>{% endif %}
                         </div>
-                        <div class="mb-3">
-                            <label for="{{ form.material.id_for_label }}" class="form-label">{{ form.material.label }}:</label>
-                            {{ form.material|add_class:'form-control'|add_attrs:'placeholder=Anexe o material (opcional)' }}
-                            {% if form.material.errors %}<div class="invalid-feedback d-block">{{ form.material.errors|striptags }}</div>{% endif %}
-                        </div>
                     </div>
                 </div>
                 <div class="mt-3">
-                    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
-                    <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-secondary ms-2"><i class="fas fa-times"></i> Cancelar</a>
+                    <button type="submit" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-save"></i><span style="margin-left: 0.4em;">Salvar</span></button>
+                    <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-vibrant ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-times"></i><span style="margin-left: 0.4em;">Cancelar</span></a>
                 </div>
             </form>
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var turmaSelect = document.getElementById('id_turma');
+    var professorInput = document.getElementById('id_professor');
+    function fetchProfessor(turmaId) {
+        if (!turmaId) {
+            professorInput.value = '';
+            return;
+        }
+        fetch('/escola_biblica/get_professor/?turma_id=' + turmaId)
+            .then(response => response.json())
+            .then(data => {
+                professorInput.value = data.professor || '';
+            });
+    }
+    if (turmaSelect && professorInput) {
+        turmaSelect.addEventListener('change', function() {
+            fetchProfessor(turmaSelect.value);
+        });
+        // Preencher ao carregar
+        fetchProfessor(turmaSelect.value);
+    }
+});
+</script>
 {% endblock %}

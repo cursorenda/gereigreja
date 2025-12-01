@@ -82,16 +82,20 @@ class MembroForm(forms.ModelForm):
     )
     genero = forms.ChoiceField(
         choices=[('M', 'Masculino'), ('F', 'Feminino')],
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=True
     )
     estado_civil = forms.ChoiceField(
         choices=[('Solteiro', 'Solteiro'), ('Casado', 'Casado'), ('Divorciado', 'Divorciado'), ('Amasiado', 'Amasiado'), ('Viuvo', 'Viuvo')],
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False
     )
     escolaridade = forms.ChoiceField(
         choices=[('Ensino Fundamental Incompleto', 'Ensino Fundamental Incompleto'), ('Ensino Fundamental Completo', 'Ensino Fundamental Completo'), ('Ensino Médio Incompleto', 'Ensino Médio Incompleto'), ('Ensino Médio Completo', 'Ensino Médio Completo'), ('Ensino Superior Incompleto', 'Ensino Superior Incompleto'), ('Ensino Superior Completo', 'Ensino Superior Completo'), ('Pós-graduação', 'Pós-graduação'), ('Mestrado', 'Mestrado'), ('Sem Escolaridade', 'Sem Escolaridade'), ('Doutorado', 'Doutorado')],
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False
     )
+        # self.fields['status_pessoa'].required = False
     tags = forms.ModelMultipleChoiceField(
         queryset=Tag.objects.all().order_by('nome'),
         required=False,
@@ -114,6 +118,9 @@ class MembroForm(forms.ModelForm):
             'data_primeira_visita', 'origem_visita', 'responsavel_acompanhamento', 'status_acompanhamento', 'observacoes_visita',
             'tags'
         ]
+        widgets = {
+                'observacoes_visita': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'style': 'height:30px; min-height:30px; max-height:30px; resize:none;'}),
+            }
 
     def __init__(self, *args, **kwargs):
         ministerio = kwargs.pop('ministerio', None)
@@ -131,15 +138,40 @@ class MembroForm(forms.ModelForm):
         self.fields['tags'].queryset = Tag.objects.all().order_by('nome')
         self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
         self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
-        self.fields['igreja'].queryset = Igreja.objects.none()
-        if user and not is_admin_org(user) and allowed_churches is not None:
-            self.fields['igreja'].queryset = allowed_churches
+        # Preenche o queryset do campo igreja conforme o perfil do usuário
+        import logging
+        logger = logging.getLogger("django")
+        if user:
+            if is_admin_org(user):
+                ministerio = getattr(user.perfil, 'ministerio', None) if hasattr(user, 'perfil') else None
+                if ministerio:
+                    self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+                else:
+                    self.fields['igreja'].queryset = Igreja.objects.none()
+                logger.info(f"[MembroForm] Usuário admin. Igrejas disponíveis: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
+            elif allowed_churches is not None:
+                self.fields['igreja'].queryset = allowed_churches
+                logger.info(f"[MembroForm] Igrejas permitidas para usuário comum: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
+            else:
+                self.fields['igreja'].queryset = Igreja.objects.none()
+                logger.info(f"[MembroForm] Nenhuma igreja disponível para usuário comum.")
         elif ministerio:
             self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+            logger.info(f"[MembroForm] Igrejas do ministério (sem usuário): {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
+        logger.info(f"[MembroForm] igreja_inicial: {igreja_inicial}")
+        logger.info(f"[MembroForm] queryset final igreja: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
         # Pré-seleção e desabilitação de igreja
         if igreja_inicial and self.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
-            self.initial['igreja'] = igreja_inicial
-            self.fields['igreja'].disabled = True
+            self.initial['igreja'] = igreja_inicial.pk
+            self.fields['igreja'].initial = igreja_inicial.pk
+            if not args or (len(args) > 0 and not args[0]):  # GET (args vazio ou None)
+                self.fields['igreja'].disabled = True
+        elif self.fields['igreja'].queryset.exists():
+            primeira_igreja = self.fields['igreja'].queryset.first()
+            self.initial['igreja'] = primeira_igreja.pk
+            self.fields['igreja'].initial = primeira_igreja.pk
+            if not args or (len(args) > 0 and not args[0]):  # GET (args vazio ou None)
+                self.fields['igreja'].disabled = True
 
     def clean(self):
         cleaned_data = super().clean()

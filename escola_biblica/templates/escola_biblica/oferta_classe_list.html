@@ -1,34 +1,58 @@
-{% extends 'base_com_menu.html' %}
-{% block content %}
-<div class="container mt-4">
-  <h2>Ofertas por Classe</h2>
-  <a href="{% url 'escola_biblica:oferta_classe_create' %}" class="btn btn-success mb-3">Nova Oferta</a>
-  <table class="table table-bordered table-striped">
-    <thead>
-      <tr>
-        <th>Classe</th>
-        <th>Data</th>
-        <th>Valor (R$)</th>
-        <th>Observação</th>
-        <th>Ações</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for oferta in ofertas %}
-      <tr>
-        <td>{{ oferta.classe }}</td>
-        <td>{{ oferta.data|date:'d/m/Y' }}</td>
-        <td>{{ oferta.valor|floatformat:2 }}</td>
-        <td>{{ oferta.observacao|default:'-' }}</td>
-        <td>
-          <a href="{% url 'escola_biblica:oferta_classe_edit' oferta.pk %}" class="btn btn-sm btn-primary">Editar</a>
-          <a href="{% url 'escola_biblica:oferta_classe_delete' oferta.pk %}" class="btn btn-sm btn-danger">Excluir</a>
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="5">Nenhuma oferta registrada.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% extends 'base_com_sistema.html' %}
+{% block extra_css %}
+    {% load static %}
+    <link href="{% static 'css/botoes.css' %}" rel="stylesheet" />
+{% endblock %}
+{% block nome_departamento %}Escola Bíblica Dominical{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">Escola Dominical</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Ofertas por Classe</li>
+{% endblock %}
+{% block conteudo_principal %}
+<div class="card shadow-lg rounded-lg" style="border: none;">
+    <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-hand-holding-usd me-2"></i>
+                <span style="font-size:1.1rem; font-weight:600;">Ofertas</span>
+                <span class="ms-2 text-light" style="font-weight:400;">({{ ofertas|length }})</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{% url 'escola_biblica:oferta_classe_create' %}" class="btn btn-vibrant-green" style="height:36px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Oferta</span></a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Classe</th>
+                        <th>Data</th>
+                        <th>Valor (R$)</th>
+                        <th>Observação</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for oferta in ofertas %}
+                    <tr>
+                        <td>{{ oferta.classe }}</td>
+                        <td>{{ oferta.data|date:'d/m/Y' }}</td>
+                        <td>{{ oferta.valor|floatformat:2 }}</td>
+                        <td>{{ oferta.observacao|default:'-' }}</td>
+                        <td>
+                            <a href="{% url 'escola_biblica:oferta_classe_edit' oferta.pk %}" class="btn btn-vibrant-green btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Oferta"><i class="fas fa-edit me-1"></i> Editar</a>
+                            <a href="{% url 'escola_biblica:oferta_classe_delete' oferta.pk %}" class="btn btn-vibrant-danger btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Oferta"><i class="fas fa-trash me-1"></i> Excluir</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted">Nenhuma oferta registrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}

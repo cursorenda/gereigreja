@@ -1,20 +1,38 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% block title %}Eventos{% endblock %}
-{% block content %}
 {% load eventos_extras %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Lista de Eventos</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Lista de Eventos</li>
-    </ol>
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-calendar-alt me-1"></i> Eventos</span>
-            <a href="{% url 'eventos:criar_evento' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> Novo Evento</a>
-        </div>
-        <div class="card-body">
-      <form method="get" class="row g-3 mb-4 align-items-end">
+
+{% block nome_departamento %}Eventos{% endblock %}
+
+{% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+  <li class="breadcrumb-item active">Lista de Eventos</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+  <div class="d-flex align-items-center">
+    <i class="fas fa-calendar-alt me-2"></i>
+    <span style="font-size:1.1rem; font-weight:600;">Eventos</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+  <!-- Banner explicativo sobre registro de presença -->
+  <div class="alert alert-info shadow-sm d-flex align-items-center p-3 mb-4" role="alert" style="border-left: 6px solid #0d6efd; background: linear-gradient(90deg, #e3f2fd 60%, #f8fafc 100%);">
+    <i class="fas fa-info-circle fa-2x text-primary me-3"></i>
+    <div>
+      <strong>Como registrar presença:</strong><br>
+      <span class="fw-normal">Use <b>Registrar presença</b> para vincular visitantes a um evento específico.<br>
+      Para registro geral e rápido de visitantes, acesse <a href="/sistema/recepcao-evento/" class="fw-bold text-primary">Recepção de Evento</a>.</span>
+    </div>
+  </div>
+  <div style="height:16px;"></div>
+  <div class="card-body">
+    <form method="get" class="row g-3 mb-4 align-items-end">
+        <style>
+        .card { border-radius: 0 !important; }
+        </style>
         <div class="col-md-3">
           <label for="tipo" class="form-label mb-0">Tipo</label>
           <select name="tipo" id="tipo" class="form-select">
@@ -45,8 +63,9 @@
           <label for="data_fim" class="form-label mb-0">Início até</label>
           <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim|default:data_fim }}">
         </div>
-        <div class="col-md-2 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filtrar</button>
+        <div class="col-md-2 d-flex align-items-end gap-2">
+          <button type="submit" class="btn btn-vibrant-orange shadow" style="height:40px; min-width:110px; font-weight:600;"><i class="fas fa-search"></i> Buscar</button>
+          <a href="{% url 'eventos:criar_evento' %}" class="btn btn-vibrant-blue btn-sm shadow" style="height:40px; min-width:120px; font-weight:600;"><i class="fas fa-plus"></i> Novo Evento</a>
         </div>
       </form>
       <table class="table table-striped">
@@ -87,10 +106,11 @@
             </td>
             <td>{{ evento.criado_por }}</td>
             <td>
-              <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-warning btn-sm" title="Editar"><i class="fas fa-edit"></i></a>
-              <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm" title="Excluir"><i class="fas fa-trash"></i></a>
-              {# Registrar presença via modal componentizado #}
-              <button type="button" class="btn btn-primary btn-sm registrar-presenca-btn" data-evento="{{ evento.pk }}" title="Registrar Presença"><i class="fas fa-user-check"></i></button>
+              <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-vibrant-orange btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Editar evento"><i class="fas fa-edit me-1"></i> Editar</a>
+              <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-vibrant-red btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Excluir evento"><i class="fas fa-trash me-1"></i> Excluir</a>
+              <button type="button" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center registrar-presenca-btn" style="min-width:140px; height:40px; font-weight:600; border-radius:8px;" data-evento="{{ evento.pk }}" title="Registrar presença neste evento">
+                <i class="fas fa-user-check me-1"></i> Registrar Presença
+              </button>
             </td>
           </tr>
           {% empty %}
@@ -98,16 +118,18 @@
           {% endfor %}
         </tbody>
       </table>
-      <nav>
-        <ul class="pagination">
-          {% if page_obj.has_previous %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
-          {% endif %}
-          <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
-          {% if page_obj.has_next %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a></li>
-          {% endif %}
-        </ul>
+      <nav class="mt-4">
+        <div class="d-flex justify-content-center">
+          <ul class="pagination">
+            {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a></li>
+            {% endif %}
+          </ul>
+        </div>
       </nav>
     </div>
   </div>

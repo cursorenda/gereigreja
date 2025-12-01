@@ -1,34 +1,52 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
-<div class="container mt-4">
-  <h2>Chamada de Presença - {{ turma }}</h2>
-  <form method="post">
-    {% csrf_token %}
-    <div class="row mb-3">
-      <div class="col-md-4">
-        <label for="data" class="form-label">Data da Chamada</label>
-        <input type="date" name="data" id="data" class="form-control" value="{{ data }}" readonly>
-      </div>
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Chamada de Presença</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:turma_list' %}">Turmas</a></li>
+        <li class="breadcrumb-item active">Chamada de Presença</li>
+    </ol>
+    <div class="card mb-4" style="border:1.5px solid #ced4da; border-radius:12px; background:#fff;">
+        <div class="card-header d-flex align-items-center" style="background:#f8f9fa; border-radius:12px 12px 0 0; min-height:40px; border-bottom:1.5px solid #dee2e6;">
+            <i class="fas fa-clipboard-check me-2 text-secondary" style="font-size:1rem;"></i>
+            <span style="font-weight:600;">Chamada de Presença - {{ turma }}</span>
+            <span class="ms-3 text-muted" style="font-weight:400;">{{ data }}</span>
+        </div>
+        <div class="card-body pt-3">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="data" class="form-label">Data da Chamada</label>
+                        <input type="date" name="data" id="data" class="form-control" value="{{ data }}" readonly>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Aluno</th>
+                                <th>Presente?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for form in formset %}
+                            <tr>
+                                <td>{{ form.nome.value }}</td>
+                                <td>{{ form.presente }}</td>
+                                {{ form.aluno_id }}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-save"></i><span style="margin-left: 0.4em;">Salvar Chamada</span></button>
+                    <a href="{% url 'escola_biblica:turma_list' %}" class="btn btn-vibrant" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-times"></i><span style="margin-left: 0.4em;">Cancelar</span></a>
+                </div>
+            </form>
+        </div>
     </div>
-    <table class="table table-bordered table-striped">
-      <thead>
-        <tr>
-          <th>Aluno</th>
-          <th>Presente?</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for form in formset %}
-        <tr>
-          <td>{{ form.nome.value }}</td>
-          <td>{{ form.presente }}</td>
-          {{ form.aluno_id }}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <button type="submit" class="btn btn-success">Salvar Chamada</button>
-    <a href="{% url 'escola_biblica:turma_list' %}" class="btn btn-secondary">Cancelar</a>
-  </form>
 </div>
 {% endblock %}

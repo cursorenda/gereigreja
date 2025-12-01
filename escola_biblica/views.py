@@ -1,3 +1,8 @@
+from django.http import JsonResponse
+# --- AJAX: Retorna nome do professor da turma ---
+from django.views.decorators.http import require_GET
+from configuracao.models import ConfiguracaoSistema
+from .utils import gerar_licoes_periodos
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import csv
 import json
@@ -13,7 +18,20 @@ from core.decorators import superintendente_required, secretaria_ebd_required
 from django.db.models import Avg, Count, Q, Sum
 from django.db import transaction
 from .models import Licao, Aluno, Turma, Frequencia, Classe, Avaliacao, OfertaClasse, TransferenciaAluno, Departamento, DEPARTAMENTOS_SUGERIDOS
-from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, AvaliacaoForm, OfertaClasseForm, TransferenciaAlunoForm, ChamadaPresencaFormSet, DepartamentoForm
+from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, AvaliacaoForm, OfertaClasseForm, TransferenciaAlunoForm, ChamadaPresencaFormSet, DepartamentoForm, GerarCronogramaForm
+
+
+@require_GET
+def get_professor_nome(request):
+    turma_id = request.GET.get('turma_id')
+    nome = ''
+    if turma_id:
+        try:
+            turma = Turma.objects.get(pk=turma_id)
+            nome = turma.get_professor_nome() or ''
+        except Turma.DoesNotExist:
+            nome = ''
+    return JsonResponse({'professor': nome})
 
 @login_required
 @secretaria_ebd_required
@@ -410,6 +428,7 @@ def licao_list(request):
 @login_required
 @secretaria_ebd_required
 def licao_create(request):
+    turmas = Turma.objects.all()
     if request.method == 'POST':
         form = LicaoForm(request.POST, request.FILES)
         if form.is_valid():
@@ -418,12 +437,13 @@ def licao_create(request):
             return redirect('escola_biblica:licao_list')
     else:
         form = LicaoForm()
-    return render(request, 'escola_biblica/licao_form.html', {'form': form})
+    return render(request, 'escola_biblica/licao_form.html', {'form': form, 'turmas': turmas})
 
 @login_required
 @secretaria_ebd_required
 def licao_edit(request, pk):
     licao = get_object_or_404(Licao, pk=pk)
+    turmas = Turma.objects.all()
     if request.method == 'POST':
         form = LicaoForm(request.POST, request.FILES, instance=licao)
         if form.is_valid():
@@ -432,7 +452,7 @@ def licao_edit(request, pk):
             return redirect('escola_biblica:licao_list')
     else:
         form = LicaoForm(instance=licao)
-    return render(request, 'escola_biblica/licao_form.html', {'form': form, 'licao': licao})
+    return render(request, 'escola_biblica/licao_form.html', {'form': form, 'licao': licao, 'turmas': turmas})
 
 @login_required
 @superintendente_required
@@ -498,24 +518,30 @@ def classe_delete(request, pk):
 def dashboard(request):
     turmas = Turma.objects.all()
     alunos = Aluno.objects.all()
-    # professores = Professor.objects.all()  # Removido: usar colaboradores centralizados se necessário
     classes = Classe.objects.all()
     licoes = Licao.objects.all()
     avaliacoes = Avaliacao.objects.all()
     total_oferta = OfertaClasse.objects.aggregate(total=Sum('valor'))['total'] or 0
 
-    # Indicadores avançados
+    # Filtro por igreja ativa
+    igreja = getattr(request, 'igreja_ativa', None)
+    if igreja:
+        turmas = turmas.filter(membros__igreja=igreja).distinct()
+        alunos = alunos.filter(turma__membros__igreja=igreja).distinct()
+        classes = classes.filter(turma__membros__igreja=igreja).distinct()
+        licoes = licoes.filter(turma__membros__igreja=igreja).distinct()
+        avaliacoes = avaliacoes.filter(aluno__turma__membros__igreja=igreja).distinct()
+        total_oferta = OfertaClasse.objects.filter(classe__turma__membros__igreja=igreja).aggregate(total=Sum('valor'))['total'] or 0
+
     hoje = date.today()
     mes_atual = hoje.replace(day=1)
-    mes_passado = (mes_atual - timedelta(days=1)).replace(day=1)
     ano_atual = hoje.year
 
-    # Evolução de alunos (últimos 12 meses)
     meses = [(hoje.replace(day=1) - timedelta(days=30*i)).replace(day=1) for i in range(11, -1, -1)]
     alunos_evolucao = []
     for m in meses:
         prox_mes = (m + timedelta(days=32)).replace(day=1)
-        count = Aluno.objects.filter(
+        qs = Aluno.objects.filter(
             turma__isnull=False,
             ativo=True,
             turma__ano_letivo__ativo=True,
@@ -524,11 +550,15 @@ def dashboard(request):
             turma__classe__departamento__in=[c[0] for c in Classe.DEPARTAMENTO_CHOICES],
             data_nascimento__isnull=False,
             data_nascimento__lte=prox_mes
-        ).count()
+        )
+        if igreja:
+            qs = qs.filter(turma__membros__igreja=igreja).distinct()
+        count = qs.count()
         alunos_evolucao.append(count)
 
-    # Engajamento: % de alunos com frequência >= 75% no mês atual
     freq_mes = Frequencia.objects.filter(data__gte=mes_atual, data__lt=hoje+timedelta(days=1))
+    if igreja:
+        freq_mes = freq_mes.filter(aluno__turma__membros__igreja=igreja).distinct()
     alunos_ids = alunos.values_list('id', flat=True)
     engajados = 0
     for aluno_id in alunos_ids:
@@ -539,17 +569,22 @@ def dashboard(request):
             engajados += 1
     engajamento_percent = round((engajados/len(alunos_ids))*100, 1) if alunos_ids else 0
 
-    # Evasão: alunos marcados como inativos no ano atual
-    evasao = Aluno.objects.filter(ativo=False, turma__ano_letivo__ano__contains=str(ano_atual)).count()
+    evasao_qs = Aluno.objects.filter(ativo=False, turma__ano_letivo__ano__contains=str(ano_atual))
+    if igreja:
+        evasao_qs = evasao_qs.filter(turma__membros__igreja=igreja).distinct()
+    evasao = evasao_qs.count()
 
-    # Ranking de classes por frequência média
     ranking_classes = []
     for classe in classes:
         alunos_classe = Aluno.objects.filter(turma__classe=classe, ativo=True)
+        if igreja:
+            alunos_classe = alunos_classe.filter(turma__membros__igreja=igreja).distinct()
         freq_total = 0
         freq_count = 0
         for aluno in alunos_classe:
             freq_aluno = Frequencia.objects.filter(aluno=aluno, data__gte=mes_atual, data__lt=hoje+timedelta(days=1))
+            if igreja:
+                freq_aluno = freq_aluno.filter(aluno__turma__membros__igreja=igreja).distinct()
             total = freq_aluno.count()
             presencas = freq_aluno.filter(presente=True).count()
             if total > 0:
@@ -559,11 +594,12 @@ def dashboard(request):
         ranking_classes.append({'classe': classe.nome, 'frequencia_media': freq_media})
     ranking_classes = sorted(ranking_classes, key=lambda x: x['frequencia_media'], reverse=True)
 
-    # Frequência média geral
     freq_geral_total = 0
     freq_geral_count = 0
     for aluno in alunos:
         freq_aluno = Frequencia.objects.filter(aluno=aluno, data__gte=mes_atual, data__lt=hoje+timedelta(days=1))
+        if igreja:
+            freq_aluno = freq_aluno.filter(aluno__turma__membros__igreja=igreja).distinct()
         total = freq_aluno.count()
         presencas = freq_aluno.filter(presente=True).count()
         if total > 0:
@@ -571,20 +607,25 @@ def dashboard(request):
             freq_geral_count += 1
     freq_geral = round((freq_geral_total/freq_geral_count)*100, 1) if freq_geral_count else 0
 
-    # Ranking de ofertas por classe
     ranking_ofertas = []
     for classe in classes:
-        total_oferta_classe = OfertaClasse.objects.filter(classe=classe, data__year=ano_atual).aggregate(s=Sum('valor'))['s'] or 0
+        oferta_qs = OfertaClasse.objects.filter(classe=classe, data__year=ano_atual)
+        if igreja:
+            oferta_qs = oferta_qs.filter(classe__turma__membros__igreja=igreja).distinct()
+        total_oferta_classe = oferta_qs.aggregate(s=Sum('valor'))['s'] or 0
         ranking_ofertas.append({'classe': classe.nome, 'total_oferta': float(total_oferta_classe)})
     ranking_ofertas = sorted(ranking_ofertas, key=lambda x: x['total_oferta'], reverse=True)
 
-    # Alunos novos (matriculados no mês)
-    alunos_novos = Aluno.objects.filter(turma__isnull=False, ativo=True, turma__ano_letivo__ativo=True, turma__ano_letivo__ano__contains=str(mes_atual.year), turma__classe__isnull=False, data_nascimento__isnull=False, data_nascimento__gte=mes_atual).count()
+    alunos_novos_qs = Aluno.objects.filter(turma__isnull=False, ativo=True, turma__ano_letivo__ativo=True, turma__ano_letivo__ano__contains=str(mes_atual.year), turma__classe__isnull=False, data_nascimento__isnull=False, data_nascimento__gte=mes_atual)
+    if igreja:
+        alunos_novos_qs = alunos_novos_qs.filter(turma__membros__igreja=igreja).distinct()
+    alunos_novos = alunos_novos_qs.count()
 
-    # Alunos transferidos no mês
-    transferidos_mes = TransferenciaAluno.objects.filter(data_transferencia__gte=mes_atual, data_transferencia__lt=hoje+timedelta(days=1)).count()
+    transferidos_mes_qs = TransferenciaAluno.objects.filter(data_transferencia__gte=mes_atual, data_transferencia__lt=hoje+timedelta(days=1))
+    if igreja:
+        transferidos_mes_qs = transferidos_mes_qs.filter(aluno__turma__membros__igreja=igreja).distinct()
+    transferidos_mes = transferidos_mes_qs.count()
 
-    # Faixas etárias para gráfico
     faixas = [
         ("0-5", 0, 5),
         ("6-12", 6, 12),
@@ -607,12 +648,10 @@ def dashboard(request):
     return render(request, 'escola_biblica/dashboard.html', {
         'turmas': turmas,
         'alunos': alunos,
-    # 'professores': professores,  # Removido: usar colaboradores centralizados se necessário
         'classes': classes,
         'licoes': licoes,
         'avaliacoes': avaliacoes,
         'total_oferta': total_oferta,
-        # Indicadores avançados
         'alunos_evolucao': alunos_evolucao,
         'engajamento_percent': engajamento_percent,
         'evasao': evasao,
@@ -710,3 +749,86 @@ def frequencia_list(request):
     except EmptyPage:
         frequencias = paginator.page(paginator.num_pages)
     return render(request, 'escola_biblica/frequencia_list.html', {'frequencias': frequencias})
+
+
+# --- NOVA VIEW: Geração automática de períodos e lições em lote ---
+def gerar_cronograma(request):
+    from django.contrib import messages
+    from datetime import date
+    ano_atual = date.today().year
+    turmas = Turma.objects.filter(ano_letivo__ano=ano_atual, ano_letivo__ativo=True)
+    turma_selecionada = None
+    config = None
+    tipo_periodo = 'trimestre'
+    # Busca configuração do período da EBD
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        try:
+            # Supondo que o usuário tem perfil/ministério
+            perfil = getattr(request.user, 'perfil', None)
+            if perfil and hasattr(perfil, 'ministerio'):
+                config = ConfiguracaoSistema.objects.filter(ministerio=perfil.ministerio).first()
+                if config:
+                    tipo_periodo = config.ebd_periodo
+        except Exception:
+            pass
+    if request.method == 'POST':
+        form = GerarCronogramaForm(request.POST)
+        if form.is_valid():
+            turma_id = form.cleaned_data.get('turma')
+            turma_selecionada = Turma.objects.filter(id=turma_id.id if hasattr(turma_id, 'id') else turma_id).first()
+            material = form.cleaned_data.get('material', '')
+            observacoes = form.cleaned_data.get('observacoes', '')
+            horario = form.cleaned_data.get('horario', None)
+            status = form.cleaned_data.get('status', 'ativa')
+            # Gera lições para todos os períodos e domingos do ano
+            licoes = gerar_licoes_periodos(
+                ano=ano_atual,
+                tipo_periodo=tipo_periodo,
+                turmas=[turma_selecionada] if turma_selecionada else turmas,
+                material=material,
+                observacoes=observacoes,
+                horario=horario,
+                status=status
+            )
+            # Salva as lições no banco
+            from .models import Licao
+            criadas = 0
+            for licao_data in licoes:
+                # Evita duplicidade: só cria se não existir para turma/data/tema
+                if not Licao.objects.filter(turma=licao_data['turma'], data=licao_data['data'], tema=licao_data['tema']).exists():
+                    Licao.objects.create(
+                        turma=licao_data['turma'],
+                        data=licao_data['data'],
+                        tema=licao_data['tema'],
+                        material=licao_data['material'],
+                        observacoes=licao_data['observacoes'],
+                        horario=licao_data['horario'],
+                        status=licao_data['status'],
+                        professor=licao_data['professor']
+                    )
+                    criadas += 1
+            if criadas:
+                messages.success(request, f'{criadas} lições geradas com sucesso!')
+            else:
+                messages.info(request, 'Nenhuma nova lição foi gerada (já existem para este período/turma).')
+            return redirect('escola_biblica:gerar_cronograma')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'Erro no campo {field}: {error}')
+    else:
+        form = GerarCronogramaForm()
+        turma_id = request.GET.get('turma')
+        if turma_id:
+            turma_selecionada = Turma.objects.filter(id=turma_id).first()
+    aulas = Licao.objects.filter(turma=turma_selecionada).order_by('-data') if turma_selecionada else Licao.objects.none()
+    aulas_count = aulas.count()
+    return render(request, 'escola_biblica/gerar_cronograma_form.html', {
+        'form': form,
+        'turmas': turmas,
+        'aulas': aulas,
+        'aulas_count': aulas_count,
+        'turma_selecionada': turma_selecionada,
+        'tipo_periodo': tipo_periodo,
+        'ano_atual': ano_atual,
+    })

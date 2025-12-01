@@ -36,6 +36,7 @@ class ActiveChurchMiddleware:
                     # Verifica se a igreja da sessão ainda está entre as permitidas
                     igreja = allowed_churches.get(pk=igreja_ativa_id)
                     request.igreja_ativa = igreja
+                    logger.info(f"[ActiveChurchMiddleware] igreja_ativa definida: {igreja.nome_igreja} (ID: {igreja.pk}) para usuário {request.user.username}")
                 except Igreja.DoesNotExist:
                     # Igreja não encontrada ou não mais permitida, limpar da sessão
                     logger.warning(f"Igreja ativa ID {igreja_ativa_id} na sessão do usuário {request.user.username} não é válida ou não é mais permitida. Removendo da sessão.")
@@ -43,13 +44,13 @@ class ActiveChurchMiddleware:
                         del request.session['igreja_ativa_id']
                 except Exception as e:
                     logger.error(f"Erro ao tentar obter igreja ativa ID {igreja_ativa_id} para usuário {request.user.username}: {e}")
-            # Opcional: Lógica para definir uma igreja padrão se nenhuma estiver na sessão
-            # e o usuário tiver acesso a apenas uma. Pode ser adicionado depois.
-            # elif allowed_churches.count() == 1:
-            #     igreja_unica = allowed_churches.first()
-            #     request.igreja_ativa = igreja_unica
-            #     request.session['igreja_ativa_id'] = igreja_unica.pk
-            #     logger.info(f"Igreja ativa definida automaticamente para {igreja_unica.nome_igreja} para o usuário {request.user.username}.")
+            # Se não houver igreja ativa na sessão e o usuário tiver acesso a apenas uma igreja, define automaticamente
+            elif allowed_churches.count() == 1:
+                igreja_unica = allowed_churches.first()
+                request.igreja_ativa = igreja_unica
+                request.session['igreja_ativa_id'] = igreja_unica.pk
+                logger.info(f"[ActiveChurchMiddleware] igreja_ativa definida automaticamente: {igreja_unica.nome_igreja} (ID: {igreja_unica.pk}) para usuário {request.user.username}")
+            logger.info(f"[ActiveChurchMiddleware] Valor final de request.igreja_ativa: {getattr(request.igreja_ativa, 'nome_igreja', None)}")
 
         response = self.get_response(request)
         return response

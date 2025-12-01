@@ -1,3 +1,4 @@
+from .forms import MembroForm
 from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag, GrupoCasa
 import logging
 from datetime import date, datetime, timedelta
@@ -13,6 +14,65 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
+
+# --- ETAPAS DO CADASTRO PROGRESSIVO ---
+@login_required
+def pre_cadastro(request):
+    """
+    Etapa 1: Pré-cadastro - coleta dados básicos e tipo de pessoa.
+    """
+    import logging
+    logger = logging.getLogger("django")
+    from financeiro.utils import get_allowed_churches_for_user
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    igreja_inicial_para_form = None
+    # Sempre pega a igreja do seletor global
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        igreja_inicial_para_form = request.igreja_ativa
+    else:
+        igreja_inicial_para_form = allowed_churches.first() if allowed_churches.exists() else None
+
+    if request.method == 'POST':
+        form = MembroForm(request.POST, igreja_inicial=igreja_inicial_para_form, allowed_churches=allowed_churches, user=request.user)
+        if form.is_valid():
+            pessoa = form.save(commit=True)
+            messages.success(request, 'Pré-cadastro realizado com sucesso!')
+            return redirect('secretaria:cadastro_detalhado', pessoa_id=pessoa.pk)
+    else:
+        form = MembroForm(igreja_inicial=igreja_inicial_para_form, allowed_churches=allowed_churches, user=request.user)
+    return render(request, 'secretaria/pre_cadastro.html', {'form': form, 'igreja_selecionada': igreja_inicial_para_form})
+
+@login_required
+def cadastro_detalhado(request, pessoa_id):
+    """
+    Etapa 2: Cadastro detalhado - coleta dados adicionais conforme tipo de pessoa.
+    """
+    pessoa = get_object_or_404(Membro, pk=pessoa_id)
+    if request.method == 'POST':
+        form = MembroForm(request.POST, instance=pessoa)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Cadastro detalhado salvo!')
+            return redirect('secretaria:cadastro_complementar', pessoa_id=pessoa.pk)
+    else:
+        form = MembroForm(instance=pessoa)
+    return render(request, 'secretaria/cadastro_detalhado.html', {'form': form, 'pessoa': pessoa})
+
+@login_required
+def cadastro_complementar(request, pessoa_id):
+    """
+    Etapa 3: Cadastro complementar - histórico, tags, acompanhamento, etc.
+    """
+    pessoa = get_object_or_404(Membro, pk=pessoa_id)
+    if request.method == 'POST':
+        form = MembroForm(request.POST, instance=pessoa)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Cadastro complementar salvo!')
+            return redirect('secretaria:lista_membros')
+    else:
+        form = MembroForm(instance=pessoa)
+    return render(request, 'secretaria/cadastro_complementar.html', {'form': form, 'pessoa': pessoa})
 
 # --- VIEWS DE AÇÕES RÁPIDAS DE ACOMPANHAMENTO ---
 @login_required

@@ -1,0 +1,28 @@
+{# Parcial para aba de configuração da Escola Bíblica (EBD) #}
+{% load static %}
+{% if ebd_form %}
+<form method="post" class="card p-4 shadow-sm w-100" style="border-radius: 8px;" autocomplete="off">
+    {% csrf_token %}
+    <input type="hidden" name="aba_ativa" value="ebd">
+    {{ ebd_form.non_field_errors }}
+    <div class="row align-items-center mb-3">
+        <div class="col-auto d-flex align-items-end">
+            <div>
+                <label for="id_ebd_periodo" class="form-label">{{ ebd_form.ebd_periodo.label }}</label>
+                {{ ebd_form.ebd_periodo }}
+            </div>
+            <div class="px-2"></div>
+            <button type="submit" class="btn btn-vibrant-green btn-icon mb-1">
+                <i class="fas fa-save"></i> Salvar
+            </button>
+        </div>
+        <div class="w-100"></div>
+        <div class="col-auto">
+            <small class="form-text text-muted">{{ ebd_form.ebd_periodo.help_text }}</small>
+            {{ ebd_form.ebd_periodo.errors }}
+        </div>
+    </div>
+</form>
+{% else %}
+    <div class="alert alert-warning">Configuração da Escola Bíblica não disponível para este ministério.</div>
+{% endif %}
