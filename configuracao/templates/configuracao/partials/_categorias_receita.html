@@ -1,0 +1,26 @@
+{# Parcial para aba de Categorias de Receita #}
+{% load static %}
+{% load humanize %}
+
+{# Mensagens #}
+{% include 'partials/_messages.html' %}
+<div class="card mb-4">
+	<div class="card-header">
+		<div class="row align-items-center g-2">
+			<div class="col-auto">
+				<i class="fas fa-tags me-1"></i>
+				<strong>Categorias de Receita (fixas no sistema)</strong>
+			</div>
+		</div>
+	</div>
+	<div class="card-body">
+		<p class="mb-3">As categorias de receita são fixas e não podem ser editadas ou excluídas. Elas são usadas para classificar as receitas no sistema.</p>
+		<ul class="list-group list-group-flush">
+			<li class="list-group-item">Dízimo</li>
+			<li class="list-group-item">Oferta</li>
+			<li class="list-group-item">Voto</li>
+			<li class="list-group-item">Campanha</li>
+			<li class="list-group-item">Outro</li>
+		</ul>
+	</div>
+</div>

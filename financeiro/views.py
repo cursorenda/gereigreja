@@ -167,10 +167,7 @@ def painel_financeiro(request):
             despesas_base = Despesas.objects.filter(igreja__in=allowed_churches) # Já filtrado por allowed_churches
 
         # Filtro de caixa
-        caixa_id_filtro = request.GET.get('caixa_filtro')
-        if caixa_id_filtro:
-            receitas_base = receitas_base.filter(conta_bancaria_id=caixa_id_filtro)
-            despesas_base = despesas_base.filter(conta_bancaria_id=caixa_id_filtro)
+
 
          # --- Base para Contas a Pagar (filtrado por igreja/allowed_churches) ---
         if igreja_selecionada_para_dados:
@@ -243,8 +240,8 @@ def painel_financeiro(request):
         saldo_mes = receitas_mes - despesas_mes
 
         # Últimas receitas/despesas (filtradas por igreja, se aplicável)
-        ultimas_receitas = receitas_base.select_related('igreja', 'membro').order_by('-data')[:5]
-        ultimas_despesas = despesas_base.select_related('igreja', 'categoria').order_by('-data')[:5]
+        ultimas_receitas = receitas_filtradas.select_related('igreja', 'membro').order_by('-data')[:5]
+        ultimas_despesas = despesas_filtradas.select_related('igreja', 'categoria').order_by('-data')[:5]
 
         # Permissão de edição para o template
         can_edit = has_finance_edit_permission(request.user)
@@ -384,17 +381,28 @@ def painel_financeiro(request):
 
 
         # --- DADOS PARA LISTAGEM DE SALDOS DE CONTAS BANCÁRIAS/CAIXAS ---
-        # Filtra contas pela(s) igreja(s) selecionada(s) ou todas as permitidas
+        # Filtra contas pela(s) igreja(s) selecionada(s) ou todas as permitidas, e aplica filtro de caixa se houver
+        caixa_id_filtro = request.GET.get('caixa_filtro')
+        # Queryset para o dropdown de caixas: sempre todas as contas da igreja selecionada (ou todas permitidas)
         if igreja_selecionada_para_dados:
-            # Se uma igreja está selecionada, mostra apenas as contas dela
-
-            contas_bancarias_painel = ContaBancaria.objects.filter(igreja=igreja_selecionada_para_dados).order_by('nome_identificacao')
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja=igreja_selecionada_para_dados).order_by('nome_identificacao')
         else:
-            # Se nenhuma igreja selecionada, mostra contas de todas as igrejas permitidas
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao')
 
-            contas_bancarias_painel = ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao')
+        # Queryset para o painel: aplica filtro de caixa se houver
+        if igreja_selecionada_para_dados:
+            if caixa_id_filtro:
+                contas_bancarias_painel = ContaBancaria.objects.filter(igreja=igreja_selecionada_para_dados, pk=caixa_id_filtro).order_by('nome_identificacao')
+            else:
+                contas_bancarias_painel = contas_bancarias_dropdown
+        else:
+            if caixa_id_filtro:
+                contas_bancarias_painel = ContaBancaria.objects.filter(igreja__in=allowed_churches, pk=caixa_id_filtro).order_by('igreja__nome_igreja', 'nome_identificacao')
+            else:
+                contas_bancarias_painel = contas_bancarias_dropdown
 
         context = {
+            'contas_bancarias_dropdown': contas_bancarias_dropdown,
             'ministerio': ministerio,
             'igrejas_org': igrejas_para_filtro_template, # Lista de igrejas para o dropdown de filtro da página
             'igreja_selecionada': igreja_selecionada_para_dados, # Objeto da igreja cujos dados estão sendo mostrados (ou None)
@@ -447,6 +455,19 @@ def painel_financeiro(request):
         
         }
         
+        # Adiciona resumo do último fechamento de caixa
+        last_fechamento_qs = FechamentoCaixa.objects.filter(
+            igreja__in=(allowed_churches if not igreja_selecionada_para_dados else [igreja_selecionada_para_dados])
+        ).order_by('-data_fim')
+        last_fechamento = last_fechamento_qs.first()
+        if last_fechamento:
+            context['last_fechamento_caixa_info'] = {
+                'data_fim': last_fechamento.data_fim,
+                'saldo_final': last_fechamento.saldo_final,
+                'status': last_fechamento.get_status_display(),
+            }
+        else:
+            context['last_fechamento_caixa_info'] = None
         return render(request, 'financeiro/painel_financeiro.html', context)
     except Exception as e:
         # Logar erro com mais detalhes se possível

@@ -13,7 +13,10 @@
             <button class="nav-link active" id="fornecedores-tab" data-bs-toggle="tab" data-bs-target="#fornecedores" type="button" role="tab" aria-controls="fornecedores" aria-selected="true">Fornecedores</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="categorias-tab" data-bs-toggle="tab" data-bs-target="#categorias" type="button" role="tab" aria-controls="categorias" aria-selected="false">Categorias de Despesa</button>
+            <button class="nav-link" id="categorias-despesa-tab" data-bs-toggle="tab" data-bs-target="#categorias-despesa" type="button" role="tab" aria-controls="categorias-despesa" aria-selected="false">Categorias de Despesa</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="categorias-receita-tab" data-bs-toggle="tab" data-bs-target="#categorias-receita" type="button" role="tab" aria-controls="categorias-receita" aria-selected="false">Categorias de Receita</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="ebd-tab" data-bs-toggle="tab" data-bs-target="#ebd" type="button" role="tab" aria-controls="ebd" aria-selected="false">Escola Bíblica</button>
@@ -26,8 +29,11 @@
         <div class="tab-pane fade show active" id="fornecedores" role="tabpanel" aria-labelledby="fornecedores-tab">
             {% include 'configuracao/partials/_fornecedores.html' %}
         </div>
-        <div class="tab-pane fade" id="categorias" role="tabpanel" aria-labelledby="categorias-tab">
+        <div class="tab-pane fade" id="categorias-despesa" role="tabpanel" aria-labelledby="categorias-despesa-tab">
             {% include 'configuracao/partials/_categorias.html' %}
+        </div>
+        <div class="tab-pane fade" id="categorias-receita" role="tabpanel" aria-labelledby="categorias-receita-tab">
+            {% include 'configuracao/partials/_categorias_receita.html' %}
         </div>
         <div class="tab-pane fade" id="ebd" role="tabpanel" aria-labelledby="ebd-tab">
             {% include 'configuracao/partials/_ebd.html' %}
