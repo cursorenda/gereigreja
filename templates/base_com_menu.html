@@ -53,10 +53,10 @@
         <form class="d-flex align-items-center ms-2" id="fontSizeSelectorForm" autocomplete="off" aria-label="Ajuste de tamanho de fonte">
             <span class="me-1" style="font-size:1.1em; color:#bbb; line-height:1;">A</span>
             <select id="fontSizeSelector" class="font-size-selector-custom" title="Ajustar tamanho da fonte">
-                <option value="font-size-xlarge">Extra Grande (100%)</option>
-                <option value="font-size-large">Grande (~87%)</option>
-                <option value="font-size-medium">Médio (~75%)</option>
-                <option value="font-size-normal">Normal (~67%)</option>
+                <option value="font-size-xlarge">Extra Grande</option>
+                <option value="font-size-large">Grande</option>
+                <option value="font-size-medium">Médio</option>
+                <option value="font-size-normal">Normal</option>
             </select>
 </style>
 <style>
@@ -100,8 +100,8 @@
                     {% csrf_token %}
                     {# O label pode ser visualmente oculto se preferir, mas é bom para acessibilidade #}
                     {# <label for="igreja_id_selector_nav" class="me-2 text-white-50 small d-none d-md-inline">Igreja Ativa:</label> #}
-                    <select name="igreja_id_selector" id="igreja_id_selector_nav" class="form-select form-select-sm" onchange="document.getElementById('activeChurchForm').submit();" style="min-width: 200px; max-width: 300px;">
-                        <option value="todas" {% if not request.igreja_ativa %}selected{% endif %}>-- Todas Permitidas --</option>
+                    <select name="igreja_id_selector" id="igreja_id_selector_nav" class="font-size-selector-custom igreja-selector-wide" onchange="document.getElementById('activeChurchForm').submit();" title="Selecionar igreja ativa">
+                        <option value="todas" {% if not request.igreja_ativa %}selected{% endif %}>Todas Permitidas</option>
                         {% for igreja_item in allowed_churches_list %}
                             <option value="{{ igreja_item.pk }}" {% if request.igreja_ativa and request.igreja_ativa.pk == igreja_item.pk %}selected{% endif %}>
                                 {{ igreja_item.nome_igreja }}
@@ -257,10 +257,7 @@
                             </div>
                         </div>
                     {% endif %}
-                    <div class="sb-sidenav-footer">
-                        <div class="small">Usuário:</div>
-                        {{ request.user.get_full_name|default:request.user.username }}
-                    </div>
+                    {# Rodapé removido para eliminar espaço/quadro vazio #}
                 </nav>
             </div>
         </div>
@@ -292,10 +289,7 @@
                         </div>
                     </div>
                 {% endif %}
-                <div class="sb-sidenav-footer">
-                    <div class="small">Usuário:</div>
-                    {{ request.user.get_full_name|default:request.user.username }}
-                </div>
+                {# Rodapé removido para eliminar espaço/quadro vazio #}
             </nav>
         </div>
         <div id="layoutSidenav_content">
@@ -305,12 +299,19 @@
                 {% endblock %}
             </main>
             <footer class="py-4 bg-light mt-auto w-100" style="width:100%;">
-                <div class="d-flex align-items-center justify-content-between small w-100">
-                    <div class="text-muted">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %}</div>
-                    <div>
-                        <a href="{% url 'politica_privacidade' %}">Política de Privacidade</a>
-                        &middot;
-                        <a href="{% url 'termos_condicoes' %}">Termos &amp; Condições</a>
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center small w-100" style="text-align: center; gap: 1.5rem;">
+                    <div class="text-muted mb-1 mb-md-0" style="margin-right: 1.5rem;">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %}</div>
+                    <div style="margin-left: 1.5rem;">
+                        <a href="{% url 'politica_privacidade' %}" style="margin-right: 0.75rem;">Política de Privacidade</a>
+                        <span style="margin: 0 0.5rem;">&middot;</span>
+                        <a href="{% url 'termos_condicoes' %}" style="margin-left: 0.75rem;">Termos &amp; Condições</a>
+                        <span style="margin: 0 0.5rem;">&middot;</span>
+                        <a href="http://127.0.0.1:8000/suporte/" style="margin-left: 0.75rem;">Suporte</a>
+                    </div>
+                    <div class="mt-2 mt-md-0" style="margin-left: 1.5rem;">
+                        <a href="#" title="YouTube" style="margin: 0 0.5rem; color: #c4302b;"><i class="fab fa-youtube fa-lg"></i></a>
+                        <a href="#" title="Facebook" style="margin: 0 0.5rem; color: #3b5998;"><i class="fab fa-facebook fa-lg"></i></a>
+                        <a href="#" title="Instagram" style="margin: 0 0.5rem; color: #e1306c;"><i class="fab fa-instagram fa-lg"></i></a>
                     </div>
                 </div>
             </footer>
@@ -352,6 +353,12 @@
         #sidebarToggle {
             display: none !important;
         }
+    }
+    /* Largura especial para o seletor de igreja global */
+    .igreja-selector-wide {
+        width: 220px !important;
+        min-width: 120px;
+        max-width: 320px;
     }
     </style>
     {# --- JAVASCRIPT --- #}
