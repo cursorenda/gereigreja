@@ -9,7 +9,7 @@
         <li class="breadcrumb-item"><a href="{% url 'escola_biblica:classe_list' %}">Classes</a></li>
         <li class="breadcrumb-item active">{{ classe|default:'Nova Classe' }}</li>
     </ol>
-    {% include 'partials/_messages.html' %}
+
     {% include 'partials/_form_errors.html' with form=form %}
     {% if form.errors %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">

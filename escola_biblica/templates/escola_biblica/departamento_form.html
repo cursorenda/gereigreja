@@ -8,7 +8,7 @@
         <li class="breadcrumb-item"><a href="{% url 'escola_biblica:departamento_list' %}">Departamentos</a></li>
         <li class="breadcrumb-item active">{{ departamento|default:'Novo Departamento' }}</li>
     </ol>
-    {% include 'partials/_messages.html' %}
+
     {% include 'partials/_form_errors.html' with form=form %}
     <div class="card mb-4">
         <div class="card-header">

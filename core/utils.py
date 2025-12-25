@@ -3,8 +3,9 @@ from django.http import Http404
 from django.contrib import messages
 from configuracao.models import PerfilUsuario
 from django.urls import reverse
+
 from configuracao.models import AssinaturaMinisterio
-# c:\Gereigreja\comunicacao\utils.py
+from comunicacao.models import Notificacao
 
 from django.core.mail import send_mail
 from django.conf import settings
@@ -118,14 +119,41 @@ def get_ministerio_or_error(request):
     try:
         assinatura = ministerio.assinatura 
         status_validos = ['ativa', 'gratuita']
-        
         if assinatura.status not in status_validos and \
            not assinatura.is_periodo_cortesia_valido() and \
            not (assinatura.status == 'vencida' and ministerio.verificar_elegibilidade_plano_gratuito()):
             if request.path != reverse('configuracao:gerenciar_assinatura'):
-                mensagem_aviso = f"Sua assinatura do plano {assinatura.plano.get_nome_display() if assinatura.plano else ''} está {assinatura.get_status_display()}. Por favor, regularize sua situação ou ative sua cortesia."
+                plano_nome = assinatura.plano.get_nome_display() if assinatura.plano else ''
+                if plano_nome:
+                    plano_html = f'<span class="plano-nome">Plano</span> <span class="plano-nome">{plano_nome}</span>'
+                else:
+                    plano_html = f'<span class="plano-nome">Plano</span>'
+                from django.utils.safestring import mark_safe
+                mensagem_aviso = mark_safe(f"Sua assinatura do {plano_html} está {assinatura.get_status_display()}. Por favor, regularize sua situação ou ative sua cortesia.")
                 if not any(m.message == mensagem_aviso for m in messages.get_messages(request)):
                     messages.warning(request, mensagem_aviso)
+
+                # --- Notificação no sininho para todos os usuários ativos do ministério ---
+                from configuracao.models import PerfilUsuario
+                from django.utils import timezone
+                # Evita duplicar notificações não lidas do mesmo tipo para o mesmo usuário
+                users_in_org = [p.user for p in PerfilUsuario.objects.filter(ministerio=ministerio, user__is_active=True)]
+                for user in users_in_org:
+                    existe = Notificacao.objects.filter(
+                        user=user,
+                        ministerio=ministerio,
+                        notification_type='financeiro',
+                        is_read=False,
+                        message__icontains='assinatura',
+                    ).exists()
+                    if not existe:
+                        Notificacao.objects.create(
+                            user=user,
+                            ministerio=ministerio,
+                            message=f"Sua assinatura do {assinatura.plano.get_nome_display() if assinatura.plano else ''} está {assinatura.get_status_display()}. Regularize sua situação ou ative sua cortesia.",
+                            notification_type='financeiro',
+                            url=reverse('configuracao:gerenciar_assinatura'),
+                        )
     except AssinaturaMinisterio.DoesNotExist:
         if not ministerio.verificar_elegibilidade_plano_gratuito() and request.path != reverse('configuracao:gerenciar_assinatura'):
             mensagem_aviso_sem_assinatura = "Sua ministério não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia."

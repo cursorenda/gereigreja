@@ -14,7 +14,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from core.decorators import superintendente_required, secretaria_ebd_required
+from core.decorators import superintendente_required, secretaria_ebd_required, verificar_assinatura_valida
 from django.db.models import Avg, Count, Q, Sum
 from django.db import transaction
 from .models import Licao, Aluno, Turma, Frequencia, Classe, Avaliacao, OfertaClasse, TransferenciaAluno, Departamento, DEPARTAMENTOS_SUGERIDOS
@@ -35,6 +35,7 @@ def get_professor_nome(request):
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def turma_create(request):
     from datetime import date
     from .models import AnoLetivo
@@ -51,6 +52,7 @@ def turma_create(request):
     return render(request, 'escola_biblica/turma_form.html', {'form': form})
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def departamento_create(request):
     if request.method == 'POST':
         form = DepartamentoForm(request.POST)
@@ -64,6 +66,7 @@ def departamento_create(request):
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def departamento_edit(request, pk):
     departamento = get_object_or_404(Departamento, pk=pk)
     if request.method == 'POST':
@@ -79,6 +82,7 @@ def departamento_edit(request, pk):
 # --- CHAMADA DE PRESENÇA POR TURMA ---
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 @transaction.atomic
 def chamada_presenca(request, turma_id):
     turma = get_object_or_404(Turma, pk=turma_id)
@@ -117,6 +121,7 @@ def chamada_presenca(request, turma_id):
 
 
 @login_required
+@verificar_assinatura_valida
 def aluno_detail(request, pk):
     aluno = get_object_or_404(Aluno, pk=pk)
     transferencias = aluno.transferencias.select_related('turma_origem', 'turma_destino', 'usuario_responsavel').all()
@@ -128,6 +133,7 @@ def aluno_detail(request, pk):
 # --- TRANSFERÊNCIA DE ALUNO ENTRE TURMAS/CLASSES ---
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 @transaction.atomic
 def transferir_aluno(request, aluno_id):
     aluno = get_object_or_404(Aluno, pk=aluno_id)
@@ -158,6 +164,7 @@ def transferir_aluno(request, aluno_id):
 # --- RELATÓRIO DE FREQUÊNCIA DETALHADO ---
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def relatorio_frequencia(request):
     turmas = Turma.objects.all()
     classes = Classe.objects.all()
@@ -210,6 +217,7 @@ def relatorio_frequencia(request):
 
 # --- LISTAGEM DINÂMICA DE CARGOS/FUNÇÕES ---
 @login_required
+@verificar_assinatura_valida
 def cargos_ebd_list(request):
     from secretaria.models import MembroCargo, Cargo
     cargo_nome = request.GET.get('cargo')
@@ -227,6 +235,7 @@ def cargos_ebd_list(request):
 
 # --- GRÁFICOS DE EVOLUÇÃO ---
 @login_required
+@verificar_assinatura_valida
 def graficos_evolucao(request):
     hoje = timezone.now().date()
     meses = [(hoje.replace(day=1) - timezone.timedelta(days=30*i)).replace(day=1) for i in range(11, -1, -1)]
@@ -256,6 +265,7 @@ def graficos_evolucao(request):
 
 # --- DASHBOARD GRÁFICOS ---
 @login_required
+@verificar_assinatura_valida
 def dashboard_graficos(request):
     departamentos = dict(Classe.DEPARTAMENTO_CHOICES)
     alunos_por_departamento = {d: 0 for d in departamentos.values()}
@@ -289,6 +299,7 @@ def dashboard_graficos(request):
 # --- OFERTAS POR CLASSE ---
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def oferta_classe_list(request):
     ofertas = OfertaClasse.objects.select_related('classe').order_by('-data')
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
@@ -297,6 +308,7 @@ def oferta_classe_list(request):
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def oferta_classe_create(request):
     if request.method == 'POST':
         form = OfertaClasseForm(request.POST)
@@ -310,6 +322,7 @@ def oferta_classe_create(request):
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def oferta_classe_edit(request, pk):
     oferta = get_object_or_404(OfertaClasse, pk=pk)
     if request.method == 'POST':
@@ -324,6 +337,7 @@ def oferta_classe_edit(request, pk):
 
 @login_required
 @superintendente_required
+@verificar_assinatura_valida
 def oferta_classe_delete(request, pk):
     oferta = get_object_or_404(OfertaClasse, pk=pk)
     if request.method == 'POST':
@@ -334,6 +348,7 @@ def oferta_classe_delete(request, pk):
 
 # --- RELATÓRIO DE ALUNOS ---
 @login_required
+@verificar_assinatura_valida
 def relatorio_alunos(request):
     turmas = Turma.objects.all()
     classes = Classe.objects.all()
@@ -376,6 +391,7 @@ def relatorio_alunos(request):
  
  # --- AVALIAÇÕES ---
 @login_required
+@verificar_assinatura_valida
 def avaliacao_list(request):
     avaliacoes = Avaliacao.objects.select_related('aluno', 'licao').all()
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
@@ -384,6 +400,7 @@ def avaliacao_list(request):
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def avaliacao_create(request):
     if request.method == 'POST':
         form = AvaliacaoForm(request.POST)
@@ -397,6 +414,7 @@ def avaliacao_create(request):
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def avaliacao_edit(request, pk):
     avaliacao = get_object_or_404(Avaliacao, pk=pk)
     if request.method == 'POST':
@@ -419,6 +437,7 @@ def avaliacao_delete(request, pk):
         return redirect('escola_biblica:avaliacao_list')
     return render(request, 'escola_biblica/avaliacao_confirm_delete.html', {'avaliacao': avaliacao})
 @login_required
+@verificar_assinatura_valida
 def licao_list(request):
     licoes = Licao.objects.all()
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
@@ -465,6 +484,7 @@ def licao_delete(request, pk):
 # --- CLASSES ---
 # --- CLASSES ---
 @login_required
+@verificar_assinatura_valida
 def classe_list(request):
     classes = Classe.objects.all()
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
@@ -515,6 +535,8 @@ def classe_delete(request, pk):
 
 @login_required
 @secretaria_ebd_required
+@login_required
+@verificar_assinatura_valida
 def dashboard(request):
     turmas = Turma.objects.all()
     alunos = Aluno.objects.all()
@@ -666,6 +688,7 @@ def dashboard(request):
     })
 
 @login_required
+@verificar_assinatura_valida
 def aluno_list(request):
     alunos_list = Aluno.objects.all().order_by('nome')
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
@@ -681,6 +704,7 @@ def aluno_list(request):
     return render(request, 'escola_biblica/aluno_list.html', {'alunos': alunos})
 
 @login_required
+@verificar_assinatura_valida
 def aluno_create(request):
     if request.method == 'POST':
         form = AlunoForm(request.POST)
@@ -692,6 +716,7 @@ def aluno_create(request):
     return render(request, 'escola_biblica/aluno_form.html', {'form': form})
 
 @login_required
+@verificar_assinatura_valida
 def turma_list(request):
     turmas_list = Turma.objects.all().order_by('nome')
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
@@ -714,6 +739,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def turma_edit(request, pk):
     turma = get_object_or_404(Turma, pk=pk)
     if request.method == 'POST':
@@ -738,6 +764,7 @@ def turma_delete(request, pk):
     return render(request, 'escola_biblica/turma_confirm_delete.html', {'turma': turma})
 
 @login_required
+@verificar_assinatura_valida
 def frequencia_list(request):
     frequencias_list = Frequencia.objects.select_related('aluno', 'aluno__turma').all().order_by('-data')
     paginator = Paginator(frequencias_list, 30)

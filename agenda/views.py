@@ -1,5 +1,6 @@
 
 from django.contrib.auth.decorators import login_required
+from core.decorators import verificar_assinatura_valida
 from django.db import models
 from django.shortcuts import render, redirect, get_object_or_404
 from datetime import date, timedelta
@@ -117,6 +118,8 @@ def agenda_eventos_json(request):
 		})
 	return JsonResponse(eventos_json, safe=False)
 
+@login_required
+@verificar_assinatura_valida
 def agenda_view(request):
 	# Exibe eventos do mês atual
 	hoje = date.today()

@@ -14,48 +14,37 @@ from django.urls import reverse_lazy # Adicionado
 
 
 def verificar_assinatura_valida(view_func):
+
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        # Se for superuser, permite acesso direto
+        # Permite acesso direto para superusuário
         if request.user.is_superuser:
             return view_func(request, *args, **kwargs)
 
-        # Se o request for para a própria página de gerenciar assinatura,
-        # permite o acesso para que o usuário possa resolver a situação.
-        # A view 'gerenciar_assinatura' ainda chamará get_ministerio_or_error
-        # para obter a ministério, mas não bloqueará aqui.
+        # Permite acesso à página de gerenciamento de assinatura
         if request.path == reverse('configuracao:gerenciar_assinatura'):
             return view_func(request, *args, **kwargs)
 
+        # Obtém ministério e verifica se está ativo
         try:
-            # get_ministerio_or_error já verifica se a ministério está ativa.
-            # Se não estiver, levanta PermissionDenied ou Http404.
             ministerio = get_ministerio_or_error(request)
         except (PermissionDenied, Http404):
-            # Se a ministério não for encontrada ou estiver inativa,
-            # e não for a página de assinatura (já tratada acima),
-            # a mensagem de erro já é adicionada por get_ministerio_or_error.
-            # Redireciona para login ou página de erro apropriada (a view chamadora pode tratar).
-            # Para um decorator, redirecionar para login é uma ação comum.
-            return redirect('login') # Ou uma página de erro mais específica
+            # Redireciona para login se ministério não encontrado ou inativo
+            return redirect('login')
 
-        # Se chegamos aqui, a ministério existe e está ativa. Agora verificamos a assinatura.
+        # Verifica se ministério possui assinatura ativa
         try:
-            assinatura = ministerio.assinatura # Acesso via related_name
-            status_validos = ['ativa', 'gratuita']
-
-            if not (assinatura.status in status_validos or assinatura.is_periodo_cortesia_valido()):
-                # Se a assinatura não for válida e não estivermos na página de gerenciamento
-                messages.warning(request, f"Sua assinatura do plano {assinatura.plano.get_nome_display() if assinatura.plano else ''} está {assinatura.get_status_display()}. Por favor, regularize sua situação ou ative sua cortesia.")
-                return redirect('configuracao:gerenciar_assinatura')
-
+            assinatura = ministerio.assinatura  # Acesso via related_name
+            # Mensagem de assinatura vencida está centralizada em core/utils.py
         except AssinaturaMinisterio.DoesNotExist:
-            # Se não tem assinatura E não é elegível para gratuita
+            # Adiciona mensagem se não houver assinatura e não for elegível para plano gratuito
             if not ministerio.verificar_elegibilidade_plano_gratuito():
-                messages.warning(request, "Sua ministério não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia.")
+                msg_sem_assinatura = "Sua ministério não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia."
+                if not any(msg_sem_assinatura in str(m) for m in messages.get_messages(request)):
+                    messages.warning(request, msg_sem_assinatura)
                 return redirect('configuracao:gerenciar_assinatura')
 
-        # Se tudo estiver OK (ministério ativa e assinatura válida/cortesia), executa a view.
+        # Executa a view se tudo estiver OK
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 

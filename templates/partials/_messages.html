@@ -1,8 +1,54 @@
+{# msg_filters removido temporariamente #}
 {% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message|safe }} {# Use |safe se suas mensagens podem conter HTML #}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    {# --- CSS para destaque visual das mensagens e do plano --- #}
+    <style>
+        .plano-nome {
+            font-weight: bold;
+            font-size: 1.15em;
+            color: #a67c00;
+            background: #fff8e1;
+            padding: 0 4px;
+            border-radius: 3px;
+        }
+        .alert-assinatura-vencida {
+            background: #fff8e1 !important;
+            border: 1.5px solid #ffe08a !important; /* levemente mais escura que o fundo */
+            color: #333 !important;
+            box-shadow: 0 2px 12px 0 rgba(180, 150, 50, 0.13), 0 1.5px 4px 0 rgba(180, 150, 50, 0.10);
+        }
+    </style>
+
+    <div class="messages-global w-100" style="margin-top: 28px; margin-bottom: 0;">
+        <div class="w-100 px-0">
+            {% for message in messages %}
+                {% with msg=message.message|striptags|lower %}
+                    {# --- Bloco especial: mensagem de assinatura vencida com botões de ação --- #}
+                    {% if 'assinatura do' in msg and 'vencida' in msg %}
+                        <div class="alert alert-{{ message.tags }} alert-assinatura-vencida alert-dismissible fade show mb-0 w-100" role="alert" style="margin-bottom:0;">
+                            {{ message.message|safe }}
+                            <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="ms-2 btn btn-sm btn-warning" style="vertical-align:middle;">Renovar assinatura</a>
+                            {% if mostrar_opcao_cortesia is defined %}
+                                {% if mostrar_opcao_cortesia %}
+                                    <form method="post" action="{% url 'configuracao:gerenciar_assinatura' %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="ativar_cortesia" value="true">
+                                        <button type="submit" class="ms-2 btn btn-sm btn-success" style="vertical-align:middle;">Usar cortesia de 3 dias</button>
+                                    </form>
+                                {% else %}
+                                    <button class="ms-2 btn btn-sm btn-secondary" style="vertical-align:middle;" disabled>Cortesia já utilizada</button>
+                                {% endif %}
+                            {% endif %}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {# --- Bloco padrão: exibe outras mensagens do sistema --- #}
+                    {% else %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-0 w-100" role="alert" style="margin-bottom:0;">
+                            {{ message|safe }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
         </div>
-    {% endfor %}
+    </div>
 {% endif %}

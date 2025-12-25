@@ -69,9 +69,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-                    </div>
-                </div>
-            <script>
+                                        </div>
+                                </div>
+                                    {% if not eventos_por_data %}
+                                        <div class="alert alert-info text-center mt-3">
+                                            Nenhum evento encontrado para o período/filtros selecionados.
+                                        </div>
+                                    {% endif %}
+                        <script>
             // Função para obter datas do mês/ano atual/anterior
             function getPeriodoDatas(tipo) {
                 const hoje = new Date();

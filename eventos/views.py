@@ -104,6 +104,7 @@ def exportar_participantes_excel(request, pk):
 	wb.save(response)
 	return response
 from django.contrib.auth.decorators import login_required
+from core.decorators import verificar_assinatura_valida
 @login_required
 def criar_evento_profissional(request):
 	if request.method == 'POST':
@@ -456,6 +457,7 @@ def editar_evento_profissional(request, pk):
 	return render(request, 'eventos/editar_evento.html', {'form': form, 'evento': evento})
 
 @login_required
+@verificar_assinatura_valida
 def lista_eventos(request):
 	from django.utils import timezone
 	from configuracao.models import Igreja

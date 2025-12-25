@@ -1,3 +1,8 @@
+from django.contrib.auth.decorators import login_required
+from core.decorators import verificar_assinatura_valida
+
+@login_required
+@verificar_assinatura_valida
 def templates_email(request):
     """
     View para exibir os templates de e-mail disponíveis.

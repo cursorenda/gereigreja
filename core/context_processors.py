@@ -1,13 +1,38 @@
+from django.contrib import messages
+def deduplicate_assinatura_vencida(request):
+    from django.utils.safestring import mark_safe
+    msgs = []
+    assinatura_vencida_seen = False
+    # Percorre todas as mensagens do request
+    for m in messages.get_messages(request):
+        msg_str = str(m).lower()
+        # Identifica mensagens de assinatura vencida
+        if 'assinatura' in msg_str and 'vencida' in msg_str:
+            if not assinatura_vencida_seen:
+                # Garante que apenas uma mensagem de assinatura vencida será exibida
+                # Se for objeto Message, marca o atributo message como seguro para HTML
+                from django.contrib.messages.storage.base import Message
+                if isinstance(m, Message):
+                    m.message = mark_safe(m.message)  # Necessário para permitir HTML seguro (ex: destaque do plano)
+                    msgs.append(m)
+                else:
+                    # Se não for objeto Message, converte para string segura
+                    msgs.append(mark_safe(str(m)))
+                assinatura_vencida_seen = True
+            # Ignora duplicatas de assinatura vencida
+        else:
+            # Adiciona outras mensagens normalmente
+            msgs.append(m)
+    # Retorna o contexto com as mensagens tratadas
+    return {'messages': msgs}
 
 def sistema_nome(request):
-    """Adiciona o nome do sistema ao contexto de todos os templates."""
+    # Adiciona o nome do sistema ao contexto de todos os templates
     return {'SISTEMA_NOME': 'Gereigreja'}
 from comunicacao.models import Notificacao
 
 def unread_notifications(request):
-    """
-    Context processor para adicionar a contagem de notificações não lidas ao contexto de cada template.
-    """
+    # Adiciona a contagem de notificações não lidas ao contexto de cada template
     if request.user.is_authenticated:
         if hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.ministerio:
             unread_count = Notificacao.objects.filter(
@@ -16,7 +41,8 @@ def unread_notifications(request):
                 is_read=False
             ).count()
             return {'unread_notifications_count': unread_count}
-    return {'unread_notifications_count': 0} # Retorna 0 se não autenticado ou sem ministério
+    # Retorna 0 se não autenticado ou sem ministério
+    return {'unread_notifications_count': 0}
 
 
 

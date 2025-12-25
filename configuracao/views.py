@@ -41,6 +41,10 @@ def editar_configuracoes_sistema(request):
     return render(request, 'configuracao/editar_configuracoes_sistema.html', context)
 from django.shortcuts import render
 
+from core.decorators import verificar_assinatura_valida
+
+@login_required
+@verificar_assinatura_valida
 def configuracoes_sistema(request):
     # Buscar o ministério do usuário logado
     perfil = getattr(request.user, 'perfil', None)

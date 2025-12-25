@@ -13,7 +13,7 @@
     <li class="breadcrumb-item"><a href="{% url 'escola_biblica:licao_list' %}">Lições / Aulas</a></li>
     <li class="breadcrumb-item active">{% if licao %}Editar Lição / Aula{% else %}Nova Lição / Aula{% endif %}</li>
     </ol>
-    {% include 'partials/_messages.html' %}
+
     {% include 'partials/_form_errors.html' with form=form %}
     <div class="card mb-4" style="border:1.5px solid #ced4da; border-radius:12px; background:#fff;">
         <div class="card-header d-flex align-items-center" style="background:#f8f9fa; border-radius:12px 12px 0 0; min-height:40px; border-bottom:1.5px solid #dee2e6;">

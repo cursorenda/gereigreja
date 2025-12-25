@@ -1,3 +1,4 @@
+from core.decorators import verificar_assinatura_valida
 from .forms import MembroForm
 from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag, GrupoCasa
 import logging
@@ -163,6 +164,7 @@ from django.template.loader import render_to_string
 
 
 @login_required
+@verificar_assinatura_valida
 def lista_acompanhamentos_visita(request):
     """Listagem geral de acompanhamentos de visita com filtros padrão."""
     qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel', 'membro__tipo_pessoa').all()
@@ -792,6 +794,7 @@ def registrar_acompanhamento_visita(request, membro_id):
 # --- Associação em massa de membros a usuários ---
 @login_required
 @user_passes_test(is_admin_or_pastor)
+@verificar_assinatura_valida
 def associar_usuarios_membros(request):
     membros_sem_usuario = Membro.objects.none()
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
@@ -951,7 +954,11 @@ def editar_cargo(request, cargo_id):
 # --- NOVA VIEW: Lista deCargo (usando novos modelos) ---
 @login_required
 @user_passes_test(is_admin_or_pastor)
+
+
+@verificar_assinatura_valida
 def lista_cargos(request):
+    from django.contrib import messages
     cargos = Cargo.objects.all().prefetch_related('membrocargo_set__membro', 'grupo_permissao')
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
         # Filtra ocupantes dos cargos pela igreja ativa
@@ -1505,6 +1512,7 @@ def ajax_get_presencas_evento(request):
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
+@verificar_assinatura_valida
 def linha_do_tempo(request):
     # Força valor padrão do filtro período
     periodo_predefinido = request.GET.get('periodo_predefinido')
@@ -3227,6 +3235,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 
 @login_required
+@verificar_assinatura_valida
 def criar_tag(request):
     if not request.user.is_staff:
         return redirect('login')
