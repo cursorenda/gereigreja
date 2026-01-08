@@ -255,7 +255,7 @@ if DEBUG:
     LOGGING['loggers']['django']['handlers'].append('file')
 
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/sistema/'
+LOGIN_REDIRECT_URL = '/secretaria/'
 LOGOUT_REDIRECT_URL = '/'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

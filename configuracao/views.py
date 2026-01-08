@@ -262,7 +262,7 @@ def adicionar_igreja(request):
             igreja = form.save(commit=False)
             igreja.ministerio = ministerio # Associa ao ministério do usuário
             igreja.save()
-            messages.success(request, f'Igreja "{igreja.nome_igreja}" adicionada com sucesso!')
+            # messages.success(request, f'Igreja "{igreja.nome_igreja}" adicionada com sucesso!') # Comentado para evitar duplicidade
             return redirect('configuracao:lista_igrejas')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
@@ -443,7 +443,7 @@ def adicionar_igreja(request):
             nova_igreja = form.save(commit=False)
             nova_igreja.ministerio = ministerio # Garante que a ministério está definida
             nova_igreja.save()
-            messages.success(request, f"Igreja '{nova_igreja.nome_igreja}' adicionada com sucesso!")
+            # messages.success(request, f"Igreja '{nova_igreja.nome_igreja}' adicionada com sucesso!") # Comentado para evitar duplicidade
             return redirect('configuracao:lista_igrejas')
         else:
             messages.error(request, "Erro ao adicionar igreja. Verifique os campos.")

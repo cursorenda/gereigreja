@@ -24,7 +24,20 @@ class AssociarUsuarioMembroForm(forms.Form):
         membro = kwargs.pop('membro', None)
         super().__init__(*args, **kwargs)
         User = get_user_model()
-        usuarios_disponiveis = User.objects.filter(membro_secretaria__isnull=True)[:100]
+        usuarios_disponiveis = User.objects.filter(
+            membro_secretaria__isnull=True,
+            is_active=True,
+            is_superuser=False,
+            is_staff=False,
+            perfil__isnull=False
+        ).distinct()
+        if membro and membro.igreja and hasattr(membro.igreja, 'ministerio'):
+            ministerio = membro.igreja.ministerio
+            igreja = membro.igreja
+            usuarios_disponiveis = usuarios_disponiveis.filter(
+                perfil__ministerio=ministerio,
+                perfil__igrejas_permitidas=igreja
+            ).distinct()
         self.fields['usuario'].queryset = usuarios_disponiveis
         self.fields['usuario'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username} ({obj.email})"
         if membro:
@@ -68,6 +81,7 @@ class CargoForm(forms.ModelForm):
 
 # --- MembroForm unificado ---
 class MembroForm(forms.ModelForm):
+    # DEBUG: Mostra igrejas disponíveis e igreja do membro (mover para __init__ se necessário)
     sub_status_inativo = forms.ChoiceField(
         choices=[
             ('', '---------'),
@@ -160,17 +174,27 @@ class MembroForm(forms.ModelForm):
             logger.info(f"[MembroForm] Igrejas do ministério (sem usuário): {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
         logger.info(f"[MembroForm] igreja_inicial: {igreja_inicial}")
         logger.info(f"[MembroForm] queryset final igreja: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
-        # Pré-seleção e desabilitação de igreja
-        if igreja_inicial and self.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
+        # Garante que igreja_inicial sempre esteja no queryset
+        if igreja_inicial and not self.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
+            from django.db.models import Q
+            self.fields['igreja'].queryset = Igreja.objects.filter(
+                Q(pk=igreja_inicial.pk) | Q(pk__in=self.fields['igreja'].queryset.values_list('pk', flat=True))
+            )
+        # Seleciona igreja_inicial se fornecida
+        if igreja_inicial:
             self.initial['igreja'] = igreja_inicial.pk
             self.fields['igreja'].initial = igreja_inicial.pk
-            if not args or (len(args) > 0 and not args[0]):  # GET (args vazio ou None)
-                self.fields['igreja'].disabled = True
-        elif self.fields['igreja'].queryset.exists():
-            primeira_igreja = self.fields['igreja'].queryset.first()
-            self.initial['igreja'] = primeira_igreja.pk
-            self.fields['igreja'].initial = primeira_igreja.pk
-            if not args or (len(args) > 0 and not args[0]):  # GET (args vazio ou None)
+        # Garante que a igreja do membro sempre apareça no select durante edição
+        if self.instance and self.instance.pk and getattr(self.instance, 'igreja', None):
+            igreja_membro = self.instance.igreja
+            if igreja_membro and not self.fields['igreja'].queryset.filter(pk=igreja_membro.pk).exists():
+                from django.db.models import Q
+                self.fields['igreja'].queryset = Igreja.objects.filter(
+                    Q(pk=igreja_membro.pk) | Q(pk__in=self.fields['igreja'].queryset.values_list('pk', flat=True))
+                )
+        # Só desabilita o campo igreja no cadastro (GET sem instance)
+        if not args or (len(args) > 0 and not args[0]):  # GET
+            if not self.instance or not self.instance.pk:
                 self.fields['igreja'].disabled = True
 
     def clean(self):
@@ -330,34 +354,35 @@ from django import forms
 from django.contrib.auth import get_user_model
 from .models import Membro
 
-class AssociarUsuarioMembroForm(forms.Form):
-    membro_id = forms.IntegerField(widget=forms.HiddenInput)
-    usuario = forms.ModelChoiceField(
-        queryset=get_user_model().objects.none(),
-        required=True,
-        label="Usuário do Sistema",
-        widget=forms.Select(attrs={'class': 'form-select usuario-autocomplete'})
-    )
-    sugestao_usuario_id = forms.IntegerField(widget=forms.HiddenInput, required=False)
-
-    def __init__(self, *args, **kwargs):
-        membro = kwargs.pop('membro', None)
-        super().__init__(*args, **kwargs)
-        User = get_user_model()
-        # Só permite usuários não associados a membros
-        usuarios_disponiveis = User.objects.filter(membro_secretaria__isnull=True)
-        self.fields['usuario'].queryset = usuarios_disponiveis
-        self.fields['usuario'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username} ({obj.email})"
-        if membro:
-            self.fields['membro_id'].initial = membro.pk
-            # Sugestão automática: usuário com mesmo e-mail
-            sugestao = usuarios_disponiveis.filter(email__iexact=membro.email).first() if membro.email else None
-            if sugestao:
-                self.fields['usuario'].initial = sugestao.pk
-                self.fields['sugestao_usuario_id'].initial = sugestao.pk
-                self.fields['usuario'].widget.attrs['data-sugestao'] = '1'
-            else:
-                self.fields['usuario'].widget.attrs['data-sugestao'] = '0'
+# --- BLOCO ANTIGO DE ASSOCIARUSUARIOMEMBROFORM (NÃO UTILIZAR MAIS) ---
+# class AssociarUsuarioMembroForm(forms.Form):
+#     membro_id = forms.IntegerField(widget=forms.HiddenInput)
+#     usuario = forms.ModelChoiceField(
+#         queryset=get_user_model().objects.none(),
+#         required=True,
+#         label="Usuário do Sistema",
+#         widget=forms.Select(attrs={'class': 'form-select usuario-autocomplete'})
+#     )
+#     sugestao_usuario_id = forms.IntegerField(widget=forms.HiddenInput, required=False)
+#
+#     def __init__(self, *args, **kwargs):
+#         membro = kwargs.pop('membro', None)
+#         super().__init__(*args, **kwargs)
+#         User = get_user_model()
+#         # Só permite usuários não associados a membros
+#         usuarios_disponiveis = User.objects.filter(membro_secretaria__isnull=True)
+#         self.fields['usuario'].queryset = usuarios_disponiveis
+#         self.fields['usuario'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username} ({obj.email})"
+#         if membro:
+#             self.fields['membro_id'].initial = membro.pk
+#             # Sugestão automática: usuário com mesmo e-mail
+#             sugestao = usuarios_disponiveis.filter(email__iexact=membro.email).first() if membro.email else None
+#             if sugestao:
+#                 self.fields['usuario'].initial = sugestao.pk
+#                 self.fields['sugestao_usuario_id'].initial = sugestao.pk
+#                 self.fields['usuario'].widget.attrs['data-sugestao'] = '1'
+#             else:
+#                 self.fields['usuario'].widget.attrs['data-sugestao'] = '0'
 # Formulário para gerenciar ocupantes de um cargo
 from .models import MembroCargo, Membro
 

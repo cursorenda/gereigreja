@@ -9,7 +9,7 @@
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
             {% if membro_obj %}
-            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Pessoas</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_pessoas' %}">Lista de Pessoas</a></li>
             <li class="breadcrumb-item"><a href="{% url 'secretaria:editar_membro' membro_id=membro_obj.pk %}">Editar: {{ membro_obj.nome }}</a></li>
             <li class="breadcrumb-item active">Adicionar Histórico Manual</li>
         {% else %}
@@ -82,7 +82,7 @@
                 {% if membro_obj %}
                     <a href="{% url 'secretaria:editar_membro' membro_id=membro_obj.pk %}" class="btn btn-secondary">Cancelar</a>
                 {% else %}
-                    <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+                    <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-secondary">Cancelar</a>
                 {% endif %}
             </form>
         </div>

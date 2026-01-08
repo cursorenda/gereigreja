@@ -15,22 +15,25 @@ urlpatterns = [
     path('acompanhamentos-visita/', views.lista_acompanhamentos_visita, name='acompanhamentos_visita'),
     path('', views.index, name='index'), # Esta URL agora será /sistema/
     path('dashboard/', views.dashboard, name='dashboard'),
-    path('membros/', views.lista_membros, name='lista_membros'),
+    path('pessoas/', views.lista_membros, name='lista_membros'),
+    path('pessoas/', views.lista_membros, name='lista_pessoas'),  # Alias para compatibilidade de templates
+        # Redirecionamento da URL antiga para a nova
+        path('membros/', views.redirect_pessoas, name='redirect_pessoas'),  # Redirecionamento legado
     # Etapa 1: Pré-cadastro (dados básicos)
-    path('membros/pre-cadastro/', views.pre_cadastro, name='pre_cadastro'),
+    path('pessoas/pre-cadastro/', views.pre_cadastro, name='pre_cadastro'),
     # Etapa 2: Cadastro detalhado (dados adicionais)
-    path('membros/cadastro-detalhado/<int:pessoa_id>/', views.cadastro_detalhado, name='cadastro_detalhado'),
+    path('pessoas/cadastro-detalhado/<int:pessoa_id>/', views.cadastro_detalhado, name='cadastro_detalhado'),
     # Etapa 3: Cadastro complementar (histórico, tags, acompanhamento)
-    path('membros/cadastro-complementar/<int:pessoa_id>/', views.cadastro_complementar, name='cadastro_complementar'),
+    path('pessoas/cadastro-complementar/<int:pessoa_id>/', views.cadastro_complementar, name='cadastro_complementar'),
     # Cadastro antigo (pode ser removido após migração)
-    path('membros/cadastrar/', views.criar_membro, name='cadastrar_membro'),
-    path('membros/<int:membro_id>/editar/', views.editar_membro, name='editar_membro'),
+    path('pessoas/cadastrar/', views.criar_membro, name='cadastrar_membro'),
+    path('pessoas/<int:membro_id>/editar/', views.editar_membro, name='editar_membro'),
     # path('backup/', views.backup_page, name='backup_page'),  # Removido: backup antigo (SQLite)
-    path('membros/<int:membro_id>/alternar-status/', views.alternar_status_membro, name='alternar_status_membro'),
-    path('membros/<int:membro_id>/ficha-impressao/', views.ficha_membro_impressao, name='ficha_membro_impressao'), # NOVA URL
+    path('pessoas/<int:membro_id>/alternar-status/', views.alternar_status_membro, name='alternar_status_membro'),
+    path('pessoas/<int:membro_id>/ficha-impressao/', views.ficha_membro_impressao, name='ficha_membro_impressao'), # NOVA URL
     path('painel-lideranca-secretaria/', views.painel_lideranca_secretaria, name='painel_lideranca_secretaria'),
      # --- NOVA URL PARA ADICIONAR HISTÓRICO MANUAL ---
-    path('membros/<int:membro_id>/historico/adicionar-manual/', views.adicionar_historico_status_manual, name='adicionar_historico_status_manual'),
+    path('pessoas/<int:membro_id>/historico/adicionar-manual/', views.adicionar_historico_status_manual, name='adicionar_historico_status_manual'),
     # --- URL PARA O PORTAL DO MEMBRO ---
     path('portal/', views.portal_membro, name='portal_membro'),
 
@@ -46,7 +49,7 @@ urlpatterns = [
     path('cargos/<int:cargo_id>/ocupantes/', views.gerenciar_ocupantes, name='gerenciar_ocupantes'),
     path('associar-usuarios-membros/', associar_usuarios_membros, name='associar_usuarios_membros'),
     # --- URL para registrar acompanhamento de visita ---
-    path('membros/<int:membro_id>/acompanhamento-visita/', views.registrar_acompanhamento_visita, name='registrar_acompanhamento_visita'),
+    path('pessoas/<int:membro_id>/acompanhamento-visita/', views.registrar_acompanhamento_visita, name='registrar_acompanhamento_visita'),
     # --- VISITANTES (removido: agora visitante é membro com tipo_pessoa=Visitante) ---
     path('recepcao-evento/', views.registrar_presenca_visitante_evento, name='registrar_presenca_visitante_evento'),
     path('ajax/buscar_visitantes/', views.buscar_visitantes, name='buscar_visitantes'),

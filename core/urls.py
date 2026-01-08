@@ -30,8 +30,8 @@ urlpatterns = [
 
     # A URL raiz '/' agora aponta para a página de vendas.
     path('', LandingPageView.as_view(), name='landing_page'),
-    # O sistema interno (secretaria, etc.) agora começa com '/sistema/'
-    path('sistema/', include(('secretaria.urls', 'secretaria'), namespace='secretaria')),
+    # O sistema interno (secretaria, etc.) agora começa com '/secretaria/'
+    path('secretaria/', include(('secretaria.urls', 'secretaria'), namespace='secretaria')),
     path('agenda/', include(('agenda.urls', 'agenda'), namespace='agenda')),
 
     # Página de acompanhamento de notificações enviadas

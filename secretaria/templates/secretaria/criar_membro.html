@@ -10,7 +10,7 @@
     <h1 class="mt-4">Cadastrar Nova Pessoa</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Pessoas</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_pessoas' %}">Lista de Pessoas</a></li>
         <li class="breadcrumb-item active">Cadastrar</li>
     </ol>
 
@@ -393,7 +393,7 @@
 
                 <hr>
                 <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Pessoa</button>
-                <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+                <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-secondary">Cancelar</a>
             </form>
         </div>
     </div>

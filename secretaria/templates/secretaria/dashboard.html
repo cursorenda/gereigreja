@@ -1,0 +1,426 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+<!-- ...removido bloco duplicado de gráficos antigos... -->
+
+<!-- Carregar Chart.js antes do script dos gráficos -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{% block content %}
+<script id="status-labels-data" type="application/json">{{ status_labels_json|safe }}</script>
+<script id="status-values-data" type="application/json">{{ status_values_json|safe }}</script>
+<script id="genero-labels-data" type="application/json">{{ genero_labels_json|safe }}</script>
+<script id="genero-values-data" type="application/json">{{ genero_values_json|safe }}</script>
+<script id="faixa-labels-data" type="application/json">{{ faixa_labels_json|safe }}</script>
+<script id="faixa-values-data" type="application/json">{{ faixa_values_json|safe }}</script>
+<script id="pie-labels-data" type="application/json">{{ pie_labels_json|safe }}</script>
+<script id="pie-values-data" type="application/json">{{ pie_values_json|safe }}</script>
+<script id="categoria-evento-labels-data" type="application/json">{{ categoria_evento_labels_json|safe }}</script>
+<script id="categoria-evento-values-data" type="application/json">{{ categoria_evento_values_json|safe }}</script>
+<script id="evolucao-meses-labels" type="application/json">{{ evolucao_meses_labels_json|safe }}</script>
+<script id="evolucao-membros" type="application/json">{{ evolucao_membros_json|safe }}</script>
+<script id="evolucao-congregados" type="application/json">{{ evolucao_congregados_json|safe }}</script>
+<script id="evolucao-novos-convertidos" type="application/json">{{ evolucao_novos_convertidos_json|safe }}</script>
+<script id="evolucao-visitantes" type="application/json">{{ evolucao_visitantes_json|safe }}</script>
+
+
+
+    <h1 class="mt-4">Dashboard Secretaria</h1>
+    <!-- Banner Informações Gerais -->
+    <div class="card shadow-sm mb-4" style="width:100%; border-radius: 18px; background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; min-height: 90px; display: flex; align-items: center;">
+        <div class="card-body py-3 px-4" style="width:100%; display: flex; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.7rem; min-width: 220px;">
+                <i class="fas fa-info-circle fa-2x" style="opacity:0.85;"></i>
+                <span style="font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px;">Informações Gerais</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 2.2rem; align-items: center; justify-content: flex-end; width: 100%; max-width: 900px;">
+                <div style="font-size: 0.95rem; min-width: 140px;">
+                    <span style="font-weight: 600;">Novos membros (30d): </span>
+                    <span style="font-weight: 700;">{{ novos_membros_30_dias }}</span>
+                </div>
+                <div style="font-size: 0.95rem; min-width: 140px;">
+                    <span style="font-weight: 600;">Aniversariantes (mês): </span>
+                    <span style="font-weight: 700;">{{ aniversariantes_mes_atual_count }}</span>
+                    <button id="btnAniversariantes" title="Próximos aniversariantes"
+                      style="background: none; border: none; padding: 0 0 0 6px; margin: 0; vertical-align: middle; cursor: pointer; display: inline-flex; align-items: center;">
+                      <i class="fas fa-birthday-cake" style="color: #fff; font-size: 1.1em; transition: color 0.2s;"></i>
+                    </button>
+                    <style>
+                    #btnAniversariantes:hover i {
+                      color: #ffe082;
+                    }
+                    </style>
+                </div>
+                <div style="font-size: 0.95rem; min-width: 140px;">
+                    <span style="font-weight: 600;">Média de idade (membros): </span>
+                    <span style="font-weight: 700;">{{ media_idade_membros }} anos</span>
+                </div>
+                <div style="font-size: 1.08rem; min-width: 170px;">
+                    <span style="font-weight: 600;">Membros ativos: </span>
+                    <span style="font-weight: 700;">{{ total_membros_ativos|default:'NADA' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="dashboard-main-row" style="display: flex; flex-direction: column; gap: 2.5rem;">
+    <style>
+        .card-row-flex {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: center;
+            align-items: stretch;
+            margin: 0;
+        }
+        .card-ebd-fin {
+            margin: 0 !important;
+            /* padding já existe, mas garantimos que não há margin extra */
+        }
+        .card-ebd-fin {
+            flex: 1 1 22%;
+            min-width: 220px;
+            max-width: 260px;
+            height: 210px;
+            border-radius: 24px !important;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1.6rem 1.3rem 1.3rem 1.3rem;
+            color: #fff;
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%) !important;
+            transition: box-shadow 0.2s, transform 0.18s;
+            cursor: pointer;
+        }
+        .card-ebd-fin:hover {
+            box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+            transform: translateY(-4px) scale(1.025);
+            z-index: 2;
+        }
+        .card-ebd-fin .btn {
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
+        }
+        .card-ebd-fin .btn:hover, .card-ebd-fin .btn:focus {
+            background: #fff !important;
+            color: #222 !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+            transform: scale(1.08);
+        }
+        @media (max-width: 1200px) { .card-row-flex .card-ebd-fin { flex: 1 1 45%; min-width: 180px; max-width: 48%; } }
+        @media (max-width: 900px) {
+            .card-row-flex { flex-direction: column; gap: 1.2rem; }
+            .card-row-flex .card-ebd-fin { flex: 1 1 100%; min-width: 140px; max-width: 100%; height: auto; }
+        }
+        @media (max-width: 600px) {
+            .container-fluid.px-4 { padding-left: 0.2rem !important; padding-right: 0.2rem !important; }
+            .card-row-flex { gap: 0.7rem; }
+            .card-ebd-fin { padding: 1rem 0.7rem 1rem 0.7rem; }
+            .card-title, .card-desc { font-size: 0.92rem !important; }
+        }
+        .fin-saldo { background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%) !important; }
+        .fin-relatorio { background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%) !important; }
+        .fin-despesa { background: linear-gradient(135deg, #ff4e50 0%, #f44336 100%) !important; }
+        .fin-banco { background: linear-gradient(135deg, #e0eafc 0%, #4e73df 100%) !important; }
+        .fin-mes { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%) !important; }
+        .fin-pendente { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%) !important; color: #222; }
+        .fin-vencida { background: linear-gradient(135deg, #232526 0%, #414345 100%) !important; }
+        .fin-transferencia { background: linear-gradient(135deg, #cfdef3 0%, #30cfd0 100%) !important; color: #fff; }
+        .card-ebd-fin .card-header-flex, .card-ebd-fin .d-flex { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.2rem; }
+        .card-ebd-fin .card-icon { font-size: 2.2rem; opacity: 0.85; margin-bottom: 0; margin-right: 0; }
+        .card-ebd-fin .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0; margin-top: 0; text-align: left; }
+        .card-ebd-fin .card-desc { font-size: 0.95rem; font-weight: 400; margin-bottom: 0.6rem; text-align: left; }
+        .card-ebd-fin .card-badge { font-size: 1.1rem; font-weight: 600; background: rgba(255,255,255,0.18); border-radius: 8px; padding: 0.3rem 0.8rem; display: inline-block; margin-bottom: 0.2rem; color: #fff; }
+        .card-ebd-fin .card-action { margin-top: auto; text-align: left; }
+        @media (max-width: 1200px) { .card-row-flex .card-ebd-fin { flex: 1 1 45%; min-width: 220px; max-width: 48%; } }
+        @media (max-width: 900px) { .card-row-flex .card-ebd-fin { flex: 1 1 100%; min-width: 180px; max-width: 100%; } }
+    </style>
+
+
+
+    <!-- Linha 1: Membros e Visitantes -->
+    <!-- Linha 2: Cards de Pessoas por Status, Gênero e Faixa Etária -->
+
+    <div class="card-row-flex">
+        <!-- Card Membros -->
+        <div class="card-ebd-fin fin-saldo">
+            <div class="d-flex align-items-center mb-2 justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-icon" title="Ícone Pessoas" aria-label="Pessoas"><i class="fas fa-users" aria-hidden="true"></i></span>
+                    <span class="card-title ms-2">Pessoas
+                        <span class="ms-1" title="Cadastro e consulta de todos os membros e pessoas da igreja.">
+                            <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                        </span>
+                    </span>
+                </div>
+                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-light btn-sm px-2 py-1" title="Adicionar Pessoa" aria-label="Adicionar Pessoa"><i class="fas fa-plus" aria-hidden="true"></i></a>
+            </div>
+            <div class="card-desc">Total de pessoas cadastradas</div>
+            <span class="card-badge">{{ total_membros }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="/sistema/pessoas/" class="btn btn-light btn-sm">Ver lista</a>
+            </div>
+        </div>
+        <!-- Card Visitantes -->
+        <div class="card-ebd-fin fin-relatorio">
+            <div class="d-flex align-items-center mb-2 justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-icon" title="Ícone Recepção" aria-label="Recepção"><i class="fas fa-handshake" aria-hidden="true"></i></span>
+                    <span class="card-title ms-2">Recepção
+                        <span class="ms-1" title="Gestão e registro de visitantes da igreja.">
+                            <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                        </span>
+                    </span>
+                </div>
+                <a href="{% url 'secretaria:cadastrar_visitante' %}" class="btn btn-light btn-sm px-2 py-1" title="Adicionar Visitante" aria-label="Adicionar Visitante"><i class="fas fa-plus" aria-hidden="true"></i></a>
+            </div>
+            <div class="card-desc">Total de visitantes registrados</div>
+            <span class="card-badge">{{ total_visitantes }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="{% url 'secretaria:lista_visitantes' %}" class="btn btn-light btn-sm">Ver lista</a>
+            </div>
+        </div>
+        <!-- Card Cargos -->
+        <div class="card-ebd-fin fin-despesa">
+            <div class="d-flex align-items-center mb-2 justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-icon" title="Ícone Cargos" aria-label="Cargos"><i class="fas fa-id-badge" aria-hidden="true"></i></span>
+                    <span class="card-title ms-2">Cargos
+                        <span class="ms-1" title="Gerencie cargos e funções ocupadas pelos membros.">
+                            <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                        </span>
+                    </span>
+                </div>
+                <a href="{% url 'secretaria:criar_cargo' %}" class="btn btn-light btn-sm px-2 py-1" title="Adicionar Cargo" aria-label="Adicionar Cargo"><i class="fas fa-plus" aria-hidden="true"></i></a>
+            </div>
+            <div class="card-desc">Gestão de cargos e ocupantes</div>
+            <span class="card-badge">{{ total_cargos }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-light btn-sm">Ver cargos</a>
+            </div>
+        </div>
+        <!-- Card Grupos/Casas -->
+        <div class="card-ebd-fin fin-banco">
+            <div class="d-flex align-items-center mb-2 justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-icon" title="Ícone Grupos/Casas" aria-label="Grupos/Casas"><i class="fas fa-home" aria-hidden="true"></i></span>
+                    <span class="card-title ms-2">Grupos/Casas
+                        <span class="ms-1" title="Organize grupos familiares, células ou casas de apoio.">
+                            <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                        </span>
+                    </span>
+                </div>
+                <a href="{% url 'secretaria:criar_grupo_casa' %}" class="btn btn-light btn-sm px-2 py-1" title="Adicionar Grupo/Casa" aria-label="Adicionar Grupo/Casa"><i class="fas fa-plus" aria-hidden="true"></i></a>
+            </div>
+            <div class="card-desc">Gestão de grupos e casas</div>
+            <span class="card-badge">{{ total_grupos_casa }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="{% url 'secretaria:lista_grupos_casa' %}" class="btn btn-light btn-sm">Ver grupos</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-row-flex">
+        <!-- Card Relatórios -->
+        <div class="card-ebd-fin fin-mes">
+            <div class="d-flex align-items-center mb-2 justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-icon"><i class="fas fa-chart-line"></i></span>
+                    <span class="card-title ms-2">Relatórios
+                        <span class="ms-1" title="Acesse relatórios e reuniões de membros.">
+                            <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                        </span>
+                    </span>
+                </div>
+                <!-- Adicionar relatório pode ser um link para criar novo relatório, se aplicável -->
+            </div>
+            <div class="card-desc">Relatórios e reuniões de membros</div>
+            <span class="card-badge">{{ total_relatorios }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="{% url 'secretaria:relatorio_reuniao_membros' %}" class="btn btn-light btn-sm">Ver relatório</a>
+            </div>
+        </div>
+        <!-- Card Acompanhamentos de Visita -->
+        <div class="card-ebd-fin fin-pendente">
+            <div class="d-flex align-items-center mb-2" style="width:100%; gap:0.5rem;">
+                <span class="card-icon" style="display:flex; align-items:center;"><i class="fas fa-user-check"></i></span>
+                <span class="card-title" style="font-size: 1.05rem; font-weight: 700; white-space:nowrap; display:flex; align-items:center; margin-bottom:0;">Visita/Casa</span>
+                <span class="d-flex align-items-center flex-wrap" style="gap:0.2rem; margin-left:0.2rem;">
+                    <span class="ms-1" title="Registre e acompanhe visitas e contatos realizados;" style="display:flex; align-items:center;">
+                        <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                    </span>
+                    <span style="flex-shrink:0; display:flex; align-items:center;">
+                        <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-light btn-sm px-2 py-1" title="Novo Acompanhamento" style="margin-left:0.1rem;"><i class="fas fa-plus"></i></a>
+                    </span>
+                </span>
+            </div>
+            <div class="card-desc">Gestão de visitas e casas</div>
+            <span class="card-badge">{{ total_acompanhamentos }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-light btn-sm">Ver acompanhamentos</a>
+            </div>
+        </div>
+        <!-- Card Tags -->
+        <div class="card-ebd-fin fin-vencida">
+            <div class="d-flex align-items-center mb-2 justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-icon"><i class="fas fa-tags"></i></span>
+                    <span class="card-title ms-2">Tags
+                        <span class="ms-1" title="Crie e gerencie etiquetas para categorizar pessoas.">
+                            <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                        </span>
+                    </span>
+                </div>
+                <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-light btn-sm px-2 py-1" title="Adicionar Tag"><i class="fas fa-plus"></i></a>
+            </div>
+            <div class="card-desc">Gestão de tags</div>
+            <span class="card-badge">{{ total_tags }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-light btn-sm">Ver tags</a>
+            </div>
+        </div>
+        <!-- Card Associação Usuário/Membro -->
+        <div class="card-ebd-fin fin-transferencia">
+            <div class="d-flex align-items-center mb-2 justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-icon"><i class="fas fa-user-plus"></i></span>
+                    <span class="card-title ms-2">Usuários
+                        <span class="ms-1" title="Associe usuários do sistema aos membros cadastrados.">
+                            <i class="fas fa-question-circle text-white-50" style="font-size:0.95em;cursor:help;"></i>
+                        </span>
+                    </span>
+                </div>
+                <!-- Associação normalmente é em massa, não faz sentido botão de adicionar único -->
+            </div>
+            <div class="card-desc">Gestão de Usuários</div>
+            <span class="card-badge">{{ total_associacoes }}</span>
+            <div class="card-action d-flex gap-2">
+                <a href="{% url 'secretaria:associar_usuarios_membros' %}" class="btn btn-light btn-sm">Associar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- BLOCO DE GRÁFICOS: agora dentro do mesmo .card-row-flex -->
+    <div class="card-row-flex">
+        <!-- BLOCO DE GRÁFICO DE LINHA: Evolução de Pessoas (12 meses) -->
+        <div class="card-ebd-fin fin-saldo h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
+            <div class="card-header-flex" style="background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
+                <span class="card-icon"><i class="fas fa-chart-line"></i></span>
+                <span class="card-title ms-2">Evolução de Pessoas (12 meses)</span>
+            </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="evolucaoMembrosChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+            </div>
+        </div>
+        <!-- BLOCO DE GRÁFICO DE PIZZA: Distribuição de Pessoas por Tipo -->
+        <div class="card-ebd-fin fin-relatorio h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
+            <div class="card-header-flex" style="background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
+                <span class="card-icon"><i class="fas fa-chart-pie"></i></span>
+                <span class="card-title ms-2">Distribuição de Pessoas por Tipo</span>
+            </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="grafico2" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+            </div>
+        </div>
+    </div> <!-- fim da .card-row-flex dos gráficos principais -->
+
+    <!-- LINHA DE GRÁFICOS ANALÍTICOS: Pessoas por Status, Gênero e Faixa Etária -->
+    <div class="dashboard-analytics-row" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0; padding-top:0;">
+        <!-- Gráfico Pessoas por Status -->
+        <div class="card-ebd-fin fin-relatorio h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
+            <div class="card-header-flex" style="background: linear-gradient(135deg, #36b9cc 0%, #4e73df 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
+                <span class="card-icon"><i class="fas fa-user-check"></i></span>
+                <span class="card-title ms-2">Pessoas por Status</span>
+            </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="statusChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+            </div>
+        </div>
+        <!-- Gráfico Pessoas por Gênero -->
+        <div class="card-ebd-fin fin-banco h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
+            <div class="card-header-flex" style="background: linear-gradient(135deg, #1cc88a 0%, #20c9a6 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
+                <span class="card-icon"><i class="fas fa-venus-mars"></i></span>
+                <span class="card-title ms-2">Pessoas por Gênero</span>
+            </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="generoChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="dashboard-analytics-row" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0;">
+        <!-- Gráfico Participação por Categoria de Evento -->
+        <div class="card-ebd-fin fin-mes h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
+            <div class="card-header-flex" style="background: linear-gradient(135deg, #b224ef 0%, #7579ff 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
+                <span class="card-icon"><i class="fas fa-layer-group"></i></span>
+                <span class="card-title ms-2">Participação por Categoria de Evento</span>
+            </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="categoriaEventoChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+            </div>
+        </div>
+        <!-- Gráfico Pessoas por Faixa Etária -->
+        <div class="card-ebd-fin fin-mes h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
+            <div class="card-header-flex" style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
+                <span class="card-icon"><i class="fas fa-chart-bar"></i></span>
+                <span class="card-title ms-2">Pessoas por Faixa Etária</span>
+            </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="faixaEtariaChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Micro-botão de aniversariantes -->
+    <div class="aniversariantes-flutuante" id="cardAniversariantes" style="position:fixed; top:120px; right:40px; width:320px; z-index:30; display:none;">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+          <span><i class="fas fa-birthday-cake me-2"></i>Próximos Aniversariantes</span>
+          <button type="button" class="btn-close btn-close-white" aria-label="Fechar" id="closeAniversariantes" style="font-size:1.2em;"></button>
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for aniversariante in aniversariantes_proximos %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ aniversariante.nome }}</strong><br>
+              <small class="text-muted">
+                {{ aniversariante.nascimento|date:'d/m' }}
+                {% if aniversariante.idade %} ({{ aniversariante.idade }} anos){% endif %}
+              </small>
+            </div>
+            <span class="badge bg-success rounded-pill">
+              <i class="fas fa-gift"></i>
+            </span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted">Nenhum aniversariante nos próximos dias.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    <script>
+      const btn = document.getElementById('btnAniversariantes');
+      const card = document.getElementById('cardAniversariantes');
+      const closeBtn = document.getElementById('closeAniversariantes');
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        card.style.display = card.style.display === 'block' ? 'none' : 'block';
+      });
+      closeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        card.style.display = 'none';
+      });
+      document.addEventListener('click', function(e) {
+        if (!card.contains(e.target) && !btn.contains(e.target)) {
+          card.style.display = 'none';
+        }
+      });
+    </script>
+</div>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/secretaria_dashboard_graficos.js' %}"></script>
+{% endblock %}
+
+<script>
+

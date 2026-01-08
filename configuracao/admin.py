@@ -14,22 +14,23 @@ from .models import PerfilUsuario, Ministerio  # ...seus outros modelos
 import os  # Adicione esta linha no topo
 
 # --- Admin para Ministério ---
+
 @admin.register(Ministerio)
 class MinisterioAdmin(admin.ModelAdmin):
-    # --- CORREÇÃO AQUI ---
-    # Substituir 'nome' por 'nome_fantasia' e/ou 'razao_social'
-    list_display = ('nome_fantasia', 'razao_social', 'cnpj', 'ativo', 'administrador_principal')
-    # --- FIM CORREÇÃO ---
-
-    list_filter = ('ativo',) # Remover 'estado' se você não o adicionou ao modelo
-    # --- CORREÇÃO AQUI ---
+    # Exibe informações extras para desenvolvedor
+    list_display = (
+        'nome_fantasia',
+        'razao_social',
+        'cnpj',
+        'ativo',
+        'administrador_principal',
+        'ultimo_login_admin',
+        'quantidade_membros',
+    )
+    list_filter = ('ativo',)
     search_fields = ('nome_fantasia', 'razao_social', 'cnpj', 'administrador_principal__username')
-    # --- FIM CORREÇÃO ---
-
-    # --- CORREÇÃO AQUI (se estiver usando fieldsets) ---
     fieldsets = (
         (None, {
-            # Usar os novos nomes de campo
             'fields': ('nome_fantasia', 'razao_social', 'administrador_principal', 'ativo')
         }),
         ('Documentos e Contato', {
@@ -37,13 +38,21 @@ class MinisterioAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Endereço', {
-            # Adicionar 'estado' aqui APENAS se você o adicionou ao modelo Ministerio
             'fields': ('cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado'),
             'classes': ('collapse',)
         }),
     )
-    # --- FIM CORREÇÃO ---
-    
+
+    @admin.display(description='Último login do admin', ordering='administrador_principal__last_login')
+    def ultimo_login_admin(self, obj):
+        if obj.administrador_principal and hasattr(obj.administrador_principal, 'last_login'):
+            return obj.administrador_principal.last_login
+        return '-'
+
+    @admin.display(description='Qtd. membros')
+    def quantidade_membros(self, obj):
+        # Soma membros de todas as igrejas do ministério
+        return sum(igreja.membros.count() for igreja in obj.igrejas.all())
 
 # Opção 1: Inline dentro do UserAdmin (preferível)
 class PerfilUsuarioInline(admin.StackedInline): # Ou admin.TabularInline

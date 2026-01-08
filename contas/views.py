@@ -114,8 +114,8 @@ def registrar_usuario_e_org(request):
                             # Atualiza a sessão para refletir os novos grupos
                             from django.contrib.auth import update_session_auth_hash
                             update_session_auth_hash(request, novo_usuario)
-                            messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o da ministério "{nome_fantasia_org}" foram concluídos e ativados. Aproveite o sistema!')
-                            return redirect('secretaria:dashboard')
+                            messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o do ministério "{nome_fantasia_org}" foram concluídos e ativados.\n\nAgora cadastre a primeira igreja do seu ministério para começar a usar o sistema.')
+                            return redirect('configuracao:adicionar_igreja')
                         else:
                             # Opcional: Criar uma assinatura pendente para um plano padrão ou deixar sem assinatura
                             logger.info(f"Ministério '{nome_fantasia_org}' não elegível para plano Pioneiro no momento do registro.")
@@ -264,19 +264,20 @@ def aceitar_convite(request, token):
         if request.user.email.lower() == convite.email_convidado.lower():
             try:
                 with transaction.atomic():
-                    perfil, criado = PerfilUsuario.objects.get_or_create(
-                        user=request.user,
-                        defaults={'ministerio': convite.ministerio}
-                    )
-                    if not criado and perfil.ministerio != convite.ministerio:
-                        ministerio_anterior_nome = perfil.ministerio.nome_fantasia if perfil.ministerio else "uma ministério anterior"
-                        perfil.ministerio = convite.ministerio
-                        perfil.save()
-                        messages.warning(
-                            request,
-                            f"Seu acesso foi atualizado para a ministério '{convite.ministerio.nome_fantasia}'. "
-                            f"Você não terá mais acesso direto aos dados de '{ministerio_anterior_nome}' com esta conta."
-                        )
+                    # PerfilUsuario será criado automaticamente pelo signal
+                    # perfil, criado = PerfilUsuario.objects.get_or_create(
+                    #     user=request.user,
+                    #     defaults={'ministerio': convite.ministerio}
+                    # )
+                    # if not criado and perfil.ministerio != convite.ministerio:
+                    #     ministerio_anterior_nome = perfil.ministerio.nome_fantasia if perfil.ministerio else "uma ministério anterior"
+                    #     perfil.ministerio = convite.ministerio
+                    #     perfil.save()
+                    #     messages.warning(
+                    #         request,
+                    #         f"Seu acesso foi atualizado para a ministério '{convite.ministerio.nome_fantasia}'. "
+                    #         f"Você não terá mais acesso direto aos dados de '{ministerio_anterior_nome}' com esta conta."
+                    #     )
 
                     convite.status = 'aceito'
                     convite.data_aceite = timezone.now()
@@ -320,10 +321,11 @@ def aceitar_convite(request, token):
                             last_name=ultimo_nome,
                             is_active=True
                         )
-                        PerfilUsuario.objects.create(
-                            user=novo_usuario,
-                            ministerio=convite.ministerio
-                        )
+                        # PerfilUsuario será criado automaticamente pelo signal
+                        # PerfilUsuario.objects.create(
+                        #     user=novo_usuario,
+                        #     ministerio=convite.ministerio
+                        # )
                         convite.status = 'aceito'
                         convite.data_aceite = timezone.now()
                         convite.save()

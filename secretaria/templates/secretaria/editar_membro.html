@@ -2,6 +2,7 @@
 {% load static %}
 {% load humanize %} {# Essencial para formatar valores monetários #}
 {% load secretaria_extras %}
+<div style="background: yellow; color: black; font-weight: bold; padding: 8px;">TESTE-UNICO-DEBUG-2026</div>
 {% block title %}Editar Pessoa: {{ form.instance.nome|default:"Pessoa" }}{% endblock %}
 
 {% block content %}
@@ -9,10 +10,9 @@
     <h1 class="mt-4">Editar Pessoa</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_membros' %}">Lista de Pessoas</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_pessoas' %}">Lista de Pessoas</a></li>
     <li class="breadcrumb-item active">Editar: {{ form.instance.nome|default:"Pessoa" }}</li>
     </ol>
-
 
     <div class="card mb-4">
         <div class="card-header">
@@ -28,6 +28,7 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="contribuicoes-tab" data-bs-toggle="tab" data-bs-target="#contribuicoes" type="button" role="tab" aria-controls="contribuicoes" aria-selected="false">Histórico de Contribuições</button>
                 </li>
+                {# NOVA ABA PARA HISTÓRICO DE STATUS #}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="historico-status-tab" data-bs-toggle="tab" data-bs-target="#historico-status" type="button" role="tab" aria-controls="historico-status" aria-selected="false">Histórico de Tipo/Status</button>
                 </li>
@@ -40,7 +41,9 @@
             </ul>
 
             <div class="tab-content" id="membroTabContent">
+                <!-- INÍCIO ABA: Dados Cadastrais -->
                 <div class="tab-pane fade show active" id="dados-cadastrais" role="tabpanel" aria-labelledby="dados-cadastrais-tab">
+                       <div style="color: red; font-weight: bold;">DEBUG: Renderizando aba Dados Cadastrais</div>
                     <form method="POST" action="{% url 'secretaria:editar_membro' membro_id=membro_id %}" enctype="multipart/form-data">
                         {% csrf_token %}
                         {% include "partials/_form_errors.html" with form=form %}
@@ -52,9 +55,10 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                 </div>
                             {% endif %}
-                        {% endfor %}
 
-                        <div class="row mb-4 align-items-center">
+
+                                {% endfor %}
+                                <div class="row mb-4 align-items-center">
                             <div class="col-md-3 text-center">
                                 {% if form.instance.pk and form.instance.foto %}
                                     <img src="{{ form.instance.foto.url }}" alt="Foto Atual de {{ form.instance.nome }}" class="img-fluid rounded-circle mb-2" style="width: 150px; height: 150px; object-fit: cover;">
@@ -93,32 +97,6 @@
                                             <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">{{ form.status_pessoa.label }}:</label>
                                             {{ form.status_pessoa|add_class:'form-control' }}
                                              {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
-                                                <div id="sub-status-inativo-wrapper" style="margin-top:10px;">
-                                                    <label for="{{ form.sub_status_inativo.id_for_label }}" class="form-label">{{ form.sub_status_inativo.label }}:</label>
-                                                    {{ form.sub_status_inativo }}
-                                                    <small class="text-muted">Preencha apenas se o status for inativo.</small>
-                                                    {% if form.sub_status_inativo.errors %}<div class="invalid-feedback d-block">{{ form.sub_status_inativo.errors|striptags }}</div>{% endif %}
-                                                </div>
-                                                <script>
-                                                document.addEventListener('DOMContentLoaded', function() {
-                                                    var statusField = document.getElementById('{{ form.status_pessoa.id_for_label }}');
-                                                    var subStatusWrapper = document.getElementById('sub-status-inativo-wrapper');
-                                                    // Começa oculto
-                                                    subStatusWrapper.style.display = 'none';
-                                                    function toggleSubStatus() {
-                                                        var selectedText = statusField.options[statusField.selectedIndex].text.trim().toLowerCase();
-                                                        if (selectedText === 'inativo') {
-                                                            subStatusWrapper.style.display = '';
-                                                        } else {
-                                                            subStatusWrapper.style.display = 'none';
-                                                            var subStatusInput = subStatusWrapper.querySelector('select, input');
-                                                            if (subStatusInput) subStatusInput.value = '';
-                                                        }
-                                                    }
-                                                    statusField.addEventListener('change', toggleSubStatus);
-                                                    toggleSubStatus();
-                                                });
-                                                </script>
                                         </div>
                                     </div>
                                 </div>
@@ -341,105 +319,92 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Seção: Família (Cônjuge) -->
-                        <div class="row">
-                        <!-- Seção: Família (Cônjuge) removida para evitar campos vazios/indesejados acima das tags -->
-                        <div class="row align-items-end" style="margin-bottom:0;">
-                            <div class="col-md-6">
-                                <div class="mb-1">
-                                    <label for="{{ form.profissao_conjuge.id_for_label }}" class="form-label">{{ form.profissao_conjuge.label }}:</label>
-                                    {{ form.profissao_conjuge }}
-                                    {% if form.profissao_conjuge.errors %}<div class="invalid-feedback d-block">{{ form.profissao_conjuge.errors|striptags }}</div>{% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-1">
-                                    <label for="{{ form.escolaridade_conjuge.id_for_label }}" class="form-label">{{ form.escolaridade_conjuge.label }}:</label>
-                                    {{ form.escolaridade_conjuge }}
-                                    {% if form.escolaridade_conjuge.errors %}<div class="invalid-feedback d-block">{{ form.escolaridade_conjuge.errors|striptags }}</div>{% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                                <label class="form-label">Tags disponíveis:</label>
-                                <div id="tag-badges-list" class="d-flex flex-row flex-wrap align-items-center gap-2" style="max-width: 500px;">
-                                    {% for tag in form.fields.tags.queryset %}
-                                        <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }};color:#fff;font-size:1em;padding:6px 18px;border-radius:18px;min-width:60px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 3px rgba(0,0,0,0.07);" data-tag-id="{{ tag.id }}">{{ tag.nome }}</button>
-                                    {% endfor %}
-                                </div>
-                                <label class="form-label mt-3">Tags já selecionadas:</label>
-                                <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1" style="max-width: 500px;"></div>
-                                <small class="text-muted">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
-                                {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
-                                <!-- Campo SelectMultiple real, oculto -->
-                                <div style="display:none;">
-                                    {{ form.tags }}
-                                </div>
-                                <script>
-                                    var allTags = [
-                                        {% for tag in form.fields.tags.queryset %}
-                                            {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
-                                        {% endfor %}
-                                    ];
-                                    function getSelectedTags() {
-                                        var select = document.getElementById('id_tags');
-                                        var arr = [];
-                                        for (var i = 0; i < select.options.length; i++) {
-                                            if (select.options[i].selected) arr.push(parseInt(select.options[i].value));
-                                        }
-                                        return arr;
-                                    }
-                                    function setSelectedTags(arr) {
-                                        var select = document.getElementById('id_tags');
-                                        for (var i = 0; i < select.options.length; i++) {
-                                            select.options[i].selected = arr.includes(parseInt(select.options[i].value));
-                                        }
-                                    }
-                                    function renderSelectedTags() {
-                                        var selected = getSelectedTags();
-                                        var preview = document.getElementById('selected-tags-preview');
-                                        preview.innerHTML = '';
-                                        allTags.forEach(function(tag){
-                                            if (selected.includes(tag.id)) {
-                                                var badge = document.createElement('span');
-                                                badge.className = 'badge tag-badge-selected';
-                                                badge.style.backgroundColor = tag.cor;
-                                                badge.style.color = '#fff';
-                                                badge.style.fontSize = '1em';
-                                                badge.style.marginRight = '4px';
-                                                badge.textContent = tag.nome;
-                                                badge.setAttribute('data-tag-id', tag.id);
-                                                badge.onclick = function(){
-                                                    var arr = getSelectedTags().filter(function(tid){return tid !== tag.id;});
-                                                    setSelectedTags(arr);
-                                                    renderSelectedTags();
-                                                };
-                                                preview.appendChild(badge);
-                                            }
-                                        });
-                                    }
-                                    document.querySelectorAll('.tag-badge-select').forEach(function(btn){
-                                        btn.onclick = function(){
-                                            var tagId = parseInt(btn.getAttribute('data-tag-id'));
-                                            var arr = getSelectedTags();
-                                            if (!arr.includes(tagId)) arr.push(tagId);
-                                            setSelectedTags(arr);
-                                            renderSelectedTags();
-                                        };
-                                    });
-                                    renderSelectedTags();
-                                </script>
-                        </div>
 
-                        <hr>
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-vibrant-green" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Pessoa</button>
-                            <button type="submit" class="btn btn-continue ms-2" name="submit_membro_form_continue" value="continue"><i class="fas fa-save me-1"></i><span style="margin-left: 0.4em;">Salvar e continuar</span></button>
-                            <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-cancel">Cancelar</a>
+                        <!-- Seção: Família (Cônjuge) -->
+                        <!-- INÍCIO BLOCO DE SELEÇÃO DE TAGS -->
+                        <div class="mb-3">
+                                                    </div>
+                                                    <!-- FIM BLOCO DE SELEÇÃO DE TAGS -->
+                            <label class="form-label">Tags disponíveis:</label>
+                            <div id="tag-badges-list" class="d-flex flex-row flex-wrap align-items-center gap-2" style="max-width: 500px;">
+                                {% for tag in form.fields.tags.queryset %}
+                                    <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }};color:#fff;font-size:1em;padding:6px 18px;border-radius:18px;min-width:60px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 3px rgba(0,0,0,0.07);" data-tag-id="{{ tag.id }}">{{ tag.nome }}</button>
+                                {% endfor %}
+                            </div>
+                            <label class="form-label mt-3">Tags já selecionadas:</label>
+                            <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1" style="max-width: 500px;"></div>
+                            <small class="text-muted">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
+                            {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
+                            <!-- Campo SelectMultiple real, oculto -->
+                            <div style="display:none;">
+                                {{ form.tags }}
+                            </div>
+                            <script>
+                                var allTags = [
+                                    {% for tag in form.fields.tags.queryset %}
+                                        {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
+                                    {% endfor %}
+                                ];
+                                function getSelectedTags() {
+                                    var select = document.getElementById('id_tags');
+                                    var arr = [];
+                                    for (var i = 0; i < select.options.length; i++) {
+                                        if (select.options[i].selected) arr.push(parseInt(select.options[i].value));
+                                    }
+                                    return arr;
+                                }
+                                function setSelectedTags(arr) {
+                                    var select = document.getElementById('id_tags');
+                                    for (var i = 0; i < select.options.length; i++) {
+                                        select.options[i].selected = arr.includes(parseInt(select.options[i].value));
+                                    }
+                                }
+                                function renderSelectedTags() {
+                                    var selected = getSelectedTags();
+                                    var preview = document.getElementById('selected-tags-preview');
+                                    preview.innerHTML = '';
+                                    allTags.forEach(function(tag){
+                                        if (selected.includes(tag.id)) {
+                                            var badge = document.createElement('span');
+                                            badge.className = 'badge tag-badge-selected';
+                                            badge.style.backgroundColor = tag.cor;
+                                            badge.style.color = '#fff';
+                                            badge.style.fontSize = '1em';
+                                            badge.style.marginRight = '4px';
+                                            badge.textContent = tag.nome;
+                                            badge.setAttribute('data-tag-id', tag.id);
+                                            badge.onclick = function(){
+                                                var arr = getSelectedTags().filter(function(tid){return tid !== tag.id;});
+                                                setSelectedTags(arr);
+                                                renderSelectedTags();
+                                            };
+                                            preview.appendChild(badge);
+                                        }
+                                    });
+                                }
+                                document.querySelectorAll('.tag-badge-select').forEach(function(btn){
+                                    btn.onclick = function(){
+                                        var tagId = parseInt(btn.getAttribute('data-tag-id'));
+                                        var arr = getSelectedTags();
+                                        if (!arr.includes(tagId)) arr.push(tagId);
+                                        setSelectedTags(arr);
+                                        renderSelectedTags();
+                                    };
+                                });
+                                renderSelectedTags();
+                            </script>
+
+                             <hr>
+                        <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Alterações</button>
+                        <button type="submit" name="submit_membro_form" value="_save_and_continue" class="btn btn-info"><i class="fas fa-sync-alt me-1"></i> Salvar e Continuar Editando</button>
+                        <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+
                         </div>
                     </form>
                 </div>
+                <!-- FIM ABA: Dados Cadastrais -->
 
+                <!-- INÍCIO ABA: Histórico de Contribuições -->
                 <div class="tab-pane fade" id="contribuicoes" role="tabpanel" aria-labelledby="contribuicoes-tab">
                     <h5 class="mt-3">Contribuições Registradas</h5>
                     {% if contribuicoes %}
@@ -475,12 +440,14 @@
                         </div>
                     {% endif %}
                 </div>
+                <!-- FIM ABA: Histórico de Contribuições -->
                {# CONTEÚDO DA NOVA ABA DE HISTÓRICO DE STATUS #}
+                <!-- INÍCIO ABA: Histórico de Tipo/Status -->
                 <div class="tab-pane fade" id="historico-status" role="tabpanel" aria-labelledby="historico-status-tab">
                     <h5 class="mt-3">Histórico de Alterações de Tipo e Status</h5>
                       {% if perms.secretaria.change_membro %}
                     <div class="my-3">
-                        <a href="{% url 'secretaria:adicionar_historico_status_manual' membro_id=form.instance.pk %}" class="btn btn-vibrant-green">
+                        <a href="{% url 'secretaria:adicionar_historico_status_manual' membro_id=form.instance.pk %}" class="btn btn-sm btn-success">
                             <i class="fas fa-plus me-1"></i> Adicionar Entrada Manual/Retroativa
                         </a>
                     </div>
@@ -522,8 +489,10 @@
                         {% endif %}
                     {% endwith %}
                 </div>
+                <!-- FIM ABA: Histórico de Tipo/Status -->
 
                 {# NOVA ABA PARA ACESSO AO SISTEMA #}
+                <!-- INÍCIO ABA: Acesso ao Sistema -->
                 <div class="tab-pane fade" id="acesso-sistema" role="tabpanel" aria-labelledby="acesso-sistema-tab">
                     <h5 class="mt-3">Gerenciar Acesso ao Sistema</h5>
                     {% if form.instance.email %}
@@ -607,7 +576,10 @@
                         </div>
                     {% endif %}   
                 </div>
+                <!-- FIM ABA: Acesso ao Sistema -->
 
+            </div>
+                <!-- INÍCIO ABA: Acompanhamento de Visita -->
                 <div class="tab-pane fade" id="acompanhamento-visita" role="tabpanel" aria-labelledby="acompanhamento-visita-tab">
                     <h5 class="mt-3">Acompanhamento de Visita</h5>
                     {% if membro_id %}
@@ -625,57 +597,55 @@
                     <p class="text-muted">Acompanhe e registre contatos, visitas e interações com esta pessoa/visitante.</p>
                     <hr>
                     <form method="get" class="row g-2 mb-3">
-        <div class="col-md-4">
-            <label for="filtro_tipo" class="form-label">Tipo de Contato</label>
-            <select name="filtro_tipo" id="filtro_tipo" class="form-select">
-                <option value="">Todos</option>
-                <option value="ligacao" {% if request.GET.filtro_tipo == 'ligacao' %}selected{% endif %}>Ligação</option>
-                <option value="visita" {% if request.GET.filtro_tipo == 'visita' %}selected{% endif %}>Visita</option>
-                <option value="mensagem" {% if request.GET.filtro_tipo == 'mensagem' %}selected{% endif %}>Mensagem</option>
-                <option value="evento" {% if request.GET.filtro_tipo == 'evento' %}selected{% endif %}>Evento</option>
-                <option value="outro" {% if request.GET.filtro_tipo == 'outro' %}selected{% endif %}>Outro</option>
-            </select>
-        </div>
-        <div class="col-md-4">
-            <label for="filtro_data" class="form-label">Data</label>
-            <input type="date" name="filtro_data" id="filtro_data" class="form-control" value="{{ request.GET.filtro_data }}">
-        </div>
-        <div class="col-md-4 d-flex align-items-end">
-            <button type="submit" class="btn btn-vibrant-blue">Filtrar</button>
-        </div>
-    </form>
-    <h6>Histórico de Acompanhamentos</h6>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Data</th>
-                <th>Responsável</th>
-                <th>Tipo de Contato</th>
-                <th>Resultado</th>
-                <th>Observação</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for acompanhamento in acompanhamentos_visita %}
-            <tr>
-                <td>{{ acompanhamento.data|date:'d/m/Y H:i' }}</td>
-                <td>{{ acompanhamento.responsavel.get_full_name|default:acompanhamento.responsavel.username }}</td>
-                <td>{{ acompanhamento.get_tipo_contato_display }}</td>
-                <td>{{ acompanhamento.resultado }}</td>
-                <td>{{ acompanhamento.observacao }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">Nenhum acompanhamento registrado.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                        <div class="col-md-4">
+                            <label for="filtro_tipo" class="form-label">Tipo de Contato</label>
+                            <select name="filtro_tipo" id="filtro_tipo" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="ligacao" {% if request.GET.filtro_tipo == 'ligacao' %}selected{% endif %}>Ligação</option>
+                                <option value="visita" {% if request.GET.filtro_tipo == 'visita' %}selected{% endif %}>Visita</option>
+                                <option value="mensagem" {% if request.GET.filtro_tipo == 'mensagem' %}selected{% endif %}>Mensagem</option>
+                                <option value="evento" {% if request.GET.filtro_tipo == 'evento' %}selected{% endif %}>Evento</option>
+                                <option value="outro" {% if request.GET.filtro_tipo == 'outro' %}selected{% endif %}>Outro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="filtro_data" class="form-label">Data</label>
+                            <input type="date" name="filtro_data" id="filtro_data" class="form-control" value="{{ request.GET.filtro_data }}">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">Filtrar</button>
+                        </div>
+                    </form>
+                    <h6>Histórico de Acompanhamentos</h6>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Responsável</th>
+                                <th>Tipo de Contato</th>
+                                <th>Resultado</th>
+                                <th>Observação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for acompanhamento in acompanhamentos_visita %}
+                            <tr>
+                                <td>{{ acompanhamento.data|date:'d/m/Y H:i' }}</td>
+                                <td>{{ acompanhamento.responsavel.get_full_name|default:acompanhamento.responsavel.username }}</td>
+                                <td>{{ acompanhamento.get_tipo_contato_display }}</td>
+                                <td>{{ acompanhamento.resultado }}</td>
+                                <td>{{ acompanhamento.observacao }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5">Nenhum acompanhamento registrado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+                <!-- FIM ABA: Acompanhamento de Visita -->
         </div>
     </div>
-</div>
 {% endblock %}
-
 {% block extra_js %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
@@ -721,4 +691,10 @@
         });
     });
 </script>
+<style>
+/* Mantém apenas UM bloco de ocultação das abas inativas, limpo e definitivo */
+.tab-pane:not(.show) {
+    display: none !important;
+}
+</style>
 {% endblock %}

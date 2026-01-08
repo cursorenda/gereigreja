@@ -1,3 +1,7 @@
+from django.http import HttpResponseRedirect
+# Redirecionamento de /membros/ para /pessoas/
+def redirect_pessoas(request):
+    return HttpResponseRedirect('/sistema/pessoas/')
 from core.decorators import verificar_assinatura_valida
 from .forms import MembroForm
 from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag, GrupoCasa
@@ -49,14 +53,16 @@ def cadastro_detalhado(request, pessoa_id):
     Etapa 2: Cadastro detalhado - coleta dados adicionais conforme tipo de pessoa.
     """
     pessoa = get_object_or_404(Membro, pk=pessoa_id)
+    allowed_churches = get_allowed_churches_for_membros(request.user)
+    igreja_inicial = getattr(request, 'igreja_ativa', None)
     if request.method == 'POST':
-        form = MembroForm(request.POST, instance=pessoa)
+        form = MembroForm(request.POST, instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Cadastro detalhado salvo!')
             return redirect('secretaria:cadastro_complementar', pessoa_id=pessoa.pk)
     else:
-        form = MembroForm(instance=pessoa)
+        form = MembroForm(instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
     return render(request, 'secretaria/cadastro_detalhado.html', {'form': form, 'pessoa': pessoa})
 
 @login_required
@@ -65,14 +71,16 @@ def cadastro_complementar(request, pessoa_id):
     Etapa 3: Cadastro complementar - histórico, tags, acompanhamento, etc.
     """
     pessoa = get_object_or_404(Membro, pk=pessoa_id)
+    allowed_churches = get_allowed_churches_for_membros(request.user)
+    igreja_inicial = getattr(request, 'igreja_ativa', None)
     if request.method == 'POST':
-        form = MembroForm(request.POST, instance=pessoa)
+        form = MembroForm(request.POST, instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Cadastro complementar salvo!')
             return redirect('secretaria:lista_membros')
     else:
-        form = MembroForm(instance=pessoa)
+        form = MembroForm(instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
     return render(request, 'secretaria/cadastro_complementar.html', {'form': form, 'pessoa': pessoa})
 
 # --- VIEWS DE AÇÕES RÁPIDAS DE ACOMPANHAMENTO ---
@@ -796,14 +804,32 @@ def registrar_acompanhamento_visita(request, membro_id):
 @user_passes_test(is_admin_or_pastor)
 @verificar_assinatura_valida
 def associar_usuarios_membros(request):
-    membros_sem_usuario = Membro.objects.none()
+    membros_queryset = Membro.objects.none()
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        membros_sem_usuario = Membro.objects.filter(usuario__isnull=True, igreja=request.igreja_ativa).order_by('nome')
+        tipo_pessoa = request.GET.get('tipo_pessoa', '')
+        tipos_validos = ['Membro', 'Obreiro']
+        if tipo_pessoa in tipos_validos:
+            membros_queryset = Membro.objects.filter(
+                igreja=request.igreja_ativa,
+                tipo_pessoa__nome=tipo_pessoa
+            )
+        else:
+            membros_queryset = Membro.objects.filter(
+                igreja=request.igreja_ativa,
+                tipo_pessoa__nome__in=tipos_validos
+            )
+        # Filtro por status de associação
+        status_associacao = request.GET.get('status_associacao', '')
+        if status_associacao == 'associado':
+            membros_queryset = membros_queryset.filter(usuario__isnull=False)
+        elif status_associacao == 'nao_associado':
+            membros_queryset = membros_queryset.filter(usuario__isnull=True)
+        membros_queryset = membros_queryset.order_by('nome')
 
     # Paginação
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     page = request.GET.get('page', 1)
-    paginator = Paginator(membros_sem_usuario, 15)  # 15 membros por página
+    paginator = Paginator(membros_queryset, 15)  # 15 membros por página
     try:
         membros_page = paginator.page(page)
     except PageNotAnInteger:
@@ -812,28 +838,46 @@ def associar_usuarios_membros(request):
         membros_page = paginator.page(paginator.num_pages)
     User = get_user_model()
     sugestoes = {}
+    resultados = []  # Para feedback por linha
     if request.method == 'POST':
-        forms_list = []
+        alterados = 0
         for membro in membros_page:
-            form = AssociarUsuarioMembroForm(request.POST, prefix=str(membro.pk), membro=membro)
-            if form.is_valid():
-                usuario = form.cleaned_data['usuario']
-                membro.usuario = usuario
-                membro.save()
-            sugestao_id = form.fields['sugestao_usuario_id'].initial
-            sugestoes[membro.pk] = int(sugestao_id) if sugestao_id else None
-            forms_list.append(form)
-        messages.success(request, 'Associações salvas com sucesso!')
-        return redirect('secretaria:associar_usuarios_membros')
-    else:
-        forms_list = []
-        for m in membros_page:
-            form = AssociarUsuarioMembroForm(prefix=str(m.pk), membro=m)
-            sugestao_id = form.fields['sugestao_usuario_id'].initial
-            sugestoes[m.pk] = int(sugestao_id) if sugestao_id else None
-            forms_list.append(form)
+            usuario_id = request.POST.get(f"usuario_{membro.pk}")
+            if usuario_id:
+                try:
+                    usuario = User.objects.get(pk=usuario_id)
+                    if membro.usuario != usuario:
+                        membro.usuario = usuario
+                        membro.save()
+                        resultados.append((membro, 'ok', f"Associado a {usuario.get_full_name() or usuario.username}"))
+                        alterados += 1
+                    else:
+                        resultados.append((membro, 'info', "Já estava associado"))
+                except User.DoesNotExist:
+                    resultados.append((membro, 'erro', "Usuário não encontrado"))
+            else:
+                resultados.append((membro, 'info', "Nenhum usuário selecionado"))
+        if alterados:
+            messages.success(request, f"{alterados} associação(ões) salva(s) com sucesso! <i class='fas fa-check-circle text-success'></i>")
+        else:
+            messages.info(request, "Nenhuma alteração realizada.")
+        # Passa resultados para template para feedback por linha
+        context = {
+            'membros_page': membros_page,
+            'resultados': resultados,
+            'paginator': paginator,
+            'page_obj': membros_page,
+        }
+        return render(request, 'secretaria/associar_usuarios_membros.html', context)
+    # GET: monta selects e sugestões normalmente
+    forms_list = []
+    for membro in membros_page:
+        form = AssociarUsuarioMembroForm(membro=membro)
+        sugestao_id = form.fields['sugestao_usuario_id'].initial
+        sugestoes[membro.pk] = int(sugestao_id) if sugestao_id else None
+        forms_list.append(form)
     context = {
-        'membros_sem_usuario': membros_page,
+        'membros_page': membros_page,
         'forms_list': forms_list,
         'sugestoes': sugestoes,
         'paginator': paginator,
@@ -871,49 +915,45 @@ def gerenciar_ocupantes(request, cargo_id):
             ids = [int(i) for i in ocupantes_ids.split(',') if i.isdigit()]
             novos_ocupantes = Membro.objects.filter(chave__in=ids)
         else:
-            novos_ocupantes = Membro.objects.none()
-        # Remove todos os ocupantes antigos desse cargo
-        MembroCargo.objects.filter(cargo=cargo).exclude(membro__in=novos_ocupantes).delete()
+            from django.db.models import Q
+            membros_lista = Membro.objects.filter(
+                Q(igreja=request.igreja_ativa) & (Q(tipo_pessoa__nome='Membro') | Q(tipo_pessoa__nome='Obreiro'))
+            ).order_by('nome')
         # Adiciona novos ocupantes (evita duplicidade)
-        for membro in novos_ocupantes:
-            # Sempre garantir data_inicio preenchida corretamente
-            vinculo, created = MembroCargo.objects.get_or_create(
-                cargo=cargo, membro=membro,
-                defaults={'data_inicio': timezone.now().date()}
-            )
-            if not vinculo.data_inicio:
-                vinculo.data_inicio = timezone.now().date()
-                vinculo.save()
-        messages.success(request, 'Ocupantes do cargo atualizados com sucesso!')
+            # Paginação
+            from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+            page = request.GET.get('page', 1)
+            paginator = Paginator(membros_lista, 15)  # 15 membros por página
+            try:
+                membros_page = paginator.page(page)
+            except PageNotAnInteger:
+                membros_page = paginator.page(1)
+            except EmptyPage:
+                membros_page = paginator.page(paginator.num_pages)
         return redirect('secretaria:lista_cargos')
     else:
         ocupantes_iniciais = [mc.membro.chave for mc in ocupantes_atual]
-    return render(request, 'secretaria/gerenciar_ocupantes.html', {
-        'cargo': cargo,
-        'membros': membros,
-        'ocupantes_iniciais': ocupantes_iniciais,
-    })
-
-
-# Exclusão de cargo
-
-@login_required
-@user_passes_test(is_admin_or_pastor)
+        forms_list = []
+        sugestoes = {}
+        for membro in membros_page:
+            form = AssociarUsuarioMembroForm(request.POST if request.method == 'POST' else None, prefix=str(membro.pk), membro=membro)
+            if request.method == 'POST' and form.is_valid():
+                usuario = form.cleaned_data['usuario']
+                membro.usuario = usuario
+                membro.save()
+            sugestao_id = form.fields['sugestao_usuario_id'].initial
+            sugestoes[membro.pk] = int(sugestao_id) if sugestao_id else None
+            forms_list.append(form)
+        return render(request, 'secretaria/gerenciar_ocupantes.html', {
+            'cargo': cargo,
+            'membros_page': membros_page,
+            'forms_list': forms_list,
+            'sugestoes': sugestoes,
+            'ocupantes_iniciais': ocupantes_iniciais,
+        })
 def excluir_cargo(request, cargo_id):
     cargo = get_object_or_404(Cargo, id=cargo_id)
     ocupantes = MembroCargo.objects.filter(cargo=cargo)
-    if request.method == 'POST':
-        if ocupantes.exists():
-            messages.error(request, 'Não é possível excluir um cargo que possui ocupantes.')
-            return redirect('secretaria:lista_cargos')
-        cargo.delete()
-        messages.success(request, 'Cargo excluído com sucesso!')
-        return redirect('secretaria:lista_cargos')
-    return render(request, 'secretaria/excluir_cargo.html', {'cargo': cargo, 'ocupantes': ocupantes})
-# --- STUBS PARA CRIAR E EDITAR CARGO ---
-from django.http import HttpResponse
-
-
 
 
 
@@ -1738,20 +1778,23 @@ def index(request):
     if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
         membros_para_relatorios = Membro.objects.filter(
             igreja=request.igreja_ativa,
-            tipo_pessoa__nome__iexact="Membro"
-        ).exclude(status_pessoa__nome__iexact="Inativo")
+            tipo_pessoa__nome__iexact="Membro",
+            status_pessoa__nome__iexact="Ativo"
+        )
         titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
     elif allowed_churches_secretaria.exists():
         membros_para_relatorios = Membro.objects.filter(
             igreja__in=allowed_churches_secretaria,
-            tipo_pessoa__nome__iexact="Membro"
-        ).exclude(status_pessoa__nome__iexact="Inativo")
+            tipo_pessoa__nome__iexact="Membro",
+            status_pessoa__nome__iexact="Ativo"
+        )
         titulo_contextual += " (Consolidado)"
     elif is_admin_org(request.user):
         membros_para_relatorios = Membro.objects.filter(
             igreja__ministerio=ministerio,
-            tipo_pessoa__nome__iexact="Membro"
-        ).exclude(status_pessoa__nome__iexact="Inativo")
+            tipo_pessoa__nome__iexact="Membro",
+            status_pessoa__nome__iexact="Ativo"
+        )
         titulo_contextual += " (Ministério)"
 
     # Gráficos e cards
@@ -1815,7 +1858,10 @@ def index(request):
             faixas['Mais de 65 anos'] += 1
     faixa_etaria_data = [{'faixa_etaria': k, 'total': v} for k, v in faixas.items()]
 
-    total_membros_dashboard = membros_para_relatorios.count()
+    # Total de pessoas cadastradas (todos os tipos)
+    total_pessoas = Membro.objects.all().count()
+    # Total de membros ativos (apenas tipo 'Membro', exceto inativos)
+    total_membros_ativos = membros_para_relatorios.filter(tipo_pessoa__nome__iexact='Membro').count()
 
     from datetime import timedelta
     trinta_dias_atras = hoje_data - timedelta(days=30)
@@ -1903,9 +1949,15 @@ def index(request):
 
     context = {
         'status_data_json': json.dumps(status_data_list),
+        'status_labels_json': json.dumps([item['status'] for item in status_data_list]),
+        'status_values_json': json.dumps([item['total'] for item in status_data_list]),
         'genero_data_json': json.dumps(genero_data_normalized),
+        'genero_labels_json': json.dumps([item['genero'] for item in genero_data_normalized]),
+        'genero_values_json': json.dumps([item['total'] for item in genero_data_normalized]),
         'faixa_etaria_data_json': json.dumps(faixa_etaria_data),
-        'total_membros_dashboard': total_membros_dashboard,
+        'faixa_labels_json': json.dumps([item['faixa_etaria'] for item in faixa_etaria_data]),
+        'faixa_values_json': json.dumps([item['total'] for item in faixa_etaria_data]),
+        # 'total_membros_dashboard' removido (não existe mais)
         'novos_membros_30_dias': novos_membros_30_dias,
         'aniversariantes_mes_atual_count': aniversariantes_mes_atual_count,
         'media_idade_membros': media_idade_membros,
@@ -1914,7 +1966,7 @@ def index(request):
         'titulo_pagina': titulo_contextual,
         'igreja_ativa_atual': request.igreja_ativa,
         # Cards e gráficos esperados pelo template:
-        'total_membros_ativos': total_membros_dashboard,
+        'total_membros_ativos': membros_para_relatorios.count(),
         'novos_membros_ultimo_mes': novos_membros_30_dias,
         'total_pendencias_cadastro': total_pendencias_cadastro,
         'total_contas_vencidas': total_contas_vencidas,
@@ -1934,101 +1986,93 @@ def index(request):
 
 @login_required
 def dashboard(request):
+    # --- Pie Chart: Distribuição dinâmica de membros por tipo_pessoa ---
+    tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
+    membros_para_relatorios = Membro.objects.none()  # Garante inicialização para todos os fluxos
+    # ... lógica de filtro de membros_para_relatorios ...
+    # (deixe a lógica de filtro como está)
+    # Após a lógica de filtro:
+    # Total de membros ativos (apenas tipo 'Membro', exceto inativos)
+    total_membros_ativos = membros_para_relatorios.count()
+    # Total de pessoas cadastradas (todos os tipos)
+    total_pessoas = Membro.objects.all().count()
+    # membros_para_relatorios será definido após a lógica de filtro abaixo
+    from datetime import date, timedelta
+    hoje_data = date.today()
+
+    # --- Evolução de membros, congregados, novos convertidos e visitantes nos últimos 12 meses ---
+    from collections import defaultdict
+    tipos_para_grafico = ['Membro', 'Congregado', 'Novo Convertido', 'Visitante']
+    evolucao_por_tipo = defaultdict(list)
+    meses_labels = []
+    for i in range(11, -1, -1):
+        mes_ref = hoje_data.replace(day=1) - timedelta(days=30*i)
+        ano = mes_ref.year
+        mes = mes_ref.month
+        meses_labels.append(mes_ref.strftime('%b/%Y'))
+        for tipo_nome in tipos_para_grafico:
+            count = Membro.objects.filter(
+                tipo_pessoa__nome__iexact=tipo_nome,
+                data_entrada__year__lte=ano,
+                data_entrada__month__lte=mes
+            ).count()
+            evolucao_por_tipo[tipo_nome].append(count)
+    # --- Lógica completa baseada na função index para montar todos os dados do dashboard ---
+    if request.user.is_superuser:
+        return redirect('admin:index')
+
+    if request.user.groups.filter(name='Membro Comum').exists() and not request.user.is_staff:
+        return redirect('secretaria:portal_membro')
+
     ministerio = get_ministerio_or_error(request)
-    allowed_churches_secretaria = get_allowed_churches_for_membros(request.user)
-    titulo_contextual_dashboard = f"Dashboard - {ministerio.nome_fantasia}"
+    allowed_churches_secretaria = get_allowed_churches_for_membros(request.user, ministerio)
+    titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
     membros_para_relatorios = Membro.objects.none()
 
-
-
-
-    # Verificar permissão de visualização de membros antes de prosseguir
-    if not has_membro_view_permission(request.user):
-        messages.warning(request, "Você não tem permissão para visualizar os dados do dashboard.")
-        context = {
-            'ministerio': ministerio,
-            'titulo_pagina': titulo_contextual_dashboard,
-            'status_data_json': json.dumps([]),
-            'genero_data_json': json.dumps([]),
-            'faixa_etaria_data_json': json.dumps([]),
-            'total_membros_dashboard': 0,
-            'novos_membros_30_dias': 0,
-            'aniversariantes_mes_atual_count': 0,
-            'media_idade_membros': 0,
-
-            'aniversariantes_proximos': [],
-            'permissao_negada': True # Flag para o template, se necessário
-        }
-        return render(request, 'dashboard.html', context)
-
-    allowed_churches = get_allowed_churches_for_membros(request.user)
-
-    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
         membros_para_relatorios = Membro.objects.filter(
-            igreja=request.igreja_ativa
-        ).exclude(status_pessoa__nome__iexact="Inativo")
-        titulo_contextual_dashboard = f"Dashboard - Igreja: {request.igreja_ativa.nome_igreja}"
+            igreja=request.igreja_ativa,
+            tipo_pessoa__nome__iexact="Membro",
+            status_pessoa__nome__iexact="Ativo"
+        )
+        titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
     elif allowed_churches_secretaria.exists():
         membros_para_relatorios = Membro.objects.filter(
-            igreja__in=allowed_churches_secretaria
-        ).exclude(status_pessoa__nome__iexact="Inativo")
-        titulo_contextual_dashboard += " (Visão Consolidada)"
-    elif is_admin_org(request.user): # Admin do Minist. sem igrejas no perfil e sem igreja ativa
-        membros_para_relatorios = Membro.objects.filter(
-            igreja__ministerio=ministerio
-        ).exclude(status_pessoa__nome__iexact="Inativo")
-        titulo_contextual_dashboard += " (Visão da Ministério)"
-    else:
-        # Se não tem igreja ativa, nem igrejas permitidas (e não é admin org),
-        # membros_para_relatorios continuará como queryset vazio.
-        messages.info(request, "Nenhuma igreja selecionada ou permitida para visualização de dados no dashboard.")
-        # Os cálculos abaixo resultarão em zero ou listas vazias, o que é o comportamento esperado.
-
-    # --- Fim Lógica de Filtragem Inicial ---
-
-
-
-    # Base de membros para o gráfico de status (sem filtro de 'considerar_ativo_relatorios')
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-        membros_base_para_grafico_status = Membro.objects.filter(igreja=request.igreja_ativa)
-    elif allowed_churches_secretaria.exists():
-        membros_base_para_grafico_status = Membro.objects.filter(igreja__in=allowed_churches_secretaria)
+            igreja__in=allowed_churches_secretaria,
+            tipo_pessoa__nome__iexact="Membro",
+            status_pessoa__nome__iexact="Ativo"
+        )
+        titulo_contextual += " (Consolidado)"
     elif is_admin_org(request.user):
-        membros_base_para_grafico_status = Membro.objects.filter(igreja__ministerio=ministerio)
-    else:
-        membros_base_para_grafico_status = Membro.objects.none()
+        membros_para_relatorios = Membro.objects.filter(
+            igreja__ministerio=ministerio,
+            tipo_pessoa__nome__iexact="Membro",
+            status_pessoa__nome__iexact="Ativo"
+        )
+        titulo_contextual += " (Ministério)"
 
-    # 1. Contagem por Status (para o gráfico, usando a base sem filtro de 'ativo para relatórios')
-    status_data_qs = membros_base_para_grafico_status.values(
-
-        'status_pessoa__nome' # Alterado para novo campo e nome
-    ).annotate(
-        total=Count('chave')
-    ).order_by('status_pessoa__nome') # Alterado
-    # Ajustar a chave do dicionário para o template, se necessário
-    status_data_list = [{'status': item['status_pessoa__nome'], 'total': item['total']} for item in status_data_qs]
-    status_data_list = [item for item in status_data_list if item['status']] # Remove entradas onde status_pessoa__nome é None
-    logger.info(f"Dashboard - Status Data (Filtrado): {status_data_list}")
-
-    # 2. Contagem por Gênero (para gráfico)
-    genero_data_qs = membros_para_relatorios.values('genero').annotate( # Renomeado
-        total=Count('chave')
+    # Gráficos e cards
+    membros_base_para_grafico_status = (
+        Membro.objects.filter(igreja=request.igreja_ativa) if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria
+        else Membro.objects.filter(igreja__in=allowed_churches_secretaria) if allowed_churches_secretaria.exists()
+        else Membro.objects.filter(igreja__ministerio=ministerio) if is_admin_org(request.user)
+        else Membro.objects.none()
     )
+
+    status_data_qs = membros_base_para_grafico_status.values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome')
+    status_data_list = [{'status': item['status_pessoa__nome'], 'total': item['total']} for item in status_data_qs if item['status_pessoa__nome']]
+
+    genero_data_qs = membros_para_relatorios.values('genero').annotate(total=Count('chave'))
     genero_map = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
     aggregated_genero = {}
-    for item_gen in genero_data_qs:
-        genero_display = genero_map.get(item_gen['genero'], 'Não Informado')
-        aggregated_genero[genero_display] = aggregated_genero.get(genero_display, 0) + item_gen['total']
+    for item in genero_data_qs:
+        genero_display = genero_map.get(item['genero'], 'Não Informado')
+        aggregated_genero[genero_display] = aggregated_genero.get(genero_display, 0) + item['total']
     genero_data_normalized = [{'genero': key, 'total': value} for key, value in aggregated_genero.items()]
-    logger.info(f"Dashboard - Gênero Data Normalized (Filtrado e Agregado): {genero_data_normalized}")
 
-    # 3. Contagem por Faixa Etária
-    membros_com_nascimento = membros_para_relatorios.filter(
-        nascimento__isnull=False
-    ).values_list('nascimento', flat=True)
+    membros_com_nascimento = membros_para_relatorios.filter(nascimento__isnull=False).values_list('nascimento', flat=True)
     idades = []
-    hoje_data = date.today() # Renomeado para evitar conflito com datetime.date
+    hoje_data = date.today()
     for nascimento in membros_com_nascimento:
         if nascimento:
             try:
@@ -2038,17 +2082,16 @@ def dashboard(request):
                 logger.warning(f"Valor inesperado encontrado para data de nascimento ao calcular idade: {nascimento}")
         else:
             logger.warning("Valor None encontrado para nascimento mesmo após filtro isnull=False.")
-
     faixas = {
         '0-5 anos': 0,
         '6-10 anos': 0,
         '11-14 anos': 0,
         '15-17 anos': 0,
-        '18-30 anos': 0, # Chave correta
+        '18-30 anos': 0,
         '31-50 anos': 0,
         '51-65 anos': 0,
         'Mais de 65 anos': 0,
-        'Não Informado': membros_para_relatorios.filter(nascimento__isnull=True).count() # Contar quem não tem nascimento
+        'Não Informado': membros_para_relatorios.filter(nascimento__isnull=True).count()
     }
     for idade_val in idades:
         if 0 <= idade_val <= 5:
@@ -2059,7 +2102,7 @@ def dashboard(request):
             faixas['11-14 anos'] += 1
         elif 15 <= idade_val <= 17:
             faixas['15-17 anos'] += 1
-        elif 18 <= idade_val <= 30: # Acesso à chave correta
+        elif 18 <= idade_val <= 30:
             faixas['18-30 anos'] += 1
         elif 31 <= idade_val <= 50:
             faixas['31-50 anos'] += 1
@@ -2067,17 +2110,25 @@ def dashboard(request):
             faixas['51-65 anos'] += 1
         elif idade_val > 65:
             faixas['Mais de 65 anos'] += 1
-        
-        # Membros sem nascimento já foram contados na inicialização do dicionário 'faixas'
-
     faixa_etaria_data = [{'faixa_etaria': k, 'total': v} for k, v in faixas.items()]
-    logger.info(f"Dashboard - Faixa Etária Data (Filtrado): {faixa_etaria_data}")
 
-    # 4. Total de Membros para o Dashboard
-    total_membros_dashboard = membros_para_relatorios.count()
-    logger.info(f"Dashboard - Total de Membros (Filtrado): {total_membros_dashboard}")
+    # Total de pessoas cadastradas (todos os tipos)
+    total_pessoas = Membro.objects.all().count()
+    # Total de membros ativos (apenas tipo 'Membro', exceto inativos)
+    total_membros_ativos = membros_para_relatorios.filter(tipo_pessoa__nome__iexact='Membro').count()
 
-    # 5. Próximos Aniversariantes
+    from datetime import timedelta
+    trinta_dias_atras = hoje_data - timedelta(days=30)
+    novos_membros_30_dias = membros_para_relatorios.filter(data_entrada__gte=trinta_dias_atras).count()
+    aniversariantes_mes_atual_count = membros_para_relatorios.filter(nascimento__month=hoje_data.month).count()
+    idades_para_media = []
+    membros_ativos_com_nascimento = membros_para_relatorios.filter(nascimento__isnull=False).values_list('nascimento', flat=True)
+    for nascimento_dt in membros_ativos_com_nascimento:
+        if nascimento_dt:
+            idade = hoje_data.year - nascimento_dt.year - ((hoje_data.month, hoje_data.day) < (nascimento_dt.month, nascimento_dt.day))
+            idades_para_media.append(idade)
+    media_idade_membros = round(sum(idades_para_media) / len(idades_para_media)) if idades_para_media else 0
+
     mes_atual = hoje_data.month
     dia_atual = hoje_data.day
     aniversariantes_qs = membros_para_relatorios.filter(nascimento__isnull=False).annotate(
@@ -2092,60 +2143,176 @@ def dashboard(request):
     ).order_by('passed_this_year', 'nascimento_month', 'nascimento_day')
     limite_aniversariantes = 10
     aniversariantes_proximos = list(aniversariantes_qs[:limite_aniversariantes])
-    logger.info(f"Dashboard - Próximos Aniversariantes (até {limite_aniversariantes}): {[m.nome for m in aniversariantes_proximos]}")
 
-     # --- NOVOS DADOS PARA CARDS DE RESUMO ---
-    # Card 2: Novos Membros (Últimos 30 dias)
-    from datetime import timedelta # Certifique-se que timedelta está importado de datetime
-    
-    trinta_dias_atras = hoje_data - timedelta(days=30) # hoje_data já foi definida
-    novos_membros_30_dias = membros_para_relatorios.filter( # Usar membros_para_relatorios
-        # status__considerar_ativo_relatorios=True, # Já filtrado em membros_para_relatorios
-        
-        data_entrada__gte=trinta_dias_atras
-    ).count()
+    # Cards e alertas esperados pelo template
+    # --- Pendências de cadastro ---
+    pendencias_cadastro = membros_para_relatorios.filter(Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email=''))
+    total_pendencias_cadastro = pendencias_cadastro.count()
 
-    # Card 3: Aniversariantes do Mês Atual
-    aniversariantes_mes_atual_count = membros_para_relatorios.filter( # Usar membros_para_relatorios
-        # status__considerar_ativo_relatorios=True, # Já filtrado em membros_para_relatorios
-        nascimento__month=hoje_data.month
-    ).count()
+    # --- Contas vencidas (financeiro) ---
+    igrejas_ids = membros_para_relatorios.values_list('igreja_id', flat=True).distinct()
+    from financeiro.models import ContaPagar
+    contas_vencidas = ContaPagar.objects.filter(
+        igreja_id__in=igrejas_ids,
+        status='VEN'
+    )
+    total_contas_vencidas = contas_vencidas.count()
+    valor_total_contas_vencidas = contas_vencidas.aggregate(total=Sum('valor'))['total'] or 0
 
-    # Card 4: Média de Idade dos Membros Ativos
-    # Calcular idade em Python
-    idades_para_media = []
-    membros_ativos_com_nascimento = membros_para_relatorios.filter(nascimento__isnull=False).values_list('nascimento', flat=True)
-    
-    for nascimento_dt in membros_ativos_com_nascimento:
-        if nascimento_dt: # Garante que a data não é None
-            idade = hoje_data.year - nascimento_dt.year - ((hoje_data.month, hoje_data.day) < (nascimento_dt.month, nascimento_dt.day))
-            idades_para_media.append(idade)
+    # --- Assinatura prestes a vencer (exemplo: menos de 10 dias) ---
+    assinatura_alerta = None
+    hoje = hoje_data
+    if hasattr(ministerio, 'assinatura') and ministerio.assinatura:
+        dias_restantes = (ministerio.assinatura.data_fim - hoje).days if ministerio.assinatura.data_fim else None
+        if dias_restantes is not None and dias_restantes <= 10 and ministerio.assinatura.status != 'ATIVA':
+            assinatura_alerta = {
+                'dias_restantes': dias_restantes,
+                'status': ministerio.assinatura.get_status_display(),
+            }
 
-    if idades_para_media:
-        media_idade_membros = round(sum(idades_para_media) / len(idades_para_media))
+    # --- Evolução de membros nos últimos 12 meses (filtrado pelo contexto do dashboard) ---
+    meses = []
+    membros_evolucao = []
+    for i in range(11, -1, -1):
+        mes_ref = (hoje.replace(day=1) - timedelta(days=30*i))
+        ano_mes = mes_ref.strftime('%Y-%m')
+        meses.append(ano_mes)
+        membros_count = membros_para_relatorios.filter(
+            data_entrada__lte=mes_ref.replace(day=28) + timedelta(days=4)
+        ).count()
+        membros_evolucao.append(membros_count)
+
+    # --- Novos membros por mês (últimos 12 meses) ---
+    novos_membros_por_mes = []
+    for i in range(11, -1, -1):
+        mes_ref = (hoje.replace(day=1) - timedelta(days=30*i))
+        ano = mes_ref.year
+        mes = mes_ref.month
+        count = membros_para_relatorios.filter(
+            data_entrada__year=ano,
+            data_entrada__month=mes
+        ).count()
+        novos_membros_por_mes.append(count)
+
+    # --- Aniversariantes (ontem, hoje, amanhã) ---
+    ontem = hoje - timedelta(days=1)
+    amanha = hoje + timedelta(days=1)
+    aniversariantes_hoje = membros_para_relatorios.filter(nascimento__month=hoje.month, nascimento__day=hoje.day)
+    aniversariantes_ontem = membros_para_relatorios.filter(nascimento__month=ontem.month, nascimento__day=ontem.day)
+    aniversariantes_amanha = membros_para_relatorios.filter(nascimento__month=amanha.month, nascimento__day=amanha.day)
+
+    # Pie Chart: distribuição dinâmica de membros por tipo_pessoa
+    tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        membros_para_grafico_tipo = Membro.objects.filter(igreja=request.igreja_ativa)
+    elif allowed_churches_secretaria.exists():
+        membros_para_grafico_tipo = Membro.objects.filter(igreja__in=allowed_churches_secretaria)
+    elif is_admin_org(request.user):
+        membros_para_grafico_tipo = Membro.objects.filter(igreja__ministerio=ministerio)
     else:
-        media_idade_membros = 0
-    # --- FIM NOVOS DADOS PARA CARDS ---
+        membros_para_grafico_tipo = Membro.objects.none()
 
+    membros_por_tipo = (
+        membros_para_grafico_tipo.values('tipo_pessoa__nome')
+        .annotate(total=Count('chave'))
+        .order_by('tipo_pessoa__nome')
+    )
+    pie_labels = []
+    pie_values = []
+    for tipo in tipos_pessoa_qs:
+        found = next((item for item in membros_por_tipo if item['tipo_pessoa__nome'] == tipo.nome), None)
+        pie_labels.append(tipo.nome)
+        pie_values.append(found['total'] if found else 0)
 
+    # --- Participação por Categoria de Evento ---
+    from eventos.models import ParticipacaoEvento, Evento
+    eventos_ids = []
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        eventos_ids = list(Evento.objects.filter(igreja=request.igreja_ativa).values_list('id', flat=True))
+    elif allowed_churches_secretaria.exists():
+        eventos_ids = list(Evento.objects.filter(igreja__in=allowed_churches_secretaria).values_list('id', flat=True))
+    elif is_admin_org(request.user):
+        eventos_ids = list(Evento.objects.filter(igreja__ministerio=ministerio).values_list('id', flat=True))
+    participacoes_qs = ParticipacaoEvento.objects.filter(status__in=["CONFIRMADO", "PRESENTE", "AUSENTE"], evento_id__in=eventos_ids)
+    participacoes_por_categoria = (
+        participacoes_qs.values('evento__tipo')
+        .annotate(total=Count('id'))
+        .order_by('evento__tipo')
+    )
+    tipo_dict = dict(Evento.TIPO_EVENTO_CHOICES)
+    categoria_labels = []
+    categoria_values = []
+    for item in participacoes_por_categoria:
+        tipo = item['evento__tipo']
+        label = tipo_dict.get(tipo, tipo.title())
+        categoria_labels.append(label)
+        categoria_values.append(item['total'])
 
-
+    # --- Cards adicionais ---
+    # Total de pessoas cadastradas (todos os tipos)
+    total_membros = Membro.objects.all().count()
+    # Total de visitantes
+    total_visitantes = Membro.objects.filter(tipo_pessoa__nome__iexact='Visitante').count()
+    # Total de cargos
+    total_cargos = Cargo.objects.all().count()
+    # Total de grupos/casas
+    total_grupos_casa = GrupoCasa.objects.all().count()
+    # Total de relatórios (usando reuniões de membros como proxy)
+    total_relatorios = Membro.objects.filter(tipo_pessoa__nome__in=['Membro', 'Obreiro'], status_pessoa__nome__in=['Ativo', 'Em Disciplina']).count()
+    # Total de acompanhamentos de visita
+    total_acompanhamentos = AcompanhamentoVisita.objects.all().count()
+    # Total de tags
+    total_tags = Tag.objects.all().count()
+    # Total de associações usuário-membro
+    total_associacoes = Membro.objects.filter(usuario__isnull=False).count()
 
     context = {
         'status_data_json': json.dumps(status_data_list),
+        'status_labels_json': json.dumps([item['status'] for item in status_data_list]),
+        'status_values_json': json.dumps([item['total'] for item in status_data_list]),
         'genero_data_json': json.dumps(genero_data_normalized),
+        'genero_labels_json': json.dumps([item['genero'] for item in genero_data_normalized]),
+        'genero_values_json': json.dumps([item['total'] for item in genero_data_normalized]),
         'faixa_etaria_data_json': json.dumps(faixa_etaria_data),
-        'total_membros_dashboard': total_membros_dashboard,
-        'novos_membros_30_dias': novos_membros_30_dias,     # Card 2
-        'aniversariantes_mes_atual_count': aniversariantes_mes_atual_count, # Card 3
-        'media_idade_membros': media_idade_membros,         # Card 4
+        'faixa_labels_json': json.dumps([item['faixa_etaria'] for item in faixa_etaria_data]),
+        'faixa_values_json': json.dumps([item['total'] for item in faixa_etaria_data]),
+        'novos_membros_30_dias': novos_membros_30_dias,
+        'aniversariantes_mes_atual_count': aniversariantes_mes_atual_count,
+        'media_idade_membros': media_idade_membros,
         'ministerio': ministerio,
         'aniversariantes_proximos': aniversariantes_proximos,
-        'titulo_pagina': titulo_contextual_dashboard,
-        'igreja_ativa_atual': request.igreja_ativa
-
+        'titulo_pagina': titulo_contextual,
+        'igreja_ativa_atual': request.igreja_ativa,
+        'total_membros_ativos': membros_para_relatorios.count(),
+        'novos_membros_ultimo_mes': novos_membros_30_dias,
+        'total_pendencias_cadastro': total_pendencias_cadastro,
+        'total_contas_vencidas': total_contas_vencidas,
+        'valor_total_contas_vencidas': valor_total_contas_vencidas,
+        'assinatura_alerta': assinatura_alerta,
+        # Gráficos de evolução (garante que *_json estão presentes)
+        'evolucao_meses_labels_json': json.dumps(meses_labels),
+        'evolucao_membros_json': json.dumps(evolucao_por_tipo['Membro']),
+        'evolucao_congregados_json': json.dumps(evolucao_por_tipo['Congregado']),
+        'evolucao_novos_convertidos_json': json.dumps(evolucao_por_tipo['Novo Convertido']),
+        'evolucao_visitantes_json': json.dumps(evolucao_por_tipo['Visitante']),
+        # Pie chart
+        'pie_labels_json': json.dumps(pie_labels),
+        'pie_values_json': json.dumps(pie_values),
+        # Categoria evento
+        'categoria_evento_labels_json': json.dumps(categoria_labels),
+        'categoria_evento_values_json': json.dumps(categoria_values),
+        # --- Cards adicionais ---
+        'total_membros': total_membros,
+        'total_visitantes': total_visitantes,
+        'total_cargos': total_cargos,
+        'total_grupos_casa': total_grupos_casa,
+        'total_relatorios': total_relatorios,
+        'total_acompanhamentos': total_acompanhamentos,
+        'total_tags': total_tags,
+        'total_associacoes': total_associacoes,
     }
-    return render(request, 'dashboard.html', context)
+    # Removido bloco de debug dos dados JSON do dashboard
+    return render(request, 'secretaria/dashboard.html', context)
 
 
 @login_required
@@ -2982,6 +3149,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
         total_membros_rede = Membro.objects.filter(
             igreja__in=churches_for_queries, 
             # status__considerar_ativo_relatorios=True # Lógica antiga
+           
             status_pessoa__considerar_ativo_relatorios=True # Nova lógica
         ).count()
 
@@ -3027,7 +3195,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
         faixas_lider = {
             '0-5 anos': 0, '6-10 anos': 0, '11-14 anos': 0, '15-17 anos': 0,
             '18-30 anos': 0, '31-50 anos': 0, '51-65 anos': 0, 'Mais de 65 anos': 0,
-            'Não Informado': membros_lideranca_ativos.filter(nascimento__isnull=True).count()
+            'Não Informado': membros_lideranca_ativos.filter(nascimento__isnull=True).count() # Contar quem não tem nascimento
         }
         for idade_val_lid in idades_lider:
             if 0 <= idade_val_lid <= 5: faixas_lider['0-5 anos'] += 1
@@ -3068,7 +3236,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
             'grafico_membros_genero_valores_json': json.dumps(grafico_membros_genero_valores),
             'grafico_membros_faixa_labels_json': json.dumps(grafico_membros_faixa_labels),
             'grafico_membros_faixa_valores_json': json.dumps(grafico_membros_faixa_valores),
-             'grafico_membros_tipo_labels_json': json.dumps(grafico_membros_tipo_labels), # Novo
+            'grafico_membros_tipo_labels_json': json.dumps(grafico_membros_tipo_labels), # Novo
             'grafico_membros_tipo_valores_json': json.dumps(grafico_membros_tipo_valores), # Novo
             'grafico_membros_status_geral_labels_json': json.dumps(grafico_membros_status_geral_labels), # Novo
             'grafico_membros_status_geral_valores_json': json.dumps(grafico_membros_status_geral_valores), # Novo
@@ -3110,7 +3278,7 @@ def adicionar_historico_status_manual(request, membro_id=None): # noqa: E302
                 historico.registrado_por = request.user
                 historico.save()
                 messages.success(request, f"Entrada de histórico manual adicionada para {historico.membro.nome}.")
-                # Redireciona para a página de edição do membro, na aba de histórico
+                # Redireciona para a página de edição do membro, na aba correta
                 return redirect(reverse('secretaria:editar_membro', args=[historico.membro.pk]) + '?tab=historico-status')
             except Exception as e:
                 logger.error(f"Erro ao salvar histórico manual para ministério {ministerio.id}: {e}")

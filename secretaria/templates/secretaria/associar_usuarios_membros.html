@@ -17,6 +17,13 @@
 {% block conteudo_principal %}
             <div style="height:16px;"></div>
             <form method="get" action="" class="row g-3 mb-3 align-items-center">
+                                <div class="col-lg-2 col-6">
+                                    <select name="tipo_pessoa" class="form-select form-select-sm">
+                                        <option value="">Todos os Tipos</option>
+                                        <option value="Membro" {% if request.GET.tipo_pessoa == 'Membro' %}selected{% endif %}>Apenas Membro</option>
+                                        <option value="Obreiro" {% if request.GET.tipo_pessoa == 'Obreiro' %}selected{% endif %}>Apenas Obreiro</option>
+                                    </select>
+                                </div>
                 <style>
                 .card { border-radius: 0 !important; }
                 </style>
@@ -33,6 +40,13 @@
                         <option value="0" {% if request.GET.tem_sugestao == '0' %}selected{% endif %}>Sem sugestão</option>
                     </select>
                 </div>
+                <div class="col-lg-2 col-6">
+                    <select name="status_associacao" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="associado" {% if request.GET.status_associacao == 'associado' %}selected{% endif %}>Apenas Associados</option>
+                        <option value="nao_associado" {% if request.GET.status_associacao == 'nao_associado' %}selected{% endif %}>Apenas Não Associados</option>
+                    </select>
+                </div>
                 <div class="col-lg-4 col-12 d-flex align-items-center gap-2">
                     <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
                     <a href="?" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
@@ -45,18 +59,26 @@
                     <thead class="table-light">
                         <tr>
                             <th>Nome do Membro</th>
+                            <th>Status de Associação</th>
                             <th>Usuário Sugerido</th>
                             <th>Selecione o Usuário</th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for form in forms_list %}
+                        {% with membro=page_obj.object_list|get_item:forloop.counter0 %}
                         <tr>
                             <td>
-                                {% with membro=membros_sem_usuario|get_item:forloop.counter0 %}
-                                    <strong>{{ membro }}</strong><br>
-                                    <small>{% if membro.email %}{{ membro.email }}{% else %}<span class="text-muted">Sem e-mail</span>{% endif %}</small>
-                                {% endwith %}
+                                <strong>{{ membro }}</strong><br>
+                                <small>{% if membro.email %}{{ membro.email }}{% else %}<span class="text-muted">Sem e-mail</span>{% endif %}</small>
+                            </td>
+                            <td>
+                                {% if membro.usuario %}
+                                    <span class="badge bg-primary">Associado</span><br>
+                                    <span style="font-size:0.95em;">{{ membro.usuario.get_full_name|default:membro.usuario.username }} ({{ membro.usuario.email }})</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Não associado</span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% with sugestao_id=sugestoes|get_item:form.fields.membro_id.initial %}
@@ -73,10 +95,18 @@
                                 {% endwith %}
                             </td>
                             <td>
-                                {{ form.usuario|add_class:'form-control form-control-sm' }}
-                                {{ form.membro_id }}
+                                <select name="usuario_{{ membro.pk }}" class="form-control form-control-sm usuario-autocomplete" data-sugestao="{% if sugestoes|get_item:membro.pk %}1{% else %}0{% endif %}">
+                                    <option value="">Selecione o usuário</option>
+                                    {% for user in form.fields.usuario.queryset %}
+                                        <option value="{{ user.pk }}" {% if form.fields.usuario.initial == user.pk %}selected{% endif %}>
+                                            {{ user.get_full_name|default:user.username }} ({{ user.email }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="membro_id_{{ membro.pk }}" value="{{ membro.pk }}">
                             </td>
                         </tr>
+                        {% endwith %}
                     {% empty %}
                         <tr><td colspan="3">Todos os membros já estão vinculados a usuários.</td></tr>
                     {% endfor %}
@@ -85,11 +115,12 @@
             </div>
             {% if forms_list %}
             <div class="alert alert-vibrant mt-3" style="background: linear-gradient(90deg,#e0f7fa,#fffde4); border-radius: 8px; border: 1px solid #b2ebf2; color: #333;">
-                <strong>Confirmação:</strong> Revise as associações antes de salvar. Usuários sugeridos são destacados, mas você pode alterar a seleção.
+                <strong>Confirmação:</strong> Revise as associações antes de salvar. Usuários sugeridos são destacados, mas você pode alterar a seleção.<br>
+                <span class="text-success"><i class="fas fa-check-circle"></i> Associações salvas mostrarão este ícone!</span>
             </div>
             <button type="submit" class="btn btn-vibrant-blue"><i class="fas fa-save me-1"></i> Salvar Associações</button>
             {% endif %}
-            <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-cancel ms-2">Voltar</a>
+            <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-cancel ms-2">Voltar</a>
             </form>
             {% if page_obj.has_other_pages %}
             <nav aria-label="Paginação de membros" class="mt-4">

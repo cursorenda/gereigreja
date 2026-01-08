@@ -114,3 +114,26 @@ Solicito que o(s) revisor(es) confirmem:
 - Que nenhum id DOM ou value/option relevante foi alterado acidentalmente.
 
 Obrigado — posso ajustar a branch (reverter `templates/menu.html`) antes de abrir o PR se você pedir.
+
+# PR: v1.0.4 — Melhorias Gerais e Correções
+
+Branch: `release/v1.0.4`
+
+## Resumo
+Este PR entrega uma nova versão com foco em melhorias de usabilidade, responsividade e correções de bugs:
+
+- Dashboard da Secretaria agora é totalmente responsivo, com gráficos dinâmicos e layout adaptável (flexbox, media queries)
+- Campo "igreja" no formulário de pessoa agora é preenchido automaticamente e tratado corretamente
+- Botões de ação aparecem apenas na aba correta na edição de pessoa
+- Página de associação de usuários corrigida e aprimorada (erros resolvidos, usabilidade melhor)
+- Remoção de arquivos temporários/desatualizados de templates
+- Pequenas melhorias em JS e templates
+
+## Commits relevantes
+- Ajustes em dashboard.html, secretaria_dashboard_graficos.js, editar_membro.html, associar_usuarios_membros.html
+- Limpeza de arquivos temporários
+
+## Como testar
+- Acesse o dashboard da secretaria em diferentes tamanhos de tela
+- Edite uma pessoa e verifique o preenchimento do campo igreja e a visibilidade dos botões
+- Teste a associação de usuários a pessoas
