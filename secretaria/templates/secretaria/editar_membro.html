@@ -43,7 +43,7 @@
             <div class="tab-content" id="membroTabContent">
                 <!-- INÍCIO ABA: Dados Cadastrais -->
                 <div class="tab-pane fade show active" id="dados-cadastrais" role="tabpanel" aria-labelledby="dados-cadastrais-tab">
-                       <div style="color: red; font-weight: bold;">DEBUG: Renderizando aba Dados Cadastrais</div>
+                       
                     <form method="POST" action="{% url 'secretaria:editar_membro' membro_id=membro_id %}" enctype="multipart/form-data">
                         {% csrf_token %}
                         {% include "partials/_form_errors.html" with form=form %}
