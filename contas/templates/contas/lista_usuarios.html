@@ -17,6 +17,26 @@
 
 
 
+    <!-- Filtros e busca -->
+    <form method="get" class="row g-3 mb-3 align-items-center">
+        <div class="col-lg-3 col-12">
+            <input type="text" name="nome" class="form-control form-control-sm" placeholder="Nome" value="{{ request.GET.nome|default:'' }}">
+        </div>
+        <div class="col-lg-3 col-12">
+            <input type="text" name="email" class="form-control form-control-sm" placeholder="E-mail" value="{{ request.GET.email|default:'' }}">
+        </div>
+        <div class="col-lg-2 col-6">
+            <select name="status" class="form-select form-select-sm">
+                <option value="">Todos os Status</option>
+                <option value="ativo" {% if request.GET.status == 'ativo' %}selected{% endif %}>Ativo</option>
+                <option value="inativo" {% if request.GET.status == 'inativo' %}selected{% endif %}>Inativo</option>
+            </select>
+        </div>
+        <div class="col-lg-2 col-6 d-flex align-items-center gap-2">
+            <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i> Buscar</button>
+            <a href="?" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i> Limpar</a>
+        </div>
+    </form>
     {# --- CARD USUÁRIOS EXISTENTES --- #}
     <div class="card mb-4">
         <div class="card-header">
@@ -195,10 +215,13 @@
                                     <span class="badge bg-warning text-dark">{{ convite.get_status_display }}</span>
                                 </td>
                                 <td>
-                                    {# Botão Reenviar (ainda desabilitado) #}
-                                    <button class="btn btn-info btn-sm disabled" title="Reenviar Convite (Breve)">
-                                        <i class="fas fa-redo"></i> <span class="badge bg-secondary ms-1">Breve</span>
-                                    </button>
+                                    {# Botão funcional para reenviar convite #}
+                                    <form action="{% url 'contas:reenviar_convite' convite.pk %}" method="post" class="d-inline-block ms-1" onsubmit="return confirm('Deseja reenviar o convite para {{ convite.email_convidado }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-info btn-sm" title="Reenviar Convite">
+                                            <i class="fas fa-redo"></i> Reenviar
+                                        </button>
+                                    </form>
                                 
                                     {# --- FORMULÁRIO PARA CANCELAR CONVITE --- #}
                                     <form action="{% url 'contas:cancelar_convite' convite.pk %}" method="post" class="d-inline-block ms-1" onsubmit="return confirm('Tem certeza que deseja cancelar este convite para {{ convite.email_convidado }}? Esta ação não pode ser desfeita.');">

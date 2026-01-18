@@ -1,37 +1,125 @@
-from django.http import HttpResponseRedirect
-# Redirecionamento de /membros/ para /pessoas/
-def redirect_pessoas(request):
-    return HttpResponseRedirect('/sistema/pessoas/')
-from core.decorators import verificar_assinatura_valida
-from .forms import MembroForm
-from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag, GrupoCasa
+
+
+# --- IMPORTS ORDENADOS E OTIMIZADOS (PEP8) ---
+# Built-in
+import json
 import logging
+import os
+import shutil
+import zipfile
 from datetime import date, datetime, timedelta
-import os, shutil, json
-from django.views.decorators.http import require_GET, require_POST
-from django.http import JsonResponse, HttpResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Q, Count, Sum, Case, When, Value, BooleanField
+
+# Django core
+from django import forms
 from django.conf import settings
-from django.db import models, close_old_connections
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db import models, close_old_connections, transaction
+from django.db.models import (Q, Count, Sum, Case, When, Value, BooleanField)
+from django.db.models.functions import Extract
+from django.http import (Http404, HttpResponse, HttpResponseRedirect, JsonResponse)
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.crypto import get_random_string
+from django.views.decorators.http import require_GET, require_POST
+
+# Third-party/local apps
+from core.decorators import check_permission, verificar_assinatura_valida
+from core.utils import get_ministerio_or_error
+from eventos.models import Evento
+from financeiro.models import Receitas
+from secretaria.utils import (
+    get_allowed_churches_for_membros, is_admin_org, has_membro_edit_permission,
+    has_membro_view_permission, is_secretaria_leader
+)
+from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
+
+# Secretaria app forms/models
+from .forms import (
+    AssociarUsuarioMembroForm, CargoForm, GerenciarOcupantesForm, MembroForm,
+    MembroUserManagementForm, StatusHistoricoManualForm, TagForm
+)
+from .forms_acompanhamento import AcompanhamentoVisitaForm
+from .forms_grupocasa import GrupoCasaForm
+from .forms_presenca_visitante_evento import PresencaVisitanteEventoForm
+from .models import (
+    AcompanhamentoVisita, Cargo, GrupoCasa, Membro, MembroCargo, PresencaVisitanteEvento,
+    StatusHistorico, StatusPessoa, Tag, TimelineEvent, TipoPessoa
+)
+
+# --- FIM DOS IMPORTS ---
+
+## --- END OF IMPORTS ---
+
+
+# --- REDIRECIONAMENTO DE USUÁRIOS ---
+def redirect_pessoas(request):
+    """
+    Redireciona a URL /membros/ para /pessoas/.
+    Usado para manter compatibilidade de rotas antigas.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP recebida.
+    Retorno:
+        HttpResponseRedirect: Redirecionamento para a nova rota.
+    """
+    return HttpResponseRedirect('/sistema/pessoas/')
+
+
+
+# --- VIEW: Desvincular usuário de membro ---
+@require_POST
+@login_required
+def desvincular_usuario_membro(request):
+    """
+    Desvincula o usuário do membro informado (via AJAX).
+    Parâmetros:
+        request (HttpRequest): Deve conter 'membro_id' no POST.
+    Retorno:
+        JsonResponse: Sucesso ou erro, com mensagem apropriada.
+    Regras de negócio:
+        - Só desvincula se o membro realmente possuir usuário vinculado.
+        - Retorna erro se o membro não existir ou não possuir usuário.
+    """
+    membro_id = request.POST.get('membro_id')
+    if not membro_id:
+        return JsonResponse({'success': False, 'msg': 'ID do membro não informado.'}, status=400)
+    try:
+        membro = Membro.objects.get(pk=membro_id)
+        if not membro.usuario:
+            return JsonResponse({'success': False, 'msg': 'Este membro não possui usuário vinculado.'}, status=400)
+        membro.usuario = None
+        membro.save()
+        return JsonResponse({'success': True, 'msg': 'Usuário desvinculado com sucesso.'})
+    except Membro.DoesNotExist:
+        return JsonResponse({'success': False, 'msg': 'Membro não encontrado.'}, status=404)
+
+
 
 # --- ETAPAS DO CADASTRO PROGRESSIVO ---
 @login_required
 def pre_cadastro(request):
     """
     Etapa 1: Pré-cadastro - coleta dados básicos e tipo de pessoa.
+    - Exibe formulário para preenchimento inicial de dados do membro.
+    - Seleciona igreja inicial com base no contexto do usuário.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+    Retorno:
+        HttpResponse: Renderiza o template de pré-cadastro.
+    Regras de negócio:
+        - Só permite igrejas permitidas ao usuário.
+        - Redireciona para etapa detalhada após sucesso.
     """
-    import logging
     logger = logging.getLogger("django")
     from financeiro.utils import get_allowed_churches_for_user
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_inicial_para_form = None
-    # Sempre pega a igreja do seletor global
+    # Sempre pega a igreja do seletor global, se disponível
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
         igreja_inicial_para_form = request.igreja_ativa
     else:
@@ -47,10 +135,20 @@ def pre_cadastro(request):
         form = MembroForm(igreja_inicial=igreja_inicial_para_form, allowed_churches=allowed_churches, user=request.user)
     return render(request, 'secretaria/pre_cadastro.html', {'form': form, 'igreja_selecionada': igreja_inicial_para_form})
 
+
 @login_required
 def cadastro_detalhado(request, pessoa_id):
     """
     Etapa 2: Cadastro detalhado - coleta dados adicionais conforme tipo de pessoa.
+    - Exibe formulário para preenchimento de dados complementares do membro.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+        pessoa_id (int): ID do membro a ser detalhado.
+    Retorno:
+        HttpResponse: Renderiza o template de cadastro detalhado.
+    Regras de negócio:
+        - Só permite editar membros permitidos ao usuário.
+        - Redireciona para etapa complementar após sucesso.
     """
     pessoa = get_object_or_404(Membro, pk=pessoa_id)
     allowed_churches = get_allowed_churches_for_membros(request.user)
@@ -65,10 +163,20 @@ def cadastro_detalhado(request, pessoa_id):
         form = MembroForm(instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
     return render(request, 'secretaria/cadastro_detalhado.html', {'form': form, 'pessoa': pessoa})
 
+
 @login_required
 def cadastro_complementar(request, pessoa_id):
     """
     Etapa 3: Cadastro complementar - histórico, tags, acompanhamento, etc.
+    - Exibe formulário para preenchimento de dados complementares finais do membro.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+        pessoa_id (int): ID do membro a ser complementado.
+    Retorno:
+        HttpResponse: Renderiza o template de cadastro complementar.
+    Regras de negócio:
+        - Só permite editar membros permitidos ao usuário.
+        - Redireciona para lista de membros após sucesso.
     """
     pessoa = get_object_or_404(Membro, pk=pessoa_id)
     allowed_churches = get_allowed_churches_for_membros(request.user)
@@ -83,16 +191,36 @@ def cadastro_complementar(request, pessoa_id):
         form = MembroForm(instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
     return render(request, 'secretaria/cadastro_complementar.html', {'form': form, 'pessoa': pessoa})
 
+
 # --- VIEWS DE AÇÕES RÁPIDAS DE ACOMPANHAMENTO ---
 @login_required
 def ver_acompanhamento_visita(request, acompanhamento_id):
+    """
+    Exibe os detalhes de um acompanhamento de visita.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+        acompanhamento_id (int): ID do acompanhamento a ser exibido.
+    Retorno:
+        HttpResponse: Renderiza o template de visualização do acompanhamento.
+    """
     acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
     return render(request, 'secretaria/ver_acompanhamento_visita.html', {'acompanhamento': acompanhamento})
 
+
 @login_required
 def editar_acompanhamento_visita(request, acompanhamento_id):
+    """
+    Permite editar um acompanhamento de visita existente.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+        acompanhamento_id (int): ID do acompanhamento a ser editado.
+    Retorno:
+        HttpResponse: Renderiza o template de edição do acompanhamento.
+    Regras de negócio:
+        - Só permite editar acompanhamentos existentes.
+        - Redireciona para lista após salvar.
+    """
     acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
-    from .forms_acompanhamento import AcompanhamentoVisitaForm
     if request.method == 'POST':
         form = AcompanhamentoVisitaForm(request.POST, instance=acompanhamento)
         if form.is_valid():
@@ -102,8 +230,20 @@ def editar_acompanhamento_visita(request, acompanhamento_id):
         form = AcompanhamentoVisitaForm(instance=acompanhamento)
     return render(request, 'secretaria/editar_acompanhamento_visita.html', {'form': form, 'acompanhamento': acompanhamento})
 
+
 @login_required
 def excluir_acompanhamento_visita(request, acompanhamento_id):
+    """
+    Exclui um acompanhamento de visita.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+        acompanhamento_id (int): ID do acompanhamento a ser excluído.
+    Retorno:
+        HttpResponse: Renderiza o template de confirmação ou redireciona após exclusão.
+    Regras de negócio:
+        - Só permite excluir acompanhamentos existentes.
+        - Redireciona para lista após exclusão.
+    """
     acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
     if request.method == 'POST':
         acompanhamento.delete()
@@ -126,24 +266,23 @@ def escolher_pessoa_para_acompanhamento(request):
         'tipos': tipos,
     }
     return render(request, 'secretaria/escolher_pessoa_para_acompanhamento.html', context)
-from .models import AcompanhamentoVisita, Membro, TipoPessoa, Tag, GrupoCasa
-import logging
-from datetime import date, datetime, timedelta
-import os, shutil, json
-from django.views.decorators.http import require_GET, require_POST
-from django.http import JsonResponse, HttpResponse, Http404
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Q, Count, Sum, Case, When, Value, BooleanField
-from django.conf import settings
-from django.db import models, close_old_connections
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth import get_user_model
-from django.urls import reverse
+
+
 
 # --- VIEW PARA EDITAR TAG ---
 @login_required
 def editar_tag(request, tag_id):
+    """
+    Permite editar uma tag existente.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+        tag_id (int): ID da tag a ser editada.
+    Retorno:
+        HttpResponse: Renderiza o template de edição da tag.
+    Regras de negócio:
+        - Apenas usuários staff podem editar tags.
+        - Redireciona para criação de tag após salvar.
+    """
     tag = get_object_or_404(Tag, pk=tag_id)
     if not request.user.is_staff:
         return redirect('login')
@@ -157,9 +296,21 @@ def editar_tag(request, tag_id):
         form = TagForm(instance=tag)
     return render(request, 'secretaria/editar_tag.html', {'form': form, 'tag': tag})
 
+
 # --- VIEW PARA EXCLUIR TAG ---
 @login_required
 def excluir_tag(request, tag_id):
+    """
+    Exclui uma tag existente.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP.
+        tag_id (int): ID da tag a ser excluída.
+    Retorno:
+        HttpResponse: Renderiza o template de confirmação ou redireciona após exclusão.
+    Regras de negócio:
+        - Apenas usuários staff podem excluir tags (pode ser expandido).
+        - Redireciona para criação de tag após exclusão.
+    """
     tag = get_object_or_404(Tag, pk=tag_id)
     if not request.user.is_staff:
         return redirect('login')
@@ -168,13 +319,24 @@ def excluir_tag(request, tag_id):
         messages.success(request, 'Tag excluída com sucesso!')
         return redirect('secretaria:criar_tag')
     return render(request, 'secretaria/excluir_tag.html', {'tag': tag})
-from django.template.loader import render_to_string
+
+
 
 
 @login_required
 @verificar_assinatura_valida
 def lista_acompanhamentos_visita(request):
-    """Listagem geral de acompanhamentos de visita com filtros padrão."""
+    """
+    Listagem geral de acompanhamentos de visita com filtros padrão.
+    Parâmetros:
+        request (HttpRequest): Requisição HTTP, pode conter filtros GET ('nome', 'tipo_pessoa', 'tipo_contato', 'data_ini', 'data_fim', 'igreja').
+    Retorno:
+        HttpResponse: Renderiza o template de listagem de acompanhamentos de visita.
+    Regras de negócio:
+        - Permite filtrar por nome, tipo de pessoa, tipo de contato, datas e igreja.
+        - Usa select_related para otimizar queries e evitar N+1.
+        - Ordena por data decrescente.
+    """
     qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel', 'membro__tipo_pessoa').all()
     tipos = TipoPessoa.objects.all().order_by('nome')
     nome = request.GET.get('nome', '').strip()
@@ -183,6 +345,7 @@ def lista_acompanhamentos_visita(request):
     data_ini = request.GET.get('data_ini')
     data_fim = request.GET.get('data_fim')
     igreja_id = request.GET.get('igreja')
+    # Filtros dinâmicos
     if nome:
         qs = qs.filter(membro__nome__icontains=nome)
     if tipo_pessoa_id:
@@ -229,7 +392,7 @@ def autocomplete_nome(request):
     results = []
     if q and len(q) >= 1:
         # import here to avoid top-level import cycles
-        from .models import Membro
+        # from .models import Membro  # Already imported at top if needed
         membros = Membro.objects.filter(nome__istartswith=q).order_by('nome')[:10]
         for m in membros:
             results.append({
@@ -239,8 +402,7 @@ def autocomplete_nome(request):
             })
     return JsonResponse({'results': results})
 # --- LISTA DE VISITANTES (usando membros com tipo_pessoa=Visitante) ---
-from django.views.decorators.http import require_POST
-from .models import Membro, TipoPessoa
+
 @login_required
 def lista_visitantes(request):
     query = request.GET.get('q', '').strip()
@@ -250,8 +412,8 @@ def lista_visitantes(request):
     # Aplicar escopo de igreja/ministerio similar ao usado em `lista_membros`.
     # Sem esse escopo, visitantes registrados em outras igrejas (ex.: testes) aparecem para todos os usuários.
     try:
-        from secretaria.utils import get_allowed_churches_for_membros, is_admin_org
-        from core.utils import get_ministerio_or_error
+        # from secretaria.utils import get_allowed_churches_for_membros, is_admin_org  # Already imported at top if needed
+        # from core.utils import get_ministerio_or_error  # Already imported at top if needed
         ministerio = get_ministerio_or_error(request)
         allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
         if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
@@ -277,7 +439,7 @@ def lista_visitantes(request):
         visitantes = visitantes.filter(status_acompanhamento=status)
 
     # Paginação
-    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
     page = request.GET.get('page', 1)
     paginator = Paginator(visitantes, 20)  # 20 visitantes por página
     try:
@@ -300,9 +462,7 @@ def lista_visitantes(request):
         'page_obj': visitantes_page,
     }
     return render(request, 'secretaria/lista_visitantes.html', context)
-from django.http import JsonResponse
-from django.db import models
-from django.db import close_old_connections
+
 # --- VIEW AJAX: BUSCAR VISITANTES POR NOME OU APELIDO ---
 def buscar_visitantes(request):
     termo = request.GET.get('q', '').strip()
@@ -312,8 +472,6 @@ def buscar_visitantes(request):
         pass
     # Busca ignorando acentuação (PostgreSQL: unaccent)
     import unicodedata
-    from .models import Membro
-    from eventos.models import Evento
     def remover_acentos(txt):
         return unicodedata.normalize('NFKD', txt).encode('ASCII', 'ignore').decode('ASCII') if txt else ''
 
@@ -338,8 +496,8 @@ def buscar_visitantes(request):
                 membros = Membro.objects.all()
                 # pula a lógica de allowed_churches
                 raise StopIteration
-            from secretaria.utils import get_allowed_churches_for_membros, is_admin_org
-            from core.utils import get_ministerio_or_error
+            # from secretaria.utils import get_allowed_churches_for_membros, is_admin_org  # Already imported at top if needed
+            # from core.utils import get_ministerio_or_error  # Already imported at top if needed
             ministerio = get_ministerio_or_error(request)
             allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
 
@@ -465,8 +623,8 @@ def registrar_presenca_visitante_evento(request):
     eventos_do_dia = Evento.objects.none()
     # Preparar contexto de igreja/ministerio similar a outras views: suportar igreja_ativa, allowed_churches ou admin do ministério
     try:
-        from secretaria.utils import get_allowed_churches_for_membros, is_admin_org
-        from core.utils import get_ministerio_or_error
+        # from secretaria.utils import get_allowed_churches_for_membros, is_admin_org  # Already imported at top if needed
+        # from core.utils import get_ministerio_or_error  # Already imported at top if needed
         ministerio = get_ministerio_or_error(request)
         allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     except Exception:
@@ -768,9 +926,7 @@ def ajax_registrar_presenca_evento(request):
             return JsonResponse({'error': str(e), 'trace_id': trace_id}, status=500)
         except Exception:
             return JsonResponse({'error': 'Erro interno', 'trace_id': trace_id}, status=500)
-from .forms_acompanhamento import AcompanhamentoVisitaForm
-from .forms import AssociarUsuarioMembroForm
-from .forms_grupocasa import GrupoCasaForm
+## Imports above
 
 
 @login_required
@@ -803,105 +959,18 @@ def registrar_acompanhamento_visita(request, membro_id):
 @login_required
 @user_passes_test(is_admin_or_pastor)
 @verificar_assinatura_valida
-def associar_usuarios_membros(request):
-    membros_queryset = Membro.objects.none()
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        tipo_pessoa = request.GET.get('tipo_pessoa', '')
-        tipos_validos = ['Membro', 'Obreiro']
-        if tipo_pessoa in tipos_validos:
-            membros_queryset = Membro.objects.filter(
-                igreja=request.igreja_ativa,
-                tipo_pessoa__nome=tipo_pessoa
-            )
-        else:
-            membros_queryset = Membro.objects.filter(
-                igreja=request.igreja_ativa,
-                tipo_pessoa__nome__in=tipos_validos
-            )
-        # Filtro por status de associação
-        status_associacao = request.GET.get('status_associacao', '')
-        if status_associacao == 'associado':
-            membros_queryset = membros_queryset.filter(usuario__isnull=False)
-        elif status_associacao == 'nao_associado':
-            membros_queryset = membros_queryset.filter(usuario__isnull=True)
-        membros_queryset = membros_queryset.order_by('nome')
-
-    # Paginação
-    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-    page = request.GET.get('page', 1)
-    paginator = Paginator(membros_queryset, 15)  # 15 membros por página
-    try:
-        membros_page = paginator.page(page)
-    except PageNotAnInteger:
-        membros_page = paginator.page(1)
-    except EmptyPage:
-        membros_page = paginator.page(paginator.num_pages)
-    User = get_user_model()
-    sugestoes = {}
-    resultados = []  # Para feedback por linha
-    if request.method == 'POST':
-        alterados = 0
-        for membro in membros_page:
-            usuario_id = request.POST.get(f"usuario_{membro.pk}")
-            if usuario_id:
-                try:
-                    usuario = User.objects.get(pk=usuario_id)
-                    if membro.usuario != usuario:
-                        membro.usuario = usuario
-                        membro.save()
-                        resultados.append((membro, 'ok', f"Associado a {usuario.get_full_name() or usuario.username}"))
-                        alterados += 1
-                    else:
-                        resultados.append((membro, 'info', "Já estava associado"))
-                except User.DoesNotExist:
-                    resultados.append((membro, 'erro', "Usuário não encontrado"))
-            else:
-                resultados.append((membro, 'info', "Nenhum usuário selecionado"))
-        if alterados:
-            messages.success(request, f"{alterados} associação(ões) salva(s) com sucesso! <i class='fas fa-check-circle text-success'></i>")
-        else:
-            messages.info(request, "Nenhuma alteração realizada.")
-        # Passa resultados para template para feedback por linha
-        context = {
-            'membros_page': membros_page,
-            'resultados': resultados,
-            'paginator': paginator,
-            'page_obj': membros_page,
-        }
-        return render(request, 'secretaria/associar_usuarios_membros.html', context)
-    # GET: monta selects e sugestões normalmente
-    forms_list = []
-    for membro in membros_page:
-        form = AssociarUsuarioMembroForm(membro=membro)
-        sugestao_id = form.fields['sugestao_usuario_id'].initial
-        sugestoes[membro.pk] = int(sugestao_id) if sugestao_id else None
-        forms_list.append(form)
-    context = {
-        'membros_page': membros_page,
-        'forms_list': forms_list,
-        'sugestoes': sugestoes,
-        'paginator': paginator,
-        'page_obj': membros_page,
-    }
-    return render(request, 'secretaria/associar_usuarios_membros.html', context)
 
 
-from django.http import HttpResponse, JsonResponse, Http404
-from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q, Sum, Case, When, Value, BooleanField
-from django.db.models.functions import Extract
-from django.utils.crypto import get_random_string
-import zipfile
-from django import forms
+## Imports above
 
 # Gerenciar ocupantes do cargo
 
-from .forms import GerenciarOcupantesForm, CargoForm
+## Imports above
 
 
 
 # --- NOVA VIEW: Gerenciar Ocupantes (usando novos modelos) ---
-from .models import Cargo, MembroCargo
+## Imports above
 
 @login_required
 @user_passes_test(is_admin_or_pastor)
@@ -915,13 +984,13 @@ def gerenciar_ocupantes(request, cargo_id):
             ids = [int(i) for i in ocupantes_ids.split(',') if i.isdigit()]
             novos_ocupantes = Membro.objects.filter(chave__in=ids)
         else:
-            from django.db.models import Q
+            # from django.db.models import Q  # Already imported at top if needed
             membros_lista = Membro.objects.filter(
                 Q(igreja=request.igreja_ativa) & (Q(tipo_pessoa__nome='Membro') | Q(tipo_pessoa__nome='Obreiro'))
             ).order_by('nome')
         # Adiciona novos ocupantes (evita duplicidade)
             # Paginação
-            from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+            # from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger  # Already imported at top if needed
             page = request.GET.get('page', 1)
             paginator = Paginator(membros_lista, 15)  # 15 membros por página
             try:
@@ -998,7 +1067,7 @@ def editar_cargo(request, cargo_id):
 
 @verificar_assinatura_valida
 def lista_cargos(request):
-    from django.contrib import messages
+    # from django.contrib import messages  # Already imported at top if needed
     cargos = Cargo.objects.all().prefetch_related('membrocargo_set__membro', 'grupo_permissao')
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
         # Filtra ocupantes dos cargos pela igreja ativa
@@ -1018,22 +1087,19 @@ def lista_cargos(request):
     }
     return render(request, 'secretaria/lista_cargos.html', context)
 # --- LINHA DO TEMPO DOS MEMBROS ---
-from .models import TimelineEvent
+## Imports above
 
 
 # Apenas para administradores/pastores (ajuste conforme seu sistema de permissões)
 
 # --- IMPORTS PADRÃO PYTHON ---
-import os
-from datetime import date, datetime
-import json
+## Imports above
 
 # --- IMPORTS DJANGO ---
-from django.http import JsonResponse, Http404
+## Imports above
 
 # --- OUTROS IMPORTS DO PROJETO ---
-from .models import TimelineEvent, Membro, TipoPessoa, StatusPessoa, StatusHistorico
-from .forms import MembroForm, MembroUserManagementForm, StatusHistoricoManualForm
+## Imports above
 
 # Helper: instantiate MembroForm safely when some versions of the class do not accept
 # extra kwargs like ministerio/user/allowed_churches/igreja_inicial. This tries
@@ -1094,11 +1160,11 @@ def safe_instantiate_membroform(*args, **kwargs):
         except Exception:
             pass
         return inst
-from django.urls import reverse
+## Imports above
 # --- VIEW PARA CADASTRAR VISITANTE (cria membro com tipo_pessoa=Visitante) ---
 @login_required
 def cadastrar_visitante(request):
-    from .models import TipoPessoa
+    # from .models import TipoPessoa  # Already imported at top if needed
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     igreja_inicial_para_form = None
@@ -1124,7 +1190,7 @@ def cadastrar_visitante(request):
                 visitante = form.save(commit=False)
                 visitante.tipo_pessoa = tipo_visitante
                 # Definir status_pessoa como 'Ativo' automaticamente
-                from .models import StatusPessoa
+                # from .models import StatusPessoa  # Already imported at top if needed
                 try:
                     status_ativo = StatusPessoa.objects.get(nome__iexact='Ativo')
                     visitante.status_pessoa = status_ativo
@@ -1216,7 +1282,7 @@ def criar_visitante_parcial(request):
 
         # Escolher um status padrão (preferir 'Ativo' se existir, senão o primeiro disponível)
         try:
-            from .models import StatusPessoa
+            # from .models import StatusPessoa  # Already imported at top if needed
             default_status = StatusPessoa.objects.filter(nome__iexact='Ativo').first() or StatusPessoa.objects.first()
         except Exception:
             default_status = None
@@ -1340,8 +1406,8 @@ def criar_visitante_parcial(request):
             if auto_submit_flag and evento_id_for_auto:
                 try:
                     # reuse logic similar to ajax_registrar_presenca_evento to create presence
-                    from .models import PresencaVisitanteEvento
-                    from eventos.models import ParticipacaoEvento, EventoSessao, Evento
+
+                    from eventos.models import ParticipacaoEvento, EventoSessao
                     from django.utils import timezone as _tz
 
                     evento_obj = Evento.objects.get(pk=evento_id_for_auto)

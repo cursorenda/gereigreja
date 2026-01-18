@@ -1,3 +1,4 @@
+    # ...existing code...
 # c:\Gereigreja\contas\urls.py
 from django.urls import path, reverse_lazy
 from django.contrib.auth import views as auth_views
@@ -75,6 +76,7 @@ urlpatterns = [
     # Usa <uuid:token> para capturar o token UUID da URL
     path('aceitar/<uuid:token>/', views.aceitar_convite, name='aceitar_convite'),
     path('convites/<int:pk>/cancelar/', views.cancelar_convite, name='cancelar_convite'),
+    path('convite/<int:pk>/reenviar/', views.reenviar_convite, name='reenviar_convite'),
     
     # --- URL PARA EDITAR PAPÉIS/GRUPOS DE UM USUÁRIO (NOVA) ---
     # Usa <int:user_pk> para capturar a chave primária do User

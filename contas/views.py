@@ -1,5 +1,8 @@
+from configuracao.signals import garantir_perfilusuario
 # c:\Gereigreja\contas\views.py
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db import models
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.forms import SetPasswordForm
@@ -33,7 +36,55 @@ from .forms import (
     EditarPapeisUsuarioForm
 )
 from core.decorators import verificar_assinatura_valida # Ou o caminho correto
+
 from core.utils import get_ministerio_or_error # Importar de core.utils
+
+# --- VIEW REENVIAR CONVITE ---
+@login_required
+def reenviar_convite(request, pk):
+    """Reenvia o e-mail de convite para um usuário pendente."""
+    try:
+        ministerio = get_ministerio_or_error(request)
+    except (PermissionDenied, Http404):
+        return redirect('login')
+    if not request.user.groups.filter(name='Admin Ministerio').exists():
+        messages.error(request, "Você não tem permissão para gerenciar usuários.")
+        return redirect('secretaria:index')
+    convite = get_object_or_404(
+        Convite,
+        pk=pk,
+        ministerio=ministerio,
+        status='pendente'
+    )
+    if request.method == 'POST':
+        current_site = get_current_site(request)
+        subject = f"Convite para se juntar à ministério {ministerio.nome_fantasia}"
+        accept_url = request.build_absolute_uri(
+            reverse('contas:aceitar_convite', kwargs={'token': convite.token})
+        )
+        message_html = render_to_string('contas/email/convite_email.html', {
+            'ministerio': ministerio,
+            'remetente': request.user,
+            'accept_url': accept_url,
+            'site_name': current_site.name,
+            'protocol': 'https' if request.is_secure() else 'http',
+            'domain': current_site.domain,
+        })
+        try:
+            send_mail(
+                subject,
+                message_html,
+                settings.DEFAULT_FROM_EMAIL,
+                [convite.email_convidado],
+                html_message=message_html
+            )
+            messages.success(request, f"Convite reenviado com sucesso para {convite.email_convidado}!")
+        except Exception as mail_error:
+            logger.error(f"Erro ao reenviar email de convite para {convite.email_convidado}: {mail_error}")
+            messages.warning(request, f"Houve um erro ao reenviar o e-mail. Token para teste manual: {convite.token}")
+        return redirect('contas:lista_usuarios')
+    else:
+        return redirect('contas:lista_usuarios')
 
 @login_required
 @verificar_assinatura_valida # Nosso novo decorator
@@ -165,7 +216,23 @@ def lista_usuarios_org(request):
     # --- FIM DA VERIFICAÇÃO ---
     usuarios_org = User.objects.filter(
         perfil__ministerio=ministerio
-    ).select_related('perfil').prefetch_related('groups').order_by('first_name', 'last_name')
+    ).select_related('perfil').prefetch_related('groups')
+
+    # Filtros de busca
+    nome = request.GET.get('nome', '').strip()
+    email = request.GET.get('email', '').strip()
+    status = request.GET.get('status', '').strip()
+    if nome:
+        usuarios_org = usuarios_org.filter(
+            models.Q(first_name__icontains=nome) | models.Q(last_name__icontains=nome) | models.Q(username__icontains=nome)
+        )
+    if email:
+        usuarios_org = usuarios_org.filter(email__icontains=email)
+    if status == 'ativo':
+        usuarios_org = usuarios_org.filter(is_active=True)
+    elif status == 'inativo':
+        usuarios_org = usuarios_org.filter(is_active=False)
+    usuarios_org = usuarios_org.order_by('first_name', 'last_name')
     convites_pendentes = Convite.objects.filter(
         ministerio=ministerio,
         status='pendente'
@@ -264,21 +331,8 @@ def aceitar_convite(request, token):
         if request.user.email.lower() == convite.email_convidado.lower():
             try:
                 with transaction.atomic():
-                    # PerfilUsuario será criado automaticamente pelo signal
-                    # perfil, criado = PerfilUsuario.objects.get_or_create(
-                    #     user=request.user,
-                    #     defaults={'ministerio': convite.ministerio}
-                    # )
-                    # if not criado and perfil.ministerio != convite.ministerio:
-                    #     ministerio_anterior_nome = perfil.ministerio.nome_fantasia if perfil.ministerio else "uma ministério anterior"
-                    #     perfil.ministerio = convite.ministerio
-                    #     perfil.save()
-                    #     messages.warning(
-                    #         request,
-                    #         f"Seu acesso foi atualizado para a ministério '{convite.ministerio.nome_fantasia}'. "
-                    #         f"Você não terá mais acesso direto aos dados de '{ministerio_anterior_nome}' com esta conta."
-                    #     )
-
+                    # Garante/atualiza o PerfilUsuario para o ministério correto
+                    garantir_perfilusuario(request.user, convite.ministerio)
                     convite.status = 'aceito'
                     convite.data_aceite = timezone.now()
                     convite.save()
@@ -321,11 +375,8 @@ def aceitar_convite(request, token):
                             last_name=ultimo_nome,
                             is_active=True
                         )
-                        # PerfilUsuario será criado automaticamente pelo signal
-                        # PerfilUsuario.objects.create(
-                        #     user=novo_usuario,
-                        #     ministerio=convite.ministerio
-                        # )
+                        # Garante/atualiza o PerfilUsuario para o ministério correto
+                        garantir_perfilusuario(novo_usuario, convite.ministerio)
                         convite.status = 'aceito'
                         convite.data_aceite = timezone.now()
                         convite.save()

@@ -87,7 +87,15 @@ def departamento_edit(request, pk):
 def chamada_presenca(request, turma_id):
     turma = get_object_or_404(Turma, pk=turma_id)
     alunos = turma.alunos.filter(ativo=True).order_by('nome')
-    data = request.GET.get('data') or timezone.now().date().isoformat()
+    print(f"DEBUG: Turma {turma.id} - Alunos ativos encontrados: {alunos.count()}")
+    data = request.POST.get('data') or request.GET.get('data') or timezone.now().date().isoformat()
+    if not alunos.exists():
+        messages.warning(request, 'Não há alunos ativos nesta turma para realizar a chamada de presença.')
+        return render(request, 'escola_biblica/chamada_presenca.html', {
+            'turma': turma,
+            'formset': None,
+            'data': data,
+        })
     if request.method == 'POST':
         formset = ChamadaPresencaFormSet(request.POST)
         if formset.is_valid():
@@ -101,6 +109,8 @@ def chamada_presenca(request, turma_id):
                 )
             messages.success(request, f'Chamada de presença registrada para {turma} em {data}.')
             return redirect('escola_biblica:turma_list')
+        else:
+            messages.error(request, 'Erro ao registrar chamada de presença. Verifique os dados e tente novamente.')
     else:
         initial = [
             {

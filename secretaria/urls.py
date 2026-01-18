@@ -1,4 +1,3 @@
-from .views import associar_usuarios_membros
 from django.urls import path
 from . import views
 from .views_test_tag import test_tag_form_view
@@ -47,7 +46,6 @@ urlpatterns = [
     path('cargos/<int:cargo_id>/editar/', views.editar_cargo, name='editar_cargo'),
     path('cargos/<int:cargo_id>/excluir/', views.excluir_cargo, name='excluir_cargo'),
     path('cargos/<int:cargo_id>/ocupantes/', views.gerenciar_ocupantes, name='gerenciar_ocupantes'),
-    path('associar-usuarios-membros/', associar_usuarios_membros, name='associar_usuarios_membros'),
     # --- URL para registrar acompanhamento de visita ---
     path('pessoas/<int:membro_id>/acompanhamento-visita/', views.registrar_acompanhamento_visita, name='registrar_acompanhamento_visita'),
     # --- VISITANTES (removido: agora visitante é membro com tipo_pessoa=Visitante) ---
@@ -72,5 +70,6 @@ urlpatterns = [
     path('tags/<int:tag_id>/excluir/', views.excluir_tag, name='excluir_tag'),
     # URL de teste para o formulário de tags
     path('test-tag-form/', test_tag_form_view, name='test_tag_form'),
+    path('ajax/desvincular_usuario_membro/', views.desvincular_usuario_membro, name='desvincular_usuario_membro'),
 
 ]

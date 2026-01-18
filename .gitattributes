@@ -1,3 +1,12 @@
-*.txt text eol=lf
-*.js text eol=lf
-*.css text eol=lf
+# Padroniza finais de linha para LF em todos os arquivos de texto
+* text=auto eol=lf
+
+# Arquivos binários não devem ser convertidos
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.dump binary
