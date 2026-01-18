@@ -2,6 +2,7 @@
 {% load static %}
 {% load financeiro_tags %}
 {% load grupo_tags %}
+{% load versao %}
 
 
 <html lang="pt-BR"> {# Alterado para pt-BR #}
@@ -300,7 +301,8 @@
             </main>
             <footer class="py-4 bg-light mt-auto w-100" style="width:100%;">
                 <div class="d-flex flex-column flex-md-row align-items-center justify-content-center small w-100" style="text-align: center; gap: 1.5rem;">
-                    <div class="text-muted mb-1 mb-md-0" style="margin-right: 1.5rem;">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %} &nbsp;|&nbsp; Versão v1.0.3</div>
+                    {% get_versao_gereigreja as versao_sistema %}
+                    <div class="text-muted mb-1 mb-md-0" style="margin-right: 1.5rem;">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %} &nbsp;|&nbsp; Versão {{ versao_sistema }}</div>
                     <div style="margin-left: 1.5rem;">
                         <a href="{% url 'politica_privacidade' %}" style="margin-right: 0.75rem;">Política de Privacidade</a>
                         <span style="margin: 0 0.5rem;">&middot;</span>

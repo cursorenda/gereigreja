@@ -1,4 +1,14 @@
 # Changelog
+# Changelog
+
+## v1.0.5 — 17/01/2026
+ - Modernização e correção do fluxo de chamada de presença da EBD, com mensagens globais e feedbacks claros.
+ - Unificação da página de associação de usuários com a página de usuários, simplificando a gestão.
+ - Melhorias no dashboard da secretaria para visualização e navegação.
+ - Ajustes e melhorias em templates de dashboards e menus.
+ - Remoção de bugs e aprimoramento do tratamento de erros em formulários.
+ - Refatoração de views e templates para maior clareza e usabilidade.
+ - Outras pequenas melhorias visuais e funcionais em diversos módulos.
 
 ## v1.0.4 — 08/01/2026
 - Dashboard totalmente responsivo, com gráficos dinâmicos e layout adaptável (flexbox, media queries)

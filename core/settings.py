@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'eventos',
     'suporte',
     'escola_biblica',
+    'core',
     'storages',
     'cloudinary',
     'cloudinary_storage',

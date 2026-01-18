@@ -1,3 +1,40 @@
+#
+# Exibição automática da versão do sistema
+
+O sistema exibe automaticamente a versão atual (e data) em todos os rodapés e pode exibir também no admin, lendo o número da versão do arquivo `CHANGELOG.md`.
+
+## Como funciona
+- O arquivo `core/templatetags/versao.py` define uma template tag chamada `get_versao_gereigreja`.
+- Essa tag lê a primeira linha de versão do `CHANGELOG.md` (ex: `## v1.0.5 — 17/01/2026`).
+- O valor é cacheado em memória para performance.
+- Se não conseguir ler, exibe "Versão não disponível".
+
+## Como usar
+- No template base, use:
+  ```django
+  {% load versao %}
+  {% get_versao_gereigreja as versao_sistema %}
+  Versão {{ versao_sistema }}
+  ```
+- Para exibir no admin, veja instrução abaixo.
+
+## Exibir versão no admin
+Adicione o seguinte em `core/admin.py`:
+```python
+from django.contrib import admin
+from django.utils.html import format_html
+from core.templatetags.versao import get_versao_gereigreja
+
+admin.site.site_header = f"Gereigreja — Versão {get_versao_gereigreja()}"
+admin.site.site_title = f"Gereigreja — Versão {get_versao_gereigreja()}"
+admin.site.index_title = format_html("<span style='font-size:1.1em'>Bem-vindo ao Gereigreja<br>Versão {}</span>", get_versao_gereigreja())
+```
+Assim, a versão aparecerá no topo e título do admin.
+
+## Observações
+- O padrão pode ser usado para outros metadados globais (build, ambiente, etc).
+- Se mudar o local do `CHANGELOG.md`, ajuste o caminho na tag.
+
 # Organização do fluxo de Visitas e Visitantes
 
 ## Visitas (Acompanhamento de Visitas)
