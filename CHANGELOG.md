@@ -1,3 +1,7 @@
+#
+## v1.0.6 — 17/01/2026
+- Exibição automática da versão e data do sistema no rodapé e no admin, com leitura do CHANGELOG.md, cache e mensagem amigável.
+
 # Changelog
 # Changelog
 
