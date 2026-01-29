@@ -1,9 +1,19 @@
 #
-## v1.0.6 — 17/01/2026
-- Exibição automática da versão e data do sistema no rodapé e no admin, com leitura do CHANGELOG.md, cache e mensagem amigável.
+## v1.0.7 — 28/01/2026
+- Melhorias completas no gerenciamento de cargos e ocupantes: botão "Finalizar vínculo" (mantém histórico), histórico de ocupantes visível, filtro de membros/obreiros ativos.
+- Padronização dos templates de cadastro/edição de membro usando partial reutilizável, com comentários explicativos e ação dinâmica.
+- Nova aba de histórico de cargos na edição de membro.
+- Scripts de auditoria e correção adicionados em /scripts (auditoria de vínculos, correção de cargos, criação automática de membros, etc).
+- Novos templates para Escola Bíblica: wizard de geração de lições, banner de período/trimestre, seleção para copiar dados do período anterior.
+- Novas migrations aplicadas (configuração EBD, escola bíblica, secretaria).
+- Ajustes de responsividade e largura máxima nas telas de cargos.
+- Versionamento e registro deste deploy no backup_log.txt.
 
 # Changelog
 # Changelog
+
+## v1.0.6 — 17/01/2026
+- Exibição automática da versão e data do sistema no rodapé e no admin, com leitura do CHANGELOG.md, cache e mensagem amigável.
 
 ## v1.0.5 — 17/01/2026
  - Modernização e correção do fluxo de chamada de presença da EBD, com mensagens globais e feedbacks claros.
