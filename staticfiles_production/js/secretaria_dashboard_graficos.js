@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico de Linha: Evolução de Pessoas (12 meses)
     const ctxEvolucao = document.getElementById('evolucaoMembrosChart');
     if (ctxEvolucao) {
+        console.log('evolucao-meses-labels', getJsonData('evolucao-meses-labels'));
+        console.log('evolucao-membros', getJsonData('evolucao-membros'));
+        console.log('evolucao-congregados', getJsonData('evolucao-congregados'));
+        console.log('evolucao-novos-convertidos', getJsonData('evolucao-novos-convertidos'));
+        console.log('evolucao-visitantes', getJsonData('evolucao-visitantes'));
         new Chart(ctxEvolucao.getContext('2d'), {
             type: 'line',
             data: {
@@ -69,6 +74,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico de Pizza: Distribuição de Pessoas por Tipo
     const ctxPie = document.getElementById('grafico2');
     if (ctxPie) {
+        console.log('pie-labels-data', getJsonData('pie-labels-data'));
+        console.log('pie-values-data', getJsonData('pie-values-data'));
         new Chart(ctxPie.getContext('2d'), {
             type: 'pie',
             data: {
@@ -93,6 +100,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico de Barras: Pessoas por Status
     const ctxStatus = document.getElementById('statusChart');
     if (ctxStatus) {
+        console.log('status-labels-data', getJsonData('status-labels-data'));
+        console.log('status-values-data', getJsonData('status-values-data'));
         new Chart(ctxStatus.getContext('2d'), {
             type: 'bar',
             data: {
@@ -109,7 +118,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     legend: { display: false },
                     title: { display: false }
                 },
-                scales: { y: { beginAtZero: true } }
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                            // Chart.js irá calcular o melhor stepSize automaticamente
+                        }
+                    }
             }
         });
     }
@@ -117,6 +131,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico de Barras: Pessoas por Gênero
     const ctxGenero = document.getElementById('generoChart');
     if (ctxGenero) {
+        console.log('genero-labels-data', getJsonData('genero-labels-data'));
+        console.log('genero-values-data', getJsonData('genero-values-data'));
         new Chart(ctxGenero.getContext('2d'), {
             type: 'bar',
             data: {
@@ -141,6 +157,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico de Barras: Pessoas por Faixa Etária
     const ctxFaixa = document.getElementById('faixaEtariaChart');
     if (ctxFaixa) {
+        console.log('faixa-labels-data', getJsonData('faixa-labels-data'));
+        console.log('faixa-values-data', getJsonData('faixa-values-data'));
         new Chart(ctxFaixa.getContext('2d'), {
             type: 'bar',
             data: {
@@ -165,6 +183,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gráfico de Barras: Participação por Categoria de Evento
     const ctxCategoria = document.getElementById('categoriaEventoChart');
     if (ctxCategoria) {
+        console.log('categoria-evento-labels-data', getJsonData('categoria-evento-labels-data'));
+        console.log('categoria-evento-values-data', getJsonData('categoria-evento-values-data'));
         new Chart(ctxCategoria.getContext('2d'), {
             type: 'bar',
             data: {
