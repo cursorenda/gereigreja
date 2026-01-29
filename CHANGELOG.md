@@ -1,3 +1,9 @@
+## v1.0.8 — 29/01/2026
+- Deploy completo e reinicialização do ciclo de versionamento.
+- Correção de erro de template (NoReverseMatch) na tela de confirmação de troca de senha.
+- Atualização de arquivos estáticos e templates.
+- Registro de backup e versionamento em backup_log.txt.
+
 #
 ## v1.0.7 — 28/01/2026
 - Melhorias completas no gerenciamento de cargos e ocupantes: botão "Finalizar vínculo" (mantém histórico), histórico de ocupantes visível, filtro de membros/obreiros ativos.
