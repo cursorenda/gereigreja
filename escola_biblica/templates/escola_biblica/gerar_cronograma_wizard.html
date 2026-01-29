@@ -1,0 +1,168 @@
+{% extends 'base_com_menu.html' %}
+
+{% block content %}
+<div class="container-fluid px-4 mt-3">
+    <h2 class="mb-0">Gerar Lições em Lote</h2>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Gerar Lições (Wizard)</li>
+    </ol>
+
+    <div class="card mb-4 shadow-sm" style="border:1.5px solid #ced4da; border-radius:12px; background:#f8f9fa;">
+        <div class="card-header d-flex align-items-center" style="background:#f8f9fa; border-radius:12px 12px 0 0; min-height:40px; border-bottom:1.5px solid #dee2e6;">
+            <i class="fas fa-calendar-plus me-2 text-secondary" style="font-size:1rem;"></i>
+            <span style="font-size:1.1rem; font-weight:600;">Wizard de Geração de Lições</span>
+        </div>
+        <div class="card-body pt-4 bg-white" style="border-radius:0 0 12px 12px;">
+            <!-- Etapa 1: Seleção -->
+            {% if etapa == 1 %}
+            <form method="post">
+                                                <input type="hidden" name="etapa" value="2">
+                                {% if erro_wizard %}
+                                <div class="alert alert-danger">{{ erro_wizard }}</div>
+                                {% endif %}
+                {% csrf_token %}
+                <h5>1. Selecione Ano, Período e Turmas</h5>
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="id_ano_letivo" class="form-label">Ano Letivo</label>
+                        <select name="ano_letivo" id="id_ano_letivo" class="form-select" required>
+                            {% for ano in anos_letivos %}
+                            <option value="{{ ano.ano }}" {% if ano.ano == ano_letivo_selecionado %}selected{% endif %}>{{ ano.ano }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="id_periodo" class="form-label">Período</label>
+                        <select name="periodo" id="id_periodo" class="form-select" required>
+                            {% for periodo in periodos %}
+                            <option value="{{ periodo.numero }}">{{ periodo.get_tipo_display }} {{ periodo.numero }} ({{ periodo.data_inicio|date:'d/m/Y' }} - {{ periodo.data_fim|date:'d/m/Y' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_turmas" class="form-label">Turmas</label>
+                        <select name="turmas" id="id_turmas" class="form-select" multiple required>
+                            {% for turma in turmas %}
+                            <option value="{{ turma.id }}">{{ turma.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Segure Ctrl (ou Cmd) para selecionar várias turmas.</small>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button type="submit" name="wizard_next" value="1" class="btn btn-vibrant-green">Próximo &rarr;</button>
+                </div>
+            </form>
+            {% endif %}
+
+            <!-- Etapa 2: Configuração -->
+            {% if etapa == 2 %}
+            <form method="post">
+                {% csrf_token %}
+                <h5>2. Configuração das Lições</h5>
+                <input type="hidden" name="ano_letivo" value="{{ ano_letivo }}">
+                <input type="hidden" name="periodo" value="{{ periodo }}">
+                {% for turma_id in turmas %}
+                <input type="hidden" name="turmas" value="{{ turma_id }}">
+                {% endfor %}
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="id_material" class="form-label">Material</label>
+                        <input type="text" name="material" id="id_material" class="form-control" value="{{ material|default:'' }}" placeholder="Ex: Revista CPAD, Apostila Jovens, Bíblia, etc.">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="id_horario" class="form-label">Horário</label>
+                        <input type="time" name="horario" id="id_horario" class="form-control" value="{{ horario|default:'' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="id_status" class="form-label">Status</label>
+                        <select name="status" id="id_status" class="form-select">
+                            <option value="ativa" {% if status == 'ativa' %}selected{% endif %}>Ativa</option>
+                            <option value="rascunho" {% if status == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="id_nome_licao_padrao" class="form-label">Padrão do Nome da Lição</label>
+                        <input type="text" name="nome_licao_padrao" id="id_nome_licao_padrao" class="form-control" value="{{ nome_licao_padrao|default:'Lição {n} - {periodo}' }}">
+                        <small class="text-muted">Use <b>{n}</b> para o número da lição e <b>{periodo}</b> para o nome do período.</small>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="id_observacoes" class="form-label">Observações</label>
+                    <textarea name="observacoes" id="id_observacoes" class="form-control" rows="2">{{ observacoes|default:'' }}</textarea>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button type="submit" name="wizard_back" value="2" class="btn btn-vibrant">&larr; Voltar</button>
+                    <button type="submit" name="wizard_next" value="2" class="btn btn-vibrant-green">Próximo &rarr;</button>
+                </div>
+            </form>
+            {% endif %}
+
+            <!-- Etapa 3: Pré-visualização -->
+            {% if etapa == 3 %}
+            <form method="post">
+                <input type="hidden" name="etapa" value="3">
+                <input type="hidden" name="ano_letivo" value="{{ ano_letivo }}">
+                <input type="hidden" name="periodo" value="{{ periodo }}">
+                {% for turma_id in turmas %}
+                <input type="hidden" name="turmas" value="{{ turma_id }}">
+                {% endfor %}
+                <input type="hidden" name="material" value="{{ material }}">
+                <input type="hidden" name="horario" value="{{ horario }}">
+                <input type="hidden" name="status" value="{{ status }}">
+                <input type="hidden" name="observacoes" value="{{ observacoes }}">
+                <input type="hidden" name="nome_licao_padrao" value="{{ nome_licao_padrao }}">
+                {% csrf_token %}
+                <h5>3. Pré-visualização das Lições</h5>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th>Turma</th>
+                                <th>Data</th>
+                                <th>Tema</th>
+                                <th>Professor</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for licao in licoes_preview %}
+                            <tr>
+                                <td>{{ licao.turma_nome }}</td>
+                                <td>{{ licao.data|date:'d/m/Y' }}</td>
+                                <td>{{ licao.tema }}</td>
+                                <td>{{ licao.professor }}</td>
+                                <td>{{ licao.status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button type="submit" name="wizard_back" value="3" class="btn btn-vibrant">&larr; Voltar</button>
+                    <button type="submit" name="wizard_confirm" value="3" class="btn btn-vibrant-green">Confirmar e Gerar</button>
+                </div>
+            </form>
+            {% endif %}
+
+            <!-- Etapa 4: Resultado -->
+            {% if etapa == 4 %}
+            <script>
+                setTimeout(function() {
+                    window.location.href = "{% url 'escola_biblica:licao_list' %}";
+                }, 4000);
+            </script>
+            <div class="alert alert-success">
+                <strong>{{ resultado_msg }}</strong><br>
+                Você será redirecionado para a lista de lições em instantes...
+            </div>
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'escola_biblica:gerar_cronograma' %}" class="btn btn-vibrant">Nova Geração</a>
+                <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-vibrant-green ms-2">Ver Lições</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

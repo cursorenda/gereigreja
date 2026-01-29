@@ -74,19 +74,23 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var turmaSelect = document.getElementById('id_turma');
-    var professorInput = document.getElementById('id_professor');
+    var professorSelect = document.getElementById('id_professor');
     function fetchProfessor(turmaId) {
-        if (!turmaId) {
-            professorInput.value = '';
-            return;
-        }
+        if (!turmaId || !professorSelect) return;
         fetch('/escola_biblica/get_professor/?turma_id=' + turmaId)
             .then(response => response.json())
             .then(data => {
-                professorInput.value = data.professor || '';
+                var profName = data.professor || '';
+                // Tenta selecionar a opção do select que corresponde ao nome retornado
+                for (var i = 0; i < professorSelect.options.length; i++) {
+                    if (professorSelect.options[i].text.trim() === profName.trim()) {
+                        professorSelect.selectedIndex = i;
+                        break;
+                    }
+                }
             });
     }
-    if (turmaSelect && professorInput) {
+    if (turmaSelect && professorSelect) {
         turmaSelect.addEventListener('change', function() {
             fetchProfessor(turmaSelect.value);
         });

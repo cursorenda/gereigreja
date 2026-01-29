@@ -1,65 +1,136 @@
+{# Template base com menu lateral/topo #}
 {% extends 'base_com_menu.html' %}
+
 {% block content %}
-<h1>Gerenciar Ocupantes do Cargo: {{ cargo.nome }}</h1>
-<form method="post" id="ocupantes-form">
-    {% csrf_token %}
-    <div class="mb-3">
-        <label for="id_membro" class="form-label">Adicionar membro ao cargo:</label>
-        <select id="id_membro" class="form-select">
-            <option value="">Selecione um membro</option>
-            {% for membro in membros %}
-                <option value="{{ membro.chave }}">{{ membro.nome }}</option>
-            {% endfor %}
-        </select>
-        <button type="button" class="btn btn-primary mt-2" id="btn-adicionar">Adicionar</button>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Ocupantes atuais:</label>
-        <ul id="ocupantes-lista" class="list-group mb-2">
-            <!-- Ocupantes serão inseridos aqui via JS -->
-        </ul>
-    </div>
-    <input type="hidden" name="ocupantes" id="id_ocupantes_hidden">
-    <button type="submit" class="btn btn-success">Salvar Ocupantes</button>
-    <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Voltar</a>
-</form>
+<div style="max-width: 1320px; margin: 0 auto; padding: 0 2vw;">
+    {# Título e breadcrumb de navegação #}
+    <h1 class="mt-3 mb-2">Gerenciar Ocupantes do Cargo: {{ cargo.nome }}</h1>
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_cargos' %}">Lista de Cargos</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Gerenciar Ocupantes</li>
+        </ol>
+    </nav>
+
+    {# Formulário principal para adicionar/remover ocupantes #}
+    <form method="post" id="ocupantes-form">
+        {% csrf_token %}
+        {# Bloco para adicionar novo membro ao cargo #}
+        <div class="mb-3">
+            <label for="id_membro" class="form-label">Adicionar membro ao cargo:</label>
+            <div class="d-flex align-items-center gap-2" style="max-width: 500px;">
+                <select id="id_membro" class="form-select" style="min-width: 0; width: 70%; max-width: 350px;">
+                    <option value="">Selecione um membro</option>
+                    {% for membro in membros %}
+                        <option value="{{ membro.chave }}">{{ membro.nome }}</option>
+                    {% endfor %}
+                </select>
+                <button type="button" class="btn btn-primary" id="btn-adicionar">Adicionar</button>
+            </div>
+        </div>
+
+
+        {# Lista dos ocupantes atuais do cargo (preenchida dinamicamente via JS) #}
+        <div class="mb-3">
+            <label class="form-label">Ocupantes atuais:</label>
+            <ul id="ocupantes-lista" class="list-group mb-2">
+                <!-- Ocupantes serão inseridos aqui via JS -->
+            </ul>
+        </div>
+
+        {# Separador visual entre ocupantes e histórico #}
+        <hr class="my-4" style="border-top: 2px solid #bbb; opacity: 0.7;">
+
+        {# Tabela de histórico de ocupantes do cargo #}
+        <div class="mb-4 p-3" style="background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+            <label class="form-label fw-bold" style="font-size: 1.13rem; color: #495057;">Histórico de ocupantes deste cargo:</label>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome</th>
+                            <th>Início</th>
+                            <th>Saída</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if historico_ocupantes and historico_ocupantes|length > 0 %}
+                            {% for vinculo in historico_ocupantes %}
+                                <tr>
+                                    <td>{{ vinculo.membro.nome }}</td>
+                                    <td>{{ vinculo.data_inicio|date:'d/m/Y' }}</td>
+                                    <td>{{ vinculo.data_fim|date:'d/m/Y' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">Não há histórico de ocupantes para este cargo.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# Campo oculto para enviar ocupantes selecionados ao backend #}
+        <input type="hidden" name="ocupantes" id="id_ocupantes_hidden">
+
+        {# Botões de ação do formulário #}
+        <button type="submit" class="btn btn-success">Salvar Ocupantes</button>
+        <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Voltar</a>
+    </form>
+</div>
+
+{# Script JS para manipular a lista de ocupantes (adicionar/remover) #}
 <script>
     // Lista inicial de ocupantes vindos do backend
-    let ocupantes = {{ ocupantes_iniciais|safe }};
+    let ocupantes = {{ ocupantes_iniciais|safe }}.map(String);
     let membros = {};
+    // Mapeia os membros para uso rápido no JS
     {% for membro in membros %}
-        membros["{{ membro.chave }}"] = "{{ membro.nome|escapejs }}";
+        membros["{{ membro.chave|stringformat:'s' }}"] = "{{ membro.nome|escapejs }}";
     {% endfor %}
 
+    // Renderiza a lista de ocupantes atuais na tela
     function renderOcupantes() {
         const ul = document.getElementById('ocupantes-lista');
         ul.innerHTML = '';
         ocupantes.forEach(function(id) {
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.textContent = membros[id];
+            li.textContent = membros[id] || id;
+            // Botão para finalizar vínculo
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn btn-danger btn-sm';
-            btn.textContent = 'Remover';
+            btn.className = 'btn btn-warning btn-sm';
+            btn.textContent = 'Finalizar vínculo';
+            btn.title = 'Finaliza o vínculo deste membro com o cargo (mantém no histórico)';
             btn.onclick = function() {
-                ocupantes = ocupantes.filter(x => x !== id);
-                renderOcupantes();
+                if (confirm('Tem certeza que deseja finalizar o vínculo deste membro com o cargo? Isso não apaga o histórico.')) {
+                    ocupantes = ocupantes.filter(x => x !== id);
+                    renderOcupantes();
+                }
             };
             li.appendChild(btn);
             ul.appendChild(li);
         });
+        // Atualiza campo oculto com ocupantes atuais
         document.getElementById('id_ocupantes_hidden').value = ocupantes.join(',');
     }
+
+    // Adiciona novo ocupante ao cargo
     document.getElementById('btn-adicionar').onclick = function() {
         const select = document.getElementById('id_membro');
-        const id = parseInt(select.value);
+        const id = select.value;
         if (id && !ocupantes.includes(id)) {
             ocupantes.push(id);
             renderOcupantes();
         }
         select.value = '';
     };
+
+    // Inicializa a lista ao carregar a página
     renderOcupantes();
 </script>
 {% endblock %}

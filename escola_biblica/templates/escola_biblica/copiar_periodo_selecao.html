@@ -1,0 +1,58 @@
+{% extends 'base_com_sistema.html' %}
+{% block title %}Copiar Dados do Período Anterior{% endblock %}
+{% block conteudo_principal %}
+<div class="container py-4">
+    <h2 class="mb-4">Copiar dados do período anterior</h2>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="ano_destino" value="{{ ano_destino }}">
+        <div class="mb-4">
+            <h4>Turmas do período anterior</h4>
+            {% if turmas %}
+                <div class="list-group mb-2">
+                    {% for turma in turmas %}
+                        <label class="list-group-item">
+                            <input type="checkbox" name="turmas_selecionadas" value="{{ turma.id }}" checked>
+                            {{ turma.nome }} ({{ turma.classe.nome }})
+                        </label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning">Nenhuma turma encontrada no período anterior.</div>
+            {% endif %}
+        </div>
+        <div class="mb-4">
+            <h4>Classes do período anterior</h4>
+            {% if classes %}
+                <div class="list-group mb-2">
+                    {% for classe in classes %}
+                        <label class="list-group-item">
+                            <input type="checkbox" name="classes_selecionadas" value="{{ classe.id }}" checked>
+                            {{ classe.nome }} ({{ classe.departamento }})
+                        </label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning">Nenhuma classe encontrada no período anterior.</div>
+            {% endif %}
+        </div>
+        <div class="mb-4">
+            <h4>Alunos do período anterior</h4>
+            {% if alunos %}
+                <div class="list-group mb-2" style="max-height:300px; overflow-y:auto;">
+                    {% for aluno in alunos %}
+                        <label class="list-group-item">
+                            <input type="checkbox" name="alunos_selecionados" value="{{ aluno.id }}" checked>
+                            {{ aluno.nome }} (Turma: {{ aluno.turma.nome }})
+                        </label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning">Nenhum aluno encontrado no período anterior.</div>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-vibrant-green">Copiar Selecionados</button>
+        <a href="{% url 'escola_biblica:turma_list' %}" class="btn btn-secondary ms-2">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

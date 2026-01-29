@@ -1,99 +1,220 @@
 {% extends 'base_com_menu.html' %}
-{% load static %} {# <<< ADICIONE ESTA LINHA #}
+{% load static %}
 
 {% block title %}{{ titulo_pagina }} - {{ block.super }}{% endblock %}
 
 {% block content %}
-    <div class="container mt-5">
+            {% if turmas_aluno %}
+            <div class="card border-info mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-user-graduate me-2"></i>Painel do Aluno EBD</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Turmas em que está matriculado:</strong>
+                        <ul class="mb-1">
+                            {% for turma in turmas_aluno %}
+                                <li>{{ turma.nome }}{% if turma.get_professor_nome %} <span class="text-muted small">(Professor: {{ turma.get_professor_nome }})</span>{% endif %}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Próximas Aulas:</strong>
+                        {% if proximas_licoes_aluno %}
+                            <ul class="mb-1">
+                                {% for licao in proximas_licoes_aluno %}
+                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Nenhuma aula agendada.</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Frequência:</strong>
+                        {% if frequencia_aluno %}
+                            <span class="badge bg-success">{{ frequencia_aluno.percentual|floatformat:1 }}% de presença</span>
+                            <span class="text-muted small">({{ frequencia_aluno.presentes }}/{{ frequencia_aluno.total }} aulas)</span>
+                        {% else %}
+                            <span class="text-muted">Sem dados de frequência.</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <strong>Histórico de Aulas Assistidas:</strong>
+                        {% if historico_licoes_aluno %}
+                            <ul class="mb-1" style="max-height: 180px; overflow-y: auto;">
+                                {% for licao in historico_licoes_aluno %}
+                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Nenhuma aula registrada.</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">{{ titulo_pagina }}</h4>
-                    {# --- BOTÃO EDITAR PERFIL --- #}
+        <div class="col-12">
+            <div class="card shadow-lg border-0 mb-4">
+                <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+                    <h3 class="mb-0"><i class="fas fa-user-circle me-2"></i>{{ titulo_pagina }}</h3>
                     <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-light btn-sm">
                         <i class="fas fa-edit me-1"></i> Editar Perfil
                     </a>
-                    {# --- FIM BOTÃO EDITAR PERFIL --- #}
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 text-center">
-                            {# --- FOTO DO PERFIL --- #}
+                    <div class="row align-items-center mb-4">
+                        <div class="col-md-4 text-center mb-3 mb-md-0">
                             {% if perfil_usuario.foto_perfil %}
-                                <img src="{{ perfil_usuario.foto_perfil.url }}" alt="Foto de Perfil de {{ usuario.get_full_name|default:usuario.username }}" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                                <img src="{{ perfil_usuario.foto_perfil.url }}" alt="Foto de Perfil de {{ usuario.get_full_name|default:usuario.username }}" class="img-fluid rounded-circle shadow" style="width: 160px; height: 160px; object-fit: cover; border: 4px solid #e9ecef;">
                             {% else %}
-                                {# Placeholder se não houver foto #}
-                                <img src="{% static 'img/default_avatar.png' %}" alt="Sem Foto de Perfil" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                                <img src="{% static 'img/default_avatar.png' %}" alt="Sem Foto de Perfil" class="img-fluid rounded-circle shadow" style="width: 160px; height: 160px; object-fit: cover; border: 4px solid #e9ecef;">
                             {% endif %}
-                            {# Link para editar (será implementado depois) #}
-                            {# <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-sm btn-outline-secondary">Editar Foto</a> #}
                         </div>
                         <div class="col-md-8">
-                            {# --- INFORMAÇÕES BÁSICAS DO USUÁRIO --- #}
-                            <h5>Informações da Conta</h5>
-                            <p><strong>Nome Completo:</strong> {{ usuario.get_full_name|default:"Não informado" }}</p>
-                            <p><strong>Nome de Usuário:</strong> {{ usuario.username }}</p>
-                            <p><strong>Email:</strong> {{ usuario.email }}</p>
-                            <p><strong>Membro desde:</strong> {{ usuario.date_joined|date:"d/m/Y" }}</p>
-                             {# --- NOVOS CAMPOS DE CONTATO --- #}
-                            <p><strong>Telefone:</strong> {{ perfil_usuario.telefone_contato|default:"Não informado" }}</p>
-                            <p><strong>WhatsApp:</strong> {{ perfil_usuario.whatsapp_contato|default:"Não informado" }}</p>
-                            {# --- FIM NOVOS CAMPOS DE CONTATO --- #}
-
-                            <p><strong>Último Login:</strong> {{ usuario.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</p>
-                            
-                            {# Link para alterar senha (já existe no menu, mas pode estar aqui também) #}
-                            <a href="{% url 'contas:password_change' %}" class="btn btn-sm btn-outline-secondary mb-3">Alterar Senha</a>
-
-                            <hr>
-
-                            {# --- INFORMAÇÕES DA MINISTÉRIO E PERFIL --- #}
-                            <h5>Informações da Ministério</h5>
-                            <p><strong>Ministério:</strong> {{ perfil_usuario.ministerio.nome_fantasia }}</p>
-                            
-                            {# Exibir Igrejas Permitidas #}
+                            <h4 class="fw-bold mb-2"><i class="fas fa-id-card me-2"></i>{{ usuario.get_full_name|default:"Não informado" }}</h4>
+                            <p class="mb-1"><i class="fas fa-user me-1"></i><strong>Usuário:</strong> {{ usuario.username }}</p>
+                            <p class="mb-1"><i class="fas fa-envelope me-1"></i><strong>Email:</strong> {{ usuario.email }}</p>
+                            <p class="mb-1"><i class="fas fa-calendar-plus me-1"></i><strong>Membro desde:</strong> {{ usuario.date_joined|date:"d/m/Y" }}</p>
+                            <p class="mb-1"><i class="fas fa-phone me-1"></i><strong>Telefone:</strong> {{ perfil_usuario.telefone_contato|default:"Não informado" }}</p>
+                            <p class="mb-1"><i class="fab fa-whatsapp me-1"></i><strong>WhatsApp:</strong> {{ perfil_usuario.whatsapp_contato|default:"Não informado" }}</p>
+                            <p class="mb-1"><i class="fas fa-sign-in-alt me-1"></i><strong>Último Login:</strong> {{ usuario.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</p>
+                            {% if usuario.id == request.user.id %}
+                                <a href="{% url 'contas:password_change' %}" class="btn btn-outline-secondary btn-sm mt-2"><i class="fas fa-key me-1"></i> Alterar Senha</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <h5 class="fw-bold mb-2"><i class="fas fa-church me-2"></i>Ministério</h5>
+                            <p class="mb-1"><strong>Ministério:</strong> {{ perfil_usuario.ministerio.nome_fantasia }}</p>
                             {% if perfil_usuario.igrejas_permitidas.exists %}
-                                <p><strong>Igrejas Permitidas:</strong></p>
-                                <ul>
+                                <p class="mb-1"><strong>Igrejas Permitidas:</strong></p>
+                                <ul class="mb-1 ps-3">
                                     {% for igreja in perfil_usuario.igrejas_permitidas.all %}
                                         <li>{{ igreja.nome_igreja }}</li>
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p><strong>Igrejas Permitidas:</strong> Todas do ministério (acesso baseado em papel).</p>
+                                <p class="mb-1"><strong>Igrejas Permitidas:</strong> Todas do ministério (acesso baseado em papel).</p>
                             {% endif %}
-
-                            {# Exibir Papéis/Grupos #}
-                            <p><strong>Papéis/Grupos:</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="fw-bold mb-2"><i class="fas fa-users me-2"></i>Papéis, Grupos e Cargos</h5>
+                            <p class="mb-1"><strong>Papéis/Grupos:</strong>
                                 {% if usuario.groups.all %}
                                     {% for group in usuario.groups.all %}
-                                        <span class="badge bg-secondary me-1">{{ group.name }}</span>
+                                        <span class="badge bg-secondary me-1 mb-1">{{ group.name }}</span>
                                     {% endfor %}
                                 {% else %}
                                     <span class="text-muted">Nenhum papel atribuído.</span>
                                 {% endif %}
                             </p>
-
-                            {# Link para gerenciar assinatura (já existe no menu, mas pode estar aqui também) #}
-                            {% if 'Admin Ministerio' in user.groups.all|join:", " %}
-                                <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-info">Gerenciar Assinatura</a>
+                            <p class="mb-1"><strong>Cargos Ativos:</strong>
+                                {% if cargos_ativos %}
+                                    {% for mc in cargos_ativos %}
+                                        <span class="badge bg-info me-1 mb-1">{{ mc.cargo.nome }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Nenhum cargo ativo.</span>
+                                {% endif %}
+                            </p>
+                            {% if request.user.is_superuser or 'Admin Ministerio' in request.user.groups.all|join:", " or 'Gestor' in request.user.groups.all|join:", " or 'Pastor' in request.user.groups.all|join:", " %}
+                                <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-info btn-sm mt-2"><i class="fas fa-crown me-1"></i> Gerenciar Assinatura</a>
                             {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="card-footer text-muted text-center">
-                    Última atualização: {{ perfil_usuario.data_atualizacao|date:"d/m/Y H:i"|default:"N/A" }} {# Assumindo que PerfilUsuario tem data_atualizacao #}
+                <div class="card-footer text-muted text-center small">
+                    <i class="fas fa-clock me-1"></i>Última atualização: {{ perfil_usuario.data_atualizacao|date:"d/m/Y H:i"|default:"N/A" }}
                 </div>
             </div>
+
+            {% if is_professor_ebd %}
+            <div class="card border-success mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Painel do Professor EBD</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Total de Aulas Ministradas:</strong><br>
+                            <span class="fs-5">{{ stats_professor.total_licoes|default:'0' }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Média de Notas dos Alunos:</strong><br>
+                            <span class="fs-5">{{ stats_professor.media_nota|floatformat:2|default:'-' }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Frequência Média dos Alunos:</strong><br>
+                            <span class="fs-5">{% if stats_professor.freq_media %}{{ stats_professor.freq_media|floatformat:1 }}%{% else %}-{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Turmas em que atua:</strong>
+                        {% if turmas_professor %}
+                            <ul class="mb-1">
+                                {% for turma in turmas_professor %}
+                                    <li>{{ turma.nome }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Nenhuma turma associada.</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <strong>Próximas Aulas:</strong>
+                        {% if proximas_licoes %}
+                            <ul class="mb-1">
+                                {% for licao in proximas_licoes %}
+                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-muted">Nenhuma aula agendada.</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <strong>Histórico de Aulas Ministradas:</strong>
+                        {% if historico_licoes_ministradas %}
+                            <ul class="mb-1" style="max-height: 180px; overflow-y: auto;">
+                                {% for licao in historico_licoes_ministradas %}
+                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
+                                {% endfor %}
+                            </ul>
+                            {% if historico_licoes_ministradas|length > 10 %}
+                                <span class="text-muted">Exibindo as 10 mais recentes.</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">Nenhuma aula ministrada.</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if request.user.is_superuser or 'Admin Ministerio' in request.user.groups.all|join:", " or 'Gestor' in request.user.groups.all|join:", " %}
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user-shield me-2"></i>Painel Administrativo</h5>
+                </div>
+                <div class="card-body">
+                    <p>Você está visualizando este perfil como administrador. Recursos administrativos podem ser exibidos aqui.</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
-{# Adicionar CSS para a imagem redonda se não estiver usando Bootstrap rounded-circle #}
 <style>
-    /* Se a classe Bootstrap rounded-circle não for suficiente ou você quiser mais controle */
-    /* .rounded-circle {
+    .card {
+        border-radius: 1rem;
+    }
+    .rounded-circle {
         border-radius: 50% !important;
-    } */
+    }
 </style>
 {% endblock %}

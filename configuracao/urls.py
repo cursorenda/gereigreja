@@ -65,8 +65,10 @@ urlpatterns = [
         name='password_change_done'
     ),
     # Outras URLs que você possa ter (login, etc., podem estar no urls.py principal)
-    path('perfil/', views.meu_perfil, name='meu_perfil'), # <--- AQUI!
-    path('perfil/editar/', views.editar_meu_perfil, name='editar_meu_perfil'), # <-- NOVA URL
+
+    path('perfil/', views.meu_perfil, name='meu_perfil'),
+    path('perfil/editar/', views.editar_meu_perfil, name='editar_meu_perfil'),
+    path('perfil/<int:user_id>/', views.perfil_usuario, name='perfil_usuario'),
 
     #path('admin/validar-imagens/',views.validar_imagens_perfil, name='validar_imagens'),
     path('validar-imagens/', views.validar_imagens_perfil, name='validar_imagens'),

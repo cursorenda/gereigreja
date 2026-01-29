@@ -1,6 +1,21 @@
 from django.db import models
 # --- Configurações Globais do Sistema (Notificações, etc) ---
 class ConfiguracaoSistema(models.Model):
+    DIAS_SEMANA = [
+        (0, 'Segunda-feira'),
+        (1, 'Terça-feira'),
+        (2, 'Quarta-feira'),
+        (3, 'Quinta-feira'),
+        (4, 'Sexta-feira'),
+        (5, 'Sábado'),
+        (6, 'Domingo'),
+    ]
+    ebd_dia_semana = models.IntegerField(
+        choices=DIAS_SEMANA,
+        default=6,
+        verbose_name='Dia padrão da EBD',
+        help_text='Selecione o dia padrão da semana em que ocorre a Escola Bíblica Dominical.'
+    )
     ministerio = models.OneToOneField('Ministerio', on_delete=models.CASCADE, related_name='configuracao', verbose_name='Ministério')
     notificar_eventos = models.BooleanField(default=True, verbose_name='Enviar notificações de eventos?')
     notificar_aniversarios = models.BooleanField(default=True, verbose_name='Enviar notificações de aniversários?')
@@ -16,6 +31,12 @@ class ConfiguracaoSistema(models.Model):
         default='trimestre',
         verbose_name='Período da Escola Bíblica',
         help_text='Selecione o período utilizado para a EBD (trimestre, quadrimestre, semestre, ano).'
+    )
+    ebd_horario = models.TimeField(
+        null=True,
+        blank=True,
+        verbose_name='Horário padrão da EBD',
+        help_text='Horário padrão sugerido para as lições da Escola Bíblica Dominical.'
     )
     # Adicione outros tipos de notificação conforme necessário
     atualizado_em = models.DateTimeField(auto_now=True)

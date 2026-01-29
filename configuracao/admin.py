@@ -4,8 +4,23 @@ from django.db import models  # Adicione esta linha
 # Importar os nomes corretos dos modelos
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionar Plano e AssinaturaMinisterio
+from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ConfiguracaoSistema # Adicionar ConfiguracaoSistema
 from .models import AtualizacaoSistema
+# Admin para ConfiguracaoSistema
+@admin.register(ConfiguracaoSistema)
+class ConfiguracaoSistemaAdmin(admin.ModelAdmin):
+    list_display = ('ministerio', 'ebd_periodo', 'ebd_dia_semana', 'atualizado_em')
+    list_filter = ('ebd_periodo', 'ebd_dia_semana')
+    search_fields = ('ministerio__nome_fantasia',)
+    fieldsets = (
+        (None, {
+            'fields': ('ministerio', 'ebd_periodo', 'ebd_dia_semana')
+        }),
+        ('Notificações', {
+            'fields': ('notificar_eventos', 'notificar_aniversarios'),
+            'classes': ('collapse',)
+        }),
+    )
 from django.shortcuts import render
 from django.urls import path, reverse
 import boto3

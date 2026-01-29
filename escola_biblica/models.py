@@ -147,6 +147,10 @@ class Frequencia(models.Model):
     data = models.DateField()
     presente = models.BooleanField(default=True)
     observacao = models.CharField(max_length=200, blank=True)
+    trouxe_biblia = models.BooleanField(default=False, verbose_name='Trouxe Bíblia')
+    trouxe_revista = models.BooleanField(default=False, verbose_name='Trouxe Revista')
+    trouxe_visitante = models.BooleanField(default=False, verbose_name='Trouxe Visitante')
+    trouxe_oferta = models.BooleanField(default=False, verbose_name='Trouxe Oferta')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -158,8 +162,24 @@ class Frequencia(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+        from configuracao.models import ConfiguracaoSistema
         if self.data > timezone.now().date():
             raise ValidationError("Não é possível registrar frequência em data futura.")
+        # Validação do dia padrão da EBD
+        turma = getattr(self, 'aluno', None)
+        if turma and hasattr(self.aluno, 'turma') and self.aluno.turma:
+            ministerio = getattr(self.aluno.turma, 'classe', None)
+            if ministerio and hasattr(self.aluno.turma.classe, 'ministerio'):
+                ministerio = self.aluno.turma.classe.ministerio
+            else:
+                ministerio = None
+            if not ministerio and hasattr(self.aluno.turma, 'ministerio'):
+                ministerio = self.aluno.turma.ministerio
+            if ministerio:
+                config = ConfiguracaoSistema.objects.filter(ministerio=ministerio).first()
+                if config and config.ebd_dia_semana is not None:
+                    if self.data.weekday() != config.ebd_dia_semana:
+                        raise ValidationError(f"A chamada só pode ser registrada para o dia padrão da EBD: {config.get_ebd_dia_semana_display()}.")
 
     def __str__(self):
         return f"{self.aluno} - {self.data} - {'Presente' if self.presente else 'Faltou'}"
@@ -174,7 +194,7 @@ class Licao(models.Model):
     observacoes = models.TextField(blank=True, null=True)
     horario = models.TimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=[('ativa', 'Ativa'), ('rascunho', 'Rascunho')], default='ativa')
-    professor = models.CharField(max_length=100, blank=True, null=True)
+    professor = models.ForeignKey('secretaria.Membro', on_delete=models.SET_NULL, blank=True, null=True, related_name='licoes_ministradas')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

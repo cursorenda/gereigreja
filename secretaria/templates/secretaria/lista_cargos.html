@@ -20,6 +20,21 @@
     <style>
         .card { border-radius: 0 !important; }
         .card-header + form { margin-top: 32px; }
+        /* Limita a largura máxima da área de cargos e centraliza */
+        .cargos-container {
+            width: 95vw;
+            max-width: 95vw;
+            margin: 0 auto;
+        }
+        /* Garante que a tabela não estoure a tela */
+        .table-responsive {
+            overflow-x: auto;
+        }
+        /* Ajusta tamanho dos botões em telas pequenas */
+        @media (max-width: 900px) {
+            .table th, .table td { font-size: 0.95em; }
+            .btn { font-size: 0.95em; padding: 0.3em 0.7em; }
+        }
     </style>
     <form method="GET" action="" class="row g-3 mb-3 align-items-center">
         <div class="col-lg-3 col-12">
@@ -45,8 +60,9 @@
             <a href="{% url 'secretaria:criar_cargo' %}" class="btn btn-vibrant-green btn-icon"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Novo Cargo</span></a>
         </div>
     </form>
-    <div class="table-responsive">
-        <table class="table table-striped">
+        <div class="cargos-container">
+            <div class="table-responsive">
+                <table class="table table-striped">
         <thead>
             <tr>
                 <th>Nome do Cargo</th>
@@ -81,6 +97,7 @@
             </tr>
             {% endfor %}
         </tbody>
-        </table>
-    </div>
+                </table>
+            </div>
+        </div>
 {% endblock %}

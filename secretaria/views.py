@@ -975,35 +975,70 @@ def registrar_acompanhamento_visita(request, membro_id):
 @login_required
 @user_passes_test(is_admin_or_pastor)
 def gerenciar_ocupantes(request, cargo_id):
+    # Busca o cargo pelo ID recebido na URL
     cargo = get_object_or_404(Cargo, id=cargo_id)
-    membros = list(Membro.objects.all().order_by('nome'))
-    ocupantes_atual = list(MembroCargo.objects.filter(cargo=cargo).select_related('membro'))
+
+    # Lista de membros ou obreiros ATIVOS (para o select de adicionar)
+    membros = list(Membro.objects.filter(
+        Q(igreja=request.igreja_ativa) &
+        (Q(tipo_pessoa__nome='Membro') | Q(tipo_pessoa__nome='Obreiro')) &
+        Q(status_pessoa__nome='Ativo')
+    ).order_by('nome'))
+
+    # Ocupantes atuais do cargo (sem data_fim)
+    ocupantes_atual = list(MembroCargo.objects.filter(cargo=cargo, data_fim__isnull=True).select_related('membro'))
+
+    # Histórico de ocupantes (com data_fim preenchida)
+    historico_ocupantes = list(MembroCargo.objects.filter(cargo=cargo, data_fim__isnull=False).select_related('membro').order_by('-data_fim'))
+
+    # Lista de membros filtrada pela igreja ativa e tipo (para paginação e sugestões)
+    membros_lista = Membro.objects.filter(
+        Q(igreja=request.igreja_ativa) & (Q(tipo_pessoa__nome='Membro') | Q(tipo_pessoa__nome='Obreiro'))
+    ).order_by('nome')
+
+    # Paginação dos membros
+    page = request.GET.get('page', 1)
+    paginator = Paginator(membros_lista, 15)  # 15 membros por página
+    try:
+        membros_page = paginator.page(page)
+    except PageNotAnInteger:
+        membros_page = paginator.page(1)
+    except EmptyPage:
+        membros_page = paginator.page(paginator.num_pages)
+
+    # Se for POST, processa o formulário de ocupantes
     if request.method == 'POST':
         ocupantes_ids = request.POST.get('ocupantes', '')
         if ocupantes_ids:
             ids = [int(i) for i in ocupantes_ids.split(',') if i.isdigit()]
-            novos_ocupantes = Membro.objects.filter(chave__in=ids)
         else:
-            # from django.db.models import Q  # Already imported at top if needed
-            membros_lista = Membro.objects.filter(
-                Q(igreja=request.igreja_ativa) & (Q(tipo_pessoa__nome='Membro') | Q(tipo_pessoa__nome='Obreiro'))
-            ).order_by('nome')
-        # Adiciona novos ocupantes (evita duplicidade)
-            # Paginação
-            # from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger  # Already imported at top if needed
-            page = request.GET.get('page', 1)
-            paginator = Paginator(membros_lista, 15)  # 15 membros por página
-            try:
-                membros_page = paginator.page(page)
-            except PageNotAnInteger:
-                membros_page = paginator.page(1)
-            except EmptyPage:
-                membros_page = paginator.page(paginator.num_pages)
-        return redirect('secretaria:lista_cargos')
+            ids = []
+
+        # Busca ocupantes atuais (sem data_fim)
+        ocupantes_atuais = list(MembroCargo.objects.filter(cargo=cargo, data_fim__isnull=True))
+        ids_atuais = [mc.membro.chave for mc in ocupantes_atuais]
+
+        # Finalizar vínculos removidos
+        removidos = [mc for mc in ocupantes_atuais if mc.membro.chave not in ids]
+        for mc in removidos:
+            mc.data_fim = timezone.now().date()
+            mc.save()
+
+        # Adicionar novos vínculos
+        novos_ids = [i for i in ids if i not in ids_atuais]
+        for novo_id in novos_ids:
+            membro = Membro.objects.filter(chave=novo_id).first()
+            if membro:
+                MembroCargo.objects.create(membro=membro, cargo=cargo, data_inicio=timezone.now().date())
+
+        messages.success(request, 'Ocupantes do cargo atualizados com sucesso!')
+        return redirect('secretaria:gerenciar_ocupantes', cargo_id=cargo.id)
     else:
+        # Prepara dados para renderizar o template
         ocupantes_iniciais = [mc.membro.chave for mc in ocupantes_atual]
         forms_list = []
         sugestoes = {}
+        # Gera formulários auxiliares para cada membro paginado (ex: associação de usuário)
         for membro in membros_page:
             form = AssociarUsuarioMembroForm(request.POST if request.method == 'POST' else None, prefix=str(membro.pk), membro=membro)
             if request.method == 'POST' and form.is_valid():
@@ -1013,12 +1048,15 @@ def gerenciar_ocupantes(request, cargo_id):
             sugestao_id = form.fields['sugestao_usuario_id'].initial
             sugestoes[membro.pk] = int(sugestao_id) if sugestao_id else None
             forms_list.append(form)
+        # Renderiza a página com todos os dados necessários
         return render(request, 'secretaria/gerenciar_ocupantes.html', {
             'cargo': cargo,
             'membros_page': membros_page,
             'forms_list': forms_list,
             'sugestoes': sugestoes,
             'ocupantes_iniciais': ocupantes_iniciais,
+            'membros': membros,  # Adiciona a lista de membros para o JS do template
+            'historico_ocupantes': historico_ocupantes,
         })
 def excluir_cargo(request, cargo_id):
     cargo = get_object_or_404(Cargo, id=cargo_id)
@@ -2927,6 +2965,8 @@ def editar_membro(request, membro_id): # noqa: E302
             acompanhamentos_visita = acompanhamentos_visita.filter(data__date=filtro_data_dt)
         except Exception:
             pass
+    from .models import MembroCargo
+    cargos_historico = MembroCargo.objects.filter(membro=membro).select_related('cargo').order_by('-data_inicio')
     context = {
         'form': form,
         'membro_id': membro_id,
@@ -2938,6 +2978,7 @@ def editar_membro(request, membro_id): # noqa: E302
         'acompanhamentos_visita': acompanhamentos_visita,
         'filtro_tipo': filtro_tipo,
         'filtro_data': filtro_data,
+        'cargos_historico': cargos_historico,
     }
     return render(request, 'secretaria/editar_membro.html', context)
 

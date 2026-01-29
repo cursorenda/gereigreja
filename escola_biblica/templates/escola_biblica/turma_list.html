@@ -1,4 +1,17 @@
 {% extends 'base_com_sistema.html' %}
+{# Banner de sugestão de cópia de turmas/classes/alunos do ano anterior #}
+{% if sugerir_copiar %}
+<div class="alert alert-info d-flex justify-content-between align-items-center" style="border-radius: 10px;">
+    <div>
+        Deseja copiar as turmas, classes e alunos do ano anterior ({{ ano_letivo_selecionado.ano|add:'-1' }}) para {{ ano_letivo_selecionado.ano }}?
+    </div>
+    <form method="post" action="{% url 'escola_biblica:copiar_turmas_ano_anterior' %}" style="margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="ano_destino" value="{{ ano_letivo_selecionado.ano }}">
+        <button type="submit" class="btn btn-vibrant-blue ms-3">Copiar turmas/classes/alunos</button>
+    </form>
+</div>
+{% endif %}
 {% block title %}Turmas EBD{% endblock %}
 {% block nome_departamento %}Escola Bíblica Dominical{% endblock %}
 {% block breadcrumb_app %}{% endblock %}
@@ -10,7 +23,28 @@
     <li class="breadcrumb-item active" aria-current="page">Turmas do Ano</li>
 {% endblock %}
 {% block conteudo_principal %}
-<div class="card shadow-lg rounded-lg" style="border: none;">
+
+{# Banner de orientação para novo período #}
+{# Banner: se não houver períodos para o ano selecionado, sugere abrir novo período #}
+{% if mostrar_banner_abrir_periodo %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center" style="border-radius: 10px;">
+    <div>
+        Nenhum período {{ tipo_periodo }} cadastrado para o ano {{ ano_letivo_selecionado.ano }}.
+        <strong>Deseja abrir o novo período?</strong>
+    </div>
+    <form method="post" action="{% url 'escola_biblica:abrir_novo_periodo' %}" style="margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="ano_letivo" value="{{ ano_letivo_selecionado.ano }}">
+        <input type="hidden" name="tipo_periodo" value="{{ tipo_periodo }}">
+        <button type="submit" class="btn btn-vibrant-green ms-3">Abrir novo período</button>
+    </form>
+</div>
+{% endif %}
+
+{% include 'escola_biblica/_ebd_periodo_banner.html' %}
+
+<div class="container-fluid px-0">
+    <div class="card shadow-lg rounded-lg w-100" style="border: none;">
     <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
@@ -21,30 +55,45 @@
             <a href="{% url 'escola_biblica:turma_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Turma</a>
         </div>
     </div>
-    <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
-        <form method="GET" action="" class="row g-3 mb-3 align-items-center">
-            <div class="col-lg-4 col-12">
+    <div class="card-body pt-3 bg-white w-100" style="border-radius:0 0 12px 12px;">
+        <form method="get" class="row g-3 mb-3 align-items-center w-100">
+            <div class="col-auto d-flex align-items-center" style="min-width:110px; max-width:130px;">
+                <select name="ano_letivo" id="ano_letivo_filtro" class="form-select form-select-sm" style="max-width:100px;" aria-label="Ano">
+                    <option value="" disabled hidden{% if not ano_letivo_selecionado %} selected{% endif %}>Ano</option>
+                    {% for ano in anos_letivos %}
+                        <option value="{{ ano.ano|floatformat:0 }}" {% if ano.ano == ano_letivo_selecionado.ano %}selected{% endif %}>{{ ano.ano|floatformat:0 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto d-flex align-items-center" style="min-width:180px;">
+                <select name="periodo" id="periodo_filtro" class="form-select form-select-sm" aria-label="Período">
+                    <option value="">Período</option>
+                    {% for periodo in periodos %}
+                        <option value="{{ periodo.numero }}" {% if periodo.numero == periodo_selecionado.numero %}selected{% endif %}>
+                            {{ periodo.get_tipo_display }} {{ periodo.numero }} ({{ periodo.data_inicio|date:'d/m' }} - {{ periodo.data_fim|date:'d/m' }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3 col-12">
                 <input type="text" name="nome" class="form-control form-control-sm" placeholder="Nome da Turma" value="{{ request.GET.nome|default:'' }}">
             </div>
-            <div class="col-lg-3 col-6">
+            <div class="col-lg-3 col-12">
                 <input type="text" name="classe" class="form-control form-control-sm" placeholder="Classe" value="{{ request.GET.classe|default:'' }}">
             </div>
-            <div class="col-lg-2 col-6">
-                <input type="text" name="ano_letivo" class="form-control form-control-sm" placeholder="Ano Letivo" value="{{ request.GET.ano_letivo|default:'' }}">
-            </div>
-            <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
+            <div class="col-lg-2 col-12 d-flex align-items-center gap-2">
                 <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                <a href="{% url 'escola_biblica:turma_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Turma</span></a>
-                {% if request.GET.nome or request.GET.classe or request.GET.ano_letivo %}
+                {% if request.GET.nome or request.GET.classe or request.GET.ano_letivo or request.GET.periodo %}
                     <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 {% endif %}
             </div>
         </form>
+
         <div class="table-responsive">
             <table class="table table-striped table-bordered table-hover table-sm">
                 <thead class="table-light">
                     <tr>
-                        <th>Nome</th>
+                        <th>Nome da Turma</th>
                         <th>Classe</th>
                         <th>Ano Letivo</th>
                         <th>Professores/Colaboradores</th>
@@ -76,6 +125,8 @@
                     </tr>
                     {% endfor %}
                 </tbody>
+            </table>
+        </div>
             </table>
             {% if turmas.has_other_pages %}
             <nav aria-label="Navegação de páginas">

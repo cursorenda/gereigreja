@@ -1,3 +1,96 @@
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
+from .forms import ConfiguracaoSistemaForm
+from .models import ConfiguracaoSistema
+
+# --- NOVA VIEW: Perfil de qualquer usuário (admin/gestor pode ver o perfil de outro usuário) ---
+@login_required
+def perfil_usuario(request, user_id):
+    User = get_user_model()
+    user = User.objects.filter(id=user_id).first()
+    if not user or not hasattr(user, 'perfil'):
+        from django.contrib import messages
+        messages.error(request, 'Usuário ou perfil não encontrado.')
+        return redirect('configuracao:configuracao')
+    perfil_usuario = user.perfil
+    # --- Permissão: só admin, gestor, superuser ou quem tem cargo ativo na EBD pode ver o perfil de outro usuário ---
+    pode_ver = False
+    if request.user.is_superuser or request.user.groups.filter(name__in=["Admin Ministerio", "Gestor"]).exists():
+        pode_ver = True
+    elif request.user == user:
+        pode_ver = True
+    else:
+        # Verifica se o usuário logado tem cargo ativo na EBD
+        try:
+            from secretaria.models import Membro, MembroCargo
+            membro_logado = Membro.objects.filter(usuario=request.user).first()
+            if membro_logado:
+                cargos_ativos = MembroCargo.objects.filter(membro=membro_logado, cargo__is_ebd=True, data_fim__isnull=True)
+                if cargos_ativos.exists():
+                    pode_ver = True
+        except Exception:
+            pass
+    if not pode_ver:
+        from django.contrib import messages
+        messages.error(request, 'Você não tem permissão para visualizar o perfil deste usuário.')
+        return redirect('configuracao:configuracao')
+
+    # Reaproveita a lógica do meu_perfil para mostrar painel de professor, etc.
+    from escola_biblica.utils import is_professor_ebd
+    from escola_biblica.models import Licao, Turma, Avaliacao
+    membro = None
+    try:
+        from secretaria.models import Membro
+        membro = Membro.objects.filter(usuario=user).first()
+    except Exception:
+        membro = None
+    is_professor = is_professor_ebd(membro) if membro else False
+    licoes_ministradas = []
+    turmas_professor = []
+    stats_professor = {}
+    proximas_licoes = []
+    if is_professor and membro:
+        licoes_ministradas = Licao.objects.filter(professor=membro).order_by('-data')
+        turmas_professor = Turma.objects.filter(membros=membro).distinct()
+        total_licoes = licoes_ministradas.count()
+        avaliacoes = Avaliacao.objects.filter(licao__in=licoes_ministradas)
+        media_nota = avaliacoes.aggregate(models.Avg('nota'))['nota__avg'] if avaliacoes.exists() else None
+        from django.db.models import IntegerField, ExpressionWrapper, Avg
+        freq_media = None
+        if total_licoes > 0 and avaliacoes.exists():
+            # Corrige erro: AVG(boolean) não existe no PostgreSQL. Faz cast para inteiro.
+            avaliacoes_com_cast = avaliacoes.annotate(participacao_int=ExpressionWrapper(models.F('participacao'), output_field=IntegerField()))
+            freq_media = avaliacoes_com_cast.aggregate(freq=Avg('participacao_int'))['freq']
+        from django.utils import timezone
+        hoje = timezone.now().date()
+        proximas_licoes = licoes_ministradas.filter(data__gte=hoje).order_by('data')[:5]
+        stats_professor = {
+            'total_licoes': total_licoes,
+            'media_nota': media_nota,
+            'freq_media': freq_media,
+        }
+    # --- CARGOS ATIVOS ---
+    cargos_ativos = []
+    if membro:
+        try:
+            from secretaria.models import MembroCargo
+            cargos_ativos = MembroCargo.objects.filter(membro=membro, data_fim__isnull=True).select_related('cargo')
+        except Exception:
+            cargos_ativos = []
+
+    context = {
+        'perfil_usuario': perfil_usuario,
+        'usuario': user,
+        'titulo_pagina': f"Perfil de {user.get_full_name() or user.username}",
+        'ministerio': perfil_usuario.ministerio,
+        'is_professor_ebd': is_professor,
+        'licoes_ministradas': licoes_ministradas,
+        'turmas_professor': turmas_professor,
+        'stats_professor': stats_professor,
+        'proximas_licoes': proximas_licoes,
+        'cargos_ativos': cargos_ativos,
+    }
+    return render(request, 'configuracao/perfil/meu_perfil.html', context)
 from django.contrib.auth.decorators import login_required
 from .forms import ConfiguracaoSistemaForm
 
@@ -96,6 +189,7 @@ def configuracoes_sistema(request):
     return render(request, 'configuracao/configuracoes_sistema.html', context)
 # configuracao/views.py
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db import models
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 # Importar User e login
@@ -735,14 +829,100 @@ def meu_perfil(request):
     logger.debug(f"PerfilUsuario: {perfil_usuario}")
     logger.debug(f"Ministério: {perfil_usuario.ministerio if perfil_usuario else None}")
 
+    # --- INTEGRAÇÃO PROFESSOR E ALUNO EBD ---
+    from escola_biblica.utils import is_professor_ebd, calcular_frequencia_aluno
+    from escola_biblica.models import Licao, Turma, Avaliacao, Aluno
+    membro = None
+    try:
+        from secretaria.models import Membro
+        membro = Membro.objects.filter(usuario=request.user).first()
+    except Exception as e:
+        membro = None
+    # --- Professor ---
+    is_professor = is_professor_ebd(membro) if membro else False
+    licoes_ministradas = []
+    turmas_professor = []
+    stats_professor = {}
+    proximas_licoes = []
+    historico_licoes_ministradas = []
+    if is_professor and membro:
+        from django.utils import timezone
+        hoje = timezone.now().date()
+        ano_atual = hoje.year
+        licoes_ministradas = Licao.objects.filter(professor=membro, turma__ano_letivo__ano=ano_atual).order_by('-data')
+        # Turmas do professor no ano atual, sem duplicidade
+        turmas_professor_qs = Turma.objects.filter(membros=membro, ano_letivo__ano=ano_atual)
+        nomes_unicos = set()
+        turmas_professor = []
+        for turma in turmas_professor_qs:
+            nome_normalizado = turma.nome.strip().lower()
+            if nome_normalizado not in nomes_unicos:
+                turmas_professor.append(turma)
+                nomes_unicos.add(nome_normalizado)
+        total_licoes = licoes_ministradas.count()
+        avaliacoes = Avaliacao.objects.filter(licao__in=licoes_ministradas)
+        media_nota = avaliacoes.aggregate(models.Avg('nota'))['nota__avg'] if avaliacoes.exists() else None
+        from django.db.models import IntegerField, ExpressionWrapper, Avg
+        freq_media = None
+        if total_licoes > 0 and avaliacoes.exists():
+            avaliacoes_com_cast = avaliacoes.annotate(participacao_int=ExpressionWrapper(models.F('participacao'), output_field=IntegerField()))
+            freq_media = avaliacoes_com_cast.aggregate(freq=Avg('participacao_int'))['freq']
+        proximas_licoes = licoes_ministradas.filter(data__gte=hoje).order_by('data')[:5]
+        historico_licoes_ministradas = licoes_ministradas.filter(data__lte=hoje).order_by('-data')[:10]
+        stats_professor = {
+            'total_licoes': total_licoes,
+            'media_nota': media_nota,
+            'freq_media': freq_media,
+        }
+    # --- Aluno EBD ---
+    turmas_aluno = []
+    proximas_licoes_aluno = []
+    frequencia_aluno = None
+    historico_licoes_aluno = []
+    professores_turmas = {}
+    if membro:
+        alunos = Aluno.objects.filter(nome=membro.nome, ativo=True)  # Busca por nome, ajuste se necessário
+        turmas_aluno = [aluno.turma for aluno in alunos]
+        # Próximas aulas das turmas do aluno
+        from django.utils import timezone
+        hoje = timezone.now().date()
+        proximas_licoes_aluno = Licao.objects.filter(turma__in=turmas_aluno, data__gte=hoje).order_by('data')[:5]
+        # Frequência e histórico
+        if alunos.exists():
+            aluno = alunos.first()  # Se houver mais de um, pega o primeiro
+            frequencia_aluno = calcular_frequencia_aluno(aluno)
+            historico_licoes_aluno = Licao.objects.filter(turma=aluno.turma, data__lte=hoje).order_by('-data')[:10]
+            # Professores das turmas
+            professores_turmas = {turma.id: turma.get_professor_nome() for turma in turmas_aluno}
+    # --- CARGOS ATIVOS ---
+    cargos_ativos = []
+    if membro:
+        try:
+            from secretaria.models import MembroCargo
+            cargos_ativos = MembroCargo.objects.filter(membro=membro, data_fim__isnull=True).select_related('cargo')
+        except Exception:
+            cargos_ativos = []
+
     context = {
         'perfil_usuario': perfil_usuario,
         'usuario': request.user,
         'titulo_pagina': "Meu Perfil",
-        'ministerio': perfil_usuario.ministerio # Adiciona a ministério ao contexto
-
+        'ministerio': perfil_usuario.ministerio,
+        'is_professor_ebd': is_professor,
+        'licoes_ministradas': licoes_ministradas,
+        'historico_licoes_ministradas': historico_licoes_ministradas,
+        'turmas_professor': turmas_professor,
+        'stats_professor': stats_professor,
+        'proximas_licoes': proximas_licoes,
+        'cargos_ativos': cargos_ativos,
+        # Dados de aluno EBD:
+        'turmas_aluno': turmas_aluno,
+        'proximas_licoes_aluno': proximas_licoes_aluno,
+        'frequencia_aluno': frequencia_aluno,
+        'historico_licoes_aluno': historico_licoes_aluno,
+        'professores_turmas': professores_turmas,
     }
-    return render(request, 'configuracao/perfil/meu_perfil.html', context) # Crie este template
+    return render(request, 'configuracao/perfil/meu_perfil.html', context)
 # --- FIM NOVA VIEW ---
 
 # --- NOVA VIEW PARA EDITAR MEU PERFIL ---

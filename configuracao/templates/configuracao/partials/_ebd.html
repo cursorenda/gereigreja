@@ -12,6 +12,16 @@
                 {{ ebd_form.ebd_periodo }}
             </div>
             <div class="px-2"></div>
+            <div>
+                <label for="id_ebd_dia_semana" class="form-label">{{ ebd_form.ebd_dia_semana.label }}</label>
+                {{ ebd_form.ebd_dia_semana }}
+            </div>
+            <div class="px-2"></div>
+            <div>
+                <label for="id_ebd_horario" class="form-label">{{ ebd_form.ebd_horario.label }}</label>
+                {{ ebd_form.ebd_horario }}
+            </div>
+            <div class="px-2"></div>
             <button type="submit" class="btn btn-vibrant-green btn-icon mb-1">
                 <i class="fas fa-save"></i> Salvar
             </button>
@@ -20,6 +30,12 @@
         <div class="col-auto">
             <small class="form-text text-muted">{{ ebd_form.ebd_periodo.help_text }}</small>
             {{ ebd_form.ebd_periodo.errors }}
+            <br>
+            <small class="form-text text-muted">{{ ebd_form.ebd_dia_semana.help_text }}</small>
+            {{ ebd_form.ebd_dia_semana.errors }}
+            <br>
+            <small class="form-text text-muted">{{ ebd_form.ebd_horario.help_text }}</small>
+            {{ ebd_form.ebd_horario.errors }}
         </div>
     </div>
 </form>

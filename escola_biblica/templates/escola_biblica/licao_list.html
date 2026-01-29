@@ -18,20 +18,30 @@
     <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
 
         <form method="GET" action="" class="row g-3 mb-3 align-items-center">
-            <div class="col-lg-2 col-6">
-                <input type="text" name="turma" class="form-control form-control-sm" style="max-width:140px;" placeholder="Turma" value="{{ request.GET.turma|default:'' }}">
-            </div>
-            <div class="col-lg-2 col-6">
-                <input type="text" name="data" class="form-control form-control-sm" style="max-width:110px;" placeholder="Data" value="{{ request.GET.data|default:'' }}">
-            </div>
-            <div class="col-lg-2 col-6">
-                <input type="text" name="tema" class="form-control form-control-sm" style="max-width:140px;" placeholder="Tema" value="{{ request.GET.tema|default:'' }}">
-            </div>
-            <div class="col-lg-6 col-12 d-flex align-items-center gap-2 justify-content-end">
-                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-vibrant ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
-                <a href="{% url 'escola_biblica:licao_create' %}" class="btn btn-vibrant-green ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Lição / Aula</span></a>
-                <a href="{% url 'escola_biblica:gerar_cronograma' %}" class="btn btn-vibrant-green ms-2"><i class="fas fa-calendar-plus me-1"></i> Gerar Aulas</a>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="gap: 0.5rem;">
+                <select name="turma" class="form-select form-select-sm" style="width:160px; min-width:120px;">
+                    <option value="">Todas as turmas</option>
+                    {% for nome in turma_nomes %}
+                        <option value="{{ nome }}" {% if turma_nome == nome %}selected{% endif %}>{{ nome }}</option>
+                    {% endfor %}
+                </select>
+                <select name="periodo" class="form-select form-select-sm" style="width:160px; min-width:120px;">
+                    {% for periodo in periodos %}
+                        <option value="{{ periodo.id }}" {% if periodo_selecionado and periodo.id == periodo_selecionado.id %}selected{% endif %}>
+                            {{ periodo.get_tipo_display }} {{ periodo.numero }} ({{ periodo.ano_letivo.ano }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <select name="professor" class="form-select form-select-sm" style="width:160px; min-width:120px;">
+                    <option value="">Todos os professores</option>
+                    {% for prof in professores %}
+                        <option value="{{ prof.chave }}" {% if professor_id == prof.chave|stringformat:'s' %}selected{% endif %}>{{ prof.nome }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:100px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-vibrant" style="height:40px; min-width:100px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                <a href="{% url 'escola_biblica:licao_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:100px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Lição / Aula</span></a>
+                <a href="{% url 'escola_biblica:gerar_cronograma' %}" class="btn btn-vibrant-green"><i class="fas fa-calendar-plus me-1"></i> Gerar Aulas</a>
             </div>
         </form>
         <div class="table-responsive">
@@ -41,6 +51,7 @@
                         <th>Turma</th>
                         <th>Data</th>
                         <th>Lição / Aula</th>
+                        <th>Professor</th>
                         <th>Material</th>
                         <th>Ações</th>
                     </tr>
@@ -51,6 +62,18 @@
                         <td>{{ licao.turma }}</td>
                         <td>{{ licao.data }}</td>
                         <td>{{ licao.tema }}</td>
+                        <td>
+                            {% if licao.professor %}
+                                {{ licao.professor.nome }}
+                                {% with user=licao.professor.usuario %}
+                                    {% if user and user.perfil %}
+                                        <a href="{% url 'configuracao:perfil_usuario' user.id %}" class="btn btn-outline-primary btn-sm ms-2" title="Ver perfil do professor">
+                                            <i class="fas fa-user"></i> Perfil
+                                        </a>
+                                    {% endif %}
+                                {% endwith %}
+                            {% else %}-{% endif %}
+                        </td>
                         <td>
                             {% if licao.material %}
                                 <a href="{{ licao.material.url }}" target="_blank" class="btn btn-vibrant-blue btn-sm"><i class="fas fa-download"></i> Download</a>

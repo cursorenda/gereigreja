@@ -22,6 +22,11 @@
             <span class="ms-2 text-muted" style="font-weight:400;">({{ aulas_count|default:'0' }})</span>
         </div>
         <div class="card-body pt-4 bg-white" style="border-radius:0 0 12px 12px;">
+            <div class="mb-3 d-flex justify-content-end">
+                <a href="{% url 'escola_biblica:gerar_cronograma_wizard' %}" class="btn btn-vibrant-green" style="font-weight:600; border-radius:8px;">
+                    <i class="fas fa-magic me-1"></i> Novo Wizard de Geração
+                </a>
+            </div>
             <form method="get" class="row g-3 mb-3 align-items-center">
                 <div class="col-lg-2 col-6">
                     <select name="turma" class="form-select form-select-sm" style="max-width:140px;" data-bs-toggle="tooltip" title="Filtrar por turma">

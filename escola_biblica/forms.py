@@ -7,6 +7,10 @@ class ChamadaPresencaForm(forms.Form):
     aluno_id = forms.IntegerField(widget=forms.HiddenInput)
     nome = forms.CharField(label='Aluno', required=False, widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control-plaintext'}))
     presente = forms.BooleanField(label='Presente', required=False, initial=True)
+    trouxe_biblia = forms.BooleanField(label='Bíblia', required=False, initial=False)
+    trouxe_revista = forms.BooleanField(label='Revista', required=False, initial=False)
+    trouxe_visitante = forms.BooleanField(label='Visitante', required=False, initial=False)
+    trouxe_oferta = forms.BooleanField(label='Oferta', required=False, initial=False)
 
 ChamadaPresencaFormSet = formset_factory(ChamadaPresencaForm, extra=0)
 
@@ -45,32 +49,14 @@ class FrequenciaForm(forms.ModelForm):
 class LicaoForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        turma_obj = None
-        # Se for edição, pega a turma da instância
-        if hasattr(self.instance, 'turma') and self.instance.turma:
-            turma_obj = self.instance.turma
-        # Se for criação, tenta pegar da inicial ou do POST
-        elif 'turma' in self.initial and self.initial['turma']:
-            turma_val = self.initial['turma']
-            if isinstance(turma_val, Turma):
-                turma_obj = turma_val
-            else:
-                try:
-                    turma_obj = Turma.objects.get(pk=turma_val)
-                except (Turma.DoesNotExist, ValueError, TypeError):
-                    turma_obj = None
-        elif self.data.get('turma'):
-            turma_val = self.data.get('turma')
-            if isinstance(turma_val, Turma):
-                turma_obj = turma_val
-            else:
-                try:
-                    turma_obj = Turma.objects.get(pk=turma_val)
-                except (Turma.DoesNotExist, ValueError, TypeError):
-                    turma_obj = None
-        # Preenche o campo professor se possível
-        if turma_obj and hasattr(turma_obj, 'get_professor_nome'):
-            self.fields['professor'].initial = turma_obj.get_professor_nome()
+        from secretaria.models import Membro, MembroCargo
+        # Filtra membros que possuem cargo EBD ativo
+        membros_ebd_ids = MembroCargo.objects.filter(
+            cargo__is_ebd=True,
+            data_fim__isnull=True
+        ).values_list('membro_id', flat=True)
+        self.fields['professor'].queryset = Membro.objects.filter(chave__in=membros_ebd_ids)
+        self.fields['professor'].label_from_instance = lambda obj: f"{obj}"  # Mostra nome completo do membro
     class Meta:
         model = Licao
         fields = ['turma', 'data', 'tema', 'descricao', 'material', 'observacoes', 'horario', 'status', 'professor']

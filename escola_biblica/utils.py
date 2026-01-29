@@ -1,4 +1,3 @@
-
 # Utilitários para Escola Bíblica Dominical
 import datetime
 from dateutil.relativedelta import relativedelta
@@ -89,3 +88,15 @@ def gerar_licoes_periodos(ano, tipo_periodo, turmas, material='', observacoes=''
                     'ano': ano,
                 })
     return licoes
+
+def is_professor_ebd(membro):
+    """
+    Retorna True se o membro possui cargo ativo de EBD com nome contendo 'professor'.
+    """
+    from secretaria.models import MembroCargo
+    return MembroCargo.objects.filter(
+        membro=membro,
+        cargo__is_ebd=True,
+        cargo__nome__icontains='professor',
+        data_fim__isnull=True
+    ).exists()

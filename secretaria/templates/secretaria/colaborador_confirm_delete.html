@@ -4,10 +4,11 @@
 <div class="container-fluid px-4">
     <h1 class="mt-4">Remover Colaborador</h1>
     <div class="alert alert-warning">
-        Tem certeza que deseja remover o vínculo de <b>{{ vinculo.membro.nome }}</b> com o cargo <b>{{ vinculo.cargo.nome }}</b>?
+        Tem certeza que deseja <b>finalizar</b> o vínculo de <b>{{ vinculo.membro.nome }}</b> com o cargo <b>{{ vinculo.cargo.nome }}</b>?<br>
+        <small>O vínculo não será removido do sistema, apenas será registrada a data de término para fins históricos e relatórios.</small>
     </div>
     <form method="post">{% csrf_token %}
-        <button type="submit" class="btn btn-danger">Remover</button>
+        <button type="submit" class="btn btn-danger">Finalizar vínculo</button>
         <a href="{% url 'secretaria:equipe_ebd_list' %}" class="btn btn-secondary ms-2">Cancelar</a>
     </form>
 </div>

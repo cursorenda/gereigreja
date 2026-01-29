@@ -1,12 +1,17 @@
+{# Template: Cadastro de Nova Pessoa/Membro #}
 {% extends 'base_com_menu.html' %}
 {% load static %}
 {% load secretaria_extras %}
 
+{# Bloco: Título da página #}
 {% block title %}{{ titulo_pagina|default:"Cadastrar Nova Pessoa" }}{% endblock %}
 
+{# Bloco: Conteúdo principal da página #}
 {% block content %}
 
+    {# Container principal da página #}
 <div class="container-fluid px-4">
+    {# Título e breadcrumbs #}
     <h1 class="mt-4">Cadastrar Nova Pessoa</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
@@ -16,390 +21,22 @@
 
 
 
+    {# Card de formulário de cadastro #}
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-user-plus me-1"></i>
             Dados da Nova Pessoa
         </div>
         <div class="card-body">
-            <form method="POST" action="{% url 'secretaria:cadastrar_membro' %}" enctype="multipart/form-data">
-                {% csrf_token %}
-                {% include "partials/_form_errors.html" with form=form %}
-                {% for hidden_field in form.hidden_fields %}
-                    {% if hidden_field.errors %}
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            Erros no campo oculto {{ hidden_field.name }}:
-                            {% for error in hidden_field.errors %}<br>{{ error }}{% endfor %}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-
-                <div class="row mb-4 align-items-center">
-                    <div class="col-md-3 text-center">
-                        <img src="{% static 'img/default_avatar.png' %}" alt="Foto da Pessoa" class="img-fluid rounded-circle mb-2" style="width: 150px; height: 150px; object-fit: cover;" id="fotoPreviewCriar">
-                        <div class="mb-3">
-                            <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
-                            {{ form.foto|add_class:'form-control' }}
-                            {% if form.foto.errors %}<div class="invalid-feedback d-block">{% for error in form.foto.errors %}{{ error }}{% endfor %}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-9">
-                        <div class="mb-3 position-relative">
-                            <label for="{{ form.nome.id_for_label }}" class="form-label">{{ form.nome.label }}:</label>
-                            {{ form.nome|add_class:'form-control' }}
-                            <div id="autocomplete-nome-list" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
-                            {% if form.nome.errors %}<div class="invalid-feedback d-block">{{ form.nome.errors|striptags }}</div>{% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
-                            {{ form.apelido|add_class:'form-control' }}
-                            {% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.tipo_pessoa.id_for_label }}" class="form-label">{{ form.tipo_pessoa.label }}:</label>
-                                    {{ form.tipo_pessoa|add_class:'form-control' }}
-                                    {% if form.tipo_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa.errors|striptags }}</div>{% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">{{ form.status_pessoa.label }}:</label>
-                                    {{ form.status_pessoa|add_class:'form-control' }}
-                                    {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
-                                    <div id="sub-status-inativo-wrapper" style="margin-top:10px;">
-                                        <label for="{{ form.sub_status_inativo.id_for_label }}" class="form-label">{{ form.sub_status_inativo.label }}:</label>
-                                        {{ form.sub_status_inativo|add_class:'form-control' }}
-                                        <small class="text-muted">Preencha apenas se o status for inativo.</small>
-                                        {% if form.sub_status_inativo.errors %}<div class="invalid-feedback d-block">{{ form.sub_status_inativo.errors|striptags }}</div>{% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <hr>
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        var statusField = document.getElementById('{{ form.status_pessoa.id_for_label }}');
-                        var subStatusWrapper = document.getElementById('sub-status-inativo-wrapper');
-                        function toggleSubStatus() {
-                            var selected = statusField.options[statusField.selectedIndex].text.trim().toLowerCase();
-                            if (selected === 'inativo') {
-                                subStatusWrapper.style.display = '';
-                            } else {
-                                subStatusWrapper.style.display = 'none';
-                                var subStatusInput = subStatusWrapper.querySelector('select, input');
-                                if (subStatusInput) subStatusInput.value = '';
-                            }
-                        }
-                        statusField.addEventListener('change', toggleSubStatus);
-                        toggleSubStatus();
-                    });
-                    </script>
-
-                <!-- Seção: Informações da Igreja -->
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Informações da Igreja</h5>
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
-                            {{ form.igreja|add_class:'form-control' }}
-                            {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.tipo_entrada.id_for_label }}" class="form-label">{{ form.tipo_entrada.label }}:</label>
-                            {{ form.tipo_entrada|add_class:'form-control' }}
-                            {% if form.tipo_entrada.errors %}<div class="invalid-feedback d-block">{{ form.tipo_entrada.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.data_entrada.id_for_label }}" class="form-label">{{ form.data_entrada.label }}:</label>
-                            {{ form.data_entrada|add_class:'form-control' }}
-                            {% if form.data_entrada.errors %}<div class="invalid-feedback d-block">{{ form.data_entrada.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seção: Dados Pessoais -->
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Dados Pessoais</h5>
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.nascimento.id_for_label }}" class="form-label">{{ form.nascimento.label }}:</label>
-                            {{ form.nascimento|add_class:'form-control' }}
-                            {% if form.nascimento.errors %}<div class="invalid-feedback d-block">{{ form.nascimento.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.genero.id_for_label }}" class="form-label">{{ form.genero.label }}:</label>
-                            {{ form.genero|add_class:'form-control' }}
-                            {% if form.genero.errors %}<div class="invalid-feedback d-block">{{ form.genero.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.nacionalidade.id_for_label }}" class="form-label">{{ form.nacionalidade.label }}:</label>
-                            {{ form.nacionalidade|add_class:'form-control' }}
-                            {% if form.nacionalidade.errors %}<div class="invalid-feedback d-block">{{ form.nacionalidade.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.naturalidade.id_for_label }}" class="form-label">{{ form.naturalidade.label }}:</label>
-                            {{ form.naturalidade|add_class:'form-control' }}
-                            {% if form.naturalidade.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seção: Documentos -->
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Documentos</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.cpf.id_for_label }}" class="form-label">{{ form.cpf.label }}:</label>
-                            {{ form.cpf|add_class:'form-control' }}
-                            {% if form.cpf.errors %}<div class="invalid-feedback d-block">{{ form.cpf.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.rg.id_for_label }}" class="form-label">{{ form.rg.label }}:</label>
-                            {{ form.rg|add_class:'form-control' }}
-                            {% if form.rg.errors %}<div class="invalid-feedback d-block">{{ form.rg.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seção: Vida Civil e Familiar -->
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Vida Civil e Familiar</h5>
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.estado_civil.id_for_label }}" class="form-label">{{ form.estado_civil.label }}:</label>
-                            {{ form.estado_civil|add_class:'form-control' }}
-                            {% if form.estado_civil.errors %}<div class="invalid-feedback d-block">{{ form.estado_civil.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.conjuge.id_for_label }}" class="form-label">{{ form.conjuge.label }}:</label>
-                            {{ form.conjuge|add_class:'form-control' }}
-                            {% if form.conjuge.errors %}<div class="invalid-feedback d-block">{{ form.conjuge.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.data_casamento.id_for_label }}" class="form-label">{{ form.data_casamento.label }}:</label>
-                            {{ form.data_casamento|add_class:'form-control' }}
-                            {% if form.data_casamento.errors %}<div class="invalid-feedback d-block">{{ form.data_casamento.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.profissao.id_for_label }}" class="form-label">{{ form.profissao.label }}:</label>
-                            {{ form.profissao|add_class:'form-control' }}
-                            {% if form.profissao.errors %}<div class="invalid-feedback d-block">{{ form.profissao.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.escolaridade.id_for_label }}" class="form-label">{{ form.escolaridade.label }}:</label>
-                            {{ form.escolaridade|add_class:'form-control' }}
-                            {% if form.escolaridade.errors %}<div class="invalid-feedback d-block">{{ form.escolaridade.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seção: Filiação -->
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Filiação</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.nome_pai.id_for_label }}" class="form-label">{{ form.nome_pai.label }}:</label>
-                            {{ form.nome_pai|add_class:'form-control' }}
-                            {% if form.nome_pai.errors %}<div class="invalid-feedback d-block">{{ form.nome_pai.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.nome_mae.id_for_label }}" class="form-label">{{ form.nome_mae.label }}:</label>
-                            {{ form.nome_mae|add_class:'form-control' }}
-                            {% if form.nome_mae.errors %}<div class="invalid-feedback d-block">{{ form.nome_mae.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seção: Endereço e Contato -->
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Endereço e Contato</h5>
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
-                            {{ form.cep|add_class:'form-control' }}
-                            {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-5">
-                        <div class="mb-3">
-                            <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
-                            {{ form.rua|add_class:'form-control' }}
-                            {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="mb-3">
-                            <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
-                            {{ form.numero_casa|add_class:'form-control' }}
-                            {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="mb-3">
-                            <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
-                            {{ form.pais|add_class:'form-control' }}
-                            {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
-                            {{ form.bairro_distrito|add_class:'form-control' }}
-                            {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
-                            {{ form.cidade|add_class:'form-control' }}
-                            {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="mb-3">
-                            <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
-                            {{ form.estado|add_class:'form-control' }}
-                            {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
-                            {{ form.email|add_class:'form-control' }}
-                            {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="mb-3">
-                            <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
-                            {{ form.telefone|add_class:'form-control' }}
-                            {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-9">
-                        <div class="mb-3">
-                            <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
-                            {{ form.complemento|add_class:'form-control' }}
-                            {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Seção: Tags -->
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Tags</h5>
-                <div class="mb-1" style="margin-bottom:0;">
-                    <label class="form-label">Tags disponíveis:</label>
-                    <div id="tag-badges-list" class="d-flex flex-row flex-wrap align-items-center gap-2" style="max-width: 500px;">
-                        {% for tag in form.fields.tags.queryset %}
-                            <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }};color:#fff;font-size:1em;padding:6px 18px;border-radius:18px;min-width:60px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 3px rgba(0,0,0,0.07);" data-tag-id="{{ tag.id }}">{{ tag.nome }}</button>
-                        {% endfor %}
-                    </div>
-                    <input type="hidden" name="tags" id="id_tags_hidden" value="{% for tag in form.initial.tags %}{{ tag.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
-                    <label class="form-label mt-3">Tags já selecionadas:</label>
-                    <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1" style="max-width: 500px;"></div>
-                    <small class="text-muted">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
-                    {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
-                    <script>
-                        var allTags = [
-                            {% for tag in form.fields.tags.queryset %}
-                                {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
-                            {% endfor %}
-                        ];
-                        function getSelectedTags() {
-                            var val = document.getElementById('id_tags_hidden').value;
-                            if (!val) return [];
-                            return val.split(',').map(function(x){return parseInt(x);}).filter(Boolean);
-                        }
-                        function setSelectedTags(arr) {
-                            document.getElementById('id_tags_hidden').value = arr.join(',');
-                        }
-                        function renderSelectedTags() {
-                            var selected = getSelectedTags();
-                            var preview = document.getElementById('selected-tags-preview');
-                            preview.innerHTML = '';
-                            allTags.forEach(function(tag){
-                                if (selected.includes(tag.id)) {
-                                    var badge = document.createElement('button');
-                                    badge.type = 'button';
-                                    badge.className = 'badge tag-badge-selected';
-                                    badge.style.backgroundColor = tag.cor;
-                                    badge.style.color = '#fff';
-                                    badge.style.fontSize = '1em';
-                                    badge.style.padding = '6px 18px';
-                                    badge.style.borderRadius = '18px';
-                                    badge.style.minWidth = '60px';
-                                    badge.style.maxWidth = '120px';
-                                    badge.style.whiteSpace = 'nowrap';
-                                    badge.style.overflow = 'hidden';
-                                    badge.style.textOverflow = 'ellipsis';
-                                    badge.style.boxShadow = '0 1px 3px rgba(0,0,0,0.07)';
-                                    badge.style.marginRight = '0';
-                                    badge.textContent = tag.nome;
-                                    badge.setAttribute('data-tag-id', tag.id);
-                                    badge.onclick = function(){
-                                        var arr = getSelectedTags().filter(function(tid){return tid !== tag.id;});
-                                        setSelectedTags(arr);
-                                        renderSelectedTags();
-                                    };
-                                    preview.appendChild(badge);
-                                }
-                            });
-                        }
-                        document.addEventListener('DOMContentLoaded', function(){
-                            document.querySelectorAll('.tag-badge-select').forEach(function(btn){
-                                btn.addEventListener('click', function(){
-                                    var tagId = parseInt(btn.getAttribute('data-tag-id'));
-                                    var arr = getSelectedTags();
-                                    if (!arr.includes(tagId)) arr.push(tagId);
-                                    setSelectedTags(arr);
-                                    renderSelectedTags();
-                                });
-                            });
-                            renderSelectedTags();
-                        });
-                    </script>
-                </div>
-
-                <hr>
-                <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Pessoa</button>
-                <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-secondary">Cancelar</a>
-            </form>
+            {# Partial: Formulário de dados cadastrais reutilizável #}
+            {% include "partials/_form_dados_cadastrais.html" with form=form action_url=request.path %}
         </div>
     </div>
 </div>
+{# Fim do bloco de conteúdo principal #}
 {% endblock %}
 
+{# Bloco: Scripts extras para máscaras e autocomplete #}
 {% block extra_js %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
@@ -490,3 +127,4 @@
     });
 </script>
 {% endblock %}
+
