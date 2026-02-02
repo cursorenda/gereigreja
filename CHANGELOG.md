@@ -1,3 +1,11 @@
+## v1.0.9 — 02/02/2026
+- **Novo Relatório Geral do Dia da EBD**: relatório consolidado com dados de todas as turmas, filtro inteligente por datas com lições cadastradas e comparativo automático com a aula anterior.
+- **Dashboard EBD melhorado**: card "Turmas" renomeado para "Turmas e Chamadas" com descrição mais clara; card de Relatórios reestruturado com tooltip e botões diretos para "Cargos e Funções" e "Relatório Geral do Dia".
+- **Correções na Chamada de Presença**: adicionada exibição de mensagens de sucesso/erro, garantido envio correto do campo data no POST e tratamento de erro quando formset é inválido.
+- **Correção de tipo Decimal**: resolvido erro de incompatibilidade entre float e Decimal no cálculo de ofertas do relatório.
+- **Filtros inteligentes**: relatório do dia filtra apenas turmas do ano letivo correto e com lições cadastradas na data selecionada.
+- **Ajustes de responsividade**: melhorias no layout da lista de cargos para telas menores.
+
 ## v1.0.8 — 29/01/2026
 - Deploy completo e reinicialização do ciclo de versionamento.
 - Correção de erro de template (NoReverseMatch) na tela de confirmação de troca de senha.

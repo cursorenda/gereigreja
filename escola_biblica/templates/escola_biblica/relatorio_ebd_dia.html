@@ -1,0 +1,80 @@
+{% extends 'base_com_sistema.html' %}
+{% block title %}Relatório do Dia - EBD{% endblock %}
+{% block nome_departamento %}Escola Bíblica{% endblock %}
+{% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="{% url 'escola_biblica:dashboard' %}">EBD</a></li>
+  <li class="breadcrumb-item active">Relatório do Dia</li>
+{% endblock %}
+{% block conteudo_principal %}
+<div class="container-fluid px-4">
+  <h2 class="mt-4 mb-3">Relatório Geral do Dia - EBD</h2>
+  <form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+      <select name="data" class="form-select">
+        {% for data_licao in datas_com_licoes %}
+          <option value="{{ data_licao|date:'Y-m-d' }}" {% if data_licao == data %}selected{% endif %}>
+            {{ data_licao|date:'d/m/Y' }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-vibrant-blue" type="submit">Filtrar</button>
+    </div>
+  </form>
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover table-sm align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Turma</th>
+          <th>Matriculados</th>
+          <th>Presentes</th>
+          <th>Ausentes</th>
+          <th>Visitantes</th>
+          <th>Bíblia</th>
+          <th>Revista</th>
+          <th>Oferta (R$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for turma in relatorio_turmas %}
+        <tr>
+          <td>{{ turma.nome }}</td>
+          <td>{{ turma.matriculados }}</td>
+          <td>{{ turma.presentes }}</td>
+          <td>{{ turma.ausentes }}</td>
+          <td>{{ turma.visitantes }}</td>
+          <td>{{ turma.biblias }}</td>
+          <td>{{ turma.revistas }}</td>
+          <td>{{ turma.oferta|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <th>Total Geral</th>
+          <th>{{ total_geral.matriculados }}</th>
+          <th>{{ total_geral.presentes }}</th>
+          <th>{{ total_geral.ausentes }}</th>
+          <th>{{ total_geral.visitantes }}</th>
+          <th>{{ total_geral.biblias }}</th>
+          <th>{{ total_geral.revistas }}</th>
+          <th>{{ total_geral.oferta|floatformat:2 }}</th>
+        </tr>
+        {% if total_anterior %}
+        <tr style="background-color: #f0f0f0;">
+          <th>Aula Anterior ({{ data_anterior|date:'d/m/Y' }})</th>
+          <th>{{ total_anterior.matriculados }}</th>
+          <th>{{ total_anterior.presentes }}</th>
+          <th>{{ total_anterior.ausentes }}</th>
+          <th>{{ total_anterior.visitantes }}</th>
+          <th>{{ total_anterior.biblias }}</th>
+          <th>{{ total_anterior.revistas }}</th>
+          <th>{{ total_anterior.oferta|floatformat:2 }}</th>
+        </tr>
+        {% endif %}
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

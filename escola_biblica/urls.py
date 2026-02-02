@@ -53,6 +53,7 @@ urlpatterns = [
     # Relatórios
     path('relatorio/alunos/', views.relatorio_alunos, name='relatorio_alunos'),
     path('relatorio/frequencia/', views.relatorio_frequencia, name='relatorio_frequencia'),
+    path('relatorio/ebd-dia/', views.relatorio_ebd_dia, name='relatorio_ebd_dia'),
 
     # Frequência
     path('frequencia/', views.frequencia_list, name='frequencia_list'),

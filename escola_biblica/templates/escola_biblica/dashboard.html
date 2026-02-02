@@ -117,22 +117,31 @@
 			</a>
 		</div>
 		<!-- Relatórios -->
+		<!-- Relatórios (NOVO PADRÃO) -->
 		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:relatorio_alunos' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div class="text-white">
-							<i class="fas fa-chart-bar fa-3x mb-2 text-white"></i>
-							<h4 class="fw-bold text-white">Relatórios</h4>
-							<p class="mb-1 text-white">Relatórios de alunos, frequência, avaliações.</p>
-							<a href="{% url 'escola_biblica:cargos_ebd_list' %}" class="btn btn-link p-0 fw-bold text-white" style="font-size:0.98em; text-decoration:underline;">
-								<i class="fas fa-users me-1 text-white"></i> Cargos e Funções da EBD
-							</a>
+			<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); color: #fff; border-radius: 18px;">
+				<div class="card-body d-flex flex-column justify-content-between">
+					<div>
+						<div class="mb-2">
+							<i class="fas fa-file-alt fa-2x text-white"></i>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">Ver relatórios</span></div>
+						<div class="mb-1" style="display: flex; align-items: center; gap: 0.5em;">
+							<span class="fw-bold text-white" style="font-size: 1.6em;">Relatórios</span>
+							<span class="align-middle" data-bs-toggle="tooltip" data-bs-placement="right" title="Relatórios de alunos, frequência e avaliações da EBD. Clique para acessar os relatórios disponíveis.">
+								<i class="fas fa-question-circle" style="font-size:1.1em; color:#fff; cursor:pointer;"></i>
+							</span>
+						</div>
+					</div>
+					<div class="d-grid gap-2 mt-3">
+						<a href="{% url 'escola_biblica:cargos_ebd_list' %}" class="btn btn-light fw-bold mb-2 py-2" style="border-radius: 10px; background: linear-gradient(90deg, #8e0545 0%, #b91d73 100%); color: #fff; border: none; font-size:1.05em;">
+							<i class="fas fa-users me-1"></i> Cargos e Funções da EBD
+						</a>
+						<a href="{% url 'escola_biblica:relatorio_ebd_dia' %}" class="btn btn-light fw-bold py-2" style="border-radius: 10px; background: linear-gradient(90deg, #b91d73 0%, #ee9ca7 100%); color: #fff; border: none; font-size:1.05em;">
+							<i class="fas fa-calendar-day me-1"></i> Relatório Geral do Dia
+						</a>
 					</div>
 				</div>
-			</a>
+			</div>
 		</div>
 	</div>
 
@@ -158,6 +167,13 @@
 	</div>
 
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script>
+		// Inicializa tooltips do Bootstrap
+		var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+		var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+			return new bootstrap.Tooltip(tooltipTriggerEl);
+		});
+	</script>
 	{{ meses|json_script:"meses-data" }}
 	{{ alunos_evolucao|json_script:"alunos-evolucao-data" }}
 	{{ faixas_etarias_labels|json_script:"faixas-etarias-labels" }}

@@ -1,3 +1,117 @@
+# --- RELATÓRIO GERAL DO DIA DA EBD ---
+from django.db.models import Count, Sum, Q
+from django.utils.dateparse import parse_date
+from django.contrib.auth.decorators import login_required
+from core.decorators import secretaria_ebd_required
+
+@login_required
+@secretaria_ebd_required
+def relatorio_ebd_dia(request):
+    from .models import Turma, Frequencia, OfertaClasse, AnoLetivo, Licao
+    from decimal import Decimal
+    
+    # Se data não for fornecida, busca a data da lição mais recente
+    data_str = request.GET.get('data')
+    if data_str:
+        data = parse_date(data_str)
+    else:
+        # Busca a data da lição mais recente
+        ultima_licao = Licao.objects.order_by('-data').first()
+        data = ultima_licao.data if ultima_licao else timezone.now().date()
+    
+    # Filtra turmas apenas do ano letivo correspondente à data selecionada
+    # E que tenham lições cadastradas na data selecionada
+    ano_da_data = data.year
+    ano_letivo = AnoLetivo.objects.filter(ano=ano_da_data).first()
+    if ano_letivo:
+        turmas_com_licao = Licao.objects.filter(data=data).values_list('turma_id', flat=True)
+        turmas = Turma.objects.filter(ano_letivo=ano_letivo, id__in=turmas_com_licao)
+    else:
+        turmas = Turma.objects.none()
+    
+    # Busca todas as datas com lições do ano letivo para o campo de seleção
+    datas_com_licoes = []
+    if ano_letivo:
+        datas_com_licoes = Licao.objects.filter(turma__ano_letivo=ano_letivo).values_list('data', flat=True).distinct().order_by('-data')
+    
+    relatorio_turmas = []
+    total_geral = {
+        'matriculados': 0, 'presentes': 0, 'ausentes': 0, 'visitantes': 0,
+        'biblias': 0, 'revistas': 0, 'oferta': Decimal('0.0')
+    }
+    for turma in turmas:
+        alunos = turma.alunos.filter(ativo=True)
+        matriculados = alunos.count()
+        freq = Frequencia.objects.filter(aluno__in=alunos, data=data)
+        presentes = freq.filter(presente=True).count()
+        ausentes = matriculados - presentes
+        visitantes = freq.filter(trouxe_visitante=True).count()
+        biblias = freq.filter(trouxe_biblia=True).count()
+        revistas = freq.filter(trouxe_revista=True).count()
+        oferta = OfertaClasse.objects.filter(classe=turma.classe if hasattr(turma, 'classe') else None, data=data).aggregate(s=Sum('valor'))['s'] or Decimal('0.0')
+        relatorio_turmas.append({
+            'nome': turma.nome,
+            'matriculados': matriculados,
+            'presentes': presentes,
+            'ausentes': ausentes,
+            'visitantes': visitantes,
+            'biblias': biblias,
+            'revistas': revistas,
+            'oferta': oferta,
+        })
+        total_geral['matriculados'] += matriculados
+        total_geral['presentes'] += presentes
+        total_geral['ausentes'] += ausentes
+        total_geral['visitantes'] += visitantes
+        total_geral['biblias'] += biblias
+        total_geral['revistas'] += revistas
+        total_geral['oferta'] += oferta
+    
+    # Busca dados da aula anterior
+    data_anterior = None
+    total_anterior = None
+    if datas_com_licoes:
+        datas_lista = list(datas_com_licoes)
+        try:
+            indice_atual = datas_lista.index(data)
+            if indice_atual + 1 < len(datas_lista):
+                data_anterior = datas_lista[indice_atual + 1]
+        except ValueError:
+            pass
+    
+    if data_anterior and ano_letivo:
+        turmas_anterior = Licao.objects.filter(data=data_anterior).values_list('turma_id', flat=True)
+        turmas_ant = Turma.objects.filter(ano_letivo=ano_letivo, id__in=turmas_anterior)
+        total_anterior = {
+            'matriculados': 0, 'presentes': 0, 'ausentes': 0, 'visitantes': 0,
+            'biblias': 0, 'revistas': 0, 'oferta': Decimal('0.0')
+        }
+        for turma in turmas_ant:
+            alunos = turma.alunos.filter(ativo=True)
+            matriculados = alunos.count()
+            freq = Frequencia.objects.filter(aluno__in=alunos, data=data_anterior)
+            presentes = freq.filter(presente=True).count()
+            ausentes = matriculados - presentes
+            visitantes = freq.filter(trouxe_visitante=True).count()
+            biblias = freq.filter(trouxe_biblia=True).count()
+            revistas = freq.filter(trouxe_revista=True).count()
+            oferta = OfertaClasse.objects.filter(classe=turma.classe if hasattr(turma, 'classe') else None, data=data_anterior).aggregate(s=Sum('valor'))['s'] or Decimal('0.0')
+            total_anterior['matriculados'] += matriculados
+            total_anterior['presentes'] += presentes
+            total_anterior['ausentes'] += ausentes
+            total_anterior['visitantes'] += visitantes
+            total_anterior['biblias'] += biblias
+            total_anterior['revistas'] += revistas
+            total_anterior['oferta'] += oferta
+    
+    return render(request, 'escola_biblica/relatorio_ebd_dia.html', {
+        'relatorio_turmas': relatorio_turmas,
+        'total_geral': total_geral,
+        'total_anterior': total_anterior,
+        'data': data,
+        'data_anterior': data_anterior,
+        'datas_com_licoes': datas_com_licoes,
+    })
 # --- CHAMADA DE PRESENÇA POR TURMA ---
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Turma, Aluno, Licao, PeriodoEBD, Frequencia, OfertaClasse
