@@ -1,0 +1,406 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Nova Versão - Deploy Automatizado{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .deploy-container {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #fff;
+    }
+    
+    /* Grid para versões lado a lado */
+    .versao-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin: 15px 0;
+    }
+    
+    .tipo-versao-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #fafafa;
+        position: relative;
+        display: flex;
+        align-items: start;
+    }
+    
+    .tipo-versao-card:hover {
+        border-color: #417690;
+        background-color: #f0f7fa;
+        box-shadow: 0 2px 8px rgba(65, 118, 144, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .tipo-versao-card input[type="radio"] {
+        margin-right: 12px;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+    
+    .tipo-versao-card input[type="radio"]:checked ~ div {
+        color: #417690;
+    }
+    
+    .tipo-versao-card input[type="radio"]:checked {
+        accent-color: #417690;
+    }
+    
+    .tipo-versao-content {
+        flex: 1;
+    }
+    
+    .tipo-versao-header {
+        font-size: 15px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .tipo-versao-card input[type="radio"]:checked ~ div .tipo-versao-header {
+        color: #417690;
+    }
+    
+    .tipo-versao-desc {
+        color: #666;
+        font-size: 12px;
+        line-height: 1.5;
+        margin-bottom: 8px;
+    }
+    
+    .tipo-versao-exemplo {
+        padding: 6px 8px;
+        background-color: rgba(65, 118, 144, 0.08);
+        border-radius: 4px;
+        font-size: 11px;
+        color: #555;
+        font-style: italic;
+    }
+    
+    .mudancas-git {
+        background: linear-gradient(to bottom, #f8f9fa, #fff);
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 15px 0;
+    }
+    
+    .mudancas-header {
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #417690;
+        font-size: 14px;
+    }
+    
+    .arquivo-item {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        padding: 4px 0;
+        line-height: 1.6;
+    }
+    
+    .arquivo-modificado { color: #d39e00; font-weight: 500; }
+    .arquivo-adicionado { color: #28a745; font-weight: 500; }
+    .arquivo-deletado { color: #dc3545; font-weight: 500; }
+    
+    .btn-deploy {
+        background: linear-gradient(135deg, #417690 0%, #2c5266 100%);
+        color: white;
+        padding: 14px 40px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(65, 118, 144, 0.3);
+        margin-top: 20px;
+    }
+    
+    .btn-deploy:hover {
+        background: linear-gradient(135deg, #2c5266 0%, #1a3a4a 100%);
+        box-shadow: 0 6px 16px rgba(65, 118, 144, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    .btn-atualizar {
+        background-color: #6c757d;
+        color: white;
+        padding: 6px 14px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+        float: right;
+        transition: all 0.2s;
+    }
+    
+    .btn-atualizar:hover {
+        background-color: #5a6268;
+        transform: scale(1.05);
+    }
+    
+    .alert-info {
+        background: linear-gradient(135deg, #e3f2fd 0%, #d1ecf1 100%);
+        border-left: 4px solid #417690;
+        color: #0c5460;
+        padding: 14px 18px;
+        border-radius: 6px;
+        margin: 20px 0;
+        font-size: 13px;
+    }
+    
+    .form-section {
+        margin: 30px 0;
+        padding: 20px;
+        background: #fafafa;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .form-section-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #417690;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    textarea {
+        width: 100%;
+        min-height: 180px;
+        padding: 14px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 13px;
+        line-height: 1.6;
+        transition: border-color 0.2s;
+        background: #fff;
+    }
+    
+    textarea:focus {
+        outline: none;
+        border-color: #417690;
+        box-shadow: 0 0 0 3px rgba(65, 118, 144, 0.1);
+    }
+    
+    h1 {
+        color: #333;
+        font-size: 26px;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="deploy-container">
+    <div class="alert-info" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border-left: 4px solid #ffc107; color: #856404;">
+        <strong>💡 DICA: Faça backup antes de fazer deploy!</strong><br>
+        É recomendado fazer backup do banco de dados e arquivos antes de executar o deploy para garantir que você possa reverter em caso de problemas.<br>
+        <a href="/backup/json/" style="color: #004085; font-weight: bold;">💾 Backup Banco (JSON)</a> | 
+        <a href="/backup/arquivos/" style="color: #004085; font-weight: bold;">📦 Backup Arquivos (ZIP)</a>
+    </div>
+    
+    <div class="alert-info">
+        <strong>⚠️ IMPORTANTE: Execute este deploy apenas no seu computador local (ambiente de desenvolvimento).</strong><br>
+        <strong>Não execute no servidor!</strong> O servidor receberá as atualizações automaticamente via git push.<br><br>
+        <strong>ℹ️ Apenas superusuários podem executar deploys.</strong><br>
+        Este processo irá atualizar automaticamente o CHANGELOG.md, backup_log.txt, fazer commit, criar tag e push para o repositório remoto.
+    </div>
+    
+    <form method="post" id="deployForm">
+        {% csrf_token %}
+        
+        <!-- Seção 1: Tipo de Versão -->
+        <div class="form-section">
+            <div class="form-section-title">1️⃣ Escolha o Tipo de Versão</div>
+            
+            <div class="versao-grid">
+                <label class="tipo-versao-card">
+                    <input type="radio" name="tipo_versao" value="patch" required>
+                    <div class="tipo-versao-content">
+                        <div class="tipo-versao-header">🔧 Patch</div>
+                        <div class="tipo-versao-desc">
+                            Correções de bugs e ajustes. <strong>Sem novas funcionalidades.</strong>
+                        </div>
+                        <div class="tipo-versao-exemplo">
+                            Ex: "Erro corrigido", "Ajuste de layout"
+                        </div>
+                    </div>
+                </label>
+                
+                <label class="tipo-versao-card">
+                    <input type="radio" name="tipo_versao" value="minor" required>
+                    <div class="tipo-versao-content">
+                        <div class="tipo-versao-header">✨ Minor</div>
+                        <div class="tipo-versao-desc">
+                            Novas funcionalidades. <strong>Compatível com versão anterior.</strong>
+                        </div>
+                        <div class="tipo-versao-exemplo">
+                            Ex: "Nova tela", "Dashboard melhorado"
+                        </div>
+                    </div>
+                </label>
+                
+                <label class="tipo-versao-card">
+                    <input type="radio" name="tipo_versao" value="major" required>
+                    <div class="tipo-versao-content">
+                        <div class="tipo-versao-header">🎯 Major</div>
+                        <div class="tipo-versao-desc">
+                            Mudanças estruturais. <strong>Pode quebrar compatibilidade.</strong>
+                        </div>
+                        <div class="tipo-versao-exemplo">
+                            Ex: "Migração Django 5", "Redesign"
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        
+        <!-- Seção 2: Mudanças Detectadas -->
+        <div class="form-section">
+            <div class="form-section-title">
+                <span>2️⃣ Mudanças Detectadas</span>
+                <button type="button" class="btn-atualizar" onclick="atualizarMudancas()">🔄 Atualizar</button>
+            </div>
+            
+            <div class="mudancas-git" id="mudancasGit">
+                {% if mudancas_git.sucesso %}
+                    <div class="mudancas-header">
+                        📊 Total: {{ mudancas_git.total }} arquivo(s) detectado(s)
+                    </div>
+                    
+                    {% if mudancas_git.modificados %}
+                        <div style="margin-top: 10px;">
+                            <strong>📝 Modificados ({{ mudancas_git.modificados|length }}):</strong><br>
+                            {% for arquivo in mudancas_git.modificados %}
+                                <div class="arquivo-item arquivo-modificado">M {{ arquivo }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if mudancas_git.adicionados %}
+                        <div style="margin-top: 10px;">
+                            <strong>➕ Adicionados ({{ mudancas_git.adicionados|length }}):</strong><br>
+                            {% for arquivo in mudancas_git.adicionados %}
+                                <div class="arquivo-item arquivo-adicionado">A {{ arquivo }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if mudancas_git.deletados %}
+                        <div style="margin-top: 10px;">
+                            <strong>🗑️ Deletados ({{ mudancas_git.deletados|length }}):</strong><br>
+                            {% for arquivo in mudancas_git.deletados %}
+                                <div class="arquivo-item arquivo-deletado">D {{ arquivo }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if mudancas_git.total == 0 %}
+                        <div style="color: #856404;">
+                            ⚠️ Nenhuma mudança detectada. Certifique-se de que há alterações para fazer o deploy.
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div style="color: #721c24;">
+                        ❌ Erro ao detectar mudanças: {{ mudancas_git.erro }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Seção 3: Descrição das Mudanças -->
+        <div class="form-section">
+            <div class="form-section-title">3️⃣ Descreva as Mudanças</div>
+            <p style="color: #666; margin-bottom: 12px; font-size: 13px;">
+                As mudanças foram preenchidas automaticamente. <strong>Você pode editar ou complementar.</strong>
+            </p>
+            <textarea name="descricao" required placeholder="Exemplo:
+- Novo relatório geral do dia da EBD
+- Dashboard melhorado com novos cards  
+- Correção de erro no cálculo de ofertas
+- Ajustes de responsividade">{{ commits_automaticos }}</textarea>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button type="submit" class="btn-deploy" onclick="return confirmarDeploy()">
+                🚀 Executar Deploy
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Marcar card selecionado
+document.querySelectorAll('.tipo-versao-card').forEach(card => {
+    card.addEventListener('click', function() {
+        document.querySelectorAll('.tipo-versao-card').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+        this.querySelector('input[type="radio"]').checked = true;
+    });
+});
+
+// Atualizar mudanças via AJAX
+function atualizarMudancas() {
+    fetch('{% url "admin:deploy_obter_mudancas" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.sucesso) {
+                let html = `<div class="mudancas-header">📊 Total: ${data.total} arquivo(s) detectado(s)</div>`;
+                
+                if (data.modificados.length > 0) {
+                    html += '<div style="margin-top: 10px;"><strong>📝 Modificados (' + data.modificados.length + '):</strong><br>';
+                    data.modificados.forEach(arq => {
+                        html += '<div class="arquivo-item arquivo-modificado">M ' + arq + '</div>';
+                    });
+                    html += '</div>';
+                }
+                
+                if (data.adicionados.length > 0) {
+                    html += '<div style="margin-top: 10px;"><strong>➕ Adicionados (' + data.adicionados.length + '):</strong><br>';
+                    data.adicionados.forEach(arq => {
+                        html += '<div class="arquivo-item arquivo-adicionado">A ' + arq + '</div>';
+                    });
+                    html += '</div>';
+                }
+                
+                if (data.deletados.length > 0) {
+                    html += '<div style="margin-top: 10px;"><strong>🗑️ Deletados (' + data.deletados.length + '):</strong><br>';
+                    data.deletados.forEach(arq => {
+                        html += '<div class="arquivo-item arquivo-deletado">D ' + arq + '</div>';
+                    });
+                    html += '</div>';
+                }
+                
+                if (data.total === 0) {
+                    html += '<div style="color: #856404;">⚠️ Nenhuma mudança detectada.</div>';
+                }
+                
+                document.getElementById('mudancasGit').innerHTML = html;
+            }
+        });
+}
+
+// Confirmar antes de executar
+function confirmarDeploy() {
+    return confirm('⚠️ Você tem certeza que deseja executar o deploy?\n\nEste processo irá:\n- Atualizar CHANGELOG.md\n- Atualizar backup_log.txt\n- Fazer commit no Git\n- Criar tag da versão\n- Fazer push para o repositório remoto\n\nEsta ação não pode ser desfeita facilmente.');
+}
+</script>
+{% endblock %}

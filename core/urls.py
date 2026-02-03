@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views # Importar as views de autenticação
-from django.views.generic import TemplateView # Importar TemplateView
+from django.views.generic import TemplateView, RedirectView # Importar TemplateView e RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -14,6 +14,8 @@ from core.backup_views import backup_urls
 
 
 urlpatterns = [
+    # Redirecionar /admin/deploy/ para o histórico de deploys (DEVE VIR ANTES DO admin/)
+    path('admin/deploy/', RedirectView.as_view(pattern_name='admin:deploy_deployhistorico_changelist', permanent=False)),
     path('admin/', admin.site.urls),
     path('financeiro/', include(('financeiro.urls', 'financeiro'), namespace='financeiro')),
     path('eventos/', include(('eventos.urls', 'eventos'), namespace='eventos')),

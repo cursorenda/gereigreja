@@ -14,17 +14,38 @@
             <tbody>
                 <tr class="model-convite">
                     <th scope="row">
+                            <a href="/backup/json/">💾 Backup Banco (JSON)</a>
+                    </th>
+                    <td>&nbsp;</td>
+                    <td style="color: #28a745; font-size: 11px;">✅ Funciona em produção</td>
+                </tr>
+                <tr class="model-convite">
+                    <th scope="row">
+                            <a href="/backup/arquivos/">📦 Backup Arquivos (ZIP)</a>
+                    </th>
+                    <td>&nbsp;</td>
+                    <td style="color: #28a745; font-size: 11px;">✅ Funciona em produção</td>
+                </tr>
+                <tr class="model-convite">
+                    <th scope="row">
                             <a href="/backup/custom/">Backup Banco (Custom)</a>
                     </th>
                     <td>&nbsp;</td>
-                    <td>&nbsp;</td>
+                    <td style="color: #dc3545; font-size: 11px;">⚠️ Apenas local</td>
                 </tr>
                 <tr class="model-convite">
                     <th scope="row">
                             <a href="/backup/sql/">Backup Banco (SQL)</a>
                     </th>
                     <td>&nbsp;</td>
-                    <td>&nbsp;</td>
+                    <td style="color: #dc3545; font-size: 11px;">⚠️ Apenas local</td>
+                </tr>
+                <tr class="model-deployhistorico">
+                    <th scope="row">
+                            <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">Deploy e Versionamento</a>
+                    </th>
+                    <td><a href="{% url 'admin:deploy_nova_versao' %}" class="addlink">Nova Versão</a></td>
+                    <td><a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink">Histórico</a></td>
                 </tr>
             </tbody>
         </table>
