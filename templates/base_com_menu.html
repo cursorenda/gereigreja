@@ -37,16 +37,7 @@
     <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
         <!-- Navbar Brand-->
             <a class="navbar-brand ps-3" href="{% if user.is_authenticated %}{% url 'secretaria:dashboard' %}{% else %}{% url 'login' %}{% endif %}">
-            {% if request.ministerio and request.ministerio.logo %}
-                <img src="{{ request.ministerio.logo.url }}" alt="Logo {{ request.ministerio.nome_fantasia|default:'' }}" style="max-height: 30px; margin-right: 5px; vertical-align: middle;">
-            {% endif %}
-            {% if request.ministerio and request.ministerio.nome_fantasia and not request.ministerio.logo %}
-                {{ request.ministerio.nome_fantasia|truncatechars:20 }}
-            {% elif request.ministerio and not request.ministerio.nome_fantasia and not request.ministerio.logo and request.ministerio.razao_social %}
-                {{ request.ministerio.razao_social|truncatechars:20 }}
-            {% elif not request.ministerio %}
-                Gereigreja
-            {% endif %}
+            
         </a>        <!-- Sidebar Toggle-->
         <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>
 
@@ -265,6 +256,15 @@
         <!-- Sidebar normal para desktop -->
         <div id="layoutSidenav_nav" class="d-none d-lg-block">
             <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
+                <div class="text-center py-3" style="background:rgba(255,255,255,0.05);">
+                    {% if ministerio and ministerio.logo %}
+                        <div style="display:flex; justify-content:center; align-items:center; min-height:0; padding:8px 0;">
+                            <div style="background:#fff; border-radius:22px; box-shadow:0 2px 12px rgba(13,110,253,0.13); padding:6px 10px; border:2px solid #eee; display:inline-block; transition:box-shadow 0.2s;">
+                                <img src="{{ ministerio.logo.url }}" alt="Logo {{ ministerio.nome_fantasia|default:'' }}" style="max-height:90px; max-width:160px; display:block; margin:auto;">
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
                 {% if user.is_staff or user|has_group:'Admin Ministerio' %}
                     {% include 'menu.html' %}
                 {% else %}

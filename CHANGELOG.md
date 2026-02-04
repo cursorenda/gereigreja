@@ -1,3 +1,29 @@
+## v1.1.1 — 04/02/2026
+# ⚠️ Arquivos modificados mas não commitados:
+- [Não commitado] M CHANGELOG.md
+- [Não commitado] M core/admin.py
+- [Não commitado] M core/templatetags/versao.py
+- [Não commitado] M secretaria/templates/secretaria/index.html
+- [Não commitado] M secretaria/views.py
+- [Não commitado] M templates/base_com_menu.html
+
+Novo layout 100% largura: Página inicial da secretaria redesenhada, responsiva e moderna.
+Bloco “Próximos eventos” aprimorado: Exibe eventos futuros com dia da semana, data, título e horários reais, visual idêntico ao modelo.
+Cards padronizados: Atividades Recentes, Próximos Eventos e Gráfico agora com altura e bordas iguais, barra de rolagem nas atividades.
+Gráfico de evolução ampliado: Altura aumentada para melhor visualização.
+Barra de ações profissional: Botões de navegação (Dashboard, Listar Pessoas, Relatório, Agenda, Bancos, Ajuda/FAQ) agrupados à esquerda, com links corretos e design uniforme.
+Busca centralizada: Campo de busca alinhado, com altura igual aos botões e espaçamento visual.
+Cards informativos e aniversariantes: Cards de totais e aniversariantes com ícones, nomes e layout limpo.
+Responsividade e espaçamento refinados: Layout adaptado para todas as telas, com alinhamento e espaçamento profissional.
+Preparação para página de Ajuda/FAQ: Botão já disponível na barra de ações.
+
+## v1.1.0 — 03/02/2026
+- **Sistema de Deploy Automatizado**: novo app completo para gerenciar versões via Django Admin com seleção de tipo de versão (Patch, Minor, Major), detecção automática de mudanças Git, auto-população do changelog com commits filtrados, atualização automática de CHANGELOG.md e backup_log.txt, commit, tag e push automáticos, logs detalhados e acesso restrito a superusuários.
+- **Backup Melhorado**: novo backup JSON que funciona no servidor usando Django dumpdata, backup de arquivos em ZIP com toda pasta /media, detecção inteligente de pg_dump com suporte Windows e Linux, mensagens de erro amigáveis com links para soluções alternativas, indicadores visuais no admin de quais backups funcionam em produção.
+- **Release Notes**: criados 10 arquivos de release notes (v1.0.0 até v1.0.9) em formato user-friendly com emojis e template para futuras versões.
+- **Interface Admin Aprimorada**: adicionado link "Deploy e Versionamento" em Ferramentas do Sistema, avisos coloridos indicando backups disponíveis em produção vs local, dica de fazer backup antes de deploy com links diretos.
+- **Documentação**: template de release notes para padronização futura e instruções claras sobre execução local vs servidor.
+
 ## v1.0.9 — 02/02/2026
 - **Novo Relatório Geral do Dia da EBD**: relatório consolidado com dados de todas as turmas, filtro inteligente por datas com lições cadastradas e comparativo automático com a aula anterior.
 - **Dashboard EBD melhorado**: card "Turmas" renomeado para "Turmas e Chamadas" com descrição mais clara; card de Relatórios reestruturado com tooltip e botões diretos para "Cargos e Funções" e "Relatório Geral do Dia".

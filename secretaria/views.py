@@ -2051,6 +2051,105 @@ def index(request):
     aniversariantes_ontem = membros_para_relatorios.filter(nascimento__month=ontem.month, nascimento__day=ontem.day)
     aniversariantes_amanha = membros_para_relatorios.filter(nascimento__month=amanha.month, nascimento__day=amanha.day)
 
+    # --- Foto do usuário logado ---
+    usuario_foto_url = None
+    try:
+        perfil_usuario = PerfilUsuario.objects.get(user=request.user)
+        if perfil_usuario.foto_perfil:
+            usuario_foto_url = perfil_usuario.foto_perfil.url
+    except PerfilUsuario.DoesNotExist:
+        pass
+
+    # --- Atividades recentes (últimos cadastros/alterações) ---
+    atividades_recentes = TimelineEvent.objects.filter(
+        membro__in=membros_para_relatorios
+    ).select_related('membro').order_by('-data')[:10]
+
+    # --- Preparar alertas para exibição ---
+    alertas = []
+    if total_contas_vencidas > 0:
+        alertas.append({
+            'tipo': 'danger',
+            'titulo': 'Contas Vencidas',
+            'mensagem': f'{total_contas_vencidas} conta(s) vencida(s) - R$ {valor_total_contas_vencidas:.2f}',
+            'icone': 'fas fa-exclamation-circle'
+        })
+    if aniversariantes_hoje.exists():
+        alertas.append({
+            'tipo': 'info',
+            'titulo': 'Aniversariantes Hoje',
+            'mensagem': f'{aniversariantes_hoje.count()} pessoa(s) fazendo aniversário hoje!',
+            'icone': 'fas fa-birthday-cake'
+        })
+    if assinatura_alerta:
+        alertas.append({
+            'tipo': 'warning',
+            'titulo': 'Assinatura Vencendo',
+            'mensagem': f'Sua assinatura vence em {assinatura_alerta["dias_restantes"]} dias',
+            'icone': 'fas fa-calendar-times'
+        })
+
+    # --- Próximos eventos ---
+    from django.utils import timezone
+    hoje_agora = timezone.now()
+    eventos_qs = None
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        eventos_qs = Evento.objects.filter(igreja=request.igreja_ativa, data_inicio__gte=hoje_agora)
+    elif allowed_churches_secretaria.exists():
+        eventos_qs = Evento.objects.filter(igreja__in=allowed_churches_secretaria, data_inicio__gte=hoje_agora)
+    elif is_admin_org(request.user):
+        eventos_qs = Evento.objects.filter(igreja__ministerio=ministerio, data_inicio__gte=hoje_agora)
+    else:
+        eventos_qs = Evento.objects.none()
+    eventos_qs = eventos_qs.order_by('data_inicio')[:8]
+
+    import locale
+    try:
+        locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')
+    except locale.Error:
+        pass  # fallback to default
+    proximos_eventos = []
+    for evento in eventos_qs:
+        data = evento.data_inicio
+        dia = data.day
+        # Dia da semana abreviado (ex: TER, QUA)
+        try:
+            dia_semana = data.strftime('%a').upper()
+        except Exception:
+            dia_semana = ''
+
+        # Texto de data: "hoje", "amanhã" ou data (ex: 12/02)
+        hoje = hoje_agora.date()
+        data_evento = data.date()
+        if data_evento == hoje:
+            data_texto = 'hoje'
+        elif data_evento == (hoje + timedelta(days=1)):
+            data_texto = 'amanhã'
+        else:
+            data_texto = data.strftime('%d/%m')
+
+        # Horário formatado
+
+        # Corrigir: usar data_inicio e data_fim reais
+        hora_inicio = evento.data_inicio.strftime('%H:%M') if evento.data_inicio else ''
+        hora_fim = evento.data_fim.strftime('%H:%M') if evento.data_fim else ''
+        if hora_inicio and hora_fim:
+            horario = f'de {hora_inicio} até {hora_fim}'
+        elif hora_inicio:
+            horario = f'às {hora_inicio}'
+        else:
+            horario = ''
+
+        linha_info = f"{data_texto}, {horario}" if horario else data_texto
+
+        proximos_eventos.append({
+            'dia': f"{dia:02d}",
+            'dia_semana': dia_semana,
+            'titulo': evento.titulo,
+            'descricao': evento.descricao or '',
+            'linha_info': linha_info,
+        })
+
     context = {
         'status_data_json': json.dumps(status_data_list),
         'status_labels_json': json.dumps([item['status'] for item in status_data_list]),
@@ -2082,6 +2181,11 @@ def index(request):
         'aniversariantes_ontem': aniversariantes_ontem,
         'aniversariantes_hoje': aniversariantes_hoje,
         'aniversariantes_amanha': aniversariantes_amanha,
+        # Novos dados para melhorias
+        'usuario_foto_url': usuario_foto_url,
+        'atividades_recentes': atividades_recentes,
+        'alertas': alertas,
+        'proximos_eventos': proximos_eventos,
     }
     return render(request, 'secretaria/index.html', context)
 
