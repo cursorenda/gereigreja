@@ -60,6 +60,26 @@ def obter_commits_desde_ultimo_deploy():
     Obtém mudanças LOCAIS que ainda não foram enviadas ao servidor.
     Mostra commits feitos localmente mas que ainda não foram para o remote (origin).
     """
+    # DEBUG: Logar diretório corrente, branch e resultado do git log
+    import logging
+    logger = logging.getLogger('deploy_debug')
+    logger.warning('DEBUG deploy: cwd=%s', settings.BASE_DIR)
+    branch_result_dbg = subprocess.run(
+        ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+        capture_output=True,
+        text=True,
+        cwd=settings.BASE_DIR,
+        encoding='utf-8'
+    )
+    logger.warning('DEBUG deploy: branch local=%s', branch_result_dbg.stdout.strip())
+    log_result_dbg = subprocess.run(
+        ['git', 'log', 'origin/master..HEAD', '--oneline'],
+        capture_output=True,
+        text=True,
+        cwd=settings.BASE_DIR,
+        encoding='utf-8'
+    )
+    logger.warning('DEBUG deploy: git log origin/master..HEAD --oneline = %s', log_result_dbg.stdout.strip())
     try:
         from .models import DeployHistorico
         
@@ -73,6 +93,14 @@ def obter_commits_desde_ultimo_deploy():
             'automated',
         ]
         
+        # 0. Atualizar referência do remote para garantir precisão
+        subprocess.run(
+            ['git', 'fetch'],
+            capture_output=True,
+            cwd=settings.BASE_DIR,
+            encoding='utf-8'
+        )
+
         # 1. Verificar se há mudanças não commitadas (unstaged/staged)
         status_result = subprocess.run(
             ['git', 'status', '--porcelain'],
@@ -142,37 +170,20 @@ def obter_commits_desde_ultimo_deploy():
             
             # Combinar mudanças não commitadas + commits pendentes
             resultado = []
-            
+
             if mudancas_nao_commitadas:
                 resultado.append("# ⚠️ Arquivos modificados mas não commitados:")
                 resultado.extend(mudancas_nao_commitadas)
                 resultado.append("")
-            
+
             if commits_pendentes:
                 resultado.append("# 📝 Commits locais que serão enviados:")
                 resultado.extend(commits_pendentes)
-            elif not mudancas_nao_commitadas:
-                # Se não há mudanças pendentes nem commits, verificar desde último deploy
-                ultimo_deploy = DeployHistorico.objects.filter(status='sucesso').order_by('-data_deploy').first()
-                if ultimo_deploy and ultimo_deploy.commit_hash:
-                    result = subprocess.run(
-                        ['git', 'log', f'{ultimo_deploy.commit_hash}..HEAD', '--pretty=format:%s', '-10'],
-                        capture_output=True,
-                        text=True,
-                        cwd=settings.BASE_DIR,
-                        encoding='utf-8'
-                    )
-                    
-                    if result.returncode == 0 and result.stdout.strip():
-                        commits = result.stdout.strip().split('\n')
-                        commits_filtrados = [f"- {c.strip()}" for c in commits if c.strip() and not any(f.lower() in c.lower() for f in filtros)]
-                        if commits_filtrados:
-                            resultado.extend(commits_filtrados)
-            
+
             if resultado:
                 return '\n'.join(resultado)
-        
-        return "- (Nenhuma mudança pendente detectada)"
+            else:
+                return "- (Nenhuma alteração pendente para deploy)"
     
     except Exception as e:
         return f"- (Erro ao obter commits: {str(e)})"
@@ -328,7 +339,22 @@ def executar_deploy(tipo_versao, descricao, usuario):
         deploy.status = 'sucesso'
         deploy.log_execucao = '\n'.join(logs)
         deploy.save()
-        
+
+        # Criar registro de AtualizacaoSistema (publicado=False)
+        try:
+            from configuracao.models import AtualizacaoSistema
+            AtualizacaoSistema.objects.create(
+                titulo=f'Atualização do Sistema v{nova_versao}',
+                versao=nova_versao,
+                data_publicacao=datetime.now().date(),
+                conteudo=descricao,
+                publicado=False
+            )
+            logs.append(f"✅ AtualizacaoSistema criada para revisão (v{nova_versao})")
+        except Exception as e:
+            logs.append(f"⚠️ Erro ao criar AtualizacaoSistema: {str(e)}")
+            # Não interrompe o deploy
+
         return {
             'sucesso': True,
             'versao': nova_versao,

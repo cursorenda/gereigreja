@@ -363,39 +363,71 @@ function atualizarMudancas() {
         .then(response => response.json())
         .then(data => {
             if (data.sucesso) {
-                let html = `<div class="mudancas-header">📊 Total: ${data.total} arquivo(s) detectado(s)</div>`;
-                
+                let html = `<div class=\"mudancas-header\">📊 Total: ${data.total} arquivo(s) detectado(s)</div>`;
                 if (data.modificados.length > 0) {
-                    html += '<div style="margin-top: 10px;"><strong>📝 Modificados (' + data.modificados.length + '):</strong><br>';
+                    html += '<div style=\"margin-top: 10px;\"><strong>📝 Modificados (' + data.modificados.length + '):</strong><br>';
                     data.modificados.forEach(arq => {
-                        html += '<div class="arquivo-item arquivo-modificado">M ' + arq + '</div>';
+                        html += '<div class=\"arquivo-item arquivo-modificado\">M ' + arq + '</div>';
                     });
                     html += '</div>';
                 }
-                
                 if (data.adicionados.length > 0) {
-                    html += '<div style="margin-top: 10px;"><strong>➕ Adicionados (' + data.adicionados.length + '):</strong><br>';
+                    html += '<div style=\"margin-top: 10px;\"><strong>➕ Adicionados (' + data.adicionados.length + '):</strong><br>';
                     data.adicionados.forEach(arq => {
-                        html += '<div class="arquivo-item arquivo-adicionado">A ' + arq + '</div>';
+                        html += '<div class=\"arquivo-item arquivo-adicionado\">A ' + arq + '</div>';
                     });
                     html += '</div>';
                 }
-                
                 if (data.deletados.length > 0) {
-                    html += '<div style="margin-top: 10px;"><strong>🗑️ Deletados (' + data.deletados.length + '):</strong><br>';
+                    html += '<div style=\"margin-top: 10px;\"><strong>🗑️ Deletados (' + data.deletados.length + '):</strong><br>';
                     data.deletados.forEach(arq => {
-                        html += '<div class="arquivo-item arquivo-deletado">D ' + arq + '</div>';
+                        html += '<div class=\"arquivo-item arquivo-deletado\">D ' + arq + '</div>';
                     });
                     html += '</div>';
                 }
-                
                 if (data.total === 0) {
-                    html += '<div style="color: #856404;">⚠️ Nenhuma mudança detectada.</div>';
+                    html += '<div style=\"color: #856404;\">⚠️ Nenhuma mudança detectada.</div>';
                 }
-                
                 document.getElementById('mudancasGit').innerHTML = html;
             }
+            // Buscar também a descrição atualizada (commits_automaticos) via AJAX
+            fetch(window.location.pathname, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                .then(resp => resp.text())
+                .then(html => {
+                    // Extrai o valor do textarea do HTML retornado
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    const textarea = tempDiv.querySelector('textarea[name=\"descricao\"]');
+                    if (textarea) {
+                        document.querySelector('textarea[name=\"descricao\"]').value = textarea.value;
+                    }
+                    // Exibe mensagem de sucesso
+                    mostrarMensagemAtualizacao('Mudanças atualizadas com sucesso!');
+                });
         });
+
+// Função para exibir mensagem de sucesso
+function mostrarMensagemAtualizacao(msg) {
+    let msgDiv = document.getElementById('msgAtualizacao');
+    if (!msgDiv) {
+        msgDiv = document.createElement('div');
+        msgDiv.id = 'msgAtualizacao';
+        msgDiv.style.position = 'fixed';
+        msgDiv.style.top = '30px';
+        msgDiv.style.right = '30px';
+        msgDiv.style.background = '#d4edda';
+        msgDiv.style.color = '#155724';
+        msgDiv.style.padding = '14px 28px';
+        msgDiv.style.borderRadius = '8px';
+        msgDiv.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+        msgDiv.style.fontWeight = 'bold';
+        msgDiv.style.zIndex = 9999;
+        document.body.appendChild(msgDiv);
+    }
+    msgDiv.innerText = msg;
+    msgDiv.style.display = 'block';
+    setTimeout(() => { msgDiv.style.display = 'none'; }, 2000);
+}
 }
 
 // Confirmar antes de executar

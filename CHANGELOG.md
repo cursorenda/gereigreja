@@ -1,20 +1,39 @@
+## v1.1.2 — 04/02/2026
+Correção de bugs
+
 ## v1.1.1 — 04/02/2026
-# ⚠️ Arquivos modificados mas não commitados:
-- [Não commitado] M CHANGELOG.md
-- [Não commitado] M core/admin.py
-- [Não commitado] M core/templatetags/versao.py
-- [Não commitado] M secretaria/templates/secretaria/index.html
-- [Não commitado] M secretaria/views.py
-- [Não commitado] M templates/base_com_menu.html
-
-Novo layout 100% largura: Página inicial da secretaria redesenhada, responsiva e moderna.
-Bloco “Próximos eventos” aprimorado: Exibe eventos futuros com dia da semana, data, título e horários reais, visual idêntico ao modelo.
-Cards padronizados: Atividades Recentes, Próximos Eventos e Gráfico agora com altura e bordas iguais, barra de rolagem nas atividades.
-Gráfico de evolução ampliado: Altura aumentada para melhor visualização.
-Barra de ações profissional: Botões de navegação (Dashboard, Listar Pessoas, Relatório, Agenda, Bancos, Ajuda/FAQ) agrupados à esquerda, com links corretos e design uniforme.
-Busca centralizada: Campo de busca alinhado, com altura igual aos botões e espaçamento visual.
-Cards informativos e aniversariantes: Cards de totais e aniversariantes com ícones, nomes e layout limpo.
-Responsividade e espaçamento refinados: Layout adaptado para todas as telas, com alinhamento e espaçamento profissional.
+# ⚠️ Arquivos modificados mas não commitados:
+
+- [Não commitado] M CHANGELOG.md
+
+- [Não commitado] M core/admin.py
+
+- [Não commitado] M core/templatetags/versao.py
+
+- [Não commitado] M secretaria/templates/secretaria/index.html
+
+- [Não commitado] M secretaria/views.py
+
+- [Não commitado] M templates/base_com_menu.html
+
+
+
+Novo layout 100% largura: Página inicial da secretaria redesenhada, responsiva e moderna.
+
+Bloco “Próximos eventos” aprimorado: Exibe eventos futuros com dia da semana, data, título e horários reais, visual idêntico ao modelo.
+
+Cards padronizados: Atividades Recentes, Próximos Eventos e Gráfico agora com altura e bordas iguais, barra de rolagem nas atividades.
+
+Gráfico de evolução ampliado: Altura aumentada para melhor visualização.
+
+Barra de ações profissional: Botões de navegação (Dashboard, Listar Pessoas, Relatório, Agenda, Bancos, Ajuda/FAQ) agrupados à esquerda, com links corretos e design uniforme.
+
+Busca centralizada: Campo de busca alinhado, com altura igual aos botões e espaçamento visual.
+
+Cards informativos e aniversariantes: Cards de totais e aniversariantes com ícones, nomes e layout limpo.
+
+Responsividade e espaçamento refinados: Layout adaptado para todas as telas, com alinhamento e espaçamento profissional.
+
 Preparação para página de Ajuda/FAQ: Botão já disponível na barra de ações.
 
 ## v1.1.0 — 03/02/2026
