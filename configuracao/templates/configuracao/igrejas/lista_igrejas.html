@@ -13,6 +13,18 @@
     {# Mensagens #}
     {% include 'partials/_messages.html' %}
 
+    {# Banner de Onboarding - exibido quando não há membros cadastrados #}
+    {% if not tem_membros %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <h5 class="alert-heading"><i class="fas fa-users"></i> 👥 Próximo passo: Cadastre seus membros</h5>
+        <p class="mb-2">Você criou sua igreja com sucesso! Agora é hora de cadastrar os membros para começar a usar o sistema.</p>
+        <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Cadastrar Primeiro Membro
+        </a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-church me-1"></i>

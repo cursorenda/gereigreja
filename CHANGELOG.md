@@ -1,3 +1,6 @@
+## v1.2.0 — 09/02/2026
+Release v1.2.0: Dashboard de métricas + Correção de onboarding
+
 ## v1.1.2 — 04/02/2026
 Correção de bugs
 

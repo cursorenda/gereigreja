@@ -226,6 +226,10 @@
         {# Seção Sistema: Novidades e Configurações do Sistema #}
         {% if request.user.is_authenticated and not request.user.is_superuser %}
             <div class="sb-sidenav-menu-heading">Sistema</div>
+            <a class="nav-link" href="{% url 'configuracao:dashboard_sistema' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-heartbeat"></i></div>
+                Dashboard do Sistema
+            </a>
             <a class="nav-link" href="{% url 'configuracao:lista_atualizacoes_sistema' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
                 Novidades do Sistema

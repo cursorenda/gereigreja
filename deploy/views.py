@@ -118,72 +118,35 @@ def obter_commits_desde_ultimo_deploy():
                 if linha.strip():
                     mudancas_nao_commitadas.append(f"- [Não commitado] {linha.strip()}")
         
-        # 2. Pegar commits LOCAIS que não estão no REMOTE (origin/main ou origin/master)
-        # Primeiro, descobrir qual é o branch remoto
-        branch_result = subprocess.run(
-            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+        # 2. Buscar commits locais realmente pendentes (git log origin/master..HEAD)
+        commits_pendentes = []
+        result = subprocess.run(
+            ['git', 'log', 'origin/master..HEAD', '--pretty=format:%s'],
             capture_output=True,
             text=True,
             cwd=settings.BASE_DIR,
             encoding='utf-8'
         )
-        
-        if branch_result.returncode == 0:
-            branch_local = branch_result.stdout.strip()
-            
-            # Tentar origin/<branch_local>, depois origin/main, depois origin/master
-            branches_tentar = [
-                f'origin/{branch_local}',
-                'origin/main',
-                'origin/master'
-            ]
-            
-            commits_pendentes = []
-            for branch_remoto in branches_tentar:
-                # Ver se o branch remoto existe
-                check_branch = subprocess.run(
-                    ['git', 'rev-parse', '--verify', branch_remoto],
-                    capture_output=True,
-                    cwd=settings.BASE_DIR,
-                    encoding='utf-8'
-                )
-                
-                if check_branch.returncode == 0:
-                    # Pegar commits que estão em HEAD mas não no remote
-                    result = subprocess.run(
-                        ['git', 'log', f'{branch_remoto}..HEAD', '--pretty=format:%s'],
-                        capture_output=True,
-                        text=True,
-                        cwd=settings.BASE_DIR,
-                        encoding='utf-8'
-                    )
-                    
-                    if result.returncode == 0 and result.stdout.strip():
-                        commits = result.stdout.strip().split('\n')
-                        
-                        for commit in commits:
-                            commit = commit.strip()
-                            if commit and not any(filtro.lower() in commit.lower() for filtro in filtros):
-                                commits_pendentes.append(f"- {commit}")
-                        
-                        break  # Encontrou o branch remoto correto
-            
-            # Combinar mudanças não commitadas + commits pendentes
-            resultado = []
+        if result.returncode == 0 and result.stdout.strip():
+            commits = result.stdout.strip().split('\n')
+            for commit in commits:
+                commit = commit.strip()
+                if commit and not any(filtro.lower() in commit.lower() for filtro in filtros):
+                    commits_pendentes.append(f"- {commit}")
 
-            if mudancas_nao_commitadas:
-                resultado.append("# ⚠️ Arquivos modificados mas não commitados:")
-                resultado.extend(mudancas_nao_commitadas)
-                resultado.append("")
-
-            if commits_pendentes:
-                resultado.append("# 📝 Commits locais que serão enviados:")
-                resultado.extend(commits_pendentes)
-
-            if resultado:
-                return '\n'.join(resultado)
-            else:
-                return "- (Nenhuma alteração pendente para deploy)"
+        # Combinar mudanças não commitadas + commits pendentes
+        resultado = []
+        if mudancas_nao_commitadas:
+            resultado.append("Arquivos alterados neste deploy:")
+            resultado.extend(mudancas_nao_commitadas)
+            resultado.append("")
+        if commits_pendentes:
+            resultado.append("# 📝 Commits locais que serão enviados:")
+            resultado.extend(commits_pendentes)
+        if resultado:
+            return '\n'.join(resultado)
+        else:
+            return ""
     
     except Exception as e:
         return f"- (Erro ao obter commits: {str(e)})"

@@ -260,5 +260,4 @@ class ValidacaoImagensAdmin(admin.ModelAdmin):
             })
         return resultados
 
-# Registrar no admin (mova este registro para o final do arquivo)
 admin.site.register(ValidacaoImagens, ValidacaoImagensAdmin)

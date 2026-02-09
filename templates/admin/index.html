@@ -1,12 +1,315 @@
 {% extends "admin/index.html" %}
 {% load i18n %}
 
-{% block content_title %}{% if title %}{{ title }}{% else %}{% translate 'Site administration' %}{% endif %}{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+/* ===== LAYOUT RESPONSIVO (MOBILE-FIRST) ===== */
+
+/* Layout base: Mobile (coluna única) */
+body.dashboard #container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 20px !important;
+}
+
+body.dashboard #content {
+    display: block !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+body.dashboard .dashboard-sidebar,
+body.dashboard #content-main,
+body.dashboard #content-related {
+    width: 100%;
+    margin-bottom: 20px;
+    position: static;
+}
+
+/* Tabelas na sidebar */
+body.dashboard .dashboard-sidebar table {
+    width: 100%;
+    table-layout: auto;
+}
+
+body.dashboard .dashboard-sidebar th,
+body.dashboard .dashboard-sidebar td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.dashboard .dashboard-sidebar th a,
+body.dashboard .dashboard-sidebar td a {
+    white-space: nowrap;
+}
+
+/* ===== DESKTOP: 3 COLUNAS ===== */
+@media (min-width: 1200px) {
+    body.dashboard #container {
+        padding: 20px !important;
+    }
+    
+    body.dashboard #content {
+        display: grid !important;
+        grid-template-columns: 286px 1fr 317px !important;
+        gap: 30px !important;
+    }
+    
+    /* Coluna 1: Sidebar - Menus */
+    body.dashboard .dashboard-sidebar {
+        grid-column: 1 !important;
+        position: sticky;
+        top: 20px;
+        align-self: start;
+        padding-top: 20px;
+        margin-bottom: 0;
+        max-width: 286px;
+    }
+    
+    /* Coluna 2: Content Main - Métricas */
+    body.dashboard #content-main {
+        grid-column: 2 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        margin-bottom: 0;
+    }
+    
+    /* Coluna 3: Content Related - Ações Recentes */
+    body.dashboard #content-related {
+        grid-column: 3 !important;
+        position: sticky;
+        top: 20px;
+        align-self: start;
+        margin: 0 !important;
+        padding: 0 !important;
+        margin-bottom: 0;
+        max-width: 317px;
+    }
+}
+
+/* Ajuste para telas médias (tablet) */
+@media (min-width: 768px) and (max-width: 1199px) {
+    body.dashboard #content {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 20px !important;
+    }
+    
+    body.dashboard .dashboard-sidebar {
+        grid-column: 1 !important;
+    }
+    
+    body.dashboard #content-main {
+        grid-column: 1 / -1 !important;
+        order: 2;
+    }
+    
+    body.dashboard #content-related {
+        grid-column: 2 !important;
+        order: 3;
+    }
+}
+
+/* ===== DASHBOARD DE MÉTRICAS ===== */
+.metrics-dashboard {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    color: white;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+    .metrics-dashboard {
+        padding: 25px;
+    }
+}
+
+.metrics-dashboard h2 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* Grid de métricas - Mobile First */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+@media (min-width: 480px) {
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 992px) {
+    .metrics-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metric-card:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+.metric-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 8px 0 5px 0;
+}
+
+.metric-label {
+    font-size: 12px;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-sublabel {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 25px 0 12px 0;
+    opacity: 0.95;
+}
+
+/* Quality bars - Mobile First */
+.quality-bars {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+@media (min-width: 576px) {
+    .quality-bars {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.quality-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.quality-item label {
+    font-size: 11px;
+    display: block;
+    margin-bottom: 5px;
+    opacity: 0.9;
+}
+
+.progress-bar {
+    height: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+    transition: width 0.5s ease;
+}
+
+.quality-item span {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Charts - Mobile First */
+.charts-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+@media (min-width: 768px) {
+    .charts-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.chart-container {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+    backdrop-filter: blur(10px);
+    height: 250px;
+    max-height: 250px;
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-container canvas {
+    max-height: 200px !important;
+    width: 100% !important;
+}
+
+.chart-container h3 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.loading {
+    text-align: center;
+    padding: 15px;
+    opacity: 0.7;
+}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
+{% block branding %}
+{{ block.super }}
+{% endblock %}
 
 {% block content %}
-<div id="content-main">
-    {# Adiciona uma nova seção para ferramentas personalizadas #}
-    <div class="app-secretaria module"> {# Você pode usar o nome de um app existente ou criar um novo "app" visual #}
+<!-- COLUNA 1: Menus do Django Admin -->
+<div class="dashboard-sidebar">
+    <!-- ===== FERRAMENTAS DO SISTEMA ===== -->
+    <div class="app-secretaria module">
         <table>
             <caption>
                 <a href="#" class="section" title="Ferramentas do Sistema">Ferramentas do Sistema</a>
@@ -14,44 +317,440 @@
             <tbody>
                 <tr class="model-convite">
                     <th scope="row">
-                            <a href="/backup/json/">💾 Backup Banco (JSON)</a>
+                        <a href="/backup/json/">💾 Backup Banco (JSON)</a>
                     </th>
-                    <td>&nbsp;</td>
                     <td style="color: #28a745; font-size: 11px;">✅ Funciona em produção</td>
                 </tr>
                 <tr class="model-convite">
                     <th scope="row">
-                            <a href="/backup/arquivos/">📦 Backup Arquivos (ZIP)</a>
+                        <a href="/backup/arquivos/">📦 Backup Arquivos (ZIP)</a>
                     </th>
-                    <td>&nbsp;</td>
                     <td style="color: #28a745; font-size: 11px;">✅ Funciona em produção</td>
                 </tr>
                 <tr class="model-convite">
                     <th scope="row">
-                            <a href="/backup/custom/">Backup Banco (Custom)</a>
+                        <a href="/backup/custom/">Backup Banco (Custom)</a>
                     </th>
-                    <td>&nbsp;</td>
                     <td style="color: #dc3545; font-size: 11px;">⚠️ Apenas local</td>
                 </tr>
                 <tr class="model-convite">
                     <th scope="row">
-                            <a href="/backup/sql/">Backup Banco (SQL)</a>
+                        <a href="/backup/sql/">Backup Banco (SQL)</a>
                     </th>
-                    <td>&nbsp;</td>
                     <td style="color: #dc3545; font-size: 11px;">⚠️ Apenas local</td>
                 </tr>
                 <tr class="model-deployhistorico">
                     <th scope="row">
-                            <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">Deploy e Versionamento</a>
+                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">Deploy e Versionamento</a>
                     </th>
-                    <td><a href="{% url 'admin:deploy_nova_versao' %}" class="addlink">Nova Versão</a></td>
-                    <td><a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink">Histórico</a></td>
+                    <td>
+                        <a href="{% url 'admin:deploy_nova_versao' %}" class="addlink" style="font-size: 11px;">Nova Versão</a> | 
+                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink" style="font-size: 11px;">Histórico</a>
+                    </td>
+                </tr>
+                <tr class="model-dashboard">
+                    <th scope="row">
+                        <a href="/admin/dashboard-dev/" style="color: #667eea; font-weight: 600;">🔧 Dashboard</a>
+                    </th>
+                    <td style="color: #667eea; font-size: 11px;">⚡ Monitoramento técnico</td>
+                </tr>
+                <tr class="model-logs">
+                    <th scope="row">
+                        <a href="/admin/configuracao/ministerio/" style="color: #f59e0b;">🏢 Ministérios</a>
+                    </th>
+                    <td style="color: #6b7280; font-size: 11px;">Gerenciar clientes</td>
+                </tr>
+                <tr class="model-tickets">
+                    <th scope="row">
+                        <a href="/admin/suporte/ticket/" style="color: #ef4444;">🎫 Tickets</a>
+                    </th>
+                    <td style="color: #6b7280; font-size: 11px;">Suporte aos clientes</td>
                 </tr>
             </tbody>
         </table>
     </div>
+    
+    {% if app_list %}
+        {% for app in app_list %}
+            <div class="app-{{ app.app_label }} module">
+                <table>
+                    <caption>
+                        <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+                    </caption>
+                    {% for model in app.models %}
+                        <tr class="model-{{ model.object_name|lower }}">
+                            {% if model.admin_url %}
+                                <th scope="row"><a href="{{ model.admin_url }}"{% if model.add_url %} class="changelink"{% endif %}>{{ model.name }}</a></th>
+                            {% else %}
+                                <th scope="row">{{ model.name }}</th>
+                            {% endif %}
 
-    {# Inclui o conteúdo original do admin/index.html #}
-    {{ block.super }}
+                            {% if model.add_url %}
+                                <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                            {% else %}
+                                <td>&nbsp;</td>
+                            {% endif %}
+
+                            {% if model.admin_url and show_changelinks %}
+                                <td><a href="{{ model.admin_url }}" class="changelink">{% translate 'Change' %}</a></td>
+                            {% else %}
+                                <td>&nbsp;</td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>{% translate "You don't have permission to view or edit anything." %}</p>
+    {% endif %}
 </div>
+
+<!-- COLUNA 2: Métricas -->
+<div id="content-main">
+<!-- ===== PAINEL DE MÉTRICAS DE PRODUTO ===== -->
+<div class="metrics-dashboard">
+        <h2>📊 Visão Geral do Sistema</h2>
+        
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner fa-spin"></i> Carregando métricas...
+        </div>
+        
+        <div id="metrics-content" style="display: none;">
+            <!-- Cards Principais -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-icon">👥</span>
+                    <div class="metric-value" id="membros-total">--</div>
+                    <div class="metric-label">Membros</div>
+                    <div class="metric-sublabel">+<span id="membros-novos">--</span> mês</div>
+                </div>
+                
+                <div class="metric-card">
+                    <span class="metric-icon">📅</span>
+                    <div class="metric-value" id="eventos-mes">--</div>
+                    <div class="metric-label">Eventos Mês</div>
+                    <div class="metric-sublabel"><span id="eventos-presenca">--</span>% presença</div>
+                </div>
+                
+                <div class="metric-card">
+                    <span class="metric-icon">💬</span>
+                    <div class="metric-value" id="emails-mes">--</div>
+                    <div class="metric-label">E-mails</div>
+                    <div class="metric-sublabel"><span id="emails-abertura">--</span>% abertura</div>
+                </div>
+                
+                <div class="metric-card" id="tickets-card">
+                    <span class="metric-icon">🎫</span>
+                    <div class="metric-value" id="tickets-pendentes">--</div>
+                    <div class="metric-label">Tickets</div>
+                    <div class="metric-sublabel"><span id="tickets-bugs">--</span> bugs</div>
+                </div>
+            </div>
+            
+            <!-- Seção: Clientes (Ministérios) -->
+            <div class="section-title">🏢 Clientes do Sistema</div>
+            <div class="metrics-grid">
+                <div class="metric-card" id="ministerios-card">
+                    <span class="metric-icon">🏢</span>
+                    <div class="metric-value" id="ministerios-total">--</div>
+                    <div class="metric-label">Ministérios</div>
+                    <div class="metric-sublabel"><span id="ministerios-ativos">--</span> ativos</div>
+                </div>
+                
+                <div class="metric-card">
+                    <span class="metric-icon">⛪</span>
+                    <div class="metric-value" id="igrejas-total">--</div>
+                    <div class="metric-label">Igrejas</div>
+                    <div class="metric-sublabel">+<span id="ministerios-novos">--</span> mês</div>
+                </div>
+                
+                <div class="metric-card" id="sistema-card">
+                    <span class="metric-icon">💾</span>
+                    <div class="metric-value" id="backup-dias">--</div>
+                    <div class="metric-label">Último Backup</div>
+                    <div class="metric-sublabel"><span id="storage-usado">--</span> GB storage</div>
+                </div>
+                
+                <div class="metric-card">
+                    <span class="metric-icon">📊</span>
+                    <div class="metric-value" id="ministerios-sem-acesso">--</div>
+                    <div class="metric-label">Sem Acesso 30d</div>
+                    <div class="metric-sublabel">Churn potencial</div>
+                </div>
+            </div>
+            
+            <!-- Qualidade dos Dados -->
+            <div class="section-title">📈 Qualidade & Uso das Features</div>
+            <div class="quality-bars">
+                <div class="quality-item">
+                    <label>Membros com Foto</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-foto" style="width: 0%"></div>
+                    </div>
+                    <span id="percent-foto">0%</span>
+                </div>
+                
+                <div class="quality-item">
+                    <label>Membros com Telefone</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-telefone" style="width: 0%"></div>
+                    </div>
+                    <span id="percent-telefone">0%</span>
+                </div>
+                
+                <div class="quality-item">
+                    <label>Lançamentos c/ Comprovante</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-comprovante" style="width: 0%"></div>
+                    </div>
+                    <span id="percent-comprovante">0%</span>
+                </div>
+                
+                <div class="quality-item">
+                    <label>Taxa de Retenção (30d)</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-retencao" style="width: 0%"></div>
+                    </div>
+                    <span id="percent-retencao">0%</span>
+                </div>
+            </div>
+            
+            <!-- Distribuição de Clientes -->
+            <div class="section-title">📈 Distribuição de Clientes</div>
+            <div class="quality-bars">
+                <div class="quality-item">
+                    <label>Pequenos (&lt;50 membros)</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-pequenos" style="width: 0%; background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);"></div>
+                    </div>
+                    <span id="count-pequenos">0</span>
+                </div>
+                
+                <div class="quality-item">
+                    <label>Médios (50-200)</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-medios" style="width: 0%; background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);"></div>
+                    </div>
+                    <span id="count-medios">0</span>
+                </div>
+                
+                <div class="quality-item">
+                    <label>Grandes (&gt;200)</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="bar-grandes" style="width: 0%; background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);"></div>
+                    </div>
+                    <span id="count-grandes">0</span>
+                </div>
+            </div>
+            
+            <!-- Gráficos -->
+            <div class="section-title">📊 Análises Temporais</div>
+            <div class="charts-row">
+                <div class="chart-container">
+                    <h3>Crescimento (6 meses)</h3>
+                    <canvas id="chartCrescimento"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Engagement</h3>
+                    <canvas id="chartEngagement"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Configuração global do Chart.js
+Chart.defaults.color = '#fff';
+Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+
+// Carregar métricas
+fetch('/admin/api/metricas-produto/')
+    .then(response => response.json())
+    .then(data => {
+        console.log('Métricas carregadas:', data);
+        
+        // Ocultar loading
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('metrics-content').style.display = 'block';
+        
+        // ===== CARDS PRINCIPAIS =====
+        document.getElementById('membros-total').textContent = data.membros.total;
+        document.getElementById('membros-novos').textContent = data.membros.novos_mes;
+        
+        document.getElementById('eventos-mes').textContent = data.eventos.este_mes;
+        document.getElementById('eventos-presenca').textContent = data.eventos.taxa_presenca;
+        
+        document.getElementById('emails-mes').textContent = data.comunicacao.emails_mes;
+        document.getElementById('emails-abertura').textContent = data.comunicacao.taxa_abertura;
+        
+        document.getElementById('tickets-pendentes').textContent = data.tickets.pendentes;
+        document.getElementById('tickets-bugs').textContent = data.tickets.bugs;
+        
+        // Alerta se houver bugs
+        if (data.tickets.bugs > 0) {
+            const ticketsCard = document.getElementById('tickets-card');
+            ticketsCard.style.background = 'rgba(239, 68, 68, 0.3)';
+            ticketsCard.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+        }
+        
+        // ===== CARDS DE MINISTÉRIOS/CLIENTES =====
+        document.getElementById('ministerios-total').textContent = data.ministerios.total;
+        document.getElementById('ministerios-ativos').textContent = data.ministerios.ativos;
+        document.getElementById('igrejas-total').textContent = data.ministerios.total_igrejas;
+        document.getElementById('ministerios-novos').textContent = data.ministerios.novos_mes;
+        document.getElementById('ministerios-sem-acesso').textContent = data.ministerios.sem_acesso_30d;
+        
+        // Alerta se ministérios sem acesso > 0
+        if (data.ministerios.sem_acesso_30d > 0) {
+            const ministeriosCard = document.getElementById('ministerios-card');
+            ministeriosCard.style.background = 'rgba(251, 146, 60, 0.3)';
+            ministeriosCard.style.borderColor = 'rgba(251, 146, 60, 0.5)';
+        }
+        
+        // ===== STATUS DO SISTEMA =====
+        const diasBackup = data.sistema.dias_desde_backup;
+        document.getElementById('backup-dias').textContent = diasBackup === 999 ? 'Nunca' : 
+            diasBackup === 0 ? 'Hoje' : 
+            diasBackup === 1 ? 'Ontem' : 
+            diasBackup + 'd atrás';
+        document.getElementById('storage-usado').textContent = data.sistema.storage_gb;
+        
+        // Alerta se backup antigo
+        if (!data.sistema.backup_ok) {
+            const sistemaCard = document.getElementById('sistema-card');
+            sistemaCard.style.background = 'rgba(239, 68, 68, 0.3)';
+            sistemaCard.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+        }
+        
+        // ===== BARRAS DE QUALIDADE =====
+        document.getElementById('bar-foto').style.width = data.membros.taxa_foto + '%';
+        document.getElementById('percent-foto').textContent = data.membros.taxa_foto + '%';
+        
+        document.getElementById('bar-telefone').style.width = data.membros.taxa_telefone + '%';
+        document.getElementById('percent-telefone').textContent = data.membros.taxa_telefone + '%';
+        
+        document.getElementById('bar-comprovante').style.width = data.financeiro.taxa_comprovante + '%';
+        document.getElementById('percent-comprovante').textContent = data.financeiro.taxa_comprovante + '%';
+        
+        document.getElementById('bar-retencao').style.width = data.acessos.taxa_retencao + '%';
+        document.getElementById('percent-retencao').textContent = data.acessos.taxa_retencao + '%';
+        
+        // ===== DISTRIBUIÇÃO DE MINISTÉRIOS =====
+        const totalMinisterios = data.ministerios.total;
+        if (totalMinisterios > 0) {
+            const percPequenos = (data.ministerios.pequenos / totalMinisterios * 100);
+            const percMedios = (data.ministerios.medios / totalMinisterios * 100);
+            const percGrandes = (data.ministerios.grandes / totalMinisterios * 100);
+            
+            document.getElementById('bar-pequenos').style.width = percPequenos + '%';
+            document.getElementById('count-pequenos').textContent = data.ministerios.pequenos;
+            
+            document.getElementById('bar-medios').style.width = percMedios + '%';
+            document.getElementById('count-medios').textContent = data.ministerios.medios;
+            
+            document.getElementById('bar-grandes').style.width = percGrandes + '%';
+            document.getElementById('count-grandes').textContent = data.ministerios.grandes;
+        }
+        
+        // ===== GRÁFICO 1: CRESCIMENTO DE MEMBROS =====
+        const ctxCrescimento = document.getElementById('chartCrescimento').getContext('2d');
+        new Chart(ctxCrescimento, {
+            type: 'line',
+            data: {
+                labels: data.crescimento.map(item => item.mes),
+                datasets: [{
+                    label: 'Novos Membros',
+                    data: data.crescimento.map(item => item.count),
+                    borderColor: 'rgb(74, 222, 128)',
+                    backgroundColor: 'rgba(74, 222, 128, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgb(74, 222, 128)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            font: { size: 10 }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: { size: 10 }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+        
+        // ===== GRÁFICO 2: ENGAGEMENT =====
+        const ctxEngagement = document.getElementById('chartEngagement').getContext('2d');
+        new Chart(ctxEngagement, {
+            type: 'doughnut',
+            data: {
+                labels: ['Ativos 7d', 'Ativos 30d', 'Inativos'],
+                datasets: [{
+                    data: [
+                        data.acessos.usuarios_7d,
+                        data.acessos.usuarios_30d - data.acessos.usuarios_7d,
+                        data.acessos.total_usuarios - data.acessos.usuarios_30d
+                    ],
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(156, 163, 175, 0.8)'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 10,
+                            font: {
+                                size: 10
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })
+    .catch(error => {
+        console.error('Erro ao carregar métricas:', error);
+        document.getElementById('loading').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Erro ao carregar métricas';
+    });
+</script>
 {% endblock %}

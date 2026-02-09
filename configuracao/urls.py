@@ -1,5 +1,6 @@
 # configuracao/urls.py
 from . import views
+from .views_dashboard import dashboard_sistema, api_metricas_sistema
 from django.urls import path
 # Importar views de autenticação do Django
 from django.contrib.auth import views as auth_views
@@ -72,6 +73,10 @@ urlpatterns = [
 
     #path('admin/validar-imagens/',views.validar_imagens_perfil, name='validar_imagens'),
     path('validar-imagens/', views.validar_imagens_perfil, name='validar_imagens'),
+    
+    # Dashboard do Sistema
+    path('dashboard-sistema/', login_required(dashboard_sistema), name='dashboard_sistema'),
+    path('api/metricas-sistema/', login_required(api_metricas_sistema), name='api_metricas_sistema'),
 ]
 
 if settings.DEBUG:

@@ -327,11 +327,16 @@ def lista_igrejas(request):
                 Q(cidade__icontains=query) |
                 Q(pastor_local__icontains=query)
             )
+        
+        # Verificar se há membros cadastrados no ministério
+        from secretaria.models import Membro
+        tem_membros = Membro.objects.filter(igreja__ministerio=ministerio).exists()
 
         context = {
             'igrejas': igrejas_qs,
             'ministerio': ministerio,
             'current_q': query,
+            'tem_membros': tem_membros,  # Adicionar flag
         }
         return render(request, 'configuracao/igrejas/lista_igrejas.html', context)
     except Exception as e:
@@ -356,8 +361,18 @@ def adicionar_igreja(request):
             igreja = form.save(commit=False)
             igreja.ministerio = ministerio # Associa ao ministério do usuário
             igreja.save()
-            # messages.success(request, f'Igreja "{igreja.nome_igreja}" adicionada com sucesso!') # Comentado para evitar duplicidade
-            return redirect('configuracao:lista_igrejas')
+            
+            # Verificar se é a primeira igreja deste ministério
+            total_igrejas = Igreja.objects.filter(ministerio=ministerio).count()
+            
+            if total_igrejas == 1:
+                # Primeira igreja: redirecionar para cadastro de membro
+                messages.success(request, f'✅ Igreja "{igreja.nome_igreja}" criada com sucesso! Agora cadastre seu primeiro membro para começar a usar o sistema.')
+                return redirect('secretaria:cadastrar_membro')
+            else:
+                # Igrejas subsequentes: volta para lista
+                messages.success(request, f'Igreja "{igreja.nome_igreja}" adicionada com sucesso!')
+                return redirect('configuracao:lista_igrejas')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
             # print("ERROS NO FORMULÁRIO:", form.errors.as_json()) # Removido para produção

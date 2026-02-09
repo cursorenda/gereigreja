@@ -332,11 +332,27 @@
             <p style="color: #666; margin-bottom: 12px; font-size: 13px;">
                 As mudanças foram preenchidas automaticamente. <strong>Você pode editar ou complementar.</strong>
             </p>
-            <textarea name="descricao" required placeholder="Exemplo:
-- Novo relatório geral do dia da EBD
-- Dashboard melhorado com novos cards  
-- Correção de erro no cálculo de ofertas
-- Ajustes de responsividade">{{ commits_automaticos }}</textarea>
+            {% if commits_automaticos and 'Arquivos alterados neste deploy:' in commits_automaticos %}
+                <div style="background: #f8f9fa; border-left: 4px solid #417690; color: #333; padding: 8px 16px; margin-bottom: 8px; font-weight: 500;">
+                    Arquivos alterados neste deploy:
+                    <pre style="margin: 0; color: #555; font-size: 13px; background: none; border: none;">{{ commits_automaticos|cut:'Arquivos alterados neste deploy:' }}</pre>
+                </div>
+                <textarea name="descricao" required placeholder="Exemplo:
+Correção de bug no cadastro de membros
+Melhoria visual no dashboard financeiro
+Atualização de dependências e scripts
+Refatoração de views para clareza
+Exemplo: 'Ajuste no layout da tela X, correção do filtro Y, melhoria de performance no relatório Z'\n
+Descreva aqui o que mudou, para facilitar o histórico e o entendimento dos próximos deploys."></textarea>
+            {% else %}
+                <textarea name="descricao" required placeholder="Exemplo:
+Correção de bug no cadastro de membros
+Melhoria visual no dashboard financeiro
+Atualização de dependências e scripts
+Refatoração de views para clareza
+Exemplo: 'Ajuste no layout da tela X, correção do filtro Y, melhoria de performance no relatório Z'\n
+Descreva aqui o que mudou, para facilitar o histórico e o entendimento dos próximos deploys.">{% if commits_automaticos %}{{ commits_automaticos }}{% else %}{% endif %}</textarea>
+            {% endif %}
         </div>
         
         <div style="text-align: center; margin-top: 20px;">

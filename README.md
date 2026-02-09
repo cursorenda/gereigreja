@@ -1,64 +1,187 @@
-#
-# Exibição automática da versão do sistema
+# Gereigreja 🙏
 
-O sistema exibe automaticamente a versão atual (e data) em todos os rodapés e pode exibir também no admin, lendo o número da versão do arquivo `CHANGELOG.md`.
+Sistema completo de gestão eclesiástica desenvolvido em Django, oferecendo soluções integradas para administração de igrejas e organizações religiosas.
 
-## Como funciona
-- O arquivo `core/templatetags/versao.py` define uma template tag chamada `get_versao_gereigreja`.
-- Essa tag lê a primeira linha de versão do `CHANGELOG.md` (ex: `## v1.0.5 — 17/01/2026`).
-- O valor é cacheado em memória para performance.
-- Se não conseguir ler, exibe "Versão não disponível".
+## 📋 Sobre o Sistema
 
-## Como usar
-- No template base, use:
-  ```django
-  {% load versao %}
-  {% get_versao_gereigreja as versao_sistema %}
-  Versão {{ versao_sistema }}
-  ```
-- Para exibir no admin, veja instrução abaixo.
+**Gereigreja** é uma plataforma web robusta que centraliza a gestão de todos os aspectos administrativos de uma igreja, desde o cadastro de membros até o controle financeiro, passando por eventos, comunicação e recursos educacionais.
 
-## Exibir versão no admin
-Adicione o seguinte em `core/admin.py`:
-```python
-from django.contrib import admin
-from django.utils.html import format_html
-from core.templatetags.versao import get_versao_gereigreja
+## ✨ Funcionalidades Principais
 
-admin.site.site_header = f"Gereigreja — Versão {get_versao_gereigreja()}"
-admin.site.site_title = f"Gereigreja — Versão {get_versao_gereigreja()}"
-admin.site.index_title = format_html("<span style='font-size:1.1em'>Bem-vindo ao Gereigreja<br>Versão {}</span>", get_versao_gereigreja())
+- **👥 Secretaria**: Gestão completa de membros, famílias, visitantes e acompanhamento de visitas
+- **💰 Financeiro**: Controle de receitas, despesas, contas bancárias, categorias e relatórios
+- **📅 Eventos**: Organização de eventos, controle de participantes e inscrições
+- **📧 Comunicação**: Envio de e-mails, SMS e notificações para membros
+- **📚 Escola Bíblica**: Gestão de turmas, alunos e materiais didáticos
+- **⚙️ Configuração**: Administração de organizações, igrejas, usuários e permissões
+- **🚀 Deploy**: Sistema automatizado de versionamento e publicação de atualizações
+
+## 🛠️ Tecnologias
+
+- **Backend**: Python 3.x + Django Framework
+- **Frontend**: HTML5, CSS3 (Bootstrap), JavaScript (jQuery, Chart.js)
+- **Banco de Dados**: PostgreSQL (Supabase)
+- **Armazenamento**: Cloudinary (arquivos e mídia)
+- **Hospedagem**: Render (deploy automatizado)
+- **Controle de Versão**: Git + GitHub
+
+## 📁 Estrutura do Projeto
+
 ```
-Assim, a versão aparecerá no topo e título do admin.
+Gereigreja/
+├── skills/                    # Instruções para agente IA
+│   ├── copilot-instructions.md
+│   ├── contexto_gereigreja.md
+│   ├── financeiro/
+│   ├── deploy/
+│   ├── backup/
+│   ├── eventos/
+│   ├── comunicacao/
+│   ├── secretaria/
+│   └── configuracao/
+├── docs/                      # Documentação
+│   └── release-notes/
+├── core/                      # Configurações principais
+├── financeiro/                # App de gestão financeira
+├── secretaria/                # App de gestão de membros
+├── eventos/                   # App de gestão de eventos
+├── comunicacao/               # App de comunicação
+├── escola_biblica/            # App de escola bíblica
+├── configuracao/              # App de configuração
+├── contas/                    # App de autenticação
+├── deploy/                    # App de versionamento
+├── templates/                 # Templates globais
+├── static/                    # Arquivos estáticos
+├── media/                     # Uploads de usuários
+├── backup/                    # Backups do banco
+├── logs/                      # Logs do sistema
+├── manage.py
+├── requirements.txt
+├── README.md
+├── CHANGELOG.md
+└── README_TESTS.md
+```
 
-## Observações
-- O padrão pode ser usado para outros metadados globais (build, ambiente, etc).
-- Se mudar o local do `CHANGELOG.md`, ajuste o caminho na tag.
+## 🚀 Como Começar
 
-# Organização do fluxo de Visitas e Visitantes
+### Pré-requisitos
 
-## Visitas (Acompanhamento de Visitas)
-- O fluxo de visitas refere-se ao acompanhamento realizado pela igreja na casa das pessoas.
-- As páginas e templates relacionados ao acompanhamento de visitas são:
-  - `acompanhamentos_visita_list.html`: lista de acompanhamentos de visita
-  - `registrar_acompanhamento_visita.html`: registro de novo acompanhamento
-  - `ver_acompanhamento_visita.html`: detalhes do acompanhamento
-  - `editar_acompanhamento_visita.html`: edição do acompanhamento
-  - `excluir_acompanhamento_visita.html`: exclusão do acompanhamento
-  - `escolher_pessoa_para_acompanhamento.html`: seleção de pessoa para acompanhamento
-- Todos os links internos entre essas páginas apontam para o fluxo correto de visitas.
-- Não há mais links para páginas de visitantes/recepção dentro do fluxo de visitas.
+- Python 3.8+
+- PostgreSQL
+- Git
 
-## Visitantes (Recepção)
-- O fluxo de visitantes refere-se às pessoas que vêm à igreja, geralmente relacionado à recepção e eventos.
-- As páginas de visitantes estão separadas e não misturadas com o fluxo de visitas.
+### Instalação
 
-## Organização e Manutenção
-- O fluxo de visitas está centralizado e sem duplicidade.
-- Links e breadcrumbs revisados para evitar mistura de fluxos.
-- Caso novas páginas sejam criadas, garantir que o fluxo de visitas e visitantes permaneça separado.
+1. **Clone o repositório**:
+   ```bash
+   git clone https://github.com/seu-usuario/gereigreja.git
+   cd gereigreja
+   ```
+
+2. **Crie e ative o ambiente virtual**:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # Linux/Mac
+   .venv\Scripts\activate     # Windows
+   ```
+
+3. **Instale as dependências**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure as variáveis de ambiente**:
+   - Copie `.env.example` para `.env`
+   - Configure as credenciais do banco, Cloudinary, e-mail, etc.
+
+5. **Execute as migrações**:
+   ```bash
+   python manage.py migrate
+   ```
+
+6. **Crie um superusuário**:
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+7. **Rode o servidor**:
+   ```bash
+   python manage.py runserver
+   ```
+
+8. Acesse: `http://localhost:8000`
+
+## 📚 Documentação
+
+### Skills (Instruções para IA)
+O diretório [`skills/`](skills/) contém instruções detalhadas por módulo para agentes de IA:
+- [`skills/README.md`](skills/README.md) - Índice de todas as skills
+- [`skills/copilot-instructions.md`](skills/copilot-instructions.md) - Instruções gerais
+- [`skills/contexto_gereigreja.md`](skills/contexto_gereigreja.md) - Contexto do projeto
+- [`skills/financeiro/SKILL.md`](skills/financeiro/SKILL.md) - Gestão financeira
+- [`skills/deploy/SKILL.md`](skills/deploy/SKILL.md) - Deploy e versionamento
+- [`skills/backup/SKILL.md`](skills/backup/SKILL.md) - Backup e restauração
+- E mais...
+
+### Documentação Adicional
+- [`README_TESTS.md`](README_TESTS.md) - Informações sobre testes
+- [`CHANGELOG.md`](CHANGELOG.md) - Histórico de mudanças
+- [`docs/release-notes/`](docs/release-notes/) - Notas de versão
+
+## 🔧 Comandos Úteis
+
+```bash
+# Rodar servidor de desenvolvimento
+python manage.py runserver
+
+# Criar migrações
+python manage.py makemigrations
+
+# Aplicar migrações
+python manage.py migrate
+
+# Coletar arquivos estáticos
+python manage.py collectstatic
+
+# Executar testes
+python manage.py test
+
+# Criar superusuário
+python manage.py createsuperuser
+```
+
+## 📦 Deploy
+
+O sistema usa deploy automatizado via Render com integração GitHub:
+1. Push para a branch `main`
+2. Render detecta mudanças
+3. Build e deploy automáticos
+4. Migrações e collectstatic executados
+
+Veja [`skills/deploy/SKILL.md`](skills/deploy/SKILL.md) para mais detalhes.
+
+## 🐛 Logs e Debugging
+
+- Logs de erro: `logs/django_errors.log`
+- Debug personalizado: `debug.log`
+- Logs de backup: `backup_log.txt`
+
+## 📈 Versão do Sistema
+
+O sistema exibe automaticamente a versão atual nos rodapés, lendo do `CHANGELOG.md`.
+
+**Template tag** disponível:
+```django
+{% load versao %}
+{% get_versao_gereigreja as versao_sistema %}
+Versão {{ versao_sistema }}
+```
+
+## 🤝 Suporte
+
+Para dúvidas e suporte, entre em contato através da plataforma ou consulte a documentação em [`skills/`](skills/).
 
 ---
 
-Última revisão: 14/11/2025
-Alteração: Removido link para "Lista de Visitantes" do template `registrar_acompanhamento_visita.html` e substituído por "Lista de Visitas".
+**Última atualização**: Fevereiro 2026  
+**Versão**: v1.0.9

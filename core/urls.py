@@ -11,11 +11,19 @@ from contas.views import LandingPageView
 
 from core.views import notificacoes_enviadas_view
 from core.backup_views import backup_urls
+from configuracao.admin_dashboard import dashboard_desenvolvedor, executar_comando
+from configuracao.admin_metrics import metricas_produto
+from django.contrib.admin.views.decorators import staff_member_required
 
 
 urlpatterns = [
     # Redirecionar /admin/deploy/ para o histórico de deploys (DEVE VIR ANTES DO admin/)
     path('admin/deploy/', RedirectView.as_view(pattern_name='admin:deploy_deployhistorico_changelist', permanent=False)),
+    # Dashboard do Desenvolvedor (ANTES do admin.site.urls)
+    path('admin/dashboard-dev/', staff_member_required(dashboard_desenvolvedor), name='admin_dashboard_desenvolvedor'),
+    path('admin/executar-comando/', staff_member_required(executar_comando), name='admin_executar_comando'),
+    # Métricas de Produto/Uso (ANTES do admin.site.urls)
+    path('admin/api/metricas-produto/', staff_member_required(metricas_produto), name='admin_metricas_produto'),
     path('admin/', admin.site.urls),
     path('financeiro/', include(('financeiro.urls', 'financeiro'), namespace='financeiro')),
     path('eventos/', include(('eventos.urls', 'eventos'), namespace='eventos')),
