@@ -2,6 +2,9 @@ from django.http import JsonResponse
 from secretaria.models import Membro, TipoPessoa, StatusPessoa, Cargo
 # Endpoint AJAX para autocomplete de convidados conforme filtros
 from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import login_required
+
+@login_required
 @require_GET
 def autocomplete_convidados(request):
 	filtro = request.GET.get('filtro')
@@ -32,6 +35,7 @@ from django.http import HttpResponse
 from django.db.models.functions import Coalesce
 from django.utils.text import slugify
 # Exportação de participantes para Excel
+@login_required
 def exportar_participantes_excel(request, pk):
 	from .models import ParticipacaoEvento, Evento
 	evento = Evento.objects.get(pk=pk)

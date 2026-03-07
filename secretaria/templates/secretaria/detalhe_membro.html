@@ -1,0 +1,219 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Visualizar: {{ membro.nome }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4" style="max-width: 1440px; margin: 0 auto;">
+    <h1 class="mt-4">Visualizar Pessoa</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_pessoas' %}">Lista de Pessoas</a></li>
+        <li class="breadcrumb-item active">{{ membro.nome }}</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-eye me-1"></i>
+                Detalhes: {{ membro.nome }}
+            </div>
+            <div>
+                <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-editar btn-sm">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+                <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant-imprimir btn-sm" target="_blank">
+                    <i class="fas fa-print"></i> Imprimir
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <!-- Foto -->
+            {% if membro.foto %}
+            <div class="text-center mb-4">
+                <img src="{{ membro.foto.url }}" alt="Foto de {{ membro.nome }}" class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;">
+            </div>
+            {% endif %}
+
+            <!-- Dados Pessoais -->
+            <h5 class="border-bottom pb-2 mb-3">Dados Pessoais</h5>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Nome Completo:</strong> {{ membro.nome }}
+                </div>
+                <div class="col-md-6">
+                    <strong>Apelido:</strong> {{ membro.apelido|default:"—" }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <strong>Data de Nascimento:</strong> {{ membro.nascimento|date:"d/m/Y"|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Gênero:</strong> 
+                    {% if membro.genero == 'M' %}Masculino
+                    {% elif membro.genero == 'F' %}Feminino
+                    {% else %}—{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <strong>Estado Civil:</strong> {{ membro.get_estado_civil_display|default:"—" }}
+                </div>
+            </div>
+
+            <!-- Contato -->
+            <h5 class="border-bottom pb-2 mb-3 mt-4">Contato</h5>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <strong>Telefone:</strong> {{ membro.telefone|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Celular:</strong> {{ membro.celular|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Email:</strong> {{ membro.email|default:"—" }}
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <h5 class="border-bottom pb-2 mb-3 mt-4">Endereço</h5>
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <strong>Rua:</strong> {{ membro.rua|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Número:</strong> {{ membro.numero|default:"—" }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <strong>Complemento:</strong> {{ membro.complemento|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Bairro:</strong> {{ membro.bairro|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>CEP:</strong> {{ membro.cep|default:"—" }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Cidade:</strong> {{ membro.cidade|default:"—" }}
+                </div>
+                <div class="col-md-6">
+                    <strong>Estado:</strong> {{ membro.estado|default:"—" }}
+                </div>
+            </div>
+
+            <!-- Informações Eclesiásticas -->
+            <h5 class="border-bottom pb-2 mb-3 mt-4">Informações Eclesiásticas</h5>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <strong>Igreja:</strong> {{ membro.igreja.nome_igreja }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Tipo:</strong> {{ membro.tipo_pessoa.nome|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Status:</strong> 
+                    <span class="badge {% if membro.status_pessoa.nome == 'Ativo' %}bg-success{% elif membro.status_pessoa.nome == 'Inativo' %}bg-secondary{% elif membro.status_pessoa.nome == 'Desligado' %}bg-danger{% else %}bg-warning{% endif %}">
+                        {{ membro.status_pessoa.nome|default:"—" }}
+                    </span>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <strong>Data de Entrada:</strong> {{ membro.data_entrada|date:"d/m/Y"|default:"—" }}
+                </div>
+                <div class="col-md-4">
+                    <strong>Batizado:</strong> 
+                    {% if membro.batizado %}
+                        <i class="fas fa-check-circle text-success"></i> Sim ({{ membro.data_batismo|date:"d/m/Y"|default:"—" }})
+                    {% else %}
+                        <i class="fas fa-times-circle text-danger"></i> Não
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <strong>Grupo/Casa:</strong> {{ membro.grupo_casa|default:"—" }}
+                </div>
+            </div>
+
+            <!-- Tags -->
+            {% if tags %}
+            <h5 class="border-bottom pb-2 mb-3 mt-4">Tags</h5>
+            <div class="mb-3">
+                {% for tag in tags %}
+                    <span class="badge" style="background-color: {{ tag.cor }}; color: #fff; margin-right: 5px;">
+                        {{ tag.nome }}
+                    </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Cargos Ativos -->
+            {% if cargos_ativos %}
+            <h5 class="border-bottom pb-2 mb-3 mt-4">Cargos Ativos</h5>
+            <ul class="list-group mb-3">
+                {% for mc in cargos_ativos %}
+                <li class="list-group-item">
+                    <strong>{{ mc.cargo.nome }}</strong> - Desde {{ mc.data_inicio|date:"d/m/Y" }}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <!-- Histórico de Status -->
+            {% if historico_status %}
+            <h5 class="border-bottom pb-2 mb-3 mt-4">Histórico Recente de Status</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Status Anterior</th>
+                            <th>Status Novo</th>
+                            <th>Observações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for hist in historico_status %}
+                        <tr>
+                            <td>{{ hist.data_transicao|date:"d/m/Y H:i" }}</td>
+                            <td>{{ hist.status_pessoa_anterior.nome|default:"—" }}</td>
+                            <td>{{ hist.status_pessoa_novo.nome }}</td>
+                            <td>{{ hist.observacao|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Observações -->
+            {% if membro.observacoes %}
+            <h5 class="border-bottom pb-2 mb-3 mt-4">Observações</h5>
+            <div class="alert alert-info">
+                {{ membro.observacoes }}
+            </div>
+            {% endif %}
+
+        </div>
+
+        <div class="card-footer text-end">
+            <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar para Lista
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.card-header {
+    background: linear-gradient(90deg, #4e73df 0%, #224abe 100%);
+    color: #fff;
+}
+strong {
+    color: #495057;
+}
+</style>
+{% endblock %}

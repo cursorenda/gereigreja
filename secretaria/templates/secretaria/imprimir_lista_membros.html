@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo_relatorio }} - Impressão</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            color: #333;
+            padding: 20px;
+            background: white;
+        }
+        
+        .cabecalho {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #2196f3;
+            padding-bottom: 15px;
+        }
+        
+        .cabecalho h1 {
+            font-size: 18pt;
+            color: #2196f3;
+            margin-bottom: 5px;
+        }
+        
+        .cabecalho h2 {
+            font-size: 14pt;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        
+        .info-relatorio {
+            font-size: 9pt;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .filtros {
+            background: #f5f5f5;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-left: 3px solid #2196f3;
+            font-size: 9pt;
+        }
+        
+        .filtros strong {
+            color: #2196f3;
+        }
+        
+        .filtros ul {
+            list-style: none;
+            margin-top: 5px;
+        }
+        
+        .filtros li {
+            margin-bottom: 3px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        thead {
+            background: linear-gradient(90deg, #2196f3 0%, #42a5f5 100%);
+            color: white;
+        }
+        
+        th {
+            padding: 8px 6px;
+            text-align: left;
+            font-size: 9pt;
+            font-weight: 700;
+            border: 1px solid #1976d2;
+        }
+        
+        td {
+            padding: 6px;
+            border: 1px solid #ddd;
+            font-size: 9pt;
+        }
+        
+        tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        tbody tr:hover {
+            background: #e3f2fd;
+        }
+        
+        .rodape {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 8pt;
+            color: #666;
+        }
+        
+        .total {
+            font-weight: bold;
+            font-size: 10pt;
+            margin-bottom: 10px;
+            color: #2196f3;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 8pt;
+            font-weight: 600;
+        }
+        
+        .badge-ativo {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .badge-inativo {
+            background: #9e9e9e;
+            color: white;
+        }
+        
+        .badge-disciplina {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .badge-desligado {
+            background: #f44336;
+            color: white;
+        }
+        
+        .no-print {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .btn-imprimir {
+            background: linear-gradient(90deg, #2196f3 0%, #42a5f5 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(33,150,243,0.25);
+        }
+        
+        .btn-imprimir:hover {
+            background: linear-gradient(90deg, #1976d2 0%, #2196f3 100%);
+        }
+        
+        .btn-voltar {
+            background: linear-gradient(90deg, #9e9e9e 0%, #bdbdbd 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(158,158,158,0.25);
+            margin-left: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-voltar:hover {
+            background: linear-gradient(90deg, #757575 0%, #9e9e9e 100%);
+        }
+        
+        /* Estilos de impressão */
+        @media print {
+            body {
+                padding: 10px;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            thead {
+                background: #2196f3 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .badge {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            tbody tr:nth-child(even) {
+                background: #f9f9f9 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .filtros {
+                background: #f5f5f5 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            /* Evitar quebra de linha dentro das linhas da tabela */
+            tr {
+                page-break-inside: avoid;
+            }
+        }
+        
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button onclick="window.print()" class="btn-imprimir">
+            <i class="fas fa-print"></i> Imprimir Relatório
+        </button>
+        <a href="{% url 'secretaria:lista_pessoas' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn-voltar">
+            Voltar para Lista
+        </a>
+    </div>
+
+    <div class="cabecalho">
+        <h1>{{ ministerio.nome }}</h1>
+        <h2>{{ titulo_relatorio }}</h2>
+        <div class="info-relatorio">
+            Impresso em: {{ data_impressao|date:"d/m/Y \à\s H:i" }}
+        </div>
+        {% if igreja_ativa %}
+        <div class="info-relatorio">
+            Igreja: {{ igreja_ativa.nome_igreja }}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if filtros_aplicados %}
+    <div class="filtros">
+        <strong>Filtros Aplicados:</strong>
+        <ul>
+            {% for filtro in filtros_aplicados %}
+            <li>• {{ filtro }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="total">
+        Total de registros: {{ total_membros }}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 30%;">Nome</th>
+                <th style="width: 15%;">Tipo</th>
+                <th style="width: 12%;">Status</th>
+                <th style="width: 8%;">Gênero</th>
+                <th style="width: 15%;">Telefone</th>
+                {% if not igreja_ativa %}
+                <th style="width: 15%;">Igreja</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for membro in membros %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><strong>{{ membro.nome }}</strong>{% if membro.apelido %} ({{ membro.apelido }}){% endif %}</td>
+                <td>{{ membro.tipo_pessoa.nome|default:"—" }}</td>
+                <td>
+                    {% if membro.status_pessoa %}
+                        {% if membro.status_pessoa.nome == "Ativo" %}
+                            <span class="badge badge-ativo">{{ membro.status_pessoa.nome }}</span>
+                        {% elif membro.status_pessoa.nome == "Inativo" %}
+                            <span class="badge badge-inativo">{{ membro.status_pessoa.nome }}</span>
+                        {% elif membro.status_pessoa.nome == "Em Disciplina" %}
+                            <span class="badge badge-disciplina">{{ membro.status_pessoa.nome }}</span>
+                        {% elif membro.status_pessoa.nome == "Desligado" %}
+                            <span class="badge badge-desligado">{{ membro.status_pessoa.nome }}</span>
+                        {% else %}
+                            {{ membro.status_pessoa.nome }}
+                        {% endif %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>{{ membro.get_genero_display|default:"—" }}</td>
+                <td>{{ membro.celular|default:membro.telefone|default:"—" }}</td>
+                {% if not igreja_ativa %}
+                <td>{{ membro.igreja.nome_igreja|default:"—" }}</td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="{% if igreja_ativa %}6{% else %}7{% endif %}" style="text-align: center; padding: 20px; color: #999;">
+                    Nenhum registro encontrado com os filtros aplicados.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="rodape">
+        <p>{{ ministerio.nome }} - Sistema GereIgreja</p>
+        <p>Relatório gerado automaticamente pelo sistema</p>
+    </div>
+</body>
+</html>

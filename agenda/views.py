@@ -49,6 +49,7 @@ def criar_evento(request):
 		form = AgendaEventoForm(request=request)
 	return render(request, 'agenda/criar_evento.html', {'form': form})
 
+@login_required
 def agenda_eventos_json(request):
 	# Retorna todos os eventos do mês atual em formato JSON para o FullCalendar
 	from django.utils import timezone

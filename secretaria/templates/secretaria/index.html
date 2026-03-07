@@ -66,6 +66,58 @@
             </div>
         </div>
     </div>
+
+    <!-- EMPTY STATE: Quando não há dados -->
+    {% if total_pessoas_igreja == 0 and not request.igreja_ativa %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info shadow-sm" style="border-left: 5px solid #0d6efd; border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle fa-3x text-primary me-3"></i>
+                    <div>
+                        <h5 class="mb-2"><i class="fas fa-church"></i> Bem-vindo ao Gereigreja!</h5>
+                        <p class="mb-3">
+                            Você ainda não selecionou uma igreja para gerenciar. 
+                            Para visualizar dados e métricas, <strong>selecione uma igreja no menu acima</strong> 
+                            (ícone de igreja no topo) ou cadastre sua primeira igreja.
+                        </p>
+                        <a href="{% url 'configuracao:criar_igreja' %}" class="btn btn-primary btn-sm me-2">
+                            <i class="fas fa-plus"></i> Cadastrar Primeira Igreja
+                        </a>
+                        <a href="{% url 'configuracao:listar_igrejas' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-church"></i> Ver Minhas Igrejas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif total_pessoas_igreja == 0 and request.igreja_ativa %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning shadow-sm" style="border-left: 5px solid #ffc107; border-radius: 12px;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-users-slash fa-3x text-warning me-3"></i>
+                    <div>
+                        <h5 class="mb-2"><i class="fas fa-exclamation-triangle"></i> Nenhuma pessoa cadastrada ainda</h5>
+                        <p class="mb-3">
+                            A igreja <strong>{{ request.igreja_ativa.nome_igreja }}</strong> ainda não tem 
+                            pessoas cadastradas. Comece adicionando as primeiras pessoas (membros, congregados, visitantes, etc.) 
+                            para visualizar métricas e relatórios.
+                        </p>
+                        <a href="{% url 'secretaria:pre_cadastro' %}" class="btn btn-warning btn-sm me-2">
+                            <i class="fas fa-user-plus"></i> Cadastrar Primeira Pessoa
+                        </a>
+                        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-list"></i> Ver Lista de Pessoas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- LINHA: Bem-vindo + Aniversariantes (4 colunas) -->
     <div class="row mb-4 g-4 align-items-stretch">
         <!-- Card Bem-vindo -->
@@ -114,7 +166,9 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <span class="text-muted">Nenhum</span>
+                        <div class="text-center py-2">
+                            <small class="text-muted">Nenhum aniversariante ontem</small>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -132,7 +186,9 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <span class="text-muted">Nenhum</span>
+                        <div class="text-center py-2">
+                            <small class="text-muted">Nenhum aniversariante hoje</small>
+                        </div>
                     {% endif %}
                 </div>
             </div>
@@ -150,7 +206,9 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <span class="text-muted">Nenhum</span>
+                        <div class="text-center py-2">
+                            <small class="text-muted">Nenhum aniversariante amanhã</small>
+                        </div>
                     {% endif %}
                 </div>
             </div>

@@ -55,8 +55,12 @@
                     <span style="font-weight: 700;">{{ media_idade_membros }} anos</span>
                 </div>
                 <div style="font-size: 1.08rem; min-width: 170px;">
+                    <span style="font-weight: 600;">Pessoas cadastradas: </span>
+                    <span style="font-weight: 700;">{{ total_pessoas_igreja|default:'0' }}</span>
+                </div>
+                <div style="font-size: 0.95rem; min-width: 140px;">
                     <span style="font-weight: 600;">Membros ativos: </span>
-                    <span style="font-weight: 700;">{{ total_membros_ativos|default:'NADA' }}</span>
+                    <span style="font-weight: 700;">{{ total_membros_ativos|default:'0' }}</span>
                 </div>
             </div>
         </div>

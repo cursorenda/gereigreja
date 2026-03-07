@@ -23,7 +23,42 @@
             Atribuir Papéis e Permissões para <strong>{{ usuario_alvo.get_full_name }}</strong> ({{ usuario_alvo.email }})
         </div>
         <div class="card-body">
-            <form method="post">
+            
+            {# --- AVISO SOBRE REMOÇÃO DE GRUPOS --- #}
+            <div class="alert alert-info border-info">
+                <h5 class="alert-heading">
+                    <i class="fas fa-info-circle"></i> Atenção
+                </h5>
+                <p class="mb-2">
+                    Este usuário atualmente <strong>{{ usuario_alvo.groups.count }}</strong> grupo(s) atribuído(s). 
+                </p>
+                <p class="mb-2">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    Se você <strong>remover TODOS os grupos</strong>, o usuário ficará sem permissões de acesso ao sistema 
+                    e verá uma tela de "Aguardando Permissões".
+                </p>
+                <hr>
+                <p class="mb-0">
+                    <strong>💡 Alternativas Recomendadas:</strong>
+                </p>
+                <ul class="mb-0">
+                    <li>
+                        <i class="fas fa-check text-success"></i> 
+                        <strong>Desativar usuário</strong> (botão "Desativar" na lista de usuários) - <span class="badge bg-success">Recomendado</span>
+                        <br>
+                        <small class="text-muted">→ Impede completamente o login no sistema</small>
+                    </li>
+                    <li>
+                        <i class="fas fa-exclamation-triangle text-warning"></i> 
+                        <strong>Remover todos os grupos</strong>
+                        <br>
+                        <small class="text-muted">→ Usuário verá tela "Aguardando Configuração de Permissões"</small>
+                    </li>
+                </ul>
+            </div>
+            {# --- FIM DO AVISO --- #}
+            
+            <form method="post" id="formEditarPapeis">
                 {% csrf_token %}
 
                 {# Erros gerais #}
@@ -42,8 +77,12 @@
                     {% if form.grupos.errors %}
                         <div class="invalid-feedback d-block">{{ form.grupos.errors|striptags }}</div>
                     {% endif %}
+                    <small class="form-text text-muted">
+                        <i class="fas fa-exclamation-circle text-warning"></i>
+                        <strong>Importante:</strong> Se nenhum grupo for selecionado, o usuário não terá acesso ao sistema.
+                    </small>
                     {% if form.grupos.help_text %}
-                        <div class="form-text">{{ form.grupos.help_text|safe }}</div>
+                        <div class="form-text mt-2">{{ form.grupos.help_text|safe }}</div>
                     {% endif %}
                 </div>
 

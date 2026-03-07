@@ -16,8 +16,9 @@ urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
     path('pessoas/', views.lista_membros, name='lista_membros'),
     path('pessoas/', views.lista_membros, name='lista_pessoas'),  # Alias para compatibilidade de templates
-        # Redirecionamento da URL antiga para a nova
-        path('membros/', views.redirect_pessoas, name='redirect_pessoas'),  # Redirecionamento legado
+    path('pessoas/imprimir/', views.imprimir_lista_membros, name='imprimir_lista_membros'),
+    # Redirecionamento da URL antiga para a nova
+    path('membros/', views.redirect_pessoas, name='redirect_pessoas'),  # Redirecionamento legado
     # Etapa 1: Pré-cadastro (dados básicos)
     path('pessoas/pre-cadastro/', views.pre_cadastro, name='pre_cadastro'),
     # Etapa 2: Cadastro detalhado (dados adicionais)
@@ -26,6 +27,7 @@ urlpatterns = [
     path('pessoas/cadastro-complementar/<int:pessoa_id>/', views.cadastro_complementar, name='cadastro_complementar'),
     # Cadastro antigo (pode ser removido após migração)
     path('pessoas/cadastrar/', views.criar_membro, name='cadastrar_membro'),
+    path('pessoas/<int:membro_id>/visualizar/', views.detalhe_membro, name='detalhe_membro'),
     path('pessoas/<int:membro_id>/editar/', views.editar_membro, name='editar_membro'),
     # path('backup/', views.backup_page, name='backup_page'),  # Removido: backup antigo (SQLite)
     path('pessoas/<int:membro_id>/alternar-status/', views.alternar_status_membro, name='alternar_status_membro'),

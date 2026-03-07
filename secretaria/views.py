@@ -1,4 +1,4 @@
-
+﻿
 
 # --- IMPORTS ORDENADOS E OTIMIZADOS (PEP8) ---
 # Built-in
@@ -29,7 +29,7 @@ from django.utils.crypto import get_random_string
 from django.views.decorators.http import require_GET, require_POST
 
 # Third-party/local apps
-from core.decorators import check_permission, verificar_assinatura_valida
+from core.decorators import check_permission, verificar_assinatura_valida, user_passes_test_or_403, secretaria_dashboard_required
 from core.utils import get_ministerio_or_error
 from eventos.models import Evento
 from financeiro.models import Receitas
@@ -38,6 +38,7 @@ from secretaria.utils import (
     has_membro_view_permission, is_secretaria_leader
 )
 from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
+from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, PASTOR_REGIONAL
 
 # Secretaria app forms/models
 from .forms import (
@@ -56,6 +57,15 @@ from .models import (
 
 ## --- END OF IMPORTS ---
 
+# --- FUNÇÕES HELPER DE PERMISSÕES ---
+def pode_gerenciar_tags(user):
+    """Permissão: pode criar/editar/excluir tags (secretaria/admin)."""
+    from contas.constants import SECRETARIO_LOCAL, LIDERANCA_SECRETARIA, PASTOR_LOCAL, ADMIN_MINISTERIO
+    grupos_permitidos = [ADMIN_MINISTERIO, LIDERANCA_SECRETARIA, PASTOR_LOCAL, SECRETARIO_LOCAL]
+    try:
+        return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+    except Exception:
+        return False
 
 # --- REDIRECIONAMENTO DE USUÁRIOS ---
 def redirect_pessoas(request):
@@ -271,6 +281,7 @@ def escolher_pessoa_para_acompanhamento(request):
 
 # --- VIEW PARA EDITAR TAG ---
 @login_required
+@user_passes_test_or_403(pode_gerenciar_tags)
 def editar_tag(request, tag_id):
     """
     Permite editar uma tag existente.
@@ -280,12 +291,10 @@ def editar_tag(request, tag_id):
     Retorno:
         HttpResponse: Renderiza o template de edição da tag.
     Regras de negócio:
-        - Apenas usuários staff podem editar tags.
+        - Apenas secretaria/admin podem editar tags.
         - Redireciona para criação de tag após salvar.
     """
     tag = get_object_or_404(Tag, pk=tag_id)
-    if not request.user.is_staff:
-        return redirect('login')
     if request.method == 'POST':
         form = TagForm(request.POST, instance=tag)
         if form.is_valid():
@@ -299,6 +308,7 @@ def editar_tag(request, tag_id):
 
 # --- VIEW PARA EXCLUIR TAG ---
 @login_required
+@user_passes_test_or_403(pode_gerenciar_tags)
 def excluir_tag(request, tag_id):
     """
     Exclui uma tag existente.
@@ -308,12 +318,10 @@ def excluir_tag(request, tag_id):
     Retorno:
         HttpResponse: Renderiza o template de confirmação ou redireciona após exclusão.
     Regras de negócio:
-        - Apenas usuários staff podem excluir tags (pode ser expandido).
+        - Apenas secretaria/admin podem excluir tags.
         - Redireciona para criação de tag após exclusão.
     """
     tag = get_object_or_404(Tag, pk=tag_id)
-    if not request.user.is_staff:
-        return redirect('login')
     if request.method == 'POST':
         tag.delete()
         messages.success(request, 'Tag excluída com sucesso!')
@@ -379,13 +387,14 @@ User = get_user_model()
 
 def is_admin_or_pastor(user):
     """Permissão: é superuser ou pertence a grupos administrativos/pastorais."""
-    grupos_permitidos = ["Pastor", "Administrador", "Admin Ministerio", "Lider Igreja"]
+    grupos_permitidos = ["Pastor", "Administrador", ADMIN_MINISTERIO, PASTOR_REGIONAL]
     try:
         return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
     except Exception:
         return False
 
 # --- AUTOCOMPLETE DE NOMES DE MEMBROS/VISITANTES ---
+@login_required
 @require_GET
 def autocomplete_nome(request):
     q = request.GET.get('q', '').strip()
@@ -464,6 +473,7 @@ def lista_visitantes(request):
     return render(request, 'secretaria/lista_visitantes.html', context)
 
 # --- VIEW AJAX: BUSCAR VISITANTES POR NOME OU APELIDO ---
+@login_required
 def buscar_visitantes(request):
     termo = request.GET.get('q', '').strip()
     try:
@@ -957,7 +967,7 @@ def registrar_acompanhamento_visita(request, membro_id):
 
 # --- Associação em massa de membros a usuários ---
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 @verificar_assinatura_valida
 
 
@@ -973,7 +983,7 @@ def registrar_acompanhamento_visita(request, membro_id):
 ## Imports above
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def gerenciar_ocupantes(request, cargo_id):
     # Busca o cargo pelo ID recebido na URL
     cargo = get_object_or_404(Cargo, id=cargo_id)
@@ -1065,7 +1075,7 @@ def excluir_cargo(request, cargo_id):
 
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def criar_cargo(request):
     if request.method == 'POST':
         form = CargoForm(request.POST)
@@ -1080,7 +1090,7 @@ def criar_cargo(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def editar_cargo(request, cargo_id):
     cargo = get_object_or_404(Cargo, id=cargo_id)
     if request.method == 'POST':
@@ -1100,7 +1110,7 @@ def editar_cargo(request, cargo_id):
 
 # --- NOVA VIEW: Lista deCargo (usando novos modelos) ---
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 
 
 @verificar_assinatura_valida
@@ -1655,7 +1665,7 @@ def ajax_get_presencas_evento(request):
     return JsonResponse({'html': html})
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 @verificar_assinatura_valida
 def linha_do_tempo(request):
     # Força valor padrão do filtro período
@@ -1846,6 +1856,7 @@ def linha_do_tempo(request):
     return render(request, 'secretaria/linha_do_tempo.html', context)
 
 
+@login_required
 @require_GET
 def autocomplete_nome_membro(request):
     """Retorna nomes de membros para autocomplete AJAX."""
@@ -1871,15 +1882,22 @@ def index(request):
     if request.user.is_superuser:
         return redirect('admin:index')
 
-    if request.user.groups.filter(name='Membro Comum').exists() and not request.user.is_staff:
+    if request.user.groups.filter(name=MEMBRO_COMUM).exists() and not request.user.is_staff:
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
     allowed_churches_secretaria = get_allowed_churches_for_membros(request.user, ministerio)
     titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
     membros_para_relatorios = Membro.objects.none()
+    
+    # Variável para verificar se existem PESSOAS cadastradas (qualquer tipo/status)
+    total_pessoas_igreja = 0
 
     if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        # Conta TODAS as pessoas da igreja (para empty state correto)
+        total_pessoas_igreja = Membro.objects.filter(igreja=request.igreja_ativa).count()
+        
+        # Filtra apenas membros ativos para os relatórios
         membros_para_relatorios = Membro.objects.filter(
             igreja=request.igreja_ativa,
             tipo_pessoa__nome__iexact="Membro",
@@ -1887,6 +1905,9 @@ def index(request):
         )
         titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
     elif allowed_churches_secretaria.exists():
+        # Conta TODAS as pessoas das igrejas permitidas
+        total_pessoas_igreja = Membro.objects.filter(igreja__in=allowed_churches_secretaria).count()
+        
         membros_para_relatorios = Membro.objects.filter(
             igreja__in=allowed_churches_secretaria,
             tipo_pessoa__nome__iexact="Membro",
@@ -1894,6 +1915,9 @@ def index(request):
         )
         titulo_contextual += " (Consolidado)"
     elif is_admin_org(request.user):
+        # Conta TODAS as pessoas do ministério
+        total_pessoas_igreja = Membro.objects.filter(igreja__ministerio=ministerio).count()
+        
         membros_para_relatorios = Membro.objects.filter(
             igreja__ministerio=ministerio,
             tipo_pessoa__nome__iexact="Membro",
@@ -2170,6 +2194,7 @@ def index(request):
         'igreja_ativa_atual': request.igreja_ativa,
         # Cards e gráficos esperados pelo template:
         'total_membros_ativos': membros_para_relatorios.count(),
+        'total_pessoas_igreja': total_pessoas_igreja,  # Total de TODAS as pessoas (qualquer tipo/status)
         'novos_membros_ultimo_mes': novos_membros_30_dias,
         'total_pendencias_cadastro': total_pendencias_cadastro,
         'total_contas_vencidas': total_contas_vencidas,
@@ -2193,51 +2218,31 @@ def index(request):
 
 
 @login_required
+@secretaria_dashboard_required
 def dashboard(request):
-    # --- Pie Chart: Distribuição dinâmica de membros por tipo_pessoa ---
-    tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
-    membros_para_relatorios = Membro.objects.none()  # Garante inicialização para todos os fluxos
-    # ... lógica de filtro de membros_para_relatorios ...
-    # (deixe a lógica de filtro como está)
-    # Após a lógica de filtro:
-    # Total de membros ativos (apenas tipo 'Membro', exceto inativos)
-    total_membros_ativos = membros_para_relatorios.count()
-    # Total de pessoas cadastradas (todos os tipos)
-    total_pessoas = Membro.objects.all().count()
-    # membros_para_relatorios será definido após a lógica de filtro abaixo
     from datetime import date, timedelta
     hoje_data = date.today()
 
-    # --- Evolução de membros, congregados, novos convertidos e visitantes nos últimos 12 meses ---
-    from collections import defaultdict
-    tipos_para_grafico = ['Membro', 'Congregado', 'Novo Convertido', 'Visitante']
-    evolucao_por_tipo = defaultdict(list)
-    meses_labels = []
-    for i in range(11, -1, -1):
-        mes_ref = hoje_data.replace(day=1) - timedelta(days=30*i)
-        ano = mes_ref.year
-        mes = mes_ref.month
-        meses_labels.append(mes_ref.strftime('%b/%Y'))
-        for tipo_nome in tipos_para_grafico:
-            count = Membro.objects.filter(
-                tipo_pessoa__nome__iexact=tipo_nome,
-                data_entrada__year__lte=ano,
-                data_entrada__month__lte=mes
-            ).count()
-            evolucao_por_tipo[tipo_nome].append(count)
     # --- Lógica completa baseada na função index para montar todos os dados do dashboard ---
     if request.user.is_superuser:
         return redirect('admin:index')
 
-    if request.user.groups.filter(name='Membro Comum').exists() and not request.user.is_staff:
+    if request.user.groups.filter(name=MEMBRO_COMUM).exists() and not request.user.is_staff:
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
     allowed_churches_secretaria = get_allowed_churches_for_membros(request.user, ministerio)
     titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
     membros_para_relatorios = Membro.objects.none()
+    
+    # Variável para verificar se existem PESSOAS cadastradas (qualquer tipo/status)
+    total_pessoas_igreja = 0
 
     if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        # Conta TODAS as pessoas da igreja (para empty state correto)
+        total_pessoas_igreja = Membro.objects.filter(igreja=request.igreja_ativa).count()
+        
+        # Filtra apenas membros ativos para os relatórios
         membros_para_relatorios = Membro.objects.filter(
             igreja=request.igreja_ativa,
             tipo_pessoa__nome__iexact="Membro",
@@ -2245,6 +2250,9 @@ def dashboard(request):
         )
         titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
     elif allowed_churches_secretaria.exists():
+        # Conta TODAS as pessoas das igrejas permitidas
+        total_pessoas_igreja = Membro.objects.filter(igreja__in=allowed_churches_secretaria).count()
+        
         membros_para_relatorios = Membro.objects.filter(
             igreja__in=allowed_churches_secretaria,
             tipo_pessoa__nome__iexact="Membro",
@@ -2252,6 +2260,9 @@ def dashboard(request):
         )
         titulo_contextual += " (Consolidado)"
     elif is_admin_org(request.user):
+        # Conta TODAS as pessoas do ministério
+        total_pessoas_igreja = Membro.objects.filter(igreja__ministerio=ministerio).count()
+        
         membros_para_relatorios = Membro.objects.filter(
             igreja__ministerio=ministerio,
             tipo_pessoa__nome__iexact="Membro",
@@ -2269,6 +2280,24 @@ def dashboard(request):
 
     status_data_qs = membros_base_para_grafico_status.values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome')
     status_data_list = [{'status': item['status_pessoa__nome'], 'total': item['total']} for item in status_data_qs if item['status_pessoa__nome']]
+
+    # --- Evolução de membros, congregados, novos convertidos e visitantes nos últimos 12 meses ---
+    from collections import defaultdict
+    tipos_para_grafico = ['Membro', 'Congregado', 'Novo Convertido', 'Visitante']
+    evolucao_por_tipo = defaultdict(list)
+    meses_labels = []
+    for i in range(11, -1, -1):
+        mes_ref = hoje_data.replace(day=1) - timedelta(days=30*i)
+        ano = mes_ref.year
+        mes = mes_ref.month
+        meses_labels.append(mes_ref.strftime('%b/%Y'))
+        for tipo_nome in tipos_para_grafico:
+            count = membros_base_para_grafico_status.filter(
+                tipo_pessoa__nome__iexact=tipo_nome,
+                data_entrada__year__lte=ano,
+                data_entrada__month__lte=mes
+            ).count()
+            evolucao_por_tipo[tipo_nome].append(count)
 
     genero_data_qs = membros_para_relatorios.values('genero').annotate(total=Count('chave'))
     genero_map = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
@@ -2456,23 +2485,38 @@ def dashboard(request):
         categoria_labels.append(label)
         categoria_values.append(item['total'])
 
-    # --- Cards adicionais ---
-    # Total de pessoas cadastradas (todos os tipos)
-    total_membros = Membro.objects.all().count()
+    # --- Cards adicionais (filtrados pelo contexto da igreja ativa) ---
+    # Total de pessoas cadastradas (todos os tipos) - já calculado em total_pessoas_igreja
+    total_membros = total_pessoas_igreja
     # Total de visitantes
-    total_visitantes = Membro.objects.filter(tipo_pessoa__nome__iexact='Visitante').count()
-    # Total de cargos
-    total_cargos = Cargo.objects.all().count()
-    # Total de grupos/casas
-    total_grupos_casa = GrupoCasa.objects.all().count()
+    total_visitantes = membros_base_para_grafico_status.filter(tipo_pessoa__nome__iexact='Visitante').count()
+    # Total de cargos (filtrado por igreja) - Cargo não tem campo igreja, vai via membrocargo__membro__igreja
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
+        total_cargos = Cargo.objects.filter(membrocargo__membro__igreja=request.igreja_ativa).distinct().count()
+        total_grupos_casa = GrupoCasa.objects.filter(igreja=request.igreja_ativa).count()
+        total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja=request.igreja_ativa).count()
+        total_tags = Tag.objects.filter(pessoas__igreja=request.igreja_ativa).distinct().count()
+        total_associacoes = Membro.objects.filter(usuario__isnull=False, igreja=request.igreja_ativa).count()
+    elif allowed_churches_secretaria.exists():
+        total_cargos = Cargo.objects.filter(membrocargo__membro__igreja__in=allowed_churches_secretaria).distinct().count()
+        total_grupos_casa = GrupoCasa.objects.filter(igreja__in=allowed_churches_secretaria).count()
+        total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja__in=allowed_churches_secretaria).count()
+        total_tags = Tag.objects.filter(pessoas__igreja__in=allowed_churches_secretaria).distinct().count()
+        total_associacoes = Membro.objects.filter(usuario__isnull=False, igreja__in=allowed_churches_secretaria).count()
+    elif is_admin_org(request.user):
+        total_cargos = Cargo.objects.filter(membrocargo__membro__igreja__ministerio=ministerio).distinct().count()
+        total_grupos_casa = GrupoCasa.objects.filter(igreja__ministerio=ministerio).count()
+        total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja__ministerio=ministerio).count()
+        total_tags = Tag.objects.filter(pessoas__igreja__ministerio=ministerio).distinct().count()
+        total_associacoes = Membro.objects.filter(usuario__isnull=False, igreja__ministerio=ministerio).count()
+    else:
+        total_cargos = 0
+        total_grupos_casa = 0
+        total_acompanhamentos = 0
+        total_tags = 0
+        total_associacoes = 0
     # Total de relatórios (usando reuniões de membros como proxy)
-    total_relatorios = Membro.objects.filter(tipo_pessoa__nome__in=['Membro', 'Obreiro'], status_pessoa__nome__in=['Ativo', 'Em Disciplina']).count()
-    # Total de acompanhamentos de visita
-    total_acompanhamentos = AcompanhamentoVisita.objects.all().count()
-    # Total de tags
-    total_tags = Tag.objects.all().count()
-    # Total de associações usuário-membro
-    total_associacoes = Membro.objects.filter(usuario__isnull=False).count()
+    total_relatorios = membros_base_para_grafico_status.filter(tipo_pessoa__nome__in=['Membro', 'Obreiro'], status_pessoa__nome__in=['Ativo', 'Em Disciplina']).count()
 
     context = {
         'status_data_json': json.dumps(status_data_list),
@@ -2492,6 +2536,7 @@ def dashboard(request):
         'titulo_pagina': titulo_contextual,
         'igreja_ativa_atual': request.igreja_ativa,
         'total_membros_ativos': membros_para_relatorios.count(),
+        'total_pessoas_igreja': total_pessoas_igreja,  # Total de TODAS as pessoas (qualquer tipo/status)
         'novos_membros_ultimo_mes': novos_membros_30_dias,
         'total_pendencias_cadastro': total_pendencias_cadastro,
         'total_contas_vencidas': total_contas_vencidas,
@@ -2566,7 +2611,7 @@ def lista_grupos_casa(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def agrupar_grupos_preview(request):
     """Preview das mudanças que o agrupamento faria. Mostra agrupamentos detectados por endereço."""
     ministerio = get_ministerio_or_error(request)
@@ -2599,7 +2644,7 @@ def agrupar_grupos_preview(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def agrupar_grupos_apply(request):
     """Aplica o agrupamento (cria GrupoCasa e associa pessoas).
     Esta view recalcula o preview e aplica apenas os agrupamentos com 2+ pessoas.
@@ -2633,7 +2678,7 @@ def agrupar_grupos_apply(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def reagrupar_grupo_casa(request, grupo_id):
     """Reagrupar moradores do GrupoCasa: recalcula preview para as pessoas deste grupo e aplica apenas os agrupamentos relevantes.
     Fluxo seguro: só executa para membros do próprio grupo/igreja no escopo do usuário.
@@ -2739,7 +2784,7 @@ def detalhe_grupo_casa(request, grupo_id):
 
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def criar_grupo_casa(request):
     """Cria um novo GrupoCasa. Se houver `request.igreja_ativa`, vincula automaticamente."""
     ministerio = get_ministerio_or_error(request)
@@ -2778,7 +2823,7 @@ def criar_grupo_casa(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor)
 def editar_grupo_casa(request, grupo_id):
     """Editar um GrupoCasa existente. Sem migrações de modelo — apenas edição via form."""
     ministerio = get_ministerio_or_error(request)
@@ -2822,8 +2867,6 @@ def editar_grupo_casa(request, grupo_id):
 
 @check_permission(has_membro_view_permission, login_url_name='login')
 def lista_membros(request): # noqa: E302
-    # Filtro por nome/apelido (busca parcial)
-    nome_apelido = request.GET.get('nome_apelido')
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
 
@@ -2838,44 +2881,31 @@ def lista_membros(request): # noqa: E302
         membros_queryset = Membro.objects.none()
     # --- Fim Lógica de Filtragem Inicial ---
 
+    # Filtro por nome/apelido (busca parcial)
+    nome_apelido = request.GET.get('nome_apelido')
     if nome_apelido:
         membros_queryset = membros_queryset.filter(
             Q(nome__icontains=nome_apelido) | Q(apelido__icontains=nome_apelido)
         )
 
-    membros_queryset = membros_queryset.select_related('igreja', 'tipo_pessoa', 'status_pessoa').order_by('nome') # Adicionado tipo_pessoa, status_pessoa
-
-    # Paginação igual associar_usuarios_membros
-    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-    page = request.GET.get('page', 1)
-    paginator = Paginator(membros_queryset, 25)  # 25 membros por página
-    try:
-        membros_page = paginator.page(page)
-    except PageNotAnInteger:
-        membros_page = paginator.page(1)
-    except EmptyPage:
-        membros_page = paginator.page(paginator.num_pages)
-
-
+    # Filtro GET de query (q)
     query = request.GET.get('q')
     if query:
         membros_queryset = membros_queryset.filter(
             Q(nome__icontains=query) | Q(apelido__icontains=query)
         )
+    
     # Filtro GET de igreja na página (só se nenhuma igreja ativa globalmente)
     igreja_id_get = request.GET.get('igreja')
     if igreja_id_get and not request.igreja_ativa:
         if allowed_churches.filter(pk=igreja_id_get).exists() or is_admin_org(request.user):
             membros_queryset = membros_queryset.filter(igreja_id=igreja_id_get)
 
-    can_edit = has_membro_edit_permission(request.user)
-    igrejas_para_filtro_template = allowed_churches if not request.igreja_ativa else Igreja.objects.filter(pk=request.igreja_ativa.pk)
-
     from .models import TipoPessoa, StatusPessoa, Tag
     tipos_pessoa = TipoPessoa.objects.all().order_by('nome')
     status_pessoa = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
 
-    # Filtros extras
+    # Filtros extras - tipos, status, gênero
     tipo_id = request.GET.get('tipo')
     if tipo_id and tipo_id.isdigit():
         membros_queryset = membros_queryset.filter(tipo_pessoa_id=tipo_id)
@@ -2892,6 +2922,50 @@ def lista_membros(request): # noqa: E302
         membros_queryset = membros_queryset.filter(tags__in=tag_ids).distinct()
     todas_tags = Tag.objects.all().order_by('nome')
 
+    # --- ORDENAÇÃO CLICÁVEL (v1.3.1) ---
+    # Mapeamento de campos permitidos para ordenação
+    ORDEM_CAMPOS = {
+        'nome': 'nome',
+        'data_nascimento': 'nascimento',
+        'genero': 'genero',
+        'tipo': 'tipo_pessoa__nome',
+        'status': 'status_pessoa__nome',
+        'igreja': 'igreja__nome_igreja',
+    }
+    
+    order_by = request.GET.get('order_by', 'nome')  # Padrão: nome
+    order_dir = request.GET.get('order_dir', 'asc')  # Padrão: ascendente
+    
+    # Validar campo de ordenação
+    if order_by not in ORDEM_CAMPOS:
+        order_by = 'nome'
+    
+    # Validar direção
+    if order_dir not in ['asc', 'desc']:
+        order_dir = 'asc'
+    
+    # Aplicar ordenação
+    order_field = ORDEM_CAMPOS[order_by]
+    if order_dir == 'desc':
+        order_field = f'-{order_field}'
+    
+    # Aplica select_related e order_by DEPOIS de todos os filtros
+    membros_queryset = membros_queryset.select_related('igreja', 'tipo_pessoa', 'status_pessoa').order_by(order_field)
+
+    # Paginação DEPOIS de aplicar todos os filtros
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+    page = request.GET.get('page', 1)
+    paginator = Paginator(membros_queryset, 25)  # 25 membros por página
+    try:
+        membros_page = paginator.page(page)
+    except PageNotAnInteger:
+        membros_page = paginator.page(1)
+    except EmptyPage:
+        membros_page = paginator.page(paginator.num_pages)
+
+    can_edit = has_membro_edit_permission(request.user)
+    igrejas_para_filtro_template = allowed_churches if not request.igreja_ativa else Igreja.objects.filter(pk=request.igreja_ativa.pk)
+
     context = {
         'membros': membros_page,
         'ministerio': ministerio,
@@ -2906,8 +2980,167 @@ def lista_membros(request): # noqa: E302
         'tags_selecionadas': tag_ids,
         'paginator': paginator,
         'page_obj': membros_page,
+        # Ordenação
+        'order_by': order_by,
+        'order_dir': order_dir,
     }
     return render(request, 'secretaria/lista_membros.html', context)
+
+
+@login_required
+def detalhe_membro(request, membro_id):
+    """View para visualização readonly de um membro."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user)
+    membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
+    
+    # Busca tags associadas
+    tags = membro.tags.all()
+    
+    # Busca cargos ativos
+    from .models import MembroCargo
+    cargos_ativos = MembroCargo.objects.filter(
+        membro=membro,
+        data_fim__isnull=True
+    ).select_related('cargo')
+    
+    # Busca histórico de status
+    from .models import StatusHistorico
+    historico_status = StatusHistorico.objects.filter(membro=membro).order_by('-data_transicao')[:5]
+    
+    context = {
+        'membro': membro,
+        'tags': tags,
+        'cargos_ativos': cargos_ativos,
+        'historico_status': historico_status,
+        'ministerio': ministerio,
+        'titulo_pagina': f'Visualizar: {membro.nome}',
+    }
+    return render(request, 'secretaria/detalhe_membro.html', context)
+
+
+@login_required
+def imprimir_lista_membros(request):
+    """View para impressão da lista de membros com filtros aplicados."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user)
+
+    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        membros_queryset = Membro.objects.filter(igreja=request.igreja_ativa)
+    elif allowed_churches.exists():
+        membros_queryset = Membro.objects.filter(igreja__in=allowed_churches)
+    elif is_admin_org(request.user):
+        membros_queryset = Membro.objects.filter(igreja__ministerio=ministerio)
+    else:
+        membros_queryset = Membro.objects.none()
+
+    # Filtro por nome/apelido (busca parcial)
+    nome_apelido = request.GET.get('nome_apelido')
+    if nome_apelido:
+        membros_queryset = membros_queryset.filter(
+            Q(nome__icontains=nome_apelido) | Q(apelido__icontains=nome_apelido)
+        )
+
+    # Filtro GET de query (q)
+    query = request.GET.get('q')
+    if query:
+        membros_queryset = membros_queryset.filter(
+            Q(nome__icontains=query) | Q(apelido__icontains=query)
+        )
+    
+    # Filtro GET de igreja na página
+    igreja_id_get = request.GET.get('igreja')
+    if igreja_id_get and not request.igreja_ativa:
+        if allowed_churches.filter(pk=igreja_id_get).exists() or is_admin_org(request.user):
+            membros_queryset = membros_queryset.filter(igreja_id=igreja_id_get)
+
+    from .models import TipoPessoa, StatusPessoa, Tag
+
+    # Filtros extras - tipos, status, gênero
+    tipo_id = request.GET.get('tipo')
+    if tipo_id and tipo_id.isdigit():
+        membros_queryset = membros_queryset.filter(tipo_pessoa_id=tipo_id)
+    status_id = request.GET.get('status')
+    if status_id and status_id.isdigit():
+        membros_queryset = membros_queryset.filter(status_pessoa_id=status_id)
+    genero = request.GET.get('genero')
+    if genero:
+        membros_queryset = membros_queryset.filter(genero=genero)
+
+    # Filtro por tags
+    tag_ids = [tid for tid in request.GET.getlist('tags') if tid and tid.isdigit()]
+    if tag_ids:
+        membros_queryset = membros_queryset.filter(tags__in=tag_ids).distinct()
+
+    # --- ORDENAÇÃO (respeita ordenação da lista principal) ---
+    ORDEM_CAMPOS = {
+        'nome': 'nome',
+        'data_nascimento': 'nascimento',
+        'genero': 'genero',
+        'tipo': 'tipo_pessoa__nome',
+        'status': 'status_pessoa__nome',
+        'igreja': 'igreja__nome_igreja',
+    }
+    
+    order_by = request.GET.get('order_by', 'nome')
+    order_dir = request.GET.get('order_dir', 'asc')
+    
+    if order_by not in ORDEM_CAMPOS:
+        order_by = 'nome'
+    if order_dir not in ['asc', 'desc']:
+        order_dir = 'asc'
+    
+    order_field = ORDEM_CAMPOS[order_by]
+    if order_dir == 'desc':
+        order_field = f'-{order_field}'
+
+    # Aplica select_related e order_by (SEM paginação para impressão)
+    membros = membros_queryset.select_related('igreja', 'tipo_pessoa', 'status_pessoa').order_by(order_field)
+
+    # Informações dos filtros aplicados para o cabeçalho do relatório
+    filtros_aplicados = []
+    if nome_apelido:
+        filtros_aplicados.append(f"Nome/Apelido: {nome_apelido}")
+    if query:
+        filtros_aplicados.append(f"Busca: {query}")
+    if tipo_id:
+        tipo = TipoPessoa.objects.filter(pk=tipo_id).first()
+        if tipo:
+            filtros_aplicados.append(f"Tipo: {tipo.nome}")
+    if status_id:
+        status = StatusPessoa.objects.filter(pk=status_id).first()
+        if status:
+            filtros_aplicados.append(f"Status: {status.nome}")
+    if genero:
+        filtros_aplicados.append(f"Gênero: {genero}")
+    if tag_ids:
+        tags = Tag.objects.filter(pk__in=tag_ids)
+        filtros_aplicados.append(f"Tags: {', '.join([t.nome for t in tags])}")
+    
+    # Adicionar informação de ordenação
+    ordem_nomes = {
+        'nome': 'Nome',
+        'data_nascimento': 'Data de Nascimento',
+        'genero': 'Gênero',
+        'tipo': 'Tipo',
+        'status': 'Status',
+        'igreja': 'Igreja',
+    }
+    ordem_legivel = ordem_nomes.get(order_by, 'Nome')
+    direcao_legivel = 'Crescente' if order_dir == 'asc' else 'Decrescente'
+    filtros_aplicados.append(f"Ordenação: {ordem_legivel} ({direcao_legivel})")
+
+    context = {
+        'membros': membros,
+        'ministerio': ministerio,
+        'igreja_ativa': request.igreja_ativa,
+        'total_membros': membros.count(),
+        'filtros_aplicados': filtros_aplicados,
+        'data_impressao': timezone.now(),
+        'titulo_relatorio': f"Lista de Membros{': ' + request.igreja_ativa.nome_igreja if request.igreja_ativa else ' (Consolidado)'}",
+    }
+    return render(request, 'secretaria/imprimir_lista_membros.html', context)
 
 
 @check_permission(has_membro_edit_permission, login_url_name='login')
@@ -3615,9 +3848,8 @@ from django.shortcuts import redirect
 
 @login_required
 @verificar_assinatura_valida
+@user_passes_test_or_403(pode_gerenciar_tags)
 def criar_tag(request):
-    if not request.user.is_staff:
-        return redirect('login')
     if request.method == 'POST':
         form = TagForm(request.POST)
         if form.is_valid():

@@ -27,9 +27,19 @@
                     {# Mensagem Original do Usuário #}
                     <div class="d-flex flex-row justify-content-start mb-4">
                         {% if ticket.user.perfil and ticket.user.perfil.foto_perfil %}
-                            <img src="{{ ticket.user.perfil.foto_perfil.url }}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60" style="object-fit: cover;">
+                            <img src="{{ ticket.user.perfil.foto_perfil.url }}" 
+                                 alt="avatar" 
+                                 class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" 
+                                 width="60" height="60" 
+                                 style="object-fit: cover;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 30px;">
+                                <i class="fas fa-user"></i>
+                            </div>
                         {% else %}
-                            <img src="{% static 'img/default_avatar.png' %}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60">
+                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="width: 60px; height: 60px; font-size: 30px;">
+                                <i class="fas fa-user"></i>
+                            </div>
                         {% endif %}
                         <div class="card w-100">
                             <div class="card-header d-flex justify-content-between p-2">
@@ -57,18 +67,38 @@
                                     </div>
                                 </div>
                                 {% if resposta.autor.perfil and resposta.autor.perfil.foto_perfil %}
-                                    <img src="{{ resposta.autor.perfil.foto_perfil.url }}" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60" height="60" style="object-fit: cover;">
+                                    <img src="{{ resposta.autor.perfil.foto_perfil.url }}" 
+                                         alt="avatar" 
+                                         class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" 
+                                         width="60" height="60" 
+                                         style="object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle ms-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 30px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
                                 {% else %}
-                                    <img src="{% static 'img/default_avatar.png' %}" alt="avatar" class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong" width="60" height="60">
+                                    <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle ms-3 shadow-1-strong" style="width: 60px; height: 60px; font-size: 30px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
                                 {% endif %}
                             </div>
                         {% else %}
                             {# Resposta do Suporte (alinhada à esquerda) #}
                             <div class="d-flex flex-row justify-content-start mb-4">
                                 {% if resposta.autor.perfil and resposta.autor.perfil.foto_perfil %}
-                                    <img src="{{ resposta.autor.perfil.foto_perfil.url }}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60" style="object-fit: cover;">
+                                    <img src="{{ resposta.autor.perfil.foto_perfil.url }}" 
+                                         alt="avatar" 
+                                         class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" 
+                                         width="60" height="60" 
+                                         style="object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 30px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
                                 {% else %}
-                                   <img src="{% static 'img/default_avatar.png' %}" alt="avatar" class="rounded-circle d-flex align-self-start me-3 shadow-1-strong" width="60" height="60">
+                                    <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="width: 60px; height: 60px; font-size: 30px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
                                 {% endif %}
                                 <div class="card w-100">
                                     <div class="card-header d-flex justify-content-between p-2">

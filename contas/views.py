@@ -27,6 +27,7 @@ import logging
 
 from configuracao.models import Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionar Plano e AssinaturaMinisterio
 from secretaria.models import Membro # Importar Membro
+from contas.constants import ADMIN_MINISTERIO, user_is_admin
 
 from .models import Convite
 from .forms import (
@@ -35,21 +36,16 @@ from .forms import (
     AceitarConviteSetPasswordForm,
     EditarPapeisUsuarioForm
 )
-from core.decorators import verificar_assinatura_valida # Ou o caminho correto
+from core.decorators import verificar_assinatura_valida, admin_ministerio_required # Ou o caminho correto
 
 from core.utils import get_ministerio_or_error # Importar de core.utils
 
 # --- VIEW REENVIAR CONVITE ---
 @login_required
+@admin_ministerio_required
 def reenviar_convite(request, pk):
     """Reenvia o e-mail de convite para um usuário pendente."""
-    try:
-        ministerio = get_ministerio_or_error(request)
-    except (PermissionDenied, Http404):
-        return redirect('login')
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar usuários.")
-        return redirect('secretaria:index')
+    ministerio = get_ministerio_or_error(request)
     convite = get_object_or_404(
         Convite,
         pk=pk,
@@ -156,7 +152,7 @@ def registrar_usuario_e_org(request):
                             nova_ministerio.save(update_fields=['ativo'])
                             # Adiciona o usuário ao grupo Admin Ministerio
                             from django.contrib.auth.models import Group
-                            grupo_admin, _ = Group.objects.get_or_create(name='Admin Ministerio')
+                            grupo_admin, _ = Group.objects.get_or_create(name=ADMIN_MINISTERIO)
                             novo_usuario.groups.add(grupo_admin)
                             logger.info(f"Usuário '{email}' adicionado ao grupo Admin Ministerio.")
                             logger.info(f"Ministério '{nome_fantasia_org}' ativado automaticamente no plano Pioneiro.")
@@ -197,6 +193,7 @@ def registrar_usuario_e_org(request):
 
 # --- VIEW LISTAR USUÁRIOS E CONVITES ---
 @login_required
+@admin_ministerio_required
 def lista_usuarios_org(request):
     """ Lista os usuários associados E os convites pendentes do ministério. """
     try:
@@ -209,11 +206,6 @@ def lista_usuarios_org(request):
         messages.error(request, f"Ocorreu um erro ao listar os usuários e convites: {e}")
         return redirect('secretaria:dashboard')
 
-    # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar usuários.")
-        return redirect('secretaria:index')
-    # --- FIM DA VERIFICAÇÃO ---
     usuarios_org = User.objects.filter(
         perfil__ministerio=ministerio
     ).select_related('perfil').prefetch_related('groups')
@@ -247,15 +239,10 @@ def lista_usuarios_org(request):
 
 # --- VIEW ENVIAR CONVITE ---
 @login_required
+@admin_ministerio_required
 def enviar_convite(request):
     """ View para o Admin do Minist. enviar um convite para um novo usuário. """
-    try:
-        ministerio = get_ministerio_or_error(request)
-    except (PermissionDenied, Http404):
-        return redirect('login')
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar usuários.")
-        return redirect('secretaria:index')
+    ministerio = get_ministerio_or_error(request)
 
     if request.method == 'POST':
         form = ConviteForm(request.POST, ministerio=ministerio)
@@ -403,15 +390,10 @@ def aceitar_convite(request, token):
 
 # --- VIEW CANCELAR CONVITE ---
 @login_required
+@admin_ministerio_required
 def cancelar_convite(request, pk):
     """ Cancela um convite pendente (requer POST). """
-    try:
-        ministerio = get_ministerio_or_error(request)
-    except (PermissionDenied, Http404):
-        return redirect('login')
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar usuários.")
-        return redirect('secretaria:index')
+    ministerio = get_ministerio_or_error(request)
     convite = get_object_or_404(
         Convite,
         pk=pk,
@@ -434,10 +416,12 @@ def cancelar_convite(request, pk):
 
 # --- VIEW EDITAR PAPÉIS/GRUPOS ---
 @login_required
+@admin_ministerio_required
 def editar_papeis_usuario(request, user_pk):
     """ Permite ao Admin do Minist. editar os grupos (papéis) e igrejas permitidas de um usuário. """
+    ministerio = get_ministerio_or_error(request)
+    
     try:
-        ministerio = get_ministerio_or_error(request)
         # Busca o usuário alvo e seu perfil, garantindo que pertence à ministério
         usuario_alvo = get_object_or_404(
             User.objects.select_related('perfil'), # Otimiza buscando o perfil junto
@@ -446,9 +430,9 @@ def editar_papeis_usuario(request, user_pk):
         )
         # Pega o perfil do usuário alvo (já sabemos que existe por causa do filtro acima)
         perfil_alvo = usuario_alvo.perfil
-
-    except (PermissionDenied, Http404):
-         return redirect('login')
+    except Http404:
+         messages.error(request, "Usuário alvo não encontrado.")
+         return redirect('contas:lista_usuarios')
     except User.DoesNotExist: # Caso raro, mas seguro incluir
         messages.error(request, "Usuário alvo não encontrado.")
         return redirect('contas:lista_usuarios')
@@ -473,6 +457,17 @@ def editar_papeis_usuario(request, user_pk):
                 with transaction.atomic(): # Garante atomicidade ao salvar grupos e igrejas
                     # Atualiza os grupos
                     grupos_selecionados = form.cleaned_data['grupos']
+                    
+                    # --- AVISO DE REMOÇÃO DE GRUPOS ---
+                    if not grupos_selecionados:
+                        messages.warning(
+                            request, 
+                            f"⚠️ Você removeu TODOS os grupos de {usuario_alvo.get_full_name()}. "
+                            f"Este usuário ficará sem acesso ao sistema e verá uma tela de 'Aguardando Permissões'. "
+                            f"Considere desativar o usuário em vez disso."
+                        )
+                    # --- FIM DO AVISO ---
+                    
                     usuario_alvo.groups.set(grupos_selecionados)
 
                     # Atualiza as igrejas permitidas no Perfil
@@ -509,19 +504,13 @@ def editar_papeis_usuario(request, user_pk):
 
 # --- NOVA VIEW PARA ENVIAR LINK DE RESET PELO ADMIN ---
 @login_required
+@admin_ministerio_required
 def enviar_link_reset_senha(request, user_pk):
     """
     View para o Admin do Minist. enviar um link de redefinição de senha
     para um usuário específico.
     """
-    # 1. Validação de permissão
-    try:
-        ministerio = get_ministerio_or_error(request)
-    except (PermissionDenied, Http404):
-        return redirect('login')
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para realizar esta ação.")
-        return redirect('secretaria:index')
+    ministerio = get_ministerio_or_error(request)
 
     # 2. Encontrar o usuário alvo, garantindo que ele pertence à ministério
     usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__ministerio=ministerio)
@@ -562,15 +551,10 @@ def enviar_link_reset_senha(request, user_pk):
 
 # --- VIEW ATIVAR/DESATIVAR USUÁRIO ---
 @login_required
+@admin_ministerio_required
 def alternar_status_usuario_org(request, user_pk):
     """ Ativa ou desativa um usuário dentro do ministério (requer POST). """
-    try:
-        ministerio = get_ministerio_or_error(request)
-    except (PermissionDenied, Http404):
-        return redirect('login')
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar usuários.")
-        return redirect('secretaria:index')
+    ministerio = get_ministerio_or_error(request)
     usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__ministerio=ministerio)
 
     # Validações de Permissão
@@ -619,3 +603,32 @@ def aguardando_aprovacao(request):
         'titulo_pagina': "Aguardando Aprovação da Ministério"
     }
     return render(request, 'contas/aguardando_aprovacao.html', context)
+
+
+# --- VIEW PARA USUÁRIOS SEM GRUPOS (AGUARDANDO PERMISSÕES) ---
+@login_required
+def aguardando_acesso(request):
+    """
+    Página exibida para usuários autenticados que não têm grupos/papéis atribuídos.
+    Mostra informações do ministério e do administrador para contato.
+    """
+    # Se usuário tem grupos, redireciona para dashboard
+    if request.user.groups.exists():
+        messages.info(request, "Suas permissões foram configuradas! Você já tem acesso ao sistema.")
+        return redirect('secretaria:dashboard')
+    
+    # Busca informações do ministério e admin
+    ministerio_usuario = None
+    admin_principal = None
+    
+    if hasattr(request.user, 'perfil') and request.user.perfil:
+        ministerio_usuario = request.user.perfil.ministerio
+        if ministerio_usuario:
+            admin_principal = ministerio_usuario.administrador_principal
+    
+    context = {
+        'ministerio': ministerio_usuario,
+        'admin_principal': admin_principal,
+        'titulo_pagina': "Aguardando Configuração de Permissões"
+    }
+    return render(request, 'contas/aguardando_acesso.html', context)

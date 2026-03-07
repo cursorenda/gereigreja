@@ -68,9 +68,22 @@
                     <div class="row align-items-center mb-4">
                         <div class="col-md-4 text-center mb-3 mb-md-0">
                             {% if perfil_usuario.foto_perfil %}
-                                <img src="{{ perfil_usuario.foto_perfil.url }}" alt="Foto de Perfil de {{ usuario.get_full_name|default:usuario.username }}" class="img-fluid rounded-circle shadow" style="width: 160px; height: 160px; object-fit: cover; border: 4px solid #e9ecef;">
+                                <img src="{{ perfil_usuario.foto_perfil.url }}" 
+                                     alt="Foto de Perfil de {{ usuario.get_full_name|default:usuario.username }}" 
+                                     class="img-fluid rounded-circle shadow" 
+                                     style="width: 160px; height: 160px; object-fit: cover; border: 4px solid #e9ecef;"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                {# Avatar padrão (escondido por padrão) #}
+                                <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle shadow" 
+                                     style="display: none; width: 160px; height: 160px; font-size: 80px; margin: 0 auto; border: 4px solid #e9ecef;">
+                                    <i class="fas fa-user"></i>
+                                </div>
                             {% else %}
-                                <img src="{% static 'img/default_avatar.png' %}" alt="Sem Foto de Perfil" class="img-fluid rounded-circle shadow" style="width: 160px; height: 160px; object-fit: cover; border: 4px solid #e9ecef;">
+                                {# Avatar padrão quando não tem foto #}
+                                <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle shadow" 
+                                     style="width: 160px; height: 160px; font-size: 80px; margin: 0 auto; border: 4px solid #e9ecef;">
+                                    <i class="fas fa-user"></i>
+                                </div>
                             {% endif %}
                         </div>
                         <div class="col-md-8">

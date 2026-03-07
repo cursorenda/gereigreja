@@ -4,6 +4,7 @@
 {% load financeiro_tags %} {# Carrega nossos templatetags personalizados #}
 {% load secretaria_tags %} {# Carrega os templatetags da secretaria #}
 {% load secretaria_extras %}
+{% load grupo_tags %} {# Carrega templatetags de grupos #}
 
 <div class="sb-sidenav-menu">
     <div class="nav">
@@ -238,6 +239,14 @@
                 <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
                 Configurações do Sistema
             </a>
+            {# Link para Auditoria de Permissões (apenas Admin Ministerio) #}
+            {% user_is_admin_ministerio request.user as is_admin_ministerio %}
+            {% if is_admin_ministerio %}
+            <a class="nav-link" href="{% url 'configuracao:auditoria_permissoes' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-shield-alt"></i></div>
+                Auditoria de Permissões
+            </a>
+            {% endif %}
             {# --- NOVO LINK PARA MURAL DE AVISOS --- #}
             <div class="sb-sidenav-menu-heading">Comunicação</div>
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseComunicacao" aria-expanded="false" aria-controls="collapseComunicacao">

@@ -88,6 +88,9 @@ urlpatterns = [
     path('usuarios/<int:user_pk>/alternar-status/', views.alternar_status_usuario_org, name='alternar_status_usuario'),
     # --- URL PARA PÁGINA DE AGUARDANDO APROVAÇÃO (NOVA) ---
     path('aguardando-aprovacao/', views.aguardando_aprovacao, name='aguardando_aprovacao'),
+    
+    # --- URL PARA PÁGINA DE AGUARDANDO PERMISSÕES (SEM GRUPOS) ---
+    path('aguardando-acesso/', views.aguardando_acesso, name='aguardando_acesso'),
 
     # --- FIM URL ---
     # --- FIM URL ---

@@ -33,9 +33,9 @@
 
                     {% if next %}
                         {% if user.is_authenticated %}
-                        <div class="alert alert-warning" role="alert">
-                            Sua conta não tem acesso a esta página. Para prosseguir,
-                            por favor, faça login com uma conta que tenha acesso.
+                        <div class="alert alert-danger" role="alert">
+                            <strong>Você já está logado,</strong> mas sua conta não tem permissão para acessar a página solicitada.
+                            <br><small>Entre em contato com o administrador para obter as permissões necessárias.</small>
                         </div>
                         {% else %}
                         <!-- <div class="alert alert-info" role="alert">

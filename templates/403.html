@@ -1,21 +1,132 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
 
-{% block title %}Acesso Negado{% endblock %}
+{% block title %}Acesso Negado - Gereigreja{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
     <div class="row justify-content-center mt-5">
-        <div class="col-lg-6">
+        <div class="col-lg-8">
             <div class="card shadow-lg border-0 rounded-lg">
-                <div class="card-header bg-danger text-white text-center">
-                    <h3 class="fw-light my-4"><i class="fas fa-exclamation-triangle me-2"></i>Acesso Negado</h3>
+                <div class="card-header bg-warning text-white">
+                    <h3 class="fw-light my-4 text-center">
+                        <i class="fas fa-lock me-2"></i>Acesso Negado
+                    </h3>
                 </div>
-                <div class="card-body text-center">
-                    <p class="lead">Você não tem permissão para acessar esta página ou realizar esta ação.</p>
-                    <p>Se você acredita que isso é um erro, por favor, entre em contato com o administrador do sistema.</p>
-                    <hr>
-                    <a href="{% url 'secretaria:dashboard' %}" class="btn btn-primary"><i class="fas fa-home me-1"></i> Voltar para o Dashboard</a>
+                <div class="card-body p-4">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-shield-alt fa-4x text-warning mb-3"></i>
+                        <h5 class="text-dark">Você não tem permissão para acessar esta página</h5>
+                    </div>
+
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Usuário:</strong> {{ user.username|default:"Não autenticado" }}
+                        {% if user.is_authenticated and user.perfil and user.perfil.igreja_ativa %}
+                        <br><i class="fas fa-church me-2"></i>
+                        <strong>Igreja:</strong> {{ user.perfil.igreja_ativa.nome }}
+                        {% endif %}
+                    </div>
+
+                    {% if user.is_authenticated %}
+                    <div class="mb-4">
+                        <h6 class="text-dark mb-3">
+                            <i class="fas fa-user-tag me-2 text-primary"></i>
+                            Seus Grupos/Permissões:
+                        </h6>
+                        {% if user.is_superuser %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-crown me-2"></i>
+                                <strong>Superusuário</strong> - Você tem acesso total ao sistema (mas esta página pode ter restrição específica)
+                            </div>
+                        {% elif user.groups.exists %}
+                            <div class="list-group">
+                                {% for group in user.groups.all %}
+                                <div class="list-group-item">
+                                    <i class="fas fa-users me-2 text-info"></i>
+                                    <strong>{{ group.name }}</strong>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-secondary">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Você não possui nenhum grupo atribuído. Entre em contato com o administrador.
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-question-circle me-2 text-info"></i>
+                                O que fazer?
+                            </h6>
+                            
+                            {% if not user.groups.exists %}
+                                {# Usuário SEM grupos - precisa de cadastro inicial #}
+                                <div class="alert alert-info mb-3">
+                                    <strong><i class="fas fa-user-plus me-2"></i>Você ainda não tem grupos atribuídos</strong>
+                                </div>
+                                <p class="small mb-2"><strong>Entre em contato com:</strong></p>
+                                <ul class="mb-0 small">
+                                    <li class="mb-2">
+                                        <i class="fas fa-church text-primary me-2"></i>
+                                        <strong>Pastor Local</strong> ou <strong>Secretário Local</strong> da sua igreja
+                                        <br><span class="text-muted">→ Para permissões de secretaria, eventos, ministérios da sua congregação</span>
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-crown text-warning me-2"></i>
+                                        <strong>Pastor Presidente</strong> ou <strong>Admin Ministerio</strong>
+                                        <br><span class="text-muted">→ Apenas para acesso a TODAS as igrejas do ministério</span>
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-cog text-secondary me-2"></i>
+                                        Administradores podem atribuir grupos em <strong>Configurações → Usuários</strong>
+                                    </li>
+                                </ul>
+                            {% else %}
+                                {# Usuário TEM grupos mas não tem permissão para esta ação específica #}
+                                <div class="alert alert-warning mb-3">
+                                    <strong><i class="fas fa-shield-alt me-2"></i>Seu cargo não tem permissão para esta ação</strong>
+                                </div>
+                                <p class="small mb-2">Você possui grupos, mas esta funcionalidade requer permissões adicionais.</p>
+                                <ul class="mb-0 small">
+                                    <li class="mb-2">
+                                        <i class="fas fa-info-circle text-info me-2"></i>
+                                        Cada cargo tem permissões específicas definidas pela hierarquia eclesiástica
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-layer-group text-primary me-2"></i>
+                                        <strong>Hierarquia:</strong> Pastor Presidente → Pastor Regional → Pastor Local → Equipe Administrativa
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-user-shield text-success me-2"></i>
+                                        Se você precisa de mais permissões, entre em contato com:
+                                        <ul class="mt-1">
+                                            <li><strong>Pastor Local</strong> - para permissões locais da sua igreja</li>
+                                            <li><strong>Pastor Presidente</strong> - para permissões ministeriais (todas as igrejas)</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-sync text-secondary me-2"></i>
+                                        Se acabou de receber novas permissões, faça <strong>logout e login</strong> novamente
+                                    </li>
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-center py-3">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <a href="javascript:history.back()" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Voltar
+                        </a>
+                        <a href="{% url 'secretaria:dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-home me-2"></i>Dashboard
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

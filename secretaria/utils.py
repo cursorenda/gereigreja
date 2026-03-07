@@ -2,6 +2,7 @@
 from django.contrib.auth.models import User, Group
 from configuracao.models import Igreja, PerfilUsuario # Importar PerfilUsuario e Igreja
 from django.db.models import Q # Importar Q para consultas complexas
+from contas.constants import ADMIN_MINISTERIO, PASTOR_REGIONAL, SECRETARIO_LOCAL, TESOUREIRO
 
 # --- Funções de Verificação de Grupo (Reutilizáveis) ---
 
@@ -17,19 +18,19 @@ def _user_in_group(user, group_name):
 
 def is_admin_org(user):
     """Verifica se o usuário é Admin da Ministério."""
-    return _user_in_group(user, 'Admin Ministerio')
+    return _user_in_group(user, ADMIN_MINISTERIO)
 
 def is_secretario(user):
     """Verifica se o usuário é Secretário."""
-    return _user_in_group(user, 'Secretario')
+    return _user_in_group(user, SECRETARIO_LOCAL)
 
 def is_lider_igreja(user):
-    """Verifica se o usuário é Lider Igreja."""
-    return _user_in_group(user, 'Lider Igreja')
+    """Verifica se o usuário é Pastor Regional."""
+    return _user_in_group(user, PASTOR_REGIONAL)
 
 def is_tesoureiro(user):
     """Verifica se o usuário é Tesoureiro."""
-    return _user_in_group(user, 'Tesoureiro')
+    return _user_in_group(user, TESOUREIRO)
 
 
 # Nova função para líder da secretaria

@@ -11,7 +11,7 @@
     <div class="d-flex align-items-center">
         <i class="fas fa-users me-1"></i>
         <span style="font-size:1.1rem; font-weight:600;">Membros</span>
-        <small class="text-muted ms-3">({{ membros.count }})</small>
+        <small class="ms-3" style="color: rgba(255,255,255,0.85);">({{ membros.paginator.count }})</small>
     </div>
 </div>
 {% endblock %}
@@ -19,6 +19,42 @@
     <style>
         .card { border-radius: 0 !important; }
         .card-header + form { margin-top: 32px; }
+        
+        /* Headers clicáveis para ordenação */
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            text-decoration: none;
+            color: inherit;
+            display: inline-block;
+            width: 100%;
+            position: relative;
+            padding-right: 20px;
+        }
+        .sortable-header:hover {
+            background-color: rgba(0,0,0,0.05);
+            text-decoration: none;
+            color: inherit;
+        }
+        .sortable-header.active {
+            font-weight: 700;
+            color: #2196f3;
+        }
+        .sort-icon {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75em;
+            opacity: 0.6;
+        }
+        .sortable-header.active .sort-icon {
+            opacity: 1;
+        }
+        th a {
+            text-decoration: none;
+            color: inherit;
+        }
     </style>
     <form method="GET" action="" class="row g-3 mb-3 align-items-center">
         <div class="col-lg-3 col-12">
@@ -61,8 +97,13 @@
                 <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
             {% endif %}
             {% if can_edit_membros %}
-                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-green" style="margin-left:0;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span></a>
+                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-adicionar" style="margin-left:0;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span></a>
             {% endif %}
+        </div>
+        <div class="col-lg-2 col-12 d-flex align-items-center gap-2">
+            <a href="{% url 'secretaria:imprimir_lista_membros' %}?{{ request.GET.urlencode }}" class="btn btn-vibrant-imprimir" target="_blank" title="Imprimir lista com filtros aplicados">
+                <i class="fas fa-print"></i><span style="margin-left: 0.4em;">Imprimir Lista</span>
+            </a>
         </div>
     </form>
     {% if membros %}
@@ -70,12 +111,52 @@
         <table id="membrosTable" class="table table-striped table-bordered table-hover table-sm">
             <thead class="table-light">
                 <tr>
-                    <th>Nome</th>
-                    <th>Gênero</th>
-                    <th>Tipo / Status</th>
-                    <th>Data de Nascimento</th>
+                    <th>
+                        <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=nome&order_dir={% if order_by == 'nome' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
+                           class="sortable-header{% if order_by == 'nome' %} active{% endif %}">
+                            Nome
+                            {% if order_by == 'nome' %}
+                                <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=genero&order_dir={% if order_by == 'genero' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
+                           class="sortable-header{% if order_by == 'genero' %} active{% endif %}">
+                            Gênero
+                            {% if order_by == 'genero' %}
+                                <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=tipo&order_dir={% if order_by == 'tipo' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
+                           class="sortable-header{% if order_by == 'tipo' %} active{% endif %}">
+                            Tipo / Status
+                            {% if order_by == 'tipo' %}
+                                <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=data_nascimento&order_dir={% if order_by == 'data_nascimento' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
+                           class="sortable-header{% if order_by == 'data_nascimento' %} active{% endif %}">
+                            Data de Nascimento
+                            {% if order_by == 'data_nascimento' %}
+                                <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
+                            {% endif %}
+                        </a>
+                    </th>
                     {% if not igreja_selecionada or igreja_selecionada == '0' %}
-                        <th>Igreja</th>
+                        <th>
+                            <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=igreja&order_dir={% if order_by == 'igreja' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
+                               class="sortable-header{% if order_by == 'igreja' %} active{% endif %}">
+                                Igreja
+                                {% if order_by == 'igreja' %}
+                                    <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
+                                {% endif %}
+                            </a>
+                        </th>
                     {% endif %}
                     {% if can_edit_membros %}
                     <th class="text-center">Ações</th>
@@ -107,11 +188,15 @@
                     {% endif %}
                     {% if can_edit_membros %}
                     <td class="text-center">
-                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-blue btn-icon me-1" title="Editar {{ membro.nome }}">
+                        <a href="{% url 'secretaria:detalhe_membro' membro_id=membro.chave %}" class="btn btn-vibrant-visualizar btn-icon me-1" title="Visualizar {{ membro.nome }}">
+                            <i class="fas fa-eye"></i>
+                            <span style="margin-left: 0.4em;">Visualizar</span>
+                        </a>
+                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-editar btn-icon me-1" title="Editar {{ membro.nome }}">
                             <i class="fas fa-edit"></i>
                             <span style="margin-left: 0.4em;">Editar</span>
                         </a>
-                        <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant btn-icon me-1" title="Ver Ficha para Impressão" target="_blank">
+                        <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant-imprimir btn-icon me-1" title="Ver Ficha para Impressão" target="_blank">
                             <i class="fas fa-print"></i>
                             <span style="margin-left: 0.4em;">Imprimir</span>
                         </a>

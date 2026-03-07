@@ -2,7 +2,100 @@
 from django.db.models import Count, Sum, Q
 from django.utils.dateparse import parse_date
 from django.contrib.auth.decorators import login_required
-from core.decorators import secretaria_ebd_required
+from core.decorators import secretaria_ebd_required, user_passes_test_or_403
+from django.core.exceptions import PermissionDenied
+from secretaria.models import MembroCargo
+
+# --- FUNÇÕES HELPER DE PERMISSÕES ---
+def pode_acessar_chamada_turma(user, turma):
+    """
+    Verifica se usuário pode acessar a chamada de presença da turma.
+    
+    Permite acesso se:
+    - É superuser
+    - Está no grupo Secretaria EBD ou Superintendente EBD
+    - É professor da turma específica
+    """
+    # Superuser sempre pode
+    if user.is_superuser:
+        return True
+    
+    # Secretaria/Superintendente EBD podem acessar todas as turmas
+    if user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists():
+        return True
+    
+    # Verifica se é professor da turma
+    try:
+        # Acessa o membro via related_name 'membro_secretaria' (Pessoa->User)
+        membro = getattr(user, 'membro_secretaria', None)
+        if membro:
+            # Verifica se está nos membros da turma
+            if membro in turma.membros.all():
+                # Verifica se tem cargo de professor EBD ativo
+                cargo_professor_ativo = MembroCargo.objects.filter(
+                    membro=membro,
+                    cargo__is_ebd=True,
+                    cargo__nome__icontains='professor',
+                    data_fim__isnull=True
+                ).exists()
+                if cargo_professor_ativo:
+                    return True
+    except Exception:
+        pass
+    
+    return False
+
+
+def get_turmas_professor(user):
+    """
+    Retorna turmas onde o usuário é professor.
+    """
+    from .models import Turma
+    
+    try:
+        # Acessa o membro via related_name 'membro_secretaria' (Pessoa->User)
+        membro = getattr(user, 'membro_secretaria', None)
+        if membro:
+            # Busca turmas onde o membro está cadastrado
+            turmas_candidatas = Turma.objects.filter(membros=membro)
+            
+            # Filtra apenas turmas onde tem cargo de professor EBD ativo
+            turmas_professor = []
+            for turma in turmas_candidatas:
+                cargo_professor = MembroCargo.objects.filter(
+                    membro=membro,
+                    cargo__is_ebd=True,
+                    cargo__nome__icontains='professor',
+                    data_fim__isnull=True
+                ).exists()
+                if cargo_professor:
+                    turmas_professor.append(turma.id)
+            
+            return Turma.objects.filter(id__in=turmas_professor)
+    except Exception:
+        pass
+    
+    return Turma.objects.none()
+
+
+def pode_ver_aluno(user, aluno):
+    """
+    Verifica se usuário pode ver detalhes do aluno.
+    
+    Permite se:
+    - É superuser
+    - É secretaria/superintendente EBD
+    - É professor da turma do aluno
+    """
+    if user.is_superuser:
+        return True
+    
+    # Secretaria/Superintendente EBD podem ver todos
+    if user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists():
+        return True
+    
+    # Verifica se é professor da turma do aluno
+    return pode_acessar_chamada_turma(user, aluno.turma)
 
 @login_required
 @secretaria_ebd_required
@@ -118,8 +211,21 @@ from .models import Turma, Aluno, Licao, PeriodoEBD, Frequencia, OfertaClasse
 from .forms import ChamadaPresencaFormSet
 from django.utils import timezone
 from django.contrib import messages
+
+@login_required
 def chamada_presenca(request, turma_id):
+    """
+    Chamada de presença da turma.
+    
+    Pode ser acessada por:
+    - Secretaria EBD / Superintendente EBD (todas as turmas)
+    - Professor da turma (apenas sua turma)
+    """
     turma = get_object_or_404(Turma, pk=turma_id)
+    
+    # Verifica permissão (secretaria EBD ou professor da turma)
+    if not pode_acessar_chamada_turma(request.user, turma):
+        raise PermissionDenied("Você não tem permissão para acessar a chamada desta turma.")
     # --- Busca a turma pelo ID e obtém alunos ativos ---
     alunos = turma.alunos.filter(ativo=True).order_by('nome')
     ano_letivo = turma.ano_letivo
@@ -784,6 +890,7 @@ from .models import Licao, Aluno, Turma, Frequencia, Classe, Avaliacao, OfertaCl
 from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, AvaliacaoForm, OfertaClasseForm, TransferenciaAlunoForm, ChamadaPresencaFormSet, DepartamentoForm, GerarCronogramaForm
 
 
+@login_required
 @require_GET
 def get_professor_nome(request):
     turma_id = request.GET.get('turma_id')
@@ -991,7 +1098,18 @@ def departamento_edit(request, pk):
 @login_required
 @verificar_assinatura_valida
 def aluno_detail(request, pk):
+    """
+    Detalhes do aluno.
+    
+    Secretaria/Superintendente: veem qualquer aluno
+    Professores: veem apenas alunos de suas turmas
+    """
     aluno = get_object_or_404(Aluno, pk=pk)
+    
+    # Verifica permissão
+    if not pode_ver_aluno(request.user, aluno):
+        raise PermissionDenied("Você não tem permissão para ver detalhes deste aluno.")
+    
     transferencias = aluno.transferencias.select_related('turma_origem', 'turma_destino', 'usuario_responsavel').all()
     return render(request, 'escola_biblica/aluno_detail.html', {
         'aluno': aluno,
@@ -1085,6 +1203,7 @@ def relatorio_frequencia(request):
 
 # --- LISTAGEM DINÂMICA DE CARGOS/FUNÇÕES ---
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def cargos_ebd_list(request):
     from secretaria.models import MembroCargo, Cargo
@@ -1259,6 +1378,7 @@ def relatorio_alunos(request):
  
  # --- AVALIAÇÕES ---
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def avaliacao_list(request):
     avaliacoes = Avaliacao.objects.select_related('aluno', 'licao').all()
@@ -1606,9 +1726,28 @@ def dashboard(request):
 @login_required
 @verificar_assinatura_valida
 def aluno_list(request):
-    alunos_list = Aluno.objects.all().order_by('nome')
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        alunos_list = alunos_list.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+    """
+    Lista de alunos.
+    
+    Secretaria/Superintendente EBD: veem todos os alunos
+    Professores: veem apenas alunos de suas turmas
+    """
+    # Verifica se é secretaria EBD (acesso total)
+    is_secretaria = (
+        request.user.is_superuser or 
+        request.user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists()
+    )
+    
+    if is_secretaria:
+        # Secretaria vê todos os alunos
+        alunos_list = Aluno.objects.all().order_by('nome')
+        if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+            alunos_list = alunos_list.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+    else:
+        # Professor vê apenas alunos de suas turmas
+        turmas_professor = get_turmas_professor(request.user)
+        alunos_list = Aluno.objects.filter(turma__in=turmas_professor).order_by('nome').distinct()
+    
     paginator = Paginator(alunos_list, 20)  # 20 alunos por página
     page = request.GET.get('page')
     try:
@@ -1620,6 +1759,7 @@ def aluno_list(request):
     return render(request, 'escola_biblica/aluno_list.html', {'alunos': alunos})
 
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def aluno_create(request):
     if request.method == 'POST':
@@ -1684,6 +1824,18 @@ def turma_list(request):
 
     # Filtro unificado de turmas
     turmas_list = Turma.objects.filter(ano_letivo=ano_letivo_selecionado)
+    
+    # Verifica se é secretaria EBD (acesso total) ou professor (acesso limitado)
+    is_secretaria = (
+        request.user.is_superuser or 
+        request.user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists()
+    )
+    
+    if not is_secretaria:
+        # Professores veem apenas suas turmas
+        turmas_professor = get_turmas_professor(request.user)
+        turmas_list = turmas_list.filter(id__in=turmas_professor.values_list('id', flat=True))
+    
     if nome_filtro:
         turmas_list = turmas_list.filter(nome__icontains=nome_filtro)
     if classe_filtro:
@@ -1730,69 +1882,6 @@ def turma_list(request):
         'ebd_aulas_total': ebd_aulas_total,
         'ebd_aulas_realizadas': ebd_aulas_realizadas,
         'ebd_percentual': ebd_percentual,
-    }
-    return render(request, 'escola_biblica/turma_list.html', context)
-    ano_letivo_filtro = request.GET.get('ano_letivo')
-    periodo_filtro = request.GET.get('periodo')
-    # Determina ano selecionado: sempre prioriza o ano atual
-    ano_atual = now.year
-    if ano_letivo_filtro:
-        try:
-            ano_letivo_int = int(float(str(ano_letivo_filtro).replace('.', '')))
-            ano_letivo_selecionado = AnoLetivo.objects.get(ano=ano_letivo_int)
-        except (AnoLetivo.DoesNotExist, ValueError):
-            # Se não existe, cria o ano atual
-            ano_letivo_selecionado, _ = AnoLetivo.objects.get_or_create(ano=ano_atual, defaults={'ativo': True})
-    else:
-        # Se não existe, cria o ano atual
-        ano_letivo_selecionado, _ = AnoLetivo.objects.get_or_create(ano=ano_atual, defaults={'ativo': True})
-    # Busca configuração do período
-    config = None
-    tipo_periodo = 'trimestre'
-    if hasattr(request, 'user') and request.user.is_authenticated:
-        perfil = getattr(request.user, 'perfil', None)
-        if perfil and hasattr(perfil, 'ministerio'):
-            config = ConfiguracaoSistema.objects.filter(ministerio=perfil.ministerio).first()
-            if config:
-                tipo_periodo = config.ebd_periodo
-    # Lista de períodos disponíveis para o ano selecionado
-    periodos = PeriodoEBD.objects.filter(ano_letivo=ano_letivo_selecionado, tipo=tipo_periodo).order_by('numero')
-    # Se não houver períodos, sugere o próximo
-    periodo_selecionado = None
-    if periodo_filtro:
-        try:
-            periodo_selecionado = periodos.get(numero=periodo_filtro)
-        except PeriodoEBD.DoesNotExist:
-            periodo_selecionado = periodos.first()
-    else:
-        periodo_selecionado = periodos.first()
-
-    # Só sugere abertura de período se o ano selecionado for o ano atual
-    mostrar_banner_abrir_periodo = (ano_letivo_selecionado and ano_letivo_selecionado.ano == ano_atual and (not periodos or not periodo_selecionado))
-    # Filtro das turmas
-    turmas_list = Turma.objects.filter(ano_letivo=ano_letivo_selecionado).order_by('nome')
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        turmas_list = turmas_list.filter(membros__igreja=request.igreja_ativa).distinct()
-    # Paginação
-    paginator = Paginator(turmas_list, 20)
-    page = request.GET.get('page')
-    try:
-        turmas = paginator.page(page)
-    except PageNotAnInteger:
-        turmas = paginator.page(1)
-    except EmptyPage:
-        turmas = paginator.page(paginator.num_pages)
-    context = {
-        'turmas': turmas,
-        'anos_letivos': anos_letivos,
-        'ano_letivo_selecionado': ano_letivo_selecionado,
-        'periodos': periodos,
-        'periodo_selecionado': periodo_selecionado,
-        'tipo_periodo': tipo_periodo,
-        'now': now,
-        'request': request,
-        'mostrar_banner_abrir_periodo': mostrar_banner_abrir_periodo,
-        'sugerir_copiar': sugerir_copiar,
     }
     return render(request, 'escola_biblica/turma_list.html', context)
 
@@ -1844,6 +1933,8 @@ def frequencia_list(request):
 
 
 # --- NOVA VIEW: Geração automática de períodos e lições em lote ---
+@login_required
+@secretaria_ebd_required
 def gerar_cronograma(request):
     from django.contrib import messages
     from datetime import date

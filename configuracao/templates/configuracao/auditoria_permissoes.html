@@ -1,0 +1,278 @@
+{% extends "base_com_menu.html" %}
+{% load static %}
+
+{% block title %}Auditoria de Grupos e Permissões{% endblock %}
+
+{% block extra_css %}
+<style>
+    .grupo-card {
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+    .grupo-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .permission-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    .problema-badge {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    .nivel-header {
+        background: #f8f9fa;
+        border-left: 5px solid;
+        padding: 1rem;
+        margin: 1.5rem 0 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="mb-1">
+                <i class="fas fa-shield-alt text-primary"></i>
+                Auditoria de Grupos e Permissões
+            </h2>
+            <p class="text-muted">
+                Visualize e gerencie a estrutura de segurança do sistema
+                {% if stats.ministerio %}
+                <span class="badge bg-info">{{ stats.ministerio }}</span>
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'configuracao:exportar_relatorio_permissions' %}" class="btn btn-outline-primary">
+                <i class="fas fa-download"></i> Exportar Relatório
+            </a>
+        </div>
+    </div>
+
+    <!-- Estatísticas Gerais -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ stats.total_grupos }}</h3>
+                    <small>Grupos Cadastrados</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ stats.total_usuarios }}</h3>
+                    <small>Usuários Ativos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ stats.total_permissions }}</h3>
+                    <small>Permissions Disponíveis</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card {% if total_problemas > 0 %}border-warning{% else %}stats-card{% endif %}">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 {% if total_problemas > 0 %}text-warning{% endif %}">
+                        {{ total_problemas }}
+                    </h3>
+                    <small>Problemas Detectados</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Problemas Globais -->
+    {% if problemas_globais %}
+    <div class="alert alert-danger" role="alert">
+        <h5><i class="fas fa-exclamation-triangle"></i> Problemas Críticos</h5>
+        <ul class="mb-0">
+            {% for problema in problemas_globais %}
+            <li>{{ problema.mensagem }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Hierarquia de Grupos -->
+    {% for nivel_data in hierarquia %}
+    <div class="nivel-header" style="border-left-color: var(--bs-{{ nivel_data.cor }});">
+        <h4 class="mb-1">
+            <i class="fas fa-layer-group text-{{ nivel_data.cor }}"></i>
+            {{ nivel_data.nivel }}
+        </h4>
+        <small class="text-muted">{{ nivel_data.descricao }}</small>
+    </div>
+
+    <div class="row">
+        {% for grupo in nivel_data.grupos %}
+        <div class="col-md-6 mb-3">
+            <div class="card grupo-card border-{{ grupo.status }}" style="border-left-color: var(--bs-{{ grupo.status }});">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users text-{{ nivel_data.cor }}"></i>
+                        {{ grupo.nome }}
+                    </h5>
+                    <span class="badge bg-{{ grupo.status }}">
+                        {% if grupo.status == 'success' %}OK{% else %}ATENÇÃO{% endif %}
+                    </span>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Estatísticas do Grupo -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted d-block">Usuários</small>
+                            <strong>{{ grupo.usuarios_count }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Permissions</small>
+                            <strong>{{ grupo.permissions_count }}</strong>
+                            <small class="text-muted">({{ grupo.permissions_percentual }}%)</small>
+                        </div>
+                    </div>
+
+                    <!-- Problemas do Grupo -->
+                    {% if grupo.problemas %}
+                    <div class="alert alert-{{ grupo.problemas.0.tipo }} alert-sm mb-3" role="alert">
+                        <i class="fas fa-exclamation-circle problema-badge"></i>
+                        {% for problema in grupo.problemas %}
+                        <div>{{ problema.mensagem }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Decorators Relacionados -->
+                    {% if grupo.decorators %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Usado em Decorators:</small>
+                        {% for decorator in grupo.decorators %}
+                        <span class="badge bg-info permission-badge">{{ decorator }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Permissions por App (preview) -->
+                    {% if grupo.permissions_por_app %}
+                    <div class="mb-2">
+                        <small class="text-muted d-block mb-1">Permissions por App:</small>
+                        {% for app, perms in grupo.permissions_por_app.items %}
+                        <span class="badge bg-secondary permission-badge me-1">
+                            {{ app }}: {{ perms|length }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Botões de Ação -->
+                    <div class="btn-group btn-group-sm mt-2" role="group">
+                        <button type="button" class="btn btn-outline-primary" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target="#grupo-{{ grupo.grupo_obj.id }}">
+                            <i class="fas fa-eye"></i> Ver Detalhes
+                        </button>
+                        <a href="{% url 'admin:auth_group_change' grupo.grupo_obj.id %}" 
+                           class="btn btn-outline-secondary"
+                           target="_blank">
+                            <i class="fas fa-edit"></i> Editar no Admin
+                        </a>
+                    </div>
+
+                    <!-- Detalhes Expandíveis -->
+                    <div class="collapse mt-3" id="grupo-{{ grupo.grupo_obj.id }}">
+                        <hr>
+                        
+                        <!-- Usuários -->
+                        {% if grupo.usuarios %}
+                        <h6 class="mb-2">Usuários neste grupo:</h6>
+                        <ul class="list-unstyled">
+                            {% for usuario in grupo.usuarios %}
+                            <li class="mb-1">
+                                <i class="fas fa-user text-muted"></i>
+                                {{ usuario.get_full_name|default:usuario.username }}
+                                <small class="text-muted">({{ usuario.email }})</small>
+                            </li>
+                            {% endfor %}
+                            {% if grupo.usuarios_count > 10 %}
+                            <li class="text-muted"><small>... e mais {{ grupo.usuarios_count|add:-10 }}</small></li>
+                            {% endif %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted"><em>Nenhum usuário neste grupo</em></p>
+                        {% endif %}
+
+                        <!-- Permissions Detalhadas -->
+                        <h6 class="mb-2 mt-3">Permissions Detalhadas:</h6>
+                        {% for app, perms in grupo.permissions_por_app.items %}
+                        <div class="mb-2">
+                            <strong class="text-primary">{{ app }}</strong>
+                            <ul class="small">
+                                {% for perm in perms %}
+                                <li {% if perm.perigosa %}class="text-danger"{% endif %}>
+                                    {{ perm.codename }}
+                                    {% if perm.perigosa %}
+                                    <span class="badge bg-danger">DELETE</span>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted"><em>Nenhuma permission</em></p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <!-- Ações em Lote -->
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5><i class="fas fa-tools"></i> Ações de Manutenção</h5>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-primary" onclick="sincronizarGrupos()">
+                    <i class="fas fa-sync"></i> Sincronizar Grupos
+                </button>
+                <button type="button" class="btn btn-info" onclick="verificarSaude()">
+                    <i class="fas fa-stethoscope"></i> Verificar Saúde
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function sincronizarGrupos() {
+    if (confirm('Deseja sincronizar todos os grupos com as permissions padrão?\n\nIsso pode sobrescrever alterações manuais.')) {
+        // TODO: Implementar AJAX call para comando sync_groups_permissions
+        alert('Funcionalidade em desenvolvimento');
+    }
+}
+
+function verificarSaude() {
+    // TODO: Implementar AJAX call para check_permissions_health
+    alert('Funcionalidade em desenvolvimento');
+}
+</script>
+{% endblock %}

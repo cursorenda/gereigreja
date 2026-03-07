@@ -16,7 +16,51 @@ Sistema completo de gestão eclesiástica desenvolvido em Django, oferecendo sol
 - **⚙️ Configuração**: Administração de organizações, igrejas, usuários e permissões
 - **🚀 Deploy**: Sistema automatizado de versionamento e publicação de atualizações
 
-## 🛠️ Tecnologias
+## � Sistema de Grupos e Permissões
+
+O Gereigreja implementa um sistema robusto de controle de acesso baseado em **13 grupos hierárquicos**, cada um com permissões específicas para garantir que usuários acessem apenas as funcionalidades apropriadas aos seus cargos.
+
+### Grupos Disponíveis (Hierarquia)
+
+#### 🏛️ Nível Ministerial
+- **Admin Ministerio**: Controle total sobre todas as organizações e igrejas
+- **Pastor Regional**: Gestão de múltiplas igrejas dentro de uma organização
+- **Tesoureiro**: Acesso dedicado ao módulo financeiro em nível ministerial
+
+#### ⛪ Nível Local (Igreja)
+- **Admin Org**: Administração completa da organização local
+- **Pastor Local**: Gestão pastoral da igreja local
+- **Secretario Local**: Gestão administrativa e de membros
+- **Tesoureiro Local**: Controle financeiro da igreja
+- **Regente**: Gestão do ministério de música e louvor
+- **Lider Eventos**: Organização e coordenação de eventos
+
+#### 📚 Escola Bíblica Dominical (EBD)
+- **Superintendente EBD**: Gestão completa da escola bíblica
+- **Secretaria EBD**: Apoio administrativo EBD
+- **Professor**: Condução de turmas e classes
+
+#### 👥 Membros
+- **Membro Comum**: Acesso básico ao sistema
+
+### Configuração Inicial
+
+Após instalar o sistema, execute o comando para configurar automaticamente todos os grupos com suas permissões:
+
+```bash
+python manage.py configurar_permissoes_grupos
+```
+
+**Opções disponíveis:**
+- `--reset`: Remove e recria todos os grupos
+- `--dry-run`: Simula a configuração sem fazer mudanças
+
+### Documentação Completa
+
+Para detalhes sobre cada grupo, permissões específicas e guias de uso, consulte:
+- **[docs/GRUPOS_PERMISSOES.md](docs/GRUPOS_PERMISSOES.md)** - Documentação completa do sistema de permissões
+
+## �🛠️ Tecnologias
 
 - **Backend**: Python 3.x + Django Framework
 - **Frontend**: HTML5, CSS3 (Bootstrap), JavaScript (jQuery, Chart.js)
@@ -183,5 +227,5 @@ Para dúvidas e suporte, entre em contato através da plataforma ou consulte a d
 
 ---
 
-**Última atualização**: Fevereiro 2026  
-**Versão**: v1.0.9
+**Última atualização**: Março 2026  
+**Versão**: v1.3.1

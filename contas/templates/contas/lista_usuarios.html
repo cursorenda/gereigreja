@@ -139,8 +139,9 @@
                                             <i class="fas fa-user-tag"></i> Editar Papéis
                                         </a>
                                     {% else %}
-                                        {# Opcional: Mostrar algo para o admin principal ou para si mesmo #}
-                                        {# <span class="text-muted fst-italic small">N/A</span> #}
+                                        <span class="text-muted fst-italic small" title="Por segurança, você não pode editar seu próprio perfil ou o do administrador principal">
+                                            <i class="fas fa-info-circle"></i> Não editável
+                                        </span>
                                     {% endif %}
                                     {# --- FIM BOTÃO --- #}
                                     

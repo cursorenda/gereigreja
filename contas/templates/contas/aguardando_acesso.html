@@ -1,0 +1,118 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            
+            {# Card Principal #}
+            <div class="card shadow-lg border-warning border-3">
+                <div class="card-header bg-warning text-dark text-center py-4">
+                    <h2 class="mb-0">
+                        <i class="fas fa-lock fa-2x mb-3"></i><br>
+                        Aguardando Configuração de Permissões
+                    </h2>
+                </div>
+                <div class="card-body p-5">
+                    
+                    {# Mensagem de Boas-Vindas #}
+                    <div class="alert alert-info mb-4">
+                        <h5><i class="fas fa-info-circle"></i> Olá, {{ request.user.get_full_name|default:request.user.username }}!</h5>
+                        <p class="mb-0">
+                            Sua conta está <strong>ativa</strong>, mas suas permissões de acesso estão sendo configuradas pelo administrador do ministério.
+                        </p>
+                    </div>
+
+                    {# Informações do Ministério #}
+                    {% if ministerio %}
+                    <div class="card mb-4 bg-light">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-church me-2"></i>Informações do Seu Ministério</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless mb-0">
+                                <tr>
+                                    <td width="30%"><strong><i class="fas fa-building me-2"></i>Ministério:</strong></td>
+                                    <td>{{ ministerio.nome_fantasia }}</td>
+                                </tr>
+                                {% if admin_principal %}
+                                <tr>
+                                    <td><strong><i class="fas fa-user-shield me-2"></i>Administrador:</strong></td>
+                                    <td>{{ admin_principal.get_full_name|default:admin_principal.username }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-envelope me-2"></i>Email:</strong></td>
+                                    <td>
+                                        <a href="mailto:{{ admin_principal.email }}">{{ admin_principal.email }}</a>
+                                    </td>
+                                </tr>
+                                {% if admin_principal.perfil.whatsapp_contato %}
+                                <tr>
+                                    <td><strong><i class="fab fa-whatsapp me-2"></i>WhatsApp:</strong></td>
+                                    <td>
+                                        <a href="https://wa.me/55{{ admin_principal.perfil.whatsapp_contato|cut:'-'|cut:'('|cut:')'|cut:' ' }}" 
+                                           target="_blank" 
+                                           class="btn btn-success btn-sm">
+                                            <i class="fab fa-whatsapp"></i> {{ admin_principal.perfil.whatsapp_contato }}
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# Próximos Passos #}
+                    <div class="card mb-4 border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Próximos Passos</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2">
+                                <i class="fas fa-arrow-right text-success me-2"></i>
+                                Entre em contato com o administrador acima para solicitar suas permissões de acesso ao sistema.
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-arrow-right text-success me-2"></i>
+                                Assim que as permissões forem configuradas, você terá acesso completo ao sistema.
+                            </p>
+                        </div>
+                    </div>
+
+                    {# O que pode fazer #}
+                    <div class="card bg-light">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="fas fa-unlock me-2"></i>O Que Você Pode Fazer Enquanto Aguarda</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                <a href="{% url 'configuracao:meu_perfil' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-id-card me-1"></i> Ver Meu Perfil
+                                </a>
+                                <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-outline-info">
+                                    <i class="fas fa-edit me-1"></i> Editar Perfil
+                                </a>
+                                <a href="{% url 'contas:password_change' %}" class="btn btn-outline-warning">
+                                    <i class="fas fa-key me-1"></i> Alterar Senha
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="card-footer text-center bg-light">
+                    <a href="{% url 'contas:logout' %}" class="btn btn-danger">
+                        <i class="fas fa-sign-out-alt me-1"></i> Sair do Sistema
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

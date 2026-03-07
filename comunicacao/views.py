@@ -1,5 +1,5 @@
-from django.contrib.auth.decorators import login_required
-from core.decorators import verificar_assinatura_valida
+﻿from django.contrib.auth.decorators import login_required
+from core.decorators import verificar_assinatura_valida, user_passes_test_or_403
 
 @login_required
 @verificar_assinatura_valida
@@ -59,7 +59,7 @@ from core.decorators import verificar_assinatura_valida # Decorator de assinatur
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test(can_view_avisos, login_url='login')
+@user_passes_test_or_403(can_view_avisos)
 def lista_avisos(request):
     ministerio = get_ministerio_or_error(request)
     avisos_qs = Aviso.objects.filter(ministerio=ministerio, publicado=True)
@@ -101,7 +101,7 @@ def lista_avisos(request):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test(can_view_avisos, login_url='login')
+@user_passes_test_or_403(can_view_avisos)
 def detalhe_aviso(request, pk):
     ministerio = get_ministerio_or_error(request)
     aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio, publicado=True)
@@ -124,7 +124,7 @@ def detalhe_aviso(request, pk):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test(can_manage_avisos, login_url='login')
+@user_passes_test_or_403(can_manage_avisos)
 def criar_aviso(request):
     ministerio = get_ministerio_or_error(request)
     if request.method == 'POST':
@@ -160,7 +160,7 @@ def criar_aviso(request):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test(can_manage_avisos, login_url='login')
+@user_passes_test_or_403(can_manage_avisos)
 def editar_aviso(request, pk):
     ministerio = get_ministerio_or_error(request)
     aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio)
@@ -202,7 +202,7 @@ def editar_aviso(request, pk):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test(can_manage_avisos, login_url='login')
+@user_passes_test_or_403(can_manage_avisos)
 def excluir_aviso(request, pk):
     ministerio = get_ministerio_or_error(request)
     aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio)
@@ -229,7 +229,7 @@ from secretaria.models import Membro # Importar o modelo Membro
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test(can_manage_avisos, login_url='login') # Reutilizando a permissão de gerenciar avisos por enquanto
+@user_passes_test_or_403(can_manage_avisos) # Reutilizando a permissão de gerenciar avisos por enquanto
 def enviar_email_massa(request):
     ministerio = get_ministerio_or_error(request)
 

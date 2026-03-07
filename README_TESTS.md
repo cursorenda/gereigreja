@@ -47,4 +47,127 @@ python manage.py test --settings=core.settings_test
 
 ---
 
+## Testes de Permissões de Professores EBD (v1.2.2)
+
+### 📚 O que testa
+
+Arquivo: `escola_biblica/tests/test_professor_permissions.py`
+
+**Sistema de permissões granulares** onde:
+- ✅ Professores podem acessar **apenas suas turmas**
+- ✅ Professores podem fazer **chamada de presença de suas turmas**
+- ✅ Professores veem **apenas alunos de suas turmas**
+- ❌ Professores **NÃO podem** criar/editar/excluir turmas
+- ❌ Professores **NÃO podem** criar/transferir alunos
+
+### 🧪 Como rodar os testes
+
+**Rodar todos os testes de permissões de professores:**
+```powershell
+python manage.py test escola_biblica.tests.test_professor_permissions --settings=core.settings_test -v2
+```
+
+**Rodar apenas teste específico:**
+```powershell
+# Teste: Professor pode acessar chamada da própria turma
+python manage.py test escola_biblica.tests.test_professor_permissions.ProfessorPermissionsTestCase.test_pode_acessar_chamada_turma_professor_propria_turma --settings=core.settings_test -v2
+
+# Teste: Professor NÃO pode acessar turma de outro professor
+python manage.py test escola_biblica.tests.test_professor_permissions.ProfessorPermissionsTestCase.test_nao_pode_acessar_chamada_turma_outro_professor --settings=core.settings_test -v2
+
+# Teste: Professor NÃO pode criar turma
+python manage.py test escola_biblica.tests.test_professor_permissions.ProfessorCRUDRestrictionsTestCase.test_professor_nao_pode_criar_turma --settings=core.settings_test -v2
+```
+
+**Rodar toda a suíte EBD:**
+```powershell
+python manage.py test escola_biblica.tests --settings=core.settings_test -v2
+```
+
+### 📊 Cobertura de testes
+
+**Classes de teste:**
+1. `ProfessorPermissionsTestCase` (20+ testes)
+   - Funções helper (`pode_acessar_chamada_turma`, `get_turmas_professor`, `pode_ver_aluno`)
+   - Views com permissões granulares (`chamada_presenca`, `turma_list`, `aluno_list`, `aluno_detail`)
+   - Edge cases (cargo inativo, sem perfil, superuser)
+   - Integridade (autenticação obrigatória)
+
+2. `ProfessorCRUDRestrictionsTestCase` (4 testes)
+   - Restrições de CRUD (professor não pode criar/editar/excluir turmas)
+   - Restrições de gestão de alunos
+
+**Cenários testados:**
+- ✅ Professor acessa sua turma → 200 OK
+- ✅ Professor tenta acessar turma alheia → 403 Forbidden
+- ✅ Secretário EBD acessa qualquer turma → 200 OK
+- ✅ Usuário comum tenta acessar → 403 Forbidden
+- ✅ Usuário não autenticado → 302 Redirect to login
+- ✅ Professor com cargo inativo → 403 Forbidden
+- ✅ Superuser → Acesso total (bypass)
+
+### 🔧 Estrutura dos testes
+
+```python
+# Setup completo com:
+- 2 Professores (A e B) cada um com sua turma
+- 1 Secretário EBD (acesso total)
+- 1 Usuário comum (sem permissões)
+- Cargos de Professor EBD ativos
+- Turmas vinculadas aos professores via ManyToMany
+- Alunos matriculados em cada turma
+
+# Teste exemplo:
+def test_chamada_presenca_view_professor_propria_turma(self):
+    """Professor pode acessar view de chamada de sua turma (200 OK)."""
+    self.client.login(username='professor_a', password='senha123')
+    url = reverse('escola_biblica:chamada_presenca', kwargs={'turma_id': self.turma_a.id})
+    response = self.client.get(url)
+    self.assertEqual(response.status_code, 200)  # ✅ Sucesso
+```
+
+### 🐛 Troubleshooting
+
+**Erro: `DoesNotExist: Ministerio matching query`**
+- Causa: Banco de testes não tem dados de setup
+- Solução: Use `--settings=core.settings_test` para criar banco em memória limpo
+
+**Erro: `IntegrityError: NOT NULL constraint`**
+- Causa: Relacionamentos entre modelos incompletos
+- Solução: Verifique se `setUpTestData` cria todos os objetos necessários (Ministerio → Igreja → Membro → Cargo)
+
+**Erro: `OperationalError: no such table`**
+- Causa: Migrações não aplicadas no banco de testes
+- Solução: Django cria tabelas automaticamente com `settings_test.py`, mas se persistir, rode:
+  ```powershell
+  python manage.py migrate --settings=core.settings_test
+  ```
+
+### 📝 Adicionando novos testes
+
+Para adicionar testes de permissões customizadas:
+
+1. **Copie o padrão de setup** de `ProfessorPermissionsTestCase.setUpTestData()`
+2. **Crie função helper de permissão** (ex: `pode_editar_licao(user, licao)`)
+3. **Teste a função isoladamente** antes de testar a view
+4. **Teste todos os cenários**: acesso permitido, negado, edge cases
+5. **Documente com docstrings** o que cada teste valida
+
+Exemplo:
+```python
+def test_professor_pode_editar_licao_sua_turma(self):
+    """Professor pode editar lição de sua própria turma."""
+    licao = Licao.objects.create(turma=self.turma_a, data=date.today())
+    pode_editar = pode_editar_licao(self.user_professor_a, licao)
+    self.assertTrue(pode_editar)
+
+def test_professor_nao_pode_editar_licao_turma_alheia(self):
+    """Professor NÃO pode editar lição de turma de outro professor."""
+    licao = Licao.objects.create(turma=self.turma_b, data=date.today())
+    pode_editar = pode_editar_licao(self.user_professor_a, licao)
+    self.assertFalse(pode_editar)
+```
+
+---
+
 Se quiser que eu adicione esse README ao repositório como `README_TESTS.md`, eu já fiz. Se preferir um README em português mais detalhado ou um arquivo `CONTRIBUTING.md` com instruções ampliadas, eu posso criar também.

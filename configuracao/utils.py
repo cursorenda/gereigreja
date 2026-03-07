@@ -1,5 +1,6 @@
 # c:\Gereigreja\configuracao\utils.py
 from django.contrib.auth.models import Group
+from contas.constants import user_is_admin
 
 def pode_editar_configuracao_org(user):
     """
@@ -11,6 +12,6 @@ def pode_editar_configuracao_org(user):
     # Verifica se o usuário pertence ao grupo 'Admin Ministerio'
     # Você pode adicionar outras lógicas de permissão aqui, se necessário
     # Por exemplo, verificar se é superusuário ou tem uma permissão específica.
-    return user.groups.filter(name='Admin Ministerio').exists()
+    return user_is_admin(user)
 
 # Você pode adicionar outras funções de utilidade específicas do app configuracao aqui.

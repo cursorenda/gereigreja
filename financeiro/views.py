@@ -655,11 +655,9 @@ def editar_receita(request, pk): # noqa: E302
         return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
-# @login_required # Removido pois check_permission faria isso, mas aqui a lógica é interna
+@check_permission(has_finance_edit_permission)
 def excluir_receita(request, pk): # noqa: E302
     # Apenas quem pode editar pode excluir
-    if not has_finance_edit_permission(request.user):
-        raise PermissionDenied("Você não tem permissão para excluir receitas.")
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     receita = get_object_or_404(Receitas, pk=pk, igreja__in=allowed_churches)
@@ -826,9 +824,8 @@ def cadastrar_despesa(request): # noqa: E302
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
-# @login_required # Removido
+@check_permission(has_finance_edit_permission)
 def editar_despesa(request, pk): # noqa: E302
-    if not has_finance_edit_permission(request.user): raise PermissionDenied("Sem permissão para editar.")
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
@@ -859,9 +856,8 @@ def editar_despesa(request, pk): # noqa: E302
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
-# @login_required # Removido
+@check_permission(has_finance_edit_permission)
 def excluir_despesa(request, pk): # noqa: E302
-    if not has_finance_edit_permission(request.user): raise PermissionDenied("Sem permissão para excluir.")
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)

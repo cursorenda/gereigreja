@@ -1,7 +1,9 @@
-from django.contrib.auth.decorators import login_required, user_passes_test
+﻿from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
 from .forms import ConfiguracaoSistemaForm
 from .models import ConfiguracaoSistema
+from contas.constants import ADMIN_MINISTERIO, user_is_admin
+from core.decorators import user_passes_test_or_403, admin_ministerio_required  # Importar decorator que lança 403
 
 # --- NOVA VIEW: Perfil de qualquer usuário (admin/gestor pode ver o perfil de outro usuário) ---
 @login_required
@@ -15,7 +17,7 @@ def perfil_usuario(request, user_id):
     perfil_usuario = user.perfil
     # --- Permissão: só admin, gestor, superuser ou quem tem cargo ativo na EBD pode ver o perfil de outro usuário ---
     pode_ver = False
-    if request.user.is_superuser or request.user.groups.filter(name__in=["Admin Ministerio", "Gestor"]).exists():
+    if request.user.is_superuser or request.user.groups.filter(name__in=[ADMIN_MINISTERIO, "Gestor"]).exists():
         pode_ver = True
     elif request.user == user:
         pode_ver = True
@@ -99,10 +101,10 @@ from django.contrib.auth.decorators import user_passes_test
 from .models import ConfiguracaoSistema
 
 def is_admin_ministerio(user):
-    return user.is_authenticated and user.groups.filter(name='Admin Ministerio').exists()
+    return user.is_authenticated and user.groups.filter(name=ADMIN_MINISTERIO).exists()
 
 @login_required
-@user_passes_test(is_admin_ministerio)
+@user_passes_test_or_403(is_admin_ministerio)
 def editar_configuracoes_sistema(request):
     """
     Permite ao admin/pastor editar as configurações de notificações do sistema para seu ministério.
@@ -249,7 +251,7 @@ def pode_editar_configuracao_org(user):
     if not user.is_authenticated:
         return False
     # Exemplo: Admin da Ministério ou um grupo específico pode editar
-    return user.groups.filter(name='Admin Ministerio').exists() # ou outra lógica
+    return user_is_admin(user) # ou outra lógica
 
 
 ## A função get_ministerio_or_error foi movida para core.utils.py ##
@@ -310,7 +312,7 @@ def lista_igrejas(request):
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
     grupos_usuario = list(request.user.groups.values_list('name', flat=True))
     logger.debug(f"Usuário {request.user.username} pertence aos grupos: {grupos_usuario}")
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
+    if not user_is_admin(request.user):
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---
@@ -346,14 +348,10 @@ def lista_igrejas(request):
 
 
 @login_required
+@admin_ministerio_required
 def adicionar_igreja(request):
     """ Cria uma nova igreja para a ministério do usuário. """
     ministerio = get_ministerio_or_error(request)
-    # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('secretaria:index') # Ou 'dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
 
     if request.method == 'POST':
         form = IgrejaForm(request.POST)
@@ -387,14 +385,10 @@ def adicionar_igreja(request):
     return render(request, 'configuracao/igrejas/form_igreja.html', context)
 
 @login_required
+@admin_ministerio_required
 def excluir_igreja(request, pk):
     """ Exclui uma igreja (requer POST e confirmação). """
     ministerio = get_ministerio_or_error(request)
-    # --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('secretaria:index') # Ou 'dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
     igreja = get_object_or_404(Igreja, pk=pk, ministerio=ministerio)
 
     # --- VERIFICAÇÃO IMPORTANTE: Impedir exclusão se tiver dependências ---
@@ -455,14 +449,10 @@ def detalhes_ministerio(request):
 # @login_required
 # --- NOVA VIEW ---
 @login_required
+@admin_ministerio_required
 def editar_ministerio(request):
     """ Permite ao Admin do Minist. editar os dados da sua própria ministério. """
     ministerio = get_ministerio_or_error(request) # Pega a ministério do usuário
-# --- NOVA VERIFICAÇÃO DE GRUPO ---
-    if not request.user.groups.filter(name='Admin Ministerio').exists():
-        messages.error(request, "Você não tem permissão para gerenciar igrejas.")
-        return redirect('secretaria:index') # Ou 'dashboard'
-        # --- FIM DA VERIFICAÇÃO ---
     if request.method == 'POST':
     # print(request.FILES) # Removido para produção
         # Passa a instância para editar o objeto correto
@@ -503,7 +493,7 @@ def editar_ministerio(request):
 
 
 @login_required
-@user_passes_test(pode_editar_configuracao_org) # Proteja a view
+@user_passes_test_or_403(pode_editar_configuracao_org) # Proteja a view
 def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito com outras views editar_igreja
     ministerio = get_ministerio_or_error(request) # Usar a função auxiliar
     # Garante que a igreja a ser editada pertence à ministério do usuário
@@ -537,7 +527,7 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
 # from .utils import pode_editar_configuracao_org (ou uma permissão similar)
 
 @login_required
-@user_passes_test(pode_editar_configuracao_org) # Use a permissão apropriada
+@user_passes_test_or_403(pode_editar_configuracao_org) # Use a permissão apropriada
 def adicionar_igreja(request):
     ministerio = get_ministerio_or_error(request) # Usar a função auxiliar
 

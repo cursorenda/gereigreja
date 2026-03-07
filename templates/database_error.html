@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banco de Dados Indisponível - GereIgreja</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .error-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 3rem;
+            max-width: 600px;
+            margin: 2rem auto;
+        }
+        .error-icon {
+            font-size: 72px;
+            margin-bottom: 1rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .error-tipo-timeout { color: #ff9800; }
+        .error-tipo-refused { color: #f44336; }
+        .error-tipo-generic { color: #dc3545; }
+        .btn-retry {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .btn-retry:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .detalhes-tecnicos {
+            background: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #495057;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+        .status-503 {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-container text-center">
+            <!-- Ícone baseado no tipo de erro -->
+            <div class="error-icon error-tipo-{{ erro_tipo }}">
+                {% if erro_tipo == 'timeout' %}
+                    <i class="fas fa-clock"></i>
+                {% elif erro_tipo == 'refused' %}
+                    <i class="fas fa-plug-circle-xmark"></i>
+                {% else %}
+                    <i class="fas fa-database"></i>
+                {% endif %}
+            </div>
+
+            <!-- Título -->
+            <h1 class="mb-3">{{ titulo }}</h1>
+            
+            <!-- Status HTTP -->
+            <span class="status-badge status-503">
+                <i class="fas fa-exclamation-triangle"></i> Erro 503 - Serviço Indisponível
+            </span>
+
+            <!-- Descrição -->
+            <p class="lead mt-4 mb-2">{{ descricao }}</p>
+            <p class="text-muted">{{ detalhes }}</p>
+
+            <!-- Mensagem de orientação -->
+            <div class="alert alert-info mt-4 text-start" role="alert">
+                <i class="fas fa-info-circle"></i> <strong>O que fazer:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Aguarde alguns minutos e recarregue a página</li>
+                    <li>Verifique sua conexão com a internet</li>
+                    <li>Se o problema persistir por mais de 10 minutos, entre em contato com o suporte</li>
+                    {% if erro_tipo == 'timeout' %}
+                    <li><strong>Supabase:</strong> Verificar status em <a href="https://status.supabase.com" target="_blank">status.supabase.com</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <!-- Botões de ação -->
+            <div class="mt-4">
+                <button onclick="location.reload()" class="btn btn-retry me-2">
+                    <i class="fas fa-redo"></i> Tentar Novamente
+                </button>
+                <a href="/" class="btn btn-outline-secondary">
+                    <i class="fas fa-home"></i> Página Inicial
+                </a>
+            </div>
+
+            <!-- Detalhes técnicos (apenas para superusuários) -->
+            {% if erro_completo %}
+            <div class="detalhes-tecnicos text-start">
+                <strong><i class="fas fa-code"></i> Detalhes Técnicos (Superusuário):</strong><br>
+                {{ erro_completo }}
+            </div>
+            {% endif %}
+
+            <!-- Rodapé -->
+            <div class="mt-5 text-muted small">
+                <i class="fas fa-wrench"></i> Sistema GereIgreja
+                <br>
+                <span class="text-black-50">Se precisar de ajuda, contate o suporte técnico</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tentar reconectar automaticamente após 30 segundos
+        setTimeout(() => {
+            console.log('Tentando reconectar automaticamente...');
+            location.reload();
+        }, 30000);
+
+        // Adicionar contador regressivo
+        let segundos = 30;
+        const interval = setInterval(() => {
+            segundos--;
+            if (segundos <= 0) {
+                clearInterval(interval);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

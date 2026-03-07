@@ -85,6 +85,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'core.middleware.DatabaseErrorMiddleware',  # Captura erros de BD e mostra página amigável
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -92,6 +93,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.PermissionDeniedMiddleware',  # Captura PermissionDenied e mostra 403.html
+    'core.middleware.VerificarGruposUsuarioMiddleware',  # Middleware para verificar se usuário tem grupos
     'core.middleware.ActiveChurchMiddleware',
     'secretaria.middleware.DisableCacheMiddleware',
 ]
@@ -135,6 +138,10 @@ DATABASES = {
         'HOST': os.environ.get('DB_HOST'),
         'PORT': os.environ.get('DB_PORT'),
         'CONN_MAX_AGE': 0,
+        'CONN_HEALTH_CHECKS': False,  # Não verifica BD no startup
+        'OPTIONS': {
+            'connect_timeout': 5,  # Timeout rápido (5s em vez de padrão 60s+)
+        }
     }
 }
 
