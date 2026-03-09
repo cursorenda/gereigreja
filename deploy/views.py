@@ -484,6 +484,191 @@ def obter_estatisticas_codigo():
         }
 
 
+def criar_release_notes(versao, tipo_versao, descricao, mudancas_git, estatisticas):
+    """
+    Cria arquivo RELEASE_NOTES_vX.X.X.md automaticamente.
+    Gera documentação completa do release com estatísticas e arquivos modificados.
+    """
+    from datetime import datetime
+    
+    # Obter commit hash atual
+    try:
+        result_hash = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=5
+        )
+        commit_hash = result_hash.stdout.strip()[:7] if result_hash.returncode == 0 else 'unknown'
+    except:
+        commit_hash = 'unknown'
+    
+    # Obter versão anterior
+    versao_anterior = obter_versao_atual()
+    
+    # Mapear tipo de versão para texto descritivo
+    tipo_map = {
+        'patch': 'PATCH (Correções)',
+        'minor': 'MINOR (Funcionalidades)',
+        'major': 'MAJOR (Breaking Changes)'
+    }
+    tipo_texto = tipo_map.get(tipo_versao, tipo_versao.upper())
+    
+    # Gerar template
+    template = f"""# Release Notes - Versão {versao}
+
+**Data de Lançamento:** {datetime.now().strftime('%d/%m/%Y')}  
+**Tipo:** {tipo_texto}
+
+---
+
+## 📝 Descrição
+
+{descricao}
+
+---
+
+## 📊 Estatísticas
+
+- **Arquivos Modificados:** {estatisticas['arquivos']}
+- **Linhas Adicionadas:** +{estatisticas['insercoes']}
+- **Linhas Removidas:** -{estatisticas['delecoes']}
+- **Saldo:** {estatisticas['saldo']:+d}
+
+---
+
+## 🔄 Arquivos Alterados
+"""
+    
+    # Adicionar arquivos modificados
+    if mudancas_git['sucesso'] and mudancas_git['modificados']:
+        template += f"\n### 📝 Modificados ({len(mudancas_git['modificados'])})\n"
+        for arquivo in mudancas_git['modificados']:
+            template += f"- `{arquivo}`\n"
+    
+    # Adicionar arquivos adicionados
+    if mudancas_git['sucesso'] and mudancas_git['adicionados']:
+        template += f"\n### ➕ Adicionados ({len(mudancas_git['adicionados'])})\n"
+        for arquivo in mudancas_git['adicionados']:
+            template += f"- `{arquivo}`\n"
+    
+    # Adicionar arquivos deletados
+    if mudancas_git['sucesso'] and mudancas_git['deletados']:
+        template += f"\n### 🗑️ Removidos ({len(mudancas_git['deletados'])})\n"
+        for arquivo in mudancas_git['deletados']:
+            template += f"- `{arquivo}`\n"
+    
+    # Instruções de atualização
+    template += f"""
+
+---
+
+## 🚀 Como Atualizar
+
+### Desenvolvimento Local
+```bash
+git pull origin master
+python manage.py migrate
+python manage.py collectstatic --noinput
+```
+
+### Produção (Render - Automático)
+O deploy será acionado automaticamente após o push. Monitorar:
+1. ✅ Build logs no dashboard do Render
+2. ✅ Execução de migrations
+3. ✅ Collectstatic
+4. ✅ Reinício do servidor
+
+---
+
+## ⚠️ Breaking Changes
+
+{f'✅ Nenhuma mudança incompatível com versões anteriores.' if tipo_versao != 'major' else '❌ ATENÇÃO: Esta é uma versão MAJOR. Verifique compatibilidade antes de atualizar!'}
+
+---
+
+## 🔗 Informações Técnicas
+
+- **Commit Hash:** `{commit_hash}`
+- **Tag Git:** `v{versao}`
+- **Versão Anterior:** v{versao_anterior}
+
+---
+
+**📚 Documentação Completa:** [README.md](README.md)  
+**📋 Changelog:** [CHANGELOG.md](CHANGELOG.md)
+"""
+    
+    # Salvar arquivo
+    filename = f"RELEASE_NOTES_v{versao}.md"
+    filepath = os.path.join(settings.BASE_DIR, filename)
+    
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(template)
+        return {
+            'sucesso': True,
+            'arquivo': filename,
+            'caminho': filepath
+        }
+    except Exception as e:
+        return {
+            'sucesso': False,
+            'erro': str(e)
+        }
+
+
+def fazer_backup_pre_deploy(versao):
+    """
+    Faz backup automático do banco de dados antes do deploy.
+    Usa Django dumpdata para criar backup em JSON.
+    """
+    from datetime import datetime
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_filename = f"backup_pre_deploy_v{versao}_{timestamp}.json"
+    backup_path = os.path.join(settings.BASE_DIR, 'backups', backup_filename)
+    
+    # Criar diretório se não existir
+    os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+    
+    try:
+        # Fazer backup usando dumpdata (todos os dados exceto sessões e logs temporários)
+        with open(backup_path, 'w', encoding='utf-8') as f:
+            subprocess.run([
+                'python', 'manage.py', 'dumpdata',
+                '--natural-foreign',
+                '--natural-primary',
+                '--exclude=contenttypes',
+                '--exclude=auth.permission',
+                '--exclude=sessions.session',
+                '--indent=2'
+            ], stdout=f, cwd=settings.BASE_DIR, check=True, timeout=300)
+        
+        # Obter tamanho do arquivo
+        tamanho = os.path.getsize(backup_path)
+        tamanho_mb = tamanho / (1024 * 1024)
+        
+        return {
+            'sucesso': True,
+            'arquivo': backup_filename,
+            'caminho': backup_path,
+            'tamanho': tamanho,
+            'tamanho_mb': f"{tamanho_mb:.2f} MB"
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            'sucesso': False,
+            'erro': 'Timeout: backup demorou mais de 5 minutos'
+        }
+    except Exception as e:
+        return {
+            'sucesso': False,
+            'erro': str(e)
+        }
+
+
 def executar_deploy(tipo_versao, descricao, usuario):
     """Executa todo o processo de deploy automatizado"""
     
@@ -524,6 +709,34 @@ def executar_deploy(tipo_versao, descricao, usuario):
             deploy.arquivos_modificados = arquivos_texto
             deploy.save()
             logs.append(f"✅ {mudancas['total']} arquivos detectados")
+        
+        # 2.1. Obter estatísticas de código
+        logs.append("\n📊 Calculando estatísticas de código...")
+        estatisticas = obter_estatisticas_codigo()
+        logs.append(f"✅ Estatísticas: {estatisticas['arquivos']} arquivo(s), +{estatisticas['insercoes']}/-{estatisticas['delecoes']} linhas")
+        
+        # 2.2. Fazer backup pré-deploy
+        logs.append("\n💾 Fazendo backup pré-deploy...")
+        backup_result = fazer_backup_pre_deploy(nova_versao)
+        if backup_result['sucesso']:
+            logs.append(f"✅ Backup criado: {backup_result['arquivo']} ({backup_result['tamanho_mb']})")
+        else:
+            logs.append(f"⚠️ Aviso: Backup falhou - {backup_result['erro']}")
+            logs.append("   Deploy continuará, mas faça backup manual!")
+        
+        # 2.3. Criar Release Notes
+        logs.append("\n📄 Criando Release Notes...")
+        release_notes_result = criar_release_notes(
+            nova_versao, 
+            tipo_versao, 
+            descricao, 
+            mudancas, 
+            estatisticas
+        )
+        if release_notes_result['sucesso']:
+            logs.append(f"✅ Release Notes criado: {release_notes_result['arquivo']}")
+        else:
+            logs.append(f"⚠️ Aviso: Release Notes falhou - {release_notes_result['erro']}")
         
         # 3. Atualizar CHANGELOG.md
         logs.append("\n📝 Atualizando CHANGELOG.md...")
