@@ -1,0 +1,200 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Histórico de Consentimentos LGPD - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid my-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Cabeçalho -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-shield-alt text-primary me-2"></i>Histórico de Consentimentos LGPD</h2>
+                    <p class="text-muted mb-0">
+                        Registro completo de todas as suas autorizações conforme Lei 13.709/2018
+                    </p>
+                </div>
+                <a href="{% url 'contas:meus_dados_lgpd' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Voltar
+                </a>
+            </div>
+
+            <!-- Estatísticas -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0 text-primary">{{ total_consentimentos }}</h3>
+                            <p class="text-muted mb-0">Total de Consentimentos</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            {% if consentimentos.first %}
+                                <h6 class="mb-0 text-info">{{ consentimentos.first.data_consentimento|date:'d/m/Y' }}</h6>
+                                <p class="text-muted mb-0">Consentimento Mais Recente</p>
+                            {% else %}
+                                <p class="text-muted mb-0">Nenhum registro</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            {% if consentimentos.last %}
+                                <h6 class="mb-0 text-success">{{ consentimentos.last.data_consentimento|date:'d/m/Y' }}</h6>
+                                <p class="text-muted mb-0">Primeiro Consentimento</p>
+                            {% else %}
+                                <p class="text-muted mb-0">Nenhum registro</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Consentimentos -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Todos os Consentimentos</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if consentimentos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 5%">#</th>
+                                    <th style="width: 15%">Data e Hora</th>
+                                    <th style="width: 10%">Termos</th>
+                                    <th style="width: 10%">Privacidade</th>
+                                    <th style="width: 12%">Versões</th>
+                                    <th style="width: 12%">IP</th>
+                                    <th>Navegador</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for consentimento in consentimentos %}
+                                <tr>
+                                    <td class="text-center">{{ forloop.counter }}</td>
+                                    <td>
+                                        <span class="d-block fw-bold">{{ consentimento.data_consentimento|date:'d/m/Y' }}</span>
+                                        <small class="text-muted">{{ consentimento.data_consentimento|date:'H:i:s' }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if consentimento.aceite_termos %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle"></i> Aceito
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times-circle"></i> Negado
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if consentimento.aceite_privacidade %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle"></i> Aceito
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times-circle"></i> Negado
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <span class="badge bg-info me-1" title="Versão dos Termos">T: {{ consentimento.versao_termos }}</span>
+                                            <span class="badge bg-info" title="Versão da Política">P: {{ consentimento.versao_privacidade }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <code class="small">{{ consentimento.ip_consentimento|default:"Não registrado" }}</code>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted" title="{{ consentimento.user_agent }}">
+                                            {{ consentimento.user_agent|truncatechars:60|default:"Não registrado" }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Nenhum consentimento registrado ainda.</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if consentimentos %}
+                <div class="card-footer bg-light">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <strong>Informação LGPD:</strong> Todos os consentimentos são registrados de forma auditável
+                                conforme Art. 8º da Lei 13.709/2018. Você pode solicitar a exclusão dos seus dados a qualquer momento.
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge bg-secondary">Total: {{ total_consentimentos }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Card Informativo -->
+            <div class="card mt-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>O que são estes registros?</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Consentimento LGPD:</strong> A Lei Geral de Proteção de Dados (LGPD) exige que
+                        o tratamento de dados pessoais seja baseado em consentimento livre, informado e inequívoco.
+                    </p>
+                    <p class="mb-2">
+                        <strong>Informações Registradas:</strong>
+                    </p>
+                    <ul class="mb-3">
+                        <li><strong>Data e Hora:</strong> Momento exato do consentimento</li>
+                        <li><strong>Termos e Privacidade:</strong> Aceite dos documentos legais</li>
+                        <li><strong>Versões:</strong> Versão dos documentos aceitos (importante para rastreabilidade)</li>
+                        <li><strong>IP:</strong> Endereço IP de origem (prova técnica do consentimento)</li>
+                        <li><strong>User Agent:</strong> Informações do navegador (contexto técnico)</li>
+                    </ul>
+                    <p class="mb-0">
+                        <strong>Seus Direitos:</strong> Você pode a qualquer momento:
+                    </p>
+                    <ul class="mb-0">
+                        <li>Revisar seus dados pessoais</li>
+                        <li>Exportar seus dados (JSON ou PDF)</li>
+                        <li>Solicitar a exclusão da sua conta</li>
+                        <li>Revogar consentimentos (onde aplicável)</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="{% url 'contas:meus_dados_lgpd' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-user me-1"></i>Ver Meus Dados
+                        </a>
+                        <a href="{% url 'termos_condicoes' %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-file-contract me-1"></i>Termos de Uso
+                        </a>
+                        <a href="{% url 'politica_privacidade' %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-user-shield me-1"></i>Política de Privacidade
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

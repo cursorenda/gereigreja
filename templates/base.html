@@ -54,8 +54,3 @@
     {% block extra_js %}{% endblock %} {# Bloco para JS extra se necessário #}
 </body>
 </html>
-<li class="nav-item {% if request.resolver_match.url_name == 'validar_imagens' %}active{% endif %}">
-    <a class="nav-link" href="{% url 'configuracao:validar_imagens' %}">
-        <i class="fas fa-images"></i> Validar Imagens
-    </a>
-</li>

@@ -13,19 +13,37 @@
     </ol>
 
     <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div>
-                <i class="fas fa-eye me-1"></i>
-                Detalhes: {{ membro.nome }}
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <i class="fas fa-eye me-1"></i>
+                    Detalhes: {{ membro.nome }}
+                </div>
+                <div>
+                    <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-editar btn-sm">
+                        <i class="fas fa-edit"></i> Editar
+                    </a>
+                    <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant-imprimir btn-sm" target="_blank">
+                        <i class="fas fa-print"></i> Imprimir
+                    </a>
+                </div>
             </div>
-            <div>
-                <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-editar btn-sm">
-                    <i class="fas fa-edit"></i> Editar
-                </a>
-                <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant-imprimir btn-sm" target="_blank">
-                    <i class="fas fa-print"></i> Imprimir
-                </a>
+            {% if membro.criado_em or membro.atualizado_em %}
+            <div class="d-flex flex-wrap gap-3" style="font-size: 0.85rem; opacity: 0.9;">
+                {% if membro.criado_em %}
+                <span class="text-white-50">
+                    <i class="fas fa-calendar-plus me-1"></i>
+                    Cadastrado em: {{ membro.criado_em|date:'d/m/Y H:i' }}
+                </span>
+                {% endif %}
+                {% if membro.atualizado_em %}
+                <span class="text-white-50">
+                    <i class="fas fa-clock me-1"></i>
+                    Última atualização: {{ membro.atualizado_em|date:'d/m/Y H:i' }}
+                </span>
+                {% endif %}
             </div>
+            {% endif %}
         </div>
 
         <div class="card-body">

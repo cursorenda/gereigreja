@@ -29,10 +29,24 @@ def deduplicate_assinatura_vencida(request):
 def sistema_nome(request):
     # Adiciona o nome do sistema ao contexto de todos os templates
     return {'SISTEMA_NOME': 'Gereigreja'}
+
+def ministerio_context(request):
+    """
+    Adiciona o ministério do usuário ao contexto de todos os templates.
+    Isso garante que a variável 'ministerio' esteja sempre disponível,
+    especialmente para exibir o logo no menu lateral (base_com_menu.html).
+    """
+    if request.user.is_authenticated:
+        if hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.ministerio:
+            return {'ministerio': request.user.perfil.ministerio}
+    return {'ministerio': None}
+
 from comunicacao.models import Notificacao
 
 def unread_notifications(request):
-    # Adiciona a contagem de notificações não lidas ao contexto de cada template
+    """
+    Adiciona a contagem de notificações não lidas ao contexto de cada template.
+    """
     if request.user.is_authenticated:
         if hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.ministerio:
             unread_count = Notificacao.objects.filter(
@@ -43,7 +57,3 @@ def unread_notifications(request):
             return {'unread_notifications_count': unread_count}
     # Retorna 0 se não autenticado ou sem ministério
     return {'unread_notifications_count': 0}
-
-
-
-

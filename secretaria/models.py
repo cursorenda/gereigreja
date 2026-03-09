@@ -226,6 +226,24 @@ class Pessoa(models.Model):
         blank=True, null=True,
         verbose_name="Tipo de Entrada (se membro)"
     )
+    
+    # --- CAMPOS DE AUDITORIA ---
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        null=True,
+        blank=True,
+        verbose_name="Data/Hora de Cadastro",
+        help_text="Data e hora em que a pessoa foi cadastrada no sistema"
+    )
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        null=True,
+        blank=True,
+        verbose_name="Última Atualização",
+        help_text="Data e hora da última modificação do cadastro"
+    )
+    # --- FIM CAMPOS DE AUDITORIA ---
+    
     # Propriedade removida: agora a lógica de ativo para relatórios depende apenas de status_pessoa.nome == 'Ativo'
     @property
     def nome_completo(self):

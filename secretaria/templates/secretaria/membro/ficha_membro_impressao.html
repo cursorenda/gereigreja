@@ -193,7 +193,18 @@
         </div>
 
         <div class="text-center small text-muted mt-5">
-            Ficha gerada em: {% now "d/m/Y H:i" %} por Gereigreja
+            <div>Ficha gerada em: {% now "d/m/Y H:i" %} por Gereigreja</div>
+            {% if membro.criado_em or membro.atualizado_em %}
+            <div class="mt-2" style="font-size: 0.85em;">
+                {% if membro.criado_em %}
+                    Cadastrado em: {{ membro.criado_em|date:'d/m/Y H:i' }}
+                {% endif %}
+                {% if membro.atualizado_em %}
+                    {% if membro.criado_em %} | {% endif %}
+                    Última atualização: {{ membro.atualizado_em|date:'d/m/Y H:i' }}
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </body>

@@ -92,6 +92,14 @@ urlpatterns = [
     # --- URL PARA PÁGINA DE AGUARDANDO PERMISSÕES (SEM GRUPOS) ---
     path('aguardando-acesso/', views.aguardando_acesso, name='aguardando_acesso'),
 
+    # --- URL MEUS DADOS LGPD ---
+    path('meus-dados/', views.meus_dados_lgpd, name='meus_dados_lgpd'),
+    path('meus-dados/exportar-json/', views.exportar_dados_json, name='exportar_dados_json'),
+    path('meus-dados/exportar-pdf/', views.exportar_dados_pdf, name='exportar_dados_pdf'),
+    path('meus-dados/historico-consentimentos/', views.historico_consentimentos, name='historico_consentimentos'),
+    path('meu-perfil/editar/', views.editar_meu_perfil, name='editar_meu_perfil'),
+    path('meu-perfil/sincronizar/', views.sincronizar_dados_membro, name='sincronizar_dados_membro'),
+
     # --- FIM URL ---
     # --- FIM URL ---
     # --- FIM URLs RESET DE SENHA ---

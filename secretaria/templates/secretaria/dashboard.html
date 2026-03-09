@@ -6,6 +6,188 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 {% block content %}
+<style>
+    /* Animações de Entrada */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .animate-on-load {
+        opacity: 0;
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+    
+    .banner-info-geral { animation-delay: 0.1s; }
+    .card-row-flex:nth-of-type(1) .stat-card:nth-child(1) { animation-delay: 0.2s; }
+    .card-row-flex:nth-of-type(1) .stat-card:nth-child(2) { animation-delay: 0.3s; }
+    .card-row-flex:nth-of-type(1) .stat-card:nth-child(3) { animation-delay: 0.4s; }
+    .card-row-flex:nth-of-type(1) .stat-card:nth-child(4) { animation-delay: 0.5s; }
+    .card-row-flex:nth-of-type(1) .stat-card:nth-child(5) { animation-delay: 0.6s; }
+    
+    .card-row-flex:nth-of-type(2) { animation-delay: 0.3s; }
+    .card-row-flex:nth-of-type(3) { animation-delay: 0.4s; }
+    .card-row-flex:nth-of-type(4) { animation-delay: 0.5s; }
+    .dashboard-analytics-row:nth-of-type(1) { animation-delay: 0.6s; }
+    .dashboard-analytics-row:nth-of-type(2) { animation-delay: 0.7s; }
+    
+    /* Indicadores de Tendência */
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        margin-top: 0.3rem;
+    }
+    .trend-up {
+        background: rgba(76, 175, 80, 0.2);
+        color: #4caf50;
+    }
+    .trend-down {
+        background: rgba(244, 67, 54, 0.2);
+        color: #f44336;
+    }
+    .trend-neutral {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Loading Skeleton para Gráficos */
+    @keyframes skeleton-loading {
+        0% { background-position: -200px 0; }
+        100% { background-position: calc(200px + 100%) 0; }
+    }
+    
+    .chart-skeleton {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #f0f0f0 0px, #f8f8f8 40px, #f0f0f0 80px);
+        background-size: 200px 100%;
+        animation: skeleton-loading 1.5s infinite linear;
+        border-radius: 0 0 24px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    
+    .chart-skeleton-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    
+    .skeleton-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        height: 80px;
+    }
+    
+    .skeleton-bar {
+        width: 12px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
+    }
+    
+    .skeleton-bar:nth-child(1) { height: 40px; animation-delay: 0s; }
+    .skeleton-bar:nth-child(2) { height: 60px; animation-delay: 0.1s; }
+    .skeleton-bar:nth-child(3) { height: 35px; animation-delay: 0.2s; }
+    .skeleton-bar:nth-child(4) { height: 70px; animation-delay: 0.3s; }
+    .skeleton-bar:nth-child(5) { height: 50px; animation-delay: 0.4s; }
+    
+    @keyframes skeleton-pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+    }
+    
+    .chart-loading-text {
+        color: #999;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    canvas.chart-loaded + .chart-skeleton {
+        display: none;
+    }
+    
+    /* Consolidação CSS - Stats Grid e Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+    
+    .stat-card {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 1rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .stat-icon {
+        font-size: 1.5rem;
+        opacity: 0.85;
+        cursor: help;
+    }
+    
+    .stat-badge {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 20px;
+    }
+    
+    .stat-badge-default {
+        background: rgba(255,255,255,0.25);
+    }
+    
+    .stat-badge-success {
+        background: rgba(76, 175, 80, 0.8);
+    }
+    
+    .stat-badge-info {
+        background: rgba(33, 150, 243, 0.8);
+    }
+    
+    .stat-badge-warning {
+        background: rgba(255,193,7,0.8);
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        line-height: 1.2;
+        margin-bottom: 0.3rem;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        font-weight: 500;
+    }
+</style>
+
 <script id="status-labels-data" type="application/json">{{ status_labels_json|safe }}</script>
 <script id="status-values-data" type="application/json">{{ status_values_json|safe }}</script>
 <script id="genero-labels-data" type="application/json">{{ genero_labels_json|safe }}</script>
@@ -24,47 +206,103 @@
 
 
 
-    <h1 class="mt-4">Dashboard Secretaria</h1>
-    <!-- Banner Informações Gerais -->
-    <div class="card shadow-sm mb-4" style="width:100%; border-radius: 18px; background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; min-height: 90px; display: flex; align-items: center;">
-        <div class="card-body py-3 px-4" style="width:100%; display: flex; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 0.7rem; min-width: 220px;">
-                <i class="fas fa-info-circle fa-2x" style="opacity:0.85;"></i>
-                <span style="font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px;">Informações Gerais</span>
+    <h1 class="mt-4 animate-on-load" style="animation-delay: 0s;">Dashboard Secretaria</h1>
+    <!-- Banner Informações Gerais - Redesigned -->
+    <div class="card shadow-lg mb-4 banner-info-geral animate-on-load" style="width:100%; border-radius: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; overflow: hidden;">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-3">
+                <i class="fas fa-chart-line me-2" style="font-size: 1.4rem; opacity: 0.9;"></i>
+                <h5 class="mb-0" style="font-weight: 700; letter-spacing: 0.5px; font-size: 1.15rem;">Visão Geral</h5>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 2.2rem; align-items: center; justify-content: flex-end; width: 100%; max-width: 900px;">
-                <div style="font-size: 0.95rem; min-width: 140px;">
-                    <span style="font-weight: 600;">Novos membros (30d): </span>
-                    <span style="font-weight: 700;">{{ novos_membros_30_dias }}</span>
+            <div class="stats-grid">
+                <!-- Stat Card 1: Pessoas Cadastradas -->
+                <div class="stat-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <i class="fas fa-users stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Total de pessoas cadastradas no sistema (membros, visitantes, congregados, etc.)"></i>
+                        <span class="badge stat-badge stat-badge-default">Total</span>
+                    </div>
+                    <div class="stat-value">{{ total_pessoas_igreja|default:'0' }}</div>
+                    <div class="stat-label">Pessoas Cadastradas</div>
                 </div>
-                <div style="font-size: 0.95rem; min-width: 140px;">
-                    <span style="font-weight: 600;">Aniversariantes (mês): </span>
-                    <span style="font-weight: 700;">{{ aniversariantes_mes_atual_count }}</span>
-                    <button id="btnAniversariantes" title="Próximos aniversariantes"
-                      style="background: none; border: none; padding: 0 0 0 6px; margin: 0; vertical-align: middle; cursor: pointer; display: inline-flex; align-items: center;">
-                      <i class="fas fa-birthday-cake" style="color: #fff; font-size: 1.1em; transition: color 0.2s;"></i>
-                    </button>
-                    <style>
-                    #btnAniversariantes:hover i {
-                      color: #ffe082;
-                    }
-                    </style>
+
+                <!-- Stat Card 2: Membros Ativos -->
+                <div class="stat-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <i class="fas fa-user-check stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Membros com status ativo na igreja"></i>
+                        <span class="badge stat-badge stat-badge-success">Ativos</span>
+                    </div>
+                    <div class="stat-value">{{ total_membros_ativos|default:'0' }}</div>
+                    <div class="stat-label">Membros Ativos</div>
                 </div>
-                <div style="font-size: 0.95rem; min-width: 140px;">
-                    <span style="font-weight: 600;">Média de idade (membros): </span>
-                    <span style="font-weight: 700;">{{ media_idade_membros }} anos</span>
+
+                <!-- Stat Card 3: Novos Membros -->
+                <div class="stat-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <i class="fas fa-user-plus stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Pessoas cadastradas nos últimos 30 dias"></i>
+                        <span class="badge stat-badge stat-badge-info">30 dias</span>
+                    </div>
+                    <div class="stat-value">{{ novos_membros_30_dias }}</div>
+                    <div class="stat-label">Novos Membros</div>
                 </div>
-                <div style="font-size: 1.08rem; min-width: 170px;">
-                    <span style="font-weight: 600;">Pessoas cadastradas: </span>
-                    <span style="font-weight: 700;">{{ total_pessoas_igreja|default:'0' }}</span>
+
+                <!-- Stat Card 4: Aniversariantes -->
+                <div class="stat-card" style="cursor: pointer;" id="cardAnivWrapper">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <i class="fas fa-birthday-cake stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Aniversariantes do mês atual. Clique para ver a lista completa"></i>
+                        <button id="btnAniversariantes" title="Ver próximos aniversariantes" class="badge stat-badge stat-badge-warning" style="border: none; color: #fff; font-weight: 600; cursor: pointer; transition: background 0.2s;">
+                            Este mês
+                        </button>
+                    </div>
+                    <div class="stat-value">{{ aniversariantes_mes_atual_count }}</div>
+                    <div class="stat-label">Aniversariantes</div>
                 </div>
-                <div style="font-size: 0.95rem; min-width: 140px;">
-                    <span style="font-weight: 600;">Membros ativos: </span>
-                    <span style="font-weight: 700;">{{ total_membros_ativos|default:'0' }}</span>
+
+                <!-- Stat Card 5: Média de Idade -->
+                <div class="stat-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <i class="fas fa-calendar-alt stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Média de idade calculada entre todos os membros ativos"></i>
+                        <span class="badge stat-badge stat-badge-default">Média</span>
+                    </div>
+                    <div class="stat-value">{{ media_idade_membros }}</div>
+                    <div class="stat-label">Idade Média (anos)</div>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        #btnAniversariantes:hover {
+            background: rgba(255,193,7,1) !important;
+            transform: scale(1.05);
+        }
+        #cardAnivWrapper:hover {
+            background: rgba(255,255,255,0.2) !important;
+        }
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+            }
+            .stat-value {
+                font-size: 1.5rem !important;
+            }
+            .stat-label {
+                font-size: 0.75rem !important;
+            }
+        }
+        @media (max-width: 576px) {
+            .stats-grid {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 0.8rem !important;
+            }
+            .banner-info-geral .card-body {
+                padding: 1rem !important;
+            }
+        }
+    </style>
     <div class="dashboard-main-row" style="display: flex; flex-direction: column; gap: 2.5rem;">
     <style>
         .card-row-flex {
@@ -115,12 +353,25 @@
         @media (max-width: 900px) {
             .card-row-flex { flex-direction: column; gap: 1.2rem; }
             .card-row-flex .card-ebd-fin { flex: 1 1 100%; min-width: 140px; max-width: 100%; height: auto; }
+            /* Dashboard Analytics Row - Empilhar gráficos */
+            .dashboard-analytics-row { flex-direction: column !important; gap: 1.5rem !important; }
+            .dashboard-analytics-row .card-ebd-fin { flex: 1 1 100% !important; max-width: 100% !important; }
         }
         @media (max-width: 600px) {
             .container-fluid.px-4 { padding-left: 0.2rem !important; padding-right: 0.2rem !important; }
             .card-row-flex { gap: 0.7rem; }
             .card-ebd-fin { padding: 1rem 0.7rem 1rem 0.7rem; }
             .card-title, .card-desc { font-size: 0.92rem !important; }
+            h1.mt-4 { font-size: 1.5rem !important; }
+            /* Card Aniversariantes Mobile */
+            .aniversariantes-flutuante { 
+                position: fixed !important; 
+                top: 80px !important; 
+                right: 10px !important; 
+                left: 10px !important; 
+                width: auto !important; 
+                max-width: calc(100vw - 20px) !important;
+            }
         }
         .fin-saldo { background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%) !important; }
         .fin-relatorio { background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%) !important; }
@@ -145,7 +396,7 @@
     <!-- Linha 1: Membros e Visitantes -->
     <!-- Linha 2: Cards de Pessoas por Status, Gênero e Faixa Etária -->
 
-    <div class="card-row-flex">
+    <div class="card-row-flex animate-on-load">
         <!-- Card Membros -->
         <div class="card-ebd-fin fin-saldo">
             <div class="d-flex align-items-center mb-2 justify-content-between">
@@ -224,7 +475,7 @@
         </div>
     </div>
 
-    <div class="card-row-flex">
+    <div class="card-row-flex animate-on-load">
         <!-- Card Relatórios -->
         <div class="card-ebd-fin fin-mes">
             <div class="d-flex align-items-center mb-2 justify-content-between">
@@ -305,15 +556,27 @@
     </div>
 
     <!-- BLOCO DE GRÁFICOS: agora dentro do mesmo .card-row-flex -->
-    <div class="card-row-flex">
+    <div class="card-row-flex animate-on-load">
         <!-- BLOCO DE GRÁFICO DE LINHA: Evolução de Pessoas (12 meses) -->
         <div class="card-ebd-fin fin-saldo h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
             <div class="card-header-flex" style="background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
                 <span class="card-icon"><i class="fas fa-chart-line"></i></span>
                 <span class="card-title ms-2">Evolução de Pessoas (12 meses)</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
                 <canvas id="evolucaoMembrosChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+                <div class="chart-skeleton" id="skeleton-evolucao">
+                    <div class="chart-skeleton-content">
+                        <div class="skeleton-bars">
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                        </div>
+                        <div class="chart-loading-text">Carregando gráfico...</div>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- BLOCO DE GRÁFICO DE PIZZA: Distribuição de Pessoas por Tipo -->
@@ -322,22 +585,46 @@
                 <span class="card-icon"><i class="fas fa-chart-pie"></i></span>
                 <span class="card-title ms-2">Distribuição de Pessoas por Tipo</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
                 <canvas id="grafico2" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+                <div class="chart-skeleton" id="skeleton-tipo">
+                    <div class="chart-skeleton-content">
+                        <div class="skeleton-bars">
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                        </div>
+                        <div class="chart-loading-text">Carregando gráfico...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div> <!-- fim da .card-row-flex dos gráficos principais -->
 
     <!-- LINHA DE GRÁFICOS ANALÍTICOS: Pessoas por Status, Gênero e Faixa Etária -->
-    <div class="dashboard-analytics-row" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0; padding-top:0;">
+    <div class="dashboard-analytics-row animate-on-load" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0; padding-top:0;">
         <!-- Gráfico Pessoas por Status -->
         <div class="card-ebd-fin fin-relatorio h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
             <div class="card-header-flex" style="background: linear-gradient(135deg, #36b9cc 0%, #4e73df 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
                 <span class="card-icon"><i class="fas fa-user-check"></i></span>
                 <span class="card-title ms-2">Pessoas por Status</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
                 <canvas id="statusChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+                <div class="chart-skeleton" id="skeleton-status">
+                    <div class="chart-skeleton-content">
+                        <div class="skeleton-bars">
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                        </div>
+                        <div class="chart-loading-text">Carregando gráfico...</div>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- Gráfico Pessoas por Gênero -->
@@ -346,20 +633,44 @@
                 <span class="card-icon"><i class="fas fa-venus-mars"></i></span>
                 <span class="card-title ms-2">Pessoas por Gênero</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
                 <canvas id="generoChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+                <div class="chart-skeleton" id="skeleton-genero">
+                    <div class="chart-skeleton-content">
+                        <div class="skeleton-bars">
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                        </div>
+                        <div class="chart-loading-text">Carregando gráfico...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="dashboard-analytics-row" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0;">
+    <div class="dashboard-analytics-row animate-on-load" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0;">
         <!-- Gráfico Participação por Categoria de Evento -->
         <div class="card-ebd-fin fin-mes h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
             <div class="card-header-flex" style="background: linear-gradient(135deg, #b224ef 0%, #7579ff 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
                 <span class="card-icon"><i class="fas fa-layer-group"></i></span>
                 <span class="card-title ms-2">Participação por Categoria de Evento</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
                 <canvas id="categoriaEventoChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+                <div class="chart-skeleton" id="skeleton-evento">
+                    <div class="chart-skeleton-content">
+                        <div class="skeleton-bars">
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                        </div>
+                        <div class="chart-loading-text">Carregando gráfico...</div>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- Gráfico Pessoas por Faixa Etária -->
@@ -368,13 +679,25 @@
                 <span class="card-icon"><i class="fas fa-chart-bar"></i></span>
                 <span class="card-title ms-2">Pessoas por Faixa Etária</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
                 <canvas id="faixaEtariaChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
+                <div class="chart-skeleton" id="skeleton-faixa">
+                    <div class="chart-skeleton-content">
+                        <div class="skeleton-bars">
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                            <div class="skeleton-bar"></div>
+                        </div>
+                        <div class="chart-loading-text">Carregando gráfico...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <!-- Micro-botão de aniversariantes -->
-    <div class="aniversariantes-flutuante" id="cardAniversariantes" style="position:fixed; top:120px; right:40px; width:320px; z-index:30; display:none;">
+    <div class="aniversariantes-flutuante" id="cardAniversariantes" style="position:fixed; top:120px; right:40px; width:320px; max-width:calc(100vw - 80px); z-index:30; display:none;">
       <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
           <span><i class="fas fa-birthday-cake me-2"></i>Próximos Aniversariantes</span>
@@ -402,20 +725,79 @@
     </div>
     <script>
       const btn = document.getElementById('btnAniversariantes');
+      const cardWrapper = document.getElementById('cardAnivWrapper');
       const card = document.getElementById('cardAniversariantes');
       const closeBtn = document.getElementById('closeAniversariantes');
-      btn.addEventListener('click', function(e) {
+      
+      // Botão e card wrapper abrem o popup
+      const toggleCard = (e) => {
         e.stopPropagation();
         card.style.display = card.style.display === 'block' ? 'none' : 'block';
-      });
+      };
+      
+      btn.addEventListener('click', toggleCard);
+      cardWrapper.addEventListener('click', toggleCard);
+      
       closeBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         card.style.display = 'none';
       });
+      
       document.addEventListener('click', function(e) {
-        if (!card.contains(e.target) && !btn.contains(e.target)) {
+        if (!card.contains(e.target) && !btn.contains(e.target) && !cardWrapper.contains(e.target)) {
           card.style.display = 'none';
         }
+      });
+    </script>
+
+    <!-- CountUp Animation Script -->
+    <script>
+      function animateNumber(element, start, end, duration) {
+        if (!element) return;
+        
+        const range = end - start;
+        const increment = range / (duration / 16); // 60 FPS
+        let current = start;
+        
+        const timer = setInterval(() => {
+          current += increment;
+          if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+            current = end;
+            clearInterval(timer);
+          }
+          element.textContent = Math.round(current);
+        }, 16);
+      }
+
+      // Executar após animações de entrada
+      window.addEventListener('load', function() {
+        // Inicializar tooltips do Bootstrap
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover',
+            container: 'body'
+          });
+        });
+
+        // Animar números
+        setTimeout(() => {
+          const statValues = document.querySelectorAll('.stat-value');
+          statValues.forEach((el, index) => {
+            const finalValue = parseInt(el.textContent) || 0;
+            animateNumber(el, 0, finalValue, 1200 + (index * 100));
+          });
+        }, 400); // Aguarda animação fade-in começar
+        
+        // Esconder skeletons dos gráficos após carregamento
+        // Os gráficos são renderizados via Chart.js externo
+        setTimeout(() => {
+          document.querySelectorAll('.chart-skeleton').forEach(skeleton => {
+            skeleton.style.opacity = '0';
+            skeleton.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => { skeleton.style.display = 'none'; }, 300);
+          });
+        }, 2000); // 2 segundos para dar tempo dos gráficos renderizarem
       });
     </script>
 </div>

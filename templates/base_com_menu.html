@@ -151,23 +151,28 @@
                 {% for group in user.groups.all %}
                     {% if group.name == 'Admin Ministerio' %} {# Verifica se está no grupo específico #}
                         <li>
-                            <a class="dropdown-item" href="{% url 'configuracao:lista_igrejas' %}">
-                                <i class="fas fa-church fa-fw me-1 text-muted"></i>Gerenciar Igrejas
-                            </a>
-                        </li>
-                        <li>
                             <a class="dropdown-item" href="{% url 'configuracao:detalhes_ministerio' %}">
                                 <i class="fas fa-sitemap fa-fw me-1 text-muted"></i>Meu Ministério
                             </a>
                         </li>
                         <li>
-                            <a class="dropdown-item" href="{% url 'notificacoes_enviadas' %}">
-                                <i class="fas fa-bell fa-fw me-1 text-muted"></i>Notificações Enviadas
+                            <a class="dropdown-item" href="{% url 'configuracao:lista_igrejas' %}">
+                                <i class="fas fa-church fa-fw me-1 text-muted"></i>Gerenciar Igrejas
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'configuracao:gerenciar_assinatura' %}">
+                                <i class="fas fa-credit-card fa-fw me-1 text-muted"></i>Gerenciar Assinatura
                             </a>
                         </li>
                         <li>
                             <a class="dropdown-item" href="{% url 'contas:lista_usuarios' %}">
                                 <i class="fas fa-users-cog fa-fw me-1 text-muted"></i>Gerenciar Usuários
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'notificacoes_enviadas' %}">
+                                <i class="fas fa-bell fa-fw me-1 text-muted"></i>Notificações Enviadas
                             </a>
                         </li>
                         <li><hr class="dropdown-divider" /></li> {# Separador só aparece se os links acima existirem #}
@@ -183,17 +188,17 @@
                     </li>
 
                     {# --- Links da Conta do Usuário (Para TODOS os logados) --- #}
-                    {# Apenas Admin da Ministério pode gerenciar a assinatura #}
-                    {% if 'Admin Ministerio' in user.groups.all|join:", " %}
-                        <li><a class="dropdown-item" href="{% url 'configuracao:gerenciar_assinatura' %}">
-                            <i class="fas fa-credit-card fa-fw me-1 text-muted"></i>Gerenciar Assinatura
-                        </a></li>
-                    {% endif %}
                     <li>
                         <a class="dropdown-item" href="{% url 'contas:password_change' %}">
                             <i class="fas fa-key fa-fw me-1 text-muted"></i>Alterar Senha
                         </a>
                     </li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'contas:meus_dados_lgpd' %}">
+                            <i class="fas fa-shield-alt fa-fw me-1 text-muted"></i>Meus Dados - LGPD
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
                     <li>
                         {# Formulário de Logout #}
                         <form id="logout-form-header" method="post" action="{% url 'logout' %}" style="display: inline;">
@@ -266,7 +271,7 @@
         <!-- Sidebar normal para desktop -->
         <div id="layoutSidenav_nav" class="d-none d-lg-block">
             <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
-                <div class="text-center py-3" style="background:rgba(255,255,255,0.05);">
+                <div class="text-center py-3">
                     {% if ministerio and ministerio.logo %}
                         <div style="display:flex; justify-content:center; align-items:center; min-height:0; padding:8px 0;">
                             <div style="background:#fff; border-radius:22px; box-shadow:0 2px 12px rgba(13,110,253,0.13); padding:6px 10px; border:2px solid #eee; display:inline-block; transition:box-shadow 0.2s;">

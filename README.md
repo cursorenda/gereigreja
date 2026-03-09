@@ -69,6 +69,25 @@ Para detalhes sobre cada grupo, permissões específicas e guias de uso, consult
 - **Hospedagem**: Render (deploy automatizado)
 - **Controle de Versão**: Git + GitHub
 
+## 📖 Documentação Técnica
+
+### Arquitetura e Estrutura
+- **[docs/ARQUITETURA_TEMPLATES.md](docs/ARQUITETURA_TEMPLATES.md)** - Arquitetura de templates e convenções de uso
+- **[docs/GRUPOS_PERMISSOES.md](docs/GRUPOS_PERMISSOES.md)** - Sistema completo de permissões e grupos
+
+### Segurança e Conformidade
+- **[docs/LGPD_IMPLEMENTACAO.md](docs/LGPD_IMPLEMENTACAO.md)** - Implementação de conformidade LGPD
+- **[docs/DECORATORS_SEGURANCA.md](docs/DECORATORS_SEGURANCA.md)** - Decorators de segurança do sistema
+- **[docs/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md](docs/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md)** - Auditoria completa de permissões
+
+### Funcionalidades Específicas
+- **[docs/SELETOR_IGREJA.md](docs/SELETOR_IGREJA.md)** - Sistema de seleção de igreja ativa
+- **[docs/ANALISE_MENUS_BASEADOS_PERMISSOES.md](docs/ANALISE_MENUS_BASEADOS_PERMISSOES.md)** - Análise de menus e permissões
+
+### Guias de Desenvolvimento
+- **[CHAT_RESPOSTAS.md](CHAT_RESPOSTAS.md)** - Respostas detalhadas de análises e implementações
+- **[skills/](skills/)** - Instruções para agente IA por módulo
+
 ## 📁 Estrutura do Projeto
 
 ```

@@ -5,57 +5,441 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Política de Privacidade</h1>
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+        <h1><i class="fas fa-shield-alt text-primary me-2"></i>Política de Privacidade</h1>
+        <span class="badge bg-info">Versão 1.1 - LGPD</span>
+    </div>
+    
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
         <li class="breadcrumb-item active">Política de Privacidade</li>
     </ol>
 
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Última atualização:</strong> 08 de Março de 2026 (Versão 1.1)<br>
+        <strong>Base Legal:</strong> Lei Geral de Proteção de Dados - LGPD (Lei nº 13.709/2018)<br>
+        <strong>Vigência:</strong> Esta política entra em vigor a partir da data de atualização.
+    </div>
+
     <div class="card mb-4">
         <div class="card-body">
-            <p>Última atualização: {% now "d/m/Y" %}</p>
+            <h2 class="text-primary"><i class="fas fa-book-open me-2"></i>Introdução</h2>
+            <p>A sua privacidade é fundamental para nós. O <strong>Gereigreja</strong> está comprometido em proteger seus dados pessoais e respeitar seus direitos de privacidade em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).</p>
+            <p>Esta Política de Privacidade descreve como coletamos, usamos, armazenamos, compartilhamos e protegemos suas informações pessoais quando você utiliza nossa plataforma de gestão ministerial.</p>
+            <p><strong>Ao utilizar o Gereigreja, você concorda com os termos desta Política de Privacidade.</strong></p>
 
-            <p>A sua privacidade é importante para nós. É política do Gereigreja respeitar a sua privacidade em relação a qualquer informação sua que possamos coletar no website Gereigreja, e outros sites que possuímos e operamos.</p>
+            <hr class="my-4">
 
-            <h2>1. Coleta de Informações</h2>
-            <p>Coletamos informações pessoais que você nos fornece voluntariamente ao se registrar no sistema, preencher formulários, ou interagir com nossos serviços. Isso pode incluir, mas não se limita a: nome, e-mail, telefone, informações do ministério (igreja), e dados de pessoas cadastradas.</p>
-            <p>Também coletamos automaticamente certas informações quando você visita nosso site, como seu endereço IP, tipo de navegador, páginas visitadas, e horários de acesso. Isso nos ajuda a entender como nossos usuários utilizam o sistema e a aprimorar a experiência.</p>
+            <h2 class="text-primary"><i class="fas fa-user-shield me-2"></i>1. Encarregado de Proteção de Dados (DPO)</h2>
+            <p>Em conformidade com o Art. 41 da LGPD, o Gereigreja designou um Encarregado de Proteção de Dados responsável por aceitar reclamações e comunicações dos titulares, prestar esclarecimentos e adotar providências:</p>
+            <div class="bg-light p-3 rounded">
+                <p class="mb-1"><strong>Nome:</strong> Equipe de Privacidade Gereigreja</p>
+                <p class="mb-1"><strong>E-mail:</strong> <a href="mailto:privacidade@gereigreja.site">privacidade@gereigreja.site</a></p>
+                <p class="mb-1"><strong>E-mail Alternativo:</strong> <a href="mailto:lgpd@gereigreja.site">lgpd@gereigreja.site</a></p>
+                <p class="mb-0"><strong>Horário de Atendimento:</strong> Segunda a Sexta, 9h às 18h (Brasília)</p>
+            </div>
 
-            <h2>2. Uso das Informações</h2>
-            <p>As informações coletadas são utilizadas para:</p>
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-database me-2"></i>2. Dados Pessoais Coletados</h2>
+            <p>Coletamos e tratamos as seguintes categorias de dados pessoais:</p>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 25%">Categoria de Dado</th>
+                            <th style="width: 30%">Dados Específicos</th>
+                            <th style="width: 25%">Base Legal (LGPD)</th>
+                            <th style="width: 20%">Finalidade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Dados de Cadastro</strong></td>
+                            <td>Nome completo, e-mail, senha (criptografada)</td>
+                            <td>Consentimento + Execução de Contrato (Art. 7º, I e V)</td>
+                            <td>Criação e autenticação de conta</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dados do Ministério</strong></td>
+                            <td>Nome do ministério, CNPJ, telefone, endereço</td>
+                            <td>Execução de Contrato (Art. 7º, V)</td>
+                            <td>Identificação da organização</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dados de Membros</strong></td>
+                            <td>Nome, CPF, RG, data nascimento, endereço, telefone, e-mail</td>
+                            <td>Legítimo Interesse + Consentimento (Art. 7º, IX e I)</td>
+                            <td>Gestão de membros da igreja</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dados Financeiros</strong></td>
+                            <td>Valores de dízimos, ofertas, despesas</td>
+                            <td>Obrigação Legal + Execução de Contrato (Art. 7º, II e V)</td>
+                            <td>Controle financeiro e obrigações contábeis/fiscais</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dados de Navegação</strong></td>
+                            <td>Endereço IP, navegador (user agent), páginas acessadas</td>
+                            <td>Legítimo Interesse (Art. 7º, IX)</td>
+                            <td>Segurança, auditoria e melhoria do sistema</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Dados de Consentimento</strong></td>
+                            <td>Data/hora do consentimento, IP, versão dos termos</td>
+                            <td>Obrigação Legal (Art. 7º, II)</td>
+                            <td>Cumprimento da LGPD (Art. 8º § 6º)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Arquivos/Mídias</strong></td>
+                            <td>Fotos de perfil, logos, documentos anexados</td>
+                            <td>Consentimento (Art. 7º, I)</td>
+                            <td>Personalização e gestão documental</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-warning mt-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Dados Sensíveis:</strong> O sistema pode tratar dados sensíveis sobre religião (Art. 5º, II e Art. 11 da LGPD). O tratamento ocorre exclusivamente para atividades religiosas (Art. 11, II, alínea 'a'), com consentimento específico e finalidade explícita.
+            </div>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-bullseye me-2"></i>3. Finalidades do Tratamento</h2>
+            <p>Utilizamos seus dados pessoais exclusivamente para as seguintes finalidades:</p>
+            <ol>
+                <li><strong>Prestação de Serviços:</strong> Fornecer, operar e manter a plataforma de gestão ministerial;</li>
+                <li><strong>Gestão de Contas:</strong> Criar, autenticar e gerenciar contas de usuários;</li>
+                <li><strong>Gestão Ministerial:</strong> Permitir o cadastro e controle de membros, igrejas, departamentos e eventos;</li>
+                <li><strong>Controle Financeiro:</strong> Registrar e gerar relatórios de entradas, saídas e movimentações financeiras;</li>
+                <li><strong>Comunicação:</strong> Enviar notificações sobre atualizações do sistema, avisos importantes e suporte técnico;</li>
+                <li><strong>Segurança:</strong> Detectar, prevenir e combater fraudes, abusos e atividades ilícitas;</li>
+                <li><strong>Melhorias:</strong> Analisar o uso do sistema para desenvolver novos recursos e aprimorar a experiência;</li>
+                <li><strong>Cumprimento Legal:</strong> Atender obrigações legais, regulatórias, fiscais e contábeis;</li>
+                <li><strong>Auditoria LGPD:</strong> Manter registros de consentimento e histórico de atividades de tratamento.</li>
+            </ol>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-share-alt me-2"></i>4. Compartilhamento de Dados</h2>
+            <p>O Gereigreja <strong>não vende, aluga ou comercializa</strong> seus dados pessoais. Compartilhamos dados apenas nas seguintes situações:</p>
+            
+            <h5><i class="fas fa-server me-2"></i>4.1. Provedores de Serviços</h5>
             <ul>
-                <li>Fornecer, operar e manter nossos serviços;</li>
-                <li>Melhorar, personalizar e expandir nossos serviços;</li>
-                <li>Entender e analisar como você usa nossos serviços;</li>
-                <li>Desenvolver novos produtos, serviços, recursos e funcionalidades;</li>
-                <li>Comunicar-se com você, diretamente ou através de um de nossos parceiros, para atendimento ao cliente, para fornecer atualizações e outras informações relacionadas ao serviço, e para fins de marketing e promoção;</li>
-                <li>Enviar e-mails;</li>
-                <li>Encontrar e prevenir fraudes.</li>
+                <li><strong>Hospedagem:</strong> Render.com (servidor PostgreSQL) - Estados Unidos</li>
+                <li><strong>Armazenamento de Arquivos:</strong> Cloudinary (imagens e mídias) - Estados Unidos</li>
+                <li><strong>Pagamentos:</strong> Stripe (processamento de assinaturas) - Estados Unidos</li>
+            </ul>
+            <p class="text-muted small">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Transferência Internacional:</strong> Conforme Art. 33 da LGPD, a transferência de dados para outros países ocorre com garantias de proteção adequadas através de cláusulas contratuais padrão e certificações de segurança dos fornecedores.
+            </p>
+
+            <h5><i class="fas fa-gavel me-2"></i>4.2. Cumprimento Legal</h5>
+            <p>Podemos divulgar dados quando:</p>
+            <ul>
+                <li>Exigido por lei, regulamentação ou ordem judicial;</li>
+                <li>Necessário para proteger direitos, propriedade ou segurança do Gereigreja;</li>
+                <li>Para prevenir fraudes ou atividades ilegais;</li>
+                <li>Com autoridades governamentais competentes mediante solicitação legal.</li>
             </ul>
 
-            <h2>3. Compartilhamento de Informações</h2>
-            <p>Não compartilhamos suas informações pessoais com terceiros, exceto nas seguintes circunstâncias:</p>
+            <h5><i class="fas fa-handshake me-2"></i>4.3. Fusões e Aquisições</h5>
+            <p>Em caso de venda, fusão ou aquisição da empresa, seus dados podem ser transferidos para a nova entidade, que assumirá as obrigações desta Política de Privacidade.</p>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-clock me-2"></i>5. Prazo de Retenção de Dados</h2>
+            <p>Mantemos seus dados pessoais pelo tempo necessário para cumprir as finalidades descritas nesta política, respeitando os seguintes prazos:</p>
+            
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Tipo de Dado</th>
+                            <th>Prazo de Retenção</th>
+                            <th>Justificativa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Dados da Conta Ativa</td>
+                            <td>Enquanto a conta estiver ativa</td>
+                            <td>Necessário para prestação do serviço</td>
+                        </tr>
+                        <tr>
+                            <td>Dados Financeiros</td>
+                            <td>5 anos após o encerramento</td>
+                            <td>Obrigação legal contábil e fiscal</td>
+                        </tr>
+                        <tr>
+                            <td>Logs de Acesso e Segurança</td>
+                            <td>6 meses</td>
+                            <td>Art. 15 do Marco Civil da Internet (Lei 12.965/2014)</td>
+                        </tr>
+                        <tr>
+                            <td>Histórico de Consentimentos</td>
+                            <td>5 anos após revogação</td>
+                            <td>Comprovação de conformidade LGPD (Art. 8º § 6º)</td>
+                        </tr>
+                        <tr>
+                            <td>Dados Anonimizados</td>
+                            <td>Indeterminado</td>
+                            <td>Não são considerados dados pessoais (Art. 12 LGPD)</td>
+                        </tr>
+                        <tr>
+                            <td>Backups de Segurança</td>
+                            <td>30 dias</td>
+                            <td>Recuperação de desastres</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="mt-3">
+                <i class="fas fa-trash-alt me-2"></i>
+                Após o término dos prazos acima, os dados serão permanentemente excluídos ou anonimizados, salvo se houver obrigação legal ou regulatória de mantê-los.
+            </p>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-lock me-2"></i>6. Segurança dos Dados</h2>
+            <p>Adotamos medidas técnicas e organizacionais para proteger seus dados contra acessos não autorizados, perda, destruição ou alteração:</p>
+            
+            <h5>Medidas Técnicas:</h5>
             <ul>
-                <li>Com seu consentimento explícito;</li>
-                <li>Para cumprir com obrigações legais ou responder a processos legais válidos;</li>
-                <li>Para proteger e defender os direitos ou propriedade do Gereigreja;</li>
-                <li>Em conexão com a venda, fusão ou aquisição de todos ou parte de nossos ativos, desde que a parte adquirente concorde em proteger suas informações de maneira consistente com esta política.</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Criptografia SSL/TLS em todas as transmissões de dados;</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Senhas armazenadas com hash criptográfico (bcrypt);</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Banco de dados com autenticação e firewall;</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Backups automáticos diários;</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Logs de auditoria de acessos e alterações;</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Atualizações regulares de segurança.</li>
             </ul>
 
-            <h2>4. Segurança dos Dados</h2>
-            <p>Empregamos medidas de segurança razoáveis para proteger as informações pessoais contra acesso não autorizado, alteração, divulgação ou destruição. No entanto, nenhum método de transmissão pela Internet ou armazenamento eletrônico é 100% seguro.</p>
+            <h5>Medidas Organizacionais:</h5>
+            <ul>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Acesso aos dados restrito a equipe técnica autorizada;</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Treinamento periódico sobre privacidade e segurança;</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Política de gestão de incidentes de segurança;</li>
+                <li><i class="fas fa-check-circle text-success me-2"></i>Termos de confidencialidade com fornecedores.</li>
+            </ul>
 
-            <h2>5. Seus Direitos</h2>
-            <p>Você tem o direito de acessar, corrigir, atualizar ou solicitar a exclusão de suas informações pessoais. Para exercer esses direitos, entre em contato conosco através dos canais de suporte.</p>
+            <div class="alert alert-danger mt-3">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <strong>Incidentes de Segurança:</strong> Em caso de violação de dados pessoais que possa acarretar risco ou dano relevante aos titulares, comunicaremos a ANPD (Autoridade Nacional de Proteção de Dados) e os usuários afetados no prazo legal, conforme Art. 48 da LGPD.
+            </div>
 
-            <h2>6. Alterações a Esta Política de Privacidade</h2>
-            <p>Podemos atualizar nossa Política de Privacidade periodicamente. Notificaremos você sobre quaisquer alterações publicando a nova Política de Privacidade nesta página. Aconselhamos que você revise esta Política de Privacidade periodicamente para quaisquer alterações.</p>
+            <hr class="my-4">
 
-            <h2>7. Contato</h2>
-            <p>Se você tiver alguma dúvida sobre esta Política de Privacidade, entre em contato conosco.</p>
-            <p>E-mail: suporte@gereigreja.site</p>
+            <h2 class="text-primary"><i class="fas fa-user-check me-2"></i>7. Seus Direitos (LGPD Art. 18)</h2>
+            <p>Como titular de dados pessoais, você possui os seguintes direitos garantidos pela LGPD:</p>
 
-            <p class="mt-5 text-muted text-center">Este é um modelo de política de privacidade e deve ser revisado e adaptado por um profissional jurídico.</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <i class="fas fa-eye me-2"></i>Confirmação e Acesso
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">Confirmar se tratamos seus dados e acessá-los de forma clara.</p>
+                            <a href="{% url 'contas:meus_dados_lgpd' %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-database me-1"></i>Ver Meus Dados
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-info mb-3">
+                        <div class="card-header bg-info text-white">
+                            <i class="fas fa-download me-2"></i>Portabilidade
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">Exportar seus dados em formato estruturado e de leitura facilitada.</p>
+                            <a href="{% url 'contas:exportar_dados_json' %}" class="btn btn-sm btn-outline-info me-1">
+                                <i class="fas fa-file-code me-1"></i>JSON
+                            </a>
+                            <a href="{% url 'contas:exportar_dados_pdf' %}" class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-file-pdf me-1"></i>PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-warning mb-3">
+                        <div class="card-header bg-warning">
+                            <i class="fas fa-edit me-2"></i>Correção
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">Corrigir dados incompletos, inexatos ou desatualizados diretamente.</p>
+                            <a href="{% url 'contas:editar_meu_perfil' %}" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-user-edit me-1"></i>Editar Meu Perfil
+                            </a>
+                            <p class="text-muted small mt-2 mb-0">Ou entre em contato: <a href="mailto:privacidade@gereigreja.site">privacidade@gereigreja.site</a></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-danger mb-3">
+                        <div class="card-header bg-danger text-white">
+                            <i class="fas fa-trash-alt me-2"></i>Eliminação
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">Solicitar exclusão ou anonimização de dados tratados com consentimento.</p>
+                            <p class="text-muted small mb-0">
+                                <em>Em desenvolvimento - documentação disponível</em>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-secondary mb-3">
+                        <div class="card-header bg-secondary text-white">
+                            <i class="fas fa-file-signature me-2"></i>Histórico de Consentimentos
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">Consultar todos os consentimentos dados com registro de data, IP e versão.</p>
+                            <a href="{% url 'contas:historico_consentimentos' %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-list me-1"></i>Ver Histórico
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-dark mb-3">
+                        <div class="card-header bg-dark text-white">
+                            <i class="fas fa-times-circle me-2"></i>Revogação de Consentimento
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">Revogar consentimento a qualquer momento.</p>
+                            <p class="text-muted small mb-0">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>Aviso:</strong> A revogação pode impossibilitar a continuidade do serviço.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-primary mt-3">
+                <h5><i class="fas fa-question-circle me-2"></i>Como Exercer Seus Direitos</h5>
+                <p class="mb-2">Para exercer qualquer um dos direitos acima, você pode:</p>
+                <ol class="mb-0">
+                    <li>Utilizar as funcionalidades disponíveis na plataforma (links acima); ou</li>
+                    <li>Entrar em contato com nosso DPO através do e-mail <a href="mailto:privacidade@gereigreja.site" class="alert-link">privacidade@gereigreja.site</a></li>
+                    <li>Responderemos sua solicitação em até <strong>15 dias</strong>, conforme Art. 18 § 3º da LGPD</li>
+                </ol>
+            </div>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-ban me-2"></i>8. Revogação de Consentimento</h2>
+            <p>Você pode revogar seu consentimento a qualquer momento, mediante manifestação expressa, por meio dos canais de comunicação disponibilizados.</p>
+            <p><strong>Importante:</strong> A revogação do consentimento não afeta:</p>
+            <ul>
+                <li>O tratamento realizado previamente com base em consentimento válido;</li>
+                <li>O tratamento baseado em outras bases legais (execução de contrato, obrigação legal, etc.);</li>
+                <li>A continuidade do serviço, caso o consentimento seja essencial para a prestação.</li>
+            </ul>
+            <p class="text-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Atenção:</strong> A revogação do consentimento para tratamento de dados essenciais pode resultar na impossibilidade de continuar utilizando os serviços do Gereigreja, podendo acarretar o encerramento da sua conta.
+            </p>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-globe me-2"></i>9. Cookies e Tecnologias Similares</h2>
+            <p>O Gereigreja utiliza cookies essenciais para o funcionamento do sistema, incluindo:</p>
+            <ul>
+                <li><strong>Cookies de Sessão:</strong> Mantêm você autenticado durante a navegação;</li>
+                <li><strong>Cookies de Segurança:</strong> Previnem fraudes e garantem a integridade das operações;</li>
+                <li><strong>Cookies de Preferências:</strong> Lembram suas configurações (ex: igreja ativa selecionada).</li>
+            </ul>
+            <p>Você pode desabilitar cookies nas configurações do seu navegador, mas isso pode afetar o funcionamento da plataforma.</p>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-child me-2"></i>10. Menores de Idade</h2>
+            <p>O Gereigreja não coleta intencionalmente dados de menores de 18 anos sem o consentimento dos pais ou responsáveis legais, conforme Art. 14 da LGPD.</p>
+            <p>Se você cadastrar dados de menores no sistema (ex: membros da igreja), você declara ter a devida autorização dos responsáveis legais.</p>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-sync-alt me-2"></i>11. Alterações a Esta Política</h2>
+            <p>Podemos atualizar esta Política de Privacidade periodicamente para refletir mudanças em nossas práticas, legislação ou serviços.</p>
+            <p><strong>Quando houver alterações relevantes:</strong></p>
+            <ul>
+                <li>Atualizaremos a "data de última atualização" no topo desta página;</li>
+                <li>Incrementaremos o número da versão;</li>
+                <li>Notificaremos você por e-mail ou através de aviso destacado na plataforma;</li>
+                <li>Caso necessário, solicitaremos novo consentimento.</li>
+            </ul>
+            <p>Aconselhamos que você revise esta Política periodicamente. O uso continuado dos serviços após alterações constitui aceitação da nova versão.</p>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-gavel me-2"></i>12. Legislação e Foro</h2>
+            <p>Esta Política de Privacidade é regida pelas leis da República Federativa do Brasil, em especial:</p>
+            <ul>
+                <li>Lei Geral de Proteção de Dados - LGPD (Lei nº 13.709/2018);</li>
+                <li>Marco Civil da Internet (Lei nº 12.965/2014);</li>
+                <li>Código de Defesa do Consumidor (Lei nº 8.078/1990);</li>
+                <li>Código Civil Brasileiro (Lei nº 10.406/2002).</li>
+            </ul>
+            <p>Eventuais conflitos ou controvérsias serão dirimidos no foro da comarca do domicílio do usuário.</p>
+
+            <hr class="my-4">
+
+            <h2 class="text-primary"><i class="fas fa-envelope me-2"></i>13. Contato</h2>
+            <div class="bg-light p-4 rounded">
+                <h5 class="mb-3">Para dúvidas, solicitações ou reclamações sobre esta Política de Privacidade e tratamento de dados:</h5>
+                
+                <p class="mb-2"><strong><i class="fas fa-user-shield me-2"></i>Encarregado de Dados (DPO):</strong></p>
+                <ul class="mb-3">
+                    <li><i class="fas fa-envelope me-2 text-primary"></i><a href="mailto:privacidade@gereigreja.site">privacidade@gereigreja.site</a></li>
+                    <li><i class="fas fa-envelope me-2 text-primary"></i><a href="mailto:lgpd@gereigreja.site">lgpd@gereigreja.site</a></li>
+                </ul>
+
+                <p class="mb-2"><strong><i class="fas fa-headset me-2"></i>Suporte Geral:</strong></p>
+                <ul class="mb-3">
+                    <li><i class="fas fa-envelope me-2 text-secondary"></i><a href="mailto:suporte@gereigreja.site">suporte@gereigreja.site</a></li>
+                </ul>
+
+                <p class="mb-2"><strong><i class="fas fa-balance-scale me-2"></i>Autoridade Nacional de Proteção de Dados (ANPD):</strong></p>
+                <ul class="mb-0">
+                    <li><i class="fas fa-link me-2 text-info"></i><a href="https://www.gov.br/anpd" target="_blank" rel="noopener">www.gov.br/anpd</a></li>
+                    <li class="text-muted small">Você também pode registrar reclamações diretamente com a ANPD</li>
+                </ul>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="alert alert-secondary text-center">
+                <p class="mb-2"><i class="fas fa-gavel me-2"></i><strong>Aviso Legal</strong></p>
+                <p class="mb-0 small">
+                    Esta Política de Privacidade foi elaborada em conformidade com a LGPD e demais legislações aplicáveis.
+                    Recomendamos que seja revisada periodicamente por profissional jurídico especializado em proteção de dados.
+                </p>
+            </div>
+
+            <div class="text-center mt-4">
+                <p class="text-muted mb-1">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <strong>Versão 1.1</strong> - Publicada em 08 de Março de 2026
+                </p>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    Gereigreja - Sistema de Gestão Ministerial em conformidade com a LGPD
+                </p>
+            </div>
         </div>
     </div>
 </div>

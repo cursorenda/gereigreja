@@ -1,0 +1,338 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4"><i class="fas fa-shield-alt me-2"></i>Meus Dados Pessoais</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Meus Dados - LGPD</li>
+    </ol>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Seus Direitos (LGPD)</strong> - Você tem direito de acessar, corrigir, exportar ou solicitar a exclusão de seus dados pessoais.
+    </div>
+
+    <div class="row">
+        <!-- Coluna Principal -->
+        <div class="col-lg-8">
+            <!-- Card: Dados do Usuário -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-user me-2"></i>Dados da Conta
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold" style="width: 180px;">Nome Completo:</td>
+                                <td>{{ dados_usuario.nome_completo }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">E-mail (Login):</td>
+                                <td>{{ dados_usuario.email }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Nome de Usuário:</td>
+                                <td>{{ dados_usuario.username }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Status da Conta:</td>
+                                <td>
+                                    {% if dados_usuario.is_active %}
+                                        <span class="badge bg-success">Ativa</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inativa</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Cadastrado em:</td>
+                                <td>{{ dados_usuario.date_joined|date:'d/m/Y H:i' }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Último Acesso:</td>
+                                <td>
+                                    {% if dados_usuario.last_login %}
+                                        {{ dados_usuario.last_login|date:'d/m/Y H:i' }}
+                                    {% else %}
+                                        Nunca
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Card: Dados do Ministério -->
+            {% if ministerio %}
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-church me-2"></i>Dados do Ministério
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold" style="width: 180px;">Ministério:</td>
+                                <td>{{ ministerio.nome_fantasia }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold">Papéis/Permissões:</td>
+                                <td>
+                                    {% if grupos %}
+                                        {% for grupo in grupos %}
+                                            <span class="badge bg-secondary me-1">{{ grupo }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">Nenhum papel atribuído</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if perfil.igrejas_permitidas.exists %}
+                            <tr>
+                                <td class="fw-bold">Igrejas Permitidas:</td>
+                                <td>
+                                    {% for igreja in perfil.igrejas_permitidas.all %}
+                                        <span class="badge bg-info me-1">{{ igreja.nome_igreja }}</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Card: Dados como Membro -->
+            {% if membro %}
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-id-card me-2"></i>Dados de Cadastro de Pessoa
+                    <button class="btn btn-sm btn-outline-dark float-end" type="button" id="toggleSensitive">
+                        <i class="fas fa-eye" id="eyeIcon"></i> <span id="toggleText">Mostrar</span>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr>
+                                <td class="fw-bold" style="width: 180px;">Nome Completo:</td>
+                                <td>{{ membro.nome }}</td>
+                            </tr>
+                            {% if membro.cpf %}
+                            <tr>
+                                <td class="fw-bold">CPF:</td>
+                                <td>
+                                    <span class="dado-sensivel" data-original="{{ membro.cpf }}">***.***.***-**</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if membro.rg %}
+                            <tr>
+                                <td class="fw-bold">RG:</td>
+                                <td>
+                                    <span class="dado-sensivel" data-original="{{ membro.rg }}">**.***.***-*</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if membro.telefone %}
+                            <tr>
+                                <td class="fw-bold">Telefone:</td>
+                                <td>
+                                    <span class="dado-sensivel" data-original="{{ membro.telefone }}">(##) #****-####</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if membro.data_nascimento %}
+                            <tr>
+                                <td class="fw-bold">Data Nascimento:</td>
+                                <td>
+                                    <span class="dado-sensivel" data-original="{{ membro.data_nascimento|date:'d/m/Y' }}">**/**/****</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if membro.endereco %}
+                            <tr>
+                                <td class="fw-bold">Endereço:</td>
+                                <td>
+                                    <span class="dado-sensivel" data-original="{{ membro.endereco }}">***********</span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div class="mt-3">
+                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit me-1"></i>Corrigir Dados
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Card: Histórico de Consentimentos -->
+            {% if consentimentos %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-file-signature me-2"></i>Histórico de Consentimentos</span>
+                    <a href="{% url 'contas:historico_consentimentos' %}" class="btn btn-sm btn-light">
+                        <i class="fas fa-list me-1"></i>Ver Todos
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% for consentimento in consentimentos %}
+                    <div class="border-bottom pb-3 mb-3">
+                        <p class="mb-1">
+                            <i class="far fa-calendar-alt me-2"></i>
+                            <strong>{{ consentimento.data_consentimento|date:'d/m/Y às H:i' }}</strong>
+                        </p>
+                        <ul class="mb-2">
+                            {% if consentimento.aceite_termos %}
+                            <li><i class="fas fa-check-circle text-success me-1"></i>Termos de Uso (v{{ consentimento.versao_termos }})</li>
+                            {% endif %}
+                            {% if consentimento.aceite_privacidade %}
+                            <li><i class="fas fa-check-circle text-success me-1"></i>Política de Privacidade (v{{ consentimento.versao_privacidade }})</li>
+                            {% endif %}
+                        </ul>
+                        <p class="mb-0 small text-muted">
+                            <i class="fas fa-map-marker-alt me-1"></i>IP: {{ consentimento.ip_consentimento|default:"Não registrado" }}<br>
+                            <i class="fas fa-desktop me-1"></i>{{ consentimento.user_agent|truncatewords:10|default:"Não registrado" }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Card: Atividades no Sistema -->
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-history me-2"></i>Atividades no Sistema
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li>
+                            <strong>Notas Pessoais:</strong>
+                            {% if nota_usuario %}
+                                Sim (última atualização: {{ nota_usuario.atualizado_em|date:'d/m/Y H:i' }})
+                            {% else %}
+                                Nenhuma nota criada
+                            {% endif %}
+                        </li>
+                        <li>
+                            <strong>Consentimentos Registrados:</strong> {{ consentimentos.count }}
+                            <a href="{% url 'contas:historico_consentimentos' %}" class="ms-2 text-decoration-none">
+                                <i class="fas fa-external-link-alt"></i> Ver detalhes
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral - Ações -->
+        <div class="col-lg-4">
+            <!-- Card: Ações Rápidas -->
+            <div class="card mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-cog me-2"></i>Ações LGPD
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'contas:editar_meu_perfil' %}" class="btn btn-outline-success">
+                            <i class="fas fa-user-edit me-2"></i>Editar Meu Perfil
+                        </a>
+                        <a href="{% url 'contas:exportar_dados_json' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-download me-2"></i>Exportar Dados (JSON)
+                        </a>
+                        <a href="{% url 'contas:exportar_dados_pdf' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-file-pdf me-2"></i>Exportar Dados (PDF)
+                        </a>
+                        <a href="{% url 'contas:password_change' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-key me-2"></i>Alterar Senha
+                        </a>
+                        <!-- TODO CRÍTICO LGPD: Implementar exclusão/anonimização de conta
+                             DECISÃO PENDENTE: Anonimização vs Transferência de Propriedade
+                             PROBLEMA: Ministerio.administrador_principal usa PROTECT (impede exclusão)
+                             SOLUÇÃO 1: Anonimizar dados mantendo registro funcional
+                             SOLUÇÃO 2: Exigir transferência de propriedade antes de excluir
+                             Ver documentação completa em: melhorias no gereigreja.txt (LGPD)
+                             Ref: contas/views.py linha ~1170 (local onde seria implementado) -->
+                        <button class="btn btn-outline-danger" disabled>
+                            <i class="fas fa-user-slash me-2"></i>Solicitar Exclusão
+                            <br><small class="text-muted">Em desenvolvimento</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Por que coletamos -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="fas fa-question-circle me-2"></i>Por que Coletamos?
+                </div>
+                <div class="card-body">
+                    <p class="small">
+                        Seus dados são utilizados exclusivamente para:
+                    </p>
+                    <ul class="small">
+                        <li>Fornecer acesso ao sistema</li>
+                        <li>Gerenciar cadastros de membros</li>
+                        <li>Gerar relatórios internos</li>
+                        <li>Comunicação da igreja</li>
+                    </ul>
+                    <a href="{% url 'politica_privacidade' %}" class="btn btn-sm btn-outline-primary w-100" target="_blank">
+                        <i class="fas fa-external-link-alt me-1"></i>Política Completa
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Toggle para mostrar/ocultar dados sensíveis
+document.getElementById('toggleSensitive').addEventListener('click', function() {
+    const dadosSensiveis = document.querySelectorAll('.dado-sensivel');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const toggleText = document.getElementById('toggleText');
+    const isVisible = eyeIcon.classList.contains('fa-eye-slash');
+    
+    dadosSensiveis.forEach(function(elemento) {
+        if (isVisible) {
+            // Ocultar
+            elemento.textContent = elemento.getAttribute('data-masked') || '***';
+        } else {
+            // Mostrar
+            if (!elemento.getAttribute('data-masked')) {
+                elemento.setAttribute('data-masked', elemento.textContent);
+            }
+            elemento.textContent = elemento.getAttribute('data-original');
+        }
+    });
+    
+    if (isVisible) {
+        eyeIcon.classList.remove('fa-eye-slash');
+        eyeIcon.classList.add('fa-eye');
+        toggleText.textContent = 'Mostrar';
+    } else {
+        eyeIcon.classList.remove('fa-eye');
+        eyeIcon.classList.add('fa-eye-slash');
+        toggleText.textContent = 'Ocultar';
+    }
+});
+
+// Armazenar versões mascaradas ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.dado-sensivel').forEach(function(elemento) {
+        elemento.setAttribute('data-masked', elemento.textContent);
+    });
+});
+</script>
+{% endblock %}

@@ -20,8 +20,16 @@ from django.utils.encoding import force_bytes
 from django.conf import settings
 from django.views.generic import TemplateView # Adicionar TemplateView
 from django.core.exceptions import PermissionDenied # Importar PermissionDenied
-from django.http import Http404 # Importar Http404
+from django.http import Http404, HttpResponse, JsonResponse # Importar Http404, HttpResponse, JsonResponse
 import logging
+import json
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Models e Forms
 
@@ -39,6 +47,20 @@ from .forms import (
 from core.decorators import verificar_assinatura_valida, admin_ministerio_required # Ou o caminho correto
 
 from core.utils import get_ministerio_or_error # Importar de core.utils
+
+
+# --- FUNÇÃO AUXILIAR PARA CAPTURAR IP ---
+def get_client_ip(request):
+    """
+    Captura o endereço IP real do cliente, considerando proxies.
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+# --- FIM FUNÇÃO AUXILIAR ---
 
 # --- VIEW REENVIAR CONVITE ---
 @login_required
@@ -135,6 +157,20 @@ def registrar_usuario_e_org(request):
                         user=novo_usuario,
                         ministerio=nova_ministerio
                     )
+
+                    # --- REGISTRAR CONSENTIMENTO LGPD ---
+                    from .models import ConsentimentoLGPD
+                    ConsentimentoLGPD.objects.create(
+                        usuario=novo_usuario,
+                        aceite_termos=True,
+                        aceite_privacidade=True,
+                        ip_consentimento=get_client_ip(request),
+                        versao_termos='1.1',  # Atualizado para versão 1.1 (LGPD completo)
+                        versao_privacidade='1.1',  # Atualizado em 08/03/2026
+                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]  # Limita a 500 caracteres
+                    )
+                    logger.info(f"Consentimento LGPD v1.1 registrado para usuário '{email}'")
+                    # --- FIM REGISTRO CONSENTIMENTO ---
 
                     # --- LÓGICA PARA ATRIBUIR PLANO GRATUITO SE ELEGÍVEL ---
                     try:
@@ -632,3 +668,782 @@ def aguardando_acesso(request):
         'titulo_pagina': "Aguardando Configuração de Permissões"
     }
     return render(request, 'contas/aguardando_acesso.html', context)
+
+
+# --- VIEW MEUS DADOS LGPD (ÁREA DE PRIVACIDADE) ---
+@login_required
+def meus_dados_lgpd(request):
+    """
+    Página que mostra todos os dados pessoais coletados sobre o usuário (LGPD Art. 18º).
+    Permite visualizar, exportar e gerenciar dados pessoais.
+    """
+    usuario = request.user
+    
+    # Coletar dados do usuário
+    dados_usuario = {
+        'username': usuario.username,
+        'email': usuario.email,
+        'nome_completo': usuario.get_full_name() or usuario.username,
+        'primeiro_nome': usuario.first_name,
+        'ultimo_nome': usuario.last_name,
+        'is_active': usuario.is_active,
+        'date_joined': usuario.date_joined,
+        'last_login': usuario.last_login,
+    }
+    
+    # Perfil do usuário (ministério, igreja ativa)
+    perfil = None
+    ministerio = None
+    if hasattr(usuario, 'perfil') and usuario.perfil:
+        perfil = usuario.perfil
+        ministerio = perfil.ministerio
+    
+    # Grupos/Papéis
+    grupos = list(usuario.groups.values_list('name', flat=True))
+    
+    # Membro associado (se houver)
+    membro = None
+    try:
+        from secretaria.models import Membro
+        # Verifica se há um membro com o mesmo email ou usuário associado
+        if hasattr(usuario, 'membro'):
+            membro = usuario.membro
+        else:
+            # Busca por email
+            membro = Membro.objects.filter(email__iexact=usuario.email).first()
+    except:
+        pass
+    
+    # Consentimentos LGPD
+    from .models import ConsentimentoLGPD, NotaUsuario
+    consentimentos = ConsentimentoLGPD.objects.filter(usuario=usuario).order_by('-data_consentimento')
+    
+    # Notas pessoais
+    nota_usuario = None
+    try:
+        nota_usuario = NotaUsuario.objects.get(usuario=usuario)
+    except NotaUsuario.DoesNotExist:
+        pass
+    
+    context = {
+        'dados_usuario': dados_usuario,
+        'perfil': perfil,
+        'ministerio': ministerio,
+        'grupos': grupos,
+        'membro': membro,
+        'consentimentos': consentimentos,
+        'nota_usuario': nota_usuario,
+        'titulo_pagina': 'Meus Dados Pessoais - LGPD'
+    }
+    
+    return render(request, 'contas/meus_dados.html', context)
+
+
+# --- VIEW EXPORTAR DADOS JSON (LGPD) ---
+@login_required
+def exportar_dados_json(request):
+    """
+    Exporta todos os dados pessoais do usuário em formato JSON (LGPD Art. 18º - Portabilidade).
+    Retorna um arquivo JSON para download.
+    """
+    usuario = request.user
+    
+    # Estrutura de dados completa
+    dados_exportacao = {
+        'metadata': {
+            'data_exportacao': timezone.now().isoformat(),
+            'versao': '1.0',
+            'formato': 'JSON',
+            'titular': usuario.get_full_name() or usuario.username,
+        },
+        'usuario': {
+            'username': usuario.username,
+            'email': usuario.email,
+            'primeiro_nome': usuario.first_name,
+            'ultimo_nome': usuario.last_name,
+            'nome_completo': usuario.get_full_name() or usuario.username,
+            'is_active': usuario.is_active,
+            'is_staff': usuario.is_staff,
+            'is_superuser': usuario.is_superuser,
+            'data_cadastro': usuario.date_joined.isoformat() if usuario.date_joined else None,
+            'ultimo_acesso': usuario.last_login.isoformat() if usuario.last_login else None,
+        },
+        'ministerio': None,
+        'grupos_permissoes': [],
+        'membro': None,
+        'consentimentos': [],
+        'notas_pessoais': None,
+    }
+    
+    # Dados do Perfil/Ministério
+    if hasattr(usuario, 'perfil') and usuario.perfil:
+        perfil = usuario.perfil
+        ministerio = perfil.ministerio
+        dados_exportacao['ministerio'] = {
+            'nome': ministerio.nome_fantasia if ministerio else None,
+            'igrejas_permitidas': list(perfil.igrejas_permitidas.values_list('nome_igreja', flat=True)) if perfil.igrejas_permitidas.exists() else [],
+        }
+    
+    # Grupos e Permissões
+    dados_exportacao['grupos_permissoes'] = list(usuario.groups.values_list('name', flat=True))
+    
+    # Dados do Membro (se associado)
+    try:
+        from secretaria.models import Membro
+        membro = None
+        if hasattr(usuario, 'membro'):
+            membro = usuario.membro
+        else:
+            membro = Membro.objects.filter(email__iexact=usuario.email).first()
+        
+        if membro:
+            # Montar endereço completo
+            endereco_completo = ', '.join(filter(None, [
+                membro.rua,
+                membro.numero_casa,
+                membro.complemento,
+                membro.bairro_distrito,
+                f"{membro.cidade}/{membro.estado}" if membro.cidade and membro.estado else membro.cidade or membro.estado,
+                membro.cep
+            ]))
+            
+            dados_exportacao['membro'] = {
+                'nome_completo': membro.nome,
+                'apelido': membro.apelido,
+                'cpf': membro.cpf,
+                'rg': membro.rg,
+                'data_nascimento': membro.nascimento.isoformat() if membro.nascimento else None,
+                'genero': membro.genero,
+                'estado_civil': membro.estado_civil,
+                'profissao': membro.profissao,
+                'escolaridade': membro.escolaridade,
+                'telefone': membro.telefone,
+                'email': membro.email,
+                'endereco_completo': endereco_completo,
+                'rua': membro.rua,
+                'numero': membro.numero_casa,
+                'complemento': membro.complemento,
+                'bairro': membro.bairro_distrito,
+                'cidade': membro.cidade,
+                'estado': membro.estado,
+                'cep': membro.cep,
+                'pais': membro.pais,
+                'naturalidade': membro.naturalidade,
+                'nacionalidade': membro.nacionalidade,
+                'nome_pai': membro.nome_pai,
+                'nome_mae': membro.nome_mae,
+                'data_cadastro_sistema': membro.criado_em.isoformat() if hasattr(membro, 'criado_em') and membro.criado_em else None,
+                'ultima_atualizacao': membro.atualizado_em.isoformat() if hasattr(membro, 'atualizado_em') and membro.atualizado_em else None,
+            }
+    except:
+        pass
+    
+    # Consentimentos LGPD
+    from .models import ConsentimentoLGPD, NotaUsuario
+    consentimentos = ConsentimentoLGPD.objects.filter(usuario=usuario).order_by('-data_consentimento')
+    dados_exportacao['consentimentos'] = [
+        {
+            'data_consentimento': c.data_consentimento.isoformat(),
+            'aceite_termos': c.aceite_termos,
+            'aceite_privacidade': c.aceite_privacidade,
+            'versao_termos': c.versao_termos,
+            'versao_privacidade': c.versao_privacidade,
+            'ip': c.ip_consentimento,
+            'user_agent': c.user_agent,
+        }
+        for c in consentimentos
+    ]
+    
+    # Notas Pessoais
+    try:
+        nota = NotaUsuario.objects.get(usuario=usuario)
+        dados_exportacao['notas_pessoais'] = {
+            'conteudo': nota.conteudo,
+            'criado_em': nota.criado_em.isoformat(),
+            'atualizado_em': nota.atualizado_em.isoformat(),
+        }
+    except NotaUsuario.DoesNotExist:
+        pass
+    
+    # Preparar resposta JSON
+    response = HttpResponse(
+        json.dumps(dados_exportacao, indent=2, ensure_ascii=False),
+        content_type='application/json; charset=utf-8'
+    )
+    
+    # Nome do arquivo com timestamp
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'meus_dados_{usuario.username}_{timestamp}.json'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    # Log da exportação (auditoria)
+    logger.info(f"Usuário '{usuario.username}' exportou seus dados em JSON em {timezone.now()}")
+    
+    return response
+
+
+@login_required
+def exportar_dados_pdf(request):
+    """
+    Gera arquivo PDF com todos os dados pessoais do usuário conforme LGPD Art. 18.
+    """
+    from .models import ConsentimentoLGPD, NotaUsuario
+    from secretaria.models import Membro
+    
+    usuario = request.user
+    
+    # Criar buffer para o PDF
+    buffer = BytesIO()
+    
+    # Configurar documento PDF
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=2*cm,
+        leftMargin=2*cm,
+        topMargin=2*cm,
+        bottomMargin=2*cm,
+        title=f'Dados Pessoais - {usuario.get_full_name() or usuario.username}'
+    )
+    
+    # Container para os elementos do PDF
+    elementos = []
+    
+    # Estilos
+    estilos = getSampleStyleSheet()
+    estilo_titulo = ParagraphStyle(
+        'CustomTitle',
+        parent=estilos['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    estilo_secao = ParagraphStyle(
+        'CustomHeading',
+        parent=estilos['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#34495e'),
+        spaceAfter=12,
+        spaceBefore=12,
+        fontName='Helvetica-Bold'
+    )
+    estilo_info = ParagraphStyle(
+        'InfoText',
+        parent=estilos['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#7f8c8d'),
+        alignment=TA_CENTER
+    )
+    estilo_normal = estilos['Normal']
+    estilo_normal.fontSize = 10
+    estilo_normal.leading = 14
+    
+    # Título do documento
+    elementos.append(Paragraph('DADOS PESSOAIS - LGPD', estilo_titulo))
+    elementos.append(Paragraph(
+        f'Exportado em: {timezone.now().strftime("%d/%m/%Y às %H:%M")}',
+        estilo_info
+    ))
+    elementos.append(Spacer(1, 20))
+    
+    # Seção: Dados da Conta
+    elementos.append(Paragraph('Dados da Conta', estilo_secao))
+    dados_conta = [
+        ['Nome de Usuário:', usuario.username],
+        ['E-mail:', usuario.email],
+        ['Nome Completo:', usuario.get_full_name() or 'Não informado'],
+        ['Conta Criada em:', usuario.date_joined.strftime('%d/%m/%Y às %H:%M') if usuario.date_joined else 'N/A'],
+        ['Último Acesso:', usuario.last_login.strftime('%d/%m/%Y às %H:%M') if usuario.last_login else 'Nunca'],
+        ['Status:', 'Ativa' if usuario.is_active else 'Inativa'],
+    ]
+    tabela_conta = Table(dados_conta, colWidths=[5*cm, 12*cm])
+    tabela_conta.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ecf0f1')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elementos.append(tabela_conta)
+    elementos.append(Spacer(1, 20))
+    
+    # Seção: Ministério
+    try:
+        perfil = usuario.perfil
+        ministerio = perfil.ministerio
+        
+        elementos.append(Paragraph('Ministério/Organização', estilo_secao))
+        dados_ministerio = [
+            ['Nome:', ministerio.nome_fantasia if ministerio else 'Não vinculado'],
+            ['Telefone Contato:', perfil.telefone_contato or 'Não informado'],
+            ['WhatsApp:', perfil.whatsapp_contato or 'Não informado'],
+        ]
+        
+        # Igrejas permitidas
+        if perfil.igrejas_permitidas.exists():
+            igrejas = ', '.join([igreja.nome_igreja for igreja in perfil.igrejas_permitidas.all()])
+            dados_ministerio.append(['Igrejas Permitidas:', igrejas])
+        
+        tabela_ministerio = Table(dados_ministerio, colWidths=[5*cm, 12*cm])
+        tabela_ministerio.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ecf0f1')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elementos.append(tabela_ministerio)
+        elementos.append(Spacer(1, 20))
+    except:
+        pass
+    
+    # Seção: Dados Pessoais (Membro)
+    try:
+        membro = None
+        if hasattr(usuario, 'membro'):
+            membro = usuario.membro
+        else:
+            membro = Membro.objects.filter(email=usuario.email).first()
+        
+        if membro:
+            elementos.append(Paragraph('Dados Pessoais (Cadastro)', estilo_secao))
+            dados_membro = [
+                ['Nome Completo:', membro.nome],
+                ['CPF:', membro.cpf or 'Não informado'],
+                ['RG:', membro.rg or 'Não informado'],
+                ['Data Nascimento:', membro.nascimento.strftime('%d/%m/%Y') if membro.nascimento else 'Não informado'],
+                ['Gênero:', membro.get_genero_display() if membro.genero else 'Não informado'],
+                ['Estado Civil:', membro.estado_civil or 'Não informado'],
+                ['Telefone:', membro.telefone or 'Não informado'],
+                ['E-mail:', membro.email or 'Não informado'],
+            ]
+            
+            # Endereço
+            if any([membro.rua, membro.numero_casa, membro.bairro_distrito, membro.cidade]):
+                endereco_partes = []
+                if membro.rua:
+                    endereco_partes.append(membro.rua)
+                if membro.numero_casa:
+                    endereco_partes.append(f'nº {membro.numero_casa}')
+                if membro.complemento:
+                    endereco_partes.append(membro.complemento)
+                if membro.bairro_distrito:
+                    endereco_partes.append(f'Bairro: {membro.bairro_distrito}')
+                if membro.cidade and membro.estado:
+                    endereco_partes.append(f'{membro.cidade}/{membro.estado}')
+                if membro.cep:
+                    endereco_partes.append(f'CEP: {membro.cep}')
+                
+                dados_membro.append(['Endereço:', ', '.join(endereco_partes)])
+            
+            # Outros dados
+            if membro.profissao:
+                dados_membro.append(['Profissão:', membro.profissao])
+            if membro.escolaridade:
+                dados_membro.append(['Escolaridade:', membro.escolaridade])
+            if membro.naturalidade:
+                dados_membro.append(['Naturalidade:', membro.naturalidade])
+            if membro.nacionalidade:
+                dados_membro.append(['Nacionalidade:', membro.nacionalidade])
+            
+            tabela_membro = Table(dados_membro, colWidths=[5*cm, 12*cm])
+            tabela_membro.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ecf0f1')),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+                ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            elementos.append(tabela_membro)
+            elementos.append(Spacer(1, 20))
+    except:
+        pass
+    
+    # Seção: Consentimentos LGPD
+    consentimentos = ConsentimentoLGPD.objects.filter(usuario=usuario).order_by('-data_consentimento')
+    if consentimentos.exists():
+        elementos.append(PageBreak())
+        elementos.append(Paragraph('Histórico de Consentimentos LGPD', estilo_secao))
+        
+        dados_consentimentos = [['Data', 'Termos', 'Privacidade', 'IP', 'Versão']]
+        for cons in consentimentos:
+            dados_consentimentos.append([
+                cons.data_consentimento.strftime('%d/%m/%Y %H:%M'),
+                'Sim' if cons.aceite_termos else 'Não',
+                'Sim' if cons.aceite_privacidade else 'Não',
+                cons.ip_consentimento or 'N/A',
+                f'T:{cons.versao_termos} / P:{cons.versao_privacidade}'
+            ])
+        
+        tabela_consentimentos = Table(dados_consentimentos, colWidths=[4*cm, 2*cm, 2.5*cm, 3*cm, 3.5*cm])
+        tabela_consentimentos.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elementos.append(tabela_consentimentos)
+        elementos.append(Spacer(1, 20))
+    
+    # Rodapé informativo
+    elementos.append(Spacer(1, 30))
+    elementos.append(Paragraph(
+        '<para alignment="center"><font size=8 color="#7f8c8d">'
+        'Este documento foi gerado automaticamente em conformidade com a LGPD (Lei 13.709/2018).<br/>'
+        'Para mais informações, entre em contato com o responsável pela proteção de dados.<br/>'
+        f'Documento gerado em: {timezone.now().strftime("%d/%m/%Y às %H:%M:%S")}'
+        '</font></para>',
+        estilo_info
+    ))
+    
+    # Construir PDF
+    doc.build(elementos)
+    
+    # Preparar resposta
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    response = HttpResponse(content_type='application/pdf')
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'meus_dados_{usuario.username}_{timestamp}.pdf'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.write(pdf)
+    
+    # Log da exportação (auditoria)
+    logger.info(f"Usuário '{usuario.username}' exportou seus dados em PDF em {timezone.now()}")
+    
+    return response
+
+
+@login_required
+def historico_consentimentos(request):
+    """
+    Exibe histórico detalhado de todos os consentimentos LGPD do usuário.
+    """
+    from .models import ConsentimentoLGPD
+    
+    usuario = request.user
+    consentimentos = ConsentimentoLGPD.objects.filter(usuario=usuario).order_by('-data_consentimento')
+    
+    contexto = {
+        'consentimentos': consentimentos,
+        'total_consentimentos': consentimentos.count(),
+    }
+    
+    return render(request, 'contas/historico_consentimentos.html', contexto)
+
+
+# ==============================================================================
+# LGPD - FASE 6 (PENDENTE): EXCLUSÃO/ANONIMIZAÇÃO DE CONTA
+# ==============================================================================
+# TODO CRÍTICO: Implementar exclusão/anonimização de dados do usuário
+#
+# DECISÃO NECESSÁRIA: Escolher entre 3 abordagens
+#
+# OPÇÃO 1 - ANONIMIZAÇÃO (Recomendada LGPD):
+#   @login_required
+#   def solicitar_exclusao_conta(request):
+#       """
+#       Anonimiza dados do usuário mantendo registro funcional.
+#       - Limpa: nome, email, CPF, RG, endereço, telefone
+#       - Mantém: ID, relacionamentos (ex: administrador_principal)
+#       - Atende: LGPD Art. 18, VI (eliminação de dados pessoais)
+#       """
+#       # 1. Verificar se é administrador_principal
+#       # 2. Confirmar com senha
+#       # 3. Exportar dados automaticamente (JSON)
+#       # 4. Anonimizar User, PerfilUsuario, Membro
+#       # 5. Registrar em ConsentimentoLGPD
+#       # 6. Email de confirmação
+#       # 7. Logout
+#       pass
+#
+# OPÇÃO 2 - TRANSFERÊNCIA + EXCLUSÃO:
+#   @login_required
+#   def solicitar_exclusao_conta(request):
+#       """Exige transferência de propriedade antes de excluir."""
+#       ministerios = Ministerio.objects.filter(administrador_principal=request.user)
+#       if ministerios.exists():
+#           # Redirecionar para transferir_propriedade()
+#           pass
+#       else:
+#           # Redirecionar para confirmar_exclusao_definitiva()
+#           pass
+#
+#   @login_required
+#   def transferir_propriedade(request, ministerio_id):
+#       """Interface para selecionar novo administrador."""
+#       pass
+#
+#   @login_required
+#   def confirmar_exclusao_definitiva(request):
+#       """Excluir registro completamente após transferência."""
+#       pass
+#
+# OPÇÃO 3 - HÍBRIDA:
+#   Anonimizar se for admin, permitir escolha se for usuário comum.
+#
+# PROBLEMA TÉCNICO:
+#   configuracao/models.py linha 136:
+#   administrador_principal = ForeignKey(..., on_delete=models.PROTECT)
+#   → Impede exclusão de administradores (lança ProtectedError)
+#
+# DOCUMENTAÇÃO COMPLETA:
+#   Ver: docs/LGPD_IMPLEMENTACAO.md
+#   Ver: melhorias no gereigreja.txt (seção === LGPD ===)
+#   Ver: todo (linha 1)
+#
+# ARQUIVOS A MODIFICAR:
+#   - contas/views.py (este arquivo) - criar views
+#   - contas/urls.py - adicionar URLs
+#   - contas/templates/contas/solicitar_exclusao.html - criar
+#   - contas/templates/contas/meus_dados.html linha 257 - ativar botão
+#   - contas/models.py - adicionar método anonimizar_usuario()?
+#
+# STATUS: ❌ PENDENTE - Aguardando decisão de design
+# PRIORIDADE: ALTA (requisito legal LGPD)
+# DATA: 08/03/2026
+# ==============================================================================
+
+
+# ==============================================================================
+# LGPD - EDIÇÃO DE DADOS PESSOAIS (Art. 18, III)
+# ==============================================================================
+
+@login_required
+def editar_meu_perfil(request):
+    """
+    Permite ao usuário editar seus dados pessoais (User + PerfilUsuario).
+    
+    Conformidade LGPD Art. 18, III - Direito de correção de dados incompletos,
+    inexatos ou desatualizados.
+    
+    Detecta se há Membro vinculado e mostra comparação de dados para
+    sincronização opcional.
+    """
+    from .forms import EditarMeuPerfilForm
+    from secretaria.models import Membro
+    from configuracao.models import PerfilUsuario
+    
+    usuario = request.user
+    
+    # Buscar ou criar PerfilUsuario
+    try:
+        perfil = usuario.perfil
+    except PerfilUsuario.DoesNotExist:
+        perfil = PerfilUsuario.objects.create(
+            user=usuario,
+            ministerio=usuario.ministerios_administrados.first()  # Fallback
+        )
+    
+    # Detectar Membro vinculado
+    membro = None
+    membro_vinculo_tipo = None
+    
+    if hasattr(usuario, 'membro_secretaria') and usuario.membro_secretaria:
+        # Vínculo direto OneToOne
+        membro = usuario.membro_secretaria
+        membro_vinculo_tipo = 'direto'
+    else:
+        # Busca por email
+        membro = Membro.objects.filter(email__iexact=usuario.email).first()
+        if membro:
+            membro_vinculo_tipo = 'email'
+    
+    # Comparar dados se houver membro
+    dados_diferentes = False
+    diferencas = {}
+    
+    if membro:
+        # Comparar nome
+        nome_completo_user = f"{usuario.first_name} {usuario.last_name}".strip()
+        if nome_completo_user != membro.nome:
+            dados_diferentes = True
+            diferencas['nome'] = {
+                'usuario': nome_completo_user or 'Não informado',
+                'membro': membro.nome or 'Não informado'
+            }
+        
+        # Comparar email
+        if usuario.email.lower() != (membro.email or '').lower():
+            dados_diferentes = True
+            diferencas['email'] = {
+                'usuario': usuario.email,
+                'membro': membro.email or 'Não informado'
+            }
+        
+        # Comparar telefone
+        telefone_user = perfil.telefone_contato or ''
+        telefone_membro = membro.telefone or ''
+        if telefone_user != telefone_membro:
+            dados_diferentes = True
+            diferencas['telefone'] = {
+                'usuario': telefone_user or 'Não informado',
+                'membro': telefone_membro or 'Não informado'
+            }
+    
+    if request.method == 'POST':
+        form = EditarMeuPerfilForm(
+            request.POST,
+            request.FILES,
+            initial={'user_id': usuario.id}
+        )
+        
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Atualizar User
+                    usuario.first_name = form.cleaned_data['primeiro_nome']
+                    usuario.last_name = form.cleaned_data['ultimo_nome']
+                    usuario.email = form.cleaned_data['email']
+                    usuario.username = form.cleaned_data['email']  # Sincronizar username
+                    usuario.save()
+                    
+                    # Atualizar PerfilUsuario
+                    perfil.telefone_contato = form.cleaned_data.get('telefone_contato', '')
+                    perfil.whatsapp_contato = form.cleaned_data.get('whatsapp_contato', '')
+                    
+                    # Foto de perfil
+                    if 'foto_perfil' in request.FILES:
+                        perfil.foto_perfil = form.cleaned_data['foto_perfil']
+                    
+                    perfil.save()
+                    
+                    logger.info(f"Usuário '{usuario.username}' atualizou seus dados pessoais")
+                    messages.success(request, '✅ Seus dados foram atualizados com sucesso!')
+                    
+                    # Redirecionar de volta para a página (recarregar com novos dados)
+                    return redirect('contas:editar_meu_perfil')
+                    
+            except Exception as e:
+                logger.error(f"Erro ao atualizar perfil do usuário '{usuario.username}': {e}")
+                messages.error(request, f'❌ Erro ao salvar alterações: {str(e)}')
+        else:
+            messages.error(request, '❌ Por favor, corrija os erros no formulário.')
+    
+    else:
+        # GET - Preencher form com dados atuais
+        initial_data = {
+            'user_id': usuario.id,
+            'primeiro_nome': usuario.first_name,
+            'ultimo_nome': usuario.last_name,
+            'email': usuario.email,
+            'telefone_contato': perfil.telefone_contato,
+            'whatsapp_contato': perfil.whatsapp_contato,
+        }
+        form = EditarMeuPerfilForm(initial=initial_data)
+    
+    contexto = {
+        'form': form,
+        'membro': membro,
+        'membro_vinculo_tipo': membro_vinculo_tipo,
+        'dados_diferentes': dados_diferentes,
+        'diferencas': diferencas,
+        'perfil': perfil,
+    }
+    
+    return render(request, 'contas/editar_meu_perfil.html', contexto)
+
+
+@login_required
+def sincronizar_dados_membro(request):
+    """
+    Sincroniza dados de User/PerfilUsuario para o registro de Membro.
+    
+    Copia:
+    - User.first_name + last_name → Membro.nome
+    - User.email → Membro.email
+    - PerfilUsuario.telefone_contato → Membro.telefone
+    
+    Requer confirmação via POST para segurança.
+    """
+    from secretaria.models import Membro
+    from configuracao.models import PerfilUsuario
+    
+    if request.method != 'POST':
+        messages.warning(request, '⚠️ Método não permitido.')
+        return redirect('contas:editar_meu_perfil')
+    
+    usuario = request.user
+    
+    # Buscar PerfilUsuario
+    try:
+        perfil = usuario.perfil
+    except PerfilUsuario.DoesNotExist:
+        messages.error(request, '❌ Perfil de usuário não encontrado.')
+        return redirect('contas:editar_meu_perfil')
+    
+    # Buscar Membro vinculado
+    membro = None
+    if hasattr(usuario, 'membro_secretaria') and usuario.membro_secretaria:
+        membro = usuario.membro_secretaria
+    else:
+        membro = Membro.objects.filter(email__iexact=usuario.email).first()
+    
+    if not membro:
+        messages.error(request, '❌ Você não possui cadastro de membro vinculado.')
+        return redirect('contas:editar_meu_perfil')
+    
+    try:
+        with transaction.atomic():
+            # Sincronizar dados
+            nome_completo = f"{usuario.first_name} {usuario.last_name}".strip()
+            
+            dados_anteriores = {
+                'nome': membro.nome,
+                'email': membro.email,
+                'telefone': membro.telefone
+            }
+            
+            membro.nome = nome_completo
+            membro.email = usuario.email
+            membro.telefone = perfil.telefone_contato or membro.telefone  # Não apaga se vazio
+            membro.save()
+            
+            logger.info(
+                f"Usuário '{usuario.username}' sincronizou dados com Membro ID {membro.chave}. "
+                f"Dados anteriores: {dados_anteriores}"
+            )
+            
+            messages.success(
+                request,
+                '✅ Dados sincronizados com sucesso! '
+                f'Seu cadastro de membro em "{membro.igreja.nome_igreja}" foi atualizado.'
+            )
+            
+    except Exception as e:
+        logger.error(f"Erro ao sincronizar dados de '{usuario.username}' com Membro: {e}")
+        messages.error(request, f'❌ Erro ao sincronizar dados: {str(e)}')
+    
+    return redirect('contas:editar_meu_perfil')

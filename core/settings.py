@@ -115,6 +115,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.deduplicate_assinatura_vencida',
+                'core.context_processors.ministerio_context',
                 'core.context_processors.unread_notifications',
                 'core.context_processors.sistema_nome',
             ],

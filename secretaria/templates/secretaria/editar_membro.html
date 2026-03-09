@@ -16,8 +16,26 @@
 
     <div class="card mb-4">
         <div class="card-header">
-            <i class="fas fa-edit me-1"></i>
-            Editar Dados de: {{ form.instance.nome|default:"Pessoa" }}
+            <div class="mb-2">
+                <i class="fas fa-edit me-1"></i>
+                Editar Dados de: {{ form.instance.nome|default:"Pessoa" }}
+            </div>
+            {% if form.instance.criado_em or form.instance.atualizado_em %}
+            <div class="d-flex flex-wrap gap-3" style="font-size: 0.85rem; opacity: 0.9;">
+                {% if form.instance.criado_em %}
+                <span class="text-white-50">
+                    <i class="fas fa-calendar-plus me-1"></i>
+                    Cadastrado em: {{ form.instance.criado_em|date:'d/m/Y H:i' }}
+                </span>
+                {% endif %}
+                {% if form.instance.atualizado_em %}
+                <span class="text-white-50">
+                    <i class="fas fa-clock me-1"></i>
+                    Última atualização: {{ form.instance.atualizado_em|date:'d/m/Y H:i' }}
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <div class="card-body">

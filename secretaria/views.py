@@ -39,6 +39,7 @@ from secretaria.utils import (
 )
 from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
 from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, PASTOR_REGIONAL
+from contas.models import NotaUsuario
 
 # Secretaria app forms/models
 from .forms import (
@@ -2174,6 +2175,9 @@ def index(request):
             'linha_info': linha_info,
         })
 
+    # --- Nota Pessoal do Usuário ---
+    nota_usuario, created = NotaUsuario.objects.get_or_create(usuario=request.user)
+
     context = {
         'status_data_json': json.dumps(status_data_list),
         'status_labels_json': json.dumps([item['status'] for item in status_data_list]),
@@ -2211,8 +2215,37 @@ def index(request):
         'atividades_recentes': atividades_recentes,
         'alertas': alertas,
         'proximos_eventos': proximos_eventos,
+        'nota_usuario': nota_usuario,
     }
     return render(request, 'secretaria/index.html', context)
+
+
+@require_POST
+@login_required
+def salvar_nota_usuario(request):
+    """
+    Salva a nota pessoal do usuário via AJAX.
+    Parâmetros:
+        request (HttpRequest): Deve conter 'conteudo' no POST.
+    Retorno:
+        JsonResponse: Sucesso ou erro com mensagem apropriada.
+    """
+    try:
+        conteudo = request.POST.get('conteudo', '')
+        nota_usuario, created = NotaUsuario.objects.get_or_create(usuario=request.user)
+        nota_usuario.conteudo = conteudo
+        nota_usuario.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Nota salva com sucesso!',
+            'atualizado_em': nota_usuario.atualizado_em.strftime('%d/%m/%Y %H:%M')
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Erro ao salvar nota: {str(e)}'
+        }, status=500)
 
 
 

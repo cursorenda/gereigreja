@@ -3,6 +3,57 @@
 
 {% block title %}Bem-vindo(a) - {{ ministerio.nome }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Carrossel de Aniversariantes - Altura Fixa */
+    #carouselAniversariantes .carousel-inner {
+        min-height: 210px;
+    }
+    
+    #carouselAniversariantes .carousel-item {
+        min-height: 210px;
+    }
+    
+    /* Animação suave nos controles */
+    #carouselAniversariantes .carousel-control-prev:hover,
+    #carouselAniversariantes .carousel-control-next:hover {
+        background: rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Indicadores customizados */
+    #carouselAniversariantes .carousel-indicators button {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    #carouselAniversariantes .carousel-indicators button.active {
+        background-color: rgba(255, 255, 255, 1);
+        transform: scale(1.2);
+    }
+    
+    /* Scrollbar estilizada para listas longas */
+    #carouselAniversariantes ul::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    #carouselAniversariantes ul::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+    
+    #carouselAniversariantes ul::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: 10px;
+    }
+    
+    #carouselAniversariantes ul::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.6);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid" style="width:100%; margin:0; padding-left:24px; padding-right:24px; box-sizing:border-box;">
         <!-- ALERTAS E NOTIFICAÇÕES -->
@@ -118,10 +169,10 @@
     </div>
     {% endif %}
 
-    <!-- LINHA: Bem-vindo + Aniversariantes (4 colunas) -->
+    <!-- LINHA: Bem-vindo + Aniversariantes + Notas (3 colunas responsivas) -->
     <div class="row mb-4 g-4 align-items-stretch">
         <!-- Card Bem-vindo -->
-        <div class="col-12 col-md-6 col-lg-3 d-flex align-items-stretch">
+        <div class="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
             <div class="card h-100 shadow-sm border-primary w-100" style="background: linear-gradient(90deg, #e3f0ff 0%, #f8f9fa 100%); border-radius: 18px;">
                 <div class="card-body d-flex flex-row align-items-center justify-content-start" style="gap: 1.2rem;">
                     <div class="d-flex flex-column align-items-center justify-content-center" style="min-width:90px;">
@@ -153,67 +204,147 @@
                 </div>
             </div>
         </div>
-        <!-- Card Aniversariantes Ontem -->
-        <div class="col-12 col-md-6 col-lg-3 d-flex align-items-stretch">
-            <div class="card h-100 border-info shadow-sm text-center w-100">
-                <div class="card-body">
-                    <i class="fas fa-birthday-cake fa-2x text-info mb-2"></i>
-                    <h6 class="card-title">Aniversariantes Ontem</h6>
-                    {% if aniversariantes_ontem %}
-                        <ul class="list-unstyled mb-0">
-                            {% for m in aniversariantes_ontem %}
-                                <li>{{ m.nome }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="text-center py-2">
-                            <small class="text-muted">Nenhum aniversariante ontem</small>
+        <!-- Carrossel de Aniversariantes (Ontem, Hoje, Amanhã) -->
+        <div class="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
+            <div class="card h-100 border-info shadow-sm w-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; overflow: hidden; border-radius: 18px;">
+                <div id="carouselAniversariantes" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
+                    <!-- Indicadores -->
+                    <div class="carousel-indicators" style="margin-bottom: 0.5rem;">
+                        <button type="button" data-bs-target="#carouselAniversariantes" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Ontem"></button>
+                        <button type="button" data-bs-target="#carouselAniversariantes" data-bs-slide-to="1" aria-label="Hoje"></button>
+                        <button type="button" data-bs-target="#carouselAniversariantes" data-bs-slide-to="2" aria-label="Amanhã"></button>
+                    </div>
+                    
+                    <!-- Slides -->
+                    <div class="carousel-inner">
+                        <!-- Slide 1: Ontem -->
+                        <div class="carousel-item active">
+                            <div class="card-body text-center text-white">
+                                <i class="fas fa-birthday-cake fa-2x mb-2" style="opacity: 0.9;"></i>
+                                <h6 class="card-title fw-bold mb-3" style="font-size: 1.1rem;">Aniversariantes Ontem</h6>
+                                {% if aniversariantes_ontem %}
+                                    <ul class="list-unstyled mb-0" style="max-height: 100px; overflow-y: auto;">
+                                        {% for m in aniversariantes_ontem %}
+                                            <li class="mb-1" style="font-size: 0.95rem;">{{ m.nome }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <div class="text-center py-2">
+                                        <small style="opacity: 0.8;">Nenhum aniversariante ontem</small>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
-                    {% endif %}
+                        
+                        <!-- Slide 2: Hoje -->
+                        <div class="carousel-item">
+                            <div class="card-body text-center text-white">
+                                <i class="fas fa-birthday-cake fa-2x mb-2" style="opacity: 0.9;"></i>
+                                <h6 class="card-title fw-bold mb-3" style="font-size: 1.1rem;">🎉 Aniversariantes Hoje 🎉</h6>
+                                {% if aniversariantes_hoje %}
+                                    <ul class="list-unstyled mb-0" style="max-height: 100px; overflow-y: auto;">
+                                        {% for m in aniversariantes_hoje %}
+                                            <li class="mb-1" style="font-size: 0.95rem;"><strong>{{ m.nome }}</strong></li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <div class="text-center py-2">
+                                        <small style="opacity: 0.8;">Nenhum aniversariante hoje</small>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Slide 3: Amanhã -->
+                        <div class="carousel-item">
+                            <div class="card-body text-center text-white">
+                                <i class="fas fa-birthday-cake fa-2x mb-2" style="opacity: 0.9;"></i>
+                                <h6 class="card-title fw-bold mb-3" style="font-size: 1.1rem;">Aniversariantes Amanhã</h6>
+                                {% if aniversariantes_amanha %}
+                                    <ul class="list-unstyled mb-0" style="max-height: 100px; overflow-y: auto;">
+                                        {% for m in aniversariantes_amanha %}
+                                            <li class="mb-1" style="font-size: 0.95rem;">{{ m.nome }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <div class="text-center py-2">
+                                        <small style="opacity: 0.8;">Nenhum aniversariante amanhã</small>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Controles de navegação -->
+                    <button class="carousel-control-prev" type="button" data-bs-target="#carouselAniversariantes" data-bs-slide="prev" style="width: 10%;">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Anterior</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#carouselAniversariantes" data-bs-slide="next" style="width: 10%;">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Próximo</span>
+                    </button>
                 </div>
             </div>
         </div>
-        <!-- Card Aniversariantes Hoje -->
-        <div class="col-12 col-md-6 col-lg-3 d-flex align-items-stretch">
-            <div class="card h-100 border-info shadow-sm text-center w-100">
-                <div class="card-body">
-                    <i class="fas fa-birthday-cake fa-2x text-info mb-2"></i>
-                    <h6 class="card-title">Aniversariantes Hoje</h6>
-                    {% if aniversariantes_hoje %}
-                        <ul class="list-unstyled mb-0">
-                            {% for m in aniversariantes_hoje %}
-                                <li><strong>{{ m.nome }}</strong></li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="text-center py-2">
-                            <small class="text-muted">Nenhum aniversariante hoje</small>
-                        </div>
-                    {% endif %}
+        
+        <!-- Card Notas Pessoais -->
+        <div class="col-12 col-md-12 col-lg-4 d-flex align-items-stretch">
+            <div class="card h-100 shadow-sm w-100" style="background: linear-gradient(180deg, #ffd54f 0%, #fff9c4 8%, #fffbea 100%); border-radius: 18px; border: 1px solid #f9a825; position: relative;">
+                <!-- Header do Bloco de Notas -->
+                <div class="card-header d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #f9a825 0%, #fbc02d 100%); border-radius: 18px 18px 0 0; padding: 0.7rem 1rem; border-bottom: 2px solid #f57f17;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-sticky-note" style="font-size: 1.3rem; color: #fff;"></i>
+                        <h6 class="mb-0 fw-bold" style="color: #fff; font-size: 1rem;">Minhas Anotações</h6>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-lock" style="font-size: 0.85rem; color: rgba(255,255,255,0.8);" title="Apenas você pode ver estas notas"></i>
+                        <span id="statusSalvamento" style="font-size: 0.75rem; color: rgba(255,255,255,0.9);"></span>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <!-- Card Aniversariantes Amanhã -->
-        <div class="col-12 col-md-6 col-lg-3 d-flex align-items-stretch">
-            <div class="card h-100 border-info shadow-sm text-center w-100">
-                <div class="card-body">
-                    <i class="fas fa-birthday-cake fa-2x text-info mb-2"></i>
-                    <h6 class="card-title">Aniversariantes Amanhã</h6>
-                    {% if aniversariantes_amanha %}
-                        <ul class="list-unstyled mb-0">
-                            {% for m in aniversariantes_amanha %}
-                                <li>{{ m.nome }}</li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <div class="text-center py-2">
-                            <small class="text-muted">Nenhum aniversariante amanhã</small>
-                        </div>
-                    {% endif %}
+                
+                <!-- Corpo do Card com Textarea -->
+                <div class="card-body" style="padding: 0.9rem; position: relative;">
+                    <textarea 
+                        id="notaUsuario" 
+                        class="form-control" 
+                        placeholder="Escreva suas anotações pessoais aqui...\n\nExemplos:\n• Tarefas do dia\n• Lembretes importantes\n• Anotações de reuniões"
+                        style="
+                            background: transparent;
+                            border: none;
+                            resize: none;
+                            height: 140px;
+                            font-size: 0.95rem;
+                            line-height: 1.6;
+                            color: #333;
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            padding: 0;
+                        "
+                    >{{ nota_usuario.conteudo }}</textarea>
+                    
+                    <!-- Linhas decorativas (opcional) -->
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; opacity: 0.15; z-index: 0;">
+                        <div style="height: 100%; background: repeating-linear-gradient(transparent, transparent 1.5rem, #ccc 1.5rem, #ccc calc(1.5rem + 1px));"></div>
+                    </div>
+                </div>
+                
+                <!-- Footer com info de atualização -->
+                <div class="card-footer text-center" style="background: rgba(249, 168, 37, 0.1); border-top: 1px solid #f9a825; border-radius: 0 0 18px 18px; padding: 0.5rem;">
+                    <small class="text-muted" id="ultimaAtualizacao">
+                        {% if nota_usuario.atualizado_em %}
+                            Última atualização: {{ nota_usuario.atualizado_em|date:'d/m/Y H:i' }}
+                        {% else %}
+                            Nenhuma anotação ainda
+                        {% endif %}
+                    </small>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- CSRF Token para AJAX -->
+    {% csrf_token %}
+    
     <!-- CARDS INFORMATIVOS NO TOPO -->
     <div class="row mb-4 info-cards-row">
         <div class="col-12">
@@ -403,5 +534,87 @@
                 }
             });
         }
+        
+        // --- Auto-save de Notas Pessoais ---
+        (function() {
+            const notaTextarea = document.getElementById('notaUsuario');
+            const statusSalvamento = document.getElementById('statusSalvamento');
+            const ultimaAtualizacao = document.getElementById('ultimaAtualizacao');
+            let timeoutId = null;
+            
+            if (!notaTextarea) return;
+            
+            // Função para salvar nota via AJAX
+            function salvarNota() {
+                const conteudo = notaTextarea.value;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                
+                // Mostrar status "Salvando..."
+                statusSalvamento.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+                statusSalvamento.style.color = 'rgba(255,255,255,0.9)';
+                
+                fetch('{% url "secretaria:salvar_nota_usuario" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: new URLSearchParams({
+                        'conteudo': conteudo
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Mostrar status "Salvo!"
+                        statusSalvamento.innerHTML = '<i class="fas fa-check-circle"></i> Salvo!';
+                        statusSalvamento.style.color = '#fff';
+                        
+                        // Atualizar timestamp
+                        if (data.atualizado_em) {
+                            ultimaAtualizacao.textContent = 'Última atualização: ' + data.atualizado_em;
+                        }
+                        
+                        // Limpar status após 2 segundos
+                        setTimeout(() => {
+                            statusSalvamento.innerHTML = '';
+                        }, 2000);
+                    } else {
+                        // Mostrar erro
+                        statusSalvamento.innerHTML = '<i class="fas fa-exclamation-circle"></i> Erro';
+                        statusSalvamento.style.color = '#ff5252';
+                        console.error('Erro ao salvar nota:', data.message);
+                    }
+                })
+                .catch(error => {
+                    statusSalvamento.innerHTML = '<i class="fas fa-exclamation-circle"></i> Erro';
+                    statusSalvamento.style.color = '#ff5252';
+                    console.error('Erro na requisição:', error);
+                });
+            }
+            
+            // Auto-save com debounce (2 segundos após parar de digitar)
+            notaTextarea.addEventListener('input', function() {
+                // Cancelar timeout anterior
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+                
+                // Mostrar indicador de "não salvo"
+                statusSalvamento.innerHTML = '<i class="fas fa-circle" style="font-size: 0.5rem;"></i>';
+                statusSalvamento.style.color = 'rgba(255,255,255,0.6)';
+                
+                // Agendar salvamento após 2 segundos
+                timeoutId = setTimeout(salvarNota, 2000);
+            });
+            
+            // Salvar ao sair do campo (blur)
+            notaTextarea.addEventListener('blur', function() {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    salvarNota();
+                }
+            });
+        })();
     </script>
 {% endblock %}

@@ -39,6 +39,8 @@ urlpatterns = [
     path('portal/', views.portal_membro, name='portal_membro'),
 
     path('ajax/autocomplete_nome_membro/', views.autocomplete_nome_membro, name='autocomplete_nome_membro'),
+    # Salvar nota pessoal do usuário
+    path('ajax/salvar-nota/', views.salvar_nota_usuario, name='salvar_nota_usuario'),
     # Relatório de reunião de membros
     path('relatorio/reuniao-membros/', views.relatorio_reuniao_membros, name='relatorio_reuniao_membros'),
     path('linha-do-tempo/', views.linha_do_tempo, name='linha_do_tempo'),

@@ -47,6 +47,19 @@ class RegistroForm(forms.Form):
     # Adicionar outros campos opcionais do ministério se desejar coletar no registro
     # Ex: telefone_org = forms.CharField(required=False, ...)
 
+    # Campo de consentimento LGPD
+    aceito_termos = forms.BooleanField(
+        required=True,
+        label='',  # O label será customizado no template
+        error_messages={
+            'required': 'Você deve aceitar os Termos de Uso e a Política de Privacidade para continuar.'
+        },
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'aceito_termos'
+        })
+    )
+
     # Validações
     def clean_email(self):
         """ Verifica se o email já está em uso. """
@@ -186,3 +199,106 @@ class EditarPapeisUsuarioForm(forms.Form):
             self.fields['igrejas_permitidas'].queryset = Igreja.objects.none()
 
 # --- FIM FORMULÁRIO ---
+
+
+# --- FORMULÁRIO PARA EDITAR PERFIL DO USUÁRIO (LGPD) ---
+class EditarMeuPerfilForm(forms.Form):
+    """
+    Formulário para o usuário editar seus próprios dados pessoais.
+    
+    Inclui dados do User (Django) e PerfilUsuario.
+    Campos: nome, sobrenome, email, telefone, whatsapp, foto.
+    """
+    primeiro_nome = forms.CharField(
+        label="Primeiro Nome",
+        max_length=30,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Seu primeiro nome'
+        })
+    )
+    
+    ultimo_nome = forms.CharField(
+        label="Sobrenome",
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Seu sobrenome'
+        })
+    )
+    
+    email = forms.EmailField(
+        label="E-mail",
+        max_length=254,
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'seu@email.com'
+        }),
+        help_text="Este e-mail será usado para login no sistema"
+    )
+    
+    telefone_contato = forms.CharField(
+        label="Telefone de Contato",
+        max_length=15,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '(__) _____-____'
+        })
+    )
+    
+    whatsapp_contato = forms.CharField(
+        label="WhatsApp",
+        max_length=15,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '(__) _____-____'
+        })
+    )
+    
+    foto_perfil = forms.ImageField(
+        label="Foto de Perfil",
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*'
+        }),
+        help_text="Formatos aceitos: JPG, PNG. Tamanho máximo: 5MB"
+    )
+    
+    def clean_email(self):
+        """
+        Valida se o email já está em uso por outro usuário.
+        """
+        email = self.cleaned_data.get('email')
+        user_id = self.initial.get('user_id')  # ID do usuário atual (passado na inicialização)
+        
+        if email:
+            # Verifica se existe outro usuário com este email
+            existing_user = User.objects.filter(email__iexact=email).exclude(id=user_id).first()
+            if existing_user:
+                raise forms.ValidationError('Este e-mail já está sendo usado por outro usuário.')
+        
+        return email
+    
+    def clean_foto_perfil(self):
+        """
+        Valida tamanho e tipo da foto de perfil.
+        """
+        foto = self.cleaned_data.get('foto_perfil')
+        
+        if foto:
+            # Verifica tamanho (5MB = 5 * 1024 * 1024 bytes)
+            if foto.size > 5 * 1024 * 1024:
+                raise forms.ValidationError('A imagem deve ter no máximo 5MB.')
+            
+            # Verifica tipo de arquivo
+            valid_types = ['image/jpeg', 'image/png', 'image/jpg']
+            if foto.content_type not in valid_types:
+                raise forms.ValidationError('Apenas arquivos JPG e PNG são permitidos.')
+        
+        return foto

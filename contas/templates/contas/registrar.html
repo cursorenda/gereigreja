@@ -1,4 +1,4 @@
-{% extends 'base_com_menu.html' %} {# Ou seu template base para páginas públicas #}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Registrar Nova Conta e Ministério{% endblock %}
@@ -75,6 +75,25 @@
                          {% if form.nome_fantasia_org.errors %}<div class="invalid-feedback d-block">{{ form.nome_fantasia_org.errors|striptags }}</div>{% endif %}
 
                         {# Adicionar outros campos do ministério aqui se foram adicionados ao form #}
+
+                        <hr class="my-4">
+
+                        {# Consentimento LGPD - Termos de Uso e Política de Privacidade #}
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="id_aceito_termos" name="aceito_termos" required>
+                            <label class="form-check-label" for="id_aceito_termos">
+                                Li e aceito os 
+                                <a href="{% url 'termos_condicoes' %}" target="_blank" rel="noopener noreferrer">Termos de Uso</a>
+                                e a
+                                <a href="{% url 'politica_privacidade' %}" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
+                                <span class="text-danger">*</span>
+                            </label>
+                            {% if form.aceito_termos.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.aceito_termos.errors|striptags }}
+                                </div>
+                            {% endif %}
+                        </div>
 
                         <div class="mt-4 mb-0">
                             <div class="d-grid">
