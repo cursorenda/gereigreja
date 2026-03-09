@@ -359,6 +359,205 @@
         color: #417690;
         font-weight: bold;
     }
+    
+    /* Assistente de Changelog e Modals */
+    .btn-assistant {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-assistant:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal-dialog {
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        max-width: 700px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-dialog h3 {
+        margin-top: 0;
+        margin-bottom: 24px;
+        color: #333;
+        font-size: 24px;
+    }
+    
+    .categoria-grupo {
+        margin-bottom: 24px;
+        padding: 16px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
+    
+    .categoria-grupo.features { border-left-color: #28a745; }
+    .categoria-grupo.fixes { border-left-color: #dc3545; }
+    .categoria-grupo.improvements { border-left-color: #ffc107; }
+    .categoria-grupo.docs { border-left-color: #17a2b8; }
+    
+    .categoria-grupo h4 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 16px;
+        color: #333;
+    }
+    
+    .categoria-grupo textarea {
+        width: 100%;
+        min-height: 60px;
+        padding: 10px;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        font-size: 13px;
+        font-family: inherit;
+        resize: vertical;
+        margin-bottom: 8px;
+    }
+    
+    .categoria-grupo textarea:focus {
+        outline: none;
+        border-color: #417690;
+    }
+    
+    .btn-add-item {
+        background: #417690;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .btn-add-item:hover {
+        background: #2c5266;
+    }
+    
+    .itens-preview {
+        margin-top: 12px;
+    }
+    
+    .item-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        margin: 4px;
+        background: white;
+        border-radius: 20px;
+        font-size: 12px;
+        border: 1px solid #dee2e6;
+        cursor: pointer;
+    }
+    
+    .item-badge:hover {
+        background: #ffe0e0;
+        border-color: #dc3545;
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .btn-primary {
+        background: #417690;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    
+    .btn-primary:hover {
+        background: #2c5266;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+    
+    /* Modal de Loading */
+    .loading-modal .modal-dialog {
+        text-align: center;
+        max-width: 400px;
+    }
+    
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #417690;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+        font-size: 18px;
+        color: #333;
+        margin-bottom: 12px;
+    }
+    
+    .loading-subtext {
+        font-size: 14px;
+        color: #666;
+    }
 </style>
 {% endblock %}
 
@@ -550,6 +749,11 @@
             <p style="color: #666; margin-bottom: 12px; font-size: 13px;">
                 As mudanças foram preenchidas automaticamente. <strong>Você pode editar ou complementar.</strong>
             </p>
+            
+            <!-- Botão Assistente -->
+            <button type="button" class="btn-assistant" onclick="abrirAssistente()">
+                ✨ Assistente de Changelog
+            </button>
             {% if commits_automaticos and 'Arquivos alterados neste deploy:' in commits_automaticos %}
                 <div style="background: #f8f9fa; border-left: 4px solid #417690; color: #333; padding: 8px 16px; margin-bottom: 8px; font-weight: 500;">
                     Arquivos alterados neste deploy:
@@ -579,6 +783,66 @@ Descreva aqui o que mudou, para facilitar o histórico e o entendimento dos pró
             </button>
         </div>
     </form>
+</div>
+
+<!-- Modal Assistente de Changelog -->
+<div id="assistenteModal" class="modal-overlay">
+    <div class="modal-dialog">
+        <h3>✨ Assistente de Changelog</h3>
+        <p style="color: #666; margin-bottom: 24px; font-size: 14px;">
+            Organize suas mudanças por categoria. Clique em "Adicionar" para salvar cada item.
+        </p>
+        
+        <!-- Categoria: Novas Funcionalidades -->
+        <div class="categoria-grupo features">
+            <h4>🆕 Novas Funcionalidades</h4>
+            <textarea id="input-features" placeholder="Ex: Tela de relatórios financeiros com gráficos"></textarea>
+            <button class="btn-add-item" onclick="adicionarItem('features', '🆕')">+ Adicionar</button>
+            <div class="itens-preview" id="preview-features"></div>
+        </div>
+        
+        <!-- Categoria: Correções -->
+        <div class="categoria-grupo fixes">
+            <h4>🐛 Correções de Bugs</h4>
+            <textarea id="input-fixes" placeholder="Ex: Erro ao salvar membro sem telefone"></textarea>
+            <button class="btn-add-item" onclick="adicionarItem('fixes', '🐛')">+ Adicionar</button>
+            <div class="itens-preview" id="preview-fixes"></div>
+        </div>
+        
+        <!-- Categoria: Melhorias -->
+        <div class="categoria-grupo improvements">
+            <h4>🔧 Melhorias</h4>
+            <textarea id="input-improvements" placeholder="Ex: Performance do dashboard melhorada em 30%"></textarea>
+            <button class="btn-add-item" onclick="adicionarItem('improvements', '🔧')">+ Adicionar</button>
+            <div class="itens-preview" id="preview-improvements"></div>
+        </div>
+        
+        <!-- Categoria: Documentação -->
+        <div class="categoria-grupo docs">
+            <h4>📚 Documentação</h4>
+            <textarea id="input-docs" placeholder="Ex: README atualizado com instruções de deploy"></textarea>
+            <button class="btn-add-item" onclick="adicionarItem('docs', '📚')">+ Adicionar</button>
+            <div class="itens-preview" id="preview-docs"></div>
+        </div>
+        
+        <!-- Ações do Modal -->
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="fecharAssistente()">Cancelar</button>
+            <button class="btn-primary" onclick="gerarChangelog()">✅ Gerar e Aplicar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Loading -->
+<div id="loadingModal" class="modal-overlay loading-modal">
+    <div class="modal-dialog">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">🚀 Deploy em Andamento...</div>
+        <div class="loading-subtext">
+            Aguarde enquanto processamos o deploy.<br>
+            Isso pode levar alguns minutos.
+        </div>
+    </div>
 </div>
 
 <script>
@@ -666,8 +930,138 @@ function mostrarMensagemAtualizacao(msg) {
 
 // Confirmar antes de executar
 function confirmarDeploy() {
-    return confirm('⚠️ Você tem certeza que deseja executar o deploy?\n\nEste processo irá:\n- Atualizar CHANGELOG.md\n- Atualizar backup_log.txt\n- Fazer commit no Git\n- Criar tag da versão\n- Fazer push para o repositório remoto\n\nEsta ação não pode ser desfeita facilmente.');
+    const confirmado = confirm('⚠️ Você tem certeza que deseja executar o deploy?\n\nEste processo irá:\n- Atualizar CHANGELOG.md\n- Atualizar backup_log.txt\n- Fazer commit no Git\n- Criar tag da versão\n- Fazer push para o repositório remoto\n\nEsta ação não pode ser desfeita facilmente.');
+    
+    if (confirmado) {
+        // Mostrar modal de loading
+        document.getElementById('loadingModal').classList.add('active');
+    }
+    
+    return confirmado;
 }
+
+// ===== ASSISTENTE DE CHANGELOG =====
+let itensChangelog = {
+    features: [],
+    fixes: [],
+    improvements: [],
+    docs: []
+};
+
+function abrirAssistente() {
+    document.getElementById('assistenteModal').classList.add('active');
+}
+
+function fecharAssistente() {
+    document.getElementById('assistenteModal').classList.remove('active');
+}
+
+function adicionarItem(categoria, emoji) {
+    const input = document.getElementById(`input-${categoria}`);
+    const texto = input.value.trim();
+    
+    if (texto) {
+        itensChangelog[categoria].push(texto);
+        input.value = '';
+        atualizarPreview(categoria, emoji);
+    } else {
+        alert('Digite algo antes de adicionar!');
+    }
+}
+
+function atualizarPreview(categoria, emoji) {
+    const preview = document.getElementById(`preview-${categoria}`);
+    preview.innerHTML = '';
+    
+    itensChangelog[categoria].forEach((item, index) => {
+        const badge = document.createElement('span');
+        badge.className = 'item-badge';
+        badge.textContent = `${emoji} ${item.substring(0, 40)}${item.length > 40 ? '...' : ''}`;
+        badge.title = 'Clique para remover';
+        badge.onclick = () => removerItem(categoria, index, emoji);
+        preview.appendChild(badge);
+    });
+}
+
+function removerItem(categoria, index, emoji) {
+    if (confirm('Remover este item?')) {
+        itensChangelog[categoria].splice(index, 1);
+        atualizarPreview(categoria, emoji);
+    }
+}
+
+function gerarChangelog() {
+    let changelog = '';
+    let temConteudo = false;
+    
+    // Novas Funcionalidades
+    if (itensChangelog.features.length > 0) {
+        changelog += '🆕 Novas Funcionalidades\n';
+        itensChangelog.features.forEach(item => {
+            changelog += `- ${item}\n`;
+        });
+        changelog += '\n';
+        temConteudo = true;
+    }
+    
+    // Correções
+    if (itensChangelog.fixes.length > 0) {
+        changelog += '🐛 Correções de Bugs\n';
+        itensChangelog.fixes.forEach(item => {
+            changelog += `- ${item}\n`;
+        });
+        changelog += '\n';
+        temConteudo = true;
+    }
+    
+    // Melhorias
+    if (itensChangelog.improvements.length > 0) {
+        changelog += '🔧 Melhorias\n';
+        itensChangelog.improvements.forEach(item => {
+            changelog += `- ${item}\n`;
+        });
+        changelog += '\n';
+        temConteudo = true;
+    }
+    
+    // Documentação
+    if (itensChangelog.docs.length > 0) {
+        changelog += '📚 Documentação\n';
+        itensChangelog.docs.forEach(item => {
+            changelog += `- ${item}\n`;
+        });
+        temConteudo = true;
+    }
+    
+    if (!temConteudo) {
+        alert('Adicione pelo menos um item antes de gerar o changelog!');
+        return;
+    }
+    
+    // Aplicar no textarea
+    document.querySelector('textarea[name="descricao"]').value = changelog.trim();
+    
+    // Fechar modal
+    fecharAssistente();
+    
+    // Limpar itens
+    itensChangelog = { features: [], fixes: [], improvements: [], docs: [] };
+    document.getElementById('preview-features').innerHTML = '';
+    document.getElementById('preview-fixes').innerHTML = '';
+    document.getElementById('preview-improvements').innerHTML = '';
+    document.getElementById('preview-docs').innerHTML = '';
+    
+    // Mostrar mensagem de sucesso
+    alert('✅ Changelog gerado com sucesso!\n\nRevise a descrição e prossiga com o deploy.');
+}
+
+// Fechar modals ao clicar fora
+document.addEventListener('click', function(event) {
+    const assistenteModal = document.getElementById('assistenteModal');
+    if (event.target === assistenteModal) {
+        fecharAssistente();
+    }
+});
 
 // Função para calcular próxima versão
 function calcularProximaVersao(versaoAtual, tipo) {
