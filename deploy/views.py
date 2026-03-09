@@ -183,6 +183,307 @@ def incrementar_versao(versao_atual, tipo):
         return '1.0.1'
 
 
+def verificar_migrations_pendentes():
+    """
+    Verifica se há models alterados sem migration ou migrations não aplicadas.
+    Retorna dict com status da validação.
+    """
+    try:
+        # 1. Verificar se há models alterados sem migration (makemigrations --check)
+        resultado_check = subprocess.run(
+            ['python', 'manage.py', 'makemigrations', '--check', '--dry-run'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=30
+        )
+        
+        # Se returncode != 0, há mudanças nos models sem migration
+        if resultado_check.returncode != 0:
+            return {
+                'ok': False,
+                'tipo': 'erro',
+                'mensagem': '❌ Existem alterações nos models sem migration correspondente',
+                'detalhes': 'Execute: python manage.py makemigrations'
+            }
+        
+        # 2. Verificar se há migrations não aplicadas (showmigrations --plan)
+        resultado_plan = subprocess.run(
+            ['python', 'manage.py', 'showmigrations', '--plan'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=30
+        )
+        
+        if resultado_plan.returncode == 0:
+            linhas = resultado_plan.stdout.strip().split('\n')
+            migrations_pendentes = [l for l in linhas if l.strip().startswith('[ ]')]
+            
+            if migrations_pendentes:
+                lista = '\n'.join(migrations_pendentes[:5])  # Mostrar até 5
+                return {
+                    'ok': False,
+                    'tipo': 'aviso',
+                    'mensagem': f'⚠️ Há {len(migrations_pendentes)} migration(s) não aplicada(s) no banco',
+                    'detalhes': f'Será aplicado automaticamente durante o deploy:\n{lista}'
+                }
+        
+        return {
+            'ok': True,
+            'tipo': 'sucesso',
+            'mensagem': '✅ Migrations: Tudo sincronizado',
+            'detalhes': ''
+        }
+        
+    except subprocess.TimeoutExpired:
+        return {
+            'ok': False,
+            'tipo': 'erro',
+            'mensagem': '❌ Timeout ao verificar migrations',
+            'detalhes': 'Processo demorou mais de 30 segundos'
+        }
+    except Exception as e:
+        return {
+            'ok': False,
+            'tipo': 'erro',
+            'mensagem': '❌ Erro ao verificar migrations',
+            'detalhes': str(e)
+        }
+
+
+def verificar_branch_correta():
+    """
+    Verifica se está na branch master/main.
+    Deploy só deve ser feito na branch principal.
+    """
+    try:
+        resultado = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=5
+        )
+        
+        if resultado.returncode == 0:
+            branch_atual = resultado.stdout.strip()
+            
+            if branch_atual not in ['master', 'main']:
+                return {
+                    'ok': False,
+                    'tipo': 'erro',
+                    'mensagem': f'❌ Branch incorreta: {branch_atual}',
+                    'detalhes': 'Deploy deve ser feito na branch master ou main'
+                }
+            
+            return {
+                'ok': True,
+                'tipo': 'sucesso',
+                'mensagem': f'✅ Branch: {branch_atual}',
+                'detalhes': ''
+            }
+        else:
+            return {
+                'ok': False,
+                'tipo': 'erro',
+                'mensagem': '❌ Não foi possível identificar a branch',
+                'detalhes': resultado.stderr
+            }
+            
+    except Exception as e:
+        return {
+            'ok': False,
+            'tipo': 'erro',
+            'mensagem': '❌ Erro ao verificar branch',
+            'detalhes': str(e)
+        }
+
+
+def verificar_sincronizacao_remote():
+    """
+    Verifica se o repositório local está sincronizado com o remote.
+    Avisa sobre commits remotos não puxados ou locais não enviados.
+    """
+    try:
+        # Atualizar referências do remote
+        subprocess.run(
+            ['git', 'fetch'],
+            capture_output=True,
+            cwd=settings.BASE_DIR,
+            timeout=30
+        )
+        
+        avisos = []
+        
+        # 1. Verificar commits remotos não puxados (HEAD..origin/master)
+        resultado_behind = subprocess.run(
+            ['git', 'log', 'HEAD..origin/master', '--oneline'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=10
+        )
+        
+        if resultado_behind.returncode == 0 and resultado_behind.stdout.strip():
+            commits_remotos = len(resultado_behind.stdout.strip().split('\n'))
+            avisos.append(f'• {commits_remotos} commit(s) remoto(s) não puxado(s)')
+        
+        # 2. Verificar commits locais não enviados (origin/master..HEAD)
+        resultado_ahead = subprocess.run(
+            ['git', 'log', 'origin/master..HEAD', '--oneline'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=10
+        )
+        
+        if resultado_ahead.returncode == 0 and resultado_ahead.stdout.strip():
+            commits_locais = len(resultado_ahead.stdout.strip().split('\n'))
+            avisos.append(f'• {commits_locais} commit(s) local(is) será(ão) enviado(s)')
+        
+        if avisos:
+            return {
+                'ok': True,
+                'tipo': 'aviso',
+                'mensagem': '⚠️ Sincronização com remote',
+                'detalhes': '\n'.join(avisos)
+            }
+        else:
+            return {
+                'ok': True,
+                'tipo': 'sucesso',
+                'mensagem': '✅ Sincronizado com origin/master',
+                'detalhes': ''
+            }
+            
+    except Exception as e:
+        return {
+            'ok': True,
+            'tipo': 'aviso',
+            'mensagem': '⚠️ Não foi possível verificar sincronização',
+            'detalhes': str(e)
+        }
+
+
+def executar_testes():
+    """
+    Executa a suite de testes do Django.
+    Retorna aviso se falhar, mas não bloqueia o deploy.
+    """
+    try:
+        resultado = subprocess.run(
+            ['python', 'manage.py', 'test', '--failfast', '--no-input'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=300  # 5 minutos
+        )
+        
+        if resultado.returncode == 0:
+            # Extrair número de testes executados
+            output = resultado.stderr  # Django test output vai para stderr
+            if 'Ran' in output:
+                linha_testes = [l for l in output.split('\n') if 'Ran' in l]
+                if linha_testes:
+                    return {
+                        'ok': True,
+                        'tipo': 'sucesso',
+                        'mensagem': '✅ Testes: ' + linha_testes[0].strip(),
+                        'detalhes': ''
+                    }
+            
+            return {
+                'ok': True,
+                'tipo': 'sucesso',
+                'mensagem': '✅ Testes executados com sucesso',
+                'detalhes': ''
+            }
+        else:
+            return {
+                'ok': True,
+                'tipo': 'aviso',
+                'mensagem': '⚠️ Alguns testes falharam',
+                'detalhes': 'Deploy pode continuar, mas revise os testes'
+            }
+            
+    except subprocess.TimeoutExpired:
+        return {
+            'ok': True,
+            'tipo': 'aviso',
+            'mensagem': '⚠️ Testes demoraram mais de 5 minutos',
+            'detalhes': 'Execução de testes cancelada por timeout'
+        }
+    except Exception as e:
+        return {
+            'ok': True,
+            'tipo': 'aviso',
+            'mensagem': '⚠️ Não foi possível executar testes',
+            'detalhes': str(e)
+        }
+
+
+def obter_estatisticas_codigo():
+    """
+    Obtém estatísticas do código alterado usando git diff --stat.
+    Retorna número de arquivos, linhas inseridas e deletadas.
+    """
+    try:
+        resultado = subprocess.run(
+            ['git', 'diff', '--stat', 'HEAD'],
+            capture_output=True,
+            text=True,
+            cwd=settings.BASE_DIR,
+            timeout=10
+        )
+        
+        if resultado.returncode == 0 and resultado.stdout.strip():
+            output = resultado.stdout.strip()
+            linhas = output.split('\n')
+            
+            # Última linha geralmente tem o resumo: "X files changed, Y insertions(+), Z deletions(-)"
+            if linhas:
+                ultima_linha = linhas[-1]
+                
+                arquivos = 0
+                insercoes = 0
+                delecoes = 0
+                
+                # Parsear a linha de resumo
+                if 'file' in ultima_linha:
+                    partes = ultima_linha.split(',')
+                    for parte in partes:
+                        if 'file' in parte:
+                            arquivos = int(''.join(filter(str.isdigit, parte)))
+                        elif 'insertion' in parte:
+                            insercoes = int(''.join(filter(str.isdigit, parte)))
+                        elif 'deletion' in parte:
+                            delecoes = int(''.join(filter(str.isdigit, parte)))
+                
+                return {
+                    'arquivos': arquivos,
+                    'insercoes': insercoes,
+                    'delecoes': delecoes,
+                    'saldo': insercoes - delecoes
+                }
+        
+        # Se não há mudanças
+        return {
+            'arquivos': 0,
+            'insercoes': 0,
+            'delecoes': 0,
+            'saldo': 0
+        }
+        
+    except Exception as e:
+        return {
+            'arquivos': 0,
+            'insercoes': 0,
+            'delecoes': 0,
+            'saldo': 0
+        }
+
+
 def executar_deploy(tipo_versao, descricao, usuario):
     """Executa todo o processo de deploy automatizado"""
     

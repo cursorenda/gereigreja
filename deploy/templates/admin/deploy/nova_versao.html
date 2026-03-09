@@ -205,6 +205,160 @@
         margin-bottom: 10px;
         font-weight: 600;
     }
+    
+    /* Validações Pré-Deploy */
+    .validacoes-container {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
+    .validacoes-container h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        color: #333;
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .validacao-item {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        border-left: 4px solid;
+        font-size: 14px;
+    }
+    
+    .validacao-item.ok {
+        background: #d4edda;
+        border-left-color: #28a745;
+        color: #155724;
+    }
+    
+    .validacao-item.aviso {
+        background: #fff3cd;
+        border-left-color: #ffc107;
+        color: #856404;
+    }
+    
+    .validacao-item.erro {
+        background: #f8d7da;
+        border-left-color: #dc3545;
+        color: #721c24;
+    }
+    
+    .validacao-detalhes {
+        margin-top: 8px;
+        padding: 8px;
+        background: rgba(0,0,0,0.05);
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: monospace;
+        white-space: pre-line;
+    }
+    
+    /* Estatísticas de Código */
+    .estatisticas-container {
+        display: flex;
+        gap: 20px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        flex: 1;
+        min-width: 120px;
+        background: #fff;
+        padding: 12px 16px;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        text-align: center;
+    }
+    
+    .stat-numero {
+        font-size: 28px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 4px;
+    }
+    
+    .stat-item.positivo .stat-numero {
+        color: #28a745;
+    }
+    
+    .stat-item.negativo .stat-numero {
+        color: #dc3545;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Preview de Versão */
+    .versao-preview {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 16px;
+        background: linear-gradient(to bottom, #f8f9fa, #fff);
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin: 16px 0;
+    }
+    
+    .versao-item {
+        flex: 1;
+        text-align: center;
+    }
+    
+    .versao-item strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #666;
+        font-size: 13px;
+    }
+    
+    .versao-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+    }
+    
+    .versao-badge.badge-atual {
+        background: #6c757d;
+    }
+    
+    .versao-badge.badge-proxima {
+        background: #dee2e6;
+        color: #666;
+    }
+    
+    .versao-badge.badge-patch {
+        background: #ffc107;
+        color: #333;
+    }
+    
+    .versao-badge.badge-minor {
+        background: #28a745;
+    }
+    
+    .versao-badge.badge-major {
+        background: #dc3545;
+    }
+    
+    .seta-preview {
+        font-size: 24px;
+        color: #417690;
+        font-weight: bold;
+    }
 </style>
 {% endblock %}
 
@@ -222,6 +376,55 @@
         <strong>Não execute no servidor!</strong> O servidor receberá as atualizações automaticamente via git push.<br><br>
         <strong>ℹ️ Apenas superusuários podem executar deploys.</strong><br>
         Este processo irá atualizar automaticamente o CHANGELOG.md, backup_log.txt, fazer commit, criar tag e push para o repositório remoto.
+    </div>
+    
+    <!-- Validações Pré-Deploy -->
+    <div class="validacoes-container">
+        <h3>🔍 Validações Pré-Deploy</h3>
+        
+        <!-- Validação 1: Branch -->
+        <div class="validacao-item {% if validacao_branch.ok %}ok{% else %}erro{% endif %}">
+            {{ validacao_branch.mensagem }}
+            {% if validacao_branch.detalhes %}
+                <div class="validacao-detalhes">{{ validacao_branch.detalhes }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- Validação 2: Migrations -->
+        <div class="validacao-item {% if validacao_migrations.ok %}ok{% elif validacao_migrations.tipo == 'aviso' %}aviso{% else %}erro{% endif %}">
+            {{ validacao_migrations.mensagem }}
+            {% if validacao_migrations.detalhes %}
+                <div class="validacao-detalhes">{{ validacao_migrations.detalhes }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- Validação 3: Sincronização Remote -->
+        <div class="validacao-item {% if validacao_remote.tipo == 'sucesso' %}ok{% else %}aviso{% endif %}">
+            {{ validacao_remote.mensagem }}
+            {% if validacao_remote.detalhes %}
+                <div class="validacao-detalhes">{{ validacao_remote.detalhes }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- Estatísticas de Código -->
+        <div class="estatisticas-container">
+            <div class="stat-item">
+                <div class="stat-numero">{{ estatisticas.arquivos }}</div>
+                <div class="stat-label">Arquivo(s)</div>
+            </div>
+            <div class="stat-item positivo">
+                <div class="stat-numero">+{{ estatisticas.insercoes }}</div>
+                <div class="stat-label">Linha(s)</div>
+            </div>
+            <div class="stat-item negativo">
+                <div class="stat-numero">-{{ estatisticas.delecoes }}</div>
+                <div class="stat-label">Linha(s)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-numero">{{ estatisticas.saldo }}</div>
+                <div class="stat-label">Saldo</div>
+            </div>
+        </div>
     </div>
     
     <form method="post" id="deployForm">
@@ -270,6 +473,21 @@
                         </div>
                     </div>
                 </label>
+            </div>
+            
+            <!-- Preview de Versão -->
+            <div class="versao-preview">
+                <div class="versao-item">
+                    <strong>Versão Atual:</strong>
+                    <div class="versao-badge badge-atual">v{{ versao_atual }}</div>
+                </div>
+                <div class="seta-preview">→</div>
+                <div class="versao-item">
+                    <strong>Próxima Versão:</strong>
+                    <div class="versao-badge badge-proxima" id="proximaVersaoBadge">
+                        Selecione o tipo
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -450,5 +668,47 @@ function mostrarMensagemAtualizacao(msg) {
 function confirmarDeploy() {
     return confirm('⚠️ Você tem certeza que deseja executar o deploy?\n\nEste processo irá:\n- Atualizar CHANGELOG.md\n- Atualizar backup_log.txt\n- Fazer commit no Git\n- Criar tag da versão\n- Fazer push para o repositório remoto\n\nEsta ação não pode ser desfeita facilmente.');
 }
+
+// Função para calcular próxima versão
+function calcularProximaVersao(versaoAtual, tipo) {
+    const partes = versaoAtual.split('.');
+    let [major, minor, patch] = partes.map(Number);
+    
+    if (tipo === 'major') {
+        return `${major + 1}.0.0`;
+    } else if (tipo === 'minor') {
+        return `${major}.${minor + 1}.0`;
+    } else {
+        return `${major}.${minor}.${patch + 1}`;
+    }
+}
+
+// Função para atualizar preview da versão
+function atualizarPreviewVersao(tipo) {
+    const versaoAtual = '{{ versao_atual }}';
+    const proximaVersao = calcularProximaVersao(versaoAtual, tipo);
+    const badge = document.getElementById('proximaVersaoBadge');
+    
+    badge.textContent = `v${proximaVersao}`;
+    badge.className = 'versao-badge badge-proxima';
+    
+    // Adicionar classe específica por tipo
+    if (tipo === 'major') {
+        badge.classList.add('badge-major');
+    } else if (tipo === 'minor') {
+        badge.classList.add('badge-minor');
+    } else {
+        badge.classList.add('badge-patch');
+    }
+}
+
+// Event listeners para radio buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('input[name="tipo_versao"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            atualizarPreviewVersao(this.value);
+        });
+    });
+});
 </script>
 {% endblock %}

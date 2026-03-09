@@ -4,7 +4,16 @@ from django.urls import path
 from django.contrib import messages
 from django.http import JsonResponse
 from .models import DeployHistorico
-from .views import executar_deploy, obter_mudancas_git, obter_commits_desde_ultimo_deploy
+from .views import (
+    executar_deploy, 
+    obter_mudancas_git, 
+    obter_commits_desde_ultimo_deploy,
+    obter_versao_atual,
+    verificar_branch_correta,
+    verificar_migrations_pendentes,
+    verificar_sincronizacao_remote,
+    obter_estatisticas_codigo
+)
 import subprocess
 
 
@@ -83,9 +92,21 @@ class DeployHistoricoAdmin(admin.ModelAdmin):
         mudancas_git = obter_mudancas_git()
         commits_automaticos = obter_commits_desde_ultimo_deploy()
         
+        # Executar validações pré-deploy
+        versao_atual = obter_versao_atual()
+        validacao_branch = verificar_branch_correta()
+        validacao_migrations = verificar_migrations_pendentes()
+        validacao_remote = verificar_sincronizacao_remote()
+        estatisticas = obter_estatisticas_codigo()
+        
         context = {
             **self.admin_site.each_context(request),
             'title': 'Nova Versão - Deploy Automatizado',
+            'versao_atual': versao_atual,
+            'validacao_branch': validacao_branch,
+            'validacao_migrations': validacao_migrations,
+            'validacao_remote': validacao_remote,
+            'estatisticas': estatisticas,
             'mudancas_git': mudancas_git,
             'commits_automaticos': commits_automaticos,
             'opts': self.model._meta,
