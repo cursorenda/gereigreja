@@ -103,5 +103,6 @@ melhorias no gereigreja.txt
 logs/
 contexto_gereigreja.md
 CHAT_RESPOSTAS.md
+docs/ANALISE_SISTEMA_DEPLOY.md
 
 # Keep these lists intentional: add other patterns if you discover more artifacts to ignore.
