@@ -102,5 +102,6 @@ melhorias no gereigreja.txt
 # --- Project-specific files you likely don't want versioned ---
 logs/
 contexto_gereigreja.md
+CHAT_RESPOSTAS.md
 
 # Keep these lists intentional: add other patterns if you discover more artifacts to ignore.
