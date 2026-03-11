@@ -424,3 +424,256 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Botão vibrante cyan para 'Visualizar' - Updated 2026-03-05 */
+.btn-vibrant-cyan {
+  background: linear-gradient(90deg, #00bcd4 0%, #26c6da 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,188,212,0.15), 0 1.5px 6px rgba(38,198,218,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+}
+.btn-vibrant-cyan:hover {
+  background: linear-gradient(90deg, #0097a7 0%, #00bcd4 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(0,188,212,0.22), 0 2px 8px rgba(38,198,218,0.18);
+}
+.btn-vibrant-cyan:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+/* ============================================
+   BOTÕES SEMÂNTICOS (baseados em função)
+   Criado em 2026-03-05 para facilitar migração
+   e manutenção dos estilos de botões
+   ============================================ */
+
+/* Botão Visualizar - Cyan (somente leitura) */
+.btn-vibrant-visualizar {
+  background: linear-gradient(90deg, #00bcd4 0%, #26c6da 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,188,212,0.15), 0 1.5px 6px rgba(38,198,218,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.btn-vibrant-visualizar:hover {
+  background: linear-gradient(90deg, #0097a7 0%, #00bcd4 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(0,188,212,0.22), 0 2px 8px rgba(38,198,218,0.18);
+}
+.btn-vibrant-visualizar:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Botão Editar - Blue (ações de edição) */
+.btn-vibrant-editar {
+  background: linear-gradient(90deg, #2196f3 0%, #42a5f5 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(33,150,243,0.15), 0 1.5px 6px rgba(66,165,245,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.btn-vibrant-editar:hover {
+  background: linear-gradient(90deg, #1976d2 0%, #2196f3 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(33,150,243,0.22), 0 2px 8px rgba(66,165,245,0.18);
+}
+.btn-vibrant-editar:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Botão Imprimir - Green (ações de exportação/impressão) */
+.btn-vibrant-imprimir {
+  background: linear-gradient(90deg, #4caf50 0%, #66bb6a 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(76,175,80,0.15), 0 1.5px 6px rgba(102,187,106,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.btn-vibrant-imprimir:hover {
+  background: linear-gradient(90deg, #388e3c 0%, #4caf50 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(76,175,80,0.22), 0 2px 8px rgba(102,187,106,0.18);
+}
+.btn-vibrant-imprimir:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Botão Adicionar - Green (ações de criar/adicionar) */
+.btn-vibrant-adicionar {
+  background: linear-gradient(90deg, #4caf50 0%, #66bb6a 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(76,175,80,0.15), 0 1.5px 6px rgba(102,187,106,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.btn-vibrant-adicionar:hover {
+  background: linear-gradient(90deg, #388e3c 0%, #4caf50 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(76,175,80,0.22), 0 2px 8px rgba(102,187,106,0.18);
+}
+.btn-vibrant-adicionar:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Botão Salvar - Green (ações de salvar/confirmar) */
+.btn-vibrant-salvar {
+  background: linear-gradient(90deg, #4caf50 0%, #66bb6a 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(76,175,80,0.15), 0 1.5px 6px rgba(102,187,106,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.btn-vibrant-salvar:hover {
+  background: linear-gradient(90deg, #388e3c 0%, #4caf50 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(76,175,80,0.22), 0 2px 8px rgba(102,187,106,0.18);
+}
+.btn-vibrant-salvar:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Botão Cancelar - Red (ações de cancelar/voltar) */
+.btn-vibrant-cancelar {
+  background: linear-gradient(90deg, #f44336 0%, #ef5350 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(244,67,54,0.15), 0 1.5px 6px rgba(239,83,80,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.btn-vibrant-cancelar:hover {
+  background: linear-gradient(90deg, #d32f2f 0%, #f44336 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(244,67,54,0.22), 0 2px 8px rgba(239,83,80,0.18);
+}
+.btn-vibrant-cancelar:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Botão Excluir - Red (ações destrutivas) */
+.btn-vibrant-excluir {
+  background: linear-gradient(90deg, #f44336 0%, #ef5350 100%) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(244,67,54,0.15), 0 1.5px 6px rgba(239,83,80,0.12);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.35em 1em;
+  font-size: 1em;
+  min-height: 38px;
+  line-height: 1.2;
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+}
+.btn-vibrant-excluir:hover {
+  background: linear-gradient(90deg, #d32f2f 0%, #f44336 100%) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 24px rgba(244,67,54,0.22), 0 2px 8px rgba(239,83,80,0.18);
+}
+.btn-vibrant-excluir:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}

@@ -1,10 +1,18 @@
 {% extends 'base_com_sistema.html' %}
+{% load static %}
 {% block title %}Agenda{% endblock %}
 {% block nome_departamento %}Agenda{% endblock %}
 {% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
     <li class="breadcrumb-item active">Agenda</li>
 {% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/agenda.css' %}">
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block card_header_gradiente %}
 <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
     <div class="d-flex align-items-center">
@@ -13,63 +21,248 @@
     </div>
 </div>
 {% endblock %}
+
 {% block conteudo_principal %}
     <div style="height:16px;"></div>
-    <!-- Legenda de cores dos tipos de evento -->
-    <div class="mb-3" id="legenda-tipos-evento">
-        <style>
-        .card { border-radius: 0 !important; }
-        </style>
-        <span class="badge" style="background:#007bff">Culto</span>
-        <span class="badge" style="background:#28a745">Reunião</span>
-        <span class="badge" style="background:#ffc107; color:#212529;">Festa</span>
-        <span class="badge" style="background:#dc3545">Feriado</span>
-        <span class="badge" style="background:#6f42c1">Estudo</span>
-        <span class="badge" style="background:#6c757d">Outro</span>
+    
+    <!-- Legenda Interativa com Contadores -->
+    <div class="legenda-tipos-evento">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-muted mb-0">
+                <i class="fas fa-palette me-2"></i>Tipos de Evento
+            </h6>
+            <span id="contador-resultados" class="badge bg-primary" style="font-size: 0.9rem; padding: 8px 16px;">
+                <i class="fas fa-calendar-check me-1"></i>
+                <span id="total-eventos">...</span>
+            </span>
+        </div>
+        <div class="row g-2" id="cards-tipos-evento">
+            <div class="col-6 col-md-2">
+                <div class="card-tipo-evento shadow-sm" data-tipo="culto">
+                    <i class="fas fa-cross text-primary"></i>
+                    <span class="tipo-nome">Culto</span>
+                    <span class="badge bg-primary tipo-contador">0</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card-tipo-evento shadow-sm" data-tipo="reuniao">
+                    <i class="fas fa-users text-success"></i>
+                    <span class="tipo-nome">Reunião</span>
+                    <span class="badge bg-success tipo-contador">0</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card-tipo-evento shadow-sm" data-tipo="festa">
+                    <i class="fas fa-cake-candles text-warning"></i>
+                    <span class="tipo-nome">Festa</span>
+                    <span class="badge bg-warning text-dark tipo-contador">0</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card-tipo-evento shadow-sm" data-tipo="feriado">
+                    <i class="fas fa-umbrella-beach text-danger"></i>
+                    <span class="tipo-nome">Feriado</span>
+                    <span class="badge bg-danger tipo-contador">0</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card-tipo-evento shadow-sm" data-tipo="estudo">
+                    <i class="fas fa-book" style="color: #6f42c1;"></i>
+                    <span class="tipo-nome">Estudo</span>
+                    <span class="badge tipo-contador" style="background: #6f42c1; color: #fff;">0</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card-tipo-evento shadow-sm" data-tipo="outro">
+                    <i class="fas fa-calendar text-secondary"></i>
+                    <span class="tipo-nome">Outro</span>
+                    <span class="badge bg-secondary tipo-contador">0</span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Filtros e busca rápida -->
-    <form id="filtros-agenda" class="row g-2 align-items-end mb-3">
-        <div class="col-md-2">
-            <label for="filtro_tipo" class="form-label mb-0">Tipo</label>
-            <select id="filtro_tipo" class="form-select form-select-sm" name="tipo">
-                <option value="">Todos</option>
-                <option value="culto">Culto</option>
-                <option value="reuniao">Reunião</option>
-                <option value="festa">Festa</option>
-                <option value="feriado">Feriado</option>
-                <option value="estudo">Estudo</option>
-                <option value="outro">Outro</option>
-            </select>
+    <!-- Filtros de Busca -->
+    <div class="filtros-container mb-4">
+        <form id="filtros-agenda" class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label for="filtro_inicio" class="form-label">
+                        <i class="fas fa-calendar-day me-1"></i>Data Início
+                    </label>
+                    <input type="date" id="filtro_inicio" name="inicio" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <label for="filtro_fim" class="form-label">
+                        <i class="fas fa-calendar-day me-1"></i>Data Fim
+                    </label>
+                    <input type="date" id="filtro_fim" name="fim" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label for="filtro_busca" class="form-label">
+                        <i class="fas fa-search me-1"></i>Buscar por Título ou Descrição
+                    </label>
+                    <input type="text" id="filtro_busca" name="busca" class="form-control" placeholder="Digite para buscar...">
+                </div>
+                <div class="col-md-4 d-flex gap-2 justify-content-end">
+                    <button type="submit" class="btn btn-vibrant-orange shadow">
+                        <i class="fas fa-search me-1"></i>Buscar
+                    </button>
+                    <button type="button" class="btn btn-success shadow" id="exportar-ics">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button type="button" class="btn btn-warning shadow" id="btn-importar-feriados" title="Importar feriados brasileiros">
+                        <i class="fas fa-calendar-plus me-1"></i>Feriados
+                    </button>
+                    <button type="button" class="btn btn-vibrant-blue shadow" id="limpar-filtros">
+                        <i class="fas fa-eraser me-1"></i>Limpar
+                    </button>
+                    <button type="button" class="btn btn-outline-info shadow-sm" id="btn-toggle-view" title="Alternar visualização">
+                        <i class="fas fa-list me-1"></i>
+                        <span id="view-mode-text">Lista</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary shadow-sm" id="toggle-participantes" title="Mostrar/Ocultar contagem de participantes">
+                        <i class="fas fa-users me-1"></i>
+                        <span id="toggle-participantes-text">Ocultar</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-primary shadow-sm" id="btn-fullscreen" title="Tela Cheia">
+                        <i class="fas fa-expand me-1"></i>Tela Cheia
+                    </button>
+                </div>
+            </form>
+    </div>
+    
+    <!-- Calendário -->
+    <div id="calendar"></div>
+    
+    <!-- Visualização em Lista -->
+    <div id="lista-eventos" style="display: none;">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 5%;"><i class="fas fa-calendar"></i></th>
+                        <th style="width: 30%;">Evento</th>
+                        <th style="width: 15%;">Tipo</th>
+                        <th style="width: 15%;">Data/Hora</th>
+                        <th style="width: 20%;">Local</th>
+                        <th style="width: 10%;">Participantes</th>
+                        <th style="width: 5%;"></th>
+                    </tr>
+                </thead>
+                <tbody id="lista-eventos-body">
+                    <!-- Preenchido via JavaScript -->
+                </tbody>
+            </table>
         </div>
-        <div class="col-md-2">
-            <label for="filtro_inicio" class="form-label mb-0">Início</label>
-            <input type="date" id="filtro_inicio" name="inicio" class="form-control form-control-sm">
+        <div id="lista-vazia" class="text-center py-5" style="display: none;">
+            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Nenhum evento encontrado</p>
         </div>
-        <div class="col-md-2">
-            <label for="filtro_fim" class="form-label mb-0">Fim</label>
-            <input type="date" id="filtro_fim" name="fim" class="form-control form-control-sm">
+    </div>
+    
+    <!-- Botão Fechar Tela Cheia -->
+    <button type="button" class="btn-fechar-fullscreen" id="btn-fechar-fullscreen" title="Sair da Tela Cheia">
+        <i class="fas fa-times"></i>
+    </button>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
         </div>
-        <div class="col-md-3">
-            <label for="filtro_busca" class="form-label mb-0">Busca</label>
-            <input type="text" id="filtro_busca" name="busca" class="form-control form-control-sm" placeholder="Título ou descrição">
-        </div>
-        <div class="col-md-3 d-flex align-items-end gap-2">
-            <button type="submit" class="btn btn-vibrant-orange btn-sm shadow" style="height:40px; min-width:110px; font-weight:600;">Buscar</button>
-            <button type="button" class="btn btn-vibrant-blue btn-sm shadow" id="limpar-filtros" style="height:40px; min-width:110px; font-weight:600;">Limpar</button>
-        </div>
-    </form>
-    <!-- FullCalendar CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
+        <p class="mt-3">Carregando eventos...</p>
+    </div>
+    
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-    <div id="calendar"></div>
+    
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
             var filtrosForm = document.getElementById('filtros-agenda');
+            var loadingOverlay = document.getElementById('loading-overlay');
+            var eventosCache = [];
+            var tipoSelecionado = ''; // Tipo selecionado via cards
+            
+            // Tipos de evento com suas configurações
+            const tiposConfig = {
+                'Culto': { icon: 'fa-cross', color: '#007bff', key: 'culto' },
+                'Reunião': { icon: 'fa-users', color: '#28a745', key: 'reuniao' },
+                'Festa': { icon: 'fa-cake-candles', color: '#ffc107', key: 'festa' },
+                'Feriado': { icon: 'fa-umbrella-beach', color: '#dc3545', key: 'feriado' },
+                'Estudo': { icon: 'fa-book', color: '#6f42c1', key: 'estudo' },
+                'Outro': { icon: 'fa-calendar', color: '#6c757d', key: 'outro' }
+            };
+            
+            // Função para mostrar/esconder loading
+            function toggleLoading(show) {
+                if (show) {
+                    loadingOverlay.style.display = 'flex';
+                } else {
+                    loadingOverlay.style.display = 'none';
+                }
+            }
+            
+            // Função para atualizar contadores
+            function atualizarContadores(eventos) {
+                // Resetar contadores
+                document.querySelectorAll('.tipo-contador').forEach(el => el.textContent = '0');
+                
+                // Contar eventos por tipo
+                const contadores = {};
+                eventos.forEach(ev => {
+                    const tipo = ev.extendedProps?.tipo || 'Outro';
+                    contadores[tipo] = (contadores[tipo] || 0) + 1;
+                });
+                
+                // Atualizar badges
+                Object.keys(tiposConfig).forEach(tipo => {
+                    const key = tiposConfig[tipo].key;
+                    const contador = contadores[tipo] || 0;
+                    const badge = document.querySelector(`.card-tipo-evento[data-tipo="${key}"] .tipo-contador`);
+                    if (badge) {
+                        badge.textContent = contador;
+                    }
+                });
+                
+                // Atualizar total com efeito visual
+                const total = eventos.length;
+                const contadorEl = document.getElementById('total-eventos');
+                const badgeEl = document.getElementById('contador-resultados');
+                
+                // Adicionar animação pulse
+                badgeEl.style.animation = 'none';
+                setTimeout(() => {
+                    badgeEl.style.animation = 'pulse 0.5s ease';
+                    contadorEl.textContent = total + ' evento' + (total !== 1 ? 's' : '');
+                }, 10);
+            }
+            
+            // Função para mostrar mensagem de eventos vazios
+            function verificarEventosVazios(eventos) {
+                const alertExistente = document.querySelector('.alert-sem-eventos');
+                if (alertExistente) {
+                    alertExistente.remove();
+                }
+                
+                if (eventos.length === 0) {
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-sem-eventos fade-in';
+                    alert.innerHTML = `
+                        <i class="fas fa-info-circle d-block"></i>
+                        <strong>Nenhum evento encontrado</strong>
+                        <p class="mb-0 mt-2">Tente ajustar os filtros ou criar um novo evento.</p>
+                    `;
+                    calendarEl.insertAdjacentElement('beforebegin', alert);
+                }
+            }
+            
+            // Configurar FullCalendar
+            // Recuperar visualização preferida do usuário (padrão: mês)
+            const visualizacaoSalva = localStorage.getItem('agenda_calendar_view') || 'dayGridMonth';
+            
             var calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
+                initialView: visualizacaoSalva,
                 locale: 'pt-br',
                 timeZone: 'America/Sao_Paulo',
                 aspectRatio: window.innerWidth < 600 ? 0.7 : 1.35,
@@ -85,118 +278,783 @@
                     week: 'Semana',
                     day: 'Dia'
                 },
+                loading: function(isLoading) {
+                    toggleLoading(isLoading);
+                },
                 events: function(fetchInfo, successCallback, failureCallback) {
+                    toggleLoading(true);
+                    
                     // Monta os parâmetros dos filtros
                     var params = new URLSearchParams();
-                    var tipo = document.getElementById('filtro_tipo').value;
+                    var tipo = tipoSelecionado;
                     var inicio = document.getElementById('filtro_inicio').value;
                     var fim = document.getElementById('filtro_fim').value;
                     var busca = document.getElementById('filtro_busca').value;
+                    
                     if (tipo) params.append('tipo', tipo);
-                    // filtro igreja removido
                     if (inicio) params.append('inicio', inicio);
                     if (fim) params.append('fim', fim);
                     if (busca) params.append('busca', busca);
+                    
                     fetch('{% url "agenda:agenda_eventos_json" %}?' + params.toString())
                         .then(response => response.json())
-                        .then(data => successCallback(data))
-                        .catch(error => failureCallback(error));
+                        .then(data => {
+                            eventosCache = data;
+                            atualizarContadores(data);
+                            verificarEventosVazios(data);
+                            successCallback(data);
+                            toggleLoading(false);
+                        })
+                        .catch(error => {
+                            console.error('Erro ao carregar eventos:', error);
+                            failureCallback(error);
+                            toggleLoading(false);
+                        });
                 },
                 eventDidMount: function(info) {
-                    var tooltip = info.event.extendedProps && info.event.extendedProps.descricao ?
-                        info.event.title + "\n" + (info.event.extendedProps.tipo || '') + "\n" + (info.event.extendedProps.local || '') + "\n" + info.event.extendedProps.descricao :
-                        info.event.title;
-                    info.el.setAttribute('title', tooltip);
-                    if (info.event.extendedProps && info.event.extendedProps.tipo && info.event._def.extendedProps.icon) {
-                        var iconClass = info.event._def.extendedProps.icon;
+                    const props = info.event.extendedProps || {};
+                    
+                    // Adicionar animação fade-in
+                    info.el.classList.add('evento-fade-in');
+                    
+                    // Adicionar classes baseadas na data
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const eventoData = new Date(info.event.start);
+                    eventoData.setHours(0, 0, 0, 0);
+                    
+                    // Calcular domingo da semana atual
+                    const diaSemana = hoje.getDay(); // 0=domingo, 6=sábado
+                    const domingoSemanaAtual = new Date(hoje);
+                    domingoSemanaAtual.setDate(hoje.getDate() - diaSemana);
+                    const sabadoSemanaAtual = new Date(domingoSemanaAtual);
+                    sabadoSemanaAtual.setDate(domingoSemanaAtual.getDate() + 6);
+                    
+                    // Aplicar classes de destaque
+                    if (eventoData.getTime() === hoje.getTime()) {
+                        info.el.classList.add('evento-hoje');
+                    } else if (eventoData >= domingoSemanaAtual && eventoData <= sabadoSemanaAtual) {
+                        info.el.classList.add('evento-semana-atual');
+                    } else if (eventoData < hoje) {
+                        info.el.classList.add('evento-passado');
+                    }
+                    
+                    // Adicionar ícone
+                    if (props.icon) {
                         var iconElem = document.createElement('i');
-                        iconElem.className = iconClass + ' me-1';
+                        iconElem.className = props.icon + ' me-1';
                         var titleElem = info.el.querySelector('.fc-event-title') || info.el;
                         if (titleElem && !titleElem.querySelector('i')) {
                             titleElem.prepend(iconElem);
                         }
                     }
+                    
+                    // Adicionar badge de participantes
+                    if (props.participantes !== undefined && props.participantes > 0) {
+                        var badgeContainer = document.createElement('span');
+                        badgeContainer.className = 'badge-participantes';
+                        badgeContainer.innerHTML = `<i class="fas fa-users"></i> ${props.participantes}`;
+                        // Adicionar ao elemento principal do evento, não ao título
+                        info.el.style.position = 'relative';
+                        info.el.appendChild(badgeContainer);
+                    }
+                    
+                    // Criar popover rico com informações detalhadas
+                    const inicioFormatado = info.event.start ? 
+                        info.event.start.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
+                    const fimFormatado = info.event.end ? 
+                        info.event.end.toLocaleString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '';
+                    
+                    const popoverContent = `
+                        <div class="evento-hover-card">
+                            <div class="hover-card-header">
+                                <i class="${props.icon || 'fas fa-calendar'} me-2"></i>
+                                <strong>${info.event.title}</strong>
+                            </div>
+                            <div class="hover-card-body">
+                                <div class="mb-2">
+                                    <i class="fas fa-clock text-primary me-2"></i>
+                                    <small>${inicioFormatado}${fimFormatado ? ' - ' + fimFormatado : ''}</small>
+                                </div>
+                                ${props.local ? `
+                                <div class="mb-2">
+                                    <i class="fas fa-map-marker-alt text-danger me-2"></i>
+                                    <small>${props.local}</small>
+                                </div>` : ''}
+                                ${props.participantes !== undefined && props.participantes > 0 ? `
+                                <div class="mb-2">
+                                    <i class="fas fa-users text-success me-2"></i>
+                                    <small>${props.participantes} participante${props.participantes !== 1 ? 's' : ''} esperado${props.participantes !== 1 ? 's' : ''}</small>
+                                </div>` : ''}
+                                ${props.descricao ? `
+                                <div class="mt-2 pt-2 border-top">
+                                    <small class="text-muted">${props.descricao.substring(0, 100)}${props.descricao.length > 100 ? '...' : ''}</small>
+                                </div>` : ''}
+                            </div>
+                            <div class="hover-card-footer">
+                                <small class="text-muted">Clique para ver detalhes</small>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Inicializar popover Bootstrap 5
+                    new bootstrap.Popover(info.el, {
+                        trigger: 'hover focus',
+                        html: true,
+                        content: popoverContent,
+                        placement: 'auto',
+                        container: 'body',
+                        delay: { show: 300, hide: 100 },
+                        customClass: 'evento-popover'
+                    });
                 },
                 eventClick: function(info) {
                     var modal = document.getElementById('eventoDetalheModal');
-                    var modalTitle = modal.querySelector('.modal-title');
-                    var modalBody = modal.querySelector('.modal-body');
-                    var iconClass = (info.event.extendedProps && info.event.extendedProps.icon) ? info.event.extendedProps.icon : 'fa-solid fa-calendar';
-                    var iconElem = iconClass ? '<i class="' + iconClass.replace(/"/g, '') + ' me-2"></i>' : '';
-                    modalTitle.innerHTML = iconElem + info.event.title;
+                    var modalTitle = document.getElementById('eventoDetalheModalLabel');
+                    var modalTipoLabel = document.getElementById('modal-tipo-label');
+                    var modalIcone = document.getElementById('modal-icone');
+                    var modalConteudo = document.getElementById('modal-conteudo');
+                    
                     var props = info.event.extendedProps;
+                    var tipo = props.tipo || 'Outro';
+                    var config = tiposConfig[tipo] || tiposConfig['Outro'];
+                    
+                    // Atualizar ícone e título
+                    modalIcone.innerHTML = `<i class="fas ${config.icon}"></i>`;
+                    modalTitle.textContent = info.event.title;
+                    modalTipoLabel.textContent = tipo;
+                    
+                    // Montar conteúdo do modal
                     var html = '';
-                    html += '<div><strong>Tipo:</strong> ' + (props.tipo || '-') + '</div>';
-                    html += '<div><strong>Início:</strong> ' + info.event.start.toLocaleString('pt-BR') + '</div>';
-                    html += '<div><strong>Fim:</strong> ' + (info.event.end ? info.event.end.toLocaleString('pt-BR') : '-') + '</div>';
-                    html += '<div><strong>Local:</strong> ' + (props.local || '-') + '</div>';
-                    html += '<div><strong>Descrição:</strong> ' + (props.descricao || '-') + '</div>';
-                    modalBody.innerHTML = html;
+                    
+                    // Data/Hora Início
+                    html += `
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <i class="fas fa-clock text-primary"></i>
+                                <div class="info-item-content">
+                                    <small>Início</small>
+                                    <div class="info-value">${info.event.start.toLocaleString('pt-BR')}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Data/Hora Fim
+                    html += `
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <i class="fas fa-clock text-danger"></i>
+                                <div class="info-item-content">
+                                    <small>Término</small>
+                                    <div class="info-value">${info.event.end ? info.event.end.toLocaleString('pt-BR') : 'Não definido'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Local
+                    if (props.local) {
+                        html += `
+                            <div class="col-12">
+                                <div class="info-item">
+                                    <i class="fas fa-map-marker-alt text-success"></i>
+                                    <div class="info-item-content">
+                                        <small>Local</small>
+                                        <div class="info-value">${props.local}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Descrição
+                    if (props.descricao) {
+                        html += `
+                            <div class="col-12">
+                                <div class="info-item">
+                                    <i class="fas fa-align-left text-info"></i>
+                                    <div class="info-item-content">
+                                        <small>Descrição</small>
+                                        <div class="info-value">${props.descricao}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    modalConteudo.innerHTML = html;
+                    
                     var modalInstance = new bootstrap.Modal(modal);
                     modalInstance.show();
                     info.jsEvent.preventDefault();
                 }
             });
+            
             calendar.render();
+            
+            // Salvar visualização do calendário quando o usuário mudar
+            calendarEl.addEventListener('click', function(e) {
+                // Detectar cliques nos botões de visualização (Dia, Semana, Mês)
+                const viewButton = e.target.closest('.fc-dayGridMonth-button, .fc-timeGridWeek-button, .fc-timeGridDay-button');
+                if (viewButton) {
+                    setTimeout(() => {
+                        const currentView = calendar.view.type;
+                        localStorage.setItem('agenda_calendar_view', currentView);
+                    }, 100);
+                }
+            });
 
-            // Submete o formulário de filtros sem recarregar a página
+            // Submete o formulário de filtros
             filtrosForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 calendar.refetchEvents();
             });
+            
             // Botão limpar filtros
             document.getElementById('limpar-filtros').addEventListener('click', function() {
                 filtrosForm.reset();
+                tipoSelecionado = '';
+                // Remover active de todos os cards
+                document.querySelectorAll('.card-tipo-evento').forEach(card => {
+                    card.classList.remove('active');
+                });
                 calendar.refetchEvents();
+            });
+            
+            // Click nos cards de tipo para filtrar
+            document.querySelectorAll('.card-tipo-evento').forEach(card => {
+                card.addEventListener('click', function() {
+                    const tipo = this.getAttribute('data-tipo');
+                    
+                    // Toggle active
+                    const isActive = this.classList.contains('active');
+                    
+                    // Remover active de todos
+                    document.querySelectorAll('.card-tipo-evento').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    
+                    if (!isActive) {
+                        this.classList.add('active');
+                        tipoSelecionado = tipo;
+                    } else {
+                        tipoSelecionado = '';
+                    }
+                    
+                    calendar.refetchEvents();
+                });
+            });
+            
+            // Botão exportar ICS
+            document.getElementById('exportar-ics').addEventListener('click', function() {
+                const filtros = new URLSearchParams();
+                const tipo = tipoSelecionado;
+                const inicio = document.getElementById('filtro_inicio').value;
+                const fim = document.getElementById('filtro_fim').value;
+                const busca = document.getElementById('filtro_busca').value;
+                
+                if (tipo) filtros.append('tipo', tipo);
+                if (inicio) filtros.append('inicio', inicio);
+                if (fim) filtros.append('fim', fim);
+                if (busca) filtros.append('busca', busca);
+                
+                window.location.href = '{% url "agenda:exportar_ics" %}?' + filtros.toString();
+            });
+            
+            // Botão importar feriados
+            document.getElementById('btn-importar-feriados').addEventListener('click', function() {
+                const modal = new bootstrap.Modal(document.getElementById('importarFeriadosModal'));
+                modal.show();
+            });
+            
+            // Confirmar importação de feriados
+            document.getElementById('btn-confirmar-importacao').addEventListener('click', function() {
+                const btn = this;
+                const btnOriginalHTML = btn.innerHTML;
+                const ano = document.getElementById('ano-feriados').value;
+                const estado = document.getElementById('estado-feriados').value;
+                const resultadoDiv = document.getElementById('resultado-importacao');
+                
+                // Desabilitar botão e mostrar loading
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Importando...';
+                resultadoDiv.style.display = 'none';
+                
+                // Fazer requisição
+                const formData = new FormData();
+                formData.append('ano', ano);
+                formData.append('estado', estado);
+                
+                fetch('{% url "agenda:importar_feriados" %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        resultadoDiv.className = 'alert alert-success mt-3';
+                        resultadoDiv.innerHTML = `
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Importação concluída!</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Feriados criados: <strong>${data.eventos_criados}</strong></li>
+                                <li>Já existentes: <strong>${data.eventos_existentes}</strong></li>
+                                <li>Total: <strong>${data.total}</strong> feriados em ${data.ano}</li>
+                                <li>Tipo: ${data.estado}</li>
+                            </ul>
+                        `;
+                        resultadoDiv.style.display = 'block';
+                        
+                        // Atualizar calendário após 2 segundos
+                        setTimeout(() => {
+                            calendar.refetchEvents();
+                            // Fechar modal após 3 segundos
+                            setTimeout(() => {
+                                bootstrap.Modal.getInstance(document.getElementById('importarFeriadosModal')).hide();
+                            }, 3000);
+                        }, 2000);
+                    } else {
+                        resultadoDiv.className = 'alert alert-danger mt-3';
+                        resultadoDiv.innerHTML = `
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Erro ao importar:</strong> ${data.erro}
+                        `;
+                        resultadoDiv.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    resultadoDiv.className = 'alert alert-danger mt-3';
+                    resultadoDiv.innerHTML = `
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Erro:</strong> ${error.message}
+                    `;
+                    resultadoDiv.style.display = 'block';
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = btnOriginalHTML;
+                });
+            });
+            
+            // Toggle participantes - Mostrar/Ocultar badges de participantes
+            const toggleParticipantesBtn = document.getElementById('toggle-participantes');
+            const toggleParticipantesText = document.getElementById('toggle-participantes-text');
+            let mostrarParticipantes = localStorage.getItem('agenda_mostrar_participantes') !== 'false'; // Default true
+            
+            // Aplicar estado inicial
+            function aplicarEstadoParticipantes() {
+                if (mostrarParticipantes) {
+                    document.body.classList.remove('ocultar-participantes');
+                    toggleParticipantesText.textContent = 'Ocultar';
+                    toggleParticipantesBtn.classList.remove('btn-outline-secondary');
+                    toggleParticipantesBtn.classList.add('btn-secondary');
+                } else {
+                    document.body.classList.add('ocultar-participantes');
+                    toggleParticipantesText.textContent = 'Mostrar';
+                    toggleParticipantesBtn.classList.remove('btn-secondary');
+                    toggleParticipantesBtn.classList.add('btn-outline-secondary');
+                }
+            }
+            
+            aplicarEstadoParticipantes();
+            
+            toggleParticipantesBtn.addEventListener('click', function() {
+                mostrarParticipantes = !mostrarParticipantes;
+                localStorage.setItem('agenda_mostrar_participantes', mostrarParticipantes);
+                aplicarEstadoParticipantes();
+            });
+            
+            // Toggle Visualização - Calendário / Lista
+            const btnToggleView = document.getElementById('btn-toggle-view');
+            const viewModeText = document.getElementById('view-mode-text');
+            const calendarContainer = document.getElementById('calendar');
+            const listaContainer = document.getElementById('lista-eventos');
+            const listaEventosBody = document.getElementById('lista-eventos-body');
+            const listaVazia = document.getElementById('lista-vazia');
+            let modoVisualizacao = localStorage.getItem('agenda_modo_visualizacao') || 'calendario'; // 'calendario' ou 'lista'
+            
+            function aplicarModoVisualizacao() {
+                if (modoVisualizacao === 'lista') {
+                    calendarContainer.style.display = 'none';
+                    listaContainer.style.display = 'block';
+                    btnToggleView.innerHTML = '<i class="fas fa-calendar me-1"></i><span id="view-mode-text">Calendário</span>';
+                    btnToggleView.classList.remove('btn-outline-info');
+                    btnToggleView.classList.add('btn-info');
+                    atualizarLista();
+                } else {
+                    calendarContainer.style.display = 'block';
+                    listaContainer.style.display = 'none';
+                    btnToggleView.innerHTML = '<i class="fas fa-list me-1"></i><span id="view-mode-text">Lista</span>';
+                    btnToggleView.classList.remove('btn-info');
+                    btnToggleView.classList.add('btn-outline-info');
+                }
+            }
+            
+            function atualizarLista() {
+                if (eventosCache.length === 0) {
+                    listaEventosBody.innerHTML = '';
+                    listaVazia.style.display = 'block';
+                    return;
+                }
+                
+                listaVazia.style.display = 'none';
+                
+                // Ordenar eventos por data
+                const eventosOrdenados = [...eventosCache].sort((a, b) => {
+                    return new Date(a.start) - new Date(b.start);
+                });
+                
+                // Usar DocumentFragment para melhor performance
+                const fragment = document.createDocumentFragment();
+                const tbody = document.createElement('tbody');
+                tbody.id = 'lista-eventos-body';
+                
+                eventosOrdenados.forEach(evento => {
+                    const inicio = new Date(evento.start);
+                    const dataFormatada = inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const horaFormatada = inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const config = tiposConfig[evento.extendedProps?.tipo] || tiposConfig['Outro'];
+                    const participantes = evento.extendedProps?.participantes || 0;
+                    
+                    // Calcular classes de destaque
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    const eventoData = new Date(inicio);
+                    eventoData.setHours(0, 0, 0, 0);
+                    
+                    const diaSemana = hoje.getDay();
+                    const domingoSemanaAtual = new Date(hoje);
+                    domingoSemanaAtual.setDate(hoje.getDate() - diaSemana);
+                    const sabadoSemanaAtual = new Date(domingoSemanaAtual);
+                    sabadoSemanaAtual.setDate(domingoSemanaAtual.getDate() + 6);
+                    
+                    let classeDestaque = 'evento-lista-item';
+                    if (eventoData.getTime() === hoje.getTime()) {
+                        classeDestaque += ' evento-hoje';
+                    } else if (eventoData >= domingoSemanaAtual && eventoData <= sabadoSemanaAtual) {
+                        classeDestaque += ' evento-semana-atual';
+                    } else if (eventoData < hoje) {
+                        classeDestaque += ' evento-passado';
+                    }
+                    
+                    const row = document.createElement('tr');
+                    row.className = classeDestaque;
+                    row.dataset.eventoId = evento.id;
+                    row.style.cursor = 'pointer';
+                    
+                    row.innerHTML = `
+                        <td>
+                            <div class="evento-icone-lista" style="background: ${evento.color}; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">
+                                <i class="fas fa-${config.icon}"></i>
+                            </div>
+                        </td>
+                        <td>
+                            <strong>${evento.title}</strong>
+                            ${evento.extendedProps?.descricao ? `<br><small class="text-muted">${evento.extendedProps.descricao.substring(0, 60)}${evento.extendedProps.descricao.length > 60 ? '...' : ''}</small>` : ''}
+                        </td>
+                        <td>
+                            <span class="badge" style="background: ${evento.color};">
+                                ${evento.extendedProps?.tipo || 'Outro'}
+                            </span>
+                        </td>
+                        <td>
+                            <div><i class="fas fa-calendar me-1"></i>${dataFormatada}</div>
+                            <small class="text-muted"><i class="fas fa-clock me-1"></i>${horaFormatada}</small>
+                        </td>
+                        <td>
+                            ${evento.extendedProps?.local ? `<i class="fas fa-map-marker-alt me-1"></i>${evento.extendedProps.local}` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td class="text-center">
+                            ${participantes > 0 ? `<span class="badge bg-secondary"><i class="fas fa-users me-1"></i>${participantes}</span>` : '<span class="text-muted">-</span>'}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" title="Ver detalhes">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    // Event listener para a linha
+                    row.addEventListener('click', function(e) {
+                        if (!e.target.closest('.btn')) {
+                            mostrarModalEvento(evento);
+                        }
+                    });
+                    
+                    tbody.appendChild(row);
+                });
+                
+                // Substituir tbody de uma vez
+                listaEventosBody.parentNode.replaceChild(tbody, listaEventosBody);
+            }
+            
+            function mostrarModalEvento(evento) {
+                // Simular o mesmo modal que o calendário usa
+                var modal = document.getElementById('eventoDetalheModal');
+                var modalTitle = document.getElementById('eventoDetalheModalLabel');
+                var modalTipoLabel = document.getElementById('modal-tipo-label');
+                var modalIcone = document.getElementById('modal-icone');
+                var modalConteudo = document.getElementById('modal-conteudo');
+                
+                var props = evento.extendedProps;
+                var tipo = props.tipo || 'Outro';
+                var config = tiposConfig[tipo] || tiposConfig['Outro'];
+                
+                modalTitle.textContent = evento.title;
+                modalTipoLabel.textContent = tipo;
+                modalIcone.innerHTML = `<i class="fas fa-${config.icon}"></i>`;
+                modalIcone.style.background = evento.color;
+                
+                const inicio = new Date(evento.start);
+                const fim = evento.end ? new Date(evento.end) : null;
+                
+                var html = `
+                    <div class="col-12">
+                        <div class="info-item">
+                            <i class="fas fa-calendar text-primary"></i>
+                            <div>
+                                <small class="text-muted">Data e Hora</small>
+                                <div>${inicio.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'})}
+                                ${fim ? ' - ' + fim.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                if (props.local) {
+                    html += `
+                        <div class="col-12">
+                            <div class="info-item">
+                                <i class="fas fa-map-marker-alt text-danger"></i>
+                                <div>
+                                    <small class="text-muted">Local</small>
+                                    <div>${props.local}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (props.descricao) {
+                    html += `
+                        <div class="col-12">
+                            <div class="info-item">
+                                <i class="fas fa-align-left text-info"></i>
+                                <div>
+                                    <small class="text-muted">Descrição</small>
+                                    <div>${props.descricao}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (props.participantes > 0) {
+                    html += `
+                        <div class="col-12">
+                            <div class="info-item">
+                                <i class="fas fa-users text-success"></i>
+                                <div>
+                                    <small class="text-muted">Participantes Esperados</small>
+                                    <div>${props.participantes}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                modalConteudo.innerHTML = html;
+                
+                var modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            }
+            
+            aplicarModoVisualizacao();
+            
+            btnToggleView.addEventListener('click', function() {
+                modoVisualizacao = modoVisualizacao === 'calendario' ? 'lista' : 'calendario';
+                localStorage.setItem('agenda_modo_visualizacao', modoVisualizacao);
+                aplicarModoVisualizacao();
+            });
+            
+            // Tela Cheia - Toggle Fullscreen
+            const btnFullscreen = document.getElementById('btn-fullscreen');
+            const btnFecharFullscreen = document.getElementById('btn-fechar-fullscreen');
+            const calendarDiv = document.getElementById('calendar');
+            
+            function entrarTelaCheia() {
+                // Se estiver em modo lista, alternar para calendário primeiro
+                if (modoVisualizacao === 'lista') {
+                    modoVisualizacao = 'calendario';
+                    localStorage.setItem('agenda_modo_visualizacao', modoVisualizacao);
+                    aplicarModoVisualizacao();
+                }
+                
+                calendarDiv.classList.add('fullscreen-mode');
+                btnFullscreen.innerHTML = '<i class="fas fa-compress me-1"></i>Sair';
+                // Após pequeno delay, atualizar tamanho do calendário
+                setTimeout(() => calendar.updateSize(), 100);
+            }
+            
+            function sairTelaCheia() {
+                calendarDiv.classList.remove('fullscreen-mode');
+                btnFullscreen.innerHTML = '<i class="fas fa-expand me-1"></i>Tela Cheia';
+                // Atualizar tamanho do calendário
+                setTimeout(() => calendar.updateSize(), 100);
+            }
+            
+            btnFullscreen.addEventListener('click', function() {
+                if (calendarDiv.classList.contains('fullscreen-mode')) {
+                    sairTelaCheia();
+                } else {
+                    entrarTelaCheia();
+                }
+            });
+            
+            btnFecharFullscreen.addEventListener('click', function() {
+                sairTelaCheia();
+            });
+            
+            // Sair de fullscreen com tecla ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && calendarDiv.classList.contains('fullscreen-mode')) {
+                    sairTelaCheia();
+                }
+            });
+            
+            // Inicializar tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
             });
         });
     </script>
 
     <!-- Modal de Detalhes do Evento -->
-    <div class="modal fade" id="eventoDetalheModal" tabindex="-1" aria-labelledby="eventoDetalheModalLabel" aria-hidden="true">
+    <!-- Modal Importar Feriados -->
+    <div class="modal fade" id="importarFeriadosModal" tabindex="-1" aria-labelledby="importarFeriadosModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="eventoDetalheModalLabel">Detalhes do Evento</h5>
+                <div class="modal-header bg-warning text-dark">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fas fa-calendar-plus fs-3"></i>
+                        <div>
+                            <h5 class="modal-title mb-0" id="importarFeriadosModalLabel">Importar Feriados Brasileiros</h5>
+                            <small class="opacity-75">Importação automática de feriados nacionais</small>
+                        </div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
-                <div class="modal-body">
-                    <!-- Detalhes do evento serão preenchidos via JS -->
+                <div class="modal-body p-4">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Esta ferramenta importa automaticamente os feriados nacionais brasileiros para a agenda.
+                        Feriados já existentes não serão duplicados.
+                    </div>
+                    
+                    <form id="form-importar-feriados">
+                        <div class="mb-3">
+                            <label for="ano-feriados" class="form-label">
+                                <i class="fas fa-calendar me-1"></i>Ano
+                            </label>
+                            <input type="number" class="form-control" id="ano-feriados" 
+                                   min="2024" max="2030" value="2026" required>
+                            <div class="form-text">Ano para importar os feriados</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="estado-feriados" class="form-label">
+                                <i class="fas fa-map-marker-alt me-1"></i>Estado (Opcional)
+                            </label>
+                            <select class="form-select" id="estado-feriados">
+                                <option value="">Apenas feriados nacionais</option>
+                                <option value="AC">Acre</option>
+                                <option value="AL">Alagoas</option>
+                                <option value="AP">Amapá</option>
+                                <option value="AM">Amazonas</option>
+                                <option value="BA">Bahia</option>
+                                <option value="CE">Ceará</option>
+                                <option value="DF">Distrito Federal</option>
+                                <option value="ES">Espírito Santo</option>
+                                <option value="GO">Goiás</option>
+                                <option value="MA">Maranhão</option>
+                                <option value="MT">Mato Grosso</option>
+                                <option value="MS">Mato Grosso do Sul</option>
+                                <option value="MG">Minas Gerais</option>
+                                <option value="PA">Pará</option>
+                                <option value="PB">Paraíba</option>
+                                <option value="PR">Paraná</option>
+                                <option value="PE">Pernambuco</option>
+                                <option value="PI">Piauí</option>
+                                <option value="RJ">Rio de Janeiro</option>
+                                <option value="RN">Rio Grande do Norte</option>
+                                <option value="RS">Rio Grande do Sul</option>
+                                <option value="RO">Rondônia</option>
+                                <option value="RR">Roraima</option>
+                                <option value="SC">Santa Catarina</option>
+                                <option value="SP">São Paulo</option>
+                                <option value="SE">Sergipe</option>
+                                <option value="TO">Tocantins</option>
+                            </select>
+                            <div class="form-text">Selecione para incluir feriados estaduais</div>
+                        </div>
+                        
+                        <div id="resultado-importacao" class="mt-3" style="display: none;"></div>
+                    </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-vibrant-orange shadow" style="height:40px; min-width:110px; font-weight:600;" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-warning" id="btn-confirmar-importacao">
+                        <i class="fas fa-download me-1"></i>Importar Feriados
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-<style>
-    #calendar {
-        width: 100%;
-        margin: 40px 0;
-        background: #fff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    /* Destaque para o dia atual no FullCalendar */
-    .fc-day-today {
-        background: #e3f2fd !important;
-        border: 2px solid #1976d2 !important;
-        border-radius: 6px;
-        box-shadow: 0 0 0 2px #1976d233;
-    }
-    @media (max-width: 600px) {
-        #calendar {
-            padding: 5px;
-            font-size: 0.95rem;
-        }
-        .fc-toolbar-title {
-            font-size: 1.1rem !important;
-        }
-        .fc-button {
-            font-size: 0.95rem !important;
-            padding: 0.25rem 0.5rem !important;
-        }
-    }
-</style>
+    
+    <!-- Modal Detalhes do Evento -->
+    <div class="modal fade" id="eventoDetalheModal" tabindex="-1" aria-labelledby="eventoDetalheModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-gradient-primary">
+                    <div class="d-flex align-items-center gap-3 w-100">
+                        <div class="evento-icone-grande" id="modal-icone">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="modal-title-container">
+                            <h5 class="modal-title mb-0" id="eventoDetalheModalLabel">Detalhes do Evento</h5>
+                            <small class="opacity-75" id="modal-tipo-label">Tipo de Evento</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3" id="modal-conteudo">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light-custom">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Botão FAB para Criar Evento -->
+    <a href="{% url 'eventos:criar_evento' %}" 
+       class="btn-fab shadow-lg" 
+       title="Criar Novo Evento"
+       data-bs-toggle="tooltip"
+       data-bs-placement="left">
+        <i class="fas fa-plus"></i>
+    </a>
+
 {% endblock %}

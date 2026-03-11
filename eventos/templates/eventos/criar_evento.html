@@ -1,41 +1,151 @@
+<style>
+  .hover-shadow {
+    transition: all 0.3s ease;
+  }
+  .hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+  }
+  
+  /* Responsividade: ajustes para mobile */
+  @media (max-width: 768px) {
+    /* Botões sticky mais compactos em mobile */
+    #barraAcoes {
+      padding: 10px 0 !important;
+    }
+    
+    #barraAcoes .btn {
+      font-size: 14px;
+      min-width: 100px !important;
+      height: 36px !important;
+    }
+    
+    /* Checkboxes de dia da semana em coluna em mobile */
+    .btn-group-vertical {
+      flex-direction: column !important;
+    }
+    
+    /* Labels com badges mais compactos */
+    .badge {
+      font-size: 0.7em;
+    }
+    
+    /* Preview de data fim mais compacto */
+    #dataFimPreview {
+      font-size: 0.9em;
+      padding: 8px;
+    }
+    
+    /* Cards do modal assistente menores */
+    .modal-body .card {
+      margin-bottom: 10px;
+    }
+    
+    .modal-body .card-title {
+      font-size: 1em;
+    }
+    
+    .modal-body .card-text {
+      font-size: 0.85em;
+    }
+  }
+  
+  @media (min-width: 769px) and (max-width: 992px) {
+    /* Tablets: checkboxes em 2 colunas */
+    .btn-group-vertical {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 0.5rem;
+    }
+  }
+  
+  @media (min-width: 993px) {
+    /* Desktop: checkboxes em linha */
+    .btn-group-vertical {
+      flex-direction: row !important;
+    }
+  }
+  
+  /* Garantir que inputs sejam visíveis em mobile */
+  @media (max-width: 576px) {
+    .form-control, .form-select {
+      font-size: 16px; /* Evita zoom automático no iOS */
+    }
+    
+    h5 {
+      font-size: 1.1rem;
+    }
+    
+    /* Botão assistente rápido menor em mobile */
+    .btn-outline-primary.btn-sm {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+    }
+  }
+</style>
+
 <script>
 function atualizarDataFim() {
   const dataInicioInput = document.getElementById('id_data_inicio');
   const qtdDiasInput = document.getElementById('id_quantidade_dias');
   const horaTerminoInput = document.getElementById('id_hora_termino');
-  const dataFimInput = document.querySelector('input[readonly][class*="form-control"]');
-  if (!dataInicioInput || !qtdDiasInput || !dataFimInput) return;
+  
+  if (!dataInicioInput || !qtdDiasInput) return;
+  
   const dataInicioStr = dataInicioInput.value;
   const qtdDias = parseInt(qtdDiasInput.value);
   const horaTerminoStr = horaTerminoInput ? horaTerminoInput.value : null;
+  
   if (dataInicioStr && qtdDias && qtdDias > 0) {
     const dataInicio = new Date(dataInicioStr);
+    
     if (!isNaN(dataInicio.getTime())) {
       // Adiciona qtdDias-1 dias
       dataInicio.setDate(dataInicio.getDate() + (qtdDias - 1));
+      
       if (horaTerminoStr) {
         const [h, m] = horaTerminoStr.split(":");
         dataInicio.setHours(parseInt(h), parseInt(m));
       }
+      
       // Formata para dd/mm/yyyy hh:mm
       const dia = String(dataInicio.getDate()).padStart(2, '0');
       const mes = String(dataInicio.getMonth() + 1).padStart(2, '0');
       const ano = dataInicio.getFullYear();
       const hora = String(dataInicio.getHours()).padStart(2, '0');
       const min = String(dataInicio.getMinutes()).padStart(2, '0');
-      dataFimInput.value = `${dia}/${mes}/${ano} ${hora}:${min}`;
+      
+      document.getElementById('dataFimValor').textContent = `${dia}/${mes}/${ano} ${hora}:${min}`;
+      
+      // Calcular duração
+      const duracao = qtdDias === 1 ? '1 dia' : `${qtdDias} dias`;
+      document.getElementById('duracaoEvento').textContent = `Duração: ${duracao}`;
+      
+      // Destacar eventos longos
+      const alertDiv = document.getElementById('dataFimPreview');
+      if (qtdDias > 3) {
+        alertDiv.classList.remove('alert-info');
+        alertDiv.classList.add('alert-warning');
+      } else {
+        alertDiv.classList.remove('alert-warning');
+        alertDiv.classList.add('alert-info');
+      }
     }
   } else {
-    dataFimInput.value = '';
+    document.getElementById('dataFimValor').textContent = '--/--/---- --:--';
+    document.getElementById('duracaoEvento').textContent = 'Duração: --';
   }
 }
+
 document.addEventListener('DOMContentLoaded', function() {
   const dataInicioInput = document.getElementById('id_data_inicio');
   const qtdDiasInput = document.getElementById('id_quantidade_dias');
   const horaTerminoInput = document.getElementById('id_hora_termino');
+  
   if (dataInicioInput) dataInicioInput.addEventListener('change', atualizarDataFim);
   if (qtdDiasInput) qtdDiasInput.addEventListener('input', atualizarDataFim);
   if (horaTerminoInput) horaTerminoInput.addEventListener('input', atualizarDataFim);
+  
   atualizarDataFim();
 });
 </script>
@@ -64,6 +174,24 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="card-body">
       <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
+        
+        <!-- Mensagens do Django (success, error, warning) -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+              {% if message.tags == 'error' %}
+                <i class="fas fa-exclamation-circle me-2"></i>
+              {% elif message.tags == 'success' %}
+                <i class="fas fa-check-circle me-2"></i>
+              {% elif message.tags == 'warning' %}
+                <i class="fas fa-exclamation-triangle me-2"></i>
+              {% endif %}
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+        
         {% include "partials/_form_errors.html" with form=form %}
         {% for hidden_field in form.hidden_fields %}
           {% if hidden_field.errors %}
@@ -75,221 +203,646 @@ document.addEventListener('DOMContentLoaded', function() {
           {% endif %}
         {% endfor %}
 
-                <!-- Grid alinhado e aproveitamento total do espaço -->
-                <div class="row mb-4">
-      <div class="row mb-4">
-        <div class="col-md-12">
-          <div class="mb-3">
-            <label class="form-label">Seleção de convidados:</label>
-            <div class="mb-2">
-              <select id="filtro_convidados" class="form-select" style="max-width:350px;display:inline-block;">
-                <option value="membro_obreiro">Apenas Membros/Obreiros</option>
-                <option value="cooperadores">Cooperadores (quem tem cargo)</option>
-                <option value="todos">Todas as pessoas do sistema</option>
-              </select>
-              <span class="ms-2">Status:</span>
-              <label class="ms-1"><input type="checkbox" class="status_filtro" value="ativo" checked> Ativo</label>
-              <label class="ms-1"><input type="checkbox" class="status_filtro" value="desligado" checked> Desligado</label>
-              <label class="ms-1"><input type="checkbox" class="status_filtro" value="disciplina" checked> Em Disciplina</label>
+        <!-- SEÇÃO 1: DADOS BÁSICOS -->
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+          <h5 class="mt-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>Dados Básicos
+          </h5>
+          <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAssistente">
+            <i class="fas fa-magic me-1"></i>
+            Assistente Rápido
+          </button>
+        </div>
+        <div class="row mb-4">
+          <div class="col-lg-4 col-md-4 col-12">
+            <div class="mb-3">
+              <label for="{{ form.igreja.id_for_label }}" class="form-label">
+                🏛️ {{ form.igreja.label }}
+                <span class="badge bg-danger ms-1">Obrigatório</span>
+                <i class="fas fa-info-circle text-muted ms-1" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="top"
+                   title="Selecione a igreja onde o evento ocorrerá"></i>
+              </label>
+              {{ form.igreja|add_class:'form-control' }}
+              {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
             </div>
-            <label for="id_convidados" class="form-label">Adicionar manualmente:</label>
-            {{ form.convidados }}
-            <small class="form-text text-muted">Você pode buscar e adicionar pessoas individualmente, além dos filtros acima.</small>
-            {% if form.convidados.errors %}<div class="invalid-feedback d-block">{{ form.convidados.errors|striptags }}</div>{% endif %}
+          </div>
+          <div class="col-lg-3 col-md-3 col-12">
+            <div class="mb-3">
+              <label for="{{ form.tipo.id_for_label }}" class="form-label">
+                📋 {{ form.tipo.label }}
+                <span class="badge bg-danger ms-1">Obrigatório</span>
+              </label>
+              {{ form.tipo|add_class:'form-select' }}
+              {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-5 col-md-5 col-12">
+            <div class="mb-3">
+              <label for="{{ form.titulo.id_for_label }}" class="form-label">
+                📌 {{ form.titulo.label }}
+                <span class="badge bg-danger ms-1">Obrigatório</span>
+              </label>
+              {{ form.titulo|add_class:'form-control' }}
+              {% if form.titulo.errors %}<div class="invalid-feedback d-block">{{ form.titulo.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="mb-3">
+              <label for="{{ form.descricao.id_for_label }}" class="form-label">
+                📝 {{ form.descricao.label }}
+                <span class="badge bg-secondary ms-1">Opcional</span>
+              </label>
+              {{ form.descricao|add_class:'form-control' }}
+              <small class="text-muted">Descreva detalhes, programação, objetivos do evento.</small>
+              {% if form.descricao.errors %}<div class="invalid-feedback d-block">{{ form.descricao.errors|striptags }}</div>{% endif %}
+            </div>
           </div>
         </div>
-      </div>
-      <script>
-        function atualizarConvidadosPorFiltro() {
-          var filtro = $('#filtro_convidados').val();
-          var status = $('.status_filtro:checked').map(function(){return $(this).val();}).get();
-          $.ajax({
-            url: '{% url "eventos:autocomplete_convidados" %}',
-            data: {
-              filtro: filtro,
-              status: status.join(',')
-            },
-            success: function(data) {
-              var $convidados = $('#id_convidados');
-              $convidados.val(null).trigger('change');
-              var ids = data.ids;
-              $convidados.find('option').each(function() {
-                if (ids.includes($(this).val())) {
-                  $(this).prop('selected', true);
-                } else {
-                  $(this).prop('selected', false);
-                }
-              });
-              $convidados.trigger('change');
-              atualizarChipsConvidados();
+
+        <!-- SEÇÃO 2: LOCAL E ORGANIZAÇÃO -->
+        <h5 class="mt-4 mb-3 border-bottom pb-2">
+          <i class="fas fa-map-marker-alt me-2"></i>Local e Organização
+        </h5>
+        <div class="row mb-4">
+          <div class="col-lg-8 col-md-7 col-12">
+            <div class="mb-3">
+              <label for="{{ form.local.id_for_label }}" class="form-label">
+                📍 {{ form.local.label }}
+                <span class="badge bg-secondary ms-1">Opcional</span>
+                <i class="fas fa-info-circle text-muted ms-1" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="top"
+                   title="Informe o ambiente exato. Eventos em locais diferentes podem ocorrer simultaneamente."></i>
+              </label>
+              {{ form.local|add_class:'form-control' }}
+              <small class="text-muted">Ex: Salão, Sala 1, Sala 2. Eventos em locais diferentes podem ocorrer no mesmo horário.</small>
+              {% if form.local.errors %}<div class="invalid-feedback d-block">{{ form.local.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-5 col-12">
+            <div class="mb-3">
+              <label for="{{ form.responsavel.id_for_label }}" class="form-label">
+                👤 {{ form.responsavel.label }}
+                <span class="badge bg-secondary ms-1">Opcional</span>
+              </label>
+              {{ form.responsavel|add_class:'form-select' }}
+              {% if form.responsavel.errors %}<div class="invalid-feedback d-block">{{ form.responsavel.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- SEÇÃO 3: DATA E DURAÇÃO -->
+        <h5 class="mt-4 mb-3 border-bottom pb-2">
+          <i class="fas fa-calendar me-2"></i>Data e Duração
+        </h5>
+        <div class="row mb-4">
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.data_inicio.id_for_label }}" class="form-label">
+                📅 {{ form.data_inicio.label }}
+                <span class="badge bg-danger ms-1">Obrigatório</span>
+              </label>
+              {{ form.data_inicio }}
+              {% if form.data_inicio.errors %}<div class="invalid-feedback d-block">{{ form.data_inicio.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.quantidade_dias.id_for_label }}" class="form-label">
+                🔢 {{ form.quantidade_dias.label }}
+                <span class="badge bg-danger ms-1">Obrigatório</span>
+              </label>
+              {{ form.quantidade_dias|add_class:'form-control' }}
+              <small class="text-muted">Evento de um dia: deixe como 1</small>
+              {% if form.quantidade_dias.errors %}<div class="invalid-feedback d-block">{{ form.quantidade_dias.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.hora_termino.id_for_label }}" class="form-label">
+                ⏰ {{ form.hora_termino.label }}
+                <span class="badge bg-secondary ms-1">Opcional</span>
+              </label>
+              {{ form.hora_termino }}
+              {% if form.hora_termino.errors %}<div class="invalid-feedback d-block">{{ form.hora_termino.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="mb-3">
+              <label class="form-label">📆 Data de Fim Calculada:</label>
+              <div class="alert alert-info mb-0 py-2" id="dataFimPreview">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-calendar-check me-2"></i>
+                  <div>
+                    <strong id="dataFimValor">--/--/---- --:--</strong>
+                    <small class="d-block text-muted mt-1" id="duracaoEvento">
+                      Duração: --
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEÇÃO 4: PARTICIPANTES (SISTEMA HÍBRIDO) -->
+        <h5 class="mt-4 mb-3 border-bottom pb-2">
+          <i class="fas fa-users me-2"></i>Participantes Esperados
+          <small class="text-muted">(Sistema Inteligente)</small>
+        </h5>
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="card border-primary shadow-sm">
+              <div class="card-header bg-primary text-white">
+                <i class="fas fa-filter me-2"></i>Critérios Base (Atualização Automática)
+              </div>
+              <div class="card-body">
+                <p class="text-muted small mb-3">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Defina quem deve participar. A lista será <strong>atualizada automaticamente</strong> se pessoas mudarem de status ou saírem da igreja.
+                </p>
+
+                <!-- Campos originais (hidden) -->
+                <div style="display: none;">
+                  {{ form.tipos_participantes }}
+                  {{ form.status_participantes }}
+                </div>
+
+                <div class="row">
+                  <!-- Tipos de Pessoa -->
+                  <div class="col-md-6 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <label class="form-label fw-bold mb-0">
+                        <i class="fas fa-user-tag me-1"></i>Tipos de Pessoa
+                        <span class="badge bg-primary ms-2" id="badgeContagemTipos">0</span>
+                      </label>
+                      <button type="button" class="btn btn-sm btn-link text-danger" onclick="limparTipos()">
+                        <i class="fas fa-times"></i> Limpar
+                      </button>
+                    </div>
+                    <div class="border rounded p-2" id="checkboxesTipos" style="max-height: 200px; overflow-y: auto;">
+                      <div class="text-muted text-center py-2">
+                        <small>Carregando...</small>
+                      </div>
+                    </div>
+                    <small class="form-text text-muted d-block mt-1">
+                      Deixe vazio para incluir todos os tipos
+                    </small>
+                  </div>
+
+                  <!-- Status -->
+                  <div class="col-md-6 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <label class="form-label fw-bold mb-0">
+                        <i class="fas fa-check-circle me-1"></i>Status
+                        <span class="badge bg-primary ms-2" id="badgeContagemStatus">0</span>
+                      </label>
+                      <button type="button" class="btn btn-sm btn-link text-danger" onclick="limparStatus()">
+                        <i class="fas fa-times"></i> Limpar
+                      </button>
+                    </div>
+                    <div class="border rounded p-2" id="checkboxesStatus" style="max-height: 200px; overflow-y: auto;">
+                      <div class="text-muted text-center py-2">
+                        <small>Carregando...</small>
+                      </div>
+                    </div>
+                    <small class="form-text text-muted d-block mt-1">
+                      Deixe vazio para incluir todos os status (exceto Inativo por padrão)
+                    </small>
+                  </div>
+                </div>
+
+                <!-- Preview Dinâmico -->
+                <div class="alert alert-success border-success" id="previewCriterios">
+                  <div class="d-flex align-items-center">
+                    <div class="me-3">
+                      <i class="fas fa-users fa-2x text-success"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                      <h6 class="mb-1">
+                        <strong id="contadorCriterios">--</strong> pessoas atendem estes critérios
+                      </h6>
+                      <small class="text-muted" id="descricaoCriterios">
+                        Selecione os critérios acima para ver a prévia
+                      </small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-success" onclick="atualizarPreviewCriterios()">
+                      <i class="fas fa-sync-alt me-1"></i>Atualizar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ajustes Manuais -->
+            <div class="card border-warning shadow-sm mt-3">
+              <div class="card-header bg-warning text-dark">
+                <i class="fas fa-user-edit me-2"></i>Ajustes Manuais (Exceções)
+                <span class="badge bg-dark ms-2">Opcional</span>
+              </div>
+              <div class="card-body">
+                <p class="text-muted small mb-3">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Adicione ou remova pessoas específicas, mesmo que não atendam os critérios acima.
+                </p>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <button type="button" class="btn btn-success w-100" onclick="abrirModalAdicionar()">
+                      <i class="fas fa-user-plus me-2"></i>Adicionar Pessoa Manualmente
+                    </button>
+                    <small class="form-text text-muted d-block mt-2">
+                      Ex: Pastor visitante, Convidado especial
+                    </small>
+                    
+                    <!-- Lista de adicionados manualmente -->
+                    <div id="listaAdicionadosManualmente" class="mt-3"></div>
+                  </div>
+
+                  <div class="col-md-6 mb-3">
+                    <button type="button" class="btn btn-danger w-100" onclick="abrirModalRemover()">
+                      <i class="fas fa-user-minus me-2"></i>Remover Pessoa da Lista
+                    </button>
+                    <small class="form-text text-muted d-block mt-2">
+                      Ex: Membro que vai viajar, Responsável no infantil
+                    </small>
+                    
+                    <!-- Lista de removidos manualmente -->
+                    <div id="listaRemovidosManualmente" class="mt-3"></div>
+                  </div>
+                </div>
+
+                <!-- Preview Final -->
+                <div class="alert alert-info border-info mt-3" id="previewFinal">
+                  <h6 class="mb-2">
+                    <i class="fas fa-calculator me-2"></i>Total de Participantes Esperados:
+                  </h6>
+                  <div class="d-flex gap-3">
+                    <div>
+                      <span class="badge bg-success me-1" id="badgeCriterios">--</span>
+                      <small>Por critério</small>
+                    </div>
+                    <div>
+                      <span class="badge bg-success me-1" id="badgeAdicionados">0</span>
+                      <small>Adicionados</small>
+                    </div>
+                    <div>
+                      <span class="badge bg-danger me-1" id="badgeRemovidos">0</span>
+                      <small>Removidos</small>
+                    </div>
+                    <div class="ms-auto">
+                      <strong class="text-primary fs-5" id="totalFinal">-- pessoas</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Campos hidden para armazenar ajustes manuais -->
+            <input type="hidden" id="adicionados_manuais" name="adicionados_manuais" value="[]">
+            <input type="hidden" id="removidos_manuais" name="removidos_manuais" value="[]">
+          </div>
+        </div>
+
+        <!-- SEÇÃO 5: RECORRÊNCIA -->
+        <h5 class="mt-4 mb-3 border-bottom pb-2">
+          <i class="fas fa-redo me-2"></i>Recorrência
+        </h5>
+        <div class="row mb-4">
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="form-check mb-3">
+              {{ form.recorrente }}
+              <label for="{{ form.recorrente.id_for_label }}" class="form-check-label">
+                {{ form.recorrente.label }}
+                <i class="fas fa-info-circle text-muted ms-1" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="top"
+                   title="Marque se o evento se repete (ex: cultos semanais, reuniões mensais)"></i>
+              </label>
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.frequencia.id_for_label }}" class="form-label">
+                {{ form.frequencia.label }}
+                <i class="fas fa-info-circle text-muted ms-1" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="top"
+                   title="Com que frequência o evento se repete? Semanal = toda semana, Mensal = todo mês, Anual = todo ano"></i>
+              </label>
+              {{ form.frequencia }}
+              {% if form.frequencia.errors %}<div class="invalid-feedback d-block">{{ form.frequencia.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.intervalo.id_for_label }}" class="form-label">
+                {{ form.intervalo.label }}
+                <i class="fas fa-info-circle text-muted ms-1" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="top"
+                   title="A cada quantas semanas/meses/anos o evento se repete? Deixe 1 para 'toda semana' ou 'todo mês'"></i>
+              </label>
+              {{ form.intervalo }}
+              {% if form.intervalo.errors %}<div class="invalid-feedback d-block">{{ form.intervalo.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.data_fim_recorrencia.id_for_label }}" class="form-label">{{ form.data_fim_recorrencia.label }}:</label>
+              {{ form.data_fim_recorrencia }}
+              {% if form.data_fim_recorrencia.errors %}<div class="invalid-feedback d-block">{{ form.data_fim_recorrencia.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <!-- Preview de Recorrência -->
+        <div class="row mb-3" id="previewRecorrencia" style="display:none;">
+          <div class="col-12">
+            <div class="alert alert-success">
+              <i class="fas fa-sync-alt me-2"></i>
+              <strong>Resumo da Recorrência:</strong>
+              <span id="textoPreviewRecorrencia">--</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row mb-4">
+          <div class="col-12" id="div_dia_semana">
+            <div class="mb-3">
+              <label class="form-label">
+                {{ form.dia_semana.label }}
+                <i class="fas fa-info-circle text-muted ms-1" 
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="top"
+                   title="Selecione em quais dias da semana o evento se repete"></i>
+              </label>
+              
+              <!-- Campo hidden para sincronizar -->
+              <input type="hidden" id="id_dia_semana" name="dia_semana" value="">
+              
+              <!-- Checkboxes visuais -->
+              <div class="btn-group-vertical d-md-flex flex-md-row gap-2" role="group">
+                <input type="checkbox" class="btn-check" id="dia_MO" value="MO" autocomplete="off">
+                <label class="btn btn-outline-primary" for="dia_MO">
+                  <i class="fas fa-calendar-day me-1"></i> Segunda
+                </label>
+
+                <input type="checkbox" class="btn-check" id="dia_TU" value="TU" autocomplete="off">
+                <label class="btn btn-outline-primary" for="dia_TU">
+                  <i class="fas fa-calendar-day me-1"></i> Terça
+                </label>
+
+                <input type="checkbox" class="btn-check" id="dia_WE" value="WE" autocomplete="off">
+                <label class="btn btn-outline-primary" for="dia_WE">
+                  <i class="fas fa-calendar-day me-1"></i> Quarta
+                </label>
+
+                <input type="checkbox" class="btn-check" id="dia_TH" value="TH" autocomplete="off">
+                <label class="btn btn-outline-primary" for="dia_TH">
+                  <i class="fas fa-calendar-day me-1"></i> Quinta
+                </label>
+
+                <input type="checkbox" class="btn-check" id="dia_FR" value="FR" autocomplete="off">
+                <label class="btn btn-outline-primary" for="dia_FR">
+                  <i class="fas fa-calendar-day me-1"></i> Sexta
+                </label>
+
+                <input type="checkbox" class="btn-check" id="dia_SA" value="SA" autocomplete="off">
+                <label class="btn btn-outline-primary" for="dia_SA">
+                  <i class="fas fa-calendar-day me-1"></i> Sábado
+                </label>
+
+                <input type="checkbox" class="btn-check" id="dia_SU" value="SU" autocomplete="off">
+                <label class="btn btn-outline-primary" for="dia_SU">
+                  <i class="fas fa-calendar-day me-1"></i> Domingo
+                </label>
+              </div>
+              
+              <small class="text-muted d-block mt-2">Clique nos dias em que o evento se repete.</small>
+              {% if form.dia_semana.errors %}<div class="invalid-feedback d-block">{{ form.dia_semana.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6 col-12" id="div_semana_mes">
+            <div class="mb-3">
+              <label for="{{ form.semana_mes.id_for_label }}" class="form-label">{{ form.semana_mes.label }}:</label>
+              {{ form.semana_mes }}
+              {% if form.semana_mes.errors %}<div class="invalid-feedback d-block">{{ form.semana_mes.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6 col-12" id="div_mes_ano">
+            <div class="mb-3">
+              <label for="{{ form.mes_ano.id_for_label }}" class="form-label">{{ form.mes_ano.label }}:</label>
+              {{ form.mes_ano }}
+              {% if form.mes_ano.errors %}<div class="invalid-feedback d-block">{{ form.mes_ano.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        <small class="text-muted ms-1">Preencha os campos de recorrência apenas se o evento for repetitivo.</small>
+        <script>
+          function toggleRecorrenciaFields() {
+            var freq = document.getElementById('id_frequencia').value;
+            document.getElementById('div_dia_semana').style.display = (freq === 'semanal') ? '' : 'none';
+            document.getElementById('div_semana_mes').style.display = (freq === 'mensal') ? '' : 'none';
+            document.getElementById('div_mes_ano').style.display = (freq === 'anual') ? '' : 'none';
+          }
+          document.addEventListener('DOMContentLoaded', function() {
+            var freq = document.getElementById('id_frequencia');
+            if (freq) {
+              freq.addEventListener('change', toggleRecorrenciaFields);
+              toggleRecorrenciaFields();
             }
           });
-        }
-        $(document).ready(function() {
-          $('#filtro_convidados, .status_filtro').on('change', atualizarConvidadosPorFiltro);
-        });
-      </script>
-                  <div class="col-12">
-                    <div class="row">
-                      <div class="col-md-8">
-                        <div class="mb-3">
-                          <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
-                          {{ form.igreja|add_class:'form-control' }}
-                          {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
-                        </div>
-                      </div>
-                      <div class="col-md-4">
-                        <div class="mb-3">
-                          <label for="{{ form.titulo.id_for_label }}" class="form-label">{{ form.titulo.label }}:</label>
-                          {{ form.titulo|add_class:'form-control' }}
-                          {% if form.titulo.errors %}<div class="invalid-feedback d-block">{{ form.titulo.errors|striptags }}</div>{% endif %}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="row">
-                      <div class="col-md-3">
-                        <div class="mb-3">
-                          <label for="{{ form.tipo.id_for_label }}" class="form-label">{{ form.tipo.label }}:</label>
-                          {{ form.tipo|add_class:'form-select' }}
-                          {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors|striptags }}</div>{% endif %}
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="mb-3">
-                          <label for="{{ form.local.id_for_label }}" class="form-label">{{ form.local.label }}:</label>
-                          {{ form.local|add_class:'form-control' }}
-                          {% if form.local.errors %}<div class="invalid-feedback d-block">{{ form.local.errors|striptags }}</div>{% endif %}
-                        </div>
-                      </div>
-                      <div class="col-md-3">
-                        <div class="mb-3">
-                          <label for="{{ form.responsavel.id_for_label }}" class="form-label">{{ form.responsavel.label }}:</label>
-                          {{ form.responsavel|add_class:'form-select' }}
-                          {% if form.responsavel.errors %}<div class="invalid-feedback d-block">{{ form.responsavel.errors|striptags }}</div>{% endif %}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="row mb-4">
-                  <div class="col-md-3">
-                    <div class="mb-3">
-                      <label for="{{ form.data_inicio.id_for_label }}" class="form-label">{{ form.data_inicio.label }}:</label>
-                      {{ form.data_inicio }}
-                      {% if form.data_inicio.errors %}<div class="invalid-feedback d-block">{{ form.data_inicio.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-3">
-                      <label for="{{ form.quantidade_dias.id_for_label }}" class="form-label">{{ form.quantidade_dias.label }}:</label>
-                      {{ form.quantidade_dias|add_class:'form-control' }}
-                      {% if form.quantidade_dias.errors %}<div class="invalid-feedback d-block">{{ form.quantidade_dias.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-3">
-                      <label for="{{ form.hora_termino.id_for_label }}" class="form-label">{{ form.hora_termino.label }}:</label>
-                      {{ form.hora_termino }}
-                      {% if form.hora_termino.errors %}<div class="invalid-feedback d-block">{{ form.hora_termino.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-3">
-                      <label class="form-label">Data de Fim:</label>
-                      <input type="text" class="form-control" value="{{ form.instance.data_fim|date:'d/m/Y H:i' }}" readonly>
-                    </div>
-                  </div>
-                </div>
-                <h5 class="mt-4 mb-3 border-bottom pb-2">Recorrência</h5>
-                <div class="row mb-4">
-                  <div class="col-md-3">
-                    <div class="form-check mb-3">
-                      {{ form.recorrente }}
-                      <label for="{{ form.recorrente.id_for_label }}" class="form-check-label">{{ form.recorrente.label }}</label>
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-3">
-                      <label for="{{ form.frequencia.id_for_label }}" class="form-label">{{ form.frequencia.label }}:</label>
-                      {{ form.frequencia }}
-                      {% if form.frequencia.errors %}<div class="invalid-feedback d-block">{{ form.frequencia.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-3">
-                      <label for="{{ form.intervalo.id_for_label }}" class="form-label">{{ form.intervalo.label }}:</label>
-                      {{ form.intervalo }}
-                      {% if form.intervalo.errors %}<div class="invalid-feedback d-block">{{ form.intervalo.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="mb-3">
-                      <label for="{{ form.data_fim_recorrencia.id_for_label }}" class="form-label">{{ form.data_fim_recorrencia.label }}:</label>
-                      {{ form.data_fim_recorrencia }}
-                      {% if form.data_fim_recorrencia.errors %}<div class="invalid-feedback d-block">{{ form.data_fim_recorrencia.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                </div>
-                <div class="row mb-4">
-                  <div class="col-md-4" id="div_dia_semana">
-                    <div class="mb-3">
-                      <label for="{{ form.dia_semana.id_for_label }}" class="form-label">{{ form.dia_semana.label }}:</label>
-                      {{ form.dia_semana }}
-                      {% if form.dia_semana.errors %}<div class="invalid-feedback d-block">{{ form.dia_semana.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-4" id="div_semana_mes">
-                    <div class="mb-3">
-                      <label for="{{ form.semana_mes.id_for_label }}" class="form-label">{{ form.semana_mes.label }}:</label>
-                      {{ form.semana_mes }}
-                      {% if form.semana_mes.errors %}<div class="invalid-feedback d-block">{{ form.semana_mes.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                  <div class="col-md-4" id="div_mes_ano">
-                    <div class="mb-3">
-                      <label for="{{ form.mes_ano.id_for_label }}" class="form-label">{{ form.mes_ano.label }}:</label>
-                      {{ form.mes_ano }}
-                      {% if form.mes_ano.errors %}<div class="invalid-feedback d-block">{{ form.mes_ano.errors|striptags }}</div>{% endif %}
-                    </div>
-                  </div>
-                </div>
-                <small class="text-muted ms-1">Preencha os campos de recorrência apenas se o evento for repetitivo.</small>
-                <script>
-                  function toggleRecorrenciaFields() {
-                    var freq = document.getElementById('id_frequencia').value;
-                    document.getElementById('div_dia_semana').style.display = (freq === 'semanal') ? '' : 'none';
-                    document.getElementById('div_semana_mes').style.display = (freq === 'mensal') ? '' : 'none';
-                    document.getElementById('div_mes_ano').style.display = (freq === 'anual') ? '' : 'none';
-                  }
-                  document.addEventListener('DOMContentLoaded', function() {
-                    var freq = document.getElementById('id_frequencia');
-                    if (freq) {
-                      freq.addEventListener('change', toggleRecorrenciaFields);
-                      toggleRecorrenciaFields();
-                    }
-                  });
-                </script>
+        </script>
+
+        <!-- SEÇÃO 6: MÍDIA -->
+        <h5 class="mt-4 mb-3 border-bottom pb-2">
+          <i class="fas fa-image me-2"></i>Mídia
+        </h5>
         <div class="row mb-4">
-          <div class="col-md-6">
+          <div class="col-lg-6 col-md-12 col-12">
             <div class="mb-3">
-              <label for="id_capa" class="form-label">Capa do Evento (imagem):</label>
-              {{ form.capa }}
+              <label for="id_capa" class="form-label">
+                📸 Capa do Evento (imagem)
+                <span class="badge bg-secondary ms-1">Opcional</span>
+              </label>
+              <input type="file" id="id_capa" name="capa" class="form-control" accept="image/*" onchange="previewCapa(event)">
+              <small class="text-muted">Formatos: JPG, PNG, GIF (máx. 5MB)</small>
+              
+              <!-- Preview da capa -->
+              <div id="previewCapaContainer" class="mt-3" style="display:none;">
+                <div class="card">
+                  <img id="previewCapaImg" src="" class="card-img-top" style="max-height: 200px; object-fit: cover;">
+                  <div class="card-body p-2">
+                    <small class="text-muted" id="capaInfo"></small>
+                    <button type="button" class="btn btn-sm btn-danger float-end" onclick="removerCapa()">
+                      <i class="fas fa-trash me-1"></i> Remover
+                    </button>
+                  </div>
+                </div>
+              </div>
               {% if form.capa.errors %}<div class="invalid-feedback d-block">{{ form.capa.errors|striptags }}</div>{% endif %}
             </div>
           </div>
-          <div class="col-md-6">
+          <div class="col-lg-6 col-md-12 col-12">
             <div class="mb-3">
-              <label for="id_anexos" class="form-label">Anexos (arquivos):</label>
+              <label for="id_anexos" class="form-label">
+                📎 Anexos (arquivos)
+                <span class="badge bg-secondary ms-1">Opcional</span>
+              </label>
               <input type="file" id="id_anexos" name="anexos" multiple class="form-control" accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-rar-compressed">
               <small class="text-muted">Você pode selecionar múltiplos arquivos.</small>
             </div>
           </div>
         </div>
-        <div class="mt-4">
-          <button type="submit" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:120px; height:40px; font-weight:600; border-radius:8px;" title="Salvar evento"><i class="fas fa-save me-1"></i> Salvar</button>
-          <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-cancel btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Cancelar e voltar"><i class="fas fa-times me-1"></i> Cancelar</a>
+
+        <!-- Barra de Botões Sticky -->
+        <div id="barraAcoes" class="bg-white border-top shadow-sm" style="position: sticky; bottom: 0; left: 0; right: 0; z-index: 1000; padding: 15px 0; margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px;">
+          <button type="submit" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:120px; height:40px; font-weight:600; border-radius:8px;" title="Salvar evento">
+            <i class="fas fa-save me-1"></i> Salvar
+          </button>
+          <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-cancel btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Cancelar e voltar">
+            <i class="fas fa-times me-1"></i> Cancelar
+          </a>
         </div>
       </form>
+
+      <!-- Modal Assistente de Evento Rápido -->
+      <div class="modal fade" id="modalAssistente" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title">
+                <i class="fas fa-magic me-2"></i>
+                Assistente de Evento Rápido
+              </h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <p class="text-muted mb-4">
+                Selecione um template pré-configurado para preencher rapidamente o formulário:
+              </p>
+
+              <div class="row g-3">
+                <!-- Template: Culto Dominical -->
+                <div class="col-md-6">
+                  <div class="card h-100 border-primary hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('culto_dominical')" data-bs-dismiss="modal">
+                    <div class="card-body">
+                      <h5 class="card-title">
+                        <i class="fas fa-pray text-primary me-2"></i>
+                        Culto Dominical
+                      </h5>
+                      <p class="card-text small text-muted">
+                        <strong>Configuração:</strong><br>
+                        • Todo domingo às 19h<br>
+                        • Local: Templo Principal<br>
+                        • Duração: 1 dia<br>
+                        • Recorrência: Semanal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Template: EBD -->
+                <div class="col-md-6">
+                  <div class="card h-100 border-success hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('ebd')" data-bs-dismiss="modal">
+                    <div class="card-body">
+                      <h5 class="card-title">
+                        <i class="fas fa-book-open text-success me-2"></i>
+                        Escola Bíblica Dominical
+                      </h5>
+                      <p class="card-text small text-muted">
+                        <strong>Configuração:</strong><br>
+                        • Todo domingo às 9h<br>
+                        • Local: Salas de Aula<br>
+                        • Duração: 1 dia<br>
+                        • Recorrência: Semanal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Template: Reunião de Membros -->
+                <div class="col-md-6">
+                  <div class="card h-100 border-warning hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('obreiros')" data-bs-dismiss="modal">
+                    <div class="card-body">
+                      <h5 class="card-title">
+                        <i class="fas fa-users text-warning me-2"></i>
+                        Reunião de Membros
+                      </h5>
+                      <p class="card-text small text-muted">
+                        <strong>Configuração:</strong><br>
+                        • Primeira sexta do mês às 20h<br>
+                        • Local: Sala de Reuniões<br>
+                        • Duração: 1 dia<br>
+                        • Recorrência: Mensal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Template: Culto de Oração -->
+                <div class="col-md-6">
+                  <div class="card h-100 border-info hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('oracao')" data-bs-dismiss="modal">
+                    <div class="card-body">
+                      <h5 class="card-title">
+                        <i class="fas fa-hands text-info me-2"></i>
+                        Culto de Oração
+                      </h5>
+                      <p class="card-text small text-muted">
+                        <strong>Configuração:</strong><br>
+                        • Toda quarta-feira às 20h<br>
+                        • Local: Templo Principal<br>
+                        • Duração: 1 dia<br>
+                        • Recorrência: Semanal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Template: Ensaio de Louvor -->
+                <div class="col-md-6">
+                  <div class="card h-100 border-danger hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('ensaio')" data-bs-dismiss="modal">
+                    <div class="card-body">
+                      <h5 class="card-title">
+                        <i class="fas fa-music text-danger me-2"></i>
+                        Ensaio de Louvor
+                      </h5>
+                      <p class="card-text small text-muted">
+                        <strong>Configuração:</strong><br>
+                        • Todo sábado às 18h<br>
+                        • Local: Salão de Ensaios<br>
+                        • Duração: 1 dia<br>
+                        • Recorrência: Semanal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Template: Estudo Bíblico -->
+                <div class="col-md-6">
+                  <div class="card h-100 border-secondary hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('personalizado')" data-bs-dismiss="modal">
+                    <div class="card-body">
+                      <h5 class="card-title">
+                        <i class="fas fa-book-open text-secondary me-2"></i>
+                        Estudo Bíblico
+                      </h5>
+                      <p class="card-text small text-muted">
+                        <strong>Configuração:</strong><br>
+                        • Toda quarta às 19:30<br>
+                        • Local: Templo Principal<br>
+                        • Duração: 1 dia<br>
+                        • Recorrência: Semanal
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -301,9 +854,1369 @@ document.addEventListener('DOMContentLoaded', function() {
         allowClear: true,
         language: 'pt-BR',
       });
+
+      // Ativar tooltips do Bootstrap
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+          boundary: 'window'
+        });
+      });
+
+      // Sincronizar checkboxes de dia da semana com campo hidden
+      function sincronizarDiasSemana() {
+        const checkboxes = document.querySelectorAll('[id^="dia_"]');
+        const valoresSelecionados = [];
+        
+        checkboxes.forEach(cb => {
+          if (cb.checked) {
+            valoresSelecionados.push(cb.value);
+          }
+        });
+        
+        document.getElementById('id_dia_semana').value = valoresSelecionados.join(',');
+        atualizarPreviewRecorrencia();
+      }
+
+      // Event listeners para checkboxes
+      document.querySelectorAll('[id^="dia_"]').forEach(checkbox => {
+        checkbox.addEventListener('change', sincronizarDiasSemana);
+      });
+
+      // Preview de recorrência em português
+      function atualizarPreviewRecorrencia() {
+        const recorrente = document.getElementById('id_recorrente');
+        const frequencia = document.getElementById('id_frequencia');
+        const intervalo = document.getElementById('id_intervalo');
+        const diasSemana = document.getElementById('id_dia_semana').value;
+        const previewDiv = document.getElementById('previewRecorrencia');
+        const textoPreview = document.getElementById('textoPreviewRecorrencia');
+        
+        if (!recorrente || !recorrente.checked) {
+          previewDiv.style.display = 'none';
+          return;
+        }
+        
+        const mapaDias = {
+          'MO': 'Segunda',
+          'TU': 'Terça',
+          'WE': 'Quarta',
+          'TH': 'Quinta',
+          'FR': 'Sexta',
+          'SA': 'Sábado',
+          'SU': 'Domingo'
+        };
+        
+        const mapaFrequencia = {
+          'WEEKLY': 'semana',
+          'MONTHLY': 'mês',
+          'YEARLY': 'ano'
+        };
+        
+        let texto = '';
+        const freq = frequencia ? frequencia.value : '';
+        const inter = intervalo ? parseInt(intervalo.value) || 1 : 1;
+        
+        if (freq === 'WEEKLY' && diasSemana) {
+          const diasArray = diasSemana.split(',').map(d => mapaDias[d]).filter(Boolean);
+          if (diasArray.length > 0) {
+            const diasTexto = diasArray.join(', ').replace(/, ([^,]*)$/, ' e $1');
+            if (inter === 1) {
+              texto = `Toda semana às ${diasTexto}`;
+            } else {
+              texto = `A cada ${inter} semanas às ${diasTexto}`;
+            }
+          }
+        } else if (freq && mapaFrequencia[freq]) {
+          const periodo = mapaFrequencia[freq];
+          if (inter === 1) {
+            texto = `Todo ${periodo}`;
+          } else {
+            texto = `A cada ${inter} ${periodo}s`;
+          }
+        }
+        
+        if (texto) {
+          textoPreview.textContent = texto;
+          previewDiv.style.display = 'block';
+        } else {
+          previewDiv.style.display = 'none';
+        }
+      }
+
+      // Event listeners para preview de recorrência
+      const camposRecorrencia = ['id_recorrente', 'id_frequencia', 'id_intervalo'];
+      camposRecorrencia.forEach(id => {
+        const elemento = document.getElementById(id);
+        if (elemento) {
+          elemento.addEventListener('change', atualizarPreviewRecorrencia);
+          if (elemento.tagName === 'INPUT' && elemento.type !== 'checkbox') {
+            elemento.addEventListener('input', atualizarPreviewRecorrencia);
+          }
+        }
+      });
+
+      // Inicializar preview
+      atualizarPreviewRecorrencia();
+
+      // ---------- VALIDAÇÕES EM TEMPO REAL ----------
+      
+      // Validar título
+      const tituloInput = document.getElementById('id_titulo');
+      if (tituloInput) {
+        const feedbackTitulo = document.createElement('div');
+        feedbackTitulo.className = 'text-danger small mt-1';
+        feedbackTitulo.style.display = 'none';
+        tituloInput.parentElement.appendChild(feedbackTitulo);
+        
+        tituloInput.addEventListener('blur', function() {
+          if (this.value.trim() === '') {
+            feedbackTitulo.textContent = '⚠️ O título é obrigatório';
+            feedbackTitulo.style.display = 'block';
+            this.classList.add('is-invalid');
+          } else {
+            feedbackTitulo.style.display = 'none';
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+          }
+        });
+        
+        tituloInput.addEventListener('input', function() {
+          if (this.value.trim() !== '') {
+            feedbackTitulo.style.display = 'none';
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+          }
+        });
+      }
+      
+      // Validar data início (não pode ser no passado)
+      const dataInicioInput = document.getElementById('id_data_inicio');
+      if (dataInicioInput) {
+        const feedbackData = document.createElement('div');
+        feedbackData.className = 'text-warning small mt-1';
+        feedbackData.style.display = 'none';
+        dataInicioInput.parentElement.appendChild(feedbackData);
+        
+        dataInicioInput.addEventListener('change', function() {
+          const dataSelecionada = new Date(this.value + 'T00:00:00');
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+          
+          if (dataSelecionada < hoje) {
+            feedbackData.textContent = '⚠️ Data no passado! Tem certeza?';
+            feedbackData.style.display = 'block';
+            this.classList.add('border-warning');
+          } else {
+            feedbackData.style.display = 'none';
+            this.classList.remove('border-warning');
+            this.classList.add('is-valid');
+          }
+        });
+      }
+      
+      // Validar quantidade de dias
+      const qtdDiasInput = document.getElementById('id_quantidade_dias');
+      if (qtdDiasInput) {
+        const feedbackQtdDias = document.createElement('div');
+        feedbackQtdDias.className = 'text-danger small mt-1';
+        feedbackQtdDias.style.display = 'none';
+        qtdDiasInput.parentElement.appendChild(feedbackQtdDias);
+        
+        qtdDiasInput.addEventListener('input', function() {
+          const valor = parseInt(this.value);
+          if (isNaN(valor) || valor < 1) {
+            feedbackQtdDias.textContent = '⚠️ Mínimo 1 dia';
+            feedbackQtdDias.style.display = 'block';
+            this.classList.add('is-invalid');
+          } else if (valor > 365) {
+            feedbackQtdDias.textContent = '⚠️ Mais de 1 ano? Verifique!';
+            feedbackQtdDias.className = 'text-warning small mt-1';
+            feedbackQtdDias.style.display = 'block';
+            this.classList.remove('is-invalid');
+            this.classList.add('border-warning');
+          } else {
+            feedbackQtdDias.style.display = 'none';
+            this.classList.remove('is-invalid', 'border-warning');
+            this.classList.add('is-valid');
+          }
+        });
+      }
+      
+      // Validar formulário antes do submit
+      const form = document.querySelector('form');
+      if (form) {
+        form.addEventListener('submit', function(e) {
+          // CORREÇÃO: Remover campos de recorrência vazios se não for evento recorrente
+          const frequenciaSelect = document.querySelector('[name="frequencia"]');
+          if (frequenciaSelect && ['nenhuma', ''].includes(frequenciaSelect.value)) {
+            const camposRecorrencia = ['dia_semana', 'semana_mes', 'mes_ano'];
+            camposRecorrencia.forEach(fieldName => {
+              const field = document.querySelector(`[name="${fieldName}"]`);
+              if (field && !field.value) {
+                // Remover campo vazio para evitar erro de validação
+                field.removeAttribute('name');
+              }
+            });
+          }
+          
+          let temErro = false;
+          const erros = [];
+          
+          // Verificar campos obrigatórios
+          if (tituloInput && tituloInput.value.trim() === '') {
+            erros.push('Título é obrigatório');
+            tituloInput.classList.add('is-invalid');
+            tituloInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            temErro = true;
+          }
+          
+          if (dataInicioInput && !dataInicioInput.value) {
+            erros.push('Data de início é obrigatória');
+            if (!temErro) {
+              dataInicioInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            temErro = true;
+          }
+          
+          if (qtdDiasInput && (isNaN(parseInt(qtdDiasInput.value)) || parseInt(qtdDiasInput.value) < 1)) {
+            erros.push('Quantidade de dias inválida');
+            if (!temErro) {
+              qtdDiasInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            temErro = true;
+          }
+          
+          if (temErro) {
+            e.preventDefault();
+            alert('⚠️ Por favor, corrija os seguintes erros:\\n\\n' + erros.join('\\n'));
+            return false;
+          }
+        });
+      }
+
+      // ---------- ATUALIZAR RESPONSÁVEIS BASEADO NA IGREJA ----------
+      
+      // Função para carregar responsáveis de uma igreja
+      function atualizarResponsaveis(igrejaId) {
+        const responsavelSelect = $('#id_responsavel');
+        const responsavelAtual = responsavelSelect.val(); // Guardar seleção atual
+        
+        if (!igrejaId) {
+          // Se não há igreja, limpar responsáveis
+          responsavelSelect.empty();
+          responsavelSelect.append('<option value="">---------</option>');
+          return;
+        }
+        
+        // Mostrar loading
+        responsavelSelect.prop('disabled', true);
+        responsavelSelect.empty();
+        responsavelSelect.append('<option value="">⏳ Carregando...</option>');
+        
+        // Fazer requisição AJAX para buscar responsáveis
+        $.ajax({
+          url: '{% url "eventos:autocomplete_responsaveis" %}',
+          type: 'GET',
+          data: { igreja_id: igrejaId },
+          success: function(data) {
+            // Limpar select
+            responsavelSelect.empty();
+            responsavelSelect.append('<option value="">---------</option>');
+            
+            // Adicionar responsáveis
+            if (data.responsaveis && data.responsaveis.length > 0) {
+              data.responsaveis.forEach(function(resp) {
+                responsavelSelect.append(
+                  $('<option></option>')
+                    .val(resp.id)
+                    .text(resp.text)
+                );
+              });
+              
+              // Tentar manter seleção atual se ainda existir
+              if (responsavelAtual && responsavelSelect.find('option[value="' + responsavelAtual + '"]').length > 0) {
+                responsavelSelect.val(responsavelAtual);
+              }
+            } else {
+              // Adicionar mensagem se não houver responsáveis
+              responsavelSelect.append('<option value="" disabled>Nenhum usuário vinculado a membros desta igreja</option>');
+            }
+          },
+          error: function(xhr, status, error) {
+            console.error('Erro ao carregar responsáveis:', error);
+            responsavelSelect.empty();
+            
+            // Mensagem amigável baseada no status
+            let mensagemErro = 'Erro ao carregar responsáveis';
+            if (xhr.status === 403) {
+              mensagemErro = 'Acesso negado';
+            } else if (xhr.status === 404) {
+              mensagemErro = 'Igreja não encontrada';
+            } else if (xhr.status === 500) {
+              mensagemErro = 'Erro no servidor';
+            }
+            
+            responsavelSelect.append('<option value="">' + mensagemErro + '</option>');
+          },
+          complete: function() {
+            // Reabilitar select
+            responsavelSelect.prop('disabled', false);
+          }
+        });
+      }
+      
+      // Detectar mudança no campo igreja
+      const igrejaSelect = $('#id_igreja');
+      if (igrejaSelect.length > 0) {
+        igrejaSelect.on('change', function() {
+          const igrejaId = $(this).val();
+          atualizarResponsaveis(igrejaId);
+        });
+        
+        // Carregar responsáveis na inicialização (se já houver igreja selecionada)
+        const igrejaInicial = igrejaSelect.val();
+        
+        if (igrejaInicial) {
+          atualizarResponsaveis(igrejaInicial);
+        }
+      }
+    });
+
+    // Preview de capa
+    function previewCapa(event) {
+      const file = event.target.files[0];
+      
+      if (file) {
+        // Validar tamanho (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert('❌ Arquivo muito grande! Tamanho máximo: 5MB');
+          event.target.value = '';
+          return;
+        }
+        
+        // Validar tipo
+        if (!file.type.startsWith('image/')) {
+          alert('❌ Apenas imagens são permitidas!');
+          event.target.value = '';
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          $('#previewCapaImg').attr('src', e.target.result);
+          
+          // Mostrar info do arquivo
+          const tamanhoMB = (file.size / (1024 * 1024)).toFixed(2);
+          $('#capaInfo').text(`${file.name} (${tamanhoMB} MB)`);
+          
+          $('#previewCapaContainer').slideDown();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function removerCapa() {
+      $('#id_capa').val('');
+      $('#previewCapaContainer').slideUp();
+    }
+
+    // ---------- ASSISTENTE DE EVENTO RÁPIDO ----------
+    function aplicarTemplate(template) {
+      // Obter próximo domingo
+      function getProximoDomingo() {
+        const hoje = new Date();
+        const diaSemana = hoje.getDay();
+        const diasAteProximoDomingo = diaSemana === 0 ? 7 : 7 - diaSemana;
+        const proximoDomingo = new Date(hoje);
+        proximoDomingo.setDate(hoje.getDate() + diasAteProximoDomingo);
+        return proximoDomingo.toISOString().split('T')[0];
+      }
+
+      // Obter próxima quarta
+      function getProximaQuarta() {
+        const hoje = new Date();
+        const diaSemana = hoje.getDay();
+        const diasAteProximaQuarta = diaSemana <= 3 ? 3 - diaSemana : 10 - diaSemana;
+        const proximaQuarta = new Date(hoje);
+        proximaQuarta.setDate(hoje.getDate() + diasAteProximaQuarta);
+        return proximaQuarta.toISOString().split('T')[0];
+      }
+
+      // Obter próxima sexta
+      function getProximaSexta() {
+        const hoje = new Date();
+        const diaSemana = hoje.getDay();
+        const diasAteProximaSexta = diaSemana <= 5 ? 5 - diaSemana : 12 - diaSemana;
+        const proximaSexta = new Date(hoje);
+        proximaSexta.setDate(hoje.getDate() + diasAteProximaSexta);
+        return proximaSexta.toISOString().split('T')[0];
+      }
+
+      // Obter próximo sábado
+      function getProximoSabado() {
+        const hoje = new Date();
+        const diaSemana = hoje.getDay();
+        const diasAteProximoSabado = diaSemana === 6 ? 7 : (6 - diaSemana + 7) % 7;
+        const proximoSabado = new Date(hoje);
+        proximoSabado.setDate(hoje.getDate() + diasAteProximoSabado);
+        return proximoSabado.toISOString().split('T')[0];
+      }
+
+      const templates = {
+        'culto_dominical': {
+          titulo: 'Culto Dominical',
+          tipo: 'culto',
+          local: 'Templo Principal',
+          data_inicio: getProximoDomingo(),
+          quantidade_dias: '1',
+          hora_termino: '19:00',
+          recorrente: true,
+          frequencia: 'WEEKLY',
+          intervalo: '1',
+          dia_semana: ['SU'],
+          descricao: 'Culto de celebração e adoração dominical.'
+        },
+        'ebd': {
+          titulo: 'Escola Bíblica Dominical',
+          tipo: 'estudo',
+          local: 'Salas de Aula',
+          data_inicio: getProximoDomingo(),
+          quantidade_dias: '1',
+          hora_termino: '09:00',
+          recorrente: true,
+          frequencia: 'WEEKLY',
+          intervalo: '1',
+          dia_semana: ['SU'],
+          descricao: 'Estudo bíblico e compartilhamento da Palavra.'
+        },
+        'obreiros': {
+          titulo: 'Reunião de Membros',
+          tipo: 'reuniao',
+          local: 'Sala de Reuniões',
+          data_inicio: getProximaSexta(),
+          quantidade_dias: '1',
+          hora_termino: '20:00',
+          recorrente: true,
+          frequencia: 'MONTHLY',
+          intervalo: '1',
+          dia_semana: ['FR'],
+          semana_mes: ['1'],
+          descricao: 'Reunião mensal com os membros da igreja.'
+        },
+        'oracao': {
+          titulo: 'Culto de Oração',
+          tipo: 'culto',
+          local: 'Templo Principal',
+          data_inicio: getProximaQuarta(),
+          quantidade_dias: '1',
+          hora_termino: '20:00',
+          recorrente: true,
+          frequencia: 'WEEKLY',
+          intervalo: '1',
+          dia_semana: ['WE'],
+          descricao: 'Momento de intercessão e comunhão.'
+        },
+        'ensaio': {
+          titulo: 'Ensaio de Louvor',
+          tipo: 'outro',
+          local: 'Salão de Ensaios',
+          data_inicio: getProximoSabado(),
+          quantidade_dias: '1',
+          hora_termino: '18:00',
+          recorrente: true,
+          frequencia: 'WEEKLY',
+          intervalo: '1',
+          dia_semana: ['SA'],
+          descricao: 'Ensaio do ministério de louvor e adoração.'
+        },
+        'personalizado': {
+          titulo: 'Estudo Bíblico',
+          tipo: 'estudo',
+          local: 'Templo Principal',
+          data_inicio: getProximaQuarta(),
+          quantidade_dias: '1',
+          hora_termino: '19:30',
+          recorrente: true,
+          frequencia: 'WEEKLY',
+          intervalo: '1',
+          dia_semana: ['WE'],
+          descricao: 'Estudo da Palavra de Deus e aplicação prática para a vida cristã.'
+        }
+      };
+
+      const config = templates[template];
+      if (!config) return;
+
+      // Preencher campos
+      if (document.getElementById('id_titulo')) {
+        document.getElementById('id_titulo').value = config.titulo;
+      }
+      
+      if (document.getElementById('id_tipo')) {
+        document.getElementById('id_tipo').value = config.tipo;
+      }
+      
+      if (document.getElementById('id_local')) {
+        document.getElementById('id_local').value = config.local;
+      }
+      
+      if (document.getElementById('id_data_inicio')) {
+        document.getElementById('id_data_inicio').value = config.data_inicio;
+      }
+      
+      if (document.getElementById('id_quantidade_dias')) {
+        document.getElementById('id_quantidade_dias').value = config.quantidade_dias;
+      }
+      
+      if (document.getElementById('id_hora_termino')) {
+        document.getElementById('id_hora_termino').value = config.hora_termino;
+      }
+      
+      if (document.getElementById('id_descricao')) {
+        document.getElementById('id_descricao').value = config.descricao;
+      }
+      
+      if (document.getElementById('id_recorrente')) {
+        document.getElementById('id_recorrente').checked = config.recorrente;
+      }
+      
+      if (document.getElementById('id_frequencia')) {
+        document.getElementById('id_frequencia').value = config.frequencia;
+      }
+      
+      if (document.getElementById('id_intervalo')) {
+        document.getElementById('id_intervalo').value = config.intervalo;
+      }
+
+      // Configurar checkboxes de dia da semana
+      document.querySelectorAll('[id^=\"dia_\"]').forEach(cb => {
+        cb.checked = config.dia_semana.includes(cb.value);
+      });
+
+      // Sincronizar campo hidden de dia_semana
+      if (document.getElementById('id_dia_semana')) {
+        document.getElementById('id_dia_semana').value = config.dia_semana.join(',');
+      }
+
+      // Se tiver semana_mes (para reunião mensal)
+      if (config.semana_mes && document.getElementById('id_semana_mes')) {
+        // Como é um SelectMultiple, precisamos selecionar as opções
+        const selectSemana = document.getElementById('id_semana_mes');
+        Array.from(selectSemana.options).forEach(option => {
+          option.selected = config.semana_mes.includes(option.value);
+        });
+      }
+
+      // Atualizar preview de data fim
+      if (typeof atualizarDataFim === 'function') {
+        atualizarDataFim();
+      }
+
+      // Atualizar preview de recorrência
+      if (typeof atualizarPreviewRecorrencia === 'function') {
+        setTimeout(atualizarPreviewRecorrencia, 100);
+      }
+
+      // Scroll para o topo
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Mostrar notificação
+      const msg = `Template "${config.titulo}" aplicado com sucesso!`;
+      
+      // Toast de sucesso
+      const toastHTML = `
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+          <div class="toast show bg-success text-white" role="alert">
+            <div class="toast-body">
+              <i class="fas fa-check-circle me-2"></i>${msg}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = toastHTML;
+      document.body.appendChild(tempDiv);
+      
+      setTimeout(() => {
+        tempDiv.remove();
+      }, 3000);
+    }
+  </script>
+
+  <!-- MODAIS: Sistema Híbrido de Participantes -->
+  
+  <!-- MODAL: Adicionar Pessoa Manualmente -->
+  <div class="modal fade" id="modalAdicionarPessoa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">
+            <i class="fas fa-user-plus me-2"></i>Adicionar Pessoa Manualmente
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Use este recurso para exceções:</strong> adicione pessoas que <strong>NÃO atendem os critérios base</strong> mas devem participar.<br>
+            <small class="text-muted">
+              Exemplos: Pastor visitante (não é membro), Convidado especial (status desligado), Membro de outra congregação.
+              <strong>Pessoas que já atendem os critérios NÃO aparecem nesta lista.</strong>
+            </small>
+          </div>
+
+          <!-- Busca -->
+          <div class="mb-3">
+            <input type="text" class="form-control" id="buscaAdicionar" placeholder="🔍 Buscar pessoa por nome...">
+          </div>
+
+          <!-- Lista -->
+          <div id="listaParaAdicionar" style="max-height: 400px; overflow-y: auto;">
+            <div class="text-center text-muted py-4">
+              <div class="spinner-border" role="status"></div>
+              <p class="mt-2">Carregando pessoas...</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="me-auto text-muted">
+            Selecionados: <strong id="contadorAdicionar">0</strong>
+          </span>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-success" onclick="confirmarAdicao()">
+            <i class="fas fa-check me-2"></i>Adicionar Selecionados
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Remover Pessoa da Lista -->
+  <div class="modal fade" id="modalRemoverPessoa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">
+            <i class="fas fa-user-minus me-2"></i>Remover Pessoa da Lista
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Use este recurso para exceções:</strong> pessoas que atendem os critérios mas NÃO devem participar 
+            (ex: Membro que vai viajar, Responsável por outro ministério).
+          </div>
+
+          <!-- Busca -->
+          <div class="mb-3">
+            <input type="text" class="form-control" id="buscaRemover" placeholder="🔍 Buscar pessoa por nome...">
+          </div>
+
+          <!-- Lista -->
+          <div id="listaParaRemover" style="max-height: 400px; overflow-y: auto;">
+            <div class="text-center text-muted py-4">
+              <div class="spinner-border" role="status"></div>
+              <p class="mt-2">Carregando pessoas que atendem critérios...</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="me-auto text-muted">
+            Marcados para remoção: <strong id="contadorRemover">0</strong>
+          </span>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" onclick="confirmarRemocao()">
+            <i class="fas fa-check me-2"></i>Remover Selecionados
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT: Sistema Híbrido de Participantes -->
+  <script>
+    // === VARIÁVEIS GLOBAIS ===
+    let adicionadosManuais = [];  // {id, nome, info}
+    let removidosManuais = [];    // {id, nome, info}
+    let pessoasParaAdicionar = [];
+    let pessoasParaRemover = [];
+    let pessoasAdicionarSelecionadas = [];
+    let pessoasRemoverSelecionadas = [];
+
+    // === CONSTANTES: REGRAS DE TIPOS E STATUS ===
+    const TIPOS_CORPO_MEMBROS = ['1', '3'];      // Membro, Obreiro
+    const TIPOS_ACOMPANHAMENTO = ['2', '4'];      // Novo Convertido, Congregado (Visitante excluído - recepção cadastra no momento)
+    const STATUS_RESTRITOS = ['3', '4'];          // Em Disciplina, Desligado (apenas para Corpo de Membros)
+
+    // === FILTRO DINÂMICO DE STATUS ===
+    function atualizarStatusDisponiveis() {
+      // Pegar tipos selecionados
+      const tiposSelecionados = $('#id_tipos_participantes').val() || [];
+      
+      // Verificar se há pelo menos um tipo do "Corpo de Membros" selecionado
+      const temCorpoMembros = tiposSelecionados.some(tipo => TIPOS_CORPO_MEMBROS.includes(tipo));
+      
+      // Percorrer checkboxes de status
+      $('.checkbox-status').each(function() {
+        const valorStatus = $(this).val();
+        const $checkbox = $(this);
+        const $label = $checkbox.next('label');
+        const $parent = $checkbox.parent('.form-check');
+        
+        // Se é status restrito (Em Disciplina ou Desligado)
+        if (STATUS_RESTRITOS.includes(valorStatus)) {
+          if (!temCorpoMembros) {
+            // Desabilitar e desmarcar
+            $checkbox.prop('disabled', true);
+            $checkbox.prop('checked', false);
+            $parent.addClass('status-desabilitado');
+            $parent.attr('title', 'Disponível apenas para Membros e Obreiros');
+          } else {
+            // Habilitar
+            $checkbox.prop('disabled', false);
+            $parent.removeClass('status-desabilitado');
+            $parent.removeAttr('title');
+          }
+        }
+      });
+      
+      // Atualizar seleção e preview
+      atualizarSelecaoStatus();
+    }
+
+    // === PREVIEW DE CRITÉRIOS ===
+    function atualizarPreviewCriterios() {
+      const tipos = $('#id_tipos_participantes').val() || [];
+      const status = $('#id_status_participantes').val() || [];
+      const igreja = $('#id_igreja').val();
+      
+      if (!igreja) {
+        $('#contadorCriterios').text('--');
+        $('#badgeCriterios').text('--');
+        $('#descricaoCriterios').html('Selecione uma igreja primeiro');
+        return;
+      }
+      
+      if (tipos.length === 0 || status.length === 0) {
+        $('#contadorCriterios').text('0');
+        $('#badgeCriterios').text('0');
+        
+        // Mostrar mensagem explicativa
+        let msg = '<i class="fas fa-info-circle me-1"></i>';
+        if (tipos.length === 0 && status.length === 0) {
+          msg += 'Selecione pelo menos 1 tipo de pessoa e 1 status';
+        } else if (tipos.length === 0) {
+          msg += 'Selecione pelo menos 1 tipo de pessoa';
+        } else {
+          msg += 'Selecione pelo menos 1 status';
+        }
+        $('#descricaoCriterios').html(msg);
+        return;
+      }
+      
+      // Mostrar o que foi selecionado
+      const tiposNomes = [];
+      $('.checkbox-tipo:checked').each(function() {
+        tiposNomes.push($(this).next('label').text().trim());
+      });
+      
+      const statusNomes = [];
+      $('.checkbox-status:checked').each(function() {
+        statusNomes.push($(this).next('label').text().trim());
+      });
+      
+      const resumo = `<strong>Buscando:</strong> ${tiposNomes.join(', ')} com status ${statusNomes.join(', ')}...`;
+      $('#descricaoCriterios').html(resumo);
+      
+      $.ajax({
+        url: '{% url "eventos:contar_participantes_criterios" %}',
+        data: {
+          tipos: tipos,
+          status: status,
+          igreja: igreja
+        },
+        success: function(data) {
+          $('#contadorCriterios').text(data.count);
+          $('#badgeCriterios').text(data.count);
+          
+          // Atualizar descrição com resultado
+          const resumoFinal = `
+            <div class="mb-1">
+              <strong>Selecionado:</strong> 
+              <span class="badge bg-primary">${tiposNomes.join('</span> <span class="badge bg-primary">')}</span>
+              + 
+              <span class="badge bg-success">${statusNomes.join('</span> <span class="badge bg-success">')}</span>
+            </div>
+            <small class="text-muted">Total: ${data.count} pessoa${data.count !== 1 ? 's' : ''} encontrada${data.count !== 1 ? 's' : ''}</small>
+          `;
+          $('#descricaoCriterios').html(resumoFinal);
+          
+          atualizarPreviewFinal();
+        },
+        error: function() {
+          $('#descricaoCriterios').html('<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Erro ao calcular</span>');
+          mostrarToast('Erro ao calcular participantes', 'danger');
+        }
+      });
+    }
+
+    // === PREVIEW FINAL ===
+    function atualizarPreviewFinal() {
+      const criterios = parseInt($('#contadorCriterios').text()) || 0;
+      const adicionados = adicionadosManuais.length;
+      const removidos = removidosManuais.length;
+      const total = criterios - removidos + adicionados;
+      
+      $('#badgeAdicionados').text(adicionados);
+      $('#badgeRemovidos').text(removidos);
+      $('#totalFinal').text(`${total} ${total === 1 ? 'pessoa' : 'pessoas'}`);
+      
+      // Atualizar campos hidden
+      $('#adicionados_manuais').val(JSON.stringify(adicionadosManuais.map(p => p.id)));
+      $('#removidos_manuais').val(JSON.stringify(removidosManuais.map(p => p.id)));
+    }
+
+    // === MODAL ADICIONAR PESSOA ===
+    function abrirModalAdicionar() {
+      const igreja = $('#id_igreja').val();
+      if (!igreja) {
+        mostrarToast('Selecione uma igreja primeiro', 'warning');
+        return;
+      }
+      
+      // Resetar
+      pessoasAdicionarSelecionadas = [];
+      $('#contadorAdicionar').text('0');
+      
+      // Carregar lista
+      carregarPessoasParaAdicionar();
+      
+      // Abrir modal
+      const modal = new bootstrap.Modal(document.getElementById('modalAdicionarPessoa'));
+      modal.show();
+    }
+
+    function carregarPessoasParaAdicionar() {
+      $('#listaParaAdicionar').html(`
+        <div class="text-center text-muted py-4">
+          <div class="spinner-border"></div>
+          <p class="mt-2">Carregando...</p>
+        </div>
+      `);
+      
+      const igreja = $('#id_igreja').val();
+      
+      // CORREÇÃO: Pegar valores diretamente dos CHECKBOXES (não do select hidden)
+      const tipos = [];
+      $('.checkbox-tipo:checked').each(function() {
+        tipos.push($(this).val());
+      });
+      
+      const status = [];
+      $('.checkbox-status:checked').each(function() {
+        status.push($(this).val());
+      });
+      
+      // CORREÇÃO: Buscar pessoas que ATENDEM critérios para EXCLUIR da lista
+      const requests = [];
+      
+      // 1. Buscar TODAS as pessoas
+      const todasPessoas = $.ajax({
+        url: '{% url "eventos:autocomplete_convidados" %}',
+        data: {
+          filtro: 'todos',
+          status: 'ativo,inativo,desligado,disciplina',  // Incluir TODOS os status
+          igreja: igreja  // Passar igreja explicitamente
+        }
+      });
+      requests.push(todasPessoas);
+      
+      // 2. Buscar pessoas que ATENDEM critérios (se critérios definidos)
+      let pessoasCriterios = $.Deferred().resolve({pessoas: []}).promise();
+      if (tipos.length > 0 && status.length > 0) {
+        pessoasCriterios = $.ajax({
+          url: '{% url "eventos:listar_participantes_criterios" %}',
+          data: {
+            tipos: tipos,
+            status: status,
+            igreja: igreja
+          }
+        });
+        requests.push(pessoasCriterios);
+      }
+      
+      // 3. Processar resultados
+      $.when.apply($, requests).done(function() {
+        // CORREÇÃO: $.when com múltiplos requests retorna argumentos de forma diferente
+        // Com 1 request: arguments[0] = data
+        // Com 2 requests: arguments[0] = [data, status, jqXHR], arguments[1] = [data, status, jqXHR]
+        let resultadoTodas, resultadoCriterios;
+        
+        if (requests.length === 1) {
+          // Só uma requisição (todasPessoas)
+          resultadoTodas = arguments[0];
+          resultadoCriterios = {pessoas: []};
+        } else {
+          // Duas requisições
+          resultadoTodas = arguments[0][0];  // Primeiro elemento do primeiro array
+          resultadoCriterios = arguments[1][0];  // Primeiro elemento do segundo array
+        }
+        
+        const todasPessoas = resultadoTodas.pessoas || [];
+        const pessoasQueAtendemCriterios = resultadoCriterios.pessoas || [];
+        
+        // IDs de quem atende critérios
+        const idsQueAtendemCriterios = pessoasQueAtendemCriterios.map(p => p.id);
+        
+        // Filtrar: NÃO incluir quem atende critérios
+        pessoasParaAdicionar = todasPessoas.filter(p => {
+          const jaAtendeCriterios = idsQueAtendemCriterios.includes(p.id);
+          const jaAdicionadoManualmente = adicionadosManuais.some(a => a.id === p.id);
+          return !jaAtendeCriterios && !jaAdicionadoManualmente;
+        });
+        
+        renderizarListaAdicionar();
+      }).fail(function() {
+        $('#listaParaAdicionar').html(`
+          <div class="alert alert-danger">
+            Erro ao carregar pessoas. 
+            <button class="btn btn-sm btn-outline-danger mt-2" onclick="carregarPessoasParaAdicionar()">
+              Tentar novamente
+            </button>
+          </div>
+        `);
+      });
+    }
+
+    function renderizarListaAdicionar() {
+      const busca = $('#buscaAdicionar').val().toLowerCase();
+      const filtrados = pessoasParaAdicionar.filter(p => 
+        p.nome.toLowerCase().includes(busca)
+      );
+      
+      if (filtrados.length === 0) {
+        const mensagem = pessoasParaAdicionar.length === 0 
+          ? 'Não há pessoas disponíveis para adicionar.<br><small class="text-muted">Todas as pessoas da igreja já atendem os critérios base ou já foram adicionadas manualmente.</small>'
+          : 'Nenhuma pessoa encontrada com este nome.';
+        
+        $('#listaParaAdicionar').html(`
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>${mensagem}
+          </div>
+        `);
+        return;
+      }
+      
+      let html = '<div class="list-group">';
+      filtrados.forEach(pessoa => {
+        const checked = pessoasAdicionarSelecionadas.includes(pessoa.id) ? 'checked' : '';
+        html += `
+          <label class="list-group-item list-group-item-action" style="cursor: pointer;">
+            <input type="checkbox" class="form-check-input me-3" value="${pessoa.id}" ${checked}
+                   onchange="togglePessoaAdicionar('${pessoa.id}', '${pessoa.nome.replace(/'/g, "\\'")}', '${pessoa.info || ''}')">
+            <div>
+              <div class="fw-bold">${pessoa.nome}</div>
+              ${pessoa.info ? `<small class="text-muted">${pessoa.info}</small>` : ''}
+            </div>
+          </label>
+        `;
+      });
+      html += '</div>';
+      
+      $('#listaParaAdicionar').html(html);
+    }
+
+    function togglePessoaAdicionar(id, nome, info) {
+      const index = pessoasAdicionarSelecionadas.indexOf(id);
+      if (index > -1) {
+        pessoasAdicionarSelecionadas.splice(index, 1);
+      } else {
+        pessoasAdicionarSelecionadas.push(id);
+      }
+      $('#contadorAdicionar').text(pessoasAdicionarSelecionadas.length);
+    }
+
+    function confirmarAdicao() {
+      if (pessoasAdicionarSelecionadas.length === 0) {
+        mostrarToast('Selecione pelo menos uma pessoa', 'warning');
+        return;
+      }
+      
+      // Adicionar ao array global
+      pessoasAdicionarSelecionadas.forEach(id => {
+        const pessoa = pessoasParaAdicionar.find(p => p.id === id);
+        if (pessoa && !adicionadosManuais.some(a => a.id === id)) {
+          adicionadosManuais.push({id: pessoa.id, nome: pessoa.nome, info: pessoa.info});
+        }
+      });
+      
+      // Atualizar lista visual
+      atualizarListaAdicionados();
+      atualizarPreviewFinal();
+      
+      // Fechar modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('modalAdicionarPessoa'));
+      modal.hide();
+      
+      mostrarToast(`${pessoasAdicionarSelecionadas.length} pessoa(s) adicionada(s)`, 'success');
+    }
+
+    function atualizarListaAdicionados() {
+      if (adicionadosManuais.length === 0) {
+        $('#listaAdicionadosManualmente').html('<small class="text-muted">Nenhuma pessoa adicionada</small>');
+        return;
+      }
+      
+      let html = '<div class="mt-2">';
+      adicionadosManuais.forEach(pessoa => {
+        html += `
+          <div class="badge bg-success me-2 mb-2">
+            ${pessoa.nome} 
+            <i class="fas fa-times ms-1" style="cursor: pointer;" 
+               onclick="removerDoAdicionados('${pessoa.id}')" title="Remover"></i>
+          </div>
+        `;
+      });
+      html += '</div>';
+      
+      $('#listaAdicionadosManualmente').html(html);
+    }
+
+    function removerDoAdicionados(id) {
+      adicionadosManuais = adicionadosManuais.filter(p => p.id !== id);
+      atualizarListaAdicionados();
+      atualizarPreviewFinal();
+    }
+
+    // === MODAL REMOVER PESSOA ===
+    function abrirModalRemover() {
+      const igreja = $('#id_igreja').val();
+      
+      // Pegar valores diretamente dos CHECKBOXES
+      const tipos = [];
+      $('.checkbox-tipo:checked').each(function() {
+        tipos.push($(this).val());
+      });
+      
+      const status = [];
+      $('.checkbox-status:checked').each(function() {
+        status.push($(this).val());
+      });
+      
+      if (!igreja || tipos.length === 0 || status.length === 0) {
+        mostrarToast('Defina igreja, tipos e status primeiro', 'warning');
+        return;
+      }
+      
+      // Resetar
+      pessoasRemoverSelecionadas = [];
+      $('#contadorRemover').text('0');
+      
+      // Carregar lista
+      carregarPessoasParaRemover();
+      
+      // Abrir modal
+      const modal = new bootstrap.Modal(document.getElementById('modalRemoverPessoa'));
+      modal.show();
+    }
+
+    function carregarPessoasParaRemover() {
+      $('#listaParaRemover').html(`
+        <div class="text-center text-muted py-4">
+          <div class="spinner-border"></div>
+          <p class="mt-2">Carregando...</p>
+        </div>
+      `);
+      
+      const igreja = $('#id_igreja').val();
+      
+      // Pegar valores diretamente dos CHECKBOXES
+      const tipos = [];
+      $('.checkbox-tipo:checked').each(function() {
+        tipos.push($(this).val());
+      });
+      
+      const status = [];
+      $('.checkbox-status:checked').each(function() {
+        status.push($(this).val());
+      });
+      
+      $.ajax({
+        url: '{% url "eventos:listar_participantes_criterios" %}',
+        data: {
+          tipos: tipos,
+          status: status,
+          igreja: igreja
+        },
+        success: function(data) {
+          pessoasParaRemover = data.pessoas || [];
+          
+          // Remover quem já está na lista de removidos
+          pessoasParaRemover = pessoasParaRemover.filter(p => 
+            !removidosManuais.some(r => r.id === p.id)
+          );
+          
+          renderizarListaRemover();
+        },
+        error: function() {
+          $('#listaParaRemover').html(`
+            <div class="alert alert-danger">
+              Erro ao carregar pessoas. 
+              <button class="btn btn-sm btn-outline-danger mt-2" onclick="carregarPessoasParaRemover()">
+                Tentar novamente
+              </button>
+            </div>
+          `);
+        }
+      });
+    }
+
+    function renderizarListaRemover() {
+      const busca = $('#buscaRemover').val().toLowerCase();
+      const filtrados = pessoasParaRemover.filter(p => 
+        p.nome.toLowerCase().includes(busca)
+      );
+      
+      if (filtrados.length === 0) {
+        $('#listaParaRemover').html(`
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>Nenhuma pessoa encontrada.
+          </div>
+        `);
+        return;
+      }
+      
+      let html = '<div class="list-group">';
+      filtrados.forEach(pessoa => {
+        const checked = pessoasRemoverSelecionadas.includes(pessoa.id) ? 'checked' : '';
+        html += `
+          <label class="list-group-item list-group-item-action" style="cursor: pointer;">
+            <input type="checkbox" class="form-check-input me-3" value="${pessoa.id}" ${checked}
+                   onchange="togglePessoaRemover('${pessoa.id}', '${pessoa.nome.replace(/'/g, "\\'")}', '${pessoa.info || ''}')">
+            <div>
+              <div class="fw-bold">${pessoa.nome}</div>
+              ${pessoa.info ? `<small class="text-muted">${pessoa.info}</small>` : ''}
+            </div>
+          </label>
+        `;
+      });
+      html += '</div>';
+      
+      $('#listaParaRemover').html(html);
+    }
+
+    function togglePessoaRemover(id, nome, info) {
+      const index = pessoasRemoverSelecionadas.indexOf(id);
+      if (index > -1) {
+        pessoasRemoverSelecionadas.splice(index, 1);
+      } else {
+        pessoasRemoverSelecionadas.push(id);
+      }
+      $('#contadorRemover').text(pessoasRemoverSelecionadas.length);
+    }
+
+    function confirmarRemocao() {
+      if (pessoasRemoverSelecionadas.length === 0) {
+        mostrarToast('Selecione pelo menos uma pessoa', 'warning');
+        return;
+      }
+      
+      // Adicionar ao array global
+      pessoasRemoverSelecionadas.forEach(id => {
+        const pessoa = pessoasParaRemover.find(p => p.id === id);
+        if (pessoa && !removidosManuais.some(r => r.id === id)) {
+          removidosManuais.push({id: pessoa.id, nome: pessoa.nome, info: pessoa.info});
+        }
+      });
+      
+      // Atualizar lista visual
+      atualizarListaRemovidos();
+      atualizarPreviewFinal();
+      
+      // Fechar modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('modalRemoverPessoa'));
+      modal.hide();
+      
+      mostrarToast(`${pessoasRemoverSelecionadas.length} pessoa(s) removida(s)`, 'success');
+    }
+
+    function atualizarListaRemovidos() {
+      if (removidosManuais.length === 0) {
+        $('#listaRemovidosManualmente').html('<small class="text-muted">Nenhuma pessoa removida</small>');
+        return;
+      }
+      
+      let html = '<div class="mt-2">';
+      removidosManuais.forEach(pessoa =>{
+        html += `
+          <div class="badge bg-danger me-2 mb-2">
+            ${pessoa.nome} 
+            <i class="fas fa-times ms-1" style="cursor: pointer;" 
+               onclick="restaurarDoRemovidos('${pessoa.id}')" title="Restaurar"></i>
+          </div>
+        `;
+      });
+      html += '</div>';
+      
+      $('#listaRemovidosManualmente').html(html);
+    }
+
+    function restaurarDoRemovidos(id) {
+      removidosManuais = removidosManuais.filter(p => p.id !== id);
+      atualizarListaRemovidos();
+      atualizarPreviewFinal();
+    }
+
+    // === FUNÇÃO AUXILIAR: TOAST ===
+    function mostrarToast(mensagem, tipo = 'success') {
+      const bgClass = tipo === 'success' ? 'bg-success' : 
+                      tipo === 'warning' ? 'bg-warning' : 
+                      tipo === 'danger' ? 'bg-danger' : 'bg-info';
+      
+      const toastHTML = `
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+          <div class="toast show ${bgClass} text-white" role="alert">
+            <div class="toast-body">
+              <i class="fas fa-info-circle me-2"></i>${mensagem}
+            </div>
+          </div>
+        </div>
+      `;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = toastHTML;
+      document.body.appendChild(tempDiv);
+      setTimeout(() => tempDiv.remove(), 3000);
+    }
+
+    // === CHECKBOXES CUSTOMIZADOS ===
+    function carregarCheckboxesTipos() {
+      const options = $('#id_tipos_participantes option');
+      let html = '';
+      
+      options.each(function() {
+        const value = $(this).val();
+        const text = $(this).text();
+        
+        // FILTRO: Esconder "Visitante" (id=5) - Recepção cadastra visitantes no momento da chegada
+        // Não faz sentido definir "participantes esperados" para visitantes (sempre retorna 0)
+        if (value === '5') return true; // Pula para próxima iteração
+        
+        if (value) {
+          html += `
+            <div class="form-check">
+              <input class="form-check-input checkbox-tipo" type="checkbox" value="${value}" id="tipo_${value}" onchange="atualizarSelecaoTipos()">
+              <label class="form-check-label" for="tipo_${value}">
+                ${text}
+              </label>
+            </div>
+          `;
+        }
+      });
+      
+      $('#checkboxesTipos').html(html || '<small class="text-muted">Nenhum tipo disponível</small>');
+    }
+
+    function carregarCheckboxesStatus() {
+      const options = $('#id_status_participantes option');
+      let html = '';
+      
+      options.each(function() {
+        const value = $(this).val();
+        const text = $(this).text();
+        if (value) {
+          html += `
+            <div class="form-check">
+              <input class="form-check-input checkbox-status" type="checkbox" value="${value}" id="status_${value}" onchange="atualizarSelecaoStatus()">
+              <label class="form-check-label" for="status_${value}">
+                ${text}
+              </label>
+            </div>
+          `;
+        }
+      });
+      
+      $('#checkboxesStatus').html(html || '<small class="text-muted">Nenhum status disponível</small>');
+    }
+
+    function atualizarSelecaoTipos() {
+      const selecionados = [];
+      $('.checkbox-tipo:checked').each(function() {
+        selecionados.push($(this).val());
+      });
+      
+      // Atualizar badge
+      $('#badgeContagemTipos').text(selecionados.length);
+      
+      // Atualizar select hidden
+      $('#id_tipos_participantes').val(selecionados);
+      
+      // FILTRO DINÂMICO: Atualizar status disponíveis baseado nos tipos selecionados
+      atualizarStatusDisponiveis();
+      
+      // Auto-atualizar preview
+      atualizarPreviewCriterios();
+    }
+
+    function atualizarSelecaoStatus() {
+      const selecionados = [];
+      $('.checkbox-status:checked').each(function() {
+        selecionados.push($(this).val());
+      });
+      
+      // Atualizar badge
+      $('#badgeContagemStatus').text(selecionados.length);
+      
+      // Atualizar select hidden
+      $('#id_status_participantes').val(selecionados);
+      
+      // Auto-atualizar preview
+      atualizarPreviewCriterios();
+    }
+
+    function limparTipos() {
+      $('.checkbox-tipo').prop('checked', false);
+      atualizarSelecaoTipos();
+      mostrarToast('Tipos de pessoa limpos', 'info');
+    }
+
+    function limparStatus() {
+      $('.checkbox-status').prop('checked', false);
+      atualizarSelecaoStatus();
+      mostrarToast('Status limpos', 'info');
+    }
+
+    // === EVENTOS ===
+    $(document).ready(function() {
+      // Carregar checkboxes customizados
+      carregarCheckboxesTipos();
+      carregarCheckboxesStatus();
+      
+      // Aplicar filtro dinâmico de status inicial
+      atualizarStatusDisponiveis();
+      
+      // Atualizar preview quando critérios mudarem (fallback)
+      $('#id_tipos_participantes, #id_status_participantes').on('change', function() {
+        atualizarPreviewCriterios();
+      });
+      
+      // Busca nos modais
+      $('#buscaAdicionar').on('keyup', function() {
+        renderizarListaAdicionar();
+      });
+      
+      $('#buscaRemover').on('keyup', function() {
+        renderizarListaRemover();
+      });
+      
+      // Inicializar listas vazias
+      atualizarListaAdicionados();
+      atualizarListaRemovidos();
     });
   </script>
-    </div>
+
   </div>
 </div>
 {% endblock %}

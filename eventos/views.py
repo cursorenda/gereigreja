@@ -1,5 +1,6 @@
 from django.http import JsonResponse
-from secretaria.models import Membro, TipoPessoa, StatusPessoa, Cargo
+from django.db.models import Exists, OuterRef
+from secretaria.models import Membro, TipoPessoa, StatusPessoa, Cargo, MembroCargo
 # Endpoint AJAX para autocomplete de convidados conforme filtros
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
@@ -7,27 +8,314 @@ from django.contrib.auth.decorators import login_required
 @login_required
 @require_GET
 def autocomplete_convidados(request):
-	filtro = request.GET.get('filtro')
-	status = request.GET.get('status', '').split(',') if request.GET.get('status') else []
-	membros = Membro.objects.all()
-	if filtro == 'membro_obreiro':
-		membros = membros.filter(tipo_pessoa__nome__in=['Membro', 'Obreiro'])
-	elif filtro == 'cooperadores':
-		membros = membros.filter(membroscargos__isnull=False).distinct()
-	elif filtro == 'todos':
-		pass  # todos do sistema
-	# Filtro de status
-	status_map = {
-		'ativo': 'Ativo',
-		'desligado': 'Desligado',
-		'disciplina': 'Em Disciplina',
-	}
-	status_nomes = [status_map[s] for s in status if s in status_map]
-	if status_nomes:
-		membros = membros.filter(status_pessoa__nome__in=status_nomes)
-	membros = membros.distinct()
-	ids = list(membros.values_list('pk', flat=True))
-	return JsonResponse({'ids': [str(i) for i in ids]})
+	try:
+		import time
+		start_time = time.time()
+		
+		filtro = request.GET.get('filtro')
+		status = request.GET.get('status', '').split(',') if request.GET.get('status') else []
+		igreja_id = request.GET.get('igreja')  # Parâmetro explícito de igreja
+		
+		# SEGURANÇA: Filtrar apenas membros da igreja ativa
+		membros = Membro.objects.select_related('tipo_pessoa', 'status_pessoa', 'igreja')
+		
+		# Priorizar parâmetro explícito, depois igreja_ativa do contexto
+		if igreja_id:
+			membros = membros.filter(igreja_id=igreja_id)
+		elif hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+			membros = membros.filter(igreja=request.igreja_ativa)
+		
+		# Filtro por tipo de pessoa
+		if filtro == 'membro_obreiro':
+			membros = membros.filter(tipo_pessoa__nome__in=['Membro', 'Obreiro'])
+		elif filtro == 'cooperadores':
+			# Filtrar membros que têm cargos (usa Exists para evitar problema com proxy model)
+			tem_cargo = MembroCargo.objects.filter(membro_id=OuterRef('pk'))
+			membros = membros.annotate(tem_cargo=Exists(tem_cargo)).filter(tem_cargo=True)
+		elif filtro == 'todos':
+			# Exclui visitantes (são recepcionados na porta do evento)
+			membros = membros.exclude(tipo_pessoa__nome='Visitante')
+		
+		# Filtro de status
+		status_map = {
+			'ativo': 'Ativo',
+			'inativo': 'Inativo',
+			'desligado': 'Desligado',
+			'disciplina': 'Em Disciplina',
+		}
+		status_nomes = [status_map[s] for s in status if s in status_map]
+		if status_nomes:
+			membros = membros.filter(status_pessoa__nome__in=status_nomes)
+		
+		# Limitar a 500 registros para performance
+		membros = membros.distinct().order_by('nome')[:500]
+		
+		# Retornar IDs e informações completas para o modal
+		pessoas = []
+		for membro in membros:
+			info_parts = []
+			if membro.tipo_pessoa:
+				info_parts.append(membro.tipo_pessoa.nome)
+			if membro.status_pessoa:
+				info_parts.append(membro.status_pessoa.nome)
+			
+			pessoas.append({
+				'id': str(membro.pk),
+				'nome': membro.nome,
+				'info': ' • '.join(info_parts) if info_parts else ''
+			})
+		
+		ids = [p['id'] for p in pessoas]
+		
+		elapsed = time.time() - start_time
+		print(f"[PERFORMANCE] autocomplete_convidados: {elapsed:.2f}s - {len(pessoas)} pessoas")
+		
+		return JsonResponse({
+			'ids': ids,
+			'pessoas': pessoas
+		})
+	
+	except Exception as e:
+		# Log do erro para debug
+		import logging
+		logger = logging.getLogger('django.request')
+		logger.error(f"Erro em autocomplete_convidados: {str(e)}", exc_info=True)
+		
+		# Retornar erro JSON ao invés de falhar
+		return JsonResponse({
+			'ids': [],
+			'pessoas': [],
+			'error': f'Erro ao carregar participantes: {str(e)}'
+		}, status=500)
+
+@login_required
+@require_GET
+def contar_participantes_criterios(request):
+	"""
+	Endpoint AJAX para contar quantas pessoas atendem os critérios selecionados.
+	Usado no preview dinâmico do sistema híbrido.
+	"""
+	try:
+		# jQuery envia arrays como 'tipos[]' e 'status[]'
+		tipos_ids = request.GET.getlist('tipos[]') or request.GET.getlist('tipos')
+		status_ids = request.GET.getlist('status[]') or request.GET.getlist('status')
+		igreja_id = request.GET.get('igreja')
+		
+		# DEBUG: Log dos parâmetros recebidos
+		import logging
+		logger = logging.getLogger('django.request')
+		logger.info(f"[CONTAR_CRITERIOS] tipos_ids={tipos_ids}, status_ids={status_ids}, igreja_id={igreja_id}")
+		
+		if not igreja_id:
+			return JsonResponse({'count': 0, 'descricao': 'Igreja não selecionada'})
+		
+		# SEGURANÇA: Verificar se igreja pertence ao ministério do usuário
+		from configuracao.models import Igreja
+		try:
+			igreja = Igreja.objects.get(pk=igreja_id)
+			if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+				if igreja.ministerio != request.igreja_ativa.ministerio:
+					return JsonResponse({'count': 0, 'descricao': 'Acesso negado'}, status=403)
+		except Igreja.DoesNotExist:
+			return JsonResponse({'count': 0, 'descricao': 'Igreja não encontrada'}, status=404)
+		
+		# Filtrar membros pela igreja
+		membros = Membro.objects.filter(igreja_id=igreja_id)
+		
+		# Aplicar filtros de tipo
+		if tipos_ids:
+			membros = membros.filter(tipo_pessoa_id__in=tipos_ids)
+		
+		# Aplicar filtros de status
+		if status_ids:
+			membros = membros.filter(status_pessoa_id__in=status_ids)
+		
+		# Excluir visitantes (sempre)
+		membros = membros.exclude(tipo_pessoa__nome='Visitante')
+		
+		count = membros.count()
+		
+		# DEBUG: Log da query SQL e contagem
+		logger.info(f"[CONTAR_CRITERIOS] Query: {membros.query}")
+		logger.info(f"[CONTAR_CRITERIOS] Count: {count}")
+		
+		# Gerar descrição legível
+		tipos_nomes = []
+		if tipos_ids:
+			tipos_nomes = list(TipoPessoa.objects.filter(id__in=tipos_ids).values_list('nome', flat=True))
+		
+		status_nomes = []
+		if status_ids:
+			status_nomes = list(StatusPessoa.objects.filter(id__in=status_ids).values_list('nome', flat=True))
+		
+		descricao_partes = []
+		if tipos_nomes:
+			if len(tipos_nomes) > 3:
+				descricao_partes.append(f"{len(tipos_nomes)} tipos diferentes")
+			else:
+				descricao_partes.append(', '.join(tipos_nomes))
+		else:
+			descricao_partes.append('Todos os tipos')
+		
+		if status_nomes:
+			if len(status_nomes) > 2:
+				descricao_partes.append(f"com {len(status_nomes)} status diferentes")
+			else:
+				descricao_partes.append(f"com status {', '.join(status_nomes)}")
+		
+		descricao = ' '.join(descricao_partes)
+		
+		logger.info(f"[CONTAR_CRITERIOS] Resultado: count={count}, descricao={descricao}, tipos={tipos_nomes}, status={status_nomes}")
+		
+		return JsonResponse({
+			'count': count, 
+			'descricao': descricao,
+			'tipos': tipos_nomes,
+			'status': status_nomes,
+			'igreja_nome': igreja.nome_igreja
+		})
+	
+	except Exception as e:
+		import logging
+		logger = logging.getLogger('django.request')
+		logger.error(f"Erro em contar_participantes_criterios: {e}")
+		return JsonResponse({'count': 0, 'descricao': 'Erro ao calcular', 'error': str(e)}, status=500)
+
+@login_required
+@require_GET
+def listar_participantes_criterios(request):
+	"""
+	Endpoint AJAX para listar pessoas que atendem os critérios selecionados.
+	Usado no modal de remoção do sistema híbrido.
+	"""
+	try:
+		# jQuery envia arrays como 'tipos[]' e 'status[]'
+		tipos_ids = request.GET.getlist('tipos[]') or request.GET.getlist('tipos')
+		status_ids = request.GET.getlist('status[]') or request.GET.getlist('status')
+		igreja_id = request.GET.get('igreja')
+		
+		if not igreja_id:
+			return JsonResponse({'pessoas': []})
+		
+		# Filtrar membros pela igreja
+		membros = Membro.objects.filter(igreja_id=igreja_id).select_related('tipo_pessoa', 'status_pessoa')
+		
+		# Aplicar filtros de tipo
+		if tipos_ids:
+			membros = membros.filter(tipo_pessoa_id__in=tipos_ids)
+		
+		# Aplicar filtros de status
+		if status_ids:
+			membros = membros.filter(status_pessoa_id__in=status_ids)
+		
+		# Excluir visitantes (sempre)
+		membros = membros.exclude(tipo_pessoa__nome='Visitante')
+		
+		# Limitar a 500 registros
+		membros = membros.distinct().order_by('nome')[:500]
+		
+		# Retornar informações completas
+		pessoas = []
+		for membro in membros:
+			info_parts = []
+			if membro.tipo_pessoa:
+				info_parts.append(membro.tipo_pessoa.nome)
+			if membro.status_pessoa:
+				info_parts.append(membro.status_pessoa.nome)
+			
+			pessoas.append({
+				'id': str(membro.pk),  # Converter para string (consistência com autocomplete_convidados)
+				'nome': membro.nome,
+				'info': ' • '.join(info_parts) if info_parts else ''
+			})
+		
+		return JsonResponse({'pessoas': pessoas})
+	
+	except Exception as e:
+		import logging
+		logger = logging.getLogger('django.request')
+		logger.error(f"Erro em listar_participantes_criterios: {str(e)}", exc_info=True)
+		return JsonResponse({'pessoas': [], 'error': str(e)}, status=500)
+
+
+@login_required
+@require_GET
+def autocomplete_responsaveis(request):
+	"""
+	Retorna lista de responsáveis (usuários) que são membros da igreja especificada.
+	IMPORTANTE: Filtra apenas usuários do mesmo ministério do usuário logado.
+	"""
+	igreja_id = request.GET.get('igreja_id')
+	
+	if not igreja_id:
+		return JsonResponse({'responsaveis': [], 'error': 'Parâmetro obrigatório ausente'})
+	
+	try:
+		from django.contrib.auth import get_user_model
+		from configuracao.models import Igreja
+		User = get_user_model()
+		
+		# 1. Obter a igreja
+		try:
+			igreja = Igreja.objects.get(pk=igreja_id)
+		except Igreja.DoesNotExist:
+			return JsonResponse({'responsaveis': [], 'error': 'Recurso não encontrado'})
+		
+		# 2. Obter ministério do usuário logado
+		ministerio_usuario = None
+		if hasattr(request.user, 'perfil') and hasattr(request.user.perfil, 'ministerio'):
+			ministerio_usuario = request.user.perfil.ministerio
+		
+		# 3. SEGURANÇA: Validar se a igreja pertence ao ministério do usuário
+		if ministerio_usuario and igreja.ministerio != ministerio_usuario:
+			return JsonResponse({
+				'responsaveis': [], 
+				'error': 'Acesso negado'
+			}, status=403)
+		
+		# 4. SEGURANÇA: Validar se o usuário tem permissão para acessar esta igreja
+		if hasattr(request, 'igreja_ativa'):
+			if request.igreja_ativa.pk != int(igreja_id):
+				return JsonResponse({
+					'responsaveis': [],
+					'error': 'Acesso negado'
+				}, status=403)
+		
+		# 5. Buscar membros da igreja que têm usuário vinculado
+		membros_da_igreja = Membro.objects.filter(
+			igreja_id=igreja_id, 
+			usuario__isnull=False
+		).values_list('usuario_id', flat=True)
+		
+		# 6. Buscar usuários correspondentes
+		usuarios = User.objects.filter(id__in=membros_da_igreja)
+		
+		# 7. Filtrar apenas usuários do mesmo ministério
+		if ministerio_usuario:
+			usuarios = usuarios.filter(perfil__ministerio=ministerio_usuario)
+		
+		usuarios = usuarios.order_by('first_name', 'last_name', 'email')
+		
+		# 8. Formatar resposta
+		responsaveis = []
+		for user in usuarios:
+			nome_completo = user.get_full_name() or user.email
+			label = f"{nome_completo} ({user.email})" if user.get_full_name() else user.email
+			responsaveis.append({
+				'id': user.id,
+				'text': label
+			})
+		
+		return JsonResponse({'responsaveis': responsaveis})
+	
+	except Exception as e:
+		# Log do erro (se logging configurado)
+		import logging
+		logger = logging.getLogger('django.request')
+		logger.error(f"Erro em autocomplete_responsaveis: {str(e)}", exc_info=True)
+		
+		return JsonResponse({'error': 'Erro interno do servidor'}, status=500)
+
 from django.db.models import Q
 import openpyxl
 from openpyxl.utils import get_column_letter
@@ -109,10 +397,60 @@ def exportar_participantes_excel(request, pk):
 	return response
 from django.contrib.auth.decorators import login_required
 from core.decorators import verificar_assinatura_valida
+import sys
 @login_required
 def criar_evento_profissional(request):
+	
 	if request.method == 'POST':
 		form = EventoForm(request.POST, request.FILES, request=request)
+		
+		# CORREÇÃO: Se não for evento recorrente, limpar campos de recorrência do POST
+		post_data = request.POST.copy()  # Criar cópia mutável
+		frequencia = post_data.get('frequencia', 'nenhuma')
+		
+		if frequencia in ['nenhuma', '', None]:
+			# Remover campos que causam erro de validação quando vazios
+			for field in ['dia_semana', 'semana_mes', 'mes_ano']:
+				# Remover completamente o campo do POST
+				while field in post_data:
+					post_data.pop(field)
+				# Garantir que listas também sejam removidas
+				field_list = f'{field}[]'
+				while field_list in post_data:
+					post_data.pop(field_list)
+		
+		# Usar post_data ao invés de request.POST
+		form = EventoForm(post_data, request.FILES, request=request)
+		
+		# Aplicar filtro de responsáveis
+		from django.contrib.auth import get_user_model
+		from secretaria.models import Membro
+		User = get_user_model()
+		
+		ministerio_ativo = None
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+			ministerio_ativo = request.igreja_ativa.ministerio
+		elif hasattr(request.user, 'perfil'):
+			ministerio_ativo = request.user.perfil.ministerio
+		
+		igreja_id = None
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+			igreja_id = request.igreja_ativa.pk
+		
+		if ministerio_ativo and igreja_id:
+			membros_com_usuario = Membro.objects.filter(
+				igreja_id=igreja_id,
+				usuario__isnull=False
+			).values_list('usuario_id', flat=True)
+			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
+			usuarios_ministerio = User.objects.filter(
+				perfil__ministerio=ministerio_ativo
+			).values_list('id', flat=True)
+			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
+			form.fields['responsavel'].queryset = responsaveis_qs
+		else:
+			form.fields['responsavel'].queryset = User.objects.none()
+		
 		if form.is_valid():
 			evento = form.save(commit=False)
 			# Corrigir campos múltiplos para string simples (evita erro de lista serializada)
@@ -173,35 +511,107 @@ def criar_evento_profissional(request):
 					# Removido: cargo_participantes não existe mais no modelo Evento
 				eventos_criados.append(ev)
 
-			# Geração automática dos participantes esperados para cada evento
-			from secretaria.models import Membro, StatusPessoa
+			# SISTEMA HÍBRIDO: Processar ajustes manuais
+			import json
 			from .models import ParticipacaoEvento
-			status_nomes = ['Ativo', 'Desligado', 'Em Disciplina']
-			status_ids = list(StatusPessoa.objects.filter(nome__in=status_nomes).values_list('id', flat=True))
+			adicionados_json = post_data.get('adicionados_manuais', '[]')
+			removidos_json = post_data.get('removidos_manuais', '[]')
+			
+			try:
+				adicionados_ids = json.loads(adicionados_json)
+				removidos_ids = json.loads(removidos_json)
+			except json.JSONDecodeError:
+				adicionados_ids = []
+				removidos_ids = []
+			
+			# Aplicar ajustes para todos os eventos criados
 			for ev in eventos_criados:
-				if ev.incluir_todos_membros:
-					membros_qs = Membro.objects.filter(igreja=ev.igreja, status_pessoa__in=status_ids)
-				else:
-					membros_qs = Membro.objects.filter(igreja=ev.igreja, status_pessoa__in=status_ids)
-					if ev.tipos_participantes.exists():
-						membros_qs = membros_qs.filter(tipo_pessoa__in=ev.tipos_participantes.all())
-					if ev.status_participantes.exists():
-						membros_qs = membros_qs.filter(status_pessoa__in=ev.status_participantes.all())
-					# Removido: cargo_participantes não existe mais no modelo Evento
-				for membro in membros_qs.distinct():
-					ParticipacaoEvento.objects.get_or_create(
-						evento=ev,
-						membro=membro,
-						defaults={
-							'papel': 'PARTICIPANTE',
-							'status': 'PENDENTE',
-						}
-					)
+				# Criar participações manuais ADICIONADAS
+				for membro_id in adicionados_ids:
+					try:
+						from secretaria.models import Membro
+						membro = Membro.objects.get(pk=membro_id, igreja=ev.igreja)
+						ParticipacaoEvento.objects.get_or_create(
+							evento=ev,
+							membro=membro,
+							sessao=None,
+							defaults={
+								'papel': 'PARTICIPANTE',
+								'status': 'PENDENTE',
+								'tipo_inclusao': 'MANUAL_ADICIONADO'
+							}
+						)
+					except Membro.DoesNotExist:
+						continue
+				
+				# Criar participações manuais REMOVIDAS (apenas marcador)
+				for membro_id in removidos_ids:
+					try:
+						from secretaria.models import Membro
+						membro = Membro.objects.get(pk=membro_id, igreja=ev.igreja)
+						ParticipacaoEvento.objects.get_or_create(
+							evento=ev,
+							membro=membro,
+							sessao=None,
+							defaults={
+								'tipo_inclusao': 'MANUAL_REMOVIDO'
+							}
+						)
+					except Membro.DoesNotExist:
+						continue
+
+			# SISTEMA HÍBRIDO: Não criamos ParticipacaoEvento automáticas aqui!
+			# Os participantes são gerados dinamicamente usando evento.get_participantes_esperados()
+			# baseado em tipos_participantes e status_participantes salvos acima.
+			# Isso permite que a lista se atualize automaticamente quando status de pessoas mudar.
 
 			messages.success(request, f'{len(eventos_criados)} evento(s) criado(s) com sucesso!')
 			return redirect(reverse('eventos:lista_eventos'))
+		else:
+			# Adicionar mensagem de erro para o usuário
+			messages.error(request, 'Erro ao salvar evento. Verifique os campos obrigatórios.')
+			
+			# Mostrar quais campos têm erro na mensagem
+			campos_com_erro = ', '.join(form.errors.keys())
+			if campos_com_erro:
+				messages.warning(request, f'Campos com problema: {campos_com_erro}')
+	
 	else:
 		form = EventoForm(request=request)
+		
+		# Aplicar filtro de responsáveis
+		from django.contrib.auth import get_user_model
+		from secretaria.models import Membro
+		
+		User = get_user_model()
+		
+		ministerio_ativo = None
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+			ministerio_ativo = request.igreja_ativa.ministerio
+		elif hasattr(request.user, 'perfil'):
+			ministerio_ativo = request.user.perfil.ministerio
+		
+		igreja_id = None
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+			igreja_id = request.igreja_ativa.pk
+		
+		if ministerio_ativo and igreja_id:
+			# Triplo filtro: igreja + membro com usuário + ministério
+			membros_com_usuario = Membro.objects.filter(
+				igreja_id=igreja_id,
+				usuario__isnull=False
+			).values_list('usuario_id', flat=True)
+			
+			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
+			
+			usuarios_ministerio = User.objects.filter(
+				perfil__ministerio=ministerio_ativo
+			).values_list('id', flat=True)
+			
+			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
+			form.fields['responsavel'].queryset = responsaveis_qs
+		else:
+			form.fields['responsavel'].queryset = User.objects.none()
 	igreja_nome = None
 	igreja_obj = None
 	# 1. Se houver igreja ativa, inicializa o campo e pega o nome
@@ -224,6 +634,7 @@ def criar_evento_profissional(request):
 			igreja_obj = qs.first()
 			igreja_nome = getattr(igreja_obj, 'nome_igreja', str(igreja_obj))
 	return render(request, 'eventos/criar_evento.html', {'form': form, 'igreja_nome': igreja_nome})
+
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from .models import ParticipacaoEvento, EventoSessao
@@ -261,25 +672,44 @@ def marcar_presenca_evento(request, pk):
 		Q(membro__isnull=False, membro__status_pessoa__in=status_ids) | Q(convidado_email__isnull=False)
 	).select_related('membro')
 
-	# Se não há participações para a sessão, preencha automaticamente
+	# Se não há participações para a sessão, preencha automaticamente usando sistema híbrido
 	if not participacoes.exists():
 		from secretaria.models import Membro
-		membros_qs = Membro.objects.filter(igreja=evento.igreja, status_pessoa__in=status_ids)
-		# Aplicar filtros de tipos/status se presentes no evento
-		if evento.tipos_participantes.exists():
-			membros_qs = membros_qs.filter(tipo_pessoa__in=evento.tipos_participantes.all())
-		if evento.status_participantes.exists():
-			membros_qs = membros_qs.filter(status_pessoa__in=evento.status_participantes.all())
+		# Usar get_participantes_esperados para lista dinâmica
+		membros_criterios, adicionados_manualmente = evento.get_participantes_esperados()
+		
 		created = []
-		for membro in membros_qs.distinct():
+		# Criar participações para membros que atendem critérios
+		for membro in membros_criterios.distinct():
 			pe, created_flag = ParticipacaoEvento.objects.get_or_create(
 				evento=evento,
 				sessao=sessao,
 				membro=membro,
-				defaults={'papel': 'PARTICIPANTE', 'status': 'PENDENTE'}
+				defaults={
+					'papel': 'PARTICIPANTE',
+					'status': 'PENDENTE',
+					'tipo_inclusao': 'AUTOMATICA'
+				}
 			)
 			if created_flag:
 				created.append(pe)
+		
+		# Adicionar os que foram incluídos manualmente
+		for participacao_manual in adicionados_manualmente:
+			if participacao_manual.membro:
+				pe, created_flag = ParticipacaoEvento.objects.get_or_create(
+					evento=evento,
+					sessao=sessao,
+					membro=participacao_manual.membro,
+					defaults={
+						'papel': 'PARTICIPANTE',
+						'status': 'PENDENTE',
+						'tipo_inclusao': 'MANUAL_ADICIONADO'
+					}
+				)
+				if created_flag:
+					created.append(pe)
+		
 		participacoes = ParticipacaoEvento.objects.filter(evento=evento, sessao=sessao, membro__status_pessoa__in=status_ids).select_related('membro')
 
 	if request.method == 'POST':
@@ -359,7 +789,35 @@ def editar_evento_profissional(request, pk):
 		logger = logging.getLogger('django.request')
 		logger.warning('DEBUG POST editar_evento_profissional: %s', dict(request.POST))
 
-		form = EventoForm(request.POST, request.FILES, instance=evento)
+		form = EventoForm(request.POST, request.FILES, instance=evento, request=request)
+		
+		# Aplicar filtro de responsáveis
+		from django.contrib.auth import get_user_model
+		from secretaria.models import Membro
+		User = get_user_model()
+		
+		ministerio_ativo = None
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+			ministerio_ativo = request.igreja_ativa.ministerio
+		elif hasattr(request.user, 'perfil'):
+			ministerio_ativo = request.user.perfil.ministerio
+		
+		igreja_id = evento.igreja_id  # Usar igreja do evento sendo editado
+		
+		if ministerio_ativo and igreja_id:
+			membros_com_usuario = Membro.objects.filter(
+				igreja_id=igreja_id,
+				usuario__isnull=False
+			).values_list('usuario_id', flat=True)
+			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
+			usuarios_ministerio = User.objects.filter(
+				perfil__ministerio=ministerio_ativo
+			).values_list('id', flat=True)
+			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
+			form.fields['responsavel'].queryset = responsaveis_qs
+		else:
+			form.fields['responsavel'].queryset = User.objects.none()
+		
 		if form.is_valid():
 			evento = form.save(commit=False)
 			# Atualiza data_fim com hora_termino
@@ -425,39 +883,48 @@ def editar_evento_profissional(request, pk):
 						ev.save()
 				eventos_atualizados.append(ev)
 
-			# Geração automática dos participantes esperados para cada evento
-			from secretaria.models import Membro, StatusPessoa
-			from .models import ParticipacaoEvento
-			status_nomes = ['Ativo', 'Desligado', 'Em Disciplina']
-			status_ids = list(StatusPessoa.objects.filter(nome__in=status_nomes).values_list('id', flat=True))
-			for ev in eventos_atualizados:
-				if ev.incluir_todos_membros:
-					membros_qs = Membro.objects.filter(igreja=ev.igreja, status_pessoa__in=status_ids)
-				else:
-					membros_qs = Membro.objects.filter(igreja=ev.igreja, status_pessoa__in=status_ids)
-					if ev.tipos_participantes.exists():
-						membros_qs = membros_qs.filter(tipo_pessoa__in=ev.tipos_participantes.all())
-					if ev.status_participantes.exists():
-						membros_qs = membros_qs.filter(status_pessoa__in=ev.status_participantes.all())
-					# Removido: cargo_participantes não existe mais no modelo Evento
-				# Remove participações de membros que não estão mais no filtro
-				membros_chaves_atuais = set(membros_qs.values_list('chave', flat=True))
-				ParticipacaoEvento.objects.filter(evento=ev).exclude(membro__chave__in=membros_chaves_atuais).delete()
-				# Cria participações para membros do filtro
-				for membro in membros_qs.distinct():
-					ParticipacaoEvento.objects.get_or_create(
-						evento=ev,
-						membro=membro,
-						defaults={
-							'papel': 'PARTICIPANTE',
-							'status': 'PENDENTE',
-						}
-					)
+			# SISTEMA HÍBRIDO: Não criamos/removemos ParticipacaoEvento aqui!
+			# Os participantes são gerados dinamicamente usando evento.get_participantes_esperados()
+			# baseado em tipos_participantes e status_participantes salvos acima.
+			# Participações MANUAIS (adicionadas ou removidas pelo usuário) são preservadas.
 
 			messages.success(request, f'{len(eventos_atualizados)} evento(s) atualizado(s) com sucesso!')
 			return redirect(reverse('eventos:detalhe_evento', args=[evento.pk]))
 	else:
-		form = EventoForm(instance=evento)
+		form = EventoForm(instance=evento, request=request)
+		
+		# Aplicar filtro de responsáveis
+		from django.contrib.auth import get_user_model
+		from secretaria.models import Membro
+		
+		User = get_user_model()
+		
+		ministerio_ativo = None
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+			ministerio_ativo = request.igreja_ativa.ministerio
+		elif hasattr(request.user, 'perfil'):
+			ministerio_ativo = request.user.perfil.ministerio
+		
+		igreja_id = evento.igreja_id
+		
+		if ministerio_ativo and igreja_id:
+			# Triplo filtro: igreja + membro com usuário + ministério
+			membros_com_usuario = Membro.objects.filter(
+				igreja_id=igreja_id,
+				usuario__isnull=False
+			).values_list('usuario_id', flat=True)
+			
+			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
+			
+			usuarios_ministerio = User.objects.filter(
+				perfil__ministerio=ministerio_ativo
+			).values_list('id', flat=True)
+			
+			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
+			form.fields['responsavel'].queryset = responsaveis_qs
+		else:
+			form.fields['responsavel'].queryset = User.objects.none()
+	
 	return render(request, 'eventos/editar_evento.html', {'form': form, 'evento': evento})
 
 @login_required
@@ -585,19 +1052,16 @@ def detalhe_evento_profissional(request, pk):
 		if q:
 			participacoes = participacoes.filter(q)
 
-	# Esperados: membros filtrados por tipos_participantes, status_participantes, incluir_todos_membros
-	membros_esperados = Membro.objects.none()
-	if evento.incluir_todos_membros:
-		membros_esperados = Membro.objects.filter(igreja=evento.igreja)
-	else:
-		tipos = evento.tipos_participantes.all()
-		status = evento.status_participantes.all()
-		qs = Membro.objects.filter(igreja=evento.igreja)
-		if tipos.exists():
-			qs = qs.filter(tipo_pessoa__in=tipos)
-		if status.exists():
-			qs = qs.filter(status_pessoa__in=status)
-		membros_esperados = qs.distinct()
+	# Esperados: usar sistema híbrido
+	membros_criterios, adicionados_manualmente = evento.get_participantes_esperados()
+	
+	# Combinar membros dos critérios + adicionados manualmente
+	membros_esperados_ids = set(membros_criterios.values_list('pk', flat=True))
+	for participacao_manual in adicionados_manualmente:
+		if participacao_manual.membro:
+			membros_esperados_ids.add(participacao_manual.membro.pk)
+	
+	membros_esperados = Membro.objects.filter(pk__in=membros_esperados_ids)
 
 	# Agora sim, cálculos dependentes de membros_esperados
 	membros_ativos = membros_esperados.filter(tipo_pessoa=tipo_membro, status_pessoa=status_ativo) if tipo_membro and status_ativo else membros_esperados.none()

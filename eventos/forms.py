@@ -1,10 +1,23 @@
 
 from django import forms
+from django.contrib.auth import get_user_model
 from .models import Evento, ParticipacaoEvento
 
+User = get_user_model()
+
 class EventoForm(forms.ModelForm):
+	# Campo responsável customizado para permitir controle do queryset
+	responsavel = forms.ModelChoiceField(
+		queryset=User.objects.none(),  # Inicializado vazio, será populado no __init__
+		required=False,
+		label="Responsável",
+		widget=forms.Select(attrs={'class': 'form-select'}),
+		help_text="Usuário responsável pelo evento (deve ser membro da igreja)"
+	)
+	
+	# Nota: queryset será definido no __init__ após importar Membro
 	convidados = forms.ModelMultipleChoiceField(
-		queryset=None,
+		queryset=None,  # Será definido no __init__ (precisa importar Membro primeiro)
 		required=False,
 		label="Convidados (membros/visitantes)",
 		widget=forms.SelectMultiple(attrs={'class': 'form-select select2', 'data-placeholder': 'Digite para buscar e selecione...'}),
@@ -40,33 +53,23 @@ class EventoForm(forms.ModelForm):
 	def __init__(self, *args, **kwargs):
 		self.request = kwargs.pop('request', None)
 		super().__init__(*args, **kwargs)
-		from secretaria.models import TipoPessoa, StatusPessoa, Cargo
+		from secretaria.models import TipoPessoa, StatusPessoa, Cargo, Membro
 		from django.contrib.auth import get_user_model
 		from django.utils import timezone
+		from configuracao.models import Igreja
+		
+		User = get_user_model()
+		
+		# Inicializar querysets (filtro de responsáveis aplicado na view)
+		self.fields['responsavel'].queryset = User.objects.none()
+		self.fields['convidados'].queryset = Membro.objects.all()
+		
 		self.fields['tipos_participantes'].queryset = TipoPessoa.objects.all()
 		self.fields['status_participantes'].queryset = StatusPessoa.objects.all()
 		self.fields['local'].help_text = 'Informe o ambiente exato (ex: Salão, Sala 1, Sala 2). Eventos em ambientes diferentes podem ocorrer no mesmo horário.'
-		from secretaria.models import Membro
-		self.fields['convidados'].queryset = Membro.objects.all().order_by('nome')
-		self.fields['convidados'].widget.attrs['style'] = 'width: 100%'
-		instance = kwargs.get('instance')
-		if instance and instance.pk:
-			self.fields['convidados'].initial = instance.participacoes.values_list('membro', flat=True)
-		if 'responsavel' in self.fields:
-			User = get_user_model()
-			self.fields['responsavel'].label_from_instance = lambda obj: f"{obj.get_full_name()} ({obj.email})" if obj.get_full_name() else obj.email
-		from configuracao.models import Igreja
-		ministerio_ativo = None
-		if self.request and hasattr(self.request, 'igreja_ativa') and self.request.igreja_ativa:
-			ministerio_ativo = getattr(self.request.igreja_ativa, 'ministerio', None)
-		elif self.request and hasattr(self.request.user, 'perfil') and hasattr(self.request.user.perfil, 'ministerio'):
-			ministerio_ativo = self.request.user.perfil.ministerio
-		igrejas_queryset = Igreja.objects.none()
-		if ministerio_ativo:
-			igrejas_queryset = Igreja.objects.filter(ministerio=ministerio_ativo)
-		if self.request and hasattr(self.request, 'igreja_ativa') and self.request.igreja_ativa:
-			self.fields['igreja'].initial = self.request.igreja_ativa.pk
-		self.fields['igreja'].queryset = igrejas_queryset
+		
+		# ====================================================================
+		
 		# Padroniza o campo igreja igual ao cadastro de membro
 		if 'igreja' in self.fields:
 			self.fields['igreja'].label_from_instance = lambda obj: obj.nome_igreja
@@ -75,11 +78,57 @@ class EventoForm(forms.ModelForm):
 
 	def clean(self):
 		cleaned_data = super().clean()
-		for field in ["dia_semana", "semana_mes", "mes_ano"]:
-			value = cleaned_data.get(field)
-			if isinstance(value, list):
-				cleaned_data[field] = ",".join(value)
+		frequencia = cleaned_data.get('frequencia', 'nenhuma')
+		
+		# Se não for recorrente, limpar campos de recorrência
+		if frequencia in ['nenhuma', '', None]:
+			cleaned_data['dia_semana'] = ''
+			cleaned_data['semana_mes'] = ''
+			cleaned_data['mes_ano'] = ''
+		else:
+			# Apenas converter listas para string se frequência for diferente de 'nenhuma'
+			for field in ["dia_semana", "semana_mes", "mes_ano"]:
+				value = cleaned_data.get(field)
+				if isinstance(value, list):
+					cleaned_data[field] = ",".join(value)
+				elif value is None:
+					cleaned_data[field] = ''
+		
 		return cleaned_data
+	
+	def clean_dia_semana(self):
+		"""Validação customizada para evitar erro quando campo vazio"""
+		frequencia = self.data.get('frequencia', 'nenhuma')
+		if frequencia in ['nenhuma', '', None]:
+			return []  # Retornar lista vazia se não for recorrente
+		
+		value = self.cleaned_data.get('dia_semana', [])
+		# Se for string vazia, retornar lista vazia
+		if value == '' or value == ['']:
+			return []
+		return value
+	
+	def clean_semana_mes(self):
+		"""Validação customizada para evitar erro quando campo vazio"""
+		frequencia = self.data.get('frequencia', 'nenhuma')
+		if frequencia in ['nenhuma', '', None]:
+			return []
+		
+		value = self.cleaned_data.get('semana_mes', [])
+		if value == '' or value == ['']:
+			return []
+		return value
+	
+	def clean_mes_ano(self):
+		"""Validação customizada para evitar erro quando campo vazio"""
+		frequencia = self.data.get('frequencia', 'nenhuma')
+		if frequencia in ['nenhuma', '', None]:
+			return []
+		
+		value = self.cleaned_data.get('mes_ano', [])
+		if value == '' or value == ['']:
+			return []
+		return value
 
 	class Meta:
 		model = Evento
@@ -98,7 +147,7 @@ class EventoForm(forms.ModelForm):
 			'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
 			'tipo': forms.Select(attrs={'class': 'form-select'}),
 			'local': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Salão, Sala 1, Sala 2'}),
-			'responsavel': forms.Select(attrs={'class': 'form-select'}),
+			# 'responsavel' removido - definido como campo da classe
 			'data_inicio': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
 			'hora_termino': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
 			# 'data_fim' removido do widget do usuário
@@ -247,4 +296,5 @@ class ParticipacaoEventoForm(forms.ModelForm):
 		fields = [
 			'evento', 'membro', 'convidado_nome', 'convidado_email', 'papel', 'status', 'observacoes'
 		]
+
 

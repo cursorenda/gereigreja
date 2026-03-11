@@ -55,53 +55,56 @@ document.addEventListener('DOMContentLoaded', function() {
         {% csrf_token %}
         <!-- Grid alinhado e aproveitamento total do espaço -->
         <div class="mb-4">
-          <div class="mb-3">
-            <label class="form-label">Seleção de convidados:</label>
-            <div class="mb-2">
-              <select id="filtro_convidados" class="form-select" style="max-width:350px;display:inline-block;">
-                <option value="membro_obreiro">Apenas Membros/Obreiros</option>
-                <option value="cooperadores">Cooperadores (quem tem cargo)</option>
-                <option value="todos">Todas as pessoas do sistema</option>
-              </select>
-              <span class="ms-2">Status:</span>
-              <label class="ms-1"><input type="checkbox" class="status_filtro" value="ativo" checked> Ativo</label>
-              <label class="ms-1"><input type="checkbox" class="status_filtro" value="desligado" checked> Desligado</label>
-              <label class="ms-1"><input type="checkbox" class="status_filtro" value="disciplina" checked> Em Disciplina</label>
-            </div>
-            <label for="id_convidados" class="form-label">Adicionar manualmente:</label>
-            {{ form.convidados }}
-            <small class="form-text text-muted">Você pode buscar e adicionar pessoas individualmente, além dos filtros acima.</small>
-            {% if form.convidados.errors %}<div class="invalid-feedback d-block">{{ form.convidados.errors|striptags }}</div>{% endif %}
-          </div>
+          <!-- SEÇÃO: PARTICIPANTES -->
+          <h5 class="mt-4 mb-3 border-bottom pb-2">
+            <i class="fas fa-users me-2"></i>Participantes
+          </h5>
+          <div class="card border-light shadow-sm mb-4">
+            <div class="card-body">
+              <!-- Campo hidden que armazena os IDs selecionados -->
+              <div style="display: none;">
+                {{ form.convidados }}
+              </div>
 
-          <script>
-            function atualizarConvidadosPorFiltro() {
-              var filtro = $('#filtro_convidados').val();
-              var status = $('.status_filtro:checked').map(function(){return $(this).val();}).get();
-              $.ajax({
-                url: '{% url "eventos:autocomplete_convidados" %}',
-                data: { filtro: filtro, status: status.join(',') },
-                success: function(data) {
-                  var $convidados = $('#id_convidados');
-                  $convidados.val(null).trigger('change');
-                  var ids = data.ids;
-                  $convidados.find('option').each(function() { $(this).prop('selected', ids.includes($(this).val())); });
-                  $convidados.trigger('change');
-                  if (typeof atualizarChipsConvidados === 'function') atualizarChipsConvidados();
-                }
-              });
-            }
-            $(document).ready(function() { $('#filtro_convidados, .status_filtro').on('change', atualizarConvidadosPorFiltro); });
-          </script>
+              <!-- Botão para abrir modal -->
+              <div class="mb-3">
+                <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modalParticipantesEditar">
+                  <i class="fas fa-user-plus me-2"></i>Escolher Participantes Convidados
+                </button>
+                <span class="badge bg-secondary ms-1">Opcional</span>
+              </div>
+
+              <!-- Preview dos selecionados -->
+              <div id="previewParticipantesEditar" style="display: none;">
+                <div class="alert alert-info mb-0">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6 class="alert-heading mb-2">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong id="contadorParticipantesEditar">0</strong> participantes selecionados
+                      </h6>
+                      <div id="listaParticipantesEditar" class="small" style="max-height: 150px; overflow-y: auto;"></div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalParticipantesEditar">
+                      <i class="fas fa-edit"></i> Editar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Mensagem quando nenhum participante foi selecionado -->
+              <div id="mensagemVazioEditar">
+                <p class="text-muted mb-0">
+                  <i class="fas fa-info-circle me-2"></i>
+                  Nenhum participante selecionado. Clique no botão acima para escolher.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
           <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
           <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-          <script>
-            $(document).ready(function() {
-              $('#id_convidados').select2({ width: '100%', placeholder: 'Digite para buscar e selecione...', allowClear: true, language: 'pt-BR' });
-            });
-          </script>
 
           <div class="row mb-4">
             <div class="col-md-8">
@@ -282,5 +285,460 @@ document.addEventListener('DOMContentLoaded', function() {
       </form>
     </div>
   </div>
+  
+  <script>
+    $(document).ready(function() {
+      // ---------- ATUALIZAR RESPONSÁVEIS BASEADO NA IGREJA ----------
+      
+      // Função para carregar responsáveis de uma igreja
+      function atualizarResponsaveis(igrejaId) {
+        const responsavelSelect = $('#id_responsavel');
+        const responsavelAtual = responsavelSelect.val(); // Guardar seleção atual
+        
+        if (!igrejaId) {
+          // Se não há igreja, limpar responsáveis
+          responsavelSelect.empty();
+          responsavelSelect.append('<option value="">---------</option>');
+          return;
+        }
+        
+        // Mostrar loading
+        responsavelSelect.prop('disabled', true);
+        responsavelSelect.empty();
+        responsavelSelect.append('<option value="">⏳ Carregando...</option>');
+        
+        // Fazer requisição AJAX para buscar responsáveis
+        $.ajax({
+          url: '{% url "eventos:autocomplete_responsaveis" %}',
+          type: 'GET',
+          data: { igreja_id: igrejaId },
+          success: function(data) {
+            // Limpar select
+            responsavelSelect.empty();
+            responsavelSelect.append('<option value="">---------</option>');
+            
+            // Adicionar responsáveis
+            if (data.responsaveis && data.responsaveis.length > 0) {
+              data.responsaveis.forEach(function(resp) {
+                responsavelSelect.append(
+                  $('<option></option>')
+                    .val(resp.id)
+                    .text(resp.text)
+                );
+              });
+              
+              // Tentar manter seleção atual se ainda existir
+              if (responsavelAtual && responsavelSelect.find('option[value="' + responsavelAtual + '"]').length > 0) {
+                responsavelSelect.val(responsavelAtual);
+              }
+            } else {
+              // Adicionar mensagem se não houver responsáveis
+              responsavelSelect.append('<option value="" disabled>Nenhum usuário vinculado a membros desta igreja</option>');
+            }
+          },
+          error: function(xhr, status, error) {
+            console.error('Erro ao carregar responsáveis:', error);
+            responsavelSelect.empty();
+            
+            // Mensagem amigável baseada no status
+            let mensagemErro = 'Erro ao carregar responsáveis';
+            if (xhr.status === 403) {
+              mensagemErro = 'Acesso negado';
+            } else if (xhr.status === 404) {
+              mensagemErro = 'Igreja não encontrada';
+            } else if (xhr.status === 500) {
+              mensagemErro = 'Erro no servidor';
+            }
+            
+            responsavelSelect.append('<option value="">' + mensagemErro + '</option>');
+          },
+          complete: function() {
+            // Reabilitar select
+            responsavelSelect.prop('disabled', false);
+          }
+        });
+      }
+      
+      // Detectar mudança no campo igreja
+      const igrejaSelect = $('#id_igreja');
+      if (igrejaSelect.length > 0) {
+        igrejaSelect.on('change', function() {
+          const igrejaId = $(this).val();
+          atualizarResponsaveis(igrejaId);
+        });
+        
+        // Carregar responsáveis na inicialização (se já houver igreja selecionada)
+        const igrejaInicial = igrejaSelect.val();
+        
+        if (igrejaInicial) {
+          atualizarResponsaveis(igrejaInicial);
+        }
+      }
+    });
+  </script>
+
+  <!-- MODAL: Seleção de Participantes (Editar) -->
+  <div class="modal fade" id="modalParticipantesEditar" tabindex="-1" aria-labelledby="modalParticipantesEditarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="modalParticipantesEditarLabel">
+            <i class="fas fa-users me-2"></i>Selecionar Participantes
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Busca -->
+          <div class="mb-3">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-search"></i></span>
+              <input type="text" class="form-control" id="buscaParticipanteEditar" placeholder="Buscar por nome...">
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="mb-3">
+            <label class="form-label fw-bold">Filtrar por:</label>
+            <div class="row">
+              <div class="col-md-6">
+                <select id="filtro_convidados_modal_editar" class="form-select">
+                  <option value="membro_obreiro">Apenas Membros/Obreiros</option>
+                  <option value="cooperadores">Cooperadores (quem tem cargo)</option>
+                  <option value="todos">Todas as pessoas da igreja <small style="font-size: 0.75em;">(exceto visitantes)</small></option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <div>
+                  <div class="mb-2">
+                    <span class="small fw-bold">Mostrar pessoas com status:</span>
+                  </div>
+                  <div class="d-flex gap-2">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input status_filtro_modal_editar" id="statusAtivoEditar" value="ativo" checked>
+                      <label class="form-check-label small" for="statusAtivoEditar">
+                        <span class="badge bg-success">Ativo</span>
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input status_filtro_modal_editar" id="statusDesligadoEditar" value="desligado" checked>
+                      <label class="form-check-label small" for="statusDesligadoEditar">
+                        <span class="badge bg-danger">Desligado</span>
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input status_filtro_modal_editar" id="statusDisciplinaEditar" value="disciplina" checked>
+                      <label class="form-check-label small" for="statusDisciplinaEditar">
+                        <span class="badge bg-warning text-dark">Em Disciplina</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Botões de ação em massa -->
+          <div class="mb-3">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selecionarTodosEditar()">
+              <i class="fas fa-check-double me-1"></i>Selecionar Todos
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="desmarcarTodosEditar()">
+              <i class="fas fa-times me-1"></i>Desmarcar Todos
+            </button>
+            <small class="text-muted ms-3" id="infoSelecionadosEditar"></small>
+          </div>
+
+          <!-- Lista de participantes com checkboxes -->
+          <div id="listaParticipantesModalEditar" style="max-height: 400px; overflow-y: auto;">
+            <div class="text-center text-muted py-4">
+              <div class="spinner-border" role="status">
+                <span class="visually-hidden">Carregando...</span>
+              </div>
+              <p class="mt-2">Carregando participantes...</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="me-auto">
+            <strong>Selecionados: <span id="contadorModalParticipantesEditar">0</span></strong>
+          </div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="confirmarSelecaoParticipantesEditar()">
+            <i class="fas fa-check me-2"></i>Confirmar Seleção
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Gerenciamento de Participantes com Modal (Editar)
+    let participantesDisponiveisEditar = [];
+    let participantesSelecionadosEditar = [];
+
+    // Carregar participantes no modal
+    function carregarParticipantesModalEditar() {
+      const filtro = $('#filtro_convidados_modal_editar').val();
+      const status = $('.status_filtro_modal_editar:checked').map(function(){return $(this).val();}).get();
+      
+      console.log('[Modal Editar] Carregando participantes...', {filtro, status});
+      
+      $('#listaParticipantesModalEditar').html(`
+        <div class="text-center text-muted py-4">
+          <div class="spinner-border" role="status"></div>
+          <p class="mt-2">Carregando participantes...</p>
+          <small class="text-muted">Isso pode levar alguns segundos...</small>
+        </div>
+      `);
+
+      $.ajax({
+        url: '{% url "eventos:autocomplete_convidados" %}',
+        method: 'GET',
+        data: {
+          filtro: filtro,
+          status: status.join(',')
+        },
+        timeout: 30000, // 30 segundos
+        success: function(data) {
+          console.log('[Modal Editar] Participantes carregados:', data.pessoas ? data.pessoas.length : 0);
+          
+          if (data.error) {
+            $('#listaParticipantesModalEditar').html(`
+              <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${data.error}
+              </div>
+            `);
+            return;
+          }
+          
+          participantesDisponiveisEditar = data.pessoas || [];
+          renderizarListaParticipantesEditar();
+        },
+        error: function(xhr, status, error) {
+          console.error('[Modal Editar] Erro ao carregar:', {xhr, status, error});
+          
+          let mensagem = 'Erro ao carregar participantes. Tente novamente.';
+          if (status === 'timeout') {
+            mensagem = 'A operação demorou muito tempo. Tente usar filtros mais específicos.';
+          } else if (xhr.responseJSON && xhr.responseJSON.error) {
+            mensagem = xhr.responseJSON.error;
+          }
+          
+          $('#listaParticipantesModalEditar').html(`
+            <div class="alert alert-danger">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              ${mensagem}
+              <br>
+              <button class="btn btn-sm btn-outline-danger mt-2" onclick="carregarParticipantesModalEditar()">
+                <i class="fas fa-redo me-1"></i>Tentar Novamente
+              </button>
+            </div>
+          `);
+        }
+      });
+    }
+
+    // Renderizar lista com checkboxes
+    function renderizarListaParticipantesEditar() {
+      const busca = $('#buscaParticipanteEditar').val().toLowerCase();
+      const participantesFiltrados = participantesDisponiveisEditar.filter(p => 
+        p.nome.toLowerCase().includes(busca)
+      );
+
+      if (participantesFiltrados.length === 0) {
+        $('#listaParticipantesModalEditar').html(`
+          <div class="alert alert-warning">
+            <i class="fas fa-info-circle me-2"></i>
+            Nenhum participante encontrado.
+          </div>
+        `);
+        return;
+      }
+
+      let html = '<div class="list-group">';
+      participantesFiltrados.forEach(participante => {
+        const checked = participantesSelecionadosEditar.includes(participante.id) ? 'checked' : '';
+        html += `
+          <label class="list-group-item list-group-item-action d-flex align-items-center" style="cursor: pointer;">
+            <input type="checkbox" class="form-check-input me-3" value="${participante.id}" ${checked} 
+                   onchange="toggleParticipanteEditar('${participante.id}', '${participante.nome.replace(/'/g, "\\'")}')"
+                   style="cursor: pointer;">
+            <div>
+              <div class="fw-bold">${participante.nome}</div>
+              ${participante.info ? `<small class="text-muted">${participante.info}</small>` : ''}
+            </div>
+          </label>
+        `;
+      });
+      html += '</div>';
+      
+      $('#listaParticipantesModalEditar').html(html);
+    }
+
+    // Toggle seleção de participante
+    function toggleParticipanteEditar(id, nome) {
+      const index = participantesSelecionadosEditar.indexOf(id);
+      if (index > -1) {
+        participantesSelecionadosEditar.splice(index, 1);
+      } else {
+        participantesSelecionadosEditar.push(id);
+      }
+      atualizarContadorModalEditar();
+    }
+
+    // Selecionar todos os participantes visíveis (respeitando filtros e busca)
+    function selecionarTodosEditar() {
+      const busca = $('#buscaParticipanteEditar').val().toLowerCase();
+      const participantesFiltrados = participantesDisponiveisEditar.filter(p => 
+        p.nome.toLowerCase().includes(busca)
+      );
+      
+      participantesFiltrados.forEach(p => {
+        if (!participantesSelecionadosEditar.includes(p.id)) {
+          participantesSelecionadosEditar.push(p.id);
+        }
+      });
+      
+      atualizarContadorModalEditar();
+      renderizarListaParticipantesEditar();
+      
+      // Toast de feedback
+      mostrarToastEditar(`${participantesFiltrados.length} participantes selecionados!`, 'success');
+    }
+
+    // Desmarcar todos os participantes
+    function desmarcarTodosEditar() {
+      participantesSelecionadosEditar = [];
+      atualizarContadorModalEditar();
+      renderizarListaParticipantesEditar();
+      mostrarToastEditar('Todos os participantes desmarcados', 'info');
+    }
+
+    // Função auxiliar para mostrar toast
+    function mostrarToastEditar(mensagem, tipo = 'success') {
+      const bgClass = tipo === 'success' ? 'bg-success' : tipo === 'info' ? 'bg-info' : 'bg-warning';
+      const toastHTML = `
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+          <div class="toast show ${bgClass} text-white" role="alert">
+            <div class="toast-body">
+              <i class="fas fa-info-circle me-2"></i>${mensagem}
+            </div>
+          </div>
+        </div>
+      `;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = toastHTML;
+      document.body.appendChild(tempDiv);
+      setTimeout(() => tempDiv.remove(), 2000);
+    }
+
+    // Atualizar contador no modal
+    function atualizarContadorModalEditar() {
+      $('#contadorModalParticipantesEditar').text(participantesSelecionadosEditar.length);
+    }
+
+    // Confirmar seleção e fechar modal
+    function confirmarSelecaoParticipantesEditar() {
+      // Atualizar campo hidden do formulário
+      $('#id_convidados').val(participantesSelecionadosEditar);
+      
+      // Atualizar preview na tela principal
+      atualizarPreviewParticipantesEditar();
+      
+      // Fechar modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('modalParticipantesEditar'));
+      modal.hide();
+      
+      // Toast de sucesso
+      const toastHTML = `
+        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+          <div class="toast show bg-success text-white" role="alert">
+            <div class="toast-body">
+              <i class="fas fa-check-circle me-2"></i>
+              ${participantesSelecionadosEditar.length} participantes selecionados!
+            </div>
+          </div>
+        </div>
+      `;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = toastHTML;
+      document.body.appendChild(tempDiv);
+      setTimeout(() => tempDiv.remove(), 3000);
+    }
+
+    // Atualizar preview na tela principal
+    function atualizarPreviewParticipantesEditar() {
+      if (participantesSelecionadosEditar.length === 0) {
+        $('#previewParticipantesEditar').hide();
+        $('#mensagemVazioEditar').show();
+        return;
+      }
+
+      $('#mensagemVazioEditar').hide();
+      $('#previewParticipantesEditar').show();
+      $('#contadorParticipantesEditar').text(participantesSelecionadosEditar.length);
+
+      // Buscar nomes dos participantes
+      const nomesParticipantes = [];
+      participantesDisponiveisEditar.forEach(p => {
+        if (participantesSelecionadosEditar.includes(p.id)) {
+          nomesParticipantes.push(p.nome);
+        }
+      });
+
+      // Mostrar até 5 nomes, resto como "e mais X pessoas"
+      let html = '<ul class="mb-0">';
+      const mostrar = nomesParticipantes.slice(0, 5);
+      mostrar.forEach(nome => {
+        html += `<li>${nome}</li>`;
+      });
+      if (nomesParticipantes.length > 5) {
+        html += `<li class="text-muted"><em>... e mais ${nomesParticipantes.length - 5} pessoa(s)</em></li>`;
+      }
+      html += '</ul>';
+      
+      $('#listaParticipantesEditar').html(html);
+    }
+
+    // Quando o modal é aberto
+    $('#modalParticipantesEditar').on('show.bs.modal', function () {
+      // Carregar participantes com filtro atual
+      carregarParticipantesModalEditar();
+    });
+
+    // Filtros e busca no modal
+    $(document).ready(function() {
+      $('#filtro_convidados_modal_editar, .status_filtro_modal_editar').on('change', function() {
+        carregarParticipantesModalEditar();
+      });
+
+      $('#buscaParticipanteEditar').on('keyup', function() {
+        renderizarListaParticipantesEditar();
+      });
+
+      // Carregar seleção inicial se houver
+      const valoresIniciaisEditar = $('#id_convidados').val();
+      if (valoresIniciaisEditar && valoresIniciaisEditar.length > 0) {
+        participantesSelecionadosEditar = Array.isArray(valoresIniciaisEditar) ? valoresIniciaisEditar : [valoresIniciaisEditar];
+        // Atualizar preview inicial
+        setTimeout(function() {
+          if (participantesSelecionadosEditar.length > 0) {
+            // Carregar dados para mostrar preview
+            $.ajax({
+              url: '{% url "eventos:autocomplete_convidados" %}',
+              data: { filtro: 'todos', status: 'ativo,desligado,disciplina' },
+              success: function(data) {
+                participantesDisponiveisEditar = data.pessoas || [];
+                atualizarPreviewParticipantesEditar();
+              }
+            });
+          }
+        }, 500);
+      }
+    });
+  </script>
 </div>
 {% endblock %}

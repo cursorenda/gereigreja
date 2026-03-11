@@ -21,6 +21,7 @@
         <div class="card-body">
             <form method="post" class="row g-3">
                 {% csrf_token %}
+                {{ form.igreja }}
                 <div class="col-md-6">
                     <label for="id_titulo" class="form-label">Título</label>
                     {{ form.titulo }}
@@ -93,5 +94,13 @@
             </form>
         </div>
     </div>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Campo responsavel já vem filtrado pela view, mas se implementar seleção de igreja
+            // dinâmica no futuro, adicionar AJAX aqui similar ao módulo eventos
+        });
+    </script>
 </div>
 {% endblock %}

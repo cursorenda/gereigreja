@@ -90,6 +90,46 @@ class Evento(models.Model):
 	def __str__(self):
 		return f"{self.titulo} ({self.data_inicio:%d/%m/%Y %H:%M})"
 
+	def get_participantes_esperados(self):
+		"""
+		Retorna lista de participantes esperados usando sistema híbrido:
+		1. Gera lista baseada em critérios (tipos_participantes + status_participantes)
+		2. Remove quem foi manualmente excluído
+		3. Adiciona quem foi manualmente incluído
+		"""
+		from secretaria.models import Membro
+		
+		# Gerar lista baseada em critérios
+		membros_criterios = Membro.objects.filter(igreja=self.igreja)
+		
+		# Aplicar filtros de tipo e status
+		if self.tipos_participantes.exists():
+			membros_criterios = membros_criterios.filter(tipo_pessoa__in=self.tipos_participantes.all())
+		if self.status_participantes.exists():
+			membros_criterios = membros_criterios.filter(status_pessoa__in=self.status_participantes.all())
+		
+		# Se incluir_todos_membros está marcado, ignora filtros de tipo
+		if self.incluir_todos_membros:
+			membros_criterios = Membro.objects.filter(igreja=self.igreja)
+			if self.status_participantes.exists():
+				membros_criterios = membros_criterios.filter(status_pessoa__in=self.status_participantes.all())
+		
+		# Remover os que foram manualmente excluídos
+		removidos_ids = self.participacoes.filter(
+			tipo_inclusao='MANUAL_REMOVIDO'
+		).values_list('membro_id', flat=True)
+		
+		membros_criterios = membros_criterios.exclude(pk__in=removidos_ids)
+		
+		# Buscar os que foram manualmente adicionados
+		adicionados_manualmente = self.participacoes.filter(
+			tipo_inclusao='MANUAL_ADICIONADO'
+		).select_related('membro')
+		
+		# Combinar: membros dos critérios + adicionados manualmente
+		# Retorna QuerySet de membros dos critérios e lista de ParticipacaoEvento adicionados
+		return membros_criterios.distinct(), adicionados_manualmente
+
 	class Meta:
 		ordering = ['-data_inicio']
 
@@ -118,6 +158,11 @@ class ParticipacaoEvento(models.Model):
 		('AUSENTE', 'Ausente'),
 		('PRESENTE', 'Presente'),
 	]
+	TIPO_INCLUSAO_CHOICES = [
+		('AUTOMATICA', 'Inclusão Automática (critérios)'),
+		('MANUAL_ADICIONADO', 'Adicionado Manualmente'),
+		('MANUAL_REMOVIDO', 'Removido Manualmente'),
+	]
 	evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name='participacoes')
 	# Optional session: when an Evento spans multiple days we create
 	# EventoSessao objects (one per day) and link participations to a specific
@@ -128,6 +173,13 @@ class ParticipacaoEvento(models.Model):
 	convidado_email = models.EmailField(blank=True, null=True)
 	papel = models.CharField(max_length=20, choices=PAPEL_CHOICES, default='PARTICIPANTE')
 	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDENTE')
+	tipo_inclusao = models.CharField(
+		max_length=20,
+		choices=TIPO_INCLUSAO_CHOICES,
+		default='AUTOMATICA',
+		verbose_name='Tipo de Inclusão',
+		help_text='Como este participante foi incluído no evento: automaticamente pelos critérios ou manualmente pelo usuário'
+	)
 	observacoes = models.TextField(blank=True, null=True)
 	justificativa_falta = models.TextField(
 		blank=True, null=True,

@@ -1,0 +1,29 @@
+===============================================
+         TAREFAS PENDENTES - GEREIGREJA
+===============================================
+
+[PRIORIDADE CRÍTICA - LGPD]
+──────────────────────────────────────────────
+⚠️  FASE 6 - EXCLUSÃO/ANONIMIZAÇÃO DE CONTA
+
+DECISÃO NECESSÁRIA: Escolher abordagem para exclusão de dados
+- Opção 1: Anonimização (recomendada)
+- Opção 2: Transferência de propriedade + exclusão
+- Opção 3: Híbrida (anonimizar admins, excluir outros)
+
+PROBLEMA: Ministerio.administrador_principal usa PROTECT
+         (impede exclusão de administradores principais)
+
+📄 Documentação completa: docs/LGPD_IMPLEMENTACAO.md
+📝 Ver: melhorias no gereigreja.txt (seção LGPD)
+
+STATUS LGPD ATUAL:
+✅ Fase 1: Consentimento no registro
+✅ Fase 2: Visualização de dados pessoais
+✅ Fase 3: Exportação JSON
+✅ Fase 4: Exportação PDF
+✅ Fase 5: Histórico de consentimentos
+❌ Fase 6: Exclusão/anonimização (PENDENTE)
+
+Data: 08/03/2026
+──────────────────────────────────────────────

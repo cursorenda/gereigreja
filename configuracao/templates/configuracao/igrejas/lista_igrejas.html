@@ -10,9 +10,6 @@
         <li class="breadcrumb-item active">Gerenciar Igrejas</li>
     </ol>
 
-    {# Mensagens #}
-    {% include 'partials/_messages.html' %}
-
     {# Banner de Onboarding - exibido quando não há membros cadastrados #}
     {% if not tem_membros %}
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
