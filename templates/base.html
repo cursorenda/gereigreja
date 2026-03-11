@@ -32,7 +32,9 @@
             <footer class="py-4 bg-light mt-auto">
                 <div class="container-fluid px-4">
                     <div class="d-flex align-items-center justify-content-between small">
-                        <div class="text-muted">Copyright &copy; {{ SISTEMA_NOME }} {% now "Y" %}</div> {# Ano dinâmico #}
+                        {% load versao %}
+                        {% get_versao_gereigreja as versao_sistema %}
+                        <div class="text-muted">Copyright &copy; {{ SISTEMA_NOME }} {% now "Y" %} &nbsp;|&nbsp; Versão {{ versao_sistema }}</div> {# Ano dinâmico #}
                         <div>
                             <a href="{% url 'politica_privacidade' %}">Política de Privacidade</a>
                             &middot;
