@@ -14,6 +14,60 @@
     <li class="breadcrumb-item active">Editar: {{ form.instance.nome|default:"Pessoa" }}</li>
     </ol>
 
+    <!-- Barra de Navegação entre Pessoas -->
+    {% if total_count > 1 %}
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    {% if prev_id %}
+                    <a href="{% url 'secretaria:editar_membro' membro_id=prev_id %}" class="btn btn-sm btn-outline-primary" title="Pessoa Anterior">
+                        <i class="fas fa-arrow-left"></i> Anterior
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled>
+                        <i class="fas fa-arrow-left"></i> Anterior
+                    </button>
+                    {% endif %}
+                    
+                    <select class="form-select form-select-sm" style="width: 300px;" id="navegacao-pessoa-select" onchange="if(this.value) window.location.href='{% url 'secretaria:editar_membro' membro_id=0 %}'.replace('/0/', '/' + this.value + '/');">
+                        {% for membro_id, membro_nome in membros_lista %}
+                        <option value="{{ membro_id }}" {% if membro_id == form.instance.pk %}selected{% endif %}>
+                            {{ membro_nome }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    
+                    {% if next_id %}
+                    <a href="{% url 'secretaria:editar_membro' membro_id=next_id %}" class="btn btn-sm btn-outline-primary" title="Próxima Pessoa">
+                        Próximo <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled>
+                        Próximo <i class="fas fa-arrow-right"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <small class="text-muted">
+                    <i class="fas fa-users me-1"></i>
+                    Pessoa {{ current_position }} de {{ total_count }} (exceto inativos)
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Aviso para pessoas inativas -->
+    {% if form.instance.status_pessoa.nome == 'Inativo' %}
+    <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Atenção:</strong> Esta pessoa está com status "{{ form.instance.status_pessoa.nome }}". 
+        A navegação rápida não inclui pessoas inativas.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
     <div class="card mb-4">
         <div class="card-header">
             <div class="mb-2">
@@ -21,15 +75,15 @@
                 Editar Dados de: {{ form.instance.nome|default:"Pessoa" }}
             </div>
             {% if form.instance.criado_em or form.instance.atualizado_em %}
-            <div class="d-flex flex-wrap gap-3" style="font-size: 0.85rem; opacity: 0.9;">
+            <div class="d-flex flex-wrap gap-2 mt-2">
                 {% if form.instance.criado_em %}
-                <span class="text-white-50">
+                <span class="badge bg-info" style="font-size: 0.85rem; font-weight: normal;">
                     <i class="fas fa-calendar-plus me-1"></i>
                     Cadastrado em: {{ form.instance.criado_em|date:'d/m/Y H:i' }}
                 </span>
                 {% endif %}
                 {% if form.instance.atualizado_em %}
-                <span class="text-white-50">
+                <span class="badge bg-secondary" style="font-size: 0.85rem; font-weight: normal;">
                     <i class="fas fa-clock me-1"></i>
                     Última atualização: {{ form.instance.atualizado_em|date:'d/m/Y H:i' }}
                 </span>

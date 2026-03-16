@@ -4,6 +4,7 @@
 {% block title %}Visualizar: {{ membro.nome }}{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/secretaria/secretaria_pessoa.css' %}">
 <div class="container-fluid px-4" style="max-width: 1440px; margin: 0 auto;">
     <h1 class="mt-4">Visualizar Pessoa</h1>
     <ol class="breadcrumb mb-4">
@@ -11,6 +12,60 @@
         <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_pessoas' %}">Lista de Pessoas</a></li>
         <li class="breadcrumb-item active">{{ membro.nome }}</li>
     </ol>
+
+    <!-- Barra de Navegação entre Pessoas -->
+    {% if total_count > 1 %}
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    {% if prev_id %}
+                    <a href="{% url 'secretaria:detalhe_membro' membro_id=prev_id %}" class="btn btn-sm btn-outline-primary" title="Pessoa Anterior">
+                        <i class="fas fa-arrow-left"></i> Anterior
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled>
+                        <i class="fas fa-arrow-left"></i> Anterior
+                    </button>
+                    {% endif %}
+                    
+                    <select class="form-select form-select-sm" style="width: 300px;" id="navegacao-pessoa-select" onchange="if(this.value) window.location.href='{% url 'secretaria:detalhe_membro' membro_id=0 %}'.replace('/0/', '/' + this.value + '/');">
+                        {% for membro_id, membro_nome in membros_lista %}
+                        <option value="{{ membro_id }}" {% if membro_id == membro.pk %}selected{% endif %}>
+                            {{ membro_nome }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    
+                    {% if next_id %}
+                    <a href="{% url 'secretaria:detalhe_membro' membro_id=next_id %}" class="btn btn-sm btn-outline-primary" title="Próxima Pessoa">
+                        Próximo <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary" disabled>
+                        Próximo <i class="fas fa-arrow-right"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <small class="text-muted">
+                    <i class="fas fa-users me-1"></i>
+                    Pessoa {{ current_position }} de {{ total_count }} (exceto inativos)
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Aviso para pessoas inativas -->
+    {% if membro.status_pessoa.nome == 'Inativo' %}
+    <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Atenção:</strong> Esta pessoa está com status "{{ membro.status_pessoa.nome }}". 
+        A navegação rápida não inclui pessoas inativas.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
 
     <div class="card mb-4">
         <div class="card-header">
@@ -47,15 +102,40 @@
         </div>
 
         <div class="card-body">
-            <!-- Foto -->
-            {% if membro.foto %}
-            <div class="text-center mb-4">
-                <img src="{{ membro.foto.url }}" alt="Foto de {{ membro.nome }}" class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;">
+            <!-- Foto ou Avatar -->
+            <div class="text-center mb-4" role="region" aria-label="Foto ou avatar do membro">
+                {% if membro.foto %}
+                    <img src="{{ membro.foto.url }}" alt="Foto de {{ membro.nome }}" class="img-thumbnail rounded-circle" style="max-width: 150px; max-height: 150px; object-fit: cover;" aria-label="Foto de perfil de {{ membro.nome }}">
+                {% else %}
+                    <span id="avatar-iniciais-svg" aria-label="Avatar com iniciais de {{ membro.nome }}" role="img"></span>
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        var nome = "{{ membro.nome|default:'' }}".trim();
+                        var iniciais = '';
+                        if (nome.length > 0) {
+                            var partes = nome.split(' ');
+                            iniciais = partes[0][0] || '';
+                            if (partes.length > 1) {
+                                iniciais += partes[partes.length-1][0] || '';
+                            }
+                            iniciais = iniciais.toUpperCase();
+                        } else {
+                            iniciais = '?';
+                        }
+                        var svg = `<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg" aria-label="Avatar com iniciais de {{ membro.nome }}">
+                            <circle cx="75" cy="75" r="75" fill="#6c757d" />
+                            <text x="50%" y="54%" text-anchor="middle" fill="#fff" font-size="56" font-family="Arial, sans-serif" dy=".3em">${iniciais}</text>
+                        </svg>`;
+                        document.getElementById('avatar-iniciais-svg').innerHTML = svg;
+                    });
+                    </script>
+                {% endif %}
             </div>
-            {% endif %}
+
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Dados Pessoais">
 
             <!-- Dados Pessoais -->
-            <h5 class="border-bottom pb-2 mb-3">Dados Pessoais</h5>
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-pessoais">Dados Pessoais</h5>
             <div class="row mb-3">
                 <div class="col-md-6">
                     <strong>Nome Completo:</strong> {{ membro.nome }}
@@ -80,7 +160,9 @@
             </div>
 
             <!-- Contato -->
-            <h5 class="border-bottom pb-2 mb-3 mt-4">Contato</h5>
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Contato">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-contato">Contato</h5>
             <div class="row mb-3">
                 <div class="col-md-4">
                     <strong>Telefone:</strong> {{ membro.telefone|default:"—" }}
@@ -94,37 +176,41 @@
             </div>
 
             <!-- Endereço -->
-            <h5 class="border-bottom pb-2 mb-3 mt-4">Endereço</h5>
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Endereço">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-endereco">Endereço</h5>
             <div class="row mb-3">
-                <div class="col-md-8">
+                <div class="col-md-6">
                     <strong>Rua:</strong> {{ membro.rua|default:"—" }}
                 </div>
-                <div class="col-md-4">
-                    <strong>Número:</strong> {{ membro.numero|default:"—" }}
+                <div class="col-md-3">
+                    <strong>Número:</strong> {{ membro.numero_casa|default:"—" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Complemento:</strong> {{ membro.complemento|default:"—" }}
                 </div>
             </div>
             <div class="row mb-3">
                 <div class="col-md-4">
-                    <strong>Complemento:</strong> {{ membro.complemento|default:"—" }}
-                </div>
-                <div class="col-md-4">
-                    <strong>Bairro:</strong> {{ membro.bairro|default:"—" }}
+                    <strong>Bairro:</strong> {{ membro.bairro_distrito|default:"—" }}
                 </div>
                 <div class="col-md-4">
                     <strong>CEP:</strong> {{ membro.cep|default:"—" }}
                 </div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <strong>Cidade:</strong> {{ membro.cidade|default:"—" }}
                 </div>
-                <div class="col-md-6">
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
                     <strong>Estado:</strong> {{ membro.estado|default:"—" }}
                 </div>
             </div>
 
             <!-- Informações Eclesiásticas -->
-            <h5 class="border-bottom pb-2 mb-3 mt-4">Informações Eclesiásticas</h5>
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Informações Eclesiásticas">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-eclesiasticos">Informações Eclesiásticas</h5>
             <div class="row mb-3">
                 <div class="col-md-4">
                     <strong>Igreja:</strong> {{ membro.igreja.nome_igreja }}
@@ -132,10 +218,20 @@
                 <div class="col-md-4">
                     <strong>Tipo:</strong> {{ membro.tipo_pessoa.nome|default:"—" }}
                 </div>
-                <div class="col-md-4">
-                    <strong>Status:</strong> 
-                    <span class="badge {% if membro.status_pessoa.nome == 'Ativo' %}bg-success{% elif membro.status_pessoa.nome == 'Inativo' %}bg-secondary{% elif membro.status_pessoa.nome == 'Desligado' %}bg-danger{% else %}bg-warning{% endif %}">
-                        {{ membro.status_pessoa.nome|default:"—" }}
+                <div class="col-md-4 d-flex align-items-center flex-wrap">
+                    <strong class="me-2">Status:</strong>
+                    <span class="badge px-3 py-2 d-flex align-items-center gap-2 {% if membro.status_pessoa.nome == 'Ativo' %}bg-success{% elif membro.status_pessoa.nome == 'Inativo' %}bg-secondary{% elif membro.status_pessoa.nome == 'Desligado' %}bg-danger{% else %}bg-warning{% endif %}"
+                          title="Status atual do membro: {{ membro.status_pessoa.nome|default:'—' }}">
+                        {% if membro.status_pessoa.nome == 'Ativo' %}
+                            <i class="fas fa-check-circle me-1"></i>
+                        {% elif membro.status_pessoa.nome == 'Inativo' %}
+                            <i class="fas fa-pause-circle me-1"></i>
+                        {% elif membro.status_pessoa.nome == 'Desligado' %}
+                            <i class="fas fa-times-circle me-1"></i>
+                        {% else %}
+                            <i class="fas fa-question-circle me-1"></i>
+                        {% endif %}
+                        <span>{{ membro.status_pessoa.nome|default:"—" }}</span>
                     </span>
                 </div>
             </div>
@@ -158,11 +254,13 @@
 
             <!-- Tags -->
             {% if tags %}
-            <h5 class="border-bottom pb-2 mb-3 mt-4">Tags</h5>
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Tags">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-tags">Tags</h5>
             <div class="mb-3">
                 {% for tag in tags %}
-                    <span class="badge" style="background-color: {{ tag.cor }}; color: #fff; margin-right: 5px;">
-                        {{ tag.nome }}
+                    <span class="badge d-inline-block me-1" style="background-color: {{ tag.cor }}; color: #fff; min-width: 60px; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="Tag: {{ tag.nome }}">
+                        <i class="fas fa-tag me-1"></i>{{ tag.nome }}
                     </span>
                 {% endfor %}
             </div>
@@ -170,7 +268,9 @@
 
             <!-- Cargos Ativos -->
             {% if cargos_ativos %}
-            <h5 class="border-bottom pb-2 mb-3 mt-4">Cargos Ativos</h5>
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Cargos Ativos">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-cargos">Cargos Ativos</h5>
             <ul class="list-group mb-3">
                 {% for mc in cargos_ativos %}
                 <li class="list-group-item">
@@ -180,40 +280,91 @@
             </ul>
             {% endif %}
 
-            <!-- Histórico de Status -->
+            <!-- Datas Importantes -->
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Datas Importantes">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-datas">Datas Importantes</h5>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <strong>📅 Nascimento:</strong> 
+                    {% if membro.nascimento %}
+                        {{ membro.nascimento|date:"d/m/Y" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <strong>⛪ Entrada na Igreja:</strong> 
+                    {% if membro.data_entrada %}
+                        {{ membro.data_entrada|date:"d/m/Y" }}
+                        {% if membro.tipo_entrada %}
+                            <span class="badge bg-primary ms-1">{{ membro.get_tipo_entrada_display }}</span>
+                        {% endif %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <strong>💍 Casamento:</strong> {{ membro.data_casamento|date:"d/m/Y"|default:"—" }}
+                </div>
+            </div>
+
+            <!-- Histórico de Alterações de Tipo e Status -->
             {% if historico_status %}
-            <h5 class="border-bottom pb-2 mb-3 mt-4">Histórico Recente de Status</h5>
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Histórico de Alterações de Tipo e Status">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-historico">Histórico de Alterações de Tipo e Status</h5>
             <div class="table-responsive">
-                <table class="table table-sm table-striped">
-                    <thead>
+                <table class="table table-sm table-striped table-hover">
+                    <thead class="table-light">
                         <tr>
-                            <th>Data</th>
+                            <th>Data/Hora</th>
+                            <th>Tipo Anterior</th>
+                            <th>Novo Tipo</th>
                             <th>Status Anterior</th>
-                            <th>Status Novo</th>
-                            <th>Observações</th>
+                            <th>Novo Status</th>
+                            <th>Observação</th>
+                            <th>Registrado Por</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for hist in historico_status %}
                         <tr>
                             <td>{{ hist.data_transicao|date:"d/m/Y H:i" }}</td>
+                            <td>{{ hist.tipo_pessoa_anterior.nome|default:"—" }}</td>
+                            <td>{{ hist.tipo_pessoa_novo.nome|default:"—" }}</td>
                             <td>{{ hist.status_pessoa_anterior.nome|default:"—" }}</td>
-                            <td>{{ hist.status_pessoa_novo.nome }}</td>
+                            <td>{{ hist.status_pessoa_novo.nome|default:"—" }}</td>
                             <td>{{ hist.observacao|default:"—" }}</td>
+                            <td>
+                                {% if hist.registrado_por %}
+                                    {{ hist.registrado_por.get_full_name|default:hist.registrado_por.username }}
+                                {% else %}
+                                    Sistema
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <div class="alert alert-info mt-3" role="alert">
+                <i class="fas fa-info-circle me-1"></i>
+                Nenhum histórico de alteração de tipo ou status registrado para esta pessoa.
+            </div>
             {% endif %}
 
             <!-- Observações -->
             {% if membro.observacoes %}
-            <h5 class="border-bottom pb-2 mb-3 mt-4">Observações</h5>
+            </div>
+            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Observações">
+            <h5 class="border-bottom pb-2 mb-3 mt-4" id="dados-observacoes">Observações</h5>
             <div class="alert alert-info">
                 {{ membro.observacoes }}
             </div>
             {% endif %}
+            </div>
 
         </div>
 
@@ -221,17 +372,18 @@
             <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Voltar para Lista
             </a>
+            {% if pode_aprovar and membro.status_pessoa.nome == 'Pendente' %}
+                <form method="post" action="" style="display:inline-block; margin-left:1em;">
+                    {% csrf_token %}
+                    <input type="hidden" name="aprovar_membro" value="1">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check-circle"></i> Aprovar Cadastro
+                    </button>
+                </form>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<style>
-.card-header {
-    background: linear-gradient(90deg, #4e73df 0%, #224abe 100%);
-    color: #fff;
-}
-strong {
-    color: #495057;
-}
-</style>
+
 {% endblock %}

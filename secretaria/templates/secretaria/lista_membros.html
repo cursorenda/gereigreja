@@ -1,16 +1,15 @@
-
 {% extends 'base_com_sistema.html' %}
 {% block title %}Lista de Pessoas{% endblock %}
-{% block nome_departamento %}Membros{% endblock %}
+{% block nome_departamento %}Secretaria{% endblock %}
 {% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Lista de Membros</li>
+    <li class="breadcrumb-item active">Lista de Pessoas</li>
 {% endblock %}
 {% block card_header_gradiente %}
 <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:0 !important; padding-left:2rem;">
     <div class="d-flex align-items-center">
         <i class="fas fa-users me-1"></i>
-        <span style="font-size:1.1rem; font-weight:600;">Membros</span>
+        <span style="font-size:1.1rem; font-weight:600;">Pessoas</span>
         <small class="ms-3" style="color: rgba(255,255,255,0.85);">({{ membros.paginator.count }})</small>
     </div>
 </div>
@@ -91,17 +90,22 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
-            <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+        <div class="col-lg-5 col-12 d-flex align-items-center gap-2 flex-wrap justify-content-start">
+            <button class="btn btn-vibrant-blue d-flex align-items-center" type="submit" style="height:38px; font-size:1em; border-radius:8px;">
+                <i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span>
+            </button>
+            <a href="?pendentes=1" class="btn btn-warning d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Mostrar apenas cadastros pendentes">
+                <i class="fas fa-user-clock"></i><span style="margin-left: 0.4em;">Pendentes</span>
+            </a>
             {% if request.GET.q or request.GET.tipo or request.GET.status or request.GET.genero %}
-                <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                <a href="{{ request.path }}" class="btn btn-vibrant d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
             {% endif %}
             {% if can_edit_membros %}
-                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-adicionar" style="margin-left:0;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span></a>
+                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-adicionar d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;">
+                    <i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span>
+                </a>
             {% endif %}
-        </div>
-        <div class="col-lg-2 col-12 d-flex align-items-center gap-2">
-            <a href="{% url 'secretaria:imprimir_lista_membros' %}?{{ request.GET.urlencode }}" class="btn btn-vibrant-imprimir" target="_blank" title="Imprimir lista com filtros aplicados">
+            <a href="{% url 'secretaria:imprimir_lista_membros' %}?{{ request.GET.urlencode }}" class="btn btn-vibrant-imprimir d-flex align-items-center" target="_blank" style="height:38px; font-size:1em; border-radius:8px;" title="Imprimir lista com filtros aplicados">
                 <i class="fas fa-print"></i><span style="margin-left: 0.4em;">Imprimir Lista</span>
             </a>
         </div>
@@ -212,6 +216,9 @@
             Nenhuma pessoa encontrada com os filtros aplicados, verifique acentos "´,~,^,".
             {% if can_edit_membros %}
                 <a href="{% url 'secretaria:cadastrar_membro' %}" class="ms-2">Adicionar uma nova?</a>
+            {% endif %}
+            {% if request.GET.pendentes %}
+                <a href="{{ request.path }}" class="btn btn-outline-secondary ms-2">Limpar Filtros</a>
             {% endif %}
         </div>
     {% endif %}

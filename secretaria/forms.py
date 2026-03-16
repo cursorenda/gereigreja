@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from .models import Membro, Pessoa
 from .models import MembroCargo, TipoPessoa, StatusPessoa, StatusHistorico, Cargo
 from django.contrib.auth.models import Group
@@ -7,6 +8,43 @@ from configuracao.models import PerfilUsuario, Igreja, Ministerio
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 from .utils import is_admin_org, get_allowed_churches_for_membros
 from .models import Tag
+import re
+
+
+# --- FUNÇÕES DE VALIDAÇÃO ---
+def validar_cpf(cpf):
+    """
+    Valida CPF brasileiro usando algoritmo de dígito verificador.
+    Aceita CPF com ou sem pontuação.
+    """
+    # Remove pontuação
+    cpf = re.sub(r'[^0-9]', '', cpf)
+    
+    # Verifica se tem 11 dígitos
+    if len(cpf) != 11:
+        raise ValidationError('CPF deve ter 11 dígitos.')
+    
+    # Verifica se todos os dígitos são iguais (CPF inválido)
+    if cpf == cpf[0] * 11:
+        raise ValidationError('CPF inválido (todos os dígitos iguais).')
+    
+    # Valida primeiro dígito verificador
+    soma = sum(int(cpf[i]) * (10 - i) for i in range(9))
+    resto = (soma * 10) % 11
+    if resto == 10:
+        resto = 0
+    if resto != int(cpf[9]):
+        raise ValidationError('CPF inválido (primeiro dígito verificador incorreto).')
+    
+    # Valida segundo dígito verificador
+    soma = sum(int(cpf[i]) * (11 - i) for i in range(10))
+    resto = (soma * 10) % 11
+    if resto == 10:
+        resto = 0
+    if resto != int(cpf[10]):
+        raise ValidationError('CPF inválido (segundo dígito verificador incorreto).')
+    
+    return cpf  # Retorna CPF apenas com números
 
 
 
@@ -94,6 +132,25 @@ class MembroForm(forms.ModelForm):
         label='Sub status (se inativo)',
         help_text='Preencha apenas se o status for inativo.'
     )
+    # Campos para data customizada de mudança de tipo/status
+    data_mudanca_tipo = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        }),
+        label='Data da mudança de tipo',
+        help_text='Data em que a mudança de tipo ocorreu (se diferente de hoje).'
+    )
+    data_mudanca_status = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        }),
+        label='Data da mudança de status',
+        help_text='Data em que a mudança de status ocorreu (se diferente de hoje).'
+    )
     genero = forms.ChoiceField(
         choices=[('M', 'Masculino'), ('F', 'Feminino')],
         widget=forms.Select(attrs={'class': 'form-control'}),
@@ -125,7 +182,7 @@ class MembroForm(forms.ModelForm):
             'nome', 'apelido', 'cpf', 'rg', 'naturalidade', 'nascimento', 'genero', 'tipo_pessoa', 'status_pessoa',
             'sub_status_inativo',
             'estado_civil', 'profissao', 'escolaridade', 'nome_pai', 'nome_mae', 'cep', 'pais', 'estado', 'nacionalidade',
-            'cidade', 'bairro_distrito', 'rua', 'numero_casa', 'complemento', 'telefone',
+            'cidade', 'bairro_distrito', 'rua', 'numero_casa', 'complemento', 'telefone', 'celular',
             'data_entrada', 'conjuge', 'data_casamento',
             'foto', 'email',
             'tipo_entrada',
@@ -137,11 +194,16 @@ class MembroForm(forms.ModelForm):
             }
 
     def __init__(self, *args, **kwargs):
+        auto_cadastro = kwargs.pop('auto_cadastro', False)
         ministerio = kwargs.pop('ministerio', None)
         user = kwargs.pop('user', None)
         allowed_churches = kwargs.pop('allowed_churches', None)
         igreja_inicial = kwargs.pop('igreja_inicial', None)
         super().__init__(*args, **kwargs)
+        if auto_cadastro:
+            self.fields.pop('igreja', None)
+            self.fields.pop('tipo_pessoa', None)
+            self.fields.pop('status_pessoa', None)
         # Widgets/classes
         for field_name in self.fields:
             if isinstance(self.fields[field_name], (forms.ChoiceField, forms.ModelChoiceField)):
@@ -149,41 +211,53 @@ class MembroForm(forms.ModelForm):
             else:
                 self.fields[field_name].widget.attrs.setdefault('class', 'form-control')
         # Querysets dinâmicos
-        self.fields['tags'].queryset = Tag.objects.all().order_by('nome')
-        self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
-        self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
+        # Placeholders para campos de contato
+        if 'telefone' in self.fields:
+            self.fields['telefone'].widget.attrs['placeholder'] = '(99) 9999-9999'
+        if 'celular' in self.fields:
+            self.fields['celular'].widget.attrs['placeholder'] = '(99) 99999-9999'
+        if 'email' in self.fields:
+            self.fields['email'].widget.attrs['placeholder'] = 'email@exemplo.com'
+        if 'tags' in self.fields:
+            self.fields['tags'].queryset = Tag.objects.all().order_by('nome')
+        if 'tipo_pessoa' in self.fields:
+            self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
+        if 'status_pessoa' in self.fields:
+            self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
         # Preenche o queryset do campo igreja conforme o perfil do usuário
         import logging
         logger = logging.getLogger("django")
-        if user:
-            if is_admin_org(user):
-                ministerio = getattr(user.perfil, 'ministerio', None) if hasattr(user, 'perfil') else None
-                if ministerio:
-                    self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        if 'igreja' in self.fields:
+            if user:
+                if is_admin_org(user):
+                    ministerio = getattr(user.perfil, 'ministerio', None) if hasattr(user, 'perfil') else None
+                    if ministerio:
+                        self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+                    else:
+                        self.fields['igreja'].queryset = Igreja.objects.none()
+                    logger.info(f"[MembroForm] Usuário admin. Igrejas disponíveis: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
+                elif allowed_churches is not None:
+                    self.fields['igreja'].queryset = allowed_churches
+                    logger.info(f"[MembroForm] Igrejas permitidas para usuário comum: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
                 else:
                     self.fields['igreja'].queryset = Igreja.objects.none()
-                logger.info(f"[MembroForm] Usuário admin. Igrejas disponíveis: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
-            elif allowed_churches is not None:
-                self.fields['igreja'].queryset = allowed_churches
-                logger.info(f"[MembroForm] Igrejas permitidas para usuário comum: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
-            else:
-                self.fields['igreja'].queryset = Igreja.objects.none()
-                logger.info(f"[MembroForm] Nenhuma igreja disponível para usuário comum.")
-        elif ministerio:
-            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
-            logger.info(f"[MembroForm] Igrejas do ministério (sem usuário): {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
-        logger.info(f"[MembroForm] igreja_inicial: {igreja_inicial}")
-        logger.info(f"[MembroForm] queryset final igreja: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
-        # Garante que igreja_inicial sempre esteja no queryset
-        if igreja_inicial and not self.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
-            from django.db.models import Q
-            self.fields['igreja'].queryset = Igreja.objects.filter(
-                Q(pk=igreja_inicial.pk) | Q(pk__in=self.fields['igreja'].queryset.values_list('pk', flat=True))
-            )
-        # Seleciona igreja_inicial se fornecida
-        if igreja_inicial:
-            self.initial['igreja'] = igreja_inicial.pk
-            self.fields['igreja'].initial = igreja_inicial.pk
+                    logger.info(f"[MembroForm] Nenhuma igreja disponível para usuário comum.")
+            elif ministerio:
+                self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+                logger.info(f"[MembroForm] Igrejas do ministério (sem usuário): {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
+        if 'igreja' in self.fields:
+            logger.info(f"[MembroForm] igreja_inicial: {igreja_inicial}")
+            logger.info(f"[MembroForm] queryset final igreja: {[i.nome_igreja for i in self.fields['igreja'].queryset]}")
+            # Garante que igreja_inicial sempre esteja no queryset
+            if igreja_inicial and not self.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
+                from django.db.models import Q
+                self.fields['igreja'].queryset = Igreja.objects.filter(
+                    Q(pk=igreja_inicial.pk) | Q(pk__in=self.fields['igreja'].queryset.values_list('pk', flat=True))
+                )
+            # Seleciona igreja_inicial se fornecida
+            if igreja_inicial:
+                self.initial['igreja'] = igreja_inicial.pk
+                self.fields['igreja'].initial = igreja_inicial.pk
         # Garante que a igreja do membro sempre apareça no select durante edição
         if self.instance and self.instance.pk and getattr(self.instance, 'igreja', None):
             igreja_membro = self.instance.igreja
@@ -197,6 +271,29 @@ class MembroForm(forms.ModelForm):
             if not self.instance or not self.instance.pk:
                 self.fields['igreja'].disabled = True
 
+    def clean_cpf(self):
+        """Valida CPF se fornecido."""
+        cpf = self.cleaned_data.get('cpf')
+        if cpf:
+            try:
+                # Remove pontuação e valida
+                cpf_limpo = validar_cpf(cpf)
+                # Formata para armazenar com pontuação
+                return f'{cpf_limpo[:3]}.{cpf_limpo[3:6]}.{cpf_limpo[6:9]}-{cpf_limpo[9:]}'
+            except ValidationError as e:
+                raise ValidationError(e.message)
+        return cpf
+    
+    def clean_email(self):
+        """Valida formato de email."""
+        email = self.cleaned_data.get('email')
+        if email:
+            # Django já valida EmailField, mas vamos ser mais rigorosos
+            email = email.strip().lower()
+            if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+                raise ValidationError('Email inválido. Use o formato: nome@exemplo.com')
+        return email
+    
     def clean(self):
         cleaned_data = super().clean()
         tipo_pessoa = cleaned_data.get('tipo_pessoa')

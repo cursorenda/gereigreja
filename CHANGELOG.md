@@ -1,3 +1,584 @@
+## v1.6.1 — 12/03/2026
+🎨 **MELHORIAS NO CADASTRO DE PESSOAS** - Data customizada de mudanças + Indicadores visuais de campos obrigatórios
+
+### 🎯 Visão Geral
+
+Versão focada em **UX e precisão de dados** no módulo de cadastro de pessoas. Implementa data customizada para mudanças retroativas de tipo/status (evitando registros incorretos no histórico) e padroniza indicadores visuais de campos obrigatórios com badges vermelhos.
+
+**Destaques:**
+- ✅ Data customizada para mudança de Tipo/Status (retroativa)
+- ✅ Badges vermelhos "Obrigatório" padronizados (igual eventos)
+- ✅ Input Group integrado (select + data no mesmo bloco)
+- ✅ Destaque visual automático (amarelo) quando há mudança
+- ✅ Data sempre editável pelo usuário
+- ✅ Badge de cadastro/atualização em edição
+
+---
+
+### ✨ Novas Funcionalidades
+
+#### 📅 Data Customizada para Mudança de Tipo/Status
+
+**🆕 Problema Resolvido:**
+Quando um usuário altera o tipo ou status de uma pessoa dias/semanas depois da mudança real ter ocorrido, o `StatusHistorico` registrava a data atual (incorreta) ao invés da data real da mudança.
+
+**✅ Solução Implementada:**
+
+**1️⃣ Campos de Data no Formulário**
+- Adicionado `data_mudanca_tipo` e `data_mudanca_status` no `MembroForm`
+- Input Group Bootstrap: `[Select Tipo ▼][📅][Data]` (visual integrado)
+- Data default = hoje, mas **sempre editável**
+- Arquivos: `secretaria/forms.py`, `secretaria/templates/partials/_form_dados_cadastrais.html`
+
+**2️⃣ Detecção Automática de Mudança (JavaScript)**
+```javascript
+// Armazena valores iniciais ao carregar
+valorInicialTipo = tipoField.value;
+valorInicialStatus = statusField.value;
+
+// Quando usuário muda select:
+if (this.value !== valorInicialTipo) {
+    // Destaque amarelo (campo data fica #fff3cd)
+    // Box-shadow amarelo no input-group
+}
+```
+- Arquivo: `_form_dados_cadastrais.html` (linhas ~135-198)
+
+**3️⃣ Backend - Processamento da Data Customizada**
+
+**Modelo (`secretaria/models.py`):**
+```python
+def save(self, *args, **kwargs):
+    data_mudanca_tipo = kwargs.pop('data_mudanca_tipo', None)
+    data_mudanca_status = kwargs.pop('data_mudanca_status', None)
+    
+    # ... lógica de detecção de mudança ...
+    
+    # Usa data customizada se fornecida
+    if data_mudanca_tipo:
+        data_transicao_final = datetime.combine(data_mudanca_tipo, time(12, 0))
+    
+    StatusHistorico.objects.create(
+        data_transicao=data_transicao_final,  # Data correta!
+        # ... outros campos ...
+    )
+```
+
+**Views (`secretaria/views.py`):**
+- `criar_membro()`: Captura `form.cleaned_data.get('data_mudanca_tipo')`
+- `editar_membro()`: Passa datas para `membro.save(user=..., data_mudanca_tipo=..., data_mudanca_status=...)`
+- Arquivos modificados: linhas ~3223-3238, ~3380-3396
+
+**4️⃣ Visual (CSS)**
+```css
+/* Campo amarelo quando mudança detectada */
+input[type="date"] {
+    background-color: #fff3cd;  /* Amarelo claro */
+    border-color: #ffc107;      /* Borda amarela */
+}
+.input-group {
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+```
+
+**Exemplos de Uso:**
+```
+Cenário 1: Mudança HOJE
+→ Usuário muda Status "Ativo" → "Inativo"
+→ Campo data destaca em amarelo (12/03/2026)
+→ Salva → Histórico: "Status alterado em 12/03/2026 12:00"
+
+Cenário 2: Mudança RETROATIVA
+→ Usuário muda Tipo "Visitante" → "Membro" 
+→ Edita data para 01/03/2026 (batismo foi mês passado)
+→ Salva → Histórico: "Tipo alterado em 01/03/2026 12:00" ✅
+```
+
+---
+
+#### 🎨 Indicadores Visuais de Campos Obrigatórios
+
+**🆕 Badges Vermelhos Padronizados**
+
+Substituído asteriscos (`*`) por badges Bootstrap `<span class="badge bg-danger">Obrigatório</span>`, padronizando com o cadastro de eventos.
+
+**Campos Marcados:**
+- ✅ **Nome** → Badge vermelho
+- ✅ **Igreja** → Badge vermelho  
+- ✅ **Tipo de Pessoa** → Badge vermelho
+- ✅ **Status da Pessoa** → Badge vermelho
+
+**Antes:**
+```html
+<label>Nome: *</label>  <!-- Discreto, fácil ignorar -->
+```
+
+**Depois:**
+```html
+<label>
+    Nome
+    <span class="badge bg-danger ms-1">Obrigatório</span>
+</label>
+```
+
+**CSS Customizado:**
+```css
+.badge.bg-danger {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25em 0.5em;
+    vertical-align: middle;
+}
+```
+
+**Arquivos:** `secretaria/templates/partials/_form_dados_cadastrais.html`
+
+---
+
+#### 📋 Badges de Data/Hora de Cadastro (Edição)
+
+**🆕 Visual Aprimorado em Edição**
+
+Em `editar_membro.html`, substituído texto simples por badges coloridos no header:
+
+**Antes:**
+```html
+<span class="text-white-50">
+    Cadastrado em: 11/03/2026 14:30
+</span>
+```
+
+**Depois:**
+```html
+<span class="badge bg-info">
+    📅 Cadastrado em: 11/03/2026 14:30
+</span>
+<span class="badge bg-secondary">
+    🕒 Última atualização: 12/03/2026 10:15
+</span>
+```
+
+**+ Alert Informativo em Cadastro:**
+```html
+<div class="alert alert-info">
+    ℹ️ A data e hora do cadastro serão registradas 
+    automaticamente ao salvar.
+</div>
+```
+
+**Arquivos:** `secretaria/templates/secretaria/criar_membro.html`, `editar_membro.html`
+
+---
+
+#### 🔒 Validações de Dados e Máscaras Automáticas
+
+**🆕 Validação Inteligente de CPF, Email, CEP e Telefone**
+
+Implementado sistema completo de validação backend + frontend com máscaras automáticas e busca de endereço por CEP.
+
+**1️⃣ Validação de CPF (Backend)**
+```python
+def validar_cpf(cpf):
+    """Valida CPF usando algoritmo de dígito verificador (Receita Federal)."""
+    cpf = re.sub(r'[^0-9]', '', cpf)  # Remove pontuação
+    
+    # Valida comprimento
+    if len(cpf) != 11:
+        raise ValidationError('CPF deve ter 11 dígitos.')
+    
+    # Rejeita CPFs com todos dígitos iguais (111.111.111-11, etc)
+    if cpf == cpf[0] * 11:
+        raise ValidationError('CPF inválido (todos os dígitos iguais).')
+    
+    # Valida primeiro e segundo dígito verificador
+    # [Algoritmo matemático oficial]
+    
+    return cpf
+```
+
+**🎯 Recursos:**
+- ✅ Algoritmo oficial de dígito verificador
+- ✅ Rejeita CPFs inválidos (000.000.000-00, 111.111.111-11)
+- ✅ Formata automaticamente: `12345678909` → `123.456.789-09`
+- ✅ Aceita entrada com ou sem pontuação
+
+**Arquivo:** `secretaria/forms.py` (linhas 1-50)
+
+---
+
+**2️⃣ Validação de Email (Backend)**
+```python
+def clean_email(self):
+    """Valida formato de email."""
+    email = self.cleaned_data.get('email')
+    if email:
+        email = email.strip().lower()  # Remove espaços + lowercase
+        if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+            raise ValidationError('Email inválido. Use: nome@exemplo.com')
+    return email
+```
+
+**🎯 Recursos:**
+- ✅ Validação regex completa
+- ✅ Conversão automática para lowercase
+- ✅ Remove espaços em branco
+- ✅ Mensagem erro amigável
+
+**Arquivo:** `secretaria/forms.py` (linhas ~240-250)
+
+---
+
+**3️⃣ Máscaras JavaScript (Frontend)**
+
+**CPF:**
+```javascript
+// Máscara automática: ###.###.###-##
+aplicarMascara(cpfInput, '###.###.###-##');
+```
+- **Entrada:** `12345678909`
+- **Resultado:** `123.456.789-09`
+
+**Telefone:**
+```javascript
+// Máscara automática: (##) #####-####
+// Suporta celular (9 dígitos)
+```
+- **Entrada:** `85987654321`
+- **Resultado:** `(85) 98765-4321`
+
+**CEP:**
+```javascript
+// Máscara automática: #####-###
+aplicarMascara(cepInput, '#####-###');
+```
+- **Entrada:** `60000000`
+- **Resultado:** `60000-000`
+
+**RG:**
+```javascript
+// Permite apenas números e letras (uppercase)
+e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '');
+```
+
+**Arquivo:** `secretaria/templates/partials/_form_dados_cadastrais.html` (linhas ~485-570)
+
+---
+
+**4️⃣ Busca Automática de Endereço por CEP (ViaCEP API)**
+
+**🔥 Integração com API ViaCEP:**
+
+```javascript
+// Ao sair do campo CEP (onblur):
+fetch(`https://viacep.com.br/ws/${cep}/json/`)
+    .then(response => response.json())
+    .then(data => {
+        if (!data.erro) {
+            // Preenche automaticamente:
+            document.getElementById('id_rua').value = data.logradouro;
+            document.getElementById('id_bairro_distrito').value = data.bairro;
+            document.getElementById('id_cidade').value = data.localidade;
+            document.getElementById('id_estado').value = data.uf;
+            
+            // Foca no campo "Número"
+            document.getElementById('id_numero_casa').focus();
+        }
+    });
+```
+
+**🎯 Funcionalidades:**
+- ✅ Busca automática ao sair do campo CEP
+- ✅ Preenche: Rua, Bairro, Cidade, Estado
+- ✅ Feedback visual: borda verde (sucesso) / vermelha (erro)
+- ✅ Loading indicator: "Buscando endereço..."
+- ✅ Foca automaticamente no campo "Número da casa"
+- ✅ Tratamento de erro: alerta se CEP não encontrado
+- ✅ Funciona offline (não bloqueia formulário)
+
+**Experiência do Usuário:**
+1. Usuário digita: `60000000`
+2. Máscara formata: `60000-000`
+3. Ao sair do campo → busca automática
+4. Campos preenchidos em **< 1 segundo**
+5. Usuário só precisa digitar número da casa
+
+**Arquivo:** `secretaria/templates/partials/_form_dados_cadastrais.html` (linhas ~516-560)
+
+---
+
+**🎯 Resumo das Validações:**
+
+| Campo       | Backend | Frontend | Máscara        | API       |
+|-------------|---------|----------|----------------|-----------|
+| **CPF**     | ✅      | ✅       | XXX.XXX.XXX-XX | —         |
+| **Email**   | ✅      | —        | —              | —         |
+| **Telefone**| —       | ✅       | (XX) XXXXX-XXXX| —         |
+| **CEP**     | —       | ✅       | XXXXX-XXX      | ✅ ViaCEP |
+| **RG**      | —       | ✅       | A-Z 0-9        | —         |
+
+---
+
+#### 🚀 Navegação Rápida entre Pessoas
+
+**🆕 Problema Resolvido:**
+Ao editar várias pessoas sequencialmente, usuário precisava voltar para lista → buscar → abrir próximo cadastro (muitos cliques).
+
+**✅ Solução Implementada:**
+
+**1️⃣ Barra de Navegação (Setas + Dropdown)**
+
+```html
+<div class="card mb-3">
+    <div class="d-flex align-items-center justify-content-between">
+        <!-- Setas Anterior/Próximo -->
+        <a href="{% url 'secretaria:editar_membro' membro_id=prev_id %}" 
+           class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-arrow-left"></i> Anterior
+        </a>
+        
+        <!-- Dropdown (300px) -->
+        <select class="form-select form-select-sm" style="width: 300px;" 
+                onchange="if(this.value) window.location.href='...'">
+            {% for membro_id, membro_nome in membros_lista %}
+            <option value="{{ membro_id }}" {% if membro_id == form.instance.pk %}selected{% endif %}>
+                {{ membro_nome }}
+            </option>
+            {% endfor %}
+        </select>
+        
+        <a href="{% url 'secretaria:editar_membro' membro_id=next_id %}" 
+           class="btn btn-sm btn-outline-primary">
+            Próximo <i class="fas fa-arrow-right"></i>
+        </a>
+        
+        <!-- Contador -->
+        <small class="text-muted">
+            <i class="fas fa-users me-1"></i>
+            Pessoa {{ current_position }} de {{ total_count }} (exceto inativos)
+        </small>
+    </div>
+</div>
+```
+
+**🎯 Recursos:**
+- ✅ Navegação por setas (← Anterior / Próximo →)
+- ✅ Dropdown com lista completa (300px)
+- ✅ Contador: "Pessoa 5 de 120 (exceto inativos)"
+- ✅ Exclui apenas inativos (mantém disciplinados, desligados)
+- ✅ Ordenação alfabética por nome
+- ✅ Implementado em **Editar** e **Visualizar**
+
+**Arquivos:**
+- `secretaria/views.py` (helper `_get_navigation_context()`)
+- `secretaria/templates/secretaria/editar_membro.html`
+- `secretaria/templates/secretaria/detalhe_membro.html`
+
+---
+
+**2️⃣ Filtro Inteligente (Exclui Apenas Inativos)**
+
+```python
+def _get_navigation_context(membro_id, allowed_churches):
+    """
+    Helper navegação entre membros.
+    Exclui apenas inativos (falecidos, mudados de cidade).
+    """
+    membros_permitidos = Membro.objects.filter(
+        igreja__in=allowed_churches
+    ).exclude(
+        status_pessoa__nome='Inativo'  # Exclui apenas inativos
+    ).order_by('nome').values_list('pk', 'nome')
+```
+
+**🎯 Lógica:**
+- ❌ **Exclui:** Inativos (falecidos, mudados) → raramente editados
+- ✅ **Inclui:** Ativos, Disciplinados, Desligados → frequentemente editados
+- ✅ Mantém pessoas com status temporários (disciplina é processo ativo)
+
+**Arquivo:** `secretaria/views.py` (linhas ~3024-3065)
+
+---
+
+**3️⃣ Alert Informativo (Pessoas Inativas)**
+
+```html
+{% if form.instance.status_pessoa.nome == 'Inativo' %}
+<div class="alert alert-warning alert-dismissible fade show mb-3">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Atenção:</strong> Esta pessoa está com status "Inativo". 
+    A navegação rápida não inclui pessoas inativas.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+```
+
+**🎯 Funcionalidades:**
+- ✅ Explica por que navegação está "desabilitada"
+- ✅ Evita confusão quando usuário abre inativo diretamente da lista
+- ✅ Dispensável (botão X)
+
+---
+
+#### 📊 Visualização Melhorada (Detalhe Membro)
+
+**🆕 Seção "Datas Importantes"**
+
+```html
+<h5 class="border-bottom pb-2 mb-3 mt-4">Datas Importantes</h5>
+<div class="row mb-3">
+    <div class="col-md-4">
+        <strong>📅 Nascimento:</strong> 15/03/1985
+    </div>
+    <div class="col-md-4">
+        <strong>⛪ Entrada na Igreja:</strong> 
+        10/01/2020
+        <span class="badge bg-primary ms-1">Batismo</span>
+    </div>
+    <div class="col-md-4">
+        <strong>💍 Casamento:</strong> 20/06/2015
+    </div>
+</div>
+```
+
+**🎯 Recursos:**
+- ✅ Visualização consolidada das 3 datas principais
+- ✅ Badge tipo entrada (Batismo, Transferência, Aclamação)
+- ✅ Emojis para rápida identificação visual
+
+**Arquivo:** `secretaria/templates/secretaria/detalhe_membro.html`
+
+---
+
+**🆕 Histórico Completo de Tipo + Status**
+
+**Antes:** Tabela 4 colunas (só status)
+```html
+<table>
+    <th>Data</th>
+    <th>Status Anterior</th>
+    <th>Novo Status</th>
+    <th>Observação</th>
+</table>
+```
+
+**Depois:** Tabela 7 colunas (tipo + status)
+```html
+<table class="table table-sm table-striped table-hover">
+    <thead>
+        <tr>
+            <th>Data/Hora</th>
+            <th>Tipo Anterior</th>
+            <th>Novo Tipo</th>
+            <th>Status Anterior</th>
+            <th>Novo Status</th>
+            <th>Observação</th>
+            <th>Registrado Por</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for hist in historico_status %}
+        <tr>
+            <td>{{ hist.data_transicao|date:"d/m/Y H:i" }}</td>
+            <td>{{ hist.tipo_pessoa_anterior.nome|default:"—" }}</td>
+            <td>{{ hist.tipo_pessoa_novo.nome|default:"—" }}</td>
+            <td>{{ hist.status_pessoa_anterior.nome|default:"—" }}</td>
+            <td>{{ hist.status_pessoa_novo.nome|default:"—" }}</td>
+            <td>{{ hist.observacao|default:"—" }}</td>
+            <td>{{ hist.registrado_por.get_full_name|default:"Sistema" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+```
+
+**🎯 Recursos:**
+- ✅ Histórico completo de tipo E status
+- ✅ Data customizada (se usuário mudou retroativamente)
+- ✅ Usuário responsável pela mudança
+- ✅ Hover effect para melhor leitura
+
+**Arquivo:** `secretaria/templates/secretaria/detalhe_membro.html`
+
+---
+
+### 🔧 Melhorias Técnicas
+
+#### 📦 Arquivos Modificados
+
+**Models:**
+- `secretaria/models.py` (linhas ~269-345)
+  - `save()`: Aceita `data_mudanca_tipo` e `data_mudanca_status`
+  - Converte `date` para `datetime` automaticamente
+  - Cria `StatusHistorico` com data customizada
+
+**Forms:**
+- `secretaria/forms.py` (linhas 1-50, ~240-250)
+  - **NOVO:** `validar_cpf()`: Função helper com algoritmo dígito verificador
+  - **NOVO:** `clean_cpf()`: Valida + formata XXX.XXX.XXX-XX
+  - **NOVO:** `clean_email()`: Valida regex + lowercase
+  - Adicionado `data_mudanca_tipo = forms.DateField()`
+  - Adicionado `data_mudanca_status = forms.DateField()`
+
+**Views:**
+- `secretaria/views.py`
+  - `criar_membro()`: Captura e passa datas customizadas
+  - `editar_membro()`: Idem + `save_m2m()` para tags
+  - **NOVO:** `_get_navigation_context()`: Helper navegação entre pessoas (linhas ~3024-3065)
+  - **NOVO:** `detalhe_membro()`: Contexto navegação + filtro inativos
+
+**Templates:**
+- `secretaria/templates/partials/_form_dados_cadastrais.html` (~570 linhas)
+  - Input Group para tipo/status + data
+  - JavaScript: detecção mudança + destaque amarelo
+  - **NOVO:** Máscaras JavaScript (CPF, telefone, CEP, RG) - linhas ~485-570
+  - **NOVO:** Integração API ViaCEP (busca endereço) - linhas ~516-560
+  - **NOVO:** Feedback visual (borda verde/vermelha)
+  - Badges "Obrigatório" nos 4 campos required
+  - CSS customizado para badges e input-group
+- `secretaria/templates/secretaria/criar_membro.html`
+  - Alert informativo sobre data automática
+- `secretaria/templates/secretaria/editar_membro.html`
+  - **NOVO:** Barra navegação (setas + dropdown + contador) - linhas ~16-60
+  - **NOVO:** Alert para pessoas inativas
+  - Badges data/hora cadastro
+- `secretaria/templates/secretaria/detalhe_membro.html`
+  - **NOVO:** Barra navegação idêntica ao editar
+  - **NOVO:** Seção "Datas Importantes" (3 datas)
+  - **NOVO:** Histórico completo (7 colunas: tipo + status)
+  - Alert informativo sobre data automática
+- `secretaria/templates/secretaria/editar_membro.html`
+  - Badges coloridos para criado_em/atualizado_em
+
+---
+
+### 🎯 Impacto
+
+**Precisão de Dados:**
+- ✅ Histórico de mudanças com datas corretas
+- ✅ Relatórios por período mais confiáveis
+- ✅ Auditoria precisa de quando mudanças ocorreram
+
+**Experiência do Usuário:**
+- ✅ Visual integrado (select + data no mesmo bloco)
+- ✅ Destaque automático quando há mudança
+- ✅ Badges "Obrigatório" muito mais visíveis
+- ✅ Consistência visual com módulo de eventos
+
+**Manutenibilidade:**
+- ✅ Código modular e reutilizável
+- ✅ JavaScript bem documentado
+- ✅ CSS customizado isolado em `<style>`
+
+---
+
+### 📚 Documentação
+
+**Arquivos de Referência:**
+- `CHAT_RESPOSTAS.md` - Análise completa do módulo de pessoas (23 melhorias sugeridas)
+- Este CHANGELOG - Documentação técnica das implementações
+
+---
+
 ## v1.6.0 — 11/03/2026
 🎯 **SISTEMA HÍBRIDO DE PARTICIPANTES** + **AGENDA TURBINADA** - Gestão inteligente de participantes automáticos + 10 melhorias na agenda
 

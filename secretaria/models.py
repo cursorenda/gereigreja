@@ -148,6 +148,7 @@ class Pessoa(models.Model):
         help_text='Vínculo opcional a um grupo/casa que agrega pessoas pelo mesmo endereço'
     )
     telefone = models.CharField(max_length=15, blank=True, null=True) # Adicionar máscara JS no template
+    celular = models.CharField(max_length=15, blank=True, null=True, help_text="Celular com DDD")
     data_entrada = models.DateField(default=timezone.now, blank=True, null=True) # Usar default=timezone.now?
 
     # Sub status para membros inativos
@@ -268,6 +269,8 @@ class Pessoa(models.Model):
     
     def save(self, *args, **kwargs):
         current_user = kwargs.pop('user', None) # Espera um 'user' opcional de kwargs
+        data_mudanca_tipo = kwargs.pop('data_mudanca_tipo', None) # Data customizada para mudança de tipo
+        data_mudanca_status = kwargs.pop('data_mudanca_status', None) # Data customizada para mudança de status
         is_new = self._state.adding
         changed_tipo = not is_new and self.tipo_pessoa_id != self._original_tipo_pessoa_id
         changed_status = not is_new and self.status_pessoa_id != self._original_status_pessoa_id
@@ -315,16 +318,40 @@ class Pessoa(models.Model):
 
             final_observacao = " ".join(observ_parts) if observ_parts else "Alteração registrada."
 
+            # Determina a data da transição
+            # Se houver apenas mudança de tipo, usa data_mudanca_tipo
+            # Se houver apenas mudança de status, usa data_mudanca_status
+            # Se houver ambas, prioriza a mais recente (ou usa timezone.now())
+            data_transicao_final = None
+            if changed_tipo and data_mudanca_tipo:
+                from datetime import datetime, time
+                # Converte date para datetime se necessário
+                if isinstance(data_mudanca_tipo, datetime):
+                    data_transicao_final = data_mudanca_tipo
+                else:
+                    data_transicao_final = datetime.combine(data_mudanca_tipo, time(12, 0))
+            elif changed_status and data_mudanca_status:
+                from datetime import datetime, time
+                if isinstance(data_mudanca_status, datetime):
+                    data_transicao_final = data_mudanca_status
+                else:
+                    data_transicao_final = datetime.combine(data_mudanca_status, time(12, 0))
+
             try:
-                StatusHistorico.objects.create(
-                    membro=self,
-                    tipo_pessoa_anterior=tipo_anterior_obj if not is_new else None,
-                    tipo_pessoa_novo=self.tipo_pessoa,
-                    status_pessoa_anterior=status_anterior_obj if not is_new else None,
-                    status_pessoa_novo=self.status_pessoa,
-                    registrado_por=current_user,
-                    observacao=final_observacao
-                )
+                historico_kwargs = {
+                    'membro': self,
+                    'tipo_pessoa_anterior': tipo_anterior_obj if not is_new else None,
+                    'tipo_pessoa_novo': self.tipo_pessoa,
+                    'status_pessoa_anterior': status_anterior_obj if not is_new else None,
+                    'status_pessoa_novo': self.status_pessoa,
+                    'registrado_por': current_user,
+                    'observacao': final_observacao
+                }
+                # Adiciona data_transicao só se fornecida
+                if data_transicao_final:
+                    historico_kwargs['data_transicao'] = data_transicao_final
+                
+                StatusHistorico.objects.create(**historico_kwargs)
             except Exception as e:
                 logger.error(f"  Error creating StatusHistorico for pessoa {self.pk} ({self.nome_completo}): {e}", exc_info=True)
 

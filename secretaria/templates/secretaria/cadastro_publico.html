@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+{% block content %}
+    {% if form.errors %}
+      <div class="alert alert-danger">
+        <strong>Por favor, corrija os erros abaixo:</strong>
+        <ul>
+          {% for field in form %}
+            {% for error in field.errors %}
+              <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+<div class="cadastro-publico-container" style="max-width: 680px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 16px #00000012; padding: 32px 24px;">
+  <h2 class="mb-4 text-center" style="font-size: 1.5em; color: #1976d2; font-weight: 700;">Cadastro de Pessoa</h2>
+  <div class="text-center mb-3">
+    <span class="form-label fw-bold">Igreja:</span>
+    <span class="d-block" style="font-size:1.1em; color:#1976d2; font-weight:600;">{{ igreja.nome_igreja }}</span>
+    <span class="form-label fw-bold mt-2">Ministério:</span>
+    <span class="d-block" style="font-size:1em; color:#1976d2;">{{ igreja.ministerio.nome_fantasia }}</span>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <!-- Dados Pessoais -->
+    <h5 class="mt-3 mb-2 text-primary">Dados Pessoais</h5>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-bold">Nome</label>{{ form.nome }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Apelido</label>{{ form.apelido }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Gênero</label>{{ form.genero }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Nascimento</label>{{ form.nascimento|add_class:'mask-data' }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Estado Civil</label>{{ form.estado_civil }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Cônjuge</label>{{ form.conjuge }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Data Casamento</label>{{ form.data_casamento|add_class:'mask-data' }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Nome Pai</label>{{ form.nome_pai }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Nome Mãe</label>{{ form.nome_mae }}</div>
+    </div>
+    <!-- Documentos -->
+    <h5 class="mt-4 mb-2 text-primary">Documentos</h5>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-bold">CPF</label>{{ form.cpf|add_class:'mask-cpf' }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">RG</label>{{ form.rg|add_class:'mask-rg' }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Nacionalidade</label>{{ form.nacionalidade }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Naturalidade</label>{{ form.naturalidade }}</div>
+    </div>
+    <!-- Contato -->
+    <h5 class="mt-4 mb-2 text-primary">Contato</h5>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-bold">Telefone</label>{{ form.telefone|add_class:'mask-telefone' }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Celular</label>{{ form.celular|add_class:'mask-celular' }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Email</label>{{ form.email }}</div>
+    </div>
+    <!-- Endereço -->
+    <h5 class="mt-4 mb-2 text-primary">Endereço</h5>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-bold">CEP</label>{{ form.cep|add_class:'mask-cep' }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">País</label>{{ form.pais }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Estado</label>{{ form.estado }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Cidade</label>{{ form.cidade }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Bairro/Distrito</label>{{ form.bairro_distrito }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Rua</label>{{ form.rua }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Número</label>{{ form.numero_casa }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Complemento</label>{{ form.complemento }}</div>
+    </div>
+    <!-- Escolaridade e Profissão -->
+    <h5 class="mt-4 mb-2 text-primary">Escolaridade e Profissão</h5>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-bold">Escolaridade</label>{{ form.escolaridade }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Profissão</label>{{ form.profissao }}</div>
+    </div>
+    <!-- Outros -->
+    <h5 class="mt-4 mb-2 text-primary">Outros</h5>
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label fw-bold">Foto</label>{{ form.foto }}</div>
+      <div class="col-md-6"><label class="form-label fw-bold">Tags</label>{{ form.tags }}</div>
+      <div class="col-md-12"><label class="form-label fw-bold">Observações Visita</label>{{ form.observacoes_visita }}</div>
+    </div>
+    <button type="submit" class="btn btn-primary w-100 mt-4 py-2 fw-bold" style="font-size: 1.1em;">Enviar Cadastro</button>
+  </form>
+  <p class="info mt-3 text-center text-muted" style="font-size: 1em;">Após o envio, seu cadastro ficará pendente até aprovação pela secretaria da igreja.</p>
+  <!-- Máscaras JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+  <script>
+    $(function(){
+      $('.mask-cpf').mask('000.000.000-00');
+      $('.mask-rg').mask('00.000.000-0');
+      $('.mask-telefone').mask('(00) 0000-0000');
+      $('.mask-celular').mask('(00) 00000-0000');
+      $('.mask-cep').mask('00000-000');
+      $('.mask-data').mask('00/00/0000');
+
+      // Busca endereço pelo CEP
+      $('.mask-cep').on('blur', function(){
+        var cep = $(this).val().replace(/\D/g, '');
+        if (cep.length === 8) {
+          $.getJSON('https://viacep.com.br/ws/' + cep + '/json/', function(data){
+            if (!('erro' in data)) {
+              $('input[name="rua"]').val(data.logradouro);
+              $('input[name="bairro_distrito"]').val(data.bairro);
+              $('input[name="cidade"]').val(data.localidade);
+              $('input[name="estado"]').val(data.uf);
+              $('input[name="pais"]').val('Brasil');
+            }
+          });
+        }
+      });
+
+      // Feedback visual ao salvar
+      $('form').on('submit', function(){
+        setTimeout(function(){
+          if ($('.alert-success').length === 0 && $('.alert-danger').length === 0) {
+            alert('Cadastro enviado! Aguarde aprovação da secretaria.');
+          }
+        }, 500);
+      });
+    });
+  </script>
+</div>
+{% endblock %}

@@ -19,6 +19,8 @@ urlpatterns = [
     path('pessoas/imprimir/', views.imprimir_lista_membros, name='imprimir_lista_membros'),
     # Redirecionamento da URL antiga para a nova
     path('membros/', views.redirect_pessoas, name='redirect_pessoas'),  # Redirecionamento legado
+    # Cadastro público via link único por igreja
+    path('cadastro/igreja/<int:igreja_id>/', views.cadastro_publico_igreja, name='cadastro_publico_igreja'),
     # Etapa 1: Pré-cadastro (dados básicos)
     path('pessoas/pre-cadastro/', views.pre_cadastro, name='pre_cadastro'),
     # Etapa 2: Cadastro detalhado (dados adicionais)

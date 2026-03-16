@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container min-vh-100 d-flex flex-column justify-content-center align-items-center">
+  <div class="card shadow-lg p-4 mt-5 mb-5 w-100" style="max-width: 480px;">
+    <div class="text-center mb-3">
+      <span class="text-success" style="font-size: 3rem;">
+        <i class="fas fa-check-circle"></i>
+      </span>
+      <h2 class="mt-2 mb-3 fw-bold">Cadastro enviado com sucesso!</h2>
+    </div>
+    <p class="text-center mb-2">Seu cadastro foi enviado para a igreja <strong>{{ igreja.nome }}</strong> e está pendente de aprovação pela secretaria.</p>
+    <p class="text-center">Você receberá contato após a análise.<br>Obrigado!</p>
+    <div class="d-flex justify-content-center mt-4">
+      <a href="/" class="btn btn-outline-primary">Voltar para o início</a>
+    </div>
+  </div>
+</div>
+<style>
+  .fa-check-circle {
+    animation: pop 0.7s cubic-bezier(.23,1.32,.64,1) 1;
+  }
+  @keyframes pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+</style>
+{% endblock %}

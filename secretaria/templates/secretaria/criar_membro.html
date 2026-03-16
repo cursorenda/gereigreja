@@ -28,6 +28,12 @@
             Dados da Nova Pessoa
         </div>
         <div class="card-body">
+            {# Mensagem informativa sobre data/hora automática #}
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Informação:</strong> A data e hora do cadastro serão registradas automaticamente ao salvar esta pessoa no sistema.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
             {# Partial: Formulário de dados cadastrais reutilizável #}
             {% include "partials/_form_dados_cadastrais.html" with form=form action_url=request.path %}
         </div>

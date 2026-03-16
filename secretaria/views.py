@@ -1,4 +1,34 @@
-﻿
+﻿# --- VIEW PÚBLICA: Cadastro de pessoa via link único por igreja ---
+from django.views.decorators.csrf import csrf_exempt
+from secretaria.models import StatusPessoa
+
+@csrf_exempt
+def cadastro_publico_igreja(request, igreja_id):
+    """
+    View pública para cadastro de pessoa vinculada à igreja (via link único).
+    - Busca igreja pelo ID.
+    - Exibe formulário de cadastro.
+    - Salva pessoa com status 'Pendente' e vincula à igreja.
+    - Não exige login.
+    """
+    igreja = get_object_or_404(Igreja, pk=igreja_id)
+    from secretaria.models import TipoPessoa
+    status_pendente, _ = StatusPessoa.objects.get_or_create(nome__iexact='Aguardando aprovação', defaults={'nome': 'Aguardando aprovação'})
+    tipo_membro, _ = TipoPessoa.objects.get_or_create(nome__iexact='Membro', defaults={'nome': 'Membro'})
+    if request.method == 'POST':
+        form = MembroForm(request.POST, igreja_inicial=igreja, allowed_churches=[igreja], user=None, auto_cadastro=True)
+        if form.is_valid():
+            pessoa = form.save(commit=False)
+            pessoa.igreja = igreja
+            pessoa.status_pessoa = status_pendente
+            pessoa.tipo_pessoa = tipo_membro
+            pessoa.save()
+            messages.success(request, 'Cadastro enviado! Aguarde aprovação da secretaria.')
+            return render(request, 'secretaria/cadastro_publico_sucesso.html', {'igreja': igreja})
+    else:
+        form = MembroForm(igreja_inicial=igreja, allowed_churches=[igreja], user=None, auto_cadastro=True)
+    return render(request, 'secretaria/cadastro_publico.html', {'form': form, 'igreja': igreja})
+
 
 # --- IMPORTS ORDENADOS E OTIMIZADOS (PEP8) ---
 # Built-in
@@ -1889,6 +1919,7 @@ def index(request):
     ministerio = get_ministerio_or_error(request)
     allowed_churches_secretaria = get_allowed_churches_for_membros(request.user, ministerio)
     titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
+    from secretaria.models import Membro
     membros_para_relatorios = Membro.objects.none()
     
     # Variável para verificar se existem PESSOAS cadastradas (qualquer tipo/status)
@@ -2217,6 +2248,31 @@ def index(request):
         'proximos_eventos': proximos_eventos,
         'nota_usuario': nota_usuario,
     }
+    # Bloco do link de auto-cadastro para secretaria local
+    from contas.constants import SECRETARIO_LOCAL
+    link_cadastro = None
+    pendentes_count = None
+    igreja_selecionada = getattr(request, 'igreja_ativa', None)
+    pode_ver_link = False
+    if request.user.is_superuser or request.user.groups.filter(name=SECRETARIO_LOCAL).exists():
+        pode_ver_link = True
+        if igreja_selecionada:
+            link_cadastro = f"/secretaria/cadastro/igreja/{igreja_selecionada.pk}/"
+            from secretaria.models import StatusPessoa, Membro
+            status_pendentes = StatusPessoa.objects.filter(
+                nome__iexact='Pendente'
+            ) | StatusPessoa.objects.filter(
+                nome__iexact='Aguardando aprovação'
+            )
+            pendentes_count = 0
+            if status_pendentes.exists():
+                pendentes_count = Membro.objects.filter(
+                    igreja=igreja_selecionada,
+                    status_pessoa__in=status_pendentes
+                ).count()
+    context['link_cadastro'] = link_cadastro
+    context['pendentes_count'] = pendentes_count
+    context['pode_ver_link'] = pode_ver_link
     return render(request, 'secretaria/index.html', context)
 
 
@@ -2936,7 +2992,13 @@ def lista_membros(request): # noqa: E302
 
     from .models import TipoPessoa, StatusPessoa, Tag
     tipos_pessoa = TipoPessoa.objects.all().order_by('nome')
-    status_pessoa = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
+    # Garante que o status 'Pendente' exista
+    status_pendentes_qs = StatusPessoa.objects.filter(
+        nome__iexact="Pendente"
+    ) | StatusPessoa.objects.filter(
+        nome__iexact="Aguardando aprovação"
+    )
+    status_pessoa = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo", "Pendente", "Aguardando aprovação"]).order_by('nome')
 
     # Filtros extras - tipos, status, gênero
     tipo_id = request.GET.get('tipo')
@@ -2945,6 +3007,9 @@ def lista_membros(request): # noqa: E302
     status_id = request.GET.get('status')
     if status_id and status_id.isdigit():
         membros_queryset = membros_queryset.filter(status_pessoa_id=status_id)
+    # Filtro rápido para status pendente
+    if request.GET.get('pendentes') == '1':
+        membros_queryset = membros_queryset.filter(status_pessoa__in=status_pendentes_qs)
     genero = request.GET.get('genero')
     if genero:
         membros_queryset = membros_queryset.filter(genero=genero)
@@ -3020,8 +3085,58 @@ def lista_membros(request): # noqa: E302
     return render(request, 'secretaria/lista_membros.html', context)
 
 
-@login_required
+def _get_navigation_context(membro_id, allowed_churches):
+    """
+    Helper para obter contexto de navegação entre membros.
+    Retorna: dict com prev_id, next_id, current_position, total_count, membros_lista
+    
+    NOTA: Exclui apenas pessoas INATIVAS (falecidos, mudados definitivamente).
+    Disciplinados, desligados e outros status ainda aparecem pois podem precisar edição.
+    """
+    # Busca todos os membros permitidos ordenados por nome, EXCETO inativos
+    membros_permitidos = Membro.objects.filter(
+        igreja__in=allowed_churches
+    ).exclude(
+        status_pessoa__nome='Inativo'  # Exclui apenas inativos
+    ).order_by('nome').values_list('pk', 'nome')
+    
+    # Converte para lista para facilitar navegação
+    membros_lista = list(membros_permitidos)
+    total_count = len(membros_lista)
+    
+    # Encontra índice do membro atual
+    current_index = None
+    for idx, (pk, nome) in enumerate(membros_lista):
+        if pk == membro_id:
+            current_index = idx
+            break
+    
+    # Determina anterior e próximo
+    prev_id = None
+    next_id = None
+    current_position = 0
+    
+    if current_index is not None:
+        current_position = current_index + 1
+        if current_index > 0:
+            prev_id = membros_lista[current_index - 1][0]
+        if current_index < total_count - 1:
+            next_id = membros_lista[current_index + 1][0]
+    
+    return {
+        'prev_id': prev_id,
+        'next_id': next_id,
+        'current_position': current_position,
+        'total_count': total_count,
+        'membros_lista': membros_lista,
+    }
+
+
 def detalhe_membro(request, membro_id):
+    from contas.constants import SECRETARIO_LOCAL, PASTOR_LOCAL
+    pode_aprovar = False
+    if request.user.is_superuser or request.user.groups.filter(name__in=[SECRETARIO_LOCAL, PASTOR_LOCAL]).exists():
+        pode_aprovar = True
     """View para visualização readonly de um membro."""
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
@@ -3037,10 +3152,22 @@ def detalhe_membro(request, membro_id):
         data_fim__isnull=True
     ).select_related('cargo')
     
-    # Busca histórico de status
+    # Busca histórico de status (mostra todos, não apenas 5)
     from .models import StatusHistorico
-    historico_status = StatusHistorico.objects.filter(membro=membro).order_by('-data_transicao')[:5]
+    historico_status = StatusHistorico.objects.filter(membro=membro).order_by('-data_transicao')
     
+    # Contexto de navegação
+    nav_context = _get_navigation_context(membro_id, allowed_churches)
+    
+    # Aprovação manual
+    if request.method == 'POST' and pode_aprovar and membro.status_pessoa.nome == 'Pendente' and request.POST.get('aprovar_membro') == '1':
+        from secretaria.models import StatusPessoa
+        status_ativo = StatusPessoa.objects.filter(nome__iexact='Ativo').first()
+        if status_ativo:
+            membro.status_pessoa = status_ativo
+            membro.save(user=request.user)
+            messages.success(request, 'Cadastro aprovado e status alterado para Ativo.')
+            return redirect('secretaria:detalhe_membro', membro_id=membro.pk)
     context = {
         'membro': membro,
         'tags': tags,
@@ -3048,7 +3175,9 @@ def detalhe_membro(request, membro_id):
         'historico_status': historico_status,
         'ministerio': ministerio,
         'titulo_pagina': f'Visualizar: {membro.nome}',
+        'pode_aprovar': pode_aprovar,
     }
+    context.update(nav_context)
     return render(request, 'secretaria/detalhe_membro.html', context)
 
 
@@ -3218,7 +3347,20 @@ def editar_membro(request, membro_id): # noqa: E302
                    
                    
                     else:
-                        form.save(commit=True) # Salva via formulário, garantindo tags
+                        # Captura as datas de mudança customizadas antes do save
+                        data_mudanca_tipo = form.cleaned_data.get('data_mudanca_tipo')
+                        data_mudanca_status = form.cleaned_data.get('data_mudanca_status')
+                        
+                        # Salva o membro passando as datas customizadas
+                        membro_editado.save(
+                            user=request.user,
+                            data_mudanca_tipo=data_mudanca_tipo,
+                            data_mudanca_status=data_mudanca_status
+                        )
+                        
+                        # Salva tags separadamente (ManyToMany)
+                        form.save_m2m()
+                        
                         messages.success(request, f'Membro "{membro_editado.nome}" atualizado com sucesso!')
                         # Verifica o VALOR do botão pressionado, não a presença de uma chave.
                         # O botão "Salvar e Continuar" envia o valor "_save_and_continue".
@@ -3226,7 +3368,7 @@ def editar_membro(request, membro_id): # noqa: E302
                         if request.POST.get('submit_membro_form') == '_save_and_continue':
                             return redirect('secretaria:editar_membro', membro_id=membro_id)
                         else:
-                            return redirect('secretaria:lista_membros')
+                            return redirect('secretaria:lista_pessoas')
                 except Exception as e:
                     # print(f"DEBUG POST - Exceção ao salvar: {e}") # Removido para produção
 
@@ -3337,6 +3479,10 @@ def editar_membro(request, membro_id): # noqa: E302
             pass
     from .models import MembroCargo
     cargos_historico = MembroCargo.objects.filter(membro=membro).select_related('cargo').order_by('-data_inicio')
+    
+    # Contexto de navegação
+    nav_context = _get_navigation_context(membro_id, allowed_churches)
+    
     context = {
         'form': form,
         'membro_id': membro_id,
@@ -3350,6 +3496,7 @@ def editar_membro(request, membro_id): # noqa: E302
         'filtro_data': filtro_data,
         'cargos_historico': cargos_historico,
     }
+    context.update(nav_context)
     return render(request, 'secretaria/editar_membro.html', context)
 
 
@@ -3383,7 +3530,16 @@ def criar_membro(request): # noqa: E302
                 if not is_admin_org(request.user) and novo_membro.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                 else:
-                    novo_membro.save(user=request.user) # Passa o usuário
+                    # Captura as datas de mudança customizadas (se fornecidas)
+                    data_mudanca_tipo = form.cleaned_data.get('data_mudanca_tipo')
+                    data_mudanca_status = form.cleaned_data.get('data_mudanca_status')
+                    
+                    # Passa as datas para o save()
+                    novo_membro.save(
+                        user=request.user,
+                        data_mudanca_tipo=data_mudanca_tipo,
+                        data_mudanca_status=data_mudanca_status
+                    )
                     messages.success(request, f'Membro "{novo_membro.nome}" cadastrado com sucesso!')
                     return redirect('secretaria:lista_membros')
             except Exception as e:

@@ -3,6 +3,9 @@
 
 {% block title %}Bem-vindo(a) - {{ ministerio.nome }}{% endblock %}
 
+<!-- BLOCO LINK AUTO-CADASTRO: após botões rápidos e busca -->
+    
+
 {% block extra_css %}
 <style>
     /* Carrossel de Aniversariantes - Altura Fixa */
@@ -118,7 +121,28 @@
         </div>
     </div>
 
-    <!-- EMPTY STATE: Quando não há dados -->
+    <!-- Bloco de link de auto-cadastro restaurado -->
+    {% if pode_ver_link and link_cadastro %}
+    <div class="mb-3 w-100">
+        <div class="card border-warning" style="border-radius: 10px; background: #fff;">
+            <div class="card-body d-flex align-items-center justify-content-between gap-3 p-2 flex-wrap" style="min-height: 40px;">
+                <span class="text-warning fw-bold me-2" style="font-size: 1.05em;"><i class="fas fa-link me-1"></i> Link de Auto-Cadastro:</span>
+                <input type="text" class="form-control mx-2" value="{{ request.scheme }}://{{ request.get_host }}{{ link_cadastro }}" readonly onclick="this.select();" style="max-width: 420px; min-width: 220px; border-radius: 8px; font-size:1em; box-shadow: 0 1px 4px #ffe08233;">
+                <span class="ms-2" style="cursor: pointer;" title="Copie e envie para novos membros/congregados/visitantes.">
+                    <i class="fas fa-question-circle text-muted" style="font-size: 1.2em;"></i>
+                </span>
+                <div class="d-flex align-items-center ms-2 gap-2">
+                    <button class="btn btn-warning d-flex align-items-center" style="border-radius: 8px; font-size: 1em; font-weight: 500; min-width: 120px;">
+                        <i class="fas fa-user-clock me-1"></i> Pendentes: {{ pendentes_count|default:'0' }}
+                    </button>
+                    <a href="{% url 'secretaria:lista_pessoas' %}?pendentes=1" class="btn btn-warning" style="border-radius: 8px; font-size: 1em; font-weight: 500; min-width: 110px;">Ver Pendentes</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- EMPTY STATE: Quando há dados -->
     {% if total_pessoas_igreja == 0 and not request.igreja_ativa %}
     <div class="row mb-4">
         <div class="col-12">
@@ -204,7 +228,7 @@
                 </div>
             </div>
         </div>
-        <!-- Carrossel de Aniversariantes (Ontem, Hoje, Amanhã) -->
+        <!-- Card Aniversariantes -->
         <div class="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
             <div class="card h-100 border-info shadow-sm w-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; overflow: hidden; border-radius: 18px;">
                 <div id="carouselAniversariantes" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
@@ -287,7 +311,6 @@
                 </div>
             </div>
         </div>
-        
         <!-- Card Notas Pessoais -->
         <div class="col-12 col-md-12 col-lg-4 d-flex align-items-stretch">
             <div class="card h-100 shadow-sm w-100" style="background: linear-gradient(180deg, #ffd54f 0%, #fff9c4 8%, #fffbea 100%); border-radius: 18px; border: 1px solid #f9a825; position: relative;">
