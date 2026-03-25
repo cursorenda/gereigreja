@@ -1,344 +1,119 @@
-{# Partial: Formulário de Dados Cadastrais do Membro/Pessoa #}
+<!--
+Arquivo totalmente comentado para análise estrutural.-->
+<div class="container-fluid">
+
 {% load static %}
-{% load secretaria_extras %}
-
-{# CSS customizado para input-group de data de mudança e badges #}
-<style>
-    .input-group-data-mudanca {
-        transition: box-shadow 0.15s ease-in-out;
-    }
-    .input-group-data-mudanca input[type="date"] {
-        transition: all 0.15s ease-in-out;
-    }
-    .input-group-data-mudanca .input-group-text {
-        background-color: #f8f9fa;
-        border-right: 0;
-    }
-    .input-group-data-mudanca select {
-        border-right: 0;
-    }
-    
-    /* Badge de campo obrigatório */
-    .badge.bg-danger {
-        font-size: 0.7rem;
-        font-weight: 600;
-        padding: 0.25em 0.5em;
-        vertical-align: middle;
-    }
-    
-    /* Destaque sutil em campos obrigatórios quando inválidos */
-    .form-control:required:invalid:focus,
-    .form-select:required:invalid:focus {
-        border-color: #dc3545;
-        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
-    }
-</style>
-
-<form method="POST" action="{{ action_url|default:'' }}" enctype="multipart/form-data">
-    {% csrf_token %}
-    {# Bloco: Exibição de erros gerais do formulário #}
-    {% include "partials/_form_errors.html" with form=form %}
-    {# Bloco: Exibição de erros em campos ocultos (hidden_fields) #}
-    {% for hidden_field in form.hidden_fields %}
-        {% if hidden_field.errors %}
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                Erros no campo oculto {{ hidden_field.name }}:
-                {% for error in hidden_field.errors %}<br>{{ error }}{% endfor %}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
+{% load widget_tweaks %}
+<link rel="stylesheet" href="{% static 'css/secretaria/secretaria_pessoa.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/input_foto_colado.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/input_foto_compact.css' %}">
+{# Bloco: Foto e Nome/Apelido #}
+<div style="margin-bottom: 32px;">
+    <div class="text-center d-flex flex-column align-items-center justify-content-center" style="min-width: 150px; margin-bottom: 16px;">
+        {% if form.instance.pk and form.instance.foto %}
+            <img src="{{ form.instance.foto.url }}" alt="Foto Atual de {{ form.instance.nome }}" class="img-fluid rounded-circle" style="width: 110px; height: 110px; object-fit: cover; margin-bottom:0;">
+        {% else %}
+            <img src="{% static 'img/default_avatar.png' %}" alt="Sem Foto" class="img-fluid rounded-circle" style="width: 110px; height: 110px; object-fit: cover; margin-bottom:0;">
         {% endif %}
-    {% endfor %}
-    
-    {# Bloco: Foto do membro e campos principais (nome, apelido, tipo, status) #}
-    <div class="row mb-4 align-items-center p-3 bg-light rounded-3" role="region" aria-label="Foto ou avatar do membro">
-        <div class="col-md-3 text-center">
-            {% if form.instance.pk and form.instance.foto %}
-                <img id="foto-preview" src="{{ form.instance.foto.url }}" alt="Foto de perfil de {{ form.instance.nome }}" class="img-fluid rounded-circle mb-2" style="width: 150px; height: 150px; object-fit: cover;" aria-label="Foto de perfil de {{ form.instance.nome }}">
-            {% else %}
-                <span id="foto-preview-svg" aria-label="Avatar com iniciais de {{ form.instance.nome }}" role="img"></span>
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    var nome = "{{ form.instance.nome|default:'' }}".trim();
-                    var iniciais = '';
-                    if (nome.length > 0) {
-                        var partes = nome.split(' ');
-                        iniciais = partes[0][0] || '';
-                        if (partes.length > 1) {
-                            iniciais += partes[partes.length-1][0] || '';
-                        }
-                        iniciais = iniciais.toUpperCase();
-                    } else {
-                        iniciais = '?';
-                    }
-                    var svg = `<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg" aria-label="Avatar com iniciais de {{ form.instance.nome }}">
-                        <circle cx="75" cy="75" r="75" fill="#6c757d" />
-                        <text x="50%" y="54%" text-anchor="middle" fill="#fff" font-size="56" font-family="Arial, sans-serif" dy=".3em">${iniciais}</text>
-                    </svg>`;
-                    document.getElementById('foto-preview-svg').innerHTML = svg;
-                });
-                </script>
-            {% endif %}
-            <div class="mb-3">
-                <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
-                {{ form.foto|add_class:'form-control' }}
-                {% if form.foto.errors %}<div class="invalid-feedback d-block">{% for error in form.foto.errors %}{{ error }}{% endfor %}</div>{% endif %}
-                <small class="form-text text-muted">Formatos aceitos: JPG, PNG. Tamanho máximo: 2MB.</small>
+        <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
+        {{ form.foto|add_class:'input-foto-colado input-foto-compact form-control-sm'|attr:'style=width:110px;height:28px;font-size:0.9em;padding:2px 4px;margin-top:0;margin-bottom:0;' }}
+        {% if form.foto.errors %}
+            <div class="invalid-feedback d-block">{% for error in form.foto.errors %}{{ error }}{% endfor %}</div>
+        {% endif %}
+            </div>
+            <div class="flex-grow-1">
+                {# Bloco: Tipo de Pessoa e Status (com datas de mudança) #}
+    <div style="margin-bottom: 16px;">
+                <div class="row g-2 align-items-end">
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 220px;">
+                <label for="{{ form.nome.id_for_label }}" class="form-label">
+                    {{ form.nome.label }}
+                    <span class="badge bg-danger ms-1">Obrigatório</span>
+                </label>
+                {{ form.nome }}
+                {% if form.nome.errors %}<div class="invalid-feedback d-block">{{ form.nome.errors|striptags }}</div>{% endif %}
+            </div>
+            <div style="flex: 1; min-width: 220px;">
+                <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
+                {{ form.apelido }}
+                {% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
             </div>
         </div>
-        <div class="col-md-9">
-                <script src="{% static 'js/foto_preview.js' %}"></script>
-                    <!-- Cropper.js CDN -->
-                    <link  href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-
-                    <!-- Modal para recorte da foto -->
-                    <div class="modal fade" id="modalCrop" tabindex="-1" aria-labelledby="modalCropLabel" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="modalCropLabel">Ajustar Foto de Perfil</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                                </div>
-                                <div class="modal-body text-center">
-                                    <img id="cropper-image" src="#" style="max-width:100%; max-height:350px; display:none;">
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="button" class="btn btn-primary" id="btn-crop-confirm">Recortar e Usar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <script>
-                    // Cropper.js integração
-                    let cropper;
-                    const inputFoto = document.getElementById('id_foto');
-                    const cropperImg = document.getElementById('cropper-image');
-                    const previewImg = document.getElementById('foto-preview');
-                    const modalCrop = new bootstrap.Modal(document.getElementById('modalCrop'));
-                    if (inputFoto && cropperImg && previewImg) {
-                            inputFoto.addEventListener('change', function(e) {
-                                    const file = e.target.files[0];
-                                    if (file && file.type.match('image.*')) {
-                                            const reader = new FileReader();
-                                            reader.onload = function(ev) {
-                                                    cropperImg.src = ev.target.result;
-                                                    cropperImg.style.display = 'block';
-                                                    modalCrop.show();
-                                            };
-                                            reader.readAsDataURL(file);
-                                    }
-                            });
-                            document.getElementById('modalCrop').addEventListener('shown.bs.modal', function () {
-                                    if (cropper) cropper.destroy();
-                                    cropper = new Cropper(cropperImg, {
-                                            aspectRatio: 1,
-                                            viewMode: 1,
-                                            autoCropArea: 1,
-                                            movable: true,
-                                            zoomable: true,
-                                            rotatable: false,
-                                            scalable: false
-                                    });
-                            });
-                            document.getElementById('btn-crop-confirm').addEventListener('click', function() {
-                                    if (cropper) {
-                                            const canvas = cropper.getCroppedCanvas({width: 300, height: 300, imageSmoothingQuality: 'high'});
-                                            previewImg.src = canvas.toDataURL('image/png');
-                                            // Atualiza o input file para enviar o crop (opcional: pode converter para blob e atualizar input)
-                                            // Aqui, para envio real do crop, seria necessário manipular o input file ou enviar via AJAX
-                                            modalCrop.hide();
-                                    }
-                            });
-                            document.getElementById('modalCrop').addEventListener('hidden.bs.modal', function () {
-                                    if (cropper) cropper.destroy();
-                            });
-                    }
-                    </script>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.nome.id_for_label }}" class="form-label">
-                            {{ form.nome.label }}
-                            <span class="badge bg-danger ms-1">Obrigatório</span>
-                        </label>
-                        {{ form.nome|add_class:'form-control' }}
-                        {% if form.nome.errors %}<div class="invalid-feedback d-block">{{ form.nome.errors|striptags }}</div>{% endif %}
-                    </div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px;">
+            <div style="flex: 1; min-width: 220px;">
+                <label for="{{ form.tipo_pessoa.id_for_label }}" class="form-label">
+                    {{ form.tipo_pessoa.label }}
+                    <span class="badge bg-danger ms-1">Obrigatório</span>
+                </label>
+                <div class="input-group input-group-data-mudanca">
+                    {{ form.tipo_pessoa }}
+                    <span class="input-group-text">
+                        <i class="fas fa-calendar-alt text-muted"></i>
+                    </span>
+                    <input type="date" id="id_data_mudanca_tipo" name="data_mudanca_tipo" 
+                           class="form-control" 
+                           value="{% now 'Y-m-d' %}" 
+                           title="Data em que a mudança de tipo ocorreu">
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.apelido.id_for_label }}" class="form-label">{{ form.apelido.label }}:</label>
-                        {{ form.apelido|add_class:'form-control' }}
-                        {% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
-                    </div>
+                <small class="form-text text-muted">
+                    <i class="fas fa-info-circle me-1"></i>Quando a mudança de tipo ocorreu (editável)
+                </small>
+                {% if form.tipo_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa.errors|striptags }}</div>{% endif %}
+            </div>
+            <div style="flex: 1; min-width: 220px;">
+                <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">
+                    {{ form.status_pessoa.label }}
+                    <span class="badge bg-danger ms-1">Obrigatório</span>
+                </label>
+                <div class="input-group input-group-data-mudanca">
+                    {{ form.status_pessoa }}
+                    <span class="input-group-text">
+                        <i class="fas fa-calendar-alt text-muted"></i>
+                    </span>
+                    <input type="date" id="id_data_mudanca_status" name="data_mudanca_status" 
+                           class="form-control" 
+                           value="{% now 'Y-m-d' %}" 
+                           title="Data em que a mudança de status ocorreu">
+                </div>
+                <small class="form-text text-muted">
+                    <i class="fas fa-info-circle me-1"></i>Quando a mudança de status ocorreu (editável)
+                </small>
+                {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
+            </div>
+        </div>
+    </div>
+        </div>
+        <!-- Bloco removido: tipo e status duplicados -->
+        {# Bloco: Campo sub_status_inativo (só aparece se status_pessoa for 'Inativo') #}
+        <div class="row" id="row-sub-status-inativo" style="display: none;">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="{{ form.sub_status_inativo.id_for_label }}" class="form-label">{{ form.sub_status_inativo.label }}:</label>
+                    {{ form.sub_status_inativo }}
+                    {% if form.sub_status_inativo.errors %}<div class="invalid-feedback d-block">{{ form.sub_status_inativo.errors|striptags }}</div>{% endif %}
+                    {% if form.sub_status_inativo.help_text %}<small class="form-text text-muted">{{ form.sub_status_inativo.help_text }}</small>{% endif %}
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.tipo_pessoa.id_for_label }}" class="form-label">
-                            {{ form.tipo_pessoa.label }}
-                            <span class="badge bg-danger ms-1">Obrigatório</span>
-                        </label>
-                        <div class="input-group input-group-data-mudanca">
-                            {{ form.tipo_pessoa|add_class:'form-select' }}
-                            <span class="input-group-text">
-                                <i class="fas fa-calendar-alt text-muted"></i>
-                            </span>
-                            <input type="date" id="id_data_mudanca_tipo" name="data_mudanca_tipo" 
-                                   class="form-control" 
-                                   value="{% now 'Y-m-d' %}" 
-                                   title="Data em que a mudança de tipo ocorreu">
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Quando a mudança de tipo ocorreu (editável)
-                        </small>
-                        {% if form.tipo_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa.errors|striptags }}</div>{% endif %}
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">
-                            {{ form.status_pessoa.label }}
-                            <span class="badge bg-danger ms-1">Obrigatório</span>
-                        </label>
-                        <div class="input-group input-group-data-mudanca">
-                            {{ form.status_pessoa|add_class:'form-select' }}
-                            <span class="input-group-text">
-                                <i class="fas fa-calendar-alt text-muted"></i>
-                            </span>
-                            <input type="date" id="id_data_mudanca_status" name="data_mudanca_status" 
-                                   class="form-control" 
-                                   value="{% now 'Y-m-d' %}" 
-                                   title="Data em que a mudança de status ocorreu">
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle me-1"></i>Quando a mudança de status ocorreu (editável)
-                        </small>
-                        {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
-                    </div>
-                </div>
-            </div>
-            {# Bloco: Campo sub_status_inativo (só aparece se status_pessoa for 'Inativo') #}
-            <div class="row" id="row-sub-status-inativo" style="display: none;">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="{{ form.sub_status_inativo.id_for_label }}" class="form-label">{{ form.sub_status_inativo.label }}:</label>
-                        {{ form.sub_status_inativo|add_class:'form-select' }}
-                        {% if form.sub_status_inativo.errors %}<div class="invalid-feedback d-block">{{ form.sub_status_inativo.errors|striptags }}</div>{% endif %}
-                        {% if form.sub_status_inativo.help_text %}<small class="form-text text-muted">{{ form.sub_status_inativo.help_text }}</small>{% endif %}
+        </div>
+    </div>
+</div>
                     </div>
                 </div>
             </div>
             <script>
-                // Exibe ou oculta o campo sub_status_inativo conforme o status selecionado
-                function toggleSubStatusInativo() {
-                    var statusField = document.getElementById('id_status_pessoa');
-                    var row = document.getElementById('row-sub-status-inativo');
-                    if (!statusField || !row) return;
-                    var selected = statusField.options[statusField.selectedIndex]?.text?.trim().toLowerCase();
-                    if (selected === 'inativo') {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                        // Limpa seleção se não for inativo
-                        var subStatus = document.getElementById('id_sub_status_inativo');
-                        if (subStatus) subStatus.selectedIndex = 0;
-                    }
-                }
-
-                // Controla destaque visual dos campos de data quando há mudança
-                let valorInicialTipo = null;
-                let valorInicialStatus = null;
-
-                function setupDataMudancaControls() {
-                    const tipoField = document.getElementById('id_tipo_pessoa');
-                    const statusField = document.getElementById('id_status_pessoa');
-                    const dataTipoField = document.getElementById('id_data_mudanca_tipo');
-                    const dataStatusField = document.getElementById('id_data_mudanca_status');
-
-                    if (!tipoField || !statusField || !dataTipoField || !dataStatusField) return;
-
-                    // Armazena valores iniciais ao carregar a página
-                    valorInicialTipo = tipoField.value;
-                    valorInicialStatus = statusField.value;
-
-                    // Handler para Tipo de Pessoa
-                    tipoField.addEventListener('change', function() {
-                        const inputGroup = dataTipoField.closest('.input-group');
-                        
-                        if (this.value !== valorInicialTipo && this.value !== '') {
-                            // Mudança detectada: destaca visualmente
-                            dataTipoField.style.backgroundColor = '#fff3cd';
-                            dataTipoField.style.borderColor = '#ffc107';
-                            dataTipoField.style.borderWidth = '2px';
-                            
-                            // Destaca o input-group inteiro
-                            if (inputGroup) {
-                                inputGroup.style.boxShadow = '0 0 0 0.2rem rgba(255, 193, 7, 0.25)';
-                                inputGroup.style.borderRadius = '0.375rem';
-                            }
-                        } else {
-                            // Volta ao valor original: remove destaque
-                            dataTipoField.style.backgroundColor = '';
-                            dataTipoField.style.borderColor = '';
-                            dataTipoField.style.borderWidth = '';
-                            
-                            // Remove destaque do grupo
-                            if (inputGroup) {
-                                inputGroup.style.boxShadow = '';
-                            }
-                        }
-                    });
-
-                    // Handler para Status da Pessoa
-                    statusField.addEventListener('change', function() {
-                        const inputGroup = dataStatusField.closest('.input-group');
-                        
-                        if (this.value !== valorInicialStatus && this.value !== '') {
-                            // Mudança detectada: destaca visualmente
-                            dataStatusField.style.backgroundColor = '#fff3cd';
-                            dataStatusField.style.borderColor = '#ffc107';
-                            dataStatusField.style.borderWidth = '2px';
-                            
-                            // Destaca o input-group inteiro
-                            if (inputGroup) {
-                                inputGroup.style.boxShadow = '0 0 0 0.2rem rgba(255, 193, 7, 0.25)';
-                                inputGroup.style.borderRadius = '0.375rem';
-                            }
-                        } else {
-                            // Volta ao valor original: remove destaque
-                            dataStatusField.style.backgroundColor = '';
-                            dataStatusField.style.borderColor = '';
-                            dataStatusField.style.borderWidth = '';
-                            
-                            // Remove destaque do grupo
-                            if (inputGroup) {
-                                inputGroup.style.boxShadow = '';
-                            }
-                        }
-                    });
-                }
-
-                document.addEventListener('DOMContentLoaded', function() {
-                    var statusField = document.getElementById('id_status_pessoa');
-                    if (statusField) {
-                        statusField.addEventListener('change', toggleSubStatusInativo);
-                        toggleSubStatusInativo();
-                    }
-
-                    // Inicializa controles de data de mudança
-                    setupDataMudancaControls();
-                });
-            </script>
+            <script src="{% static 'secretaria/form_dynamic.js' %}"></script>
         </div>
+
     </div>
     </div>
+    {# Bloco: Informações da Igreja (igreja, tipo_entrada, data_entrada) #}
     <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Informações da Igreja">
     {# Bloco: Informações da Igreja (igreja, tipo_entrada, data_entrada) #}
-    <h5 class="mt-4 mb-3 border-bottom pb-2" id="form-igreja">Informações da Igreja</h5>
+    <h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-igreja">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Informações da Igreja
+    </h5>
     <div class="row">
         <div class="col-md-4">
             <div class="mb-3">
@@ -346,7 +121,7 @@
                     {{ form.igreja.label }}
                     <span class="badge bg-danger ms-1">Obrigatório</span>
                 </label>
-                {{ form.igreja|add_class:'form-control' }}
+                {{ form.igreja }}
                 {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
             </div>
         </div>
@@ -356,11 +131,11 @@
                     {{ form.tipo_entrada.label }}
                 </label>
                 <div class="input-group input-group-data-mudanca" id="input-group-tipo-entrada">
-                    {{ form.tipo_entrada|add_class:'form-select' }}
+                    {{ form.tipo_entrada }}
                     <span class="input-group-text">
                         <i class="fas fa-calendar-alt text-muted"></i>
                     </span>
-                    {{ form.data_entrada|add_class:'form-control' }}
+                    {{ form.data_entrada }}
                 </div>
                 <small class="form-text text-muted">Selecione o tipo e a data de entrada na igreja</small>
                 {% if form.tipo_entrada.errors %}<div class="invalid-feedback d-block">{{ form.tipo_entrada.errors|striptags }}</div>{% endif %}
@@ -369,82 +144,94 @@
         </div>
     </div>
     </div>
+    {# Bloco: Dados Pessoais (nascimento, gênero, nacionalidade, naturalidade) #}
     <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Dados Pessoais">
     {# Bloco: Dados Pessoais (nascimento, gênero, nacionalidade, naturalidade) #}
-    <h5 class="mt-4 mb-3 border-bottom pb-2" id="form-dados-pessoais">Dados Pessoais</h5>
+    <h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-dados-pessoais">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Dados Pessoais
+    </h5>
     <div class="row">
         <div class="col-md-3">
             <div class="mb-3">
                 <label for="{{ form.nascimento.id_for_label }}" class="form-label">{{ form.nascimento.label }}:</label>
-                {{ form.nascimento|add_class:'form-control' }}
+                {{ form.nascimento }}
                 {% if form.nascimento.errors %}<div class="invalid-feedback d-block">{{ form.nascimento.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-3">
             <div class="mb-3">
                 <label for="{{ form.genero.id_for_label }}" class="form-label">{{ form.genero.label }}:</label>
-                {{ form.genero|add_class:'form-control' }}
+                {{ form.genero }}
                 {% if form.genero.errors %}<div class="invalid-feedback d-block">{{ form.genero.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-3">
             <div class="mb-3">
                 <label for="{{ form.nacionalidade.id_for_label }}" class="form-label">{{ form.nacionalidade.label }}:</label>
-                {{ form.nacionalidade|add_class:'form-control' }}
+                {{ form.nacionalidade }}
                 {% if form.nacionalidade.errors %}<div class="invalid-feedback d-block">{{ form.nacionalidade.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-3">
             <div class="mb-3">
                 <label for="{{ form.naturalidade.id_for_label }}" class="form-label">{{ form.naturalidade.label }}:</label>
-                {{ form.naturalidade|add_class:'form-control' }}
+                {{ form.naturalidade }}
                 {% if form.naturalidade.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade.errors|striptags }}</div>{% endif %}
             </div>
         </div>
     </div>
     </div>
+    {# Bloco: Documentos (CPF, RG) #}
     <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Documentos">
     {# Bloco: Documentos (CPF, RG) #}
-    <h5 class="mt-4 mb-3 border-bottom pb-2" id="form-documentos">Documentos</h5>
+    <h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-documentos">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Documentos
+    </h5>
     <div class="row">
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.cpf.id_for_label }}" class="form-label">{{ form.cpf.label }}:</label>
-                {{ form.cpf|add_class:'form-control' }}
+                {{ form.cpf }}
                 {% if form.cpf.errors %}<div class="invalid-feedback d-block">{{ form.cpf.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.rg.id_for_label }}" class="form-label">{{ form.rg.label }}:</label>
-                {{ form.rg|add_class:'form-control' }}
+                {{ form.rg }}
                 {% if form.rg.errors %}<div class="invalid-feedback d-block">{{ form.rg.errors|striptags }}</div>{% endif %}
             </div>
         </div>
     </div>
     </div>
+    {# Bloco: Vida Civil e Profissional (estado civil, cônjuge, casamento, profissão, escolaridade) #}
     <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Vida Civil e Familiar">
     {# Bloco: Vida Civil e Profissional (estado civil, cônjuge, casamento, profissão, escolaridade) #}
-    <h5 class="mt-4 mb-3 border-bottom pb-2" id="form-civil">Vida Civil e Familiar</h5>
+    <h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-civil">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Vida Civil e Familiar
+    </h5>
     <div class="row">
         <div class="col-md-4">
             <div class="mb-3">
                 <label for="{{ form.estado_civil.id_for_label }}" class="form-label">{{ form.estado_civil.label }}:</label>
-                {{ form.estado_civil|add_class:'form-control' }}
+                {{ form.estado_civil }}
                 {% if form.estado_civil.errors %}<div class="invalid-feedback d-block">{{ form.estado_civil.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-4">
             <div class="mb-3">
                 <label for="{{ form.conjuge.id_for_label }}" class="form-label">{{ form.conjuge.label }}:</label>
-                {{ form.conjuge|add_class:'form-control' }}
+                {{ form.conjuge }}
                 {% if form.conjuge.errors %}<div class="invalid-feedback d-block">{{ form.conjuge.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-4">
             <div class="mb-3">
                 <label for="{{ form.data_casamento.id_for_label }}" class="form-label">{{ form.data_casamento.label }}:</label>
-                {{ form.data_casamento|add_class:'form-control' }}
+                {{ form.data_casamento }}
                 {% if form.data_casamento.errors %}<div class="invalid-feedback d-block">{{ form.data_casamento.errors|striptags }}</div>{% endif %}
             </div>
         </div>
@@ -453,68 +240,76 @@
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.profissao.id_for_label }}" class="form-label">{{ form.profissao.label }}:</label>
-                {{ form.profissao|add_class:'form-control' }}
+                {{ form.profissao }}
                 {% if form.profissao.errors %}<div class="invalid-feedback d-block">{{ form.profissao.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.escolaridade.id_for_label }}" class="form-label">{{ form.escolaridade.label }}:</label>
-                {{ form.escolaridade|add_class:'form-control' }}
+                {{ form.escolaridade }}
                 {% if form.escolaridade.errors %}<div class="invalid-feedback d-block">{{ form.escolaridade.errors|striptags }}</div>{% endif %}
             </div>
         </div>
     </div>
     </div>
+    {# Bloco: Filiação (nome do pai, nome da mãe) #}
     <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Filiação">
     {# Bloco: Filiação (nome do pai, nome da mãe) #}
-    <h5 class="mt-4 mb-3 border-bottom pb-2" id="form-filiacao">Filiação</h5>
+    <h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-filiacao">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Filiação
+    </h5>
     <div class="row">
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.nome_pai.id_for_label }}" class="form-label">{{ form.nome_pai.label }}:</label>
-                {{ form.nome_pai|add_class:'form-control' }}
+                {{ form.nome_pai }}
                 {% if form.nome_pai.errors %}<div class="invalid-feedback d-block">{{ form.nome_pai.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.nome_mae.id_for_label }}" class="form-label">{{ form.nome_mae.label }}:</label>
-                {{ form.nome_mae|add_class:'form-control' }}
+                {{ form.nome_mae }}
                 {% if form.nome_mae.errors %}<div class="invalid-feedback d-block">{{ form.nome_mae.errors|striptags }}</div>{% endif %}
             </div>
         </div>
     </div>
     </div>
-    <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Endereço e Contato">
     {# Bloco: Endereço e Contato (CEP, rua, número, bairro, cidade, estado, país, complemento, email, telefone) #}
-    <h5 class="mt-4 mb-3 border-bottom pb-2" id="form-endereco">Endereço e Contato</h5>
+    <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Endereço e Contato" style="padding-bottom: 80px;">
+    {# Bloco: Endereço e Contato (CEP, rua, número, bairro, cidade, estado, país, complemento, email, telefone) #}
+    <h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-endereco">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Endereço e Contato
+    </h5>
     <div class="row">
         <div class="col-md-2">
             <div class="mb-3">
                 <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
-                {{ form.cep|add_class:'form-control' }}
+                {{ form.cep }}
                 {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-5">
             <div class="mb-3">
                 <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
-                {{ form.rua|add_class:'form-control' }}
+                {{ form.rua }}
                 {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-2">
             <div class="mb-3">
                 <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
-                {{ form.numero_casa|add_class:'form-control' }}
+                {{ form.numero_casa }}
                 {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-3">
             <div class="mb-3">
                 <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
-                {{ form.complemento|add_class:'form-control' }}
+                {{ form.complemento }}
                 {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
             </div>
         </div>
@@ -523,28 +318,28 @@
         <div class="col-md-4">
             <div class="mb-3">
                 <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
-                {{ form.bairro_distrito|add_class:'form-control' }}
+                {{ form.bairro_distrito }}
                 {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-3">
             <div class="mb-3">
                 <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
-                {{ form.cidade|add_class:'form-control' }}
+                {{ form.cidade }}
                 {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-2">
             <div class="mb-3">
                 <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
-                {{ form.estado|add_class:'form-control' }}
+                {{ form.estado }}
                 {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-2">
             <div class="mb-3">
                 <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
-                {{ form.pais|add_class:'form-control' }}
+                {{ form.pais }}
                 {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
             </div>
         </div>
@@ -553,21 +348,21 @@
         <div class="col-md-4">
             <div class="mb-3">
                 <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
-                {{ form.telefone|add_class:'form-control' }}
+                {{ form.telefone }}
                 {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-4">
             <div class="mb-3">
                 <label for="{{ form.celular.id_for_label }}" class="form-label">Celular:</label>
-                {{ form.celular|add_class:'form-control' }}
+                {{ form.celular }}
                 {% if form.celular.errors %}<div class="invalid-feedback d-block">{{ form.celular.errors|striptags }}</div>{% endif %}
             </div>
         </div>
         <div class="col-md-4">
             <div class="mb-3">
                 <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
-                {{ form.email|add_class:'form-control' }}
+                {{ form.email }}
                 {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
             </div>
         </div>
@@ -576,219 +371,32 @@
     <div class="mb-3">
     </div>
     <label class="form-label">Tags disponíveis:</label>
+        <label for="tag-badges-list" class="visually-hidden">Selecione as tags disponíveis</label>
     <div id="tag-badges-list" class="d-flex flex-row flex-wrap align-items-center gap-2" style="max-width: 500px;">
         {% for tag in form.fields.tags.queryset %}
-            <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }};color:#fff;font-size:1em;padding:6px 18px;border-radius:18px;min-width:60px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 3px rgba(0,0,0,0.07);" data-tag-id="{{ tag.id }}">{{ tag.nome }}</button>
+            <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }};" data-tag-id="{{ tag.id }}" aria-label="Selecionar tag {{ tag.nome }}">{{ tag.nome }}</button>
         {% endfor %}
     </div>
     <label class="form-label mt-3">Tags já selecionadas:</label>
-    <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1" style="max-width: 500px;"></div>
-    <small class="text-muted">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
+        <label for="selected-tags-preview" class="visually-hidden">Tags já selecionadas</label>
+    <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1 mb-3"></div>
+    <small class="text-muted mb-2 d-block">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
     {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
-    {# Campo SelectMultiple real, oculto (usado para submit) #}
     <div style="display:none;">
         {{ form.tags }}
     </div>
-    <script>
-        // Lógica JS para seleção visual de tags e sincronização com o campo real
+    <script id="allTagsData">
         var allTags = [
             {% for tag in form.fields.tags.queryset %}
                 {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
             {% endfor %}
         ];
-        function getSelectedTags() {
-            var select = document.getElementById('id_tags');
-            var arr = [];
-            for (var i = 0; i < select.options.length; i++) {
-                if (select.options[i].selected) arr.push(parseInt(select.options[i].value));
-            }
-            return arr;
-        }
-        function setSelectedTags(arr) {
-            var select = document.getElementById('id_tags');
-            for (var i = 0; i < select.options.length; i++) {
-                select.options[i].selected = arr.includes(parseInt(select.options[i].value));
-            }
-        }
-        function renderSelectedTags() {
-            var selected = getSelectedTags();
-            var preview = document.getElementById('selected-tags-preview');
-            preview.innerHTML = '';
-            allTags.forEach(function(tag){
-                if (selected.includes(tag.id)) {
-                    var badge = document.createElement('span');
-                    badge.className = 'badge tag-badge-selected';
-                    badge.style.backgroundColor = tag.cor;
-                    badge.style.color = '#fff';
-                    badge.style.fontSize = '1em';
-                    badge.style.marginRight = '4px';
-                    badge.textContent = tag.nome;
-                    badge.setAttribute('data-tag-id', tag.id);
-                    badge.onclick = function(){
-                        var arr = getSelectedTags().filter(function(tid){return tid !== tag.id;});
-                        setSelectedTags(arr);
-                        renderSelectedTags();
-                    };
-                    preview.appendChild(badge);
-                }
-            });
-        }
-        document.querySelectorAll('.tag-badge-select').forEach(function(btn){
-            btn.onclick = function(){
-                var tagId = parseInt(btn.getAttribute('data-tag-id'));
-                var arr = getSelectedTags();
-                if (!arr.includes(tagId)) arr.push(tagId);
-                setSelectedTags(arr);
-                renderSelectedTags();
-            };
-        });
-        renderSelectedTags();
     </script>
+    <!-- Scripts JS externos movidos para o final do template -->
 
-    <!-- ========== MÁSCARAS E VALIDAÇÕES ========== -->
-    <script>
-        // === FUNÇÃO DE MÁSCARA GENÉRICA ===
-        function aplicarMascara(input, mascara) {
-            input.addEventListener('input', function(e) {
-                let valor = e.target.value.replace(/\D/g, '');
-                let resultado = '';
-                let j = 0;
-                
-                for (let i = 0; i < mascara.length && j < valor.length; i++) {
-                    if (mascara[i] === '#') {
-                        resultado += valor[j];
-                        j++;
-                    } else {
-                        resultado += mascara[i];
-                    }
-                }
-                
-                e.target.value = resultado;
-            });
-        }
-        
-        // === APLICAR MÁSCARAS AOS CAMPOS ===
-        document.addEventListener('DOMContentLoaded', function() {
-            // CPF: ###.###.###-##
-            const cpfInput = document.getElementById('id_cpf');
-            if (cpfInput) {
-                aplicarMascara(cpfInput, '###.###.###-##');
-            }
-            
-            // CEP: #####-###
-            const cepInput = document.getElementById('id_cep');
-            if (cepInput) {
-                aplicarMascara(cepInput, '#####-###');
-                
-                // Busca automática de endereço via CEP
-                cepInput.addEventListener('blur', function() {
-                    let cep = this.value.replace(/\D/g, '');
-                    
-                    if (cep.length === 8) {
-                        // Mostra loading
-                        const originalPlaceholder = this.placeholder;
-                        this.placeholder = 'Buscando endereço...';
-                        this.disabled = true;
-                        
-                        fetch(`https://viacep.com.br/ws/${cep}/json/`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (!data.erro) {
-                                    // Preenche campos automaticamente
-                                    if (data.logradouro && document.getElementById('id_rua')) {
-                                        document.getElementById('id_rua').value = data.logradouro;
-                                    }
-                                    if (data.bairro && document.getElementById('id_bairro_distrito')) {
-                                        document.getElementById('id_bairro_distrito').value = data.bairro;
-                                    }
-                                    if (data.localidade && document.getElementById('id_cidade')) {
-                                        document.getElementById('id_cidade').value = data.localidade;
-                                    }
-                                    if (data.uf && document.getElementById('id_estado')) {
-                                        document.getElementById('id_estado').value = data.uf;
-                                    }
-                                    
-                                    // Foca no número da casa
-                                    const numeroInput = document.getElementById('id_numero_casa');
-                                    if (numeroInput) {
-                                        numeroInput.focus();
-                                    }
-                                    
-                                    // Feedback visual
-                                    cepInput.style.borderColor = '#28a745';
-                                    setTimeout(() => {
-                                        cepInput.style.borderColor = '';
-                                    }, 2000);
-                                } else {
-                                    alert('CEP não encontrado. Verifique o número digitado.');
-                                    cepInput.style.borderColor = '#dc3545';
-                                    setTimeout(() => {
-                                        cepInput.style.borderColor = '';
-                                    }, 2000);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Erro ao buscar CEP:', error);
-                                alert('Erro ao buscar CEP. Verifique sua conexão.');
-                            })
-                            .finally(() => {
-                                this.placeholder = originalPlaceholder;
-                                this.disabled = false;
-                            });
-                    }
-                });
-            }
-            
-            // TELEFONE: (##) #####-####
-            const telefoneInput = document.getElementById('id_telefone');
-            if (telefoneInput) {
-                telefoneInput.addEventListener('input', function(e) {
-                    let valor = e.target.value.replace(/\D/g, '');
-                    let resultado = '';
-                    if (valor.length > 0) {
-                        resultado = '(' + valor.substring(0, 2);
-                        if (valor.length > 2) {
-                            resultado += ') ' + valor.substring(2, 6);
-                        }
-                        if (valor.length > 6) {
-                            resultado += '-' + valor.substring(6, 10);
-                        }
-                    }
-                    e.target.value = resultado;
-                });
-            }
-            // CELULAR: (##) #####-####
-            const celularInput = document.getElementById('id_celular');
-            if (celularInput) {
-                celularInput.addEventListener('input', function(e) {
-                    let valor = e.target.value.replace(/\D/g, '');
-                    let resultado = '';
-                    if (valor.length > 0) {
-                        resultado = '(' + valor.substring(0, 2);
-                        if (valor.length > 2) {
-                            resultado += ') ' + valor.substring(2, 7);
-                        }
-                        if (valor.length > 7) {
-                            resultado += '-' + valor.substring(7, 11);
-                        }
-                    }
-                    e.target.value = resultado;
-                });
-            }
-            
-            // RG: Apenas números e letras
-            const rgInput = document.getElementById('id_rg');
-            if (rgInput) {
-                rgInput.addEventListener('input', function(e) {
-                    e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '');
-                });
-            }
-        });
-    </script>
-
-    <hr>
-    {# Bloco: Botões de ação do formulário #}
-    <button type="submit" class="btn btn-primary" name="submit_membro_form"><i class="fas fa-save me-1"></i> Salvar Alterações</button>
-    <button type="submit" name="submit_membro_form" value="_save_and_continue" class="btn btn-info"><i class="fas fa-sync-alt me-1"></i> Salvar e Continuar Editando</button>
-    <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
-</form>
+    <div class="mt-3 mb-4">
+        <button type="submit" name="submit_membro_form" value="_save_and_continue" class="btn btn-info"><i class="fas fa-sync-alt me-1"></i> Salvar e Continuar Editando</button>
+        <button type="submit" name="submit_membro_form" value="_save" class="btn btn-success ms-2"><i class="fas fa-save me-1"></i> Salvar alterações</button>
+        <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary ms-2">Cancelar</a>
+    </div>
+        <!-- Apenas badges de tags aqui -->

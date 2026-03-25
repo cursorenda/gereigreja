@@ -1,17 +1,15 @@
-{# Template: Cadastro de Nova Pessoa/Membro #}
+{# ====== TEMPLATE: CADASTRAR NOVA PESSOA ====== #}
 {% extends 'base_com_menu.html' %}
 {% load static %}
 {% load secretaria_extras %}
 
-{# Bloco: Título da página #}
+{# ====== TÍTULO DA PÁGINA ====== #}
 {% block title %}{{ titulo_pagina|default:"Cadastrar Nova Pessoa" }}{% endblock %}
 
-{# Bloco: Conteúdo principal da página #}
+{# ====== CONTEÚDO PRINCIPAL ====== #}
 {% block content %}
-
-    {# Container principal da página #}
 <div class="container-fluid px-4">
-    {# Título e breadcrumbs #}
+    {# ====== TÍTULO E BREADCRUMBS ====== #}
     <h1 class="mt-4">Cadastrar Nova Pessoa</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
@@ -19,118 +17,36 @@
         <li class="breadcrumb-item active">Cadastrar</li>
     </ol>
 
-
-
-    {# Card de formulário de cadastro #}
+    {# ====== CARD DE FORMULÁRIO DE CADASTRO ====== #}
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-user-plus me-1"></i>
             Dados da Nova Pessoa
         </div>
         <div class="card-body">
-            {# Mensagem informativa sobre data/hora automática #}
+            {# ====== ALERTA DE DATA/HORA AUTOMÁTICA ====== #}
             <div class="alert alert-info alert-dismissible fade show" role="alert">
                 <i class="fas fa-info-circle me-2"></i>
                 <strong>Informação:</strong> A data e hora do cadastro serão registradas automaticamente ao salvar esta pessoa no sistema.
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            {# Partial: Formulário de dados cadastrais reutilizável #}
-            {% include "partials/_form_dados_cadastrais.html" with form=form action_url=request.path %}
+            {# ====== BLOCO DADOS CADASTRAIS (partial) ====== #}
+            {% include "partials/_form_pessoa_oficial.html" with form=form action_url=request.path %}
         </div>
     </div>
 </div>
-{# Fim do bloco de conteúdo principal #}
 {% endblock %}
 
-{# Bloco: Scripts extras para máscaras e autocomplete #}
+{# ====== SCRIPTS EXTRAS PARA MÁSCARAS E AUTOCOMPLETE ====== #}
 {% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
-<script>
-    $(document).ready(function(){
-        $('#id_cpf').mask('000.000.000-00', {reverse: true, placeholder: "___.___.___-__"});
-        $('#id_cep').mask('00000-000', {placeholder: "_____-___"});
-        $('#id_telefone').mask('(00) 00000-0000', {placeholder: "(__) _____-____"});
-        // Adicione máscaras para campos de data se eles não estiverem usando type="date"
-        // Ex: $('#id_nascimento').mask('00/00/0000', {placeholder: "__/__/____"});
-        // Se já estiverem como type="date", o navegador cuida da máscara.
-
-        // CEP auto-preenchimento
-        $("#id_cep").blur(function() {
-            var cep = $(this).val().replace(/\D/g, '');
-            if (cep.length == 8) {
-                $("#id_rua").val("...");
-                $("#id_bairro_distrito").val("...");
-                $("#id_cidade").val("...");
-                $("#id_estado").val("...");
-                $("#id_pais").val("Brasil");
-                $.getJSON("https://viacep.com.br/ws/" + cep + "/json/?callback=?", function(dados) {
-                    if (!("erro" in dados)) {
-                        $("#id_rua").val(dados.logradouro);
-                        $("#id_bairro_distrito").val(dados.bairro);
-                        $("#id_cidade").val(dados.localidade);
-                        $("#id_estado").val(dados.uf);
-                        $("#id_numero_casa").focus();
-                    } else {
-                        $("#id_rua").val("");
-                        $("#id_bairro_distrito").val("");
-                        $("#id_cidade").val("");
-                        $("#id_estado").val("");
-                        // alert("CEP não encontrado."); // Comentado
-                    }
-                }).fail(function() {
-                    $("#id_rua").val("");
-                    $("#id_bairro_distrito").val("");
-                    $("#id_cidade").val("");
-                    $("#id_estado").val("");
-                    // alert("Erro ao consultar o CEP."); // Comentado
-                });
-            }
-        });
-
-        // --- Autocomplete de nome da pessoa ---
-        var $nomeInput = $('#id_nome');
-        var $autocompleteList = $('#autocomplete-nome-list');
-
-        $nomeInput.on('input', function() {
-            var term = $(this).val();
-            if (term.length >= 2) {
-                $.ajax({
-                    url: "{% url 'secretaria:autocomplete_nome_membro' %}",
-                    data: { term: term },
-                    dataType: 'json',
-                    success: function(data) {
-                        $autocompleteList.empty();
-                        if (data.length > 0) {
-                            data.forEach(function(nome) {
-                                var item = $('<button type="button" class="list-group-item list-group-item-action">').text(nome);
-                                item.on('click', function() {
-                                    $nomeInput.val(nome);
-                                    $autocompleteList.empty();
-                                });
-                                $autocompleteList.append(item);
-                            });
-                            $autocompleteList.show();
-                        } else {
-                            $autocompleteList.hide();
-                        }
-                    },
-                    error: function() {
-                        $autocompleteList.hide();
-                    }
-                });
-            } else {
-                $autocompleteList.empty().hide();
-            }
-        });
-
-        // Esconde sugestões ao clicar fora
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('#id_nome, #autocomplete-nome-list').length) {
-                $autocompleteList.empty().hide();
-            }
-        });
-    });
-</script>
+<!-- Dependências: 
+    - jquery: base para plugins
+    - jquery.mask: máscaras de campos
+    - form_masks.js: máscaras customizadas
+    - form_tags.js: seleção de tags
+    - form_tags_debug.js: debug de tags
+    - cep_autocomplete.js: autocomplete de CEP
+    - autocomplete_nome.js: autocomplete de nomes
+-->
 {% endblock %}
 

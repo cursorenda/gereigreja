@@ -1,0 +1,21 @@
+.input-foto-compact {
+    height: 32px !important;
+    min-height: 32px !important;
+    font-size: 0.95em !important;
+    padding: 2px 8px !important;
+    border-radius: 0.2rem !important;
+    box-shadow: none !important;
+    margin-top: 2px !important;
+    margin-bottom: 0 !important;
+}
+@media (max-width: 767px) {
+    .d-flex.align-items-center.mb-2.flex-wrap.flex-md-nowrap {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    .input-foto-compact {
+        width: 100% !important;
+        margin-top: 8px !important;
+    }
+}

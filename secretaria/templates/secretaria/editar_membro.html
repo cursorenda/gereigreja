@@ -1,5 +1,7 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
+<link rel="stylesheet" href="{% static 'css/secretaria/tab_fix.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/modern_selector.css' %}">
 {% load humanize %} {# Essencial para formatar valores monetários #}
 {% load secretaria_extras %}
 <div style="background: yellow; color: black; font-weight: bold; padding: 8px;">TESTE-UNICO-DEBUG-2026</div>
@@ -14,440 +16,120 @@
     <li class="breadcrumb-item active">Editar: {{ form.instance.nome|default:"Pessoa" }}</li>
     </ol>
 
-    <!-- Barra de Navegação entre Pessoas -->
-    {% if total_count > 1 %}
+
+
+    <!-- Barra de Navegação entre Pessoas (Seletor Moderno) -->
     <div class="card mb-3">
         <div class="card-body py-2">
-            <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
                     {% if prev_id %}
-                    <a href="{% url 'secretaria:editar_membro' membro_id=prev_id %}" class="btn btn-sm btn-outline-primary" title="Pessoa Anterior">
-                        <i class="fas fa-arrow-left"></i> Anterior
-                    </a>
+                        <a href="{% url 'secretaria:editar_membro' membro_id=prev_id %}" class="btn btn-outline-primary" title="Pessoa anterior" aria-label="Pessoa anterior">
+                            <i class="fas fa-arrow-left"></i>
+                        </a>
                     {% else %}
-                    <button class="btn btn-sm btn-outline-secondary" disabled>
-                        <i class="fas fa-arrow-left"></i> Anterior
-                    </button>
+                        <button class="btn btn-outline-secondary" disabled aria-label="Sem anterior">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
                     {% endif %}
-                    
-                    <select class="form-select form-select-sm" style="width: 300px;" id="navegacao-pessoa-select" onchange="if(this.value) window.location.href='{% url 'secretaria:editar_membro' membro_id=0 %}'.replace('/0/', '/' + this.value + '/');">
+                    <select id="navegacao-pessoa-select" class="form-select" style="min-width: 260px; max-width: 350px;" data-base-url="{% url 'secretaria:editar_membro' membro_id=0 %}">
                         {% for membro_id, membro_nome in membros_lista %}
-                        <option value="{{ membro_id }}" {% if membro_id == form.instance.pk %}selected{% endif %}>
-                            {{ membro_nome }}
-                        </option>
+                            <option value="{{ membro_id }}" {% if membro_id == form.instance.pk %}selected{% endif %}>{{ membro_nome }}</option>
                         {% endfor %}
                     </select>
-                    
                     {% if next_id %}
-                    <a href="{% url 'secretaria:editar_membro' membro_id=next_id %}" class="btn btn-sm btn-outline-primary" title="Próxima Pessoa">
-                        Próximo <i class="fas fa-arrow-right"></i>
-                    </a>
-                    {% else %}
-                    <button class="btn btn-sm btn-outline-secondary" disabled>
-                        Próximo <i class="fas fa-arrow-right"></i>
-                    </button>
-                    {% endif %}
-                </div>
-                
-                <small class="text-muted">
-                    <i class="fas fa-users me-1"></i>
-                    Pessoa {{ current_position }} de {{ total_count }} (exceto inativos)
-                </small>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Aviso para pessoas inativas -->
-    {% if form.instance.status_pessoa.nome == 'Inativo' %}
-    <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
-        <i class="fas fa-info-circle me-2"></i>
-        <strong>Atenção:</strong> Esta pessoa está com status "{{ form.instance.status_pessoa.nome }}". 
-        A navegação rápida não inclui pessoas inativas.
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-    {% endif %}
-
-    <div class="card mb-4">
-        <div class="card-header">
-            <div class="mb-2">
-                <i class="fas fa-edit me-1"></i>
-                Editar Dados de: {{ form.instance.nome|default:"Pessoa" }}
-            </div>
-            {% if form.instance.criado_em or form.instance.atualizado_em %}
-            <div class="d-flex flex-wrap gap-2 mt-2">
-                {% if form.instance.criado_em %}
-                <span class="badge bg-info" style="font-size: 0.85rem; font-weight: normal;">
-                    <i class="fas fa-calendar-plus me-1"></i>
-                    Cadastrado em: {{ form.instance.criado_em|date:'d/m/Y H:i' }}
-                </span>
-                {% endif %}
-                {% if form.instance.atualizado_em %}
-                <span class="badge bg-secondary" style="font-size: 0.85rem; font-weight: normal;">
-                    <i class="fas fa-clock me-1"></i>
-                    Última atualização: {{ form.instance.atualizado_em|date:'d/m/Y H:i' }}
-                </span>
-                {% endif %}
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="card-body">
-            <ul class="nav nav-tabs mb-3" id="membroTab" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="dados-cadastrais-tab" data-bs-toggle="tab" data-bs-target="#dados-cadastrais" type="button" role="tab" aria-controls="dados-cadastrais" aria-selected="true">Dados Cadastrais</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="contribuicoes-tab" data-bs-toggle="tab" data-bs-target="#contribuicoes" type="button" role="tab" aria-controls="contribuicoes" aria-selected="false">Histórico de Contribuições</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="historico-status-tab" data-bs-toggle="tab" data-bs-target="#historico-status" type="button" role="tab" aria-controls="historico-status" aria-selected="false">Histórico de Tipo/Status</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="historico-cargos-tab" data-bs-toggle="tab" data-bs-target="#historico-cargos" type="button" role="tab" aria-controls="historico-cargos" aria-selected="false">Histórico de Cargos</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="acompanhamento-visita-tab" data-bs-toggle="tab" data-bs-target="#acompanhamento-visita" type="button" role="tab" aria-controls="acompanhamento-visita" aria-selected="false">Acompanhamento de Visita</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="acesso-sistema-tab" data-bs-toggle="tab" data-bs-target="#acesso-sistema" type="button" role="tab" aria-controls="acesso-sistema" aria-selected="false">Acesso ao Sistema</button>
-                </li>
-            </ul>
-
-            <div class="tab-content" id="membroTabContent">
-                <!-- INÍCIO ABA: Dados Cadastrais -->
-                <div class="tab-pane fade show active" id="dados-cadastrais" role="tabpanel" aria-labelledby="dados-cadastrais-tab">
-                    {# ====== INÍCIO BLOCO DADOS CADASTRAIS (partial) ====== #}
-                    {% include "partials/_form_dados_cadastrais.html" with form=form action_url=request.path %}
-                    {# ====== FIM BLOCO DADOS CADASTRAIS (partial) ====== #}
-                </div>
-                <!-- FIM ABA: Dados Cadastrais -->
-
-                <!-- INÍCIO ABA: Histórico de Contribuições -->
-                <div class="tab-pane fade" id="contribuicoes" role="tabpanel" aria-labelledby="contribuicoes-tab">
-                    <h5 class="mt-3">Contribuições Registradas</h5>
-                    {% if contribuicoes %}
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Categoria</th>
-                                        <th class="text-end">Valor (R$)</th>
-                                        <th>Forma Pgto.</th>
-                                        <th>Conta Destino</th>
-                                        <th>Observação</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for c in contribuicoes %}
-                                    <tr>
-                                        <td>{{ c.data|date:"d/m/Y" }}</td>
-                                        <td>{{ c.get_categoria_display }}</td>
-                                        <td class="text-end">{{ c.valor|intcomma }}</td>
-                                        <td>{{ c.get_forma_pgto_display|default:"-" }}</td>
-                                        <td>{{ c.conta_bancaria.nome_identificacao|default:"N/A" }}</td>
-                                        <td>{{ c.observacao|default:"-" }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="alert alert-info mt-3" role="alert">
-                            Nenhuma contribuição registrada para esta pessoa.
-                        </div>
-                    {% endif %}
-                </div>
-                <!-- FIM ABA: Histórico de Contribuições -->
-
-                <!-- INÍCIO ABA: Histórico de Tipo/Status -->
-                <div class="tab-pane fade" id="historico-status" role="tabpanel" aria-labelledby="historico-status-tab">
-                    <h5 class="mt-3">Histórico de Alterações de Tipo e Status</h5>
-                      {% if perms.secretaria.change_membro %}
-                    <div class="my-3">
-                        <a href="{% url 'secretaria:adicionar_historico_status_manual' membro_id=form.instance.pk %}" class="btn btn-sm btn-success">
-                            <i class="fas fa-plus me-1"></i> Adicionar Entrada Manual/Retroativa
-                        </a>
-                    </div>
-                    {% endif %}
-                    {% with transicoes=form.instance.transicoes_status_secretaria.all %}
-                        {% if transicoes %}
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover table-sm">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Data/Hora</th>
-                                            <th>Tipo Anterior</th>
-                                            <th>Novo Tipo</th>
-                                            <th>Status Anterior</th>
-                                            <th>Novo Status</th>
-                                            <th>Observação</th>
-                                            <th>Registrado Por</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                                                                {% for t in transicoes %}
-                                                                                <tr>
-                                                                                        <td>{{ t.data_transicao|date:"d/m/Y H:i" }}</td>
-                                                                                        <td>{{ t.tipo_pessoa_anterior.nome|default:"-" }}</td>
-                                                                                        <td>{{ t.tipo_pessoa_novo.nome|default:"-" }}</td>
-                                                                                        <td>{{ t.status_pessoa_anterior.nome|default:"-" }}</td>
-                                                                                        <td>{{ t.status_pessoa_novo.nome|default:"-" }}</td>
-                                                                                        <td>{{ t.observacao|default:"-" }}</td>
-                                                                                        <td>
-                                                                                            {% if t.registrado_por %}
-                                                                                                {{ t.registrado_por.get_full_name|default:t.registrado_por.username }}
-                                                                                            {% else %}
-                                                                                                Sistema
-                                                                                            {% endif %}
-                                                                                        </td>
-                                                                                </tr>
-                                                                                {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        {% else %}
-                            <div class="alert alert-info mt-3" role="alert">
-                                Nenhum histórico de alteração de tipo ou status registrado para este membro.
-                            </div>
-                        {% endif %}
-                    {% endwith %}
-                </div>
-                <!-- FIM ABA: Histórico de Tipo/Status -->
-
-                <!-- INÍCIO ABA: Histórico de Cargos -->
-                <div class="tab-pane fade" id="historico-cargos" role="tabpanel" aria-labelledby="historico-cargos-tab">
-                    <h5 class="mt-3">Histórico de Cargos</h5>
-                    {% if cargos_historico %}
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover table-sm">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Data Início</th>
-                                        <th>Data Fim</th>
-                                        <th>Cargo</th>
-                                        <th>Igreja</th>
-                                        <th>Observação</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for cargo in cargos_historico %}
-                                    <tr>
-                                        <td>{{ cargo.data_inicio|date:"d/m/Y" }}</td>
-                                        <td>{{ cargo.data_fim|date:"d/m/Y"|default:"Atual" }}</td>
-                                        <td>{{ cargo.cargo.nome }}</td>
-                                        <td>{{ cargo.igreja.nome_igreja|default:"-" }}</td>
-                                        <td>{{ cargo.observacao|default:"-" }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="alert alert-info mt-3" role="alert">
-                            Nenhum histórico de cargos registrado para este membro.
-                        </div>
-                    {% endif %}
-                </div>
-                <!-- FIM ABA: Histórico de Cargos -->
-
-                {# NOVA ABA PARA ACESSO AO SISTEMA #}
-                <!-- INÍCIO ABA: Acesso ao Sistema -->
-                <div class="tab-pane fade" id="acesso-sistema" role="tabpanel" aria-labelledby="acesso-sistema-tab">
-                    <h5 class="mt-3">Gerenciar Acesso ao Sistema</h5>
-                    {% if form.instance.email %}
-                        <p class="text-muted">Aqui você pode criar, vincular ou gerenciar a conta de usuário (login) associada a este membro.</p>
-
-                        <form method="POST" action="{% url 'secretaria:editar_membro' membro_id=membro_id %}">
-                            {% csrf_token %}
-                            {# Este input identifica qual dos formulários da página está sendo submetido #}
-                            <input type="hidden" name="submit_user_management_form" value="true">
- 
-                            {% include "partials/_form_errors.html" with form=user_management_form %}
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="{{ user_management_form.email_usuario.id_for_label }}" class="form-label">{{ user_management_form.email_usuario.label }}:</label>
-                                        {{ user_management_form.email_usuario }}
-                                        {% if user_management_form.email_usuario.errors %}<div class="invalid-feedback d-block">{{ user_management_form.email_usuario.errors|striptags }}</div>{% endif %}
-                                        <div class="form-text">{{ user_management_form.email_usuario.help_text|safe }}</div>
-                                    </div>
-
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="mb-3 form-check mt-4 pt-2">
-                                        {{ user_management_form.is_active }}
-                                        <label class="form-check-label" for="{{ user_management_form.is_active.id_for_label }}">{{ user_management_form.is_active.label }}</label>
-                                        {% if user_management_form.is_active.errors %}<div class="invalid-feedback d-block">{{ user_management_form.is_active.errors|striptags }}</div>{% endif %}
-                                        <div class="form-text">{{ user_management_form.is_active.help_text|safe }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="mb-3 form-check mt-4 pt-2">
-
-                                        {{ user_management_form.is_staff }}
-                                        <label class="form-check-label" for="{{ user_management_form.is_staff.id_for_label }}">{{ user_management_form.is_staff.label }}</label>
-                                        {% if user_management_form.is_staff.errors %}<div class="invalid-feedback d-block">{{ user_management_form.is_staff.errors|striptags }}</div>{% endif %}
-                                        <div class="form-text">{{ user_management_form.is_staff.help_text|safe }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <h6 class="mt-4 mb-3 border-bottom pb-2">Papéis e Permissões</h6>
-                            <div class="alert alert-info">
-                                Os papéis/grupos do usuário agora são gerenciados automaticamente pelos cargos ativos atribuídos ao membro.<br>
-                                Para alterar os papéis, <a href="{% url 'secretaria:lista_cargos' %}" class="alert-link" target="_blank">acesse a tela de <strong>Cargos/Ocupantes</strong></a>.<br>
-                                <small>Adicione ou remova cargos para atualizar automaticamente os papéis do usuário.</small>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">{{ user_management_form.igrejas_permitidas.label }}:</label>
-                                        {% for checkbox in user_management_form.igrejas_permitidas %}
-                                            <div class="form-check">
-                                                {{ checkbox.tag }}
-                                                <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
-                                            </div>
-                                        {% endfor %}
-                                        {% if user_management_form.igrejas_permitidas.errors %}<div class="invalid-feedback d-block">{{ user_management_form.igrejas_permitidas.errors|striptags }}</div>{% endif %}
-                                        <div class="form-text">{{ user_management_form.igrejas_permitidas.help_text|safe }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <hr>
-                            <button type="submit" class="btn btn-vibrant-green" name="submit_user_management_form" value="true"><i class="fas fa-user-cog me-1"></i> Salvar Acesso ao Sistema</button>
-                            {% if user_associado %}
-                                <a href="{% url 'contas:enviar_link_reset_senha' user_pk=user_associado.pk %}" class="btn btn-vibrant ms-2"><i class="fas fa-key me-1"></i>Enviar Link de Redefinição de Senha</a>
-                            {% endif %}
-                        
-                    
-                        </form> 
-                    {% else %}
-                        <div class="alert alert-warning mt-3" role="alert">
-                            Para gerenciar o acesso ao sistema, primeiro salve o cadastro da pessoa com um endereço de e-mail válido.
-                        </div>
-                    {% endif %}   
-                </div>
-                <!-- FIM ABA: Acesso ao Sistema -->
-
-            </div>
-                <!-- INÍCIO ABA: Acompanhamento de Visita -->
-                <div class="tab-pane fade" id="acompanhamento-visita" role="tabpanel" aria-labelledby="acompanhamento-visita-tab">
-                    <h5 class="mt-3">Acompanhamento de Visita</h5>
-                    {% if membro_id %}
-                        <a href="{% url 'secretaria:registrar_acompanhamento_visita' membro_id %}" class="btn btn-vibrant-green mb-3">
-                            <i class="fas fa-user-check me-1"></i> Registrar Novo Acompanhamento
+                        <a href="{% url 'secretaria:editar_membro' membro_id=next_id %}" class="btn btn-outline-primary" title="Próxima pessoa" aria-label="Próxima pessoa">
+                            <i class="fas fa-arrow-right"></i>
                         </a>
                     {% else %}
-                        <button class="btn btn-vibrant-green mb-3" disabled title="Salve o cadastro do membro antes de registrar acompanhamento">
-                            <i class="fas fa-user-check me-1"></i> Registrar Novo Acompanhamento
+                        <button class="btn btn-outline-secondary" disabled aria-label="Sem próxima">
+                            <i class="fas fa-arrow-right"></i>
                         </button>
-                        <div class="alert alert-warning mt-2" role="alert">
-                            Salve o cadastro da pessoa antes de registrar acompanhamento de visita.
-                        </div>
                     {% endif %}
-                    <p class="text-muted">Acompanhe e registre contatos, visitas e interações com esta pessoa/visitante.</p>
-                    <hr>
-                    <form method="get" class="row g-2 mb-3">
-                        <div class="col-md-4">
-                            <label for="filtro_tipo" class="form-label">Tipo de Contato</label>
-                            <select name="filtro_tipo" id="filtro_tipo" class="form-select">
-                                <option value="">Todos</option>
-                                <option value="ligacao" {% if request.GET.filtro_tipo == 'ligacao' %}selected{% endif %}>Ligação</option>
-                                <option value="visita" {% if request.GET.filtro_tipo == 'visita' %}selected{% endif %}>Visita</option>
-                                <option value="mensagem" {% if request.GET.filtro_tipo == 'mensagem' %}selected{% endif %}>Mensagem</option>
-                                <option value="evento" {% if request.GET.filtro_tipo == 'evento' %}selected{% endif %}>Evento</option>
-                                <option value="outro" {% if request.GET.filtro_tipo == 'outro' %}selected{% endif %}>Outro</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="filtro_data" class="form-label">Data</label>
-                            <input type="date" name="filtro_data" id="filtro_data" class="form-control" value="{{ request.GET.filtro_data }}">
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary">Filtrar</button>
-                        </div>
-                    </form>
-                    <h6>Histórico de Acompanhamentos</h6>
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Responsável</th>
-                                <th>Tipo de Contato</th>
-                                <th>Resultado</th>
-                                <th>Observação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for acompanhamento in acompanhamentos_visita %}
-                            <tr>
-                                <td>{{ acompanhamento.data|date:'d/m/Y H:i' }}</td>
-                                <td>{{ acompanhamento.responsavel.get_full_name|default:acompanhamento.responsavel.username }}</td>
-                                <td>{{ acompanhamento.get_tipo_contato_display }}</td>
-                                <td>{{ acompanhamento.resultado }}</td>
-                                <td>{{ acompanhamento.observacao }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="5">Nenhum acompanhamento registrado.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
                 </div>
-                <!-- FIM ABA: Acompanhamento de Visita -->
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge bg-info" style="font-size: 0.85rem; font-weight: normal;"><i class="fas fa-calendar-plus me-1"></i> Cadastrado em: {{ form.instance.criado_em|date:'d/m/Y H:i' }}</span>
+                    {% if form.instance.atualizado_em %}
+                        <span class="badge bg-secondary" style="font-size: 0.85rem; font-weight: normal;"><i class="fas fa-clock me-1"></i> Última atualização: {{ form.instance.atualizado_em|date:'d/m/Y H:i' }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+{% block extra_js %}
+<!-- Dependências: 
+    - jquery: base para plugins
+    - jquery.mask: máscaras de campos
+    - form_masks.js: máscaras customizadas
+    - form_tags.js: seleção de tags
+    - form_tags_debug.js: debug de tags
+    - cep_autocomplete.js: autocomplete de CEP
+    - autocomplete_nome.js: autocomplete de nomes
+-->
+<script src="{% static 'secretaria/secretaria_navegacao.js' %}" defer></script>
+{% endblock %}
+
+                                {# ====== CARD PRINCIPAL COM ABAS ====== #}
+                                <div class="card mb-4">
+                                    <div class="card-body">
+                                        {# ====== NAVEGAÇÃO DE ABAS ====== #}
+                                        <ul class="nav nav-tabs mb-3" id="membroTab" role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link active" id="dados-cadastrais-tab" data-bs-toggle="tab" data-bs-target="#dados-cadastrais" type="button" role="tab" aria-controls="dados-cadastrais" aria-selected="true">Dados Cadastrais</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="contribuicoes-tab" data-bs-toggle="tab" data-bs-target="#contribuicoes" type="button" role="tab" aria-controls="contribuicoes" aria-selected="false">Histórico de Contribuições</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="historico-status-tab" data-bs-toggle="tab" data-bs-target="#historico-status" type="button" role="tab" aria-controls="historico-status" aria-selected="false">Histórico de Tipo/Status</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="historico-cargos-tab" data-bs-toggle="tab" data-bs-target="#historico-cargos" type="button" role="tab" aria-controls="historico-cargos" aria-selected="false">Histórico de Cargos</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="acompanhamento-visita-tab" data-bs-toggle="tab" data-bs-target="#acompanhamento-visita" type="button" role="tab" aria-controls="acompanhamento-visita" aria-selected="false">Acompanhamento de Visita</button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="acesso-sistema-tab" data-bs-toggle="tab" data-bs-target="#acesso-sistema" type="button" role="tab" aria-controls="acesso-sistema" aria-selected="false">Acesso ao Sistema</button>
+                                            </li>
+                                        </ul>
+
+                                        {# ====== CONTEÚDO DAS ABAS ====== #}
+                                        <div class="tab-content" id="membroTabContent">
+                                            <!-- ABA: Dados Cadastrais -->
+                                            <div class="tab-pane fade show active" id="dados-cadastrais" role="tabpanel" aria-labelledby="dados-cadastrais-tab">
+                                                {% include "partials/_form_pessoa_oficial.html" with membros_igreja_ativa=membros_igreja_ativa %}
+                                            </div>
+                                            <!-- ABA: Histórico de Contribuições -->
+                                            <div class="tab-pane fade" id="contribuicoes" role="tabpanel" aria-labelledby="contribuicoes-tab">
+                                                {% include "partials/_aba_contribuicoes.html" %}
+                                            </div>
+                                            <!-- ABA: Histórico de Tipo/Status -->
+                                            <div class="tab-pane fade" id="historico-status" role="tabpanel" aria-labelledby="historico-status-tab">
+                                                {% include "partials/_aba_tipo_status.html" %}
+                                            </div>
+                                            <!-- ABA: Histórico de Cargos -->
+                                            <div class="tab-pane fade" id="historico-cargos" role="tabpanel" aria-labelledby="historico-cargos-tab">
+                                                {% include "partials/_aba_cargos.html" %}
+                                            </div>
+                                            <!-- ABA: Acompanhamento de Visita -->
+                                            <div class="tab-pane fade" id="acompanhamento-visita" role="tabpanel" aria-labelledby="acompanhamento-visita-tab">
+                                                {% include "partials/_aba_acompanhamento_visita.html" %}
+                                            </div>
+                                            <!-- ABA: Acesso ao Sistema -->
+                                            <div class="tab-pane fade" id="acesso-sistema" role="tabpanel" aria-labelledby="acesso-sistema-tab">
+                                                {% include "partials/_aba_acesso_sistema.html" %}
+                                            </div>
+                                        </div>
         </div>
     </div>
 {% endblock %}
-{% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
-<script>
-    $(document).ready(function(){
-        $('#id_cpf').mask('000.000.000-00', {reverse: true, placeholder: "___.___.___-__"});
-        $('#id_cep').mask('00000-000', {placeholder: "_____-___"});
-        $('#id_telefone').mask('(00) 00000-0000', {placeholder: "(__) _____-____"});
-        // Adicione máscaras para campos de data se eles não estiverem usando type="date"
-        // Ex: $('#id_nascimento').mask('00/00/0000', {placeholder: "__/__/____"});
-        // Se já estiverem como type="date", o navegador cuida da máscara.
-
-        $("#id_cep").blur(function() {
-            var cep = $(this).val().replace(/\D/g, '');
-            if (cep.length == 8) {
-                $("#id_rua").val("...");
-                $("#id_bairro_distrito").val("...");
-                $("#id_cidade").val("...");
-                $("#id_estado").val("...");
-                $("#id_pais").val("Brasil");
-                $.getJSON("https://viacep.com.br/ws/" + cep + "/json/?callback=?", function(dados) {
-                    if (!("erro" in dados)) {
-                        $("#id_rua").val(dados.logradouro);
-                        $("#id_bairro_distrito").val(dados.bairro);
-                        $("#id_cidade").val(dados.localidade);
-                        $("#id_estado").val(dados.uf);
-                        $("#id_numero_casa").focus();
-                    } else {
-                        $("#id_rua").val("");
-                        $("#id_bairro_distrito").val("");
-                        $("#id_cidade").val("");
-                        $("#id_estado").val("");
-                        // alert("CEP não encontrado."); // Comentado
-                    }
-                }).fail(function() {
-                    $("#id_rua").val("");
-                    $("#id_bairro_distrito").val("");
-                    $("#id_cidade").val("");
-                    $("#id_estado").val("");
-                    // alert("Erro ao consultar o CEP."); // Comentado
-                });
-            }
-        });
-    });
-</script>
+{# Se necessário, adicione outros scripts externos aqui, sempre com defer #}
+{# Evite scripts inline, centralize toda lógica JS nos arquivos externos #}
 <style>
 /* Mantém apenas UM bloco de ocultação das abas inativas, limpo e definitivo */
 .tab-pane:not(.show) {
     display: none !important;
 }
 </style>
-{% endblock %}

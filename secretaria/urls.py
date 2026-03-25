@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from .views_test_tag import test_tag_form_view
 
+
 app_name = 'secretaria'
 
 urlpatterns = [

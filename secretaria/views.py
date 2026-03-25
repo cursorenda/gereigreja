@@ -1,4 +1,6 @@
-﻿# --- VIEW PÚBLICA: Cadastro de pessoa via link único por igreja ---
+﻿from django.contrib.auth.decorators import login_required
+
+# --- VIEW PÚBLICA: Cadastro de pessoa via link único por igreja ---
 from django.views.decorators.csrf import csrf_exempt
 from secretaria.models import StatusPessoa
 
@@ -1372,16 +1374,10 @@ def criar_visitante_parcial(request):
         if default_status:
             data['status_pessoa'] = str(default_status.pk)
         # If the POST did not include 'igreja', default to the current active church (server-side safety)
+        # Removido bloco try vazio e corrigido bloco try/except
         try:
-            if (not data.get('igreja') or str(data.get('igreja')).strip() == ''):
-                if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-                    data['igreja'] = str(request.igreja_ativa.pk)
-                elif allowed_churches and getattr(allowed_churches, 'exists', None) and allowed_churches.exists():
-                    # fallback: use the first allowed church
-                    try:
-                        data['igreja'] = str(allowed_churches.first().pk)
-                    except Exception:
-                        pass
+            if not data.get('igreja') or str(data.get('igreja')).strip() == '':
+                data['igreja'] = str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else ''
         except Exception:
             pass
 
@@ -1902,9 +1898,6 @@ import shutil
 
 from django.http import Http404
 from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
-
-
-
 
 
 
@@ -3085,7 +3078,7 @@ def lista_membros(request): # noqa: E302
     return render(request, 'secretaria/lista_membros.html', context)
 
 
-def _get_navigation_context(membro_id, allowed_churches):
+def _get_navigation_context(membro_id, igreja_ativa):
     """
     Helper para obter contexto de navegação entre membros.
     Retorna: dict com prev_id, next_id, current_position, total_count, membros_lista
@@ -3093,12 +3086,24 @@ def _get_navigation_context(membro_id, allowed_churches):
     NOTA: Exclui apenas pessoas INATIVAS (falecidos, mudados definitivamente).
     Disciplinados, desligados e outros status ainda aparecem pois podem precisar edição.
     """
-    # Busca todos os membros permitidos ordenados por nome, EXCETO inativos
-    membros_permitidos = Membro.objects.filter(
-        igreja__in=allowed_churches
-    ).exclude(
-        status_pessoa__nome='Inativo'  # Exclui apenas inativos
-    ).order_by('nome').values_list('pk', 'nome')
+    # Robustez: só filtra se igreja_ativa for válida
+    igreja_ativa_obj = None
+    if igreja_ativa is None:
+        membros_permitidos = []
+    elif hasattr(igreja_ativa, 'first'):
+        igreja_ativa_obj = igreja_ativa.first()
+    elif isinstance(igreja_ativa, (list, tuple)):
+        igreja_ativa_obj = igreja_ativa[0] if igreja_ativa else None
+    else:
+        igreja_ativa_obj = igreja_ativa
+    if igreja_ativa_obj:
+        membros_permitidos = Membro.objects.filter(
+            igreja=igreja_ativa_obj
+        ).exclude(
+            status_pessoa__nome='Inativo'  # Exclui apenas inativos
+        ).order_by('nome').values_list('pk', 'nome')
+    else:
+        membros_permitidos = []
     
     # Converte para lista para facilitar navegação
     membros_lista = list(membros_permitidos)
@@ -3141,6 +3146,10 @@ def detalhe_membro(request, membro_id):
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
+    # Impede visualização se o membro não pertence à igreja ativa
+    if request.igreja_ativa and membro.igreja != request.igreja_ativa:
+        messages.warning(request, "O membro selecionado não pertence à igreja ativa atual.")
+        return redirect('secretaria:lista_pessoas')
     
     # Busca tags associadas
     tags = membro.tags.all()
@@ -3157,7 +3166,17 @@ def detalhe_membro(request, membro_id):
     historico_status = StatusHistorico.objects.filter(membro=membro).order_by('-data_transicao')
     
     # Contexto de navegação
-    nav_context = _get_navigation_context(membro_id, allowed_churches)
+    # DEBUG: Log igreja_ativa
+    try:
+        print(f"[DEBUG editar_membro] igreja_ativa: {getattr(request.igreja_ativa, 'pk', request.igreja_ativa)} - {getattr(request.igreja_ativa, 'nome_igreja', request.igreja_ativa)}")
+    except Exception as e:
+        print(f"[DEBUG editar_membro] igreja_ativa exception: {e}")
+    nav_context = _get_navigation_context(membro_id, request.igreja_ativa)
+    # DEBUG: Log igreja_ativa recebida
+    try:
+        print(f"[DEBUG _get_navigation_context] igreja_ativa: {getattr(request.igreja_ativa, 'pk', request.igreja_ativa)} - {getattr(request.igreja_ativa, 'nome_igreja', request.igreja_ativa)}")
+    except Exception as e:
+        print(f"[DEBUG _get_navigation_context] igreja_ativa exception: {e}")
     
     # Aprovação manual
     if request.method == 'POST' and pode_aprovar and membro.status_pessoa.nome == 'Pendente' and request.POST.get('aprovar_membro') == '1':
@@ -3168,6 +3187,21 @@ def detalhe_membro(request, membro_id):
             membro.save(user=request.user)
             messages.success(request, 'Cadastro aprovado e status alterado para Ativo.')
             return redirect('secretaria:detalhe_membro', membro_id=membro.pk)
+    # Adiciona lista de membros filtrados pela igreja ativa para o novo seletor
+    membros_igreja_ativa = []
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+        membros_igreja_ativa = Membro.objects.filter(
+            igreja=request.igreja_ativa
+        ).exclude(
+            status_pessoa__nome='Inativo'
+        ).order_by('nome')
+        print(f"[DEBUG membros_igreja_ativa] igreja_ativa: {request.igreja_ativa}")
+        print(f"[DEBUG membros_igreja_ativa] quantidade: {membros_igreja_ativa.count()}")
+        print(f"[DEBUG membros_igreja_ativa] nomes: {[m.nome for m in membros_igreja_ativa]}")
+        print(f"[DEBUG membros_igreja_ativa] igreja_ativa: {request.igreja_ativa}")
+        print(f"[DEBUG membros_igreja_ativa] allowed_churches: {[str(igreja) for igreja in allowed_churches]}")
+        print(f"[DEBUG membros_igreja_ativa] quantidade: {membros_igreja_ativa.count()}")
+
     context = {
         'membro': membro,
         'tags': tags,
@@ -3176,6 +3210,7 @@ def detalhe_membro(request, membro_id):
         'ministerio': ministerio,
         'titulo_pagina': f'Visualizar: {membro.nome}',
         'pode_aprovar': pode_aprovar,
+        'membros_igreja_ativa': membros_igreja_ativa,
     }
     context.update(nav_context)
     return render(request, 'secretaria/detalhe_membro.html', context)
@@ -3310,6 +3345,10 @@ def editar_membro(request, membro_id): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
+    # Impede edição se o membro não pertence à igreja ativa
+    if request.igreja_ativa and membro.igreja != request.igreja_ativa:
+        messages.warning(request, "O membro selecionado não pertence à igreja ativa atual.")
+        return redirect('secretaria:lista_pessoas')
      # DEBUG: Verificar o membro que está sendo editado
     
      # Tenta encontrar o User e PerfilUsuario associados ao membro
@@ -3318,7 +3357,7 @@ def editar_membro(request, membro_id): # noqa: E302
     # print(f"DEBUG [editar_membro]: Editando membro: {membro.nome} (ID: {membro.pk})") # Removido para produção
 
     if request.method == 'POST':
-        # Ao editar, a igreja do membro não deve mudar via seletor global, mas o form precisa das allowed_churches
+        # Ao editar, a igreja do membro não deve mudar via seletor global, mas o form precisa dos allowed_churches
         form = MembroForm(request.POST, request.FILES, instance=membro, 
                           ministerio=ministerio, 
                           user=request.user, 
@@ -3365,10 +3404,13 @@ def editar_membro(request, membro_id): # noqa: E302
                         # Verifica o VALOR do botão pressionado, não a presença de uma chave.
                         # O botão "Salvar e Continuar" envia o valor "_save_and_continue".
                         # O botão "Salvar Alterações" não tem valor, então o get() retornará None.
-                        if request.POST.get('submit_membro_form') == '_save_and_continue':
+                        submit_value = request.POST.get('submit_membro_form')
+                        if submit_value == '_save_and_continue':
                             return redirect('secretaria:editar_membro', membro_id=membro_id)
+                        elif submit_value == '_save':
+                            return redirect('secretaria:lista_membros')
                         else:
-                            return redirect('secretaria:lista_pessoas')
+                            return redirect('secretaria:lista_membros')
                 except Exception as e:
                     # print(f"DEBUG POST - Exceção ao salvar: {e}") # Removido para produção
 
@@ -3447,22 +3489,21 @@ def editar_membro(request, membro_id): # noqa: E302
     # print(f"DEBUG GET - Valor de membro.nascimento no BD: {membro.nascimento}") # Removido para produção
     # print(f"DEBUG GET - Tipo de membro.nascimento no BD: {type(membro.nascimento)}") # Removido para produção
     # Buscar histórico de contribuições do membro
-    contribuicoes = Receitas.objects.filter(membro=membro).select_related(
+    contribuicoes_qs = Receitas.objects.filter(membro=membro).select_related(
         'igreja', 'conta_bancaria'
     ).order_by('-data')
-    
-     # DEBUG: Verificar as contribuições encontradas
-    # print(f"DEBUG [editar_membro]: Contribuições encontradas para {membro.nome} (ID: {membro.pk}): {list(contribuicoes)}") # Removido para produção
+    contribuicoes = list(contribuicoes_qs) if contribuicoes_qs.exists() else []
+    # DEBUG: Verificar as contribuições encontradas
+    # print(f"DEBUG [editar_membro]: Contribuições encontradas para {membro.nome} (ID: {membro.pk}): {contribuicoes}") # Removido para produção
     # Para ver a query SQL gerada (pode ajudar a identificar problemas no filtro):
-    # print(f"DEBUG [editar_membro]: Query SQL para contribuições: {str(contribuicoes.query)}")
+    # print(f"DEBUG [editar_membro]: Query SQL para contribuições: {str(contribuicoes_qs.query)}")
 
-    # >>> ADICIONAR ESTE LOG <<<
-    historico_status_membro = membro.transicoes_status_secretaria.all()
-    # print(f"DEBUG [editar_membro]: Histórico de Status para {membro.nome} (ID: {membro.pk}): {list(historico_status_membro)}") # Removido para produção
+    historico_status_qs = membro.transicoes_status_secretaria.all()
+    historico_status_membro = list(historico_status_qs) if historico_status_qs.exists() else []
+    # print(f"DEBUG [editar_membro]: Histórico de Status para {membro.nome} (ID: {membro.pk}): {historico_status_membro}") # Removido para produção
 
     for h in historico_status_membro:
         pass  # Bloco mantido para evitar erro de indentação
-    # >>> FIM DO LOG ADICIONADO <<<
 
     # --- FILTRO DE ACOMPANHAMENTO DE VISITA ---
     acompanhamentos_visita = membro.acompanhamentos_visita.all()
@@ -3481,20 +3522,21 @@ def editar_membro(request, membro_id): # noqa: E302
     cargos_historico = MembroCargo.objects.filter(membro=membro).select_related('cargo').order_by('-data_inicio')
     
     # Contexto de navegação
-    nav_context = _get_navigation_context(membro_id, allowed_churches)
+    nav_context = _get_navigation_context(membro_id, request.igreja_ativa)
     
     context = {
         'form': form,
         'membro_id': membro_id,
         'ministerio': ministerio,
         'titulo_pagina': f'Editar Membro: {membro.nome}',
-        'contribuicoes': contribuicoes,
+        'contribuicoes': list(contribuicoes),
         'user_management_form': user_management_form,
         'user_associado': user_associado,
-        'acompanhamentos_visita': acompanhamentos_visita,
+        'acompanhamentos_visita': list(acompanhamentos_visita),
         'filtro_tipo': filtro_tipo,
         'filtro_data': filtro_data,
-        'cargos_historico': cargos_historico,
+        'cargos_historico': list(cargos_historico),
+        'historico_status_membro': historico_status_membro,
     }
     context.update(nav_context)
     return render(request, 'secretaria/editar_membro.html', context)
@@ -3541,7 +3583,10 @@ def criar_membro(request): # noqa: E302
                         data_mudanca_status=data_mudanca_status
                     )
                     messages.success(request, f'Membro "{novo_membro.nome}" cadastrado com sucesso!')
-                    return redirect('secretaria:lista_membros')
+                    if request.POST.get('submit_membro_form') == '_save_and_continue':
+                        return redirect('secretaria:editar_membro', membro_id=novo_membro.pk)
+                    else:
+                        return redirect('secretaria:lista_membros')
             except Exception as e:
                 logger.exception(f"Erro ao salvar novo membro para ministério {ministerio.id}")
                 messages.error(request, f"Ocorreu um erro ao salvar o membro: {e}")
@@ -3575,7 +3620,7 @@ def alternar_status_membro(request, membro_id): # noqa: E302
     membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
 
     # Nomes dos novos StatusPessoa para Ativo e Inativo
-    # Certifique-se que estes existem na sua tabela StatusPessoa
+    # Certifique-se que estes existem na sua tabela Status de Pessoa
     NOME_STATUSPESSOA_ATIVO = "Ativo" # Ajuste se o nome do seu status Ativo for diferente
     NOME_STATUSPESSOA_INATIVO = "Inativo" # Ajuste se o nome do seu status Inativo for diferente
 
@@ -3774,7 +3819,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
                 'nenhuma_igreja_filtro': True, 
                 'ministerio_usuario': ministerio_usuario,
                 'titulo_dashboard': f"Liderança Secretaria - {ministerio_usuario.nome_fantasia}",
-                'igrejas_permitidas_filtro': allowed_churches_base_secretaria.order_by('nome_igreja'),
+                'igrejas_permitidas_filtro': opcoes_filtro_pagina, 
                 'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template_lider_sec,
             })
 
@@ -3783,7 +3828,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
             igreja__in=churches_for_queries, 
             # status__considerar_ativo_relatorios=True # Lógica antiga
            
-            status_pessoa__considerar_ativo_relatorios=True # Nova lógica
+            status_pessoa__considerar_ativo_relatorios=True, # Nova lógica
         ).count()
 
         from datetime import date, timedelta # Já importado no topo do arquivo
