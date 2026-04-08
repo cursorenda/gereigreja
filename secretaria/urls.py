@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 from .views_test_tag import test_tag_form_view
 
@@ -79,4 +79,5 @@ urlpatterns = [
     path('test-tag-form/', test_tag_form_view, name='test_tag_form'),
     path('ajax/desvincular_usuario_membro/', views.desvincular_usuario_membro, name='desvincular_usuario_membro'),
 
+    path('', include('secretaria.transferencia_urls')),
 ]

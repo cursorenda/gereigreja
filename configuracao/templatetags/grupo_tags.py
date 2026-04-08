@@ -5,7 +5,8 @@ register = template.Library()
 
 @register.filter(name='has_group')
 def has_group(user, group_name):
-    return user.groups.filter(name=group_name).exists()
+    from contas.constants import user_tem_grupo
+    return user_tem_grupo(user, group_name)
 
 
 @register.simple_tag
@@ -13,4 +14,5 @@ def user_is_admin_ministerio(user):
     """Verifica se o usuário é Admin Ministerio"""
     if not user.is_authenticated:
         return False
-    return user.is_superuser or user.groups.filter(name=ADMIN_MINISTERIO).exists()
+    from contas.constants import user_tem_grupo
+    return user.is_superuser or user_tem_grupo(user, ADMIN_MINISTERIO)

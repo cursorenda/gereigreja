@@ -3,6 +3,7 @@
 {% load financeiro_tags %}
 {% load grupo_tags %}
 {% load versao %}
+{% load permissoes_hierarquia %}
 
 
 <html lang="pt-BR"> {# Alterado para pt-BR #}
@@ -147,9 +148,7 @@
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
 
                 {# --- Links de Configuração da Ministério (SÓ PARA NÃO SUPERUSUÁRIOS E NO GRUPO CERTO) --- #}
-                {% if not user.is_superuser and user.groups.all %} {# Verifica se tem grupos associados #}
-                {% for group in user.groups.all %}
-                    {% if group.name == 'Admin Ministerio' %} {# Verifica se está no grupo específico #}
+                {% if not user.is_superuser and user|tem_permissao_hierarquica:'Admin Ministerio' %}
                         <li>
                             <a class="dropdown-item" href="{% url 'configuracao:detalhes_ministerio' %}">
                                 <i class="fas fa-sitemap fa-fw me-1 text-muted"></i>Meu Ministério
@@ -178,7 +177,6 @@
                         <li><hr class="dropdown-divider" /></li> {# Separador só aparece se os links acima existirem #}
 
                         {% endif %}
-                    {% endfor %}
                 {% endif %}
                 {# --- FIM Links de Configuração da Ministério --- #}
                     <li>
@@ -198,7 +196,28 @@
                             <i class="fas fa-shield-alt fa-fw me-1 text-muted"></i>Meus Dados - LGPD
                         </a>
                     </li>
-                    <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'contas:hub_permissoes' %}">
+                                <i class="fas fa-user-shield fa-fw me-1 text-muted"></i>Minhas Permissões
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider" /></li>
+                    {% if user.is_superuser %}
+                        <li>
+                            <form method="post" action="{% url 'auditoria:alternar_modo_auditoria' %}" style="display: inline;">
+                                {% csrf_token %}
+                                {% if modo_auditoria_ativo %}
+                                    <button type="submit" class="dropdown-item text-warning">
+                                        <i class="fas fa-eye-slash fa-fw me-1 text-muted"></i>Sair do Modo Auditoria
+                                    </button>
+                                {% else %}
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="fas fa-eye fa-fw me-1 text-muted"></i>Ativar Modo Auditoria
+                                    </button>
+                                {% endif %}
+                            </form>
+                        </li>
+                    {% endif %}
                     <li>
                         {# Formulário de Logout #}
                         <form id="logout-form-header" method="post" action="{% url 'logout' %}" style="display: inline;">
@@ -212,17 +231,14 @@
             </li>
             {# --- FIM: Dropdown do Usuário LOGADO --- #}
 
-            {% else %}
+            {% if not user.is_authenticated %}
                 {# --- INÍCIO: Links para usuário DESLOGADO --- #}
                 <li class="nav-item">
-                    {# --- CORRIGIR ESTE HREF --- #}
                     <a class="nav-link" href="{% url 'login' %}">Entrar</a>
-                    {# --- FIM DA CORREÇÃO --- #}                </li>
-                {# --- NOVO LINK DE REGISTRO --- #}
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'contas:registrar' %}">Registrar</a>
                 </li>
-                {# --- FIM NOVO LINK --- #}
                 {# --- FIM: Links para usuário DESLOGADO --- #}
             {% endif %}
 
@@ -230,6 +246,11 @@
         {# Fim da seção Navbar #}
     </nav>
 
+    {% if modo_auditoria_ativo %}
+    <div class="alert alert-warning text-center mb-0" style="border-radius:0; font-weight:bold; letter-spacing:1px;">
+        <i class="fas fa-eye"></i> MODO AUDITORIA ATIVO: Navegação somente leitura. Nenhuma alteração será salva.
+    </div>
+    {% endif %}
     <div id="layoutSidenav">
         <!-- Offcanvas para mobile -->
         <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="offcanvasSidebar" aria-labelledby="offcanvasSidebarLabel">

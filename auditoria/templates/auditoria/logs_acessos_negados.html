@@ -1,0 +1,263 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .logs-page {
+        padding: 20px;
+    }
+    
+    .filters-bar {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .filters-bar form {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .filter-group label {
+        font-weight: bold;
+        font-size: 12px;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        margin-top: 20px;
+    }
+    
+    .log-table th {
+        background: #e74c3c;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+    }
+    
+    .log-table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .log-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .badge-view { background: #d1ecf1; color: #0c5460; }
+    .badge-object { background: #fff3cd; color: #856404; }
+    .badge-action { background: #d4edda; color: #155724; }
+    .badge-api { background: #f8d7da; color: #721c24; }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .pagination a {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #e74c3c;
+    }
+    
+    .pagination a:hover {
+        background: #e74c3c;
+        color: white;
+    }
+    
+    .btn-primary {
+        background: #e74c3c;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+    
+    .alert-danger {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="logs-page">
+    <h1>Logs de Acessos Negados</h1>
+    
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'auditoria:painel_auditoria' %}" class="btn-secondary">← Voltar ao Painel</a>
+    </div>
+    
+    <div class="alert-danger">
+        <strong>⚠ Atenção:</strong> Esta página registra todas as tentativas de acesso bloqueadas no sistema. 
+        Use para identificar problemas de permissão ou tentativas não autorizadas.
+    </div>
+    
+    <div class="filters-bar">
+        <form method="get">
+            <div class="filter-group">
+                <label>Usuário:</label>
+                <select name="usuario">
+                    <option value="">Todos</option>
+                    {% for u in usuarios %}
+                    <option value="{{ u.id }}" {% if filtros_ativos.usuario == u.id|stringformat:"s" %}selected{% endif %}>
+                        {{ u.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Tipo:</label>
+                <select name="tipo">
+                    <option value="">Todos</option>
+                    {% for tipo_code, tipo_label in tipos_acesso %}
+                    <option value="{{ tipo_code }}" {% if filtros_ativos.tipo == tipo_code %}selected{% endif %}>
+                        {{ tipo_label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Recurso:</label>
+                <input type="text" name="recurso" value="{{ filtros_ativos.recurso }}" placeholder="Nome do recurso">
+            </div>
+            
+            <div class="filter-group">
+                <label>Período:</label>
+                <select name="dias">
+                    <option value="">Tudo</option>
+                    <option value="7" {% if filtros_ativos.dias == "7" %}selected{% endif %}>Últimos 7 dias</option>
+                    <option value="30" {% if filtros_ativos.dias == "30" %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="90" {% if filtros_ativos.dias == "90" %}selected{% endif %}>Últimos 90 dias</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <button type="submit" class="btn-primary">Filtrar</button>
+            </div>
+        </form>
+    </div>
+    
+    {% if logs %}
+    <table class="log-table">
+        <thead>
+            <tr>
+                <th>Data/Hora</th>
+                <th>Usuário</th>
+                <th>Tipo</th>
+                <th>Recurso</th>
+                <th>Permissão Requerida</th>
+                <th>Igreja</th>
+                <th>IP</th>
+                <th>URL</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.data_hora|date:"d/m/Y H:i:s" }}</td>
+                <td>
+                    <a href="{% url 'auditoria:detalhes_usuario' log.usuario.id %}">
+                        {{ log.usuario.username }}
+                    </a>
+                </td>
+                <td>
+                    {% if log.tipo_acesso == 'VIEW' %}
+                    <span class="badge badge-view">{{ log.get_tipo_acesso_display }}</span>
+                    {% elif log.tipo_acesso == 'OBJECT' %}
+                    <span class="badge badge-object">{{ log.get_tipo_acesso_display }}</span>
+                    {% elif log.tipo_acesso == 'ACTION' %}
+                    <span class="badge badge-action">{{ log.get_tipo_acesso_display }}</span>
+                    {% elif log.tipo_acesso == 'API' %}
+                    <span class="badge badge-api">{{ log.get_tipo_acesso_display }}</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ log.recurso }}</strong></td>
+                <td>{{ log.permissao_requerida|default:"-" }}</td>
+                <td>{{ log.igreja_tentada.nome|default:"-" }}</td>
+                <td>{{ log.ip_address|default:"-" }}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
+                    {{ log.url_path|default:"-" }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Paginação -->
+    {% if logs.has_other_pages %}
+    <div class="pagination">
+        {% if logs.has_previous %}
+        <a href="?page={{ logs.previous_page_number }}{% for key, value in filtros_ativos.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+            &laquo; Anterior
+        </a>
+        {% endif %}
+        
+        <span style="padding: 8px;">
+            Página {{ logs.number }} de {{ logs.paginator.num_pages }}
+        </span>
+        
+        {% if logs.has_next %}
+        <a href="?page={{ logs.next_page_number }}{% for key, value in filtros_ativos.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+            Próxima &raquo;
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #7f8c8d;">
+        <p>Nenhum acesso negado registrado com os filtros selecionados.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

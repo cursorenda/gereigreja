@@ -9,21 +9,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env') # Carrega as variáveis do arquivo .env
 
-# --- Cloudinary ---
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
-    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
-}
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-if not CLOUDINARY_STORAGE['CLOUD_NAME']:
-    raise Exception("CLOUDINARY_CLOUD_NAME não está definida!")
-MEDIA_URL = '/media/'
 
-from django.core.files.storage import default_storage
-from django.utils.module_loading import import_string
-default_storage._wrapped = import_string(DEFAULT_FILE_STORAGE)()
+# --- Armazenamento de arquivos (Padrão Profissional) ---
+# Em desenvolvimento (DEBUG=True): usa FileSystemStorage local para facilitar testes e onboarding.
+# Em produção (DEBUG=False): usa Cloudinary para escalabilidade e segurança.
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
+
+if DEBUG:
+    # Armazenamento local para desenvolvimento
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+else:
+    # Armazenamento em nuvem para produção
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+        'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+        'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+    }
+    if not CLOUDINARY_STORAGE['CLOUD_NAME']:
+        raise Exception("CLOUDINARY_CLOUD_NAME não está definida!")
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    MEDIA_URL = '/media/'
+    # MEDIA_ROOT não é necessário em produção com Cloudinary
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -46,7 +55,7 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
 
-ALLOWED_HOSTS = ['gereigreja.site', 'www.gereigreja.site', '199.167.147.66', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['gereigreja.site', 'www.gereigreja.site', '199.167.147.66', 'localhost', '127.0.0.1', 'testserver']
 CSRF_TRUSTED_ORIGINS = [
     'https://gereigreja.site',
     'https://www.gereigreja.site',
@@ -58,6 +67,7 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+    'painel_testes',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -82,6 +92,7 @@ INSTALLED_APPS = [
     'cloudinary',
     'cloudinary_storage',
     'widget_tweaks',
+    'auditoria.apps.AuditoriaConfig',
 ]
 
 MIDDLEWARE = [
@@ -119,6 +130,7 @@ TEMPLATES = [
                 'core.context_processors.ministerio_context',
                 'core.context_processors.unread_notifications',
                 'core.context_processors.sistema_nome',
+                'core.context_processors.ultimos_cadastros',
             ],
         },
     },

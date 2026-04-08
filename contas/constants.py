@@ -1,6 +1,111 @@
+
+
+# ===================================
+# GRUPOS DO SISTEMA
+# ===================================
+
+# Nível 1: Administrativo (Pastor Presidente)
+ADMIN_MINISTERIO = 'Admin Ministerio'
+
+# Nível 2: Liderança Ministerial
+LIDERANCA_SECRETARIA = 'Secretaria Ministerial'
+LIDERANCA_FINANCEIRA = 'Tesouraria Ministerial'
+
+# Nível 3: Liderança Regional (supervisiona várias igrejas)
+PASTOR_REGIONAL = 'Pastor Regional'
+
+# Nível 4: Liderança Local (pastor de UMA igreja)
+PASTOR_LOCAL = 'Pastor Local'
+
+# Nível 5: Operacional Local (equipe administrativa)
+SECRETARIO_LOCAL = 'Secretario Local'
+TESOUREIRO = 'Tesoureiro'
+SUPERINTENDENTE_EBD = 'Superintendente EBD'
+
+# Nível 6: Equipes e Auxiliares
+EQUIPE_EVENTOS = 'Equipe de Eventos'
+EQUIPE_MIDIA = 'Equipe de Mídia'
+EQUIPE_RECEPCAO = 'Equipe de Recepção'
+PROFESSOR_EBD = 'Professores EBD'
+SECRETARIA_EBD = 'Secretaria EBD'
+
+# Nível 7: Base
+MEMBRO_COMUM = 'Membro Comum'
+
+# ===================================
+# HIERARQUIA CENTRALIZADA E HELPER ÚNICO
+# ===================================
+
+# Ordem de privilégio (do mais alto para o mais baixo)
+HIERARQUIA_GRUPOS = [
+    ADMIN_MINISTERIO,
+    LIDERANCA_SECRETARIA,
+    LIDERANCA_FINANCEIRA,
+    PASTOR_REGIONAL,
+    PASTOR_LOCAL,
+    SECRETARIO_LOCAL,
+    TESOUREIRO,
+    SUPERINTENDENTE_EBD,
+    EQUIPE_EVENTOS,
+    EQUIPE_MIDIA,
+    EQUIPE_RECEPCAO,
+    PROFESSOR_EBD,
+    SECRETARIA_EBD,
+    MEMBRO_COMUM,
+]
+
+def get_user_permission_level(user):
+    """
+    Retorna o menor índice (maior privilégio) do grupo do usuário na hierarquia.
+    Se o usuário for superusuário, retorna 0 (nível mais alto).
+    Se não pertencer a nenhum grupo, retorna None.
+    """
+    if not user.is_authenticated:
+        return None
+    if getattr(user, 'is_superuser', False):
+        return 0
+    user_groups = set(user.groups.values_list('name', flat=True))
+    for idx, group in enumerate(HIERARQUIA_GRUPOS):
+        if group in user_groups:
+            return idx
+    return None
+
+def user_has_permission_level_or_higher(user, required_group):
+    """
+    Verifica se o usuário tem permissão igual ou superior ao grupo exigido.
+    Exemplo: se required_group for 'Pastor Local', quem for Pastor Regional ou Admin também terá acesso.
+    """
+    if not user.is_authenticated:
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    try:
+        required_idx = HIERARQUIA_GRUPOS.index(required_group)
+    except ValueError:
+        logger.error(f'Grupo {required_group} não encontrado na hierarquia.')
+        return False
+    user_level = get_user_permission_level(user)
+    if user_level is None:
+        return False
+    return user_level <= required_idx
+import logging
+logger = logging.getLogger('permissoes')
 """
 Constantes de grupos e permissões do sistema GereIgreja.
 Centraliza nomes de grupos para evitar strings hardcoded.
+
+Padrão de nomenclatura:
+- O valor da constante deve ser exatamente igual ao nome do grupo cadastrado no banco de dados (ex: 'Admin Ministerio', 'Pastor Regional', 'Pastor Local'), com iniciais maiúsculas e o restante minúsculo.
+- As constantes são sempre em MAIÚSCULAS (ex: ADMIN_MINISTERIO), mas o valor delas deve seguir o padrão do banco.
+- Nunca use o nome da constante como valor do grupo no banco ou em templates.
+- Em templates e fixtures, sempre utilize o valor correto (ex: 'Pastor Regional').
+
+Exemplo de uso correto:
+    # Python
+    from contas.constants import user_tem_grupo, PASTOR_REGIONAL
+    user_tem_grupo(user, PASTOR_REGIONAL)  # Retorna True se o usuário pertence ao grupo
+    # Template
+    {# Passe o nome do grupo via contexto, se possível, e use uma tag customizada ou filtro #}
 
 Última atualização: 12/02/2026
 Hierarquia: Pastor Presidente → Pastor Regional → Pastor Local → Equipe Administrativa
@@ -92,8 +197,12 @@ def user_tem_grupo(user, nome_grupo):
         bool: True se usuário pertence ao grupo
     """
     if not user.is_authenticated:
+        logger.warning(f'Acesso negado: usuário anônimo tentou acessar grupo {nome_grupo}')
         return False
-    return user.groups.filter(name=nome_grupo).exists()
+    result = user.groups.filter(name=nome_grupo).exists()
+    if not result:
+        logger.info(f'Acesso negado: {getattr(user, "username", "<anon>")} não pertence ao grupo {nome_grupo}')
+    return result
 
 
 def user_tem_qualquer_grupo(user, lista_grupos):
@@ -108,8 +217,12 @@ def user_tem_qualquer_grupo(user, lista_grupos):
         bool: True se usuário pertence a pelo menos um dos grupos
     """
     if not user.is_authenticated:
+        logger.warning(f'Acesso negado: usuário anônimo tentou acessar grupos {lista_grupos}')
         return False
-    return user.groups.filter(name__in=lista_grupos).exists()
+    result = user.groups.filter(name__in=lista_grupos).exists()
+    if not result:
+        logger.info(f'Acesso negado: {getattr(user, "username", "<anon>")} não pertence a nenhum dos grupos {lista_grupos}')
+    return result
 
 
 # ===================================
@@ -168,8 +281,8 @@ def user_pode_gerenciar_secretaria(user):
         SECRETARIO_LOCAL,
     ])
 
-
-def user_pode_gerenciar_cargos(user):
+    LIDERANCA_SECRETARIA = 'Secretaria Ministerial'
+    LIDERANCA_FINANCEIRA = 'Tesouraria Ministerial'
     """
     Verifica se pode gerenciar cargos (criar/editar/deletar).
     Cargos são LOCAIS - apenas Admin, Pastor Local e Secretário Local da igreja.

@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Aprovar Transferência</h2>
+  <p>Tem certeza que deseja aprovar a transferência do membro <strong>{{ transferencia.membro }}</strong> da igreja <strong>{{ transferencia.igreja_origem }}</strong> para <strong>{{ transferencia.igreja_destino }}</strong>?</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success">Aprovar</button>
+    <a href="{% url 'secretaria:lista_transferencias' %}" class="btn btn-secondary">Cancelar</a>
+  </form>
+{% endblock %}

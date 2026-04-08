@@ -1,5 +1,8 @@
+
+from auditoria import urls as auditoria_urls
 from django.contrib import admin
-from django.urls import path, include
+from painel_testes.admin import painel_pytest_view
+from django.urls import path, include, reverse_lazy
 from django.contrib.auth import views as auth_views # Importar as views de autenticação
 from django.views.generic import TemplateView, RedirectView # Importar TemplateView e RedirectView
 from django.conf import settings
@@ -10,6 +13,7 @@ from django.conf.urls.static import static
 from contas.views import LandingPageView
 
 from core.views import notificacoes_enviadas_view
+
 from core.backup_views import backup_urls
 from configuracao.admin_dashboard import dashboard_desenvolvedor, executar_comando
 from configuracao.admin_metrics import metricas_produto
@@ -24,7 +28,18 @@ urlpatterns = [
     path('admin/executar-comando/', staff_member_required(executar_comando), name='admin_executar_comando'),
     # Métricas de Produto/Uso (ANTES do admin.site.urls)
     path('admin/api/metricas-produto/', staff_member_required(metricas_produto), name='admin_metricas_produto'),
+    # Painel de testes de permissões/hierarquias
+    path('admin/painel-permissoes/', staff_member_required(
+        __import__('core.views_painel_permissoes').views_painel_permissoes.painel_permissoes_view
+    ), name='admin_painel_permissoes'),
+    # Painel de testes unitários (pytest)
+    path('admin/painel_testes/pytest/', admin.site.admin_view(painel_pytest_view), name='admin_painel_pytest'),
+    # Rotas de teste de permissão
+    path('teste-permissao/livre/', __import__('core.views_teste_permissao').views_teste_permissao.view_livre, name='teste_permissao_livre'),
+    path('teste-permissao/admin-ministerio/', __import__('core.views_teste_permissao').views_teste_permissao.view_admin_ministerio, name='teste_permissao_admin_ministerio'),
+    path('alternar-modo-auditoria/', RedirectView.as_view(url=reverse_lazy('auditoria:alternar_modo_auditoria'), permanent=False)),
     path('admin/', admin.site.urls),
+    path('auditoria/', include(auditoria_urls)),
     path('financeiro/', include(('financeiro.urls', 'financeiro'), namespace='financeiro')),
     path('eventos/', include(('eventos.urls', 'eventos'), namespace='eventos')),
     path('comunicacao/', include(('comunicacao.urls', 'comunicacao'), namespace='comunicacao')),

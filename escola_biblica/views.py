@@ -1,3 +1,4 @@
+
 # --- RELATÓRIO GERAL DO DIA DA EBD ---
 from django.db.models import Count, Sum, Q
 from django.utils.dateparse import parse_date
@@ -5,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from core.decorators import secretaria_ebd_required, user_passes_test_or_403
 from django.core.exceptions import PermissionDenied
 from secretaria.models import MembroCargo
+from contas.constants import user_has_permission_level_or_higher, SECRETARIA_EBD
 
 # --- FUNÇÕES HELPER DE PERMISSÕES ---
 def pode_acessar_chamada_turma(user, turma):
@@ -21,7 +23,7 @@ def pode_acessar_chamada_turma(user, turma):
         return True
     
     # Secretaria/Superintendente EBD podem acessar todas as turmas
-    if user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists():
+    if user_has_permission_level_or_higher(user, SECRETARIA_EBD):
         return True
     
     # Verifica se é professor da turma
@@ -91,7 +93,7 @@ def pode_ver_aluno(user, aluno):
         return True
     
     # Secretaria/Superintendente EBD podem ver todos
-    if user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists():
+    if user_has_permission_level_or_higher(user, SECRETARIA_EBD):
         return True
     
     # Verifica se é professor da turma do aluno
@@ -1735,7 +1737,7 @@ def aluno_list(request):
     # Verifica se é secretaria EBD (acesso total)
     is_secretaria = (
         request.user.is_superuser or 
-        request.user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists()
+        user_has_permission_level_or_higher(request.user, SECRETARIA_EBD)
     )
     
     if is_secretaria:
@@ -1828,7 +1830,7 @@ def turma_list(request):
     # Verifica se é secretaria EBD (acesso total) ou professor (acesso limitado)
     is_secretaria = (
         request.user.is_superuser or 
-        request.user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists()
+        user_has_permission_level_or_higher(request.user, SECRETARIA_EBD)
     )
     
     if not is_secretaria:

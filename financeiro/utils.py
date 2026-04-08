@@ -17,41 +17,41 @@ from contas.constants import (
 
 def _user_in_group(user, group_name):
     """Verifica se o usuário pertence a um grupo específico."""
-    if not user.is_authenticated:
-        return False
-    # Otimização: Verificar se o usuário já tem os grupos pré-carregados
-    if hasattr(user, '_prefetched_objects_cache') and 'groups' in user._prefetched_objects_cache:
-        return any(group.name == group_name for group in user.groups.all())
-    # Fallback: Consultar o banco de dados
-    return user.groups.filter(name=group_name).exists()
+    from contas.constants import user_has_permission_level_or_higher
+    return user_has_permission_level_or_higher(user, group_name)
 
 def is_admin_org(user):
     """Verifica se o usuário é Admin da Ministério."""
-    return user_is_admin(user)
+    from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
+    return user_has_permission_level_or_higher(user, ADMIN_MINISTERIO)
 
 def is_tesoureiro(user):
     """Verifica se o usuário é Tesoureiro."""
-    return _user_in_group(user, TESOUREIRO)
+    from contas.constants import user_has_permission_level_or_higher, TESOUREIRO
+    return user_has_permission_level_or_higher(user, TESOUREIRO)
 
 def is_lider_igreja(user):
     """Verifica se o usuário é Pastor Regional."""
-    return _user_in_group(user, PASTOR_REGIONAL)
+    from contas.constants import user_has_permission_level_or_higher, PASTOR_REGIONAL
+    return user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
 
 # --- Funções de Verificação de Permissão Financeira ---
 
 def has_finance_view_permission(user):
     """Verifica se o usuário tem permissão para VER dados financeiros."""
-    return is_admin_org(user) or is_tesoureiro(user) or is_lider_igreja(user)
+    from contas.constants import user_has_permission_level_or_higher, TESOUREIRO
+    return user_has_permission_level_or_higher(user, TESOUREIRO)
 
 def has_finance_edit_permission(user):
     """Verifica se o usuário tem permissão para EDITAR/ADICIONAR/EXCLUIR dados financeiros."""
-    # Lider Igreja NÃO tem permissão de edição por padrão aqui.
-    return is_admin_org(user) or is_tesoureiro(user)
+    from contas.constants import user_has_permission_level_or_higher, TESOUREIRO
+    return user_has_permission_level_or_higher(user, TESOUREIRO)
 
 
 def is_finance_leader(user):
-    """ Verifica se o usuário é Admin da Ministério ou pertence ao grupo 'Lideranca Financeira'. """
-    return user_is_lideranca_financeira(user)
+    """ Verifica se o usuário é Admin da Ministério ou pertence ao grupo 'Tesouraria Ministerial'. """
+    from contas.constants import user_has_permission_level_or_higher, LIDERANCA_FINANCEIRA
+    return user_has_permission_level_or_higher(user, LIDERANCA_FINANCEIRA)
 
 
 # --- Função para Obter Igrejas Permitidas ---

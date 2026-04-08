@@ -46,6 +46,39 @@
                 Dashboard
             </a>
 
+            {% if request.user|has_group:"Admin Ministerio" or request.user|has_group:"Pastor Regional" or request.user|has_group:"Pastor Local" %}
+            <div class="sb-sidenav-menu-heading">Permissões</div>
+            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapsePermissoesHierarquicas" aria-expanded="false" aria-controls="collapsePermissoesHierarquicas">
+                <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
+                Permissões Hierárquicas
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+            </a>
+            <div class="collapse" id="collapsePermissoesHierarquicas" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    {% if request.user|has_group:"Admin Ministerio" %}
+                    <a class="nav-link" href="{% url 'contas:painel_permissoes_global' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-globe"></i></div>
+                        Painel Global
+                    </a>
+                    {% endif %}
+                    {% if request.user|has_group:"Admin Ministerio" or request.user|has_group:"Pastor Regional" %}
+                    <a class="nav-link" href="{% url 'contas:painel_permissoes_regional' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
+                        Painel Regional
+                    </a>
+                    {% endif %}
+                    <a class="nav-link" href="{% url 'contas:painel_permissoes_local' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-church"></i></div>
+                        Painel Local
+                    </a>
+                    <a class="nav-link" href="{% url 'contas:gestao_vinculos_hierarquicos' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-project-diagram"></i></div>
+                        Gestão de Vínculos
+                    </a>
+                </nav>
+            </div>
+            {% endif %}
+
             <div class="sb-sidenav-menu-heading">Secretaria</div>
             <a class="nav-link" href="{% url 'secretaria:lista_pessoas' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
@@ -193,7 +226,6 @@
 
             {% with request.user.perfil.ministerio as ministerio %}
                 {% if can_see_lideranca_secretaria or can_see_lideranca_financeira %}
-                    {% if ministerio|igrejas_ativas_count > 1 %}
                 <div class="sb-sidenav-menu-heading">Liderança</div>
                 <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLiderancaPaineis" aria-expanded="false" aria-controls="collapseLiderancaPaineis">
                     <div class="sb-nav-link-icon"><i class="fas fa-user-tie"></i></div>
@@ -216,7 +248,6 @@
                         {% endif %}
                     </nav>
                 </div>
-            {% endif %}
         {% endif %}
     {% endwith %}
             {# --- FIM NOVO BLOCO PARA PAINÉIS DE LIDERANÇA --- #}

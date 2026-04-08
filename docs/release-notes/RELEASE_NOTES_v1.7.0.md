@@ -1,4 +1,32 @@
-# Release Notes v1.7.0
+# RELEASE_NOTES_v1.7.0.md
+
+## Gereigreja v1.7.0 (16/03/2026)
+
+### Novidades e Melhorias
+- **Campo “Celular”** adicionado ao cadastro de pessoas
+- **Formulário público reorganizado**: mais campos, máscaras automáticas, busca de endereço por CEP
+- **Página de sucesso do cadastro público** modernizada e responsiva
+- **Validações robustas**: CPF (dígito verificador), email (regex), máscaras, ViaCEP, feedback visual
+- **Preview instantâneo da foto de perfil**
+- **Visual profissional e responsivo** nas telas de pessoa
+- **Documentação técnica e manual do usuário** atualizados
+- **Regras de negócio detalhadas** para tipos/status de pessoa
+- **Sistema híbrido de participantes para eventos**
+- **Refino visual e usabilidade** em formulários, listas e detalhes
+- **Ajustes de máscaras, feedbacks e UX** em campos obrigatórios e navegação
+- **Atualização do índice e organização da documentação**
+
+### Itens validados
+- Cadastro público funcionando
+- Validações e máscaras ativas
+- Campo celular visível e salvo
+- Preview de foto funcionando
+- Documentação acessível
+- Listas, filtros e dashboards OK
+
+---
+
+*Para dúvidas ou suporte, entre em contato com a equipe responsável pelo Gereigreja.*# Release Notes v1.7.0
 
 **Data:** 16/03/2026
 **Versão:** v1.7.0

@@ -176,8 +176,8 @@ GRUPOS_ADMIN = [
 ]
 
 GRUPOS_LIDERANCA_MINISTERIAL = GRUPOS_ADMIN + [
-    'Lideranca Secretaria',
-    'Lideranca Financeira',
+    'Secretaria Ministerial',
+    'Tesouraria Ministerial',
 ]
 
 GRUPOS_LIDERANCA_REGIONAL = GRUPOS_LIDERANCA_MINISTERIAL + [
@@ -209,8 +209,8 @@ GRUPOS_TODOS = GRUPOS_OPERACIONAL + GRUPOS_EQUIPES + ['Membro Comum']
 
 **Grupos permitidos no dashboard (usando GRUPOS_OPERACIONAL):**
 - ✅ Admin Ministerio
-- ✅ Liderança Secretaria
-- ✅ Liderança Financeira
+- ✅ Secretaria Ministerial
+- ✅ Tesouraria Ministerial
 - ✅ Pastor Regional
 - ✅ Pastor Local
 - ✅ Secretário Local

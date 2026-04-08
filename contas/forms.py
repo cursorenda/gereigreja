@@ -302,3 +302,174 @@ class EditarMeuPerfilForm(forms.Form):
                 raise forms.ValidationError('Apenas arquivos JPG e PNG são permitidos.')
         
         return foto
+
+
+# --- FORMULÁRIO DE SOLICITAÇÃO DE PERMISSÃO ---
+class PermissionRequestForm(forms.Form):
+    """
+    Formulário para usuários solicitarem novas permissões (grupos).
+    """
+    grupo = forms.ModelChoiceField(
+        queryset=Group.objects.all(),
+        label='Permissão/Grupo Desejado',
+        empty_label='Selecione o grupo de permissão',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        }),
+        help_text='Escolha o grupo de permissão que você precisa'
+    )
+    
+    justificativa = forms.CharField(
+        label='Justificativa',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 5,
+            'placeholder': 'Explique por que você precisa desta permissão. Seja específico sobre as tarefas que precisa realizar.'
+        }),
+        help_text='Descreva detalhadamente o motivo da solicitação'
+    )
+    
+    prioridade = forms.ChoiceField(
+        label='Prioridade',
+        choices=[
+            ('baixa', 'Baixa - Pode aguardar'),
+            ('media', 'Média - Necessário em breve'),
+            ('alta', 'Alta - Necessário urgentemente'),
+            ('urgente', 'Urgente - Bloqueio crítico')
+        ],
+        initial='media',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        }),
+        help_text='Indique o nível de urgência'
+    )
+    
+    igreja_contexto = forms.ModelChoiceField(
+        queryset=Igreja.objects.none(),  # Será populado no __init__
+        label='Igreja Contexto',
+        required=False,
+        empty_label='Nenhuma igreja específica',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        }),
+        help_text='Igreja onde você atuará com esta permissão (apenas igrejas que você tem acesso)'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        ministerio = kwargs.pop('ministerio', None)
+        igreja_ativa = kwargs.pop('igreja_ativa', None)
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # DEBUG FORÇADO com print
+        print(f"\n{'='*80}")
+        print(f"[PERMISSION FORM DEBUG] __init__ EXECUTADO!")
+        print(f"[PERMISSION FORM DEBUG] user={user}")
+        print(f"[PERMISSION FORM DEBUG] ministerio={ministerio}")
+        print(f"[PERMISSION FORM DEBUG] igreja_ativa={igreja_ativa}")
+        print(f"{'='*80}\n")
+        
+        logger.info(f"[PermissionRequestForm] __init__ chamado")
+        logger.info(f"[PermissionRequestForm] Parâmetros: user={user}, ministerio={ministerio}, igreja_ativa={igreja_ativa}")
+        
+        super().__init__(*args, **kwargs)
+        
+        # Filtra grupos disponíveis (remove grupos que o usuário já possui)
+        if user:
+            grupos_usuario = user.groups.values_list('id', flat=True)
+            self.fields['grupo'].queryset = Group.objects.exclude(id__in=grupos_usuario)
+        
+        # Filtra igrejas permitidas usando escopo hierárquico
+        if user and ministerio:
+            from core.utils import get_igrejas_permitidas
+            from django.db.models import Q
+            from configuracao.models import Igreja
+            
+            igrejas_permitidas = get_igrejas_permitidas(user, ministerio)
+            
+            # CRÍTICO: SEMPRE inclui igreja_ativa no queryset (FIX DEFINITIVO)
+            if igreja_ativa:
+                igreja_id = igreja_ativa.pk if hasattr(igreja_ativa, 'pk') else igreja_ativa
+                # Usa Q para criar união: igrejas_permitidas OU igreja_ativa
+                self.fields['igreja_contexto'].queryset = Igreja.objects.filter(
+                    Q(pk__in=igrejas_permitidas.values_list('pk', flat=True)) | Q(pk=igreja_id)
+                ).filter(ministerio=ministerio).distinct()
+            else:
+                self.fields['igreja_contexto'].queryset = igrejas_permitidas
+            
+            queryset_final = self.fields['igreja_contexto'].queryset
+            print(f"[FORM DEBUG] Queryset FINAL count = {queryset_final.count()}")
+            print(f"[FORM DEBUG] Queryset FINAL: {list(queryset_final.values_list('id', 'nome_igreja'))}")
+            
+            logger.info(f"[PermissionRequestForm] Queryset FINAL count = {queryset_final.count()}")
+            logger.info(f"[PermissionRequestForm] Queryset FINAL: {list(queryset_final.values_list('id', 'nome_igreja'))}")
+            
+            # Pré-seleciona a igreja ativa do seletor global
+            if igreja_ativa:
+                igreja_id = igreja_ativa.pk if hasattr(igreja_ativa, 'pk') else igreja_ativa
+                
+                print(f"\n[FORM DEBUG] PRÉ-SELECIONANDO igreja_id={igreja_id}")
+                
+                # Usa TODOS os métodos possíveis para garantir pré-seleção
+                self.initial['igreja_contexto'] = igreja_id  # Método 1: dict initial
+                self.fields['igreja_contexto'].initial = igreja_id  # Método 2: field initial
+                self.fields['igreja_contexto'].widget.attrs['data-initial'] = str(igreja_id)  # Método 3: widget attr (STRING)
+                
+                print(f"[FORM DEBUG] ✅ PRÉ-SELEÇÃO APLICADA!")
+                print(f"[FORM DEBUG] self.initial['igreja_contexto'] = {self.initial.get('igreja_contexto')}")
+                print(f"[FORM DEBUG] self.fields['igreja_contexto'].initial = {self.fields['igreja_contexto'].initial}")
+                print(f"[FORM DEBUG] widget data-initial = {self.fields['igreja_contexto'].widget.attrs.get('data-initial')}\n")
+                
+                logger.info(f"[PermissionRequestForm] ✅ PRÉ-SELEÇÃO APLICADA: id={igreja_id}")
+            else:
+                print(f"[FORM DEBUG] ⚠️ igreja_ativa é None")
+                logger.warning(f"[PermissionRequestForm] ⚠️ igreja_ativa é None")
+    
+    def clean_justificativa(self):
+        justificativa = self.cleaned_data.get('justificativa', '')
+        if len(justificativa) < 20:
+            raise forms.ValidationError('A justificativa deve ter pelo menos 20 caracteres.')
+        return justificativa
+
+
+# --- FORMULÁRIO DE RESPOSTA À SOLICITAÇÃO ---
+class PermissionRequestResponseForm(forms.Form):
+    """
+    Formulário para administradores aprovarem ou rejeitarem solicitações.
+    """
+    ACAO_CHOICES = [
+        ('aprovar', 'Aprovar Solicitação'),
+        ('rejeitar', 'Rejeitar Solicitação'),
+    ]
+    
+    acao = forms.ChoiceField(
+        label='Decisão',
+        choices=ACAO_CHOICES,
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-check-input'
+        })
+    )
+    
+    observacao = forms.CharField(
+        label='Observação',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Adicione comentários sobre sua decisão (opcional para aprovação, recomendado para rejeição)'
+        }),
+        help_text='Explique o motivo da sua decisão, especialmente em caso de rejeição'
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        acao = cleaned_data.get('acao')
+        observacao = cleaned_data.get('observacao', '')
+        
+        # Recomenda observação para rejeição
+        if acao == 'rejeitar' and len(observacao) < 10:
+            raise forms.ValidationError('Por favor, forneça uma explicação para a rejeição (mínimo 10 caracteres).')
+        
+        return cleaned_data

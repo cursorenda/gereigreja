@@ -17,7 +17,12 @@ def can_manage_avisos(user):
         # Permite se for staff (acesso ao admin) ou pertencer a grupos específicos
         # ou se for o administrador principal do ministério.
         is_admin_org = user.perfil.ministerio.administrador_principal == user
-        return user.is_staff or user.groups.filter(name__in=[ADMIN_MINISTERIO, 'ComunicacaoManager']).exists() or is_admin_org
+        try:
+            from contas.constants import COMUNICACAO_MANAGER, user_has_permission_level_or_higher
+            return user.is_staff or user_has_permission_level_or_higher(user, COMUNICACAO_MANAGER) or is_admin_org
+        except ImportError:
+            from contas.constants import user_has_permission_level_or_higher
+            return user.is_staff or user_has_permission_level_or_higher(user, ADMIN_MINISTERIO) or is_admin_org
     return False
 
 def can_view_avisos(user):

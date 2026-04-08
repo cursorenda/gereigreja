@@ -1,0 +1,20 @@
+{% extends 'admin/base_site.html' %}
+{% block content %}
+<h1>Painel de Testes de Permissões e Hierarquias</h1>
+<p>Execute os testes abaixo para validar cenários críticos de permissões e hierarquias.</p>
+<form method="post">
+  {% csrf_token %}
+  {% for nome, _ in testes %}
+    <button type="submit" name="teste" value="{{ nome }}">Rodar: {{ nome }}</button><br>
+  {% endfor %}
+  <button type="submit" name="teste" value="todos">Rodar TODOS os testes</button>
+</form>
+{% if resultado %}
+  <h2>Resultado:</h2>
+  <ul>
+    {% for nome, status, msg in resultado %}
+      <li><b>{{ nome }}:</b> {% if status %}<span style="color:green">OK</span>{% else %}<span style="color:red">FALHOU</span>{% endif %} - {{ msg }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}

@@ -139,7 +139,7 @@ class Command(BaseCommand):
         - Apenas VÊ cargos (não gerencia - são locais)
         - Aprova transferências, gera relatórios
         """
-        self.stdout.write("\n2️⃣  LIDERANCA SECRETARIA")
+        self.stdout.write("\n2️⃣  SECRETARIA MINISTERIAL")
         
         permissoes = [
             # Secretaria (completo)
@@ -180,7 +180,7 @@ class Command(BaseCommand):
         - Cria categorias globais
         - Audita e consolida
         """
-        self.stdout.write("\n3️⃣  LIDERANCA FINANCEIRA")
+        self.stdout.write("\n3️⃣  TESOURARIA MINISTERIAL")
         
         permissoes = [
             # Financeiro (VIEW + categorias)

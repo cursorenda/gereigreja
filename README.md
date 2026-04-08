@@ -1,4 +1,7 @@
+
 # Gereigreja 🙏
+
+> **Versão atual: 1.7.1 – Março/2026**
 
 Sistema completo de gestão eclesiástica desenvolvido em Django, oferecendo soluções integradas para administração de igrejas e organizações religiosas.
 
@@ -83,6 +86,7 @@ Para detalhes sobre cada grupo, permissões específicas e guias de uso, consult
 ### Funcionalidades Específicas
 - **[docs/SELETOR_IGREJA.md](docs/SELETOR_IGREJA.md)** - Sistema de seleção de igreja ativa
 - **[docs/ANALISE_MENUS_BASEADOS_PERMISSOES.md](docs/ANALISE_MENUS_BASEADOS_PERMISSOES.md)** - Análise de menus e permissões
+- **[GUIA_ESCOPO_VIEWS.md](GUIA_ESCOPO_VIEWS.md)** - Guia consolidado de escopo automático nas views
 
 ### Guias de Desenvolvimento
 - **[CHAT_RESPOSTAS.md](CHAT_RESPOSTAS.md)** - Respostas detalhadas de análises e implementações
@@ -247,4 +251,4 @@ Para dúvidas e suporte, entre em contato através da plataforma ou consulte a d
 ---
 
 **Última atualização**: Março 2026  
-**Versão**: v1.3.1
+**Versão**: v1.7.0

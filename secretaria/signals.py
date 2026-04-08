@@ -1,29 +1,58 @@
 # Imports necessários para signals
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
-from .models import MembroCargo, Cargo
-# --- Sinal para adicionar membro ao grupo de permissão ao atribuir cargo (novo modelo) ---
+from .models import MembroCargo
+from core.group_sync import recalcular_grupos_efetivos_usuario
+
+
+def _sincronizar_grupo_usuario_por_cargo(membro):
+    if not membro:
+        return
+
+    user = getattr(membro, 'usuario', None)
+    if not user:
+        return
+
+    recalcular_grupos_efetivos_usuario(
+        user,
+        ignorar_grupos_reservados_no_manual=True,
+    )
+
+
+@receiver(pre_save, sender=MembroCargo)
+def cache_estado_anterior_membrocargo(sender, instance, **kwargs):
+    instance._estado_anterior_membrocargo = None
+    if not instance.pk:
+        return
+
+    instance._estado_anterior_membrocargo = (
+        sender.objects.select_related('membro', 'cargo__grupo_permissao')
+        .filter(pk=instance.pk)
+        .first()
+    )
+
+
 @receiver(post_save, sender=MembroCargo)
 def sincroniza_membro_grupo_novo(sender, instance, created, **kwargs):
-    if instance.membro and instance.cargo and instance.cargo.grupo_permissao:
-        user = getattr(instance.membro, 'usuario', None)
-        if user and hasattr(instance.cargo.grupo_permissao, 'user_set'):
-            instance.cargo.grupo_permissao.user_set.add(user)
+    estado_anterior = getattr(instance, '_estado_anterior_membrocargo', None)
+    if estado_anterior and (
+        estado_anterior.membro_id != instance.membro_id
+        or estado_anterior.cargo_id != instance.cargo_id
+        or estado_anterior.data_fim != instance.data_fim
+    ):
+        _sincronizar_grupo_usuario_por_cargo(estado_anterior.membro)
 
-# --- Sinal para remover membro do grupo de permissão ao remover cargo (novo modelo) ---
+    _sincronizar_grupo_usuario_por_cargo(instance.membro)
+
+
 @receiver(post_delete, sender=MembroCargo)
 def remove_membro_do_grupo_novo(sender, instance, **kwargs):
-    if instance.membro and instance.cargo and instance.cargo.grupo_permissao:
-        user = getattr(instance.membro, 'usuario', None)
-        if user and hasattr(instance.cargo.grupo_permissao, 'user_set'):
-            instance.cargo.grupo_permissao.user_set.remove(user)
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
+    _sincronizar_grupo_usuario_por_cargo(instance.membro)
+
 from .models import Membro, TimelineEvent, StatusHistorico
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.utils import timezone
-from django.db.models.signals import pre_save
 from django.db import transaction
 from .models import GrupoCasa
 import unicodedata, re

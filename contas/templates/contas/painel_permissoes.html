@@ -1,0 +1,143 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <p class="text-muted">{{ descricao }}</p>
+    
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">{{ titulo_pagina }}</li>
+    </ol>
+
+    <div class="mb-3 d-flex gap-2">
+        <a href="{% url 'contas:gestao_vinculos_hierarquicos' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-project-diagram"></i> Gestao de Vinculos Hierarquicos
+        </a>
+    </div>
+
+    {# Mensagens Flash #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-users me-2"></i> Gerenciar Permissões
+        </div>
+        <div class="card-body">
+            {% if usuarios %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuário</th>
+                                <th>Email</th>
+                                <th>Grupos Atuais</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usuario in usuarios %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ usuario.get_full_name|default:usuario.username }}</strong>
+                                        {% if usuario.perfil %}
+                                            <br>
+                                            <small class="text-muted">
+                                                {% if usuario.perfil.igrejas_permitidas.exists %}
+                                                    📍 {{ usuario.perfil.igrejas_permitidas.first.nome_igreja }}
+                                                {% endif %}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ usuario.email }}</td>
+                                    <td>
+                                        {% if usuario.groups.all %}
+                                            <div class="flex-wrap">
+                                                {% for group in usuario.groups.all %}
+                                                    <span class="badge bg-info me-1 mb-1">{{ group.name }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Nenhum grupo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'contas:editar_permissoes_usuario' usuario.id %}" 
+                                           class="btn btn-sm btn-primary" 
+                                           title="Editar permissões">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {# Paginação se houver #}
+                {% if is_paginated %}
+                    <nav aria-label="Paginação">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">Primeira</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Nenhum usuário encontrado com permissão para visualizar neste painel.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Card informativo sobre hierarquia #}
+    <div class="card border-info">
+        <div class="card-header bg-info text-white">
+            <i class="fas fa-info-circle"></i> Sobre este Painel
+        </div>
+        <div class="card-body">
+            <p class="mb-2"><strong>Visibilidade:</strong> {{ visibilidade_info }}</p>
+            <p class="mb-0"><strong>Permissões Editáveis:</strong> {{ permissoes_editaveis_info }}</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .flex-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+</style>
+{% endblock %}

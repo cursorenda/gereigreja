@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas Solicitações - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Minhas Solicitações de Permissões</h2>
+    
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    
+    <div class="mb-3">
+        <a href="{% url 'contas:solicitar_permissao' %}" class="btn btn-primary">+ Nova Solicitação</a>
+        
+        <div class="btn-group ms-2" role="group">
+            <a href="{% url 'contas:minhas_solicitacoes' %}" class="btn btn-outline-secondary {% if not status_filter %}active{% endif %}">Todas</a>
+            <a href="?status=pending" class="btn btn-outline-secondary {% if status_filter == 'pending' %}active{% endif %}">Pendentes</a>
+            <a href="?status=approved" class="btn btn-outline-secondary {% if status_filter == 'approved' %}active{% endif %}">Aprovadas</a>
+            <a href="?status=rejected" class="btn btn-outline-secondary {% if status_filter == 'rejected' %}active{% endif %}">Rejeitadas</a>
+        </div>
+    </div>
+    
+    {% if solicitacoes %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Grupo Solicitado</th>
+                    <th>Status</th>
+                    <th>Prioridade</th>
+                    <th>Resposta</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for solicitacao in solicitacoes %}
+                <tr>
+                    <td>{{ solicitacao.data_solicitacao|date:"d/m/Y H:i" }}</td>
+                    <td><strong>{{ solicitacao.grupo_solicitado.name }}</strong></td>
+                    <td>
+                        {% if solicitacao.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">Pendente</span>
+                        {% elif solicitacao.status == 'approved' %}
+                        <span class="badge bg-success">Aprovada</span>
+                        {% elif solicitacao.status == 'rejected' %}
+                        <span class="badge bg-danger">Rejeitada</span>
+                        {% elif solicitacao.status == 'cancelled' %}
+                        <span class="badge bg-secondary">Cancelada</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if solicitacao.prioridade == 'urgente' %}
+                        <span class="badge bg-danger">Urgente</span>
+                        {% elif solicitacao.prioridade == 'alta' %}
+                        <span class="badge bg-warning">Alta</span>
+                        {% elif solicitacao.prioridade == 'media' %}
+                        <span class="badge bg-info">Média</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Baixa</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if solicitacao.data_resposta %}
+                        {{ solicitacao.data_resposta|date:"d/m/Y H:i" }}
+                        {% if solicitacao.usuario_aprovador %}
+                        <br><small class="text-muted">por {{ solicitacao.usuario_aprovador.username }}</small>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if solicitacao.status == 'pending' %}
+                        <a href="{% url 'contas:cancelar_solicitacao' solicitacao.pk %}" class="btn btn-sm btn-outline-danger">Cancelar</a>
+                        {% endif %}
+                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detalhesModal{{ solicitacao.id }}">
+                            Detalhes
+                        </button>
+                    </td>
+                </tr>
+                
+                <!-- Modal de Detalhes -->
+                <div class="modal fade" id="detalhesModal{{ solicitacao.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Detalhes da Solicitação</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Grupo:</strong> {{ solicitacao.grupo_solicitado.name }}</p>
+                                <p><strong>Data:</strong> {{ solicitacao.data_solicitacao }}</p>
+                                <p><strong>Justificativa:</strong></p>
+                                <p>{{ solicitacao.justificativa }}</p>
+                                {% if solicitacao.observacao_resposta %}
+                                <hr>
+                                <p><strong>Observação do Aprovador:</strong></p>
+                                <p>{{ solicitacao.observacao_resposta }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Você ainda não possui solicitações de permissões. 
+        <a href="{% url 'contas:solicitar_permissao' %}">Faça sua primeira solicitação!</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

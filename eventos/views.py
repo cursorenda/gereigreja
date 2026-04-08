@@ -1,12 +1,14 @@
 from django.http import JsonResponse
 from django.db.models import Exists, OuterRef
 from secretaria.models import Membro, TipoPessoa, StatusPessoa, Cargo, MembroCargo
+from core.decorators import inject_igrejas_permitidas
 # Endpoint AJAX para autocomplete de convidados conforme filtros
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 
 @login_required
 @require_GET
+@inject_igrejas_permitidas
 def autocomplete_convidados(request):
 	try:
 		import time
@@ -16,14 +18,20 @@ def autocomplete_convidados(request):
 		status = request.GET.get('status', '').split(',') if request.GET.get('status') else []
 		igreja_id = request.GET.get('igreja')  # Parâmetro explícito de igreja
 		
-		# SEGURANÇA: Filtrar apenas membros da igreja ativa
+		allowed_igrejas = request.igrejas_permitidas
+		igreja_ativa = getattr(request, 'igreja_ativa', None)
+		# SEGURANÇA: Filtrar apenas membros dentro do escopo permitido
 		membros = Membro.objects.select_related('tipo_pessoa', 'status_pessoa', 'igreja')
 		
 		# Priorizar parâmetro explícito, depois igreja_ativa do contexto
 		if igreja_id:
+			if not allowed_igrejas.filter(pk=igreja_id).exists():
+				return JsonResponse({'ids': [], 'pessoas': [], 'error': 'Acesso negado'}, status=403)
 			membros = membros.filter(igreja_id=igreja_id)
-		elif hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			membros = membros.filter(igreja=request.igreja_ativa)
+		elif igreja_ativa and allowed_igrejas.filter(pk=igreja_ativa.pk).exists():
+			membros = membros.filter(igreja=igreja_ativa)
+		else:
+			membros = membros.filter(igreja__in=allowed_igrejas)
 		
 		# Filtro por tipo de pessoa
 		if filtro == 'membro_obreiro':
@@ -90,6 +98,7 @@ def autocomplete_convidados(request):
 
 @login_required
 @require_GET
+@inject_igrejas_permitidas
 def contar_participantes_criterios(request):
 	"""
 	Endpoint AJAX para contar quantas pessoas atendem os critérios selecionados.
@@ -109,13 +118,13 @@ def contar_participantes_criterios(request):
 		if not igreja_id:
 			return JsonResponse({'count': 0, 'descricao': 'Igreja não selecionada'})
 		
-		# SEGURANÇA: Verificar se igreja pertence ao ministério do usuário
+		# SEGURANÇA: Verificar se igreja está no escopo permitido
 		from configuracao.models import Igreja
+		allowed_igrejas = request.igrejas_permitidas
+		if not allowed_igrejas.filter(pk=igreja_id).exists():
+			return JsonResponse({'count': 0, 'descricao': 'Acesso negado'}, status=403)
 		try:
 			igreja = Igreja.objects.get(pk=igreja_id)
-			if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-				if igreja.ministerio != request.igreja_ativa.ministerio:
-					return JsonResponse({'count': 0, 'descricao': 'Acesso negado'}, status=403)
 		except Igreja.DoesNotExist:
 			return JsonResponse({'count': 0, 'descricao': 'Igreja não encontrada'}, status=404)
 		
@@ -183,6 +192,7 @@ def contar_participantes_criterios(request):
 
 @login_required
 @require_GET
+@inject_igrejas_permitidas
 def listar_participantes_criterios(request):
 	"""
 	Endpoint AJAX para listar pessoas que atendem os critérios selecionados.
@@ -196,6 +206,10 @@ def listar_participantes_criterios(request):
 		
 		if not igreja_id:
 			return JsonResponse({'pessoas': []})
+
+		allowed_igrejas = request.igrejas_permitidas
+		if not allowed_igrejas.filter(pk=igreja_id).exists():
+			return JsonResponse({'pessoas': [], 'error': 'Acesso negado'}, status=403)
 		
 		# Filtrar membros pela igreja
 		membros = Membro.objects.filter(igreja_id=igreja_id).select_related('tipo_pessoa', 'status_pessoa')
@@ -240,6 +254,7 @@ def listar_participantes_criterios(request):
 
 @login_required
 @require_GET
+@inject_igrejas_permitidas
 def autocomplete_responsaveis(request):
 	"""
 	Retorna lista de responsáveis (usuários) que são membros da igreja especificada.
@@ -253,6 +268,7 @@ def autocomplete_responsaveis(request):
 	try:
 		from django.contrib.auth import get_user_model
 		from configuracao.models import Igreja
+		allowed_igrejas = request.igrejas_permitidas
 		User = get_user_model()
 		
 		# 1. Obter a igreja
@@ -274,12 +290,11 @@ def autocomplete_responsaveis(request):
 			}, status=403)
 		
 		# 4. SEGURANÇA: Validar se o usuário tem permissão para acessar esta igreja
-		if hasattr(request, 'igreja_ativa'):
-			if request.igreja_ativa.pk != int(igreja_id):
-				return JsonResponse({
-					'responsaveis': [],
-					'error': 'Acesso negado'
-				}, status=403)
+		if not allowed_igrejas.filter(pk=igreja_id).exists():
+			return JsonResponse({
+				'responsaveis': [],
+				'error': 'Acesso negado'
+			}, status=403)
 		
 		# 5. Buscar membros da igreja que têm usuário vinculado
 		membros_da_igreja = Membro.objects.filter(
@@ -324,9 +339,10 @@ from django.db.models.functions import Coalesce
 from django.utils.text import slugify
 # Exportação de participantes para Excel
 @login_required
+@inject_igrejas_permitidas
 def exportar_participantes_excel(request, pk):
 	from .models import ParticipacaoEvento, Evento
-	evento = Evento.objects.get(pk=pk)
+	evento = get_object_or_404(Evento, pk=pk, igreja__in=request.igrejas_permitidas)
 	# Permite exportar apenas a sessão selecionada (quando aplicável)
 	sessao_id = request.GET.get('sessao')
 	participacoes = ParticipacaoEvento.objects.filter(evento=evento)
@@ -396,11 +412,16 @@ def exportar_participantes_excel(request, pk):
 	wb.save(response)
 	return response
 from django.contrib.auth.decorators import login_required
-from core.decorators import verificar_assinatura_valida
+from core.decorators import verificar_assinatura_valida, inject_igrejas_permitidas
 import sys
 @login_required
+@inject_igrejas_permitidas
 def criar_evento_profissional(request):
 	
+	allowed_igrejas = request.igrejas_permitidas
+	igreja_ativa = getattr(request, 'igreja_ativa', None)
+	igreja_ativa_permitida = igreja_ativa if igreja_ativa and allowed_igrejas.filter(pk=igreja_ativa.pk).exists() else None
+
 	if request.method == 'POST':
 		form = EventoForm(request.POST, request.FILES, request=request)
 		
@@ -428,14 +449,14 @@ def criar_evento_profissional(request):
 		User = get_user_model()
 		
 		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			ministerio_ativo = request.igreja_ativa.ministerio
+		if igreja_ativa_permitida:
+			ministerio_ativo = igreja_ativa_permitida.ministerio
 		elif hasattr(request.user, 'perfil'):
 			ministerio_ativo = request.user.perfil.ministerio
 		
 		igreja_id = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			igreja_id = request.igreja_ativa.pk
+		if igreja_ativa_permitida:
+			igreja_id = igreja_ativa_permitida.pk
 		
 		if ministerio_ativo and igreja_id:
 			membros_com_usuario = Membro.objects.filter(
@@ -453,6 +474,9 @@ def criar_evento_profissional(request):
 		
 		if form.is_valid():
 			evento = form.save(commit=False)
+			if not allowed_igrejas.filter(pk=evento.igreja_id).exists():
+				messages.error(request, 'Igreja selecionada fora do seu escopo de acesso.')
+				return render(request, 'eventos/criar_evento.html', {'form': form, 'igreja_nome': None})
 			# Corrigir campos múltiplos para string simples (evita erro de lista serializada)
 			for field in ['semana_mes', 'dia_semana', 'mes_ano']:
 				val = getattr(evento, field, None)
@@ -586,14 +610,14 @@ def criar_evento_profissional(request):
 		User = get_user_model()
 		
 		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			ministerio_ativo = request.igreja_ativa.ministerio
+		if igreja_ativa_permitida:
+			ministerio_ativo = igreja_ativa_permitida.ministerio
 		elif hasattr(request.user, 'perfil'):
 			ministerio_ativo = request.user.perfil.ministerio
 		
 		igreja_id = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			igreja_id = request.igreja_ativa.pk
+		if igreja_ativa_permitida:
+			igreja_id = igreja_ativa_permitida.pk
 		
 		if ministerio_ativo and igreja_id:
 			# Triplo filtro: igreja + membro com usuário + ministério
@@ -615,8 +639,8 @@ def criar_evento_profissional(request):
 	igreja_nome = None
 	igreja_obj = None
 	# 1. Se houver igreja ativa, inicializa o campo e pega o nome
-	if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-		igreja_obj = request.igreja_ativa
+	if igreja_ativa_permitida:
+		igreja_obj = igreja_ativa_permitida
 		igreja_nome = getattr(igreja_obj, 'nome_igreja', str(igreja_obj))
 		# Garante que o campo igreja está inicializado corretamente
 		if 'igreja' in form.fields:
@@ -641,8 +665,9 @@ from .models import ParticipacaoEvento, EventoSessao
 
 @login_required
 @require_http_methods(["GET", "POST"])
+@inject_igrejas_permitidas
 def marcar_presenca_evento(request, pk):
-	evento = get_object_or_404(Evento, pk=pk)
+	evento = get_object_or_404(Evento, pk=pk, igreja__in=request.igrejas_permitidas)
 	# Sessões do evento (se houver)
 	sessoes = list(evento.sessoes.all().order_by('numero'))
 	sessao_id = request.GET.get('sessao') or request.POST.get('sessao')
@@ -772,8 +797,9 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 
 @login_required
+@inject_igrejas_permitidas
 def excluir_evento_profissional(request, pk):
-	evento = get_object_or_404(Evento, pk=pk)
+	evento = get_object_or_404(Evento, pk=pk, igreja__in=request.igrejas_permitidas)
 	if request.method == 'POST':
 		evento.delete()
 		messages.success(request, 'Evento excluído com sucesso!')
@@ -781,8 +807,9 @@ def excluir_evento_profissional(request, pk):
 	return render(request, 'eventos/excluir_evento.html', {'evento': evento})
 
 @login_required
+@inject_igrejas_permitidas
 def editar_evento_profissional(request, pk):
-	evento = get_object_or_404(Evento, pk=pk)
+	evento = get_object_or_404(Evento, pk=pk, igreja__in=request.igrejas_permitidas)
 	from django.utils import timezone
 	if request.method == 'POST':
 		import logging
@@ -797,7 +824,7 @@ def editar_evento_profissional(request, pk):
 		User = get_user_model()
 		
 		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
 			ministerio_ativo = request.igreja_ativa.ministerio
 		elif hasattr(request.user, 'perfil'):
 			ministerio_ativo = request.user.perfil.ministerio
@@ -900,7 +927,7 @@ def editar_evento_profissional(request, pk):
 		User = get_user_model()
 		
 		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
+		if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
 			ministerio_ativo = request.igreja_ativa.ministerio
 		elif hasattr(request.user, 'perfil'):
 			ministerio_ativo = request.user.perfil.ministerio
@@ -929,17 +956,22 @@ def editar_evento_profissional(request, pk):
 
 @login_required
 @verificar_assinatura_valida
+@inject_igrejas_permitidas
 def lista_eventos(request):
 	from django.utils import timezone
 	from configuracao.models import Igreja
-	from financeiro.utils import get_allowed_churches_for_user
+	from configuracao.models import Igreja
 	# Exibe apenas eventos da igreja ativa
 	eventos = Evento.objects.none()
-	allowed_igrejas = get_allowed_churches_for_user(request.user)
+	allowed_igrejas = request.igrejas_permitidas
 	igreja_ativa = getattr(request, 'igreja_ativa', None)
 	mostrar_coluna_igreja = allowed_igrejas.count() > 1 and not igreja_ativa
-	if igreja_ativa:
+	if igreja_ativa and allowed_igrejas.filter(pk=igreja_ativa.pk).exists():
 		eventos = Evento.objects.filter(igreja=igreja_ativa).order_by('data_inicio')
+	elif not igreja_ativa:
+		eventos = Evento.objects.filter(igreja__in=allowed_igrejas).order_by('data_inicio')
+	else:
+		eventos = Evento.objects.none()
 	# Filtros
 	tipo = request.GET.get('tipo')
 	from datetime import date, timedelta
@@ -1007,8 +1039,9 @@ def lista_eventos(request):
 ## DUPLICIDADE REMOVIDA: manter apenas uma definição de criar_evento_profissional
 
 @login_required
+@inject_igrejas_permitidas
 def detalhe_evento_profissional(request, pk):
-	evento = get_object_or_404(Evento, pk=pk)
+	evento = get_object_or_404(Evento, pk=pk, igreja__in=request.igrejas_permitidas)
 	# IDs dos tipos de pessoa para "Membro" e "Congregado"
 	from secretaria.models import TipoPessoa, StatusPessoa, Membro
 	from .models import ParticipacaoEvento
@@ -1080,7 +1113,7 @@ def detalhe_evento_profissional(request, pk):
 	perc_participantes_membros_ativos = (membros_presentes.count() / participantes_presentes.count() * 100) if participantes_presentes.count() else 0
 	# % dos participantes que são congregados ativos
 	perc_participantes_congregados_ativos = (congregados_presentes.count() / participantes_presentes.count() * 100) if participantes_presentes.count() else 0
-	evento = get_object_or_404(Evento, pk=pk)
+	evento = get_object_or_404(Evento, pk=pk, igreja__in=request.igrejas_permitidas)
 
 	# Ao recalcular participacoes em outra seção do código, respeitamos a
 	# mesma lógica de sessao definida acima (se houver sessoes, já filtramos

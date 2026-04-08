@@ -4,7 +4,15 @@ from configuracao.models import Igreja
 
 class GrupoCasaSignalsTest(TestCase):
     def setUp(self):
-        self.igreja = Igreja.objects.create(nome_igreja='Igreja Teste')
+        from django.contrib.auth import get_user_model
+        from configuracao.models import Ministerio
+        User = get_user_model()
+        self.admin = User.objects.create_user(username='admin', password='admin')
+        self.ministerio = Ministerio.objects.create(
+            nome_fantasia='Ministério Teste',
+            administrador_principal=self.admin
+        )
+        self.igreja = Igreja.objects.create(nome_igreja='Igreja Teste', ministerio=self.ministerio)
         self.tipo = TipoPessoa.objects.create(nome='Membro')
         self.status = StatusPessoa.objects.create(nome='Ativo')
 

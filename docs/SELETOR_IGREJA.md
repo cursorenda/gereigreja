@@ -85,16 +85,16 @@ O **Seletor Global de Igreja** é um componente que aparece no topo do sistema e
 
 ### 🏗️ Arquitetura
 
-#### 1. Função Principal: `get_allowed_churches_for_user()`
+#### 1. Funcao principal de escopo: `get_igrejas_permitidas()`
 
-**Localização:** `financeiro/utils.py` (linha 59)
+**Localizacao:** `core/utils.py`
 
-**Responsabilidade:** Determina quais igrejas um usuário pode acessar
+**Responsabilidade:** Determina quais igrejas um usuario pode acessar com base na hierarquia e no escopo.
 
 **Hierarquia de Permissões:**
 
 ```python
-def get_allowed_churches_for_user(user):
+def get_igrejas_permitidas(user, ministerio=None):
     """
     Hierarquia de permissões (ordem de verificação):
     
@@ -128,10 +128,13 @@ request → ActiveChurchMiddleware
 # 2. Verifica sessão
 igreja_ativa_id = request.session.get('igreja_ativa_id')
 
-# 3. Obtém igrejas permitidas
-allowed = get_allowed_churches_for_user(request.user)
+# 3. Obtem igrejas permitidas
+allowed = get_igrejas_permitidas(request.user, ministerio)
 
-# 4. Valida e define
+# 4. Injeta automaticamente no request
+request.igrejas_permitidas = allowed
+
+# 5. Valida e define igreja ativa
 if igreja_ativa_id in allowed:
     request.igreja_ativa = Igreja.objects.get(pk=igreja_ativa_id)
 elif allowed.count() == 1:
@@ -140,7 +143,7 @@ elif allowed.count() == 1:
 else:
     request.igreja_ativa = None
 
-# 5. View executa com request.igreja_ativa disponível
+# 6. View executa com request.igreja_ativa e request.igrejas_permitidas
 ```
 
 #### 3. Como Usar nas Views
@@ -148,18 +151,13 @@ else:
 **Padrão recomendado:**
 
 ```python
+from core.decorators import inject_igrejas_permitidas
+
 @login_required
+@inject_igrejas_permitidas
 def minha_view(request):
-    # Filtra automaticamente pela igreja ativa
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        membros = Membro.objects.filter(igreja=request.igreja_ativa)
-    else:
-        # Fallback: mostra todos (admin) ou nenhum (sem permissão)
-        if request.user.is_superuser:
-            membros = Membro.objects.all()
-        else:
-            membros = Membro.objects.none()
-    
+    # request.igrejas_permitidas vem do middleware (ou fallback do decorator)
+    membros = Membro.objects.filter(igreja__in=request.igrejas_permitidas)
     return render(request, 'template.html', {'membros': membros})
 ```
 

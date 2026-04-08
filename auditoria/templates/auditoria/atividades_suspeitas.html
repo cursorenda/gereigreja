@@ -1,0 +1,225 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .suspeitas-dashboard { padding: 20px; }
+    .nav-bar { margin-bottom: 20px; }
+    .nav-bar a { margin-right: 10px; padding: 8px 15px; background: #3498db; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; }
+    .nav-bar a:hover { background: #2980b9; }
+    .section-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.07);
+    }
+    .section-card h2 { margin-top: 0; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .section-card.warning { border-left: 4px solid #f39c12; }
+    .section-card.danger { border-left: 4px solid #e74c3c; }
+    .section-card.info { border-left: 4px solid #3498db; }
+    .analysis-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .analysis-table th { background: #f8f9fa; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; font-size: 13px; }
+    .analysis-table td { padding: 10px; border-bottom: 1px solid #eee; }
+    .analysis-table tr:hover { background: #fffdf0; }
+    .badge-alto { background: #f8d7da; color: #721c24; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; }
+    .badge-medio { background: #fff3cd; color: #856404; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; }
+    .badge-baixo { background: #d4edda; color: #155724; padding: 3px 10px; border-radius: 10px; font-size: 12px; }
+    .risk-bar { height: 8px; border-radius: 4px; background: #e9ecef; overflow: hidden; }
+    .risk-fill { height: 100%; border-radius: 4px; }
+    .risk-fill.alto { background: #e74c3c; }
+    .risk-fill.medio { background: #f39c12; }
+    .risk-fill.baixo { background: #27ae60; }
+    .empty-state { text-align: center; padding: 30px; color: #aaa; }
+    .period-filter { background: #f8f9fa; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .period-filter label { font-weight: bold; margin: 0; }
+    .period-filter select { padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; }
+    .alert-warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        color: #856404;
+    }
+    .ip-badge { background: #e8f4fd; color: #1a73e8; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="suspeitas-dashboard">
+    <h1>⚠️ Análise de Atividades Suspeitas</h1>
+
+    <div class="nav-bar">
+        <a href="{% url 'auditoria:painel_auditoria' %}">← Painel</a>
+        <a href="{% url 'auditoria:logs_acessos_negados' %}">Todos os Acessos Negados</a>
+        <a href="{% url 'auditoria:sessoes_ativas' %}">Sessões Ativas</a>
+        <a href="{% url 'auditoria:acumulacao_permissoes' %}">Acumulação de Permissões</a>
+    </div>
+
+    <!-- Filtro de Período -->
+    <div class="period-filter">
+        <form method="get" style="display:flex; align-items:center; gap:10px;">
+            <label for="dias">📅 Período analisado:</label>
+            <select name="dias" id="dias" onchange="this.form.submit()">
+                <option value="1"  {% if dias == 1  %}selected{% endif %}>Último 1 dia</option>
+                <option value="3"  {% if dias == 3  %}selected{% endif %}>Últimos 3 dias</option>
+                <option value="7"  {% if dias == 7  %}selected{% endif %}>Últimos 7 dias</option>
+                <option value="14" {% if dias == 14 %}selected{% endif %}>Últimas 2 semanas</option>
+                <option value="30" {% if dias == 30 %}selected{% endif %}>Último mês</option>
+            </select>
+            <small style="color:#7f8c8d;">Detecta eventos a partir dos últimos <strong>{{ dias }}</strong> dias.</small>
+        </form>
+    </div>
+
+    {% if not acessos_negados_por_usuario and not ips_suspeitos and not recursos_negados %}
+    <div class="alert-warning">
+        ✅ <strong>Nenhuma atividade suspeita detectada</strong> no período selecionado. Isso é um bom sinal!
+    </div>
+    {% endif %}
+
+    <!-- Bloco 1: Usuários com múltiplos acessos negados -->
+    <div class="section-card danger">
+        <h2>
+            🚫 Usuários com Múltiplos Acessos Negados
+            <small style="font-size:13px; color:#7f8c8d; font-weight:normal;">(≥ 5 tentativas no período)</small>
+        </h2>
+
+        {% if acessos_negados_por_usuario %}
+        <table class="analysis-table">
+            <thead>
+                <tr>
+                    <th>Usuário</th>
+                    <th>Tentativas</th>
+                    <th>Risco</th>
+                    <th>Ação Sugerida</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in acessos_negados_por_usuario %}
+                <tr>
+                    <td>
+                        <a href="{% url 'auditoria:detalhes_usuario' item.usuario_id %}">
+                            <strong>{{ item.usuario__username }}</strong>
+                        </a>
+                    </td>
+                    <td><strong>{{ item.total }}</strong> tentativas</td>
+                    <td>
+                        {% if item.total >= 20 %}
+                            <span class="badge-alto">ALTO</span>
+                        {% elif item.total >= 10 %}
+                            <span class="badge-medio">MÉDIO</span>
+                        {% else %}
+                            <span class="badge-baixo">BAIXO</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'auditoria:logs_acessos_negados' %}?usuario={{ item.usuario_id }}" style="color: #e74c3c; font-size:13px;">
+                            Ver logs →
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>✅ Nenhum usuário com acessos negados excessivos.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bloco 2: IPs suspeitos -->
+    <div class="section-card warning">
+        <h2>
+            🌐 IPs com Múltiplos Usuários
+            <small style="font-size:13px; color:#7f8c8d; font-weight:normal;">(mesmo IP, usuários diferentes)</small>
+        </h2>
+
+        {% if ips_suspeitos %}
+        <table class="analysis-table">
+            <thead>
+                <tr>
+                    <th>Endereço IP</th>
+                    <th>Usuários Distintos</th>
+                    <th>Total de Acessos</th>
+                    <th>Avaliação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in ips_suspeitos %}
+                <tr>
+                    <td><span class="ip-badge">{{ item.ip_address }}</span></td>
+                    <td>{{ item.total_usuarios }} usuários</td>
+                    <td>{{ item.total_acessos }} acessos</td>
+                    <td>
+                        {% if item.total_usuarios >= 5 %}
+                            <span class="badge-alto">Muito suspeito</span>
+                        {% elif item.total_usuarios >= 3 %}
+                            <span class="badge-medio">Verificar</span>
+                        {% else %}
+                            <span class="badge-baixo">Monitorar</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>✅ Nenhum IP suspeito detectado.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bloco 3: Recursos mais negados -->
+    <div class="section-card info">
+        <h2>
+            🔒 Recursos Mais Negados
+            <small style="font-size:13px; color:#7f8c8d; font-weight:normal;">(Top 10 URLs / ações bloqueadas)</small>
+        </h2>
+
+        {% if recursos_negados %}
+        {% with max_total=recursos_negados.0.total %}
+        <table class="analysis-table">
+            <thead>
+                <tr>
+                    <th>Recurso / URL</th>
+                    <th>Tentativas</th>
+                    <th>Volume</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in recursos_negados %}
+                <tr>
+                    <td style="font-family: monospace; font-size: 13px;">{{ item.recurso }}</td>
+                    <td>{{ item.total }}</td>
+                    <td style="width: 200px;">
+                        <div class="risk-bar">
+                            <div class="risk-fill {% if item.total >= max_total|floatformat:0 %}alto{% elif item.total >= max_total|floatformat:0 %}medio{% else %}baixo{% endif %}"
+                                 style="width: {% widthratio item.total max_total 100 %}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endwith %}
+        {% else %}
+        <div class="empty-state">
+            <p>✅ Nenhum recurso com acessos negados no período.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Exportar -->
+    <div style="text-align: right; margin-top: 10px;">
+        <a href="{% url 'auditoria:exportar_logs_csv' %}?tipo=negados&dias={{ dias }}"
+           style="padding: 8px 16px; background: #27ae60; color: white; text-decoration: none; border-radius: 4px; font-size: 14px;">
+            ⬇️ Exportar Dados (CSV)
+        </a>
+    </div>
+</div>
+{% endblock %}

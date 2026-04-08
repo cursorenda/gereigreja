@@ -4,6 +4,15 @@ from django.urls import path, reverse_lazy
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from . import views # Sua view de registro
+from .views_paineis_permissoes import (
+    painel_permissoes_global,
+    painel_permissoes_regional,
+    painel_permissoes_local,
+    editar_permissoes_usuario,
+    gestao_vinculos_hierarquicos,
+    editar_vinculo_hierarquico,
+    inativar_vinculo_hierarquico,
+)
 
 app_name = 'contas'
 
@@ -99,6 +108,26 @@ urlpatterns = [
     path('meus-dados/historico-consentimentos/', views.historico_consentimentos, name='historico_consentimentos'),
     path('meu-perfil/editar/', views.editar_meu_perfil, name='editar_meu_perfil'),
     path('meu-perfil/sincronizar/', views.sincronizar_dados_membro, name='sincronizar_dados_membro'),
+
+    # --- URLs SISTEMA DE SOLICITAÇÃO DE PERMISSÕES ---
+    # Hub único de gerenciamento de permissões (PÁGINA ÚNICA)
+    path('hub-permissoes/', views.hub_permissoes, name='hub_permissoes'),
+    
+    # Views legadas (mantidas para compatibilidade com links diretos)
+    path('permissoes/solicitar/', views.solicitar_permissao, name='solicitar_permissao'),
+    path('permissoes/minhas-solicitacoes/', views.minhas_solicitacoes, name='minhas_solicitacoes'),
+    path('permissoes/cancelar/<int:pk>/', views.cancelar_solicitacao, name='cancelar_solicitacao'),
+    path('permissoes/listar/', views.listar_solicitacoes_pendentes, name='listar_solicitacoes'),
+    path('permissoes/avaliar/<int:pk>/', views.avaliar_solicitacao, name='avaliar_solicitacao'),
+
+    # --- PAINÉIS HIERÁRQUICOS DE PERMISSÕES (PASSO 7) ---
+    path('paineis/permissoes/global/', painel_permissoes_global, name='painel_permissoes_global'),
+    path('paineis/permissoes/regional/', painel_permissoes_regional, name='painel_permissoes_regional'),
+    path('paineis/permissoes/local/', painel_permissoes_local, name='painel_permissoes_local'),
+    path('paineis/permissoes/editar/<int:user_id>/', editar_permissoes_usuario, name='editar_permissoes_usuario'),
+    path('paineis/permissoes/vinculos/', gestao_vinculos_hierarquicos, name='gestao_vinculos_hierarquicos'),
+    path('paineis/permissoes/vinculos/<int:vinculo_id>/editar/', editar_vinculo_hierarquico, name='editar_vinculo_hierarquico'),
+    path('paineis/permissoes/vinculos/<int:vinculo_id>/inativar/', inativar_vinculo_hierarquico, name='inativar_vinculo_hierarquico'),
 
     # --- FIM URL ---
     # --- FIM URL ---

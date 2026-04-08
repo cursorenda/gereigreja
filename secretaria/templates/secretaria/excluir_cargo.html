@@ -1,14 +1,14 @@
 {% extends 'base_com_menu.html' %}
 {% block content %}
 <h1>Excluir Cargo</h1>
-<p>Tem certeza que deseja excluir o cargo <strong>{{ cargo.cargo }}</strong>?</p>
+<p>Tem certeza que deseja excluir o cargo <strong>{{ cargo.nome }}</strong>?</p>
 {% if ocupantes.exists %}
     <div class="alert alert-warning">
-        <strong>Atenção:</strong> Este cargo possui ocupantes e não pode ser excluído.<br>
-        Ocupantes:
+        <strong>Atenção:</strong> Este cargo possui vínculos de ocupação e não pode ser excluído.<br>
+        Vínculos encontrados:
         <ul>
         {% for oc in ocupantes %}
-            <li>{{ oc.membro.nome }}</li>
+            <li>{{ oc.membro.nome }}{% if oc.data_fim %} (histórico){% else %} (ativo){% endif %}</li>
         {% endfor %}
         </ul>
     </div>

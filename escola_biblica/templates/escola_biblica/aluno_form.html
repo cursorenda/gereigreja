@@ -19,6 +19,15 @@
         <div class="card-body">
             <form method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
+
+                    {# --- BLOQUEIO DE CAMPOS EM MODO AUDITORIA --- #}
+                    {% if modo_auditoria_ativo %}
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            document.querySelectorAll('form').forEach(f => f.querySelectorAll('input,select,textarea,button').forEach(e => e.disabled = true));
+                        });
+                    </script>
+                    {% endif %}
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">

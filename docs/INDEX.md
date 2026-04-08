@@ -1,6 +1,6 @@
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 12/03/2026
+**Última Atualização:** 08/04/2026
 
 ---
 
@@ -44,6 +44,12 @@
 | [VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md) | **NOVO:** Sistema de validações (CPF, Email, Máscaras, ViaCEP) |
 | [ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](ANALISE_MELHORIAS_CADASTRO_PESSOAS.md) | Análise completa: 23 melhorias propostas |
 | [REGRAS_TIPOS_PESSOA_STATUS.md](REGRAS_TIPOS_PESSOA_STATUS.md) | Regras de negócio: Tipos e Status de Pessoas |
+
+### Cargos
+| Documento | Descrição |
+|-----------|-----------|
+| [CARGOS_USUARIOS.md](CARGOS_USUARIOS.md) | Guia operacional para secretaria e liderancas no uso da tela de cargos |
+| [CARGOS_SISTEMA.md](CARGOS_SISTEMA.md) | Regras tecnicas, sincronizacao de grupos e checklist pre-deploy |
 
 ### Participantes & Eventos
 | Documento | Descrição |
@@ -120,6 +126,19 @@ Gereigreja/
 ---
 
 ## 🆕 Documentações Recentes (Março 2026)
+
+### 08/04/2026 - Modulo de Cargos
+- **Arquivo:** [CARGOS_USUARIOS.md](CARGOS_USUARIOS.md)
+- **Conteúdo:**
+   - Fluxo operacional de criar/editar cargo
+   - Vincular e encerrar ocupantes
+   - Regras de exclusao e FAQ rapido para usuarios
+
+- **Arquivo:** [CARGOS_SISTEMA.md](CARGOS_SISTEMA.md)
+- **Conteúdo:**
+   - Regra consolidada de grupos efetivos
+   - Arquitetura de sincronizacao (servico central + signals)
+   - Casos criticos, riscos e checklist tecnico pre-deploy
 
 ### 12/03/2026 - Sistema de Validações
 - **Arquivo:** [VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md)

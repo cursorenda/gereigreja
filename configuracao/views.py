@@ -16,8 +16,9 @@ def perfil_usuario(request, user_id):
         return redirect('configuracao:configuracao')
     perfil_usuario = user.perfil
     # --- Permissão: só admin, gestor, superuser ou quem tem cargo ativo na EBD pode ver o perfil de outro usuário ---
+    from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
     pode_ver = False
-    if request.user.is_superuser or request.user.groups.filter(name__in=[ADMIN_MINISTERIO, "Gestor"]).exists():
+    if user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
         pode_ver = True
     elif request.user == user:
         pode_ver = True
@@ -101,7 +102,8 @@ from django.contrib.auth.decorators import user_passes_test
 from .models import ConfiguracaoSistema
 
 def is_admin_ministerio(user):
-    return user.is_authenticated and user.groups.filter(name=ADMIN_MINISTERIO).exists()
+    from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
+    return user_has_permission_level_or_higher(user, ADMIN_MINISTERIO)
 
 @login_required
 @user_passes_test_or_403(is_admin_ministerio)
@@ -251,7 +253,8 @@ def pode_editar_configuracao_org(user):
     if not user.is_authenticated:
         return False
     # Exemplo: Admin da Ministério ou um grupo específico pode editar
-    return user_is_admin(user) # ou outra lógica
+    from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
+    return user_has_permission_level_or_higher(user, ADMIN_MINISTERIO)
 
 
 ## A função get_ministerio_or_error foi movida para core.utils.py ##
@@ -312,7 +315,8 @@ def lista_igrejas(request):
 # --- NOVA VERIFICAÇÃO DE GRUPO ---
     grupos_usuario = list(request.user.groups.values_list('name', flat=True))
     logger.debug(f"Usuário {request.user.username} pertence aos grupos: {grupos_usuario}")
-    if not user_is_admin(request.user):
+    from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
         messages.error(request, "Você não tem permissão para gerenciar igrejas.")
         return redirect('secretaria:index') # Ou 'dashboard'
         # --- FIM DA VERIFICAÇÃO ---

@@ -1,0 +1,152 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Avaliar Solicitação - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Avaliar Solicitação de Permissão</h2>
+    
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Informações da Solicitação</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Solicitante:</dt>
+                        <dd class="col-sm-8">
+                            <strong>{{ solicitacao.usuario_solicitante.get_full_name|default:solicitacao.usuario_solicitante.username }}</strong>
+                            <br><small class="text-muted">{{ solicitacao.usuario_solicitante.username }} | {{ solicitacao.usuario_solicitante.email }}</small>
+                        </dd>
+                        
+                        <dt class="col-sm-4">Grupo Solicitado:</dt>
+                        <dd class="col-sm-8"><span class="badge bg-primary fs-6">{{ solicitacao.grupo_solicitado.name }}</span></dd>
+                        
+                        <dt class="col-sm-4">Data da Solicitação:</dt>
+                        <dd class="col-sm-8">{{ solicitacao.data_solicitacao|date:"d/m/Y H:i:s" }}</dd>
+                        
+                        <dt class="col-sm-4">Prioridade:</dt>
+                        <dd class="col-sm-8">
+                            {% if solicitacao.prioridade == 'urgente' %}
+                            <span class="badge bg-danger">Urgente</span>
+                            {% elif solicitacao.prioridade == 'alta' %}
+                            <span class="badge bg-warning text-dark">Alta</span>
+                            {% elif solicitacao.prioridade == 'media' %}
+                            <span class="badge bg-info">Média</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Baixa</span>
+                            {% endif %}
+                        </dd>
+                        
+                        {% if solicitacao.igreja_contexto %}
+                        <dt class="col-sm-4">Igreja:</dt>
+                        <dd class="col-sm-8">{{ solicitacao.igreja_contexto.nome_igreja }}</dd>
+                        {% endif %}
+                        
+                        <dt class="col-sm-4">Tempo de Espera:</dt>
+                        <dd class="col-sm-8">{{ solicitacao.tempo_espera }}</dd>
+                    </dl>
+                    
+                    <hr>
+                    
+                    <h6>Justificativa do Solicitante:</h6>
+                    <div class="p-3 bg-light rounded">
+                        <p>{{ solicitacao.justificativa }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Sua Avaliação</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Decisão:</strong></label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="acao" id="aprovar" value="aprovar" required>
+                                <label class="form-check-label" for="aprovar">
+                                    ✅ Aprovar Solicitação
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="acao" id="rejeitar" value="rejeitar" required>
+                                <label class="form-check-label" for="rejeitar">
+                                    ❌ Rejeitar Solicitação
+                                </label>
+                            </div>
+                            {% if form.acao.errors %}
+                            <div class="invalid-feedback d-block">{{ form.acao.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.observacao.id_for_label }}" class="form-label">
+                                {{ form.observacao.label }}
+                            </label>
+                            {{ form.observacao }}
+                            {% if form.observacao.errors %}
+                            <div class="invalid-feedback d-block">{{ form.observacao.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.observacao.help_text }}</small>
+                        </div>
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        
+                        <hr>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">Enviar Avaliação</button>
+                            <a href="{% url 'contas:listar_solicitacoes' %}" class="btn btn-outline-secondary">Voltar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Grupos Atuais do Usuário</strong>
+                </div>
+                <div class="card-body">
+                    {% if solicitacao.usuario_solicitante.groups.all %}
+                    <ul class="list-unstyled">
+                        {% for grupo in solicitacao.usuario_solicitante.groups.all %}
+                        <li class="mb-1"><span class="badge bg-success">{{ grupo.name }}</span></li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted">Nenhum grupo atribuído</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="alert alert-warning">
+                <h6>⚠️ Atenção</h6>
+                <p><small>Ao aprovar, o usuário será automaticamente adicionado ao grupo <strong>{{ solicitacao.grupo_solicitado.name }}</strong> e terá acesso imediato às permissões associadas.</small></p>
+            </div>
+            
+            <div class="alert alert-info">
+                <h6>ℹ️ Dica</h6>
+                <p><small>Sempre forneça uma observação ao rejeitar para que o usuário entenda o motivo da decisão.</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

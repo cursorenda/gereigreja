@@ -354,6 +354,18 @@ body.dashboard .dashboard-sidebar td a {
                     </th>
                     <td style="color: #667eea; font-size: 11px;">⚡ Monitoramento técnico</td>
                 </tr>
+                   <tr class="model-painel-permissoes">
+                       <th scope="row">
+                           <a href="/admin/painel-permissoes/" style="color: #10b981; font-weight: 600;">🛡️ Testes Permissões</a>
+                       </th>
+                       <td style="color: #10b981; font-size: 11px;">Validação hierarquia/grupos</td>
+                   </tr>
+                    <tr class="model-painel-pytest">
+                        <th scope="row">
+                            <a href="/admin/painel_testes/pytest/" style="color: #6366f1; font-weight: 600;">🧪 Testes Unitários</a>
+                        </th>
+                        <td style="color: #6366f1; font-size: 11px;">Rodar testes Pytest</td>
+                    </tr>
                 <tr class="model-logs">
                     <th scope="row">
                         <a href="/admin/configuracao/ministerio/" style="color: #f59e0b;">🏢 Ministérios</a>
@@ -365,6 +377,40 @@ body.dashboard .dashboard-sidebar td a {
                         <a href="/admin/suporte/ticket/" style="color: #ef4444;">🎫 Tickets</a>
                     </th>
                     <td style="color: #6b7280; font-size: 11px;">Suporte aos clientes</td>
+                </tr>
+                <tr class="model-auditoria">
+                    <th scope="row">
+                        {% if request.user.is_superuser %}
+                        <a href="/auditoria/auditar/" style="color: #c00; font-weight: bold;">🔒 Auditoria de Permissões</a>
+                        {% else %}
+                        <span style="color: #aaa;">🔒 Auditoria de Permissões</span>
+                        {% endif %}
+                    </th>
+                    <td style="color: #c00; font-size: 11px;">Apenas superuser</td>
+                </tr>
+                <tr class="model-auditoria-painel">
+                    <th scope="row">
+                        <a href="{% url 'auditoria:painel_auditoria' %}" style="color: #3b82f6; font-weight: 600;">📊 Painel de Auditoria</a>
+                    </th>
+                    <td style="color: #3b82f6; font-size: 11px;">Logs e estatísticas</td>
+                </tr>
+                <tr class="model-auditoria-logs">
+                    <th scope="row">
+                        <a href="{% url 'auditoria:logs_alteracoes' %}" style="color: #8b5cf6;">📝 Logs de Alterações</a>
+                    </th>
+                    <td style="color: #8b5cf6; font-size: 11px;">Histórico de permissões</td>
+                </tr>
+                <tr class="model-auditoria-acessos">
+                    <th scope="row">
+                        <a href="{% url 'auditoria:logs_acessos_negados' %}" style="color: #ef4444;">🚫 Acessos Negados</a>
+                    </th>
+                    <td style="color: #ef4444; font-size: 11px;">Tentativas bloqueadas</td>
+                </tr>
+                <tr class="model-permissoes-solicitacoes">
+                    <th scope="row">
+                        <a href="{% url 'contas:hub_permissoes' %}" style="color: #10b981; font-weight: 600;">🎯 Hub de Permissões</a>
+                    </th>
+                    <td style="color: #10b981; font-size: 11px;">Central unificada</td>
                 </tr>
             </tbody>
         </table>
@@ -410,13 +456,12 @@ body.dashboard .dashboard-sidebar td a {
 <div id="content-main">
 <!-- ===== PAINEL DE MÉTRICAS DE PRODUTO ===== -->
 <div class="metrics-dashboard">
-        <h2>📊 Visão Geral do Sistema</h2>
-        
-        <div class="loading" id="loading">
-            <i class="fas fa-spinner fa-spin"></i> Carregando métricas...
-        </div>
-        
-        <div id="metrics-content" style="display: none;">
+    <h2>📊 Visão Geral do Sistema</h2>
+    {% include "admin/custom_dashboard_panel.html" %}
+    <div class="loading" id="loading">
+        <i class="fas fa-spinner fa-spin"></i> Carregando métricas...
+    </div>
+    <div id="metrics-content" style="display: none;">
             <!-- Cards Principais -->
             <div class="metrics-grid">
                 <div class="metric-card">

@@ -1,6 +1,4 @@
-﻿
-
-from django.db import models
+﻿from django.db import models
 from django.utils import timezone
 from django.conf import settings
 import uuid # Para nomes de arquivo únicos
@@ -665,3 +663,43 @@ class AcompanhamentoVisita(models.Model):
 
     def __str__(self):
         return f"{self.membro} - {self.get_tipo_contato_display()} em {self.data:%d/%m/%Y}"
+
+
+class TransferenciaMembro(models.Model):
+    STATUS_CHOICES = [
+        ("aguardando", "Aguardando aprovação"),
+        ("aprovada", "Aprovada"),
+        ("recusada", "Recusada"),
+        ("cancelada", "Cancelada"),
+    ]
+    membro = models.ForeignKey('Membro', on_delete=models.CASCADE, related_name='transferencias')
+    igreja_origem = models.ForeignKey('configuracao.Igreja', on_delete=models.PROTECT, related_name='transferencias_saida')
+    igreja_destino = models.ForeignKey('configuracao.Igreja', on_delete=models.PROTECT, related_name='transferencias_entrada')
+    data_solicitacao = models.DateTimeField(auto_now_add=True)
+    usuario_solicitante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='transferencias_solicitadas')
+    data_aprovacao = models.DateTimeField(null=True, blank=True)
+    usuario_aprovador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='transferencias_aprovadas')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="aguardando")
+    motivo = models.CharField(max_length=255, blank=True)
+    observacao = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Transferência de Membro"
+        verbose_name_plural = "Transferências de Membros"
+        ordering = ['-data_solicitacao']
+
+    def __str__(self):
+        return f"{self.membro} de {self.igreja_origem} para {self.igreja_destino} ({self.get_status_display()})"
+
+    def pode_solicitar(self, usuario):
+        # Só secretaria local ou pastor local da igreja_origem pode solicitar
+        return usuario.has_perm('secretaria.transferir_membro') and usuario.igreja == self.igreja_origem
+
+    def pode_aprovar(self, usuario):
+        # Só secretaria local ou pastor local da igreja_destino pode aprovar
+        return usuario.has_perm('secretaria.aprovar_transferencia_membro') and usuario.igreja == self.igreja_destino
+
+    permissions = [
+            ("transferir_membro", "Pode solicitar transferência de membro para outra igreja do mesmo ministério"),
+            ("aprovar_transferencia_membro", "Pode aprovar ou recusar transferência de membro para sua igreja"),
+        ]

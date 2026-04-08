@@ -2,11 +2,11 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 
-from configuracao.models import Igreja, Ministerio
+from configuracao.models import Igreja, Ministerio, PerfilUsuario
 from secretaria.models import TipoPessoa, StatusPessoa, Membro
 from django.contrib.auth import get_user_model
 
-from ..models import Evento, EventoSessao, ParticipacaoEvento
+from eventos.models import Evento, EventoSessao, ParticipacaoEvento
 
 
 class EventoSessaoPresenceTest(TestCase):
@@ -18,12 +18,20 @@ class EventoSessaoPresenceTest(TestCase):
         self.ministerio = Ministerio.objects.create(nome_fantasia='Ministerio Teste', administrador_principal=self.user)
         self.igreja = Igreja.objects.create(nome_igreja='Igreja Teste', ministerio=self.ministerio)
 
+        # Cria perfil do usuário
+        PerfilUsuario.objects.create(user=self.user, ministerio=self.ministerio)
+
         # Tipo e status necessários
         self.tipo_membro = TipoPessoa.objects.create(nome='Membro')
-        self.status_ativo = StatusPessoa.objects.create(nome='Ativo', considerar_ativo_relatorios=True)
+        self.status_ativo = StatusPessoa.objects.create(nome='Ativo')
 
         # Create a member
         self.membro = Membro.objects.create(nome='Fulano', igreja=self.igreja, tipo_pessoa=self.tipo_membro, status_pessoa=self.status_ativo)
+
+        # Adiciona o usuário ao grupo Tesoureiro
+        from django.contrib.auth.models import Group
+        grupo, _ = Group.objects.get_or_create(name='Tesoureiro')
+        self.user.groups.add(grupo)
 
         self.client = Client()
         self.client.login(username='tester', password='pass')

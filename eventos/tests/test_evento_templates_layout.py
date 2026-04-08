@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from configuracao.models import Igreja, Ministerio
+from configuracao.models import Igreja, Ministerio, PerfilUsuario
 from secretaria.models import TipoPessoa, StatusPessoa, Membro
 from django.utils import timezone
 
@@ -14,9 +14,17 @@ class EventoTemplateLayoutTest(TestCase):
         self.client = Client()
         self.client.login(username='layouttester', password='pass')
 
+        # Cria perfil do usuário
+        PerfilUsuario.objects.create(user=self.user, ministerio=self.ministerio)
+
         self.tipo = TipoPessoa.objects.create(nome='Membro')
-        self.status = StatusPessoa.objects.create(nome='Ativo', considerar_ativo_relatorios=True)
+        self.status = StatusPessoa.objects.create(nome='Ativo')
         self.membro = Membro.objects.create(nome='Fulano', igreja=self.igreja, tipo_pessoa=self.tipo, status_pessoa=self.status)
+
+        # Adiciona o usuário ao grupo Tesoureiro
+        from django.contrib.auth.models import Group
+        grupo, _ = Group.objects.get_or_create(name='Tesoureiro')
+        self.user.groups.add(grupo)
 
     def test_criar_evento_layout(self):
         url = reverse('eventos:criar_evento')
@@ -32,7 +40,7 @@ class EventoTemplateLayoutTest(TestCase):
 
     def test_editar_evento_layout(self):
         # create an event to edit
-        from ..models import Evento
+        from eventos.models import Evento
         start = timezone.now()
         evento = Evento.objects.create(igreja=self.igreja, titulo='E', data_inicio=start, quantidade_dias=1)
         url = reverse('eventos:editar_evento', args=[evento.pk])

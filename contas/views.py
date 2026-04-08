@@ -42,9 +42,12 @@ from .forms import (
     RegistroForm,
     ConviteForm,
     AceitarConviteSetPasswordForm,
-    EditarPapeisUsuarioForm
+    EditarPapeisUsuarioForm,
+    PermissionRequestForm,
+    PermissionRequestResponseForm
 )
 from core.decorators import verificar_assinatura_valida, admin_ministerio_required # Ou o caminho correto
+from core.group_sync import recalcular_grupos_efetivos_usuario
 
 from core.utils import get_ministerio_or_error # Importar de core.utils
 
@@ -503,8 +506,12 @@ def editar_papeis_usuario(request, user_pk):
                             f"Considere desativar o usuário em vez disso."
                         )
                     # --- FIM DO AVISO ---
-                    
-                    usuario_alvo.groups.set(grupos_selecionados)
+
+                    recalcular_grupos_efetivos_usuario(
+                        usuario_alvo,
+                        grupos_manuais=grupos_selecionados,
+                        grupos_editaveis=form.fields['grupos'].queryset,
+                    )
 
                     # Atualiza as igrejas permitidas no Perfil
                     igrejas_selecionadas = form.cleaned_data['igrejas_permitidas']
@@ -1447,3 +1454,454 @@ def sincronizar_dados_membro(request):
         messages.error(request, f'❌ Erro ao sincronizar dados: {str(e)}')
     
     return redirect('contas:editar_meu_perfil')
+
+
+# ==============================
+# SISTEMA DE SOLICITAÇÃO DE PERMISSÕES
+# ==============================
+
+@login_required
+def hub_permissoes(request):
+    """
+    Hub central de gerenciamento de permissões.
+    Página única que consolida: solicitar, minhas solicitações e gerenciar (para admins).
+    """
+    from .models import PermissionRequest
+    from contas.constants import user_has_permission_level_or_higher
+    
+    perfil = getattr(request.user, 'perfil_usuario', None)
+    ministerio = perfil.ministerio if perfil else None
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    
+    # FALLBACK: Se perfil não tem ministerio, usa ministerio da igreja_ativa
+    if not ministerio and igreja_ativa:
+        ministerio = igreja_ativa.ministerio
+        logger.info(f"[hub_permissoes] Ministerio obtido da igreja_ativa: {ministerio}")
+    
+    is_admin = user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO)
+    
+    # Minhas solicitações
+    minhas_solicitacoes = PermissionRequest.objects.filter(
+        usuario_solicitante=request.user
+    ).select_related('grupo_solicitado', 'usuario_aprovador').order_by('-data_solicitacao')[:10]
+    
+    # Estatísticas do usuário
+    stats_usuario = {
+        'pendentes': PermissionRequest.objects.filter(
+            usuario_solicitante=request.user,
+            status='pending'
+        ).count(),
+        'aprovadas': PermissionRequest.objects.filter(
+            usuario_solicitante=request.user,
+            status='approved'
+        ).count(),
+        'rejeitadas': PermissionRequest.objects.filter(
+            usuario_solicitante=request.user,
+            status='rejected'
+        ).count(),
+    }
+    
+    # Para admins: solicitações pendentes de outros usuários
+    solicitacoes_pendentes = None
+    stats_admin = None
+    if is_admin:
+        solicitacoes_pendentes = PermissionRequest.objects.select_related(
+            'usuario_solicitante',
+            'grupo_solicitado',
+            'igreja_contexto'
+        ).filter(status='pending')
+        
+        if ministerio:
+            solicitacoes_pendentes = solicitacoes_pendentes.filter(ministerio=ministerio)
+        
+        solicitacoes_pendentes = solicitacoes_pendentes.order_by('-data_solicitacao')[:10]
+        
+        stats_admin = {
+            'pendentes': PermissionRequest.objects.filter(status='pending').count(),
+            'aprovadas_hoje': PermissionRequest.objects.filter(
+                status='approved',
+                data_resposta__date=timezone.now().date()
+            ).count(),
+        }
+    
+    # Formulário de nova solicitação
+    form = None
+    if request.method == 'POST':
+        form = PermissionRequestForm(
+            request.POST,
+            user=request.user,
+            ministerio=ministerio,
+            igreja_ativa=igreja_ativa
+        )
+        
+        if form.is_valid():
+            solicitacao = PermissionRequest.objects.create(
+                usuario_solicitante=request.user,
+                grupo_solicitado=form.cleaned_data['grupo'],
+                justificativa=form.cleaned_data['justificativa'],
+                prioridade=form.cleaned_data['prioridade'],
+                ministerio=ministerio,
+                igreja_contexto=form.cleaned_data.get('igreja_contexto')
+            )
+            
+            logger.info(
+                f"Nova solicitação de permissão criada: ID={solicitacao.id}, "
+                f"Usuário={request.user.username}, Grupo={solicitacao.grupo_solicitado.name}"
+            )
+            
+            # Criar notificação para administradores
+            try:
+                from comunicacao.models import Notificacao
+                
+                admins = User.objects.filter(groups__name=ADMIN_MINISTERIO, is_active=True)
+                if ministerio:
+                    admins = admins.filter(perfil_usuario__ministerio=ministerio)
+                
+                for admin in admins:
+                    Notificacao.objects.create(
+                        ministerio=ministerio,
+                        destinatario=admin,
+                        titulo=f'Nova solicitação de permissão',
+                        mensagem=f'{request.user.get_full_name() or request.user.username} solicitou acesso ao grupo "{solicitacao.grupo_solicitado.name}"',
+                        link_url=f'/contas/hub-permissoes/',
+                        tipo='info'
+                    )
+            except Exception as e:
+                logger.warning(f"Não foi possível criar notificação: {e}")
+            
+            messages.success(
+                request,
+                f'✅ Solicitação enviada com sucesso! Você será notificado quando for avaliada.'
+            )
+            return redirect('contas:hub_permissoes')
+        else:
+            logger.error(f"[hub_permissoes] Formulário INVÁLIDO - Erros: {form.errors}")
+            messages.error(request, '❌ Erro no formulário. Verifique os campos destacados.')
+    else:
+        logger.info(f"[hub_permissoes] GET request - Criando formulário")
+        logger.info(f"[hub_permissoes] user={request.user.username}, ministerio={ministerio}, igreja_ativa={igreja_ativa}")
+        form = PermissionRequestForm(user=request.user, ministerio=ministerio, igreja_ativa=igreja_ativa)
+        logger.info(f"[hub_permissoes] Formulário criado")
+        logger.info(f"[hub_permissoes] igreja_contexto queryset count: {form.fields['igreja_contexto'].queryset.count()}")
+        logger.info(f"[hub_permissoes] igreja_contexto.initial: {form.fields['igreja_contexto'].initial}")
+        logger.info(f"[hub_permissoes] form.initial: {form.initial.get('igreja_contexto')}")
+    
+    context = {
+        'form': form,
+        'minhas_solicitacoes': minhas_solicitacoes,
+        'stats_usuario': stats_usuario,
+        'grupos_atuais': request.user.groups.all(),
+        'is_admin': is_admin,
+        'solicitacoes_pendentes': solicitacoes_pendentes,
+        'stats_admin': stats_admin,
+    }
+    return render(request, 'contas/hub_permissoes.html', context)
+
+
+@login_required
+def solicitar_permissao(request):
+    """
+    View para usuários solicitarem novas permissões/grupos.
+    Qualquer usuário autenticado pode acessar.
+    """
+    perfil = getattr(request.user, 'perfil_usuario', None)
+    ministerio = perfil.ministerio if perfil else None
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    
+    if request.method == 'POST':
+        form = PermissionRequestForm(
+            request.POST,
+            user=request.user,
+            ministerio=ministerio,
+            igreja_ativa=igreja_ativa
+        )
+        
+        if form.is_valid():
+            # Cria a solicitação
+            from .models import PermissionRequest
+            
+            solicitacao = PermissionRequest.objects.create(
+                usuario_solicitante=request.user,
+                grupo_solicitado=form.cleaned_data['grupo'],
+                justificativa=form.cleaned_data['justificativa'],
+                prioridade=form.cleaned_data['prioridade'],
+                ministerio=ministerio,
+                igreja_contexto=form.cleaned_data.get('igreja_contexto')
+            )
+            
+            logger.info(
+                f"Nova solicitação de permissão criada: ID={solicitacao.id}, "
+                f"Usuário={request.user.username}, Grupo={solicitacao.grupo_solicitado.name}"
+            )
+            
+            # Criar notificação para administradores (se existir sistema de notificações)
+            try:
+                from comunicacao.models import Notificacao
+                from contas.constants import user_has_permission_level_or_higher
+                
+                # Notifica todos os admins ministeriais
+                admins = User.objects.filter(groups__name=ADMIN_MINISTERIO, is_active=True)
+                if ministerio:
+                    admins = admins.filter(perfil_usuario__ministerio=ministerio)
+                
+                for admin in admins:
+                    Notificacao.objects.create(
+                        ministerio=ministerio,
+                        destinatario=admin,
+                        titulo=f'Nova solicitação de permissão',
+                        mensagem=f'{request.user.get_full_name() or request.user.username} solicitou acesso ao grupo "{solicitacao.grupo_solicitado.name}"',
+                        link_url=f'/contas/permissoes/avaliar/{solicitacao.id}/',
+                        tipo='info'
+                    )
+            except Exception as e:
+                logger.warning(f"Não foi possível criar notificação: {e}")
+            
+            messages.success(
+                request,
+                f'✅ Solicitação enviada com sucesso! Você será notificado quando for avaliada. '
+                f'(Grupo solicitado: {solicitacao.grupo_solicitado.name})'
+            )
+            return redirect('contas:minhas_solicitacoes')
+        else:
+            messages.error(request, '❌ Erro no formulário. Verifique os campos.')
+    else:
+        form = PermissionRequestForm(user=request.user, ministerio=ministerio, igreja_ativa=igreja_ativa)
+    
+    # Estatísticas do usuário
+    from .models import PermissionRequest
+    stats = {
+        'pendentes': PermissionRequest.objects.filter(
+            usuario_solicitante=request.user,
+            status='pending'
+        ).count(),
+        'aprovadas': PermissionRequest.objects.filter(
+            usuario_solicitante=request.user,
+            status='approved'
+        ).count(),
+        'rejeitadas': PermissionRequest.objects.filter(
+            usuario_solicitante=request.user,
+            status='rejected'
+        ).count(),
+    }
+    
+    context = {
+        'form': form,
+        'stats': stats,
+        'grupos_atuais': request.user.groups.all(),
+    }
+    return render(request, 'contas/solicitar_permissao.html', context)
+
+
+@login_required
+def minhas_solicitacoes(request):
+    """
+    Lista todas as solicitações de permissão do usuário logado.
+    """
+    from .models import PermissionRequest
+    
+    solicitacoes = PermissionRequest.objects.filter(
+        usuario_solicitante=request.user
+    ).select_related('grupo_solicitado', 'usuario_aprovador')
+    
+    # Filtros
+    status_filter = request.GET.get('status')
+    if status_filter:
+        solicitacoes = solicitacoes.filter(status=status_filter)
+    
+    context = {
+        'solicitacoes': solicitacoes,
+        'status_filter': status_filter,
+    }
+    return render(request, 'contas/minhas_solicitacoes.html', context)
+
+
+@login_required
+def cancelar_solicitacao(request, pk):
+    """
+    Permite ao usuário cancelar sua própria solicitação pendente.
+    """
+    from .models import PermissionRequest
+    
+    solicitacao = get_object_or_404(
+        PermissionRequest,
+        pk=pk,
+        usuario_solicitante=request.user
+    )
+    
+    if solicitacao.status != 'pending':
+        messages.error(request, '❌ Apenas solicitações pendentes podem ser canceladas.')
+        return redirect('contas:minhas_solicitacoes')
+    
+    if request.method == 'POST':
+        solicitacao.cancelar()
+        
+        logger.info(
+            f"Solicitação #{solicitacao.id} cancelada pelo usuário {request.user.username}"
+        )
+        
+        messages.success(request, '✅ Solicitação cancelada com sucesso.')
+        return redirect('contas:minhas_solicitacoes')
+    
+    return render(request, 'contas/cancelar_solicitacao.html', {'solicitacao': solicitacao})
+
+
+@login_required
+def listar_solicitacoes_pendentes(request):
+    """
+    Lista todas as solicitações pendentes para avaliação.
+    Apenas ADMIN_MINISTERIO ou superior pode acessar.
+    """
+    from contas.constants import user_has_permission_level_or_higher
+    from .models import PermissionRequest
+    
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
+        messages.error(request, '❌ Você não tem permissão para acessar esta página.')
+        return redirect('contas:hub_permissoes')
+    
+    perfil = getattr(request.user, 'perfil_usuario', None)
+    ministerio = perfil.ministerio if perfil else None
+    
+    solicitacoes = PermissionRequest.objects.select_related(
+        'usuario_solicitante',
+        'grupo_solicitado',
+        'igreja_contexto'
+    )
+    
+    if ministerio:
+        solicitacoes = solicitacoes.filter(ministerio=ministerio)
+    
+    # Filtros
+    status_filter = request.GET.get('status', 'pending')
+    if status_filter:
+        solicitacoes = solicitacoes.filter(status=status_filter)
+    
+    prioridade_filter = request.GET.get('prioridade')
+    if prioridade_filter:
+        solicitacoes = solicitacoes.filter(prioridade=prioridade_filter)
+    
+    solicitacoes = solicitacoes.order_by('-data_solicitacao')
+    
+    # Paginação
+    from django.core.paginator import Paginator
+    paginator = Paginator(solicitacoes, 20)
+    page = request.GET.get('page', 1)
+    solicitacoes_page = paginator.get_page(page)
+    
+    # Estatísticas
+    stats = {
+        'pendentes': PermissionRequest.objects.filter(status='pending').count(),
+        'aprovadas_hoje': PermissionRequest.objects.filter(
+            status='approved',
+            data_resposta__date=timezone.now().date()
+        ).count(),
+        'rejeitadas_hoje': PermissionRequest.objects.filter(
+            status='rejected',
+            data_resposta__date=timezone.now().date()
+        ).count(),
+    }
+    
+    context = {
+        'solicitacoes': solicitacoes_page,
+        'stats': stats,
+        'status_filter': status_filter,
+        'prioridade_filter': prioridade_filter,
+    }
+    return render(request, 'contas/listar_solicitacoes.html', context)
+
+
+@login_required
+def avaliar_solicitacao(request, pk):
+    """
+    View para aprovar ou rejeitar uma solicitação de permissão.
+    Apenas ADMIN_MINISTERIO ou superior pode acessar.
+    """
+    from contas.constants import user_has_permission_level_or_higher
+    from .models import PermissionRequest
+    
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
+        messages.error(request, '❌ Você não tem permissão para avaliar solicitações.')
+        return redirect('contas:hub_permissoes')
+    
+    solicitacao = get_object_or_404(
+        PermissionRequest.objects.select_related(
+            'usuario_solicitante',
+            'grupo_solicitado',
+            'igreja_contexto'
+        ),
+        pk=pk
+    )
+    
+    # Verifica se está pendente
+    if solicitacao.status != 'pending':
+        messages.warning(request, f'⚠️ Esta solicitação já foi {solicitacao.get_status_display()}.')
+        return redirect('contas:listar_solicitacoes')
+    
+    if request.method == 'POST':
+        form = PermissionRequestResponseForm(request.POST)
+        
+        if form.is_valid():
+            acao = form.cleaned_data['acao']
+            observacao = form.cleaned_data.get('observacao', '')
+            
+            if acao == 'aprovar':
+                solicitacao.aprovar(request.user, observacao)
+                messages.success(
+                    request,
+                    f'✅ Solicitação aprovada! {solicitacao.usuario_solicitante.username} '
+                    f'foi adicionado ao grupo "{solicitacao.grupo_solicitado.name}".'
+                )
+                
+                logger.info(
+                    f"Solicitação #{solicitacao.id} aprovada por {request.user.username}. "
+                    f"Usuário {solicitacao.usuario_solicitante.username} adicionado ao grupo {solicitacao.grupo_solicitado.name}"
+                )
+            else:
+                solicitacao.rejeitar(request.user, observacao)
+                messages.info(
+                    request,
+                    f'❌ Solicitação rejeitada. {solicitacao.usuario_solicitante.username} foi notificado.'
+                )
+                
+                logger.info(
+                    f"Solicitação #{solicitacao.id} rejeitada por {request.user.username}. "
+                    f"Motivo: {observacao}"
+                )
+            
+            # Criar notificação para o solicitante
+            try:
+                from comunicacao.models import Notificacao
+                
+                if acao == 'aprovar':
+                    titulo = '✅ Solicitação de Permissão Aprovada'
+                    mensagem = f'Sua solicitação para o grupo "{solicitacao.grupo_solicitado.name}" foi aprovada!'
+                    tipo = 'success'
+                else:
+                    titulo = '❌ Solicitação de Permissão Rejeitada'
+                    mensagem = f'Sua solicitação para o grupo "{solicitacao.grupo_solicitado.name}" foi rejeitada.'
+                    if observacao:
+                        mensagem += f' Motivo: {observacao}'
+                    tipo = 'warning'
+                
+                Notificacao.objects.create(
+                    ministerio=solicitacao.ministerio,
+                    destinatario=solicitacao.usuario_solicitante,
+                    titulo=titulo,
+                    mensagem=mensagem,
+                    tipo=tipo
+                )
+                solicitacao.notificacao_enviada = True
+                solicitacao.save()
+            except Exception as e:
+                logger.warning(f"Não foi possível criar notificação: {e}")
+            
+            return redirect('contas:listar_solicitacoes')
+        else:
+            messages.error(request, '❌ Erro no formulário. Verifique os campos.')
+    else:
+        form = PermissionRequestResponseForm()
+    
+    context = {
+        'solicitacao': solicitacao,
+        'form': form,
+    }
+    return render(request, 'contas/avaliar_solicitacao.html', context)

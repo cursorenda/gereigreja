@@ -1,0 +1,206 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Editar Permissoes - {{ usuario_alvo.get_full_name|default:usuario_alvo.username }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Editar Permissoes de {{ usuario_alvo.get_full_name|default:usuario_alvo.username }}</h1>
+    
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="javascript:history.back()" title="Voltar ao painel anterior">Painel de Permissões</a></li>
+        <li class="breadcrumb-item active">{{ usuario_alvo.get_full_name }}</li>
+    </ol>
+
+    {# Mensagens Flash #}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        {# Informações do Usuário #}
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user-shield"></i> Dados do Usuário
+                </div>
+                <div class="card-body">
+                    <p><strong>Nome:</strong><br>{{ usuario_alvo.get_full_name }}</p>
+                    <p><strong>Email:</strong><br>{{ usuario_alvo.email }}</p>
+                    <p><strong>Username:</strong><br>{{ usuario_alvo.username }}</p>
+                    
+                    {% if usuario_alvo.perfil %}
+                        <hr>
+                        {% if usuario_alvo.perfil.igrejas_permitidas.exists %}
+                            <p><strong>Igreja:</strong><br>{{ usuario_alvo.perfil.igrejas_permitidas.first.nome_igreja }}</p>
+                        {% endif %}
+                        {% if usuario_alvo.perfil.ministerio %}
+                            <p><strong>Ministério:</strong><br>{{ usuario_alvo.perfil.ministerio.nome }}</p>
+                        {% endif %}
+                    {% endif %}
+
+                    <hr>
+                    <p><strong>Status:</strong><br>
+                        {% if usuario_alvo.is_active %}
+                            <span class="badge bg-success">Ativo</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inativo</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {# Formulário de Edição #}
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-edit"></i> Atualizar Permissões
+                </div>
+                <div class="card-body">
+                    <form method="post" id="formEditarPermissoes">
+                        {% csrf_token %}
+
+                        {# Erro geral #}
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    <p class="mb-0">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {# Aviso sobre hierarquia #}
+                        {% if hierarquia_info %}
+                            <div class="alert alert-info border-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>ℹ️ Informação de Hierarquia:</strong><br>
+                                {{ hierarquia_info }}
+                            </div>
+                        {% endif %}
+
+                        {# Campo Grupos #}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-user-tag"></i> Grupos/Permissões:
+                            </label>
+                            
+                            {% if form.grupos.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.grupos.errors|striptags }}
+                                </div>
+                            {% endif %}
+
+                            <div class="border rounded p-3 bg-light">
+                                {% for checkbox in form.grupos %}
+                                    <div class="form-check mb-2">
+                                        {{ checkbox.tag }}
+                                        <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                                            {{ checkbox.choice_label }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                            <small class="form-text text-muted d-block mt-2">
+                                <i class="fas fa-exclamation-circle text-warning"></i>
+                                <strong>Importante:</strong> 
+                                {% if nao_pode_editar %}
+                                    Você não tem permissão para editar este usuário devido às restrições hierárquicas.
+                                {% else %}
+                                    Desmarcar todos os grupos deixará o usuário sem acesso ao sistema.
+                                {% endif %}
+                            </small>
+                        </div>
+
+                        <hr>
+
+                        {# Botões #}
+                        <div class="d-flex gap-2">
+                            {% if not nao_pode_editar %}
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Salvar Mudanças
+                                </button>
+                            {% else %}
+                                <button type="submit" class="btn btn-primary" disabled>
+                                    <i class="fas fa-ban"></i> Sem Permissão para Editar
+                                </button>
+                            {% endif %}
+                            <a href="javascript:history.back()" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {# Card de Auditoria #}
+            {% if ultimas_mudancas %}
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <i class="fas fa-history"></i> Últimas Mudanças de Permissões
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Ação</th>
+                                        <th>Grupo</th>
+                                        <th>Por</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in ultimas_mudancas %}
+                                        <tr>
+                                            <td>{{ log.data_hora|date:"d/m/Y H:i" }}</td>
+                                            <td>
+                                                {% if log.acao == 'ADD' %}
+                                                    <span class="badge bg-success">Adicionado</span>
+                                                {% elif log.acao == 'REMOVE' %}
+                                                    <span class="badge bg-info">Removido</span>
+                                                {% elif log.acao == 'EDIT' %}
+                                                    <span class="badge bg-warning">Editado</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ log.get_acao_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                                <td>{% if log.grupo %}{{ log.grupo.name }}{% else %}-{% endif %}</td>
+                                            <td>
+                                                {% if log.usuario_executor %}
+                                                    {{ log.usuario_executor.get_full_name|default:log.usuario_executor.username }}
+                                                {% else %}
+                                                    <span class="text-muted">Sistema</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('formEditarPermissoes').addEventListener('submit', function(e) {
+        const checkboxes = document.querySelectorAll('[name="grupos"]');
+        const algumSelecionado = Array.from(checkboxes).some(box => box.checked);
+        
+        if (!algumSelecionado) {
+            if (!confirm('⚠️ Nenhum grupo foi selecionado. O usuário ficará sem acesso ao sistema. Deseja continuar?')) {
+                e.preventDefault();
+            }
+        }
+    });
+</script>
+{% endblock %}

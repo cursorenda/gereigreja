@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Transferências de Membros</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Membro</th>
+        <th>Igreja Origem</th>
+        <th>Igreja Destino</th>
+        <th>Status</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for transferencia in transferencias %}
+      <tr>
+        <td>{{ transferencia.id }}</td>
+        <td>{{ transferencia.membro }}</td>
+        <td>{{ transferencia.igreja_origem }}</td>
+        <td>{{ transferencia.igreja_destino }}</td>
+        <td>{{ transferencia.status }}</td>
+        <td>
+          {% if transferencia.status != 'aprovada' %}
+            <a href="{% url 'secretaria:aprovar_transferencia' transferencia.id %}" class="btn btn-success btn-sm">Aprovar</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

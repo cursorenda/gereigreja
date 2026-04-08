@@ -1,0 +1,322 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .user-details {
+        padding: 20px;
+    }
+    
+    .user-header {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 20px;
+    }
+    
+    .user-info h1 {
+        margin: 0 0 10px 0;
+    }
+    
+    .user-info .detail {
+        margin: 5px 0;
+        color: #666;
+    }
+    
+    .user-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    
+    .stat-box {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+    
+    .stat-box .number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #3498db;
+    }
+    
+    .stat-box .label {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .groups-list {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+    
+    .group-badge {
+        background: #3498db;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+    
+    .section {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .section h2 {
+        margin-top: 0;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+    }
+    
+    .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .log-table th {
+        background: #f8f9fa;
+        padding: 10px;
+        text-align: left;
+        font-weight: bold;
+        border-bottom: 2px solid #ddd;
+    }
+    
+    .log-table td {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .log-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .badge-add { background: #d4edda; color: #155724; }
+    .badge-remove { background: #f8d7da; color: #721c24; }
+    .badge-view { background: #d1ecf1; color: #0c5460; }
+    .badge-object { background: #fff3cd; color: #856404; }
+    
+    .badge-ativa {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .badge-encerrada {
+        background: #d6d8db;
+        color: #383d41;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 30px;
+        color: #999;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="user-details">
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'auditoria:painel_auditoria' %}" class="btn-secondary">← Voltar ao Painel</a>
+    </div>
+    
+    <div class="user-header">
+        <div class="user-info">
+            <h1>{{ usuario_auditado.username }}</h1>
+            <div class="detail"><strong>Nome:</strong> {{ usuario_auditado.get_full_name|default:"N/A" }}</div>
+            <div class="detail"><strong>Email:</strong> {{ usuario_auditado.email|default:"N/A" }}</div>
+            <div class="detail"><strong>Staff:</strong> {% if usuario_auditado.is_staff %}Sim{% else %}Não{% endif %}</div>
+            <div class="detail"><strong>Superuser:</strong> {% if usuario_auditado.is_superuser %}Sim{% else %}Não{% endif %}</div>
+            <div class="detail"><strong>Ativo:</strong> {% if usuario_auditado.is_active %}Sim{% else %}Não{% endif %}</div>
+            
+            <div class="detail" style="margin-top: 15px;">
+                <strong>Grupos Atuais:</strong>
+                <div class="groups-list">
+                    {% for grupo in stats.grupos_atuais %}
+                    <span class="group-badge">{{ grupo.name }}</span>
+                    {% empty %}
+                    <span style="color: #999;">Nenhum grupo</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="user-stats">
+            <div class="stat-box">
+                <div class="number">{{ stats.total_alteracoes }}</div>
+                <div class="label">Alterações de Permissão</div>
+            </div>
+            <div class="stat-box">
+                <div class="number">{{ stats.total_acessos_negados }}</div>
+                <div class="label">Acessos Negados</div>
+            </div>
+            <div class="stat-box">
+                <div class="number">{{ stats.total_sessoes }}</div>
+                <div class="label">Sessões Registradas</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Histórico de Alterações -->
+    <div class="section">
+        <h2>Histórico de Alterações de Permissões</h2>
+        {% if alteracoes %}
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Ação</th>
+                    <th>Grupo</th>
+                    <th>Executado Por</th>
+                    <th>IP</th>
+                    <th>Observação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in alteracoes %}
+                <tr>
+                    <td>{{ log.data_hora|date:"d/m/Y H:i:s" }}</td>
+                    <td>
+                        {% if log.acao == 'ADD' %}
+                        <span class="badge badge-add">{{ log.get_acao_display }}</span>
+                        {% elif log.acao == 'REMOVE' %}
+                        <span class="badge badge-remove">{{ log.get_acao_display }}</span>
+                        {% else %}
+                        <span class="badge">{{ log.get_acao_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.grupo.name|default:"-" }}</td>
+                    <td>{{ log.usuario_executor.username|default:"Sistema" }}</td>
+                    <td>{{ log.ip_address|default:"-" }}</td>
+                    <td>{{ log.observacao|truncatewords:10|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>Nenhuma alteração registrada para este usuário.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Acessos Negados -->
+    <div class="section">
+        <h2>Histórico de Acessos Negados</h2>
+        {% if acessos_negados %}
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Tipo</th>
+                    <th>Recurso</th>
+                    <th>Permissão Requerida</th>
+                    <th>IP</th>
+                    <th>URL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in acessos_negados %}
+                <tr>
+                    <td>{{ log.data_hora|date:"d/m/Y H:i:s" }}</td>
+                    <td>
+                        {% if log.tipo_acesso == 'VIEW' %}
+                        <span class="badge badge-view">{{ log.get_tipo_acesso_display }}</span>
+                        {% elif log.tipo_acesso == 'OBJECT' %}
+                        <span class="badge badge-object">{{ log.get_tipo_acesso_display }}</span>
+                        {% else %}
+                        <span class="badge">{{ log.get_tipo_acesso_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ log.recurso }}</strong></td>
+                    <td>{{ log.permissao_requerida|default:"-" }}</td>
+                    <td>{{ log.ip_address|default:"-" }}</td>
+                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">
+                        {{ log.url_path|truncatewords:5|default:"-" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>Nenhum acesso negado registrado para este usuário.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Sessões -->
+    <div class="section">
+        <h2>Sessões Recentes</h2>
+        {% if sessoes %}
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th>Login</th>
+                    <th>Logout</th>
+                    <th>Duração</th>
+                    <th>Status</th>
+                    <th>IP</th>
+                    <th>Igreja Ativa</th>
+                    <th>Páginas Visitadas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sessao in sessoes %}
+                <tr>
+                    <td>{{ sessao.login_data_hora|date:"d/m/Y H:i" }}</td>
+                    <td>{{ sessao.logout_data_hora|date:"d/m/Y H:i"|default:"-" }}</td>
+                    <td>{{ sessao.duracao|default:"-" }}</td>
+                    <td>
+                        {% if sessao.ativa %}
+                        <span class="badge badge-ativa">Ativa</span>
+                        {% else %}
+                        <span class="badge badge-encerrada">Encerrada</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ sessao.ip_address|default:"-" }}</td>
+                    <td>{{ sessao.igreja_ativa.nome|default:"-" }}</td>
+                    <td>{{ sessao.paginas_visitadas }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>Nenhuma sessão registrada para este usuário.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
