@@ -16,7 +16,7 @@ def reverse_rename_grupos(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contas', '0003_hierarquiapermissoes'),
+        ('contas', '0005_add_consentimento_lgpd'),
     ]
 
     operations = [
