@@ -14,8 +14,8 @@ Hierarquia: Pastor Presidente → Pastor Regional → Pastor Local → Equipe Ad
 ADMIN_MINISTERIO = 'Admin Ministerio'
 
 # Nível 2: Liderança Ministerial
-LIDERANCA_SECRETARIA = 'Lideranca Secretaria'
-LIDERANCA_FINANCEIRA = 'Lideranca Financeira'
+LIDERANCA_SECRETARIA = 'Secretaria Ministerial'
+LIDERANCA_FINANCEIRA = 'Tesouraria Ministerial'
 
 # Nível 3: Liderança Regional (supervisiona várias igrejas)
 PASTOR_REGIONAL = 'Pastor Regional'

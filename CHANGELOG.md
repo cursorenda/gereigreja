@@ -1,3 +1,96 @@
+## v1.8.0 — 08/04/2026
+🔐 **FOCO EM SEGURANÇA: Renomeação de Grupos Ministeriais, Proteção de Dados e Controle de Acesso Hierárquico**
+
+### 🎯 Mudanças de Segurança e Acesso
+
+#### Renomeação de Grupos Ministeriais
+- `Lideranca Secretaria` → `Secretaria Ministerial` (mais ministerial e profissional)
+- `Lideranca Financeira` → `Tesouraria Ministerial` (mais ministerial e profissional)
+- [✅] Migração de dados aplicada com sucesso (groups no DB renomeados)
+- [✅] Todas as constants atualizadas em `contas/constants.py`
+- [✅] Docstrings e management commands refletindo novos nomes
+
+#### Proteção de Grupos no Django Admin
+- [✅] Novo `GroupAdminProtegido` implementado para bloquear renomeação de grupos centralizados
+- Campo `name` agora é readonly para grupos: Admin Ministério, Secretaria Ministerial, Tesouraria Ministerial, etc.
+- Permissões podem ser editadas normalmente (field não fica bloqueado)
+- Impede acidentes de renomeação manual que quebrariam a lógica de permissões
+
+#### Desbloqueio e Filtro de Escopo para Cargo (Secretaria)
+- [✅] Pastor Local agora pode acessar `/secretaria/cargos/` (antes: 403 Forbidden)
+- Novo decorator `is_admin_or_pastor_local()` (exigia `PASTOR_LOCAL` level antes tinha `PASTOR_REGIONAL`)
+- [✅] Filtro de escopo hierárquico em 5 views: `lista_cargos`, `criar_cargo`, `editar_cargo`, `excluir_cargo`, `gerenciar_ocupantes`
+
+#### Regra de Escopo Hierárquico para Cargos
+- **Pastor Local**: vê/gerencia apenas cargos a partir de `PASTOR_LOCAL` para baixo (inclui `SECRETARIO_LOCAL`, `TESOUREIRO`, etc.)
+- **Pastor Regional**: vê/gerencia apenas cargos a partir de `PASTOR_REGIONAL` para baixo (inclui `PASTOR_LOCAL` e níveis inferiores)
+- **Admin Ministério**: sem restrição (vê todos os cargos)
+- Implementado via 3 funções helper: `_nomes_grupos_permitidos_para_cargos()`, `_filtrar_cargos_por_escopo_usuario()`, `_cargo_dentro_escopo_usuario()`
+- Form field `grupo_permissao` automaticamente limitado ao escopo do usuário
+
+#### Testes de Regressão
+- [✅] Nova suite: `secretaria/tests/test_cargos_autorizacao_views.py` (6 testes)
+  - `test_pastor_local_lista_cargos_filtra_grupos_superiores` — Lista não exibe Admin Ministério
+  - `test_pastor_local_nao_pode_editar_cargo_superior_por_url_direta` → 403
+  - `test_pastor_local_nao_pode_excluir_cargo_superior_por_url_direta` → 403
+  - `test_pastor_local_nao_pode_gerenciar_ocupantes_de_cargo_superior` → 403
+  - `test_pastor_local_form_criar_cargo_limita_grupos_disponiveis` — Dropdown sem opções superiores
+  - `test_pastor_regional_lista_cargos_filtra_grupos_superiores` — Regional filtra acima de PASTOR_REGIONAL
+
+### ✅ Validação
+- `manage.py check` → OK
+- `secretaria.tests.test_cargos_permissoes` → 5/5 OK (signal tests não afetados)
+- `secretaria.tests.test_cargos_autorizacao_views` → 6/6 OK
+- Migração `contas/0004_rename_grupos_ministeriais` → OK (applied)
+
+### 📚 Documentação
+- `docs/HIERARQUIA_PERMISSOES.md` — updated
+- `docs/CARGOS_USUARIOS.md` — updated
+- `docs/CARGOS_SISTEMA.md` — new section "Changes in v1.8.0"
+- `docs/GRUPOS_PERMISSOES.md` — updated
+- All docstrings in code updated to reflect new group names
+
+---
+
+## v1.7.1 — 25/03/2026
+🚀 **ATUALIZAÇÃO DE SISTEMA – FOCO EM ESTABILIDADE E USABILIDADE**
+
+### Melhorias e Correções
+- Correção no cadastro de pessoas: botões “Salvar” e “Salvar e Continuar” agora funcionam conforme esperado
+- Seleção e salvamento de tags corrigidos no cadastro de membros
+- Organização e correção dos arquivos JS/CSS (estáticos), evitando problemas de cache
+- Mensagens de feedback mais claras e navegação mais fluida
+- Outros pequenos ajustes e correções de bugs
+
+---
+
+## v1.7.0 — 16/03/2026
+🌟 **NOVO: Cadastro Público Modernizado, Validações Avançadas e Visual Profissional**
+
+### Novidades e Melhorias
+- Campo “Celular” adicionado ao cadastro de pessoas
+- Formulário público reorganizado: mais campos, máscaras automáticas, busca de endereço por CEP
+- Página de sucesso do cadastro público modernizada e responsiva
+- Validações robustas: CPF (dígito verificador), email (regex), máscaras, ViaCEP, feedback visual
+- Preview instantâneo da foto de perfil
+- Visual profissional e responsivo nas telas de pessoa
+- Documentação técnica e manual do usuário atualizados
+- Regras de negócio detalhadas para tipos/status de pessoa
+- Sistema híbrido de participantes para eventos
+- Refino visual e usabilidade em formulários, listas e detalhes
+- Ajustes de máscaras, feedbacks e UX em campos obrigatórios e navegação
+- Atualização do índice e organização da documentação
+
+### Itens validados
+- Cadastro público funcionando
+- Validações e máscaras ativas
+- Campo celular visível e salvo
+- Preview de foto funcionando
+- Documentação acessível
+- Listas, filtros e dashboards OK
+
+---
+
 ## v1.6.1 — 12/03/2026
 🎨 **MELHORIAS NO CADASTRO DE PESSOAS** - Data customizada de mudanças + Indicadores visuais de campos obrigatórios
 
@@ -1396,7 +1489,7 @@ Um usuário é considerado professor de uma turma se:
 #### Contas (7 views administrativas)
 - ✅ Criado novo decorator `@admin_ministerio_required` em `core/decorators.py`
 - ✅ Substituído padrão antigo `if not user_is_admin: return redirect('login')` 
-- ✅ Agora exibe página 403 customizada em vez de redirecionar para login
+- ✅ Agora exibe página 403.html customizada em vez de redirecionar para login
 - Views corrigidas: `reenviar_convite`, `lista_usuarios_org`, `enviar_convite`, `cancelar_convite`, `editar_papeis_usuario`, `enviar_link_reset_senha`, `alternar_status_usuario_org`
 
 #### Configuração (3 views de gestão ministerial)
@@ -1508,7 +1601,7 @@ Preparação para página de Ajuda/FAQ: Botão já disponível na barra de açõ
 ## v1.0.9 — 02/02/2026
 - **Novo Relatório Geral do Dia da EBD**: relatório consolidado com dados de todas as turmas, filtro inteligente por datas com lições cadastradas e comparativo automático com a aula anterior.
 - **Dashboard EBD melhorado**: card "Turmas" renomeado para "Turmas e Chamadas" com descrição mais clara; card de Relatórios reestruturado com tooltip e botões diretos para "Cargos e Funções" e "Relatório Geral do Dia".
-- **Correções na Chamada de Presença**: adicionada exibição de mensagens de sucesso/erro, garantido envio correto do campo data no POST e tratamento de erro quando formset é inválido.
+- **Correção na Chamada de Presença**: adicionada exibição de mensagens de sucesso/erro, garantido envio correto do campo data no POST e tratamento de erro quando formset é inválido.
 - **Correção de tipo Decimal**: resolvido erro de incompatibilidade entre float e Decimal no cálculo de ofertas do relatório.
 - **Filtros inteligentes**: relatório do dia filtra apenas turmas do ano letivo correto e com lições cadastradas na data selecionada.
 - **Ajustes de responsividade**: melhorias no layout da lista de cargos para telas menores.

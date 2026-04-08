@@ -1,6 +1,23 @@
 # c:\Gereigreja\contas\admin.py
 from django.contrib import admin
-from .models import Convite, NotaUsuario, ConsentimentoLGPD # Importe o modelo Convite
+from django.contrib.auth.admin import GroupAdmin
+from django.contrib.auth.models import Group
+from .models import Convite, NotaUsuario, ConsentimentoLGPD, PermissionRequest, HierarquiaPermissoes # Importe o modelo Convite
+from contas.constants import GRUPOS_TODOS
+
+
+admin.site.unregister(Group)
+
+
+@admin.register(Group)
+class GroupAdminProtegido(GroupAdmin):
+    """Permite editar permiss?es, mas protege nomes de grupos centralizados."""
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(super().get_readonly_fields(request, obj))
+        if obj and obj.name in GRUPOS_TODOS and 'name' not in readonly:        
+            readonly.append('name')
+        return readonly
 
 @admin.register(Convite)
 class ConviteAdmin(admin.ModelAdmin):

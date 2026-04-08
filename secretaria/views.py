@@ -46,6 +46,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -61,8 +62,9 @@ from django.utils.crypto import get_random_string
 from django.views.decorators.http import require_GET, require_POST
 
 # Third-party/local apps
-from core.decorators import check_permission, verificar_assinatura_valida, user_passes_test_or_403, secretaria_dashboard_required
-from core.utils import get_ministerio_or_error
+from core.decorators import check_permission, verificar_assinatura_valida, user_passes_test_or_403, secretaria_dashboard_required, inject_igrejas_permitidas
+from core.group_sync import recalcular_grupos_efetivos_usuario
+from core.utils import get_ministerio_or_error, get_request_scoped_churches, resolve_lideranca_scope
 from eventos.models import Evento
 from financeiro.models import Receitas
 from secretaria.utils import (
@@ -93,10 +95,9 @@ from .models import (
 # --- FUNÇÕES HELPER DE PERMISSÕES ---
 def pode_gerenciar_tags(user):
     """Permissão: pode criar/editar/excluir tags (secretaria/admin)."""
-    from contas.constants import SECRETARIO_LOCAL, LIDERANCA_SECRETARIA, PASTOR_LOCAL, ADMIN_MINISTERIO
-    grupos_permitidos = [ADMIN_MINISTERIO, LIDERANCA_SECRETARIA, PASTOR_LOCAL, SECRETARIO_LOCAL]
+    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
     try:
-        return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+        return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
     except Exception:
         return False
 
@@ -159,11 +160,11 @@ def pre_cadastro(request):
         - Redireciona para etapa detalhada após sucesso.
     """
     logger = logging.getLogger("django")
-    from financeiro.utils import get_allowed_churches_for_user
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     igreja_inicial_para_form = None
     # Sempre pega a igreja do seletor global, se disponível
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         igreja_inicial_para_form = request.igreja_ativa
     else:
         igreja_inicial_para_form = allowed_churches.first() if allowed_churches.exists() else None
@@ -193,8 +194,9 @@ def cadastro_detalhado(request, pessoa_id):
         - Só permite editar membros permitidos ao usuário.
         - Redireciona para etapa complementar após sucesso.
     """
-    pessoa = get_object_or_404(Membro, pk=pessoa_id)
-    allowed_churches = get_allowed_churches_for_membros(request.user)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    pessoa = get_object_or_404(Membro, pk=pessoa_id, igreja__in=allowed_churches)
     igreja_inicial = getattr(request, 'igreja_ativa', None)
     if request.method == 'POST':
         form = MembroForm(request.POST, instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
@@ -221,8 +223,9 @@ def cadastro_complementar(request, pessoa_id):
         - Só permite editar membros permitidos ao usuário.
         - Redireciona para lista de membros após sucesso.
     """
-    pessoa = get_object_or_404(Membro, pk=pessoa_id)
-    allowed_churches = get_allowed_churches_for_membros(request.user)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    pessoa = get_object_or_404(Membro, pk=pessoa_id, igreja__in=allowed_churches)
     igreja_inicial = getattr(request, 'igreja_ativa', None)
     if request.method == 'POST':
         form = MembroForm(request.POST, instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
@@ -246,7 +249,13 @@ def ver_acompanhamento_visita(request, acompanhamento_id):
     Retorno:
         HttpResponse: Renderiza o template de visualização do acompanhamento.
     """
-    acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    acompanhamento = get_object_or_404(
+        AcompanhamentoVisita,
+        pk=acompanhamento_id,
+        membro__igreja__in=allowed_churches,
+    )
     return render(request, 'secretaria/ver_acompanhamento_visita.html', {'acompanhamento': acompanhamento})
 
 
@@ -263,7 +272,13 @@ def editar_acompanhamento_visita(request, acompanhamento_id):
         - Só permite editar acompanhamentos existentes.
         - Redireciona para lista após salvar.
     """
-    acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    acompanhamento = get_object_or_404(
+        AcompanhamentoVisita,
+        pk=acompanhamento_id,
+        membro__igreja__in=allowed_churches,
+    )
     if request.method == 'POST':
         form = AcompanhamentoVisitaForm(request.POST, instance=acompanhamento)
         if form.is_valid():
@@ -287,7 +302,13 @@ def excluir_acompanhamento_visita(request, acompanhamento_id):
         - Só permite excluir acompanhamentos existentes.
         - Redireciona para lista após exclusão.
     """
-    acompanhamento = get_object_or_404(AcompanhamentoVisita, pk=acompanhamento_id)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    acompanhamento = get_object_or_404(
+        AcompanhamentoVisita,
+        pk=acompanhamento_id,
+        membro__igreja__in=allowed_churches,
+    )
     if request.method == 'POST':
         acompanhamento.delete()
         return redirect('secretaria:acompanhamentos_visita')
@@ -295,10 +316,14 @@ def excluir_acompanhamento_visita(request, acompanhamento_id):
 
 # --- VIEW PARA ESCOLHER PESSOA PARA REGISTRAR ACOMPANHAMENTO ---
 @login_required
+@user_passes_test_or_403(has_membro_view_permission)
 def escolher_pessoa_para_acompanhamento(request):
+    """Escolhe pessoa para registrar acompanhamento, filtrando por igrejas permitidas."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     nome = request.GET.get('nome', '').strip()
     tipo_pessoa_id = request.GET.get('tipo_pessoa')
-    qs = Membro.objects.select_related('tipo_pessoa').all()
+    qs = Membro.objects.select_related('tipo_pessoa').filter(igreja__in=allowed_churches)
     if nome:
         qs = qs.filter(nome__icontains=nome)
     if tipo_pessoa_id:
@@ -366,6 +391,7 @@ def excluir_tag(request, tag_id):
 
 @login_required
 @verificar_assinatura_valida
+@user_passes_test_or_403(has_membro_view_permission)
 def lista_acompanhamentos_visita(request):
     """
     Listagem geral de acompanhamentos de visita com filtros padrão.
@@ -377,8 +403,11 @@ def lista_acompanhamentos_visita(request):
         - Permite filtrar por nome, tipo de pessoa, tipo de contato, datas e igreja.
         - Usa select_related para otimizar queries e evitar N+1.
         - Ordena por data decrescente.
+        - Filtra apenas acompanhamentos de igrejas permitidas para o usuário.
     """
-    qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel', 'membro__tipo_pessoa').all()
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel', 'membro__tipo_pessoa').filter(membro__igreja__in=allowed_churches)
     tipos = TipoPessoa.objects.all().order_by('nome')
     nome = request.GET.get('nome', '').strip()
     tipo_pessoa_id = request.GET.get('tipo_pessoa')
@@ -420,11 +449,78 @@ User = get_user_model()
 
 def is_admin_or_pastor(user):
     """Permissão: é superuser ou pertence a grupos administrativos/pastorais."""
-    grupos_permitidos = ["Pastor", "Administrador", ADMIN_MINISTERIO, PASTOR_REGIONAL]
+    from contas.constants import user_has_permission_level_or_higher, PASTOR_REGIONAL
     try:
-        return user.is_superuser or user.groups.filter(name__in=grupos_permitidos).exists()
+        return user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
     except Exception:
         return False
+
+
+def is_admin_or_pastor_local(user):
+    """Permissão local para cargos: Admin, Pastor Regional ou Pastor Local."""
+    from contas.constants import user_has_permission_level_or_higher, PASTOR_LOCAL
+    try:
+        return user_has_permission_level_or_higher(user, PASTOR_LOCAL)
+    except Exception:
+        return False
+
+
+def _nomes_grupos_permitidos_para_cargos(user):
+    """Retorna nomes de grupos permitidos no módulo de cargos para o usuário.
+
+    None = sem restrição por grupo (apenas Admin Ministério).
+    Caso contrário, retorna o conjunto de grupos a partir do nível do usuário.
+    """
+    from contas.constants import (
+        ADMIN_MINISTERIO,
+        HIERARQUIA_GRUPOS,
+        PASTOR_LOCAL,
+        PASTOR_REGIONAL,
+        user_has_permission_level_or_higher,
+    )
+
+    if user_has_permission_level_or_higher(user, ADMIN_MINISTERIO):
+        return None
+
+    if user_has_permission_level_or_higher(user, PASTOR_REGIONAL):
+        try:
+            idx_regional = HIERARQUIA_GRUPOS.index(PASTOR_REGIONAL)
+        except ValueError:
+            return set()
+        return set(HIERARQUIA_GRUPOS[idx_regional:])
+
+    if user_has_permission_level_or_higher(user, PASTOR_LOCAL):
+        try:
+            idx_local = HIERARQUIA_GRUPOS.index(PASTOR_LOCAL)
+        except ValueError:
+            return set()
+        return set(HIERARQUIA_GRUPOS[idx_local:])
+
+    return set()
+
+
+def _filtrar_cargos_por_escopo_usuario(user, cargos_qs):
+    """Restringe cargos visíveis por escopo hierárquico quando necessário."""
+    grupos_permitidos = _nomes_grupos_permitidos_para_cargos(user)
+    if grupos_permitidos is None:
+        return cargos_qs
+    if not grupos_permitidos:
+        return cargos_qs.none()
+    return cargos_qs.filter(
+        Q(grupo_permissao__isnull=True) | Q(grupo_permissao__name__in=grupos_permitidos)
+    )
+
+
+def _cargo_dentro_escopo_usuario(user, cargo):
+    """Valida se o cargo está dentro do escopo permitido para o usuário."""
+    grupos_permitidos = _nomes_grupos_permitidos_para_cargos(user)
+    if grupos_permitidos is None:
+        return True
+    if not grupos_permitidos:
+        return False
+    if cargo.grupo_permissao_id is None:
+        return True
+    return cargo.grupo_permissao.name in grupos_permitidos
 
 # --- AUTOCOMPLETE DE NOMES DE MEMBROS/VISITANTES ---
 @login_required
@@ -445,34 +541,28 @@ def autocomplete_nome(request):
     return JsonResponse({'results': results})
 # --- LISTA DE VISITANTES (usando membros com tipo_pessoa=Visitante) ---
 
+def _membros_queryset_por_escopo(request):
+    """Retorna queryset base de pessoas respeitando igreja_ativa e igrejas_permitidas."""
+    if request.user.is_superuser:
+        return Membro.objects.all()
+
+    igrejas_permitidas = getattr(request, 'igrejas_permitidas', Igreja.objects.none())
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+
+    if igreja_ativa:
+        if igrejas_permitidas.filter(pk=igreja_ativa.pk).exists():
+            return Membro.objects.filter(igreja=igreja_ativa)
+        return Membro.objects.none()
+
+    return Membro.objects.filter(igreja__in=igrejas_permitidas)
+
 @login_required
+@inject_igrejas_permitidas
 def lista_visitantes(request):
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '')
     igreja_id = request.GET.get('igreja')
-    visitantes = Membro.objects.filter(tipo_pessoa__nome__iexact='Visitante')
-    # Aplicar escopo de igreja/ministerio similar ao usado em `lista_membros`.
-    # Sem esse escopo, visitantes registrados em outras igrejas (ex.: testes) aparecem para todos os usuários.
-    try:
-        # from secretaria.utils import get_allowed_churches_for_membros, is_admin_org  # Already imported at top if needed
-        # from core.utils import get_ministerio_or_error  # Already imported at top if needed
-        ministerio = get_ministerio_or_error(request)
-        allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-        if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
-            visitantes = visitantes.filter(igreja=request.igreja_ativa)
-        elif allowed_churches.exists():
-            visitantes = visitantes.filter(igreja__in=allowed_churches)
-        elif is_admin_org(request.user):
-            visitantes = visitantes.filter(igreja__ministerio=ministerio)
-        else:
-            visitantes = Membro.objects.none()
-    except Exception as e:
-        # Em caso de erro inesperado, logar e retornar nenhum visitante para evitar vazamento de dados
-        try:
-            logger.exception('Erro ao filtrar visitantes por igreja: %s', e)
-        except Exception:
-            pass
-        visitantes = Membro.objects.none()
+    visitantes = _membros_queryset_por_escopo(request).filter(tipo_pessoa__nome__iexact='Visitante')
     if query:
         visitantes = visitantes.filter(
             Q(nome__icontains=query) | Q(telefone__icontains=query) | Q(email__icontains=query)
@@ -493,12 +583,20 @@ def lista_visitantes(request):
 
     igreja_selecionada = str(igreja_id) if igreja_id else (str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else '0')
 
+    if request.igreja_ativa:
+        scope_label_visitantes = f"Igreja: {request.igreja_ativa.nome_igreja}"
+    else:
+        _igrejas_perm = getattr(request, 'igrejas_permitidas', None)
+        _n_v = _igrejas_perm.count() if _igrejas_perm is not None else 0
+        scope_label_visitantes = f"Consolidado ({_n_v} {'igrejas' if _n_v != 1 else 'igreja'})" if _n_v > 0 else "Consolidado"
+
     context = {
         'visitantes': visitantes_page,
         'query': query,
         'status': status,
         'igreja_id': igreja_id,
         'igreja_selecionada': igreja_selecionada,
+        'scope_label': scope_label_visitantes,
         'titulo_pagina': 'Lista de Visitantes',
         'paginator': paginator,
         'page_obj': visitantes_page,
@@ -559,7 +657,7 @@ def buscar_visitantes(request):
                     else:
                         # If it's an in-memory iterable (list/tuple), ensure the active church is included
                         try:
-                            if request.igreja_ativa not in allowed_churches:
+                            if all(getattr(ig, 'pk', None) != request.igreja_ativa.pk for ig in allowed_churches):
                                 allowed_churches = list(allowed_churches) + [request.igreja_ativa]
                         except Exception:
                             # As a last resort, make a QuerySet that contains only the active church
@@ -974,7 +1072,9 @@ def ajax_registrar_presenca_evento(request):
 
 @login_required
 def registrar_acompanhamento_visita(request, membro_id):
-    membro = get_object_or_404(Membro, pk=membro_id)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
     if request.method == 'POST':
         form = AcompanhamentoVisitaForm(request.POST)
         if form.is_valid():
@@ -1016,10 +1116,12 @@ def registrar_acompanhamento_visita(request, membro_id):
 ## Imports above
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor_local)
 def gerenciar_ocupantes(request, cargo_id):
     # Busca o cargo pelo ID recebido na URL
     cargo = get_object_or_404(Cargo, id=cargo_id)
+    if not _cargo_dentro_escopo_usuario(request.user, cargo):
+        raise PermissionDenied('Você não pode gerenciar ocupantes deste cargo.')
 
     # Lista de membros ou obreiros ATIVOS (para o select de adicionar)
     membros = list(Membro.objects.filter(
@@ -1101,70 +1203,121 @@ def gerenciar_ocupantes(request, cargo_id):
             'membros': membros,  # Adiciona a lista de membros para o JS do template
             'historico_ocupantes': historico_ocupantes,
         })
+
+
+@login_required
+@user_passes_test_or_403(is_admin_or_pastor_local)
+@verificar_assinatura_valida
 def excluir_cargo(request, cargo_id):
     cargo = get_object_or_404(Cargo, id=cargo_id)
-    ocupantes = MembroCargo.objects.filter(cargo=cargo)
+    if not _cargo_dentro_escopo_usuario(request.user, cargo):
+        raise PermissionDenied('Você não pode excluir este cargo.')
+    ocupantes = MembroCargo.objects.filter(cargo=cargo).select_related('membro')
+
+    if request.method == 'POST':
+        if ocupantes.exists():
+            messages.error(request, 'Este cargo possui vínculos de ocupação e não pode ser excluído.')
+            return redirect('secretaria:excluir_cargo', cargo_id=cargo.id)
+
+        cargo.delete()
+        messages.success(request, 'Cargo excluído com sucesso!')
+        return redirect('secretaria:lista_cargos')
+
+    return render(request, 'secretaria/excluir_cargo.html', {'cargo': cargo, 'ocupantes': ocupantes})
 
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor_local)
+@verificar_assinatura_valida
 def criar_cargo(request):
+    grupos_permitidos = _nomes_grupos_permitidos_para_cargos(request.user)
     if request.method == 'POST':
         form = CargoForm(request.POST)
+        if 'grupo_permissao' in form.fields and grupos_permitidos is not None:
+            form.fields['grupo_permissao'].queryset = Group.objects.filter(name__in=grupos_permitidos).order_by('name')
         if form.is_valid():
             form.save()
             messages.success(request, 'Cargo criado com sucesso!')
             return redirect('secretaria:lista_cargos')
     else:
         form = CargoForm()
+        if 'grupo_permissao' in form.fields and grupos_permitidos is not None:
+            form.fields['grupo_permissao'].queryset = Group.objects.filter(name__in=grupos_permitidos).order_by('name')
     return render(request, 'secretaria/criar_cargo.html', {'form': form})
 
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor_local)
+@verificar_assinatura_valida
 def editar_cargo(request, cargo_id):
     cargo = get_object_or_404(Cargo, id=cargo_id)
+    if not _cargo_dentro_escopo_usuario(request.user, cargo):
+        raise PermissionDenied('Você não pode editar este cargo.')
+
+    grupos_permitidos = _nomes_grupos_permitidos_para_cargos(request.user)
     if request.method == 'POST':
         form = CargoForm(request.POST, instance=cargo)
+        if 'grupo_permissao' in form.fields and grupos_permitidos is not None:
+            form.fields['grupo_permissao'].queryset = Group.objects.filter(name__in=grupos_permitidos).order_by('name')
         if form.is_valid():
             form.save()
             messages.success(request, 'Cargo atualizado com sucesso!')
             return redirect('secretaria:lista_cargos')
     else:
         form = CargoForm(instance=cargo)
+        if 'grupo_permissao' in form.fields and grupos_permitidos is not None:
+            form.fields['grupo_permissao'].queryset = Group.objects.filter(name__in=grupos_permitidos).order_by('name')
     return render(request, 'secretaria/editar_cargo.html', {'form': form, 'cargo': cargo})
 
 
-# --- VIEW: LISTA DE CARGOS ---
-
-
-
-# --- NOVA VIEW: Lista deCargo (usando novos modelos) ---
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
-
-
+@user_passes_test_or_403(is_admin_or_pastor_local)
 @verificar_assinatura_valida
 def lista_cargos(request):
-    # from django.contrib import messages  # Already imported at top if needed
+    nome_cargo = request.GET.get('nome_cargo', '').strip()
+    grupo_permissao_id = request.GET.get('grupo_permissao', '').strip()
+    ocupante = request.GET.get('ocupante', '').strip()
+
     cargos = Cargo.objects.all().prefetch_related('membrocargo_set__membro', 'grupo_permissao')
+    cargos = _filtrar_cargos_por_escopo_usuario(request.user, cargos)
+
+    if nome_cargo:
+        cargos = cargos.filter(nome__icontains=nome_cargo)
+
+    if grupo_permissao_id:
+        cargos = cargos.filter(grupo_permissao_id=grupo_permissao_id)
+
+    if ocupante:
+        cargos = cargos.filter(
+            membrocargo__data_fim__isnull=True,
+            membrocargo__membro__nome__icontains=ocupante,
+        ).distinct()
+
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        # Filtra ocupantes dos cargos pela igreja ativa
         for cargo in cargos:
-            cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro and mc.membro.igreja_id == request.igreja_ativa.id]
-            # Define a igreja do cargo como a igreja ativa
+            cargo.ocupantes = [
+                mc.membro for mc in cargo.membrocargo_set.all()
+                if mc.membro and mc.data_fim is None and mc.membro.igreja_id == request.igreja_ativa.id
+            ]
             cargo.igreja = request.igreja_ativa
     else:
         for cargo in cargos:
-            cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro]
-            # Tenta pegar a igreja do primeiro ocupante, se existir
+            cargo.ocupantes = [mc.membro for mc in cargo.membrocargo_set.all() if mc.membro and mc.data_fim is None]
             cargo.igreja = cargo.ocupantes[0].igreja if cargo.ocupantes else None
+
     igreja_selecionada = str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else '0'
+    grupos_permitidos = _nomes_grupos_permitidos_para_cargos(request.user)
+    grupos_permissao_qs = Group.objects.order_by('name')
+    if grupos_permitidos is not None:
+        grupos_permissao_qs = grupos_permissao_qs.filter(name__in=grupos_permitidos)
+
     context = {
-        'cargos': cargos,
+        'cargos': cargos.order_by('nome'),
+        'grupos_permissao': grupos_permissao_qs,
         'igreja_selecionada': igreja_selecionada,
+        'scope_label': f'Igreja: {request.igreja_ativa.nome_igreja}' if hasattr(request, 'igreja_ativa') and request.igreja_ativa else None,
     }
     return render(request, 'secretaria/lista_cargos.html', context)
 # --- LINHA DO TEMPO DOS MEMBROS ---
@@ -1278,11 +1431,11 @@ def cadastrar_visitante(request):
                 except StatusPessoa.DoesNotExist:
                     messages.error(request, "Status 'Ativo' não encontrado. Cadastre o status primeiro.")
                     return redirect('secretaria:lista_visitantes')
-                if not is_admin_org(request.user) and visitante.igreja not in allowed_churches:
+                if not is_admin_org(request.user) and not allowed_churches.filter(pk=visitante.igreja_id).exists():
                     messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                 else:
                     visitante.save(user=request.user)
-                    messages.success(request, f"Visitante '{visitante.nome}' cadastrado com sucesso!")
+                    messages.success(request, f"Visitante '{visitante.nome}' cadastrado com sucesso.")
                     # Se a janela foi aberta a partir da recepção, não redirecionamos: retornamos o template com dados do visitante
                     if request.GET.get('opener') == 'recepcao':
                         import json
@@ -1306,7 +1459,7 @@ def cadastrar_visitante(request):
         else:
             messages.error(request, "Erro ao cadastrar visitante. Verifique os campos.")
     else:
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
             igreja_inicial_para_form = request.igreja_ativa
         elif allowed_churches.count() == 1:
             igreja_inicial_para_form = allowed_churches.first()
@@ -1902,43 +2055,43 @@ from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
 
 
 @login_required
-def index(request):
-    if request.user.is_superuser:
-        return redirect('admin:index')
 
-    if request.user.groups.filter(name=MEMBRO_COMUM).exists() and not request.user.is_staff:
+def index(request):
+
+    # Permissão: redireciona membros comuns usando helper centralizado
+    from contas.constants import user_has_permission_level_or_higher, MEMBRO_COMUM
+    if user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
+    
+    # Proteção extra: caso ministerio seja None (não deveria acontecer)
+    if not ministerio:
+        from django.contrib import messages
+        messages.error(request, "Seu perfil não está associado a nenhum ministério. Entre em contato com o administrador.")
+        return redirect('core:index')
+    
     allowed_churches_secretaria = get_allowed_churches_for_membros(request.user, ministerio)
-    titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
+    igrejas_filtro = get_request_scoped_churches(request, allowed_churches_secretaria)
+    if request.igreja_ativa and allowed_churches_secretaria.filter(pk=request.igreja_ativa.pk).exists():
+        titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
+    elif igrejas_filtro.exists():
+        titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia} (Consolidado)"
+    else:
+        titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
     from secretaria.models import Membro
     membros_para_relatorios = Membro.objects.none()
     
     # Variável para verificar se existem PESSOAS cadastradas (qualquer tipo/status)
     total_pessoas_igreja = 0
 
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-        # Conta TODAS as pessoas da igreja (para empty state correto)
-        total_pessoas_igreja = Membro.objects.filter(igreja=request.igreja_ativa).count()
-        
-        # Filtra apenas membros ativos para os relatórios
+    if igrejas_filtro.exists():
+        total_pessoas_igreja = Membro.objects.filter(igreja__in=igrejas_filtro).count()
         membros_para_relatorios = Membro.objects.filter(
-            igreja=request.igreja_ativa,
+            igreja__in=igrejas_filtro,
             tipo_pessoa__nome__iexact="Membro",
             status_pessoa__nome__iexact="Ativo"
         )
-        titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
-    elif allowed_churches_secretaria.exists():
-        # Conta TODAS as pessoas das igrejas permitidas
-        total_pessoas_igreja = Membro.objects.filter(igreja__in=allowed_churches_secretaria).count()
-        
-        membros_para_relatorios = Membro.objects.filter(
-            igreja__in=allowed_churches_secretaria,
-            tipo_pessoa__nome__iexact="Membro",
-            status_pessoa__nome__iexact="Ativo"
-        )
-        titulo_contextual += " (Consolidado)"
     elif is_admin_org(request.user):
         # Conta TODAS as pessoas do ministério
         total_pessoas_igreja = Membro.objects.filter(igreja__ministerio=ministerio).count()
@@ -1952,8 +2105,8 @@ def index(request):
 
     # Gráficos e cards
     membros_base_para_grafico_status = (
-        Membro.objects.filter(igreja=request.igreja_ativa) if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria
-        else Membro.objects.filter(igreja__in=allowed_churches_secretaria) if allowed_churches_secretaria.exists()
+        Membro.objects.filter(igreja__in=igrejas_filtro)
+        if igrejas_filtro.exists()
         else Membro.objects.filter(igreja__ministerio=ministerio) if is_admin_org(request.user)
         else Membro.objects.none()
     )
@@ -2012,7 +2165,7 @@ def index(request):
     faixa_etaria_data = [{'faixa_etaria': k, 'total': v} for k, v in faixas.items()]
 
     # Total de pessoas cadastradas (todos os tipos)
-    total_pessoas = Membro.objects.all().count()
+    total_pessoas = Membro.objects.filter(igreja__in=igrejas_filtro).count() if igrejas_filtro.exists() else 0
     # Total de membros ativos (apenas tipo 'Membro', exceto inativos)
     total_membros_ativos = membros_para_relatorios.filter(tipo_pessoa__nome__iexact='Membro').count()
 
@@ -2142,10 +2295,8 @@ def index(request):
     from django.utils import timezone
     hoje_agora = timezone.now()
     eventos_qs = None
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-        eventos_qs = Evento.objects.filter(igreja=request.igreja_ativa, data_inicio__gte=hoje_agora)
-    elif allowed_churches_secretaria.exists():
-        eventos_qs = Evento.objects.filter(igreja__in=allowed_churches_secretaria, data_inicio__gte=hoje_agora)
+    if igrejas_filtro.exists():
+        eventos_qs = Evento.objects.filter(igreja__in=igrejas_filtro, data_inicio__gte=hoje_agora)
     elif is_admin_org(request.user):
         eventos_qs = Evento.objects.filter(igreja__ministerio=ministerio, data_inicio__gte=hoje_agora)
     else:
@@ -2247,7 +2398,8 @@ def index(request):
     pendentes_count = None
     igreja_selecionada = getattr(request, 'igreja_ativa', None)
     pode_ver_link = False
-    if request.user.is_superuser or request.user.groups.filter(name=SECRETARIO_LOCAL).exists():
+    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
+    if user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL):
         pode_ver_link = True
         if igreja_selecionada:
             link_cadastro = f"/secretaria/cadastro/igreja/{igreja_selecionada.pk}/"
@@ -2266,6 +2418,14 @@ def index(request):
     context['link_cadastro'] = link_cadastro
     context['pendentes_count'] = pendentes_count
     context['pode_ver_link'] = pode_ver_link
+    # scope_label para badge de escopo no template
+    if request.igreja_ativa and allowed_churches_secretaria.filter(pk=request.igreja_ativa.pk).exists():
+        context['scope_label'] = f"Igreja: {request.igreja_ativa.nome_igreja}"
+    elif igrejas_filtro.exists():
+        _n_idx = igrejas_filtro.count()
+        context['scope_label'] = f"Consolidado — {ministerio.nome_fantasia} ({_n_idx} {'igrejas' if _n_idx != 1 else 'igreja'})"
+    else:
+        context['scope_label'] = None
     return render(request, 'secretaria/index.html', context)
 
 
@@ -2301,6 +2461,7 @@ def salvar_nota_usuario(request):
 
 @login_required
 @secretaria_dashboard_required
+@inject_igrejas_permitidas
 def dashboard(request):
     from datetime import date, timedelta
     hoje_data = date.today()
@@ -2309,56 +2470,31 @@ def dashboard(request):
     if request.user.is_superuser:
         return redirect('admin:index')
 
-    if request.user.groups.filter(name=MEMBRO_COMUM).exists() and not request.user.is_staff:
+    # Permissão: redireciona membros comuns usando helper centralizado
+    from contas.constants import user_has_permission_level_or_higher, MEMBRO_COMUM
+    if user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
-    allowed_churches_secretaria = get_allowed_churches_for_membros(request.user, ministerio)
-    titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia}"
-    membros_para_relatorios = Membro.objects.none()
     
-    # Variável para verificar se existem PESSOAS cadastradas (qualquer tipo/status)
-    total_pessoas_igreja = 0
-
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-        # Conta TODAS as pessoas da igreja (para empty state correto)
-        total_pessoas_igreja = Membro.objects.filter(igreja=request.igreja_ativa).count()
-        
-        # Filtra apenas membros ativos para os relatórios
-        membros_para_relatorios = Membro.objects.filter(
-            igreja=request.igreja_ativa,
-            tipo_pessoa__nome__iexact="Membro",
-            status_pessoa__nome__iexact="Ativo"
-        )
+    igrejas_filtro = get_request_scoped_churches(request, request.igrejas_permitidas)
+    if request.igreja_ativa and request.igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
         titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
-    elif allowed_churches_secretaria.exists():
-        # Conta TODAS as pessoas das igrejas permitidas
-        total_pessoas_igreja = Membro.objects.filter(igreja__in=allowed_churches_secretaria).count()
-        
-        membros_para_relatorios = Membro.objects.filter(
-            igreja__in=allowed_churches_secretaria,
-            tipo_pessoa__nome__iexact="Membro",
-            status_pessoa__nome__iexact="Ativo"
-        )
-        titulo_contextual += " (Consolidado)"
-    elif is_admin_org(request.user):
-        # Conta TODAS as pessoas do ministério
-        total_pessoas_igreja = Membro.objects.filter(igreja__ministerio=ministerio).count()
-        
-        membros_para_relatorios = Membro.objects.filter(
-            igreja__ministerio=ministerio,
-            tipo_pessoa__nome__iexact="Membro",
-            status_pessoa__nome__iexact="Ativo"
-        )
-        titulo_contextual += " (Ministério)"
-
-    # Gráficos e cards
-    membros_base_para_grafico_status = (
-        Membro.objects.filter(igreja=request.igreja_ativa) if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria
-        else Membro.objects.filter(igreja__in=allowed_churches_secretaria) if allowed_churches_secretaria.exists()
-        else Membro.objects.filter(igreja__ministerio=ministerio) if is_admin_org(request.user)
-        else Membro.objects.none()
+    else:
+        total_igrejas = igrejas_filtro.count()
+        titulo_contextual = f"Visão Geral - {ministerio.nome_fantasia} ({total_igrejas} igrejas)"
+    
+    # Todas as queries agora usam igrejas_filtro (que pode ser 1 igreja ou várias)
+    total_pessoas_igreja = Membro.objects.filter(igreja__in=igrejas_filtro).count()
+    
+    membros_para_relatorios = Membro.objects.filter(
+        igreja__in=igrejas_filtro,
+        tipo_pessoa__nome__iexact="Membro",
+        status_pessoa__nome__iexact="Ativo"
     )
+
+    # ✅ Gráficos e cards - uso de igrejas_filtro
+    membros_base_para_grafico_status = Membro.objects.filter(igreja__in=igrejas_filtro)
 
     status_data_qs = membros_base_para_grafico_status.values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome')
     status_data_list = [{'status': item['status_pessoa__nome'], 'total': item['total']} for item in status_data_qs if item['status_pessoa__nome']]
@@ -2522,14 +2658,9 @@ def dashboard(request):
 
     # Pie Chart: distribuição dinâmica de membros por tipo_pessoa
     tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-        membros_para_grafico_tipo = Membro.objects.filter(igreja=request.igreja_ativa)
-    elif allowed_churches_secretaria.exists():
-        membros_para_grafico_tipo = Membro.objects.filter(igreja__in=allowed_churches_secretaria)
-    elif is_admin_org(request.user):
-        membros_para_grafico_tipo = Membro.objects.filter(igreja__ministerio=ministerio)
-    else:
-        membros_para_grafico_tipo = Membro.objects.none()
+    
+    # ✅ Uso de igrejas_filtro (respeita igreja selecionada)
+    membros_para_grafico_tipo = Membro.objects.filter(igreja__in=igrejas_filtro)
 
     membros_por_tipo = (
         membros_para_grafico_tipo.values('tipo_pessoa__nome')
@@ -2545,13 +2676,10 @@ def dashboard(request):
 
     # --- Participação por Categoria de Evento ---
     from eventos.models import ParticipacaoEvento, Evento
-    eventos_ids = []
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-        eventos_ids = list(Evento.objects.filter(igreja=request.igreja_ativa).values_list('id', flat=True))
-    elif allowed_churches_secretaria.exists():
-        eventos_ids = list(Evento.objects.filter(igreja__in=allowed_churches_secretaria).values_list('id', flat=True))
-    elif is_admin_org(request.user):
-        eventos_ids = list(Evento.objects.filter(igreja__ministerio=ministerio).values_list('id', flat=True))
+    
+    # ✅ Uso de igrejas_filtro (respeita igreja selecionada)
+    eventos_ids = list(Evento.objects.filter(igreja__in=igrejas_filtro).values_list('id', flat=True))
+    
     participacoes_qs = ParticipacaoEvento.objects.filter(status__in=["CONFIRMADO", "PRESENTE", "AUSENTE"], evento_id__in=eventos_ids)
     participacoes_por_categoria = (
         participacoes_qs.values('evento__tipo')
@@ -2572,31 +2700,14 @@ def dashboard(request):
     total_membros = total_pessoas_igreja
     # Total de visitantes
     total_visitantes = membros_base_para_grafico_status.filter(tipo_pessoa__nome__iexact='Visitante').count()
-    # Total de cargos (filtrado por igreja) - Cargo não tem campo igreja, vai via membrocargo__membro__igreja
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches_secretaria:
-        total_cargos = Cargo.objects.filter(membrocargo__membro__igreja=request.igreja_ativa).distinct().count()
-        total_grupos_casa = GrupoCasa.objects.filter(igreja=request.igreja_ativa).count()
-        total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja=request.igreja_ativa).count()
-        total_tags = Tag.objects.filter(pessoas__igreja=request.igreja_ativa).distinct().count()
-        total_associacoes = Membro.objects.filter(usuario__isnull=False, igreja=request.igreja_ativa).count()
-    elif allowed_churches_secretaria.exists():
-        total_cargos = Cargo.objects.filter(membrocargo__membro__igreja__in=allowed_churches_secretaria).distinct().count()
-        total_grupos_casa = GrupoCasa.objects.filter(igreja__in=allowed_churches_secretaria).count()
-        total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja__in=allowed_churches_secretaria).count()
-        total_tags = Tag.objects.filter(pessoas__igreja__in=allowed_churches_secretaria).distinct().count()
-        total_associacoes = Membro.objects.filter(usuario__isnull=False, igreja__in=allowed_churches_secretaria).count()
-    elif is_admin_org(request.user):
-        total_cargos = Cargo.objects.filter(membrocargo__membro__igreja__ministerio=ministerio).distinct().count()
-        total_grupos_casa = GrupoCasa.objects.filter(igreja__ministerio=ministerio).count()
-        total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja__ministerio=ministerio).count()
-        total_tags = Tag.objects.filter(pessoas__igreja__ministerio=ministerio).distinct().count()
-        total_associacoes = Membro.objects.filter(usuario__isnull=False, igreja__ministerio=ministerio).count()
-    else:
-        total_cargos = 0
-        total_grupos_casa = 0
-        total_acompanhamentos = 0
-        total_tags = 0
-        total_associacoes = 0
+    
+    # ✅ Cards adicionais - uso de igrejas_filtro (respeita igreja selecionada)
+    total_cargos = Cargo.objects.filter(membrocargo__membro__igreja__in=igrejas_filtro).distinct().count()
+    total_grupos_casa = GrupoCasa.objects.filter(igreja__in=igrejas_filtro).count()
+    total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja__in=igrejas_filtro).count()
+    total_tags = Tag.objects.filter(pessoas__igreja__in=igrejas_filtro).distinct().count()
+    total_associacoes = Membro.objects.filter(usuario__isnull=False, igreja__in=igrejas_filtro).count()
+    
     # Total de relatórios (usando reuniões de membros como proxy)
     total_relatorios = membros_base_para_grafico_status.filter(tipo_pessoa__nome__in=['Membro', 'Obreiro'], status_pessoa__nome__in=['Ativo', 'Em Disciplina']).count()
 
@@ -2646,7 +2757,14 @@ def dashboard(request):
         'total_tags': total_tags,
         'total_associacoes': total_associacoes,
     }
-    # Removido bloco de debug dos dados JSON do dashboard
+    # scope_label para badge de escopo no template
+    if request.igreja_ativa and request.igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
+        context['scope_label'] = f"Igreja: {request.igreja_ativa.nome_igreja}"
+    elif igrejas_filtro.exists():
+        _n_db = igrejas_filtro.count()
+        context['scope_label'] = f"Consolidado — {ministerio.nome_fantasia} ({_n_db} {'igrejas' if _n_db != 1 else 'igreja'})"
+    else:
+        context['scope_label'] = None
     return render(request, 'secretaria/dashboard.html', context)
 
 
@@ -2657,7 +2775,7 @@ def lista_grupos_casa(request):
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
 
     qs = []
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+    if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         qs = GrupoCasa.objects.filter(igreja=request.igreja_ativa)
     elif allowed_churches.exists():
         qs = GrupoCasa.objects.filter(igreja__in=allowed_churches)
@@ -2701,7 +2819,7 @@ def agrupar_grupos_preview(request):
     from .models import Membro
     from .utils import agrupar_preview_for_queryset
 
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+    if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         people_qs = Membro.objects.filter(igreja=request.igreja_ativa)
     elif allowed_churches.exists():
         people_qs = Membro.objects.filter(igreja__in=allowed_churches)
@@ -2736,7 +2854,7 @@ def agrupar_grupos_apply(request):
     from .models import Membro
     from .utils import agrupar_preview_for_queryset, agrupar_apply_from_preview
 
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+    if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         people_qs = Membro.objects.filter(igreja=request.igreja_ativa)
     elif allowed_churches.exists():
         people_qs = Membro.objects.filter(igreja__in=allowed_churches)
@@ -2771,10 +2889,11 @@ def reagrupar_grupo_casa(request, grupo_id):
 
     # Verifica escopo
     try:
-        if not (request.igreja_ativa and request.igreja_ativa in allowed_churches) and allowed_churches.exists():
-            if grupo.igreja not in allowed_churches and not is_admin_org(request.user):
-                raise PermissionError('Sem permissão para reagrupar este grupo')
-    except PermissionError:
+        if not (request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists()) and allowed_churches.exists():
+            if not allowed_churches.filter(pk=grupo.igreja_id).exists() and not is_admin_org(request.user):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied('Sem permissão para reagrupar este grupo')
+    except PermissionDenied:
         raise Http404()
 
     from .models import Membro
@@ -2804,10 +2923,11 @@ def detalhe_grupo_casa(request, grupo_id):
     try:
         ministerio = get_ministerio_or_error(request)
         allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-        if not (request.igreja_ativa and request.igreja_ativa in allowed_churches) and allowed_churches.exists():
-            if grupo.igreja not in allowed_churches and not is_admin_org(request.user):
-                raise PermissionError('Sem permissão para acessar este grupo')
-    except PermissionError:
+        if not (request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists()) and allowed_churches.exists():
+            if not allowed_churches.filter(pk=grupo.igreja_id).exists() and not is_admin_org(request.user):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied('Sem permissão para acessar este grupo')
+    except PermissionDenied:
         raise Http404()
 
     membros = grupo.pessoas.all().select_related('tipo_pessoa', 'status_pessoa')
@@ -2877,7 +2997,7 @@ def criar_grupo_casa(request):
         if form.is_valid():
             grupo = form.save(commit=False)
             # determinar igreja alvo
-            if hasattr(request, 'igreja_ativa') and request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            if hasattr(request, 'igreja_ativa') and request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
                 grupo.igreja = request.igreja_ativa
             else:
                 # se só houver uma igreja permitida, usar ela
@@ -2914,10 +3034,11 @@ def editar_grupo_casa(request, grupo_id):
 
     # Verifica escopo: só permitir se o grupo pertence às igrejas permitidas do usuário
     try:
-        if not (request.igreja_ativa and request.igreja_ativa in allowed_churches) and allowed_churches.exists():
-            if grupo.igreja not in allowed_churches and not is_admin_org(request.user):
-                raise PermissionError('Sem permissão para editar este grupo')
-    except PermissionError:
+        if not (request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists()) and allowed_churches.exists():
+            if not allowed_churches.filter(pk=grupo.igreja_id).exists() and not is_admin_org(request.user):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied('Sem permissão para editar este grupo')
+    except PermissionDenied:
         raise Http404()
 
     if request.method == 'POST':
@@ -2926,7 +3047,7 @@ def editar_grupo_casa(request, grupo_id):
             grupo_editado = form.save(commit=False)
             # Permitir alteração de igreja somente se o usuário tiver permissão nessa igreja
             try:
-                if not is_admin_org(request.user) and getattr(grupo_editado, 'igreja', None) and grupo_editado.igreja not in allowed_churches:
+                if not is_admin_org(request.user) and getattr(grupo_editado, 'igreja', None) and not allowed_churches.filter(pk=grupo_editado.igreja_id).exists():
                     messages.error(request, 'Igreja selecionada inválida para sua permissão.')
                 else:
                     grupo_editado.save()
@@ -2948,20 +3069,11 @@ def editar_grupo_casa(request, grupo_id):
 
 
 @check_permission(has_membro_view_permission, login_url_name='login')
+@inject_igrejas_permitidas
 def lista_membros(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_membros(request.user)
-
-    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
-        membros_queryset = Membro.objects.filter(igreja=request.igreja_ativa)
-    elif allowed_churches.exists():
-        membros_queryset = Membro.objects.filter(igreja__in=allowed_churches)
-    elif is_admin_org(request.user): # Admin do Minist. sem igrejas no perfil e sem igreja ativa
-        membros_queryset = Membro.objects.filter(igreja__ministerio=ministerio)
-    else:
-        membros_queryset = Membro.objects.none()
-    # --- Fim Lógica de Filtragem Inicial ---
+    allowed_churches = request.igrejas_permitidas
+    membros_queryset = _membros_queryset_por_escopo(request)
 
     # Filtro por nome/apelido (busca parcial)
     nome_apelido = request.GET.get('nome_apelido')
@@ -2980,7 +3092,7 @@ def lista_membros(request): # noqa: E302
     # Filtro GET de igreja na página (só se nenhuma igreja ativa globalmente)
     igreja_id_get = request.GET.get('igreja')
     if igreja_id_get and not request.igreja_ativa:
-        if allowed_churches.filter(pk=igreja_id_get).exists() or is_admin_org(request.user):
+        if allowed_churches.filter(pk=igreja_id_get).exists():
             membros_queryset = membros_queryset.filter(igreja_id=igreja_id_get)
 
     from .models import TipoPessoa, StatusPessoa, Tag
@@ -3057,11 +3169,18 @@ def lista_membros(request): # noqa: E302
     can_edit = has_membro_edit_permission(request.user)
     igrejas_para_filtro_template = allowed_churches if not request.igreja_ativa else Igreja.objects.filter(pk=request.igreja_ativa.pk)
 
+    if request.igreja_ativa:
+        scope_label_membros = f"Igreja: {request.igreja_ativa.nome_igreja}"
+    else:
+        _n = allowed_churches.count()
+        scope_label_membros = f"Consolidado ({_n} {'igrejas' if _n != 1 else 'igreja'})" if _n > 0 else "Consolidado"
+
     context = {
         'membros': membros_page,
         'ministerio': ministerio,
         'query': query,
         'can_edit_membros': can_edit,
+        'scope_label': scope_label_membros,
         'titulo_pagina': f"Lista de Membros{': ' + request.igreja_ativa.nome_igreja if request.igreja_ativa else ' (Consolidado)'}",
         'igrejas_org': igrejas_para_filtro_template, # Para o filtro da página
         'igreja_selecionada': str(request.igreja_ativa.pk) if request.igreja_ativa else igreja_id_get,
@@ -3140,7 +3259,8 @@ def _get_navigation_context(membro_id, igreja_ativa):
 def detalhe_membro(request, membro_id):
     from contas.constants import SECRETARIO_LOCAL, PASTOR_LOCAL
     pode_aprovar = False
-    if request.user.is_superuser or request.user.groups.filter(name__in=[SECRETARIO_LOCAL, PASTOR_LOCAL]).exists():
+    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL, PASTOR_LOCAL
+    if user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL) or user_has_permission_level_or_higher(request.user, PASTOR_LOCAL):
         pode_aprovar = True
     """View para visualização readonly de um membro."""
     ministerio = get_ministerio_or_error(request)
@@ -3217,20 +3337,12 @@ def detalhe_membro(request, membro_id):
 
 
 @login_required
+@inject_igrejas_permitidas
 def imprimir_lista_membros(request):
     """View para impressão da lista de membros com filtros aplicados."""
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_membros(request.user)
-
-    # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
-        membros_queryset = Membro.objects.filter(igreja=request.igreja_ativa)
-    elif allowed_churches.exists():
-        membros_queryset = Membro.objects.filter(igreja__in=allowed_churches)
-    elif is_admin_org(request.user):
-        membros_queryset = Membro.objects.filter(igreja__ministerio=ministerio)
-    else:
-        membros_queryset = Membro.objects.none()
+    allowed_churches = request.igrejas_permitidas
+    membros_queryset = _membros_queryset_por_escopo(request)
 
     # Filtro por nome/apelido (busca parcial)
     nome_apelido = request.GET.get('nome_apelido')
@@ -3249,7 +3361,7 @@ def imprimir_lista_membros(request):
     # Filtro GET de igreja na página
     igreja_id_get = request.GET.get('igreja')
     if igreja_id_get and not request.igreja_ativa:
-        if allowed_churches.filter(pk=igreja_id_get).exists() or is_admin_org(request.user):
+        if allowed_churches.filter(pk=igreja_id_get).exists():
             membros_queryset = membros_queryset.filter(igreja_id=igreja_id_get)
 
     from .models import TipoPessoa, StatusPessoa, Tag
@@ -3381,7 +3493,7 @@ def editar_membro(request, membro_id): # noqa: E302
                 try:
                     membro_editado = form.save(commit=False)
                     # print(f"DEBUG POST - membro_editado.nascimento ANTES do save: {membro_editado.nascimento}, Tipo: {type(membro_editado.nascimento)}") # Removido para produção
-                    if not is_admin_org(request.user) and membro_editado.igreja not in allowed_churches:
+                    if not is_admin_org(request.user) and not allowed_churches.filter(pk=membro_editado.igreja_id).exists():
                         messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                    
                    
@@ -3445,7 +3557,11 @@ def editar_membro(request, membro_id): # noqa: E302
                         user_associado.save()
 
                         # 3. Atualizar grupos do User
-                        user_associado.groups.set(user_management_form.cleaned_data['grupos'])
+                        recalcular_grupos_efetivos_usuario(
+                            user_associado,
+                            grupos_manuais=user_management_form.cleaned_data['grupos'],
+                            grupos_editaveis=user_management_form.fields['grupos'].queryset,
+                        )
 
                         # 4. Criar ou obter PerfilUsuario e atualizar igrejas permitidas
                         perfil_associado, created = PerfilUsuario.objects.get_or_create(user=user_associado, defaults={'ministerio': ministerio})
@@ -3569,7 +3685,7 @@ def criar_membro(request): # noqa: E302
                 membro_editado = form.save(commit=False)
 
                 novo_membro = form.save(commit=False)
-                if not is_admin_org(request.user) and novo_membro.igreja not in allowed_churches:
+                if not is_admin_org(request.user) and not allowed_churches.filter(pk=novo_membro.igreja_id).exists():
                     messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                 else:
                     # Captura as datas de mudança customizadas (se fornecidas)
@@ -3593,7 +3709,7 @@ def criar_membro(request): # noqa: E302
         else:
              messages.error(request, "Erro ao cadastrar membro. Verifique os campos.")
     else:
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
             igreja_inicial_para_form = request.igreja_ativa
         elif allowed_churches.count() == 1:
             igreja_inicial_para_form = allowed_churches.first()
@@ -3696,7 +3812,7 @@ def ficha_membro_impressao(request, membro_id): # noqa: E302
 # --- FIM NOVA VIEW ---
 
 from secretaria.utils import is_secretaria_leader
-@check_permission(is_secretaria_leader, login_url_name='login') # Ajuste login_url_name se 'core:home' for diferente de 'login'
+@check_permission(is_secretaria_leader, login_url_name='login') # Usa helper centralizado para liderança secretaria
 def painel_lideranca_secretaria(request): # noqa: E302
     try:
         # Chama get_ministerio_or_error no início para validar o acesso à ministério
@@ -3718,100 +3834,15 @@ def painel_lideranca_secretaria(request): # noqa: E302
             })
 
 
-        # --- Lógica do Filtro de Igreja/Regional (similar ao financeiro) ---
-        churches_for_queries = None # Igrejas que serão usadas para buscar os dados
-        titulo_escopo_igreja = f"Consolidado - {ministerio_usuario.nome_fantasia}" 
-        ver_apenas_entidade_foco = False
-        
-        titulo_escopo_igreja = f"Consolidado - {ministerio_usuario.nome_fantasia}"
-        
-        # Para o dropdown de filtro na página (será ajustado abaixo)
+        escopo = resolve_lideranca_scope(request, ministerio_usuario, allowed_churches_base_secretaria)
+        churches_for_queries = escopo['churches_for_queries']
+        opcoes_filtro_pagina = escopo['opcoes_filtro_pagina']
+        igreja_id_filtro_selecionado_template_lider_sec = escopo['igreja_id_filtro_selecionado']
+        titulo_escopo_igreja = escopo['titulo_escopo_igreja']
+        label_opcao_all = escopo['label_opcao_all']
 
-        opcoes_filtro_pagina = allowed_churches_base_secretaria.order_by('nome_igreja')
-        igreja_id_filtro_selecionado_template_lider_sec = request.GET.get('igreja_filtro', '')
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches_base_secretaria:
-            igreja_em_foco_obj = request.igreja_ativa
-            
-            temp_pks_dropdown = {request.igreja_ativa.pk}
-            if hasattr(request.igreja_ativa, 'get_descendants'):
-                desc_dropdown_qs = request.igreja_ativa.get_descendants(include_self=False).filter(
-                    pk__in=allowed_churches_base_secretaria.values_list('pk', flat=True)
-                )
-                if desc_dropdown_qs.exists():
-                    temp_pks_dropdown.update(desc_dropdown_qs.values_list('pk', flat=True))
-            opcoes_filtro_pagina = Igreja.objects.filter(pk__in=list(temp_pks_dropdown)).order_by('nome_igreja')
-
-            if not igreja_id_filtro_selecionado_template_lider_sec: # Se filtro da página vazio, assume o global
-                igreja_id_filtro_selecionado_template_lider_sec = str(request.igreja_ativa.pk)
-            # Se o filtro da página é a própria igreja global
-
-
-            if igreja_id_filtro_selecionado_template_lider_sec == str(request.igreja_ativa.pk):
-                igreja_em_foco_obj = request.igreja_ativa
-                # Se o filtro GET da página é explicitamente a igreja global E ela tem descendentes, vemos SÓ ela
-
-                if request.GET.get('igreja_filtro') == str(request.igreja_ativa.pk) and \
-                   hasattr(request.igreja_ativa, 'get_descendants') and \
-                   request.igreja_ativa.get_descendants(include_self=False).filter(pk__in=allowed_churches_base_secretaria.values_list('pk', flat=True)).exists():
-                    ver_apenas_entidade_foco = True
-                    titulo_escopo_igreja = f"Apenas: {request.igreja_ativa.nome_igreja}"
-                else: # Filtro da página vazio ou igreja global é folha -> visão de rede
-                    ver_apenas_entidade_foco = False
-                    titulo_escopo_igreja = f"Rede: {request.igreja_ativa.nome_igreja}" if len(temp_pks_dropdown) > 1 else f"Igreja: {request.igreja_ativa.nome_igreja}"
-            else: # Filtro da página selecionou uma descendente específica
-                try:
-                    igreja_descendente_selecionada = opcoes_filtro_pagina.get(pk=igreja_id_filtro_selecionado_template_lider_sec)
-                    igreja_em_foco_obj = igreja_descendente_selecionada
-                    ver_apenas_entidade_foco = True
-                    titulo_escopo_igreja = f"Igreja: {igreja_descendente_selecionada.nome_igreja}"
-                    # id_selecionado_filtro_pagina já é o da descendente
-
-                except Igreja.DoesNotExist:
-                    igreja_id_filtro_selecionado_template_lider_sec = str(request.igreja_ativa.pk)
-                    igreja_em_foco_obj = request.igreja_ativa
-                    ver_apenas_entidade_foco = False
-                    titulo_escopo_igreja = f"Rede: {request.igreja_ativa.nome_igreja}" if len(temp_pks_dropdown) > 1 else f"Igreja: {request.igreja_ativa.nome_igreja}"
-        else: 
-            opcoes_filtro_pagina = allowed_churches_base_secretaria.order_by('nome_igreja')
-            if igreja_id_filtro_selecionado_template_lider_sec:
-                try:
-                    igreja_em_foco_obj = allowed_churches_base_secretaria.get(pk=igreja_id_filtro_selecionado_template_lider_sec)
-                    ver_apenas_entidade_foco = False 
-                    ver_apenas_entidade_foco = False 
-                    # Título será definido ao construir pks_to_include
-
-                except Igreja.DoesNotExist:
-                    messages.warning(request, "Igreja selecionada no filtro inválida. Mostrando consolidado.")
-                    igreja_id_filtro_selecionado_template_lider_sec = ''
-                    igreja_em_foco_obj = None
-                    titulo_escopo_igreja = f"Consolidado - {ministerio_usuario.nome_fantasia}"
-            else: 
-                igreja_em_foco_obj = None
-                igreja_id_filtro_selecionado_template_lider_sec = ''
-                titulo_escopo_igreja = f"Consolidado - {ministerio_usuario.nome_fantasia}"
-       
-        # --- Construir churches_for_queries e título final com base no foco e flag ---
-        if igreja_em_foco_obj:
-            if ver_apenas_entidade_foco:
-                churches_for_queries = Igreja.objects.filter(pk=igreja_em_foco_obj.pk)
-                # Título já deve estar como "Apenas:" ou "Igreja:"
-
-            else: 
-                pks_to_include = {igreja_em_foco_obj.pk}
-                if hasattr(igreja_em_foco_obj, 'get_descendants'):
-                    desc_qs = igreja_em_foco_obj.get_descendants(include_self=False).filter(
-                        pk__in=allowed_churches_base_secretaria.values_list('pk', flat=True)
-                    )
-                    if desc_qs.exists():
-                        pks_to_include.update(desc_qs.values_list('pk', flat=True))
-                churches_for_queries = Igreja.objects.filter(pk__in=list(pks_to_include), ministerio=ministerio_usuario)
-                if len(pks_to_include) > 1 and not ver_apenas_entidade_foco:
-                    titulo_escopo_igreja = f"Rede: {igreja_em_foco_obj.nome_igreja}"
-                elif not ver_apenas_entidade_foco:
-                    titulo_escopo_igreja = f"Igreja: {igreja_em_foco_obj.nome_igreja}"
-        else: 
-            churches_for_queries = allowed_churches_base_secretaria
-            # titulo_escopo_igreja já é "Consolidado - Ministério"
+        if escopo['filtro_invalido']:
+            messages.warning(request, "Igreja selecionada no filtro inválida. Mostrando consolidado.")
 
         if not churches_for_queries or not churches_for_queries.exists():
             messages.warning(request, "Nenhuma igreja corresponde aos filtros aplicados.")
@@ -3828,7 +3859,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
             igreja__in=churches_for_queries, 
             # status__considerar_ativo_relatorios=True # Lógica antiga
            
-            status_pessoa__considerar_ativo_relatorios=True, # Nova lógica
+            status_pessoa__isnull=False,
         ).count()
 
         from datetime import date, timedelta # Já importado no topo do arquivo
@@ -3836,7 +3867,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
         trinta_dias_atras_lider = hoje_data_lider - timedelta(days=30)
         novos_membros_rede_30_dias = Membro.objects.filter(
             igreja__in=churches_for_queries,
-            status_pessoa__considerar_ativo_relatorios=True, # Alterado
+            status_pessoa__isnull=False,
             data_entrada__gte=trinta_dias_atras_lider
         ).count()
 
@@ -3846,14 +3877,14 @@ def painel_lideranca_secretaria(request): # noqa: E302
 
         membros_por_status_qs = Membro.objects.filter(
             igreja__in=churches_for_queries,
-            status_pessoa__considerar_ativo_relatorios=True # Alterado
+            status_pessoa__isnull=False
         ).values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome') # Alterado
         grafico_membros_status_labels = [item['status_pessoa__nome'] if item['status_pessoa__nome'] else "Sem Status" for item in membros_por_status_qs]
         grafico_membros_status_valores = [item['total'] for item in membros_por_status_qs]
 
         membros_lideranca_ativos = Membro.objects.filter(
             igreja__in=churches_for_queries,
-            status_pessoa__considerar_ativo_relatorios=True # Alterado
+            status_pessoa__isnull=False
         )
         genero_data_lider_qs = membros_lideranca_ativos.values('genero').annotate(total=Count('chave'))
         genero_map_lider = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
@@ -3905,6 +3936,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
 
         context = {
             'titulo_dashboard': f"Liderança Secretaria - {titulo_escopo_igreja}", # Usar o título do escopo
+            'scope_label': titulo_escopo_igreja,
             'total_membros_rede': total_membros_rede,
             'novos_membros_rede_30_dias': novos_membros_rede_30_dias,
             'media_membros_por_igreja': media_membros_por_igreja,
@@ -3921,6 +3953,7 @@ def painel_lideranca_secretaria(request): # noqa: E302
     
             'igrejas_permitidas_filtro': opcoes_filtro_pagina, 
             'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template_lider_sec,
+            'label_opcao_all': label_opcao_all,
             'allowed_churches_count': churches_for_queries.count() if churches_for_queries else 0,
             'ministerio_usuario': ministerio_usuario,
         }
@@ -4022,7 +4055,7 @@ def relatorio_reuniao_membros(request):
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     igreja = None
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+    if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         igreja = request.igreja_ativa
     elif allowed_churches.exists():
         igreja = allowed_churches.first()
