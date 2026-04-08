@@ -63,8 +63,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 # Third-party/local apps
 from core.decorators import check_permission, verificar_assinatura_valida, user_passes_test_or_403, secretaria_dashboard_required
-from core.group_sync import recalcular_grupos_efetivos_usuario
-from core.utils import get_ministerio_or_error, get_request_scoped_churches, resolve_lideranca_scope
+from core.utils import get_ministerio_or_error
 from eventos.models import Evento
 from financeiro.models import Receitas
 from secretaria.utils import (
@@ -91,6 +90,184 @@ from .models import (
 # --- FIM DOS IMPORTS ---
 
 ## --- END OF IMPORTS ---
+
+
+def _coletar_ids_grupos(grupos):
+    if grupos is None:
+        return None
+
+    if hasattr(grupos, 'values_list'):
+        return set(grupos.values_list('id', flat=True))
+
+    ids = set()
+    for grupo in grupos:
+        if isinstance(grupo, int):
+            ids.add(grupo)
+            continue
+        grupo_id = getattr(grupo, 'id', None)
+        if grupo_id is not None:
+            ids.add(grupo_id)
+    return ids
+
+
+def _grupos_por_cargo_ativo(user):
+    if not user:
+        return set()
+
+    return set(
+        MembroCargo.objects.filter(
+            membro__usuario=user,
+            data_fim__isnull=True,
+            cargo__grupo_permissao__isnull=False,
+        )
+        .values_list('cargo__grupo_permissao_id', flat=True)
+        .distinct()
+    )
+
+
+def _grupos_reservados_para_cargo():
+    return set(
+        Cargo.objects.filter(grupo_permissao__isnull=False)
+        .values_list('grupo_permissao_id', flat=True)
+        .distinct()
+    )
+
+
+def recalcular_grupos_efetivos_usuario(
+    user,
+    grupos_manuais=None,
+    grupos_editaveis=None,
+    ignorar_grupos_reservados_no_manual=False,
+):
+    if not user:
+        return Group.objects.none()
+
+    ids_cargo = _grupos_por_cargo_ativo(user)
+    ids_atuais = set(user.groups.values_list('id', flat=True))
+    ids_manuais_atuais = ids_atuais - ids_cargo
+    ids_reservados_cargo = set()
+
+    if ignorar_grupos_reservados_no_manual:
+        ids_reservados_cargo = _grupos_reservados_para_cargo()
+        ids_manuais_atuais -= ids_reservados_cargo
+
+    ids_editaveis = _coletar_ids_grupos(grupos_editaveis)
+    ids_manuais_informados = _coletar_ids_grupos(grupos_manuais)
+    if ignorar_grupos_reservados_no_manual and ids_manuais_informados is not None:
+        ids_manuais_informados -= ids_reservados_cargo
+
+    if ids_editaveis is None:
+        if ids_manuais_informados is None:
+            ids_manuais_finais = ids_manuais_atuais
+        else:
+            ids_manuais_finais = ids_manuais_informados
+    else:
+        ids_editaveis = set(ids_editaveis)
+        ids_manuais_fora_escopo = ids_manuais_atuais - ids_editaveis
+
+        if ids_manuais_informados is None:
+            ids_editaveis_finais = ids_manuais_atuais & ids_editaveis
+        else:
+            ids_editaveis_finais = set(ids_manuais_informados) & ids_editaveis
+
+        ids_manuais_finais = ids_manuais_fora_escopo | ids_editaveis_finais
+
+    ids_finais = ids_cargo | ids_manuais_finais
+
+    if ids_finais != ids_atuais:
+        user.groups.set(Group.objects.filter(id__in=ids_finais))
+
+    return user.groups.all()
+
+
+def get_request_scoped_churches(request, allowed_churches=None):
+    allowed = allowed_churches if allowed_churches is not None else getattr(request, 'igrejas_permitidas', Igreja.objects.none())
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+
+    if igreja_ativa and allowed.filter(pk=igreja_ativa.pk).exists():
+        return Igreja.objects.filter(pk=igreja_ativa.pk)
+    return allowed
+
+
+def resolve_lideranca_scope(request, ministerio, allowed_churches_base):
+    opcoes_filtro_pagina = allowed_churches_base.order_by('nome_igreja')
+    igreja_id_filtro = request.GET.get('igreja_filtro', '')
+    titulo_escopo_igreja = f"Consolidado - {ministerio.nome_fantasia}"
+    igreja_em_foco_obj = None
+    ver_apenas_entidade_foco = False
+    filtro_invalido = False
+    label_opcao_all = "Toda a Rede (Permitidas)"
+
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    allowed_ids_qs = allowed_churches_base.values_list('pk', flat=True)
+
+    if igreja_ativa and allowed_churches_base.filter(pk=igreja_ativa.pk).exists():
+        dropdown_ids = {igreja_ativa.pk}
+        desc_dropdown_qs = igreja_ativa.get_descendants(include_self=False).filter(pk__in=allowed_ids_qs)
+        if desc_dropdown_qs.exists():
+            dropdown_ids.update(desc_dropdown_qs.values_list('pk', flat=True))
+        opcoes_filtro_pagina = Igreja.objects.filter(pk__in=list(dropdown_ids)).order_by('nome_igreja')
+
+        if len(dropdown_ids) > 1:
+            label_opcao_all = f"Rede: {igreja_ativa.nome_igreja}"
+
+        if not igreja_id_filtro:
+            igreja_id_filtro = str(igreja_ativa.pk)
+
+        if igreja_id_filtro == str(igreja_ativa.pk):
+            igreja_em_foco_obj = igreja_ativa
+            explicit_global = request.GET.get('igreja_filtro') == str(igreja_ativa.pk)
+            if explicit_global and len(dropdown_ids) > 1:
+                ver_apenas_entidade_foco = True
+                titulo_escopo_igreja = f"Apenas: {igreja_ativa.nome_igreja}"
+            else:
+                titulo_escopo_igreja = f"Rede: {igreja_ativa.nome_igreja}" if len(dropdown_ids) > 1 else f"Igreja: {igreja_ativa.nome_igreja}"
+        else:
+            try:
+                igreja_descendente = opcoes_filtro_pagina.get(pk=igreja_id_filtro)
+                igreja_em_foco_obj = igreja_descendente
+                igreja_id_filtro = str(igreja_descendente.pk)
+                tem_filhas_no_escopo = igreja_descendente.get_descendants(include_self=False).filter(pk__in=allowed_ids_qs).exists()
+                if tem_filhas_no_escopo:
+                    titulo_escopo_igreja = f"Rede: {igreja_descendente.nome_igreja}"
+                else:
+                    ver_apenas_entidade_foco = True
+                    titulo_escopo_igreja = f"Igreja: {igreja_descendente.nome_igreja}"
+            except Igreja.DoesNotExist:
+                filtro_invalido = True
+                igreja_id_filtro = str(igreja_ativa.pk)
+                igreja_em_foco_obj = igreja_ativa
+                titulo_escopo_igreja = f"Rede: {igreja_ativa.nome_igreja}" if len(dropdown_ids) > 1 else f"Igreja: {igreja_ativa.nome_igreja}"
+    else:
+        if igreja_id_filtro:
+            try:
+                igreja_em_foco_obj = allowed_churches_base.get(pk=igreja_id_filtro)
+            except Igreja.DoesNotExist:
+                filtro_invalido = True
+                igreja_id_filtro = ''
+                titulo_escopo_igreja = f"Consolidado - {ministerio.nome_fantasia}"
+
+    if igreja_em_foco_obj:
+        if ver_apenas_entidade_foco:
+            churches_for_queries = Igreja.objects.filter(pk=igreja_em_foco_obj.pk)
+        else:
+            pks_to_include = {igreja_em_foco_obj.pk}
+            desc_qs = igreja_em_foco_obj.get_descendants(include_self=False).filter(pk__in=allowed_ids_qs)
+            if desc_qs.exists():
+                pks_to_include.update(desc_qs.values_list('pk', flat=True))
+            churches_for_queries = Igreja.objects.filter(pk__in=list(pks_to_include), ministerio=ministerio)
+            titulo_escopo_igreja = f"Rede: {igreja_em_foco_obj.nome_igreja}" if len(pks_to_include) > 1 else f"Igreja: {igreja_em_foco_obj.nome_igreja}"
+    else:
+        churches_for_queries = allowed_churches_base
+
+    return {
+        'churches_for_queries': churches_for_queries,
+        'opcoes_filtro_pagina': opcoes_filtro_pagina,
+        'igreja_id_filtro_selecionado': igreja_id_filtro,
+        'titulo_escopo_igreja': titulo_escopo_igreja,
+        'label_opcao_all': label_opcao_all,
+        'filtro_invalido': filtro_invalido,
+    }
 
 # --- FUNÇÕES HELPER DE PERMISSÕES ---
 def pode_gerenciar_tags(user):
