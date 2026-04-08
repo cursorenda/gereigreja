@@ -270,11 +270,76 @@ def resolve_lideranca_scope(request, ministerio, allowed_churches_base):
     }
 
 # --- FUNÇÕES HELPER DE PERMISSÕES ---
+def _hierarquia_grupos_permissoes():
+    from contas.constants import (
+        ADMIN_MINISTERIO,
+        LIDERANCA_SECRETARIA,
+        LIDERANCA_FINANCEIRA,
+        PASTOR_REGIONAL,
+        PASTOR_LOCAL,
+        SECRETARIO_LOCAL,
+        TESOUREIRO,
+        SUPERINTENDENTE_EBD,
+        EQUIPE_EVENTOS,
+        EQUIPE_MIDIA,
+        EQUIPE_RECEPCAO,
+        PROFESSOR_EBD,
+        SECRETARIA_EBD,
+        MEMBRO_COMUM,
+    )
+    return [
+        ADMIN_MINISTERIO,
+        LIDERANCA_SECRETARIA,
+        LIDERANCA_FINANCEIRA,
+        PASTOR_REGIONAL,
+        PASTOR_LOCAL,
+        SECRETARIO_LOCAL,
+        TESOUREIRO,
+        SUPERINTENDENTE_EBD,
+        EQUIPE_EVENTOS,
+        EQUIPE_MIDIA,
+        EQUIPE_RECEPCAO,
+        PROFESSOR_EBD,
+        SECRETARIA_EBD,
+        MEMBRO_COMUM,
+    ]
+
+
+def _user_has_permission_level_or_higher(user, required_group):
+    """Compatibilidade para ambientes sem helper central no contas.constants."""
+    try:
+        from contas.constants import user_has_permission_level_or_higher as _helper
+        return _helper(user, required_group)
+    except Exception:
+        if not getattr(user, 'is_authenticated', False):
+            return False
+        if getattr(user, 'is_superuser', False):
+            return True
+
+        hierarquia = _hierarquia_grupos_permissoes()
+        try:
+            required_idx = hierarquia.index(required_group)
+        except ValueError:
+            return False
+
+        user_groups = set(user.groups.values_list('name', flat=True))
+        user_level = None
+        for idx, group in enumerate(hierarquia):
+            if group in user_groups:
+                user_level = idx
+                break
+
+        if user_level is None:
+            return False
+
+        return user_level <= required_idx
+
+
 def pode_gerenciar_tags(user):
     """Permissão: pode criar/editar/excluir tags (secretaria/admin)."""
-    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
+    from contas.constants import SECRETARIO_LOCAL
     try:
-        return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
+        return _user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
     except Exception:
         return False
 
@@ -626,18 +691,18 @@ User = get_user_model()
 
 def is_admin_or_pastor(user):
     """Permissão: é superuser ou pertence a grupos administrativos/pastorais."""
-    from contas.constants import user_has_permission_level_or_higher, PASTOR_REGIONAL
+    from contas.constants import PASTOR_REGIONAL
     try:
-        return user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
+        return _user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
     except Exception:
         return False
 
 
 def is_admin_or_pastor_local(user):
     """Permissão local para cargos: Admin, Pastor Regional ou Pastor Local."""
-    from contas.constants import user_has_permission_level_or_higher, PASTOR_LOCAL
+    from contas.constants import PASTOR_LOCAL
     try:
-        return user_has_permission_level_or_higher(user, PASTOR_LOCAL)
+        return _user_has_permission_level_or_higher(user, PASTOR_LOCAL)
     except Exception:
         return False
 
@@ -650,23 +715,23 @@ def _nomes_grupos_permitidos_para_cargos(user):
     """
     from contas.constants import (
         ADMIN_MINISTERIO,
-        HIERARQUIA_GRUPOS,
         PASTOR_LOCAL,
         PASTOR_REGIONAL,
-        user_has_permission_level_or_higher,
     )
 
-    if user_has_permission_level_or_higher(user, ADMIN_MINISTERIO):
+    HIERARQUIA_GRUPOS = _hierarquia_grupos_permissoes()
+
+    if _user_has_permission_level_or_higher(user, ADMIN_MINISTERIO):
         return None
 
-    if user_has_permission_level_or_higher(user, PASTOR_REGIONAL):
+    if _user_has_permission_level_or_higher(user, PASTOR_REGIONAL):
         try:
             idx_regional = HIERARQUIA_GRUPOS.index(PASTOR_REGIONAL)
         except ValueError:
             return set()
         return set(HIERARQUIA_GRUPOS[idx_regional:])
 
-    if user_has_permission_level_or_higher(user, PASTOR_LOCAL):
+    if _user_has_permission_level_or_higher(user, PASTOR_LOCAL):
         try:
             idx_local = HIERARQUIA_GRUPOS.index(PASTOR_LOCAL)
         except ValueError:
@@ -2235,8 +2300,8 @@ from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
 def index(request):
 
     # Permissão: redireciona membros comuns usando helper centralizado
-    from contas.constants import user_has_permission_level_or_higher, MEMBRO_COMUM
-    if user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
+    from contas.constants import MEMBRO_COMUM
+    if _user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
@@ -2574,8 +2639,7 @@ def index(request):
     pendentes_count = None
     igreja_selecionada = getattr(request, 'igreja_ativa', None)
     pode_ver_link = False
-    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
-    if user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL):
+    if _user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL):
         pode_ver_link = True
         if igreja_selecionada:
             link_cadastro = f"/secretaria/cadastro/igreja/{igreja_selecionada.pk}/"
@@ -2646,8 +2710,8 @@ def dashboard(request):
         return redirect('admin:index')
 
     # Permissão: redireciona membros comuns usando helper centralizado
-    from contas.constants import user_has_permission_level_or_higher, MEMBRO_COMUM
-    if user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
+    from contas.constants import MEMBRO_COMUM
+    if _user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
@@ -3433,8 +3497,7 @@ def _get_navigation_context(membro_id, igreja_ativa):
 def detalhe_membro(request, membro_id):
     from contas.constants import SECRETARIO_LOCAL, PASTOR_LOCAL
     pode_aprovar = False
-    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL, PASTOR_LOCAL
-    if user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL) or user_has_permission_level_or_higher(request.user, PASTOR_LOCAL):
+    if _user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL) or _user_has_permission_level_or_higher(request.user, PASTOR_LOCAL):
         pode_aprovar = True
     """View para visualização readonly de um membro."""
     ministerio = get_ministerio_or_error(request)
