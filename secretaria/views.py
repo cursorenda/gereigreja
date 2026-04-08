@@ -788,7 +788,10 @@ def _membros_queryset_por_escopo(request):
     if request.user.is_superuser:
         return Membro.objects.all()
 
-    igrejas_permitidas = getattr(request, 'igrejas_permitidas', Igreja.objects.none())
+    igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+    if igrejas_permitidas is None:
+        ministerio = get_ministerio_or_error(request)
+        igrejas_permitidas = get_allowed_churches_for_membros(request.user, ministerio)
     igreja_ativa = getattr(request, 'igreja_ativa', None)
 
     if igreja_ativa:
