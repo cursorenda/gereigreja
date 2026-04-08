@@ -94,8 +94,9 @@ def user_passes_test_or_403(test_func):
 ```python
 from core.decorators import user_passes_test_or_403
 
+from contas.constants import user_tem_qualquer_grupo, PASTOR_LOCAL, ADMIN_MINISTERIO
 def is_pastor_or_admin(user):
-    return user.groups.filter(name__in=['Pastor Local', 'Admin Ministerio']).exists()
+    return user_tem_qualquer_grupo(user, [PASTOR_LOCAL, ADMIN_MINISTERIO])
 
 @user_passes_test_or_403(is_pastor_or_admin)
 def view_restrita(request):
@@ -193,8 +194,8 @@ def chamada_presenca(request, turma_id):
 - Pastor Local
 - Pastor Regional
 - Admin Ministerio
-- Liderança Secretaria
-- Liderança Financeira
+- Secretaria Ministerial
+- Tesouraria Ministerial
 
 **Grupos bloqueados (GRUPOS_EQUIPES):**
 - Equipe de Eventos
@@ -256,7 +257,7 @@ def dashboard(request):
 # financeiro/utils.py
 has_finance_view_permission(user)    # Visualizar dados financeiros
 has_finance_edit_permission(user)    # Editar/criar/excluir
-is_finance_leader(user)              # Liderança financeira
+is_finance_leader(user)              # Tesouraria ministerial
 ```
 
 **Exemplo:**
@@ -315,7 +316,8 @@ def pode_acessar_recurso(user, recurso):
         return True
     
     # Administradores gerais podem
-    if user.groups.filter(name='Admin Ministerio').exists():
+    from contas.constants import user_tem_grupo, ADMIN_MINISTERIO
+    if user_tem_grupo(user, ADMIN_MINISTERIO):
         return True
     
     # Lógica customizada: usuário é "dono" do recurso

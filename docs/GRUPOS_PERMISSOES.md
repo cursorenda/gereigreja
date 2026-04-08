@@ -15,6 +15,14 @@
 
 ---
 
+## 📑 Documentação Relacionada
+
+- [DOCUMENTACAO_PADRAO_GRUPOS.md](DOCUMENTACAO_PADRAO_GRUPOS.md): Padrão oficial de nomenclatura e uso de grupos/permissões no código.
+
+---
+
+---
+
 ## 🎯 Visão Geral
 
 O GereIgreja utiliza um sistema de **14 grupos de usuários** organizados em **7 níveis hierárquicos** para controlar o acesso e as permissões no sistema. Cada grupo tem responsabilidades específicas e acesso limitado às funcionalidades necessárias para suas atividades.
@@ -85,8 +93,8 @@ admin.groups.add(grupo_admin_ministerio)  # ← Precisa de grupo
                           ↓
 ┌─────────────────────────────────────────────────────────┐
 │  NÍVEL 2: Liderança Ministerial (Todas as igrejas)     │
-│  • Liderança Secretaria                                 │
-│  • Liderança Financeira                                 │
+│  • Secretaria Ministerial                               │
+│  • Tesouraria Ministerial                               │
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
@@ -143,7 +151,7 @@ admin.groups.add(grupo_admin_ministerio)  # ← Precisa de grupo
 
 ---
 
-### 2️⃣ Liderança Secretaria
+### 2️⃣ Secretaria Ministerial
 **Escopo:** Ministerial (todas as igrejas)  
 **Responsabilidades:**
 - Coordenar secretarias de todas as igrejas
@@ -163,7 +171,7 @@ admin.groups.add(grupo_admin_ministerio)  # ← Precisa de grupo
 
 ---
 
-### 3️⃣ Liderança Financeira
+### 3️⃣ Tesouraria Ministerial
 **Escopo:** Ministerial (todas as igrejas)  
 **Responsabilidades:**
 - Consolidação financeira do ministério
@@ -442,8 +450,8 @@ admin.groups.add(grupo_admin_ministerio)  # ← Precisa de grupo
 - Secretário Local + Superintendente EBD
 - Tesoureiro + Equipe de Eventos
 
-### 2. Qual a diferença entre Liderança Secretaria e Secretário Local?
-- **Liderança Secretaria:** Vê **todas as igrejas**, coordena secretarias, não gerencia cargos
+### 2. Qual a diferença entre Secretaria Ministerial e Secretário Local?
+- **Secretaria Ministerial:** Vê **todas as igrejas**, coordena secretarias, não gerencia cargos
 - **Secretário Local:** Vê **apenas uma igreja**, gerencia membros e cargos locais
 
 ### 3. Qual a diferença entre os 3 níveis de pastores?
@@ -469,7 +477,7 @@ admin.groups.add(grupo_admin_ministerio)  # ← Precisa de grupo
   
 Cargos são **locais** - cada igreja gerencia os seus próprios.
 
-### 5. Por que o Tesoureiro Geral (Liderança Financeira) não lança transações?
+### 5. Por que o Tesoureiro Geral (Tesouraria Ministerial) não lança transações?
 O Tesoureiro Geral é responsável pela **consolidação e auditoria**. As transações devem ser lançadas pelos **Tesoureiros Locais** de cada igreja. Isso mantém a descentralização e o controle local.
 
 ### 6. O que acontece se um usuário não tiver nenhum grupo?
@@ -508,6 +516,40 @@ Tecnicamente sim, mas **não é recomendado**. Os 14 grupos foram cuidadosamente
 
 ### 11. O que é "Igreja Ativa"?
 É a igreja padrão que o usuário está gerenciando. Para grupos com escopo Local, define qual igreja ele pode acessar. O usuário pode ter acesso a múltiplas igrejas dependendo do grupo.
+
+---
+
+## 🛠️ Helpers de Hierarquia e Permissão
+
+A partir da versão 1.4, toda a lógica de permissões hierárquicas foi centralizada em helpers no arquivo `contas/constants.py`.
+
+### Funções principais
+
+- `get_user_permission_level(user)`: retorna o nível hierárquico do usuário (quanto menor o índice, maior o privilégio). Superusuário sempre retorna o nível mais alto.
+- `user_has_permission_level_or_higher(user, required_group)`: retorna `True` se o usuário tem permissão igual ou superior ao grupo exigido (respeitando a hierarquia). Superusuário sempre tem acesso.
+
+### Exemplo de uso
+```python
+from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
+
+# Permite acesso a SECRETARIO_LOCAL ou qualquer nível acima (Pastor, Admin, etc)
+if user_has_permission_level_or_higher(user, SECRETARIO_LOCAL):
+    # acesso permitido
+    ...
+else:
+    # acesso negado
+    ...
+```
+
+### Recomendações
+- Sempre utilize esses helpers para checagem de permissões em views, decorators e helpers.
+- Não compare grupos manualmente nem use strings literais.
+- Para criar decorators customizados, utilize o helper central para garantir padronização e fácil manutenção.
+
+### Vantagens
+- Permite evoluir a hierarquia sem alterar múltiplos pontos do sistema.
+- Facilita testes e auditoria de permissões.
+- Garante que superusuário sempre terá acesso total.
 
 ---
 
