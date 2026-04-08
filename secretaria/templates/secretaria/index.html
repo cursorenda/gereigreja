@@ -59,6 +59,7 @@
 
 {% block content %}
 <div class="container-fluid" style="width:100%; margin:0; padding-left:24px; padding-right:24px; box-sizing:border-box;">
+    {% include 'partials/_escopo_ativo.html' %}
         <!-- ALERTAS E NOTIFICAÇÕES -->
     {% if alertas %}
     <div class="row justify-content-center mb-3">
@@ -156,10 +157,10 @@
                             Para visualizar dados e métricas, <strong>selecione uma igreja no menu acima</strong> 
                             (ícone de igreja no topo) ou cadastre sua primeira igreja.
                         </p>
-                        <a href="{% url 'configuracao:criar_igreja' %}" class="btn btn-primary btn-sm me-2">
+                        <a href="{% url 'configuracao:adicionar_igreja' %}" class="btn btn-primary btn-sm me-2">
                             <i class="fas fa-plus"></i> Cadastrar Primeira Igreja
                         </a>
-                        <a href="{% url 'configuracao:listar_igrejas' %}" class="btn btn-outline-primary btn-sm">
+                        <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-church"></i> Ver Minhas Igrejas
                         </a>
                     </div>

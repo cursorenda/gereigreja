@@ -2715,9 +2715,13 @@ def dashboard(request):
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
-    
-    igrejas_filtro = get_request_scoped_churches(request, request.igrejas_permitidas)
-    if request.igreja_ativa and request.igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
+
+    igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+    if igrejas_permitidas is None:
+        igrejas_permitidas = get_allowed_churches_for_membros(request.user, ministerio)
+
+    igrejas_filtro = get_request_scoped_churches(request, igrejas_permitidas)
+    if request.igreja_ativa and igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
         titulo_contextual = f"Visão Geral - Igreja: {request.igreja_ativa.nome_igreja}"
     else:
         total_igrejas = igrejas_filtro.count()
