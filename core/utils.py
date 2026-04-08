@@ -88,34 +88,33 @@ def get_ministerio_or_error(request):
     Levanta Http404 se o perfil não tem ministério associada.
     Retorna o objeto Ministerio em caso de sucesso.
     """
+    from django.contrib import messages
+    from django.shortcuts import reverse
+    from configuracao.models import AssinaturaMinisterio
+    from comunicacao.models import Notificacao
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if not request.user.is_authenticated:
         raise PermissionDenied("Usuário não autenticado.")
     
     if request.user.is_superuser:
-        # A mensagem pode ser adicionada pela view que chama, se necessário,
-        # para manter esta função mais genérica.
-        # messages.info(request, "Superusuários devem usar o painel Admin para gestão global.")
         raise PermissionDenied("Superusuário não acessa esta área diretamente.")
     
     try:
         perfil = request.user.perfil
-    except PerfilUsuario.DoesNotExist:
-        # messages.error(request, "Perfil de usuário não encontrado. Contate o suporte.")
+    except Exception:
         raise PermissionDenied("Acesso negado: Perfil de usuário não encontrado.")
 
     ministerio = perfil.ministerio
     if not ministerio:
-        # messages.error(request, "Seu usuário não está associado a nenhuma ministério.")
         raise Http404("Ministério não encontrada para o usuário.")
     
     if not ministerio.ativo:
         messages.warning(request, f"A ministério '{ministerio.nome_fantasia}' não está ativa. Contate o suporte do sistema.")
         raise PermissionDenied(f"Acesso negado: Ministério '{ministerio.nome_fantasia}' inativa.")
     
-    # --- VERIFICAÇÃO DO STATUS DA ASSINATURA ---
-    # Para uma função utilitária, adicionar mensagens diretamente pode não ser ideal.
-    # Considere retornar um status ou levantar exceções específicas que a view pode tratar.
-    # Mantendo a lógica de mensagens por enquanto, mas com verificações para evitar loops.
+    # Verificação do status da assinatura
     try:
         assinatura = ministerio.assinatura 
         status_validos = ['ativa', 'gratuita']
@@ -133,10 +132,9 @@ def get_ministerio_or_error(request):
                 if not any(m.message == mensagem_aviso for m in messages.get_messages(request)):
                     messages.warning(request, mensagem_aviso)
 
-                # --- Notificação no sininho para todos os usuários ativos do ministério ---
+                # Notificação no sininho para todos os usuários ativos do ministério
                 from configuracao.models import PerfilUsuario
                 from django.utils import timezone
-                # Evita duplicar notificações não lidas do mesmo tipo para o mesmo usuário
                 users_in_org = [p.user for p in PerfilUsuario.objects.filter(ministerio=ministerio, user__is_active=True)]
                 for user in users_in_org:
                     existe = Notificacao.objects.filter(
@@ -163,4 +161,331 @@ def get_ministerio_or_error(request):
         logger.error(f"Erro ao verificar assinatura para ministério {ministerio.id} em get_ministerio_or_error: {e_assinatura}")
 
     return ministerio
+
+
+# ===================================
+# FUNÇÕES DE ESCOPO HIERÁRQUICO
+# ===================================
+
+def get_igrejas_permitidas(user, ministerio=None):
+    """
+    Retorna queryset de igrejas que o usuário pode acessar baseado em seu escopo hierárquico.
+    
+    HIERARQUIA DE ESCOPOS:
+    - Superusuário: TODAS as igrejas
+    - Escopo Ministerial (Admin, Liderança): TODAS as igrejas do ministério
+    - Escopo Regional (Pastor Regional): Igrejas da sua região + subordinadas
+    - Escopo Local (demais): Apenas sua igreja_ativa + subordinadas do perfil
+    
+    Args:
+        user: Objeto User autenticado
+        ministerio: Objeto Ministerio (opcional, pega do perfil se None)
+    
+    Returns:
+        QuerySet de Igreja: Igrejas que o usuário pode acessar
+        
+    Uso:
+        igrejas = get_igrejas_permitidas(request.user)
+        membros = Membro.objects.filter(igreja__in=igrejas)
+    """
+    from configuracao.models import Igreja
+    from contas.constants import user_escopo_ministerial, user_escopo_regional, user_escopo_local
+    
+    print(f"\n[GET_IGREJAS_PERMITIDAS] Iniciando para user={user.username}")
+    
+    # Superusuário vê TUDO
+    if user.is_superuser:
+        print(f"[GET_IGREJAS_PERMITIDAS] Usuário é SUPERUSER - retornando TODAS")
+        return Igreja.objects.all()
+    
+    if not user.is_authenticated:
+        print(f"[GET_IGREJAS_PERMITIDAS] Usuário NÃO autenticado - retornando VAZIO")
+        return Igreja.objects.none()
+    
+    # Tenta pegar ministério do perfil se não foi fornecido
+    if not ministerio:
+        try:
+            ministerio = user.perfil.ministerio
+            print(f"[GET_IGREJAS_PERMITIDAS] Ministério obtido do perfil: {ministerio}")
+        except:
+            print(f"[GET_IGREJAS_PERMITIDAS] Erro ao obter ministério do perfil")
+            return Igreja.objects.none()
+    
+    if not ministerio:
+        print(f"[GET_IGREJAS_PERMITIDAS] Ministério é None - retornando VAZIO")
+        return Igreja.objects.none()
+    
+    # ESCOPO MINISTERIAL: Admin, Liderança Secretaria, Liderança Financeira
+    if user_escopo_ministerial(user):
+        print(f"[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO MINISTERIAL")
+        # Verifica se tem igrejas específicas no perfil
+        if hasattr(user, 'perfil') and user.perfil.igrejas_permitidas.exists():
+            igrejas = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
+            print(f"[GET_IGREJAS_PERMITIDAS] Usando igrejas_permitidas do perfil: {list(igrejas.values_list('id', 'nome_igreja'))}")
+            return igrejas
+        # Se não tem restrição, vê TODAS do ministério
+        igrejas = Igreja.objects.filter(ministerio=ministerio)
+        print(f"[GET_IGREJAS_PERMITIDAS] Retornando TODAS as igrejas do ministério: {list(igrejas.values_list('id', 'nome_igreja'))}")
+        return igrejas
+    
+    # ESCOPO REGIONAL: Pastor Regional
+    elif user_escopo_regional(user):
+        print(f"[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO REGIONAL")
+        # TODO: Implementar filtro por região quando o campo estiver pronto
+        # Por enquanto, usa igrejas_permitidas do perfil
+        if hasattr(user, 'perfil') and user.perfil.igrejas_permitidas.exists():
+            igrejas_base = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
+            # Inclui subordinadas
+            igrejas = _get_igrejas_com_subordinadas(igrejas_base, ministerio)
+            print(f"[GET_IGREJAS_PERMITIDAS] Retornando igrejas regionais + subordinadas: {list(igrejas.values_list('id', 'nome_igreja'))}")
+            return igrejas
+        # Se não tem igrejas no perfil, retorna vazio
+        print(f"[GET_IGREJAS_PERMITIDAS] Sem igrejas_permitidas - retornando VAZIO")
+        return Igreja.objects.none()
+    
+    # ESCOPO LOCAL: Pastor Local, Secretário, Tesoureiro, Equipes, etc
+    elif user_escopo_local(user):
+        print(f"[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO LOCAL")
+        if hasattr(user, 'perfil'):
+            # Usa igrejas_permitidas do perfil
+            if user.perfil.igrejas_permitidas.exists():
+                igrejas_base = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
+                igrejas = _get_igrejas_com_subordinadas(igrejas_base, ministerio)
+                print(f"[GET_IGREJAS_PERMITIDAS] Usando igrejas_permitidas: {list(igrejas.values_list('id', 'nome_igreja'))}")
+                return igrejas
+            else:
+                # Fallback seguro: usa igreja(s) vinculada(s) ao membro do próprio usuário.
+                try:
+                    from secretaria.models import Membro
+                    igrejas_membro = Igreja.objects.filter(
+                        membros__usuario=user,
+                        ministerio=ministerio,
+                    ).distinct()
+                    if igrejas_membro.exists():
+                        print(f"[GET_IGREJAS_PERMITIDAS] Fallback por vínculo de membro: {list(igrejas_membro.values_list('id', 'nome_igreja'))}")
+                        return igrejas_membro
+                except Exception as exc:
+                    print(f"[GET_IGREJAS_PERMITIDAS] Falha no fallback por membro: {exc}")
+
+                print(f"[GET_IGREJAS_PERMITIDAS] Perfil sem igrejas_permitidas e sem vínculo de membro - retornando VAZIO")
+        else:
+            print(f"[GET_IGREJAS_PERMITIDAS] Usuário sem perfil - retornando VAZIO")
+        
+        return Igreja.objects.none()
+    
+    # Sem grupo: sem acesso
+    print(f"[GET_IGREJAS_PERMITIDAS] Usuário SEM ESCOPO definido - retornando VAZIO")
+    return Igreja.objects.none()
+
+
+def _get_igrejas_com_subordinadas(igrejas_base, ministerio):
+    """
+    Helper: retorna igrejas base + todas as subordinadas recursivamente.
+    
+    Args:
+        igrejas_base: QuerySet de igrejas base
+        ministerio: Objeto Ministerio para filtro de segurança
+        
+    Returns:
+        QuerySet de Igreja com base + subordinadas
+    """
+    from configuracao.models import Igreja
+    
+    todas_igrejas_ids = set()
+    
+    def _recursivo(igreja):
+        """Coleta recursivamente IDs de subordinadas."""
+        ids = {igreja.pk}
+        for sub in igreja.igrejas_subordinadas.filter(ministerio=ministerio):
+            ids.update(_recursivo(sub))
+        return ids
+    
+    for igreja in igrejas_base:
+        todas_igrejas_ids.update(_recursivo(igreja))
+    
+    if todas_igrejas_ids:
+        return Igreja.objects.filter(pk__in=list(todas_igrejas_ids), ministerio=ministerio)
+    
+    return Igreja.objects.none()
+
+
+def resolve_lideranca_scope(request, ministerio, allowed_churches_base):
+    """
+    Resolve escopo hierárquico para filtros de painéis de liderança.
+
+    Retorna dict com:
+    - churches_for_queries
+    - opcoes_filtro_pagina
+    - igreja_id_filtro_selecionado
+    - titulo_escopo_igreja
+    - label_opcao_all
+    - filtro_invalido (bool)
+    """
+    from configuracao.models import Igreja
+
+    opcoes_filtro_pagina = allowed_churches_base.order_by('nome_igreja')
+    igreja_id_filtro = request.GET.get('igreja_filtro', '')
+    titulo_escopo_igreja = f"Consolidado - {ministerio.nome_fantasia}"
+    igreja_em_foco_obj = None
+    ver_apenas_entidade_foco = False
+    filtro_invalido = False
+    label_opcao_all = "Toda a Rede (Permitidas)"
+
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    allowed_ids_qs = allowed_churches_base.values_list('pk', flat=True)
+
+    if igreja_ativa and allowed_churches_base.filter(pk=igreja_ativa.pk).exists():
+        dropdown_ids = {igreja_ativa.pk}
+        desc_dropdown_qs = igreja_ativa.get_descendants(include_self=False).filter(pk__in=allowed_ids_qs)
+        if desc_dropdown_qs.exists():
+            dropdown_ids.update(desc_dropdown_qs.values_list('pk', flat=True))
+        opcoes_filtro_pagina = Igreja.objects.filter(pk__in=list(dropdown_ids)).order_by('nome_igreja')
+
+        if len(dropdown_ids) > 1:
+            label_opcao_all = f"Rede: {igreja_ativa.nome_igreja}"
+
+        if not igreja_id_filtro:
+            igreja_id_filtro = str(igreja_ativa.pk)
+
+        if igreja_id_filtro == str(igreja_ativa.pk):
+            igreja_em_foco_obj = igreja_ativa
+            explicit_global = request.GET.get('igreja_filtro') == str(igreja_ativa.pk)
+            if explicit_global and len(dropdown_ids) > 1:
+                ver_apenas_entidade_foco = True
+                titulo_escopo_igreja = f"Apenas: {igreja_ativa.nome_igreja}"
+            else:
+                ver_apenas_entidade_foco = False
+                titulo_escopo_igreja = f"Rede: {igreja_ativa.nome_igreja}" if len(dropdown_ids) > 1 else f"Igreja: {igreja_ativa.nome_igreja}"
+        else:
+            try:
+                igreja_descendente = opcoes_filtro_pagina.get(pk=igreja_id_filtro)
+                igreja_em_foco_obj = igreja_descendente
+                igreja_id_filtro = str(igreja_descendente.pk)
+                tem_filhas_no_escopo = igreja_descendente.get_descendants(include_self=False).filter(pk__in=allowed_ids_qs).exists()
+                if tem_filhas_no_escopo:
+                    ver_apenas_entidade_foco = False
+                    titulo_escopo_igreja = f"Rede: {igreja_descendente.nome_igreja}"
+                else:
+                    ver_apenas_entidade_foco = True
+                    titulo_escopo_igreja = f"Igreja: {igreja_descendente.nome_igreja}"
+            except Igreja.DoesNotExist:
+                filtro_invalido = True
+                igreja_id_filtro = str(igreja_ativa.pk)
+                igreja_em_foco_obj = igreja_ativa
+                ver_apenas_entidade_foco = False
+                titulo_escopo_igreja = f"Rede: {igreja_ativa.nome_igreja}" if len(dropdown_ids) > 1 else f"Igreja: {igreja_ativa.nome_igreja}"
+    else:
+        if igreja_id_filtro:
+            try:
+                igreja_em_foco_obj = allowed_churches_base.get(pk=igreja_id_filtro)
+                ver_apenas_entidade_foco = False
+            except Igreja.DoesNotExist:
+                filtro_invalido = True
+                igreja_id_filtro = ''
+                igreja_em_foco_obj = None
+                titulo_escopo_igreja = f"Consolidado - {ministerio.nome_fantasia}"
+
+    if igreja_em_foco_obj:
+        if ver_apenas_entidade_foco:
+            churches_for_queries = Igreja.objects.filter(pk=igreja_em_foco_obj.pk)
+        else:
+            pks_to_include = {igreja_em_foco_obj.pk}
+            desc_qs = igreja_em_foco_obj.get_descendants(include_self=False).filter(pk__in=allowed_ids_qs)
+            if desc_qs.exists():
+                pks_to_include.update(desc_qs.values_list('pk', flat=True))
+            churches_for_queries = Igreja.objects.filter(pk__in=list(pks_to_include), ministerio=ministerio)
+            if len(pks_to_include) > 1:
+                titulo_escopo_igreja = f"Rede: {igreja_em_foco_obj.nome_igreja}"
+            else:
+                titulo_escopo_igreja = f"Igreja: {igreja_em_foco_obj.nome_igreja}"
+    else:
+        churches_for_queries = allowed_churches_base
+
+    return {
+        'churches_for_queries': churches_for_queries,
+        'opcoes_filtro_pagina': opcoes_filtro_pagina,
+        'igreja_id_filtro_selecionado': igreja_id_filtro,
+        'titulo_escopo_igreja': titulo_escopo_igreja,
+        'label_opcao_all': label_opcao_all,
+        'filtro_invalido': filtro_invalido,
+    }
+
+
+def get_request_allowed_churches(request):
+    """Retorna o queryset de igrejas permitidas já resolvido no request."""
+    from configuracao.models import Igreja
+
+    allowed_churches = getattr(request, 'igrejas_permitidas', None)
+    if allowed_churches is None:
+        return Igreja.objects.none()
+    return allowed_churches
+
+
+def get_request_scoped_churches(request, allowed_churches=None):
+    """
+    Retorna o escopo efetivo para consultas:
+    - se igreja_ativa válida no escopo permitido: apenas ela
+    - caso contrário: todas as igrejas permitidas
+    """
+    from configuracao.models import Igreja
+
+    allowed = allowed_churches if allowed_churches is not None else get_request_allowed_churches(request)
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+
+    if igreja_ativa and allowed.filter(pk=igreja_ativa.pk).exists():
+        return Igreja.objects.filter(pk=igreja_ativa.pk)
+    return allowed
+
+
+def validar_acesso_igreja(user, igreja):
+    """
+    Valida se o usuário tem permissão para acessar uma igreja específica.
+    
+    Args:
+        user: Objeto User
+        igreja: Objeto Igreja
+        
+    Returns:
+        bool: True se tem acesso, False caso contrário
+        
+    Uso:
+        if not validar_acesso_igreja(request.user, membro.igreja):
+            raise PermissionDenied("Você não pode acessar membros desta igreja")
+    """
+    if user.is_superuser:
+        return True
+    
+    igrejas_permitidas = get_igrejas_permitidas(user, igreja.ministerio)
+    return igrejas_permitidas.filter(pk=igreja.pk).exists()
+
+
+def validar_acesso_objeto_igreja(user, obj, campo_igreja='igreja'):
+    """
+    Valida se o usuário tem permissão para acessar um objeto que pertence a uma igreja.
+    
+    Args:
+        user: Objeto User
+        obj: Objeto com FK para Igreja
+        campo_igreja: Nome do campo FK (default: 'igreja')
+        
+    Returns:
+        bool: True se tem acesso
+        
+    Raises:
+        PermissionDenied: Se não tem acesso
+        
+    Uso:
+        validar_acesso_objeto_igreja(request.user, membro)  # membro.igreja
+        validar_acesso_objeto_igreja(request.user, turma, 'escola__igreja')
+    """
+    igreja = obj
+    for campo in campo_igreja.split('__'):
+        igreja = getattr(igreja, campo, None)
+        if igreja is None:
+            raise PermissionDenied("Objeto não está associado a uma igreja")
+    
+    if not validar_acesso_igreja(user, igreja):
+        raise PermissionDenied(f"Você não tem permissão para acessar dados desta igreja: {igreja.nome_igreja}")
+    
+    return True
 

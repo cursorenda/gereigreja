@@ -10,45 +10,53 @@ def _user_in_group(user, group_name):
     """Verifica se o usuário pertence a um grupo específico."""
     if not user.is_authenticated:
         return False
+    if user.is_superuser:
+        return True
     # Otimização: Verificar se o usuário já tem os grupos pré-carregados
     if hasattr(user, '_prefetched_objects_cache') and 'groups' in user._prefetched_objects_cache:
         return any(group.name == group_name for group in user.groups.all())
     # Fallback: Consultar o banco de dados
-    return user.groups.filter(name=group_name).exists()
+    from contas.constants import user_tem_grupo
+    return user_tem_grupo(user, group_name)
 
 def is_admin_org(user):
     """Verifica se o usuário é Admin da Ministério."""
-    return _user_in_group(user, ADMIN_MINISTERIO)
+    from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
+    return user_has_permission_level_or_higher(user, ADMIN_MINISTERIO)
 
 def is_secretario(user):
     """Verifica se o usuário é Secretário."""
-    return _user_in_group(user, SECRETARIO_LOCAL)
+    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
+    return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
 
 def is_lider_igreja(user):
     """Verifica se o usuário é Pastor Regional."""
-    return _user_in_group(user, PASTOR_REGIONAL)
+    from contas.constants import user_has_permission_level_or_higher, PASTOR_REGIONAL
+    return user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
 
 def is_tesoureiro(user):
     """Verifica se o usuário é Tesoureiro."""
-    return _user_in_group(user, TESOUREIRO)
+    from contas.constants import user_has_permission_level_or_higher, TESOUREIRO
+    return user_has_permission_level_or_higher(user, TESOUREIRO)
 
 
 # Nova função para líder da secretaria
 def is_secretaria_leader(user):
-    """ Verifica se o usuário é Admin da Ministério ou pertence ao grupo 'Lideranca Secretaria'. """
-    if is_admin_org(user): # Admin do Minist. também é considerado líder da secretaria
-        return True
-    return _user_in_group(user, 'Lideranca Secretaria')
+    """ Verifica se o usuário é Admin da Ministério ou pertence ao grupo 'Secretaria Ministerial'. """
+    from contas.constants import user_has_permission_level_or_higher, LIDERANCA_SECRETARIA
+    return user_has_permission_level_or_higher(user, LIDERANCA_SECRETARIA)
 
 # --- Funções de Verificação de Permissão para secretaria de Membros ---
 
 def has_membro_view_permission(user):
     """Verifica se o usuário tem permissão para VER dados de membros.""" # Adicionado is_secretaria_leader
-    return is_admin_org(user) or is_secretario(user) or is_lider_igreja(user) or is_tesoureiro(user) or is_secretaria_leader(user)
+    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
+    return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
 
 def has_membro_edit_permission(user):
     """Verifica se o usuário tem permissão para EDITAR/ADICIONAR/INATIVAR dados de membros."""
-    return is_admin_org(user) or is_secretario(user)
+    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
+    return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
 
 
 # --- Funções de agrupamento de GrupoCasa reutilizáveis (preview/apply) ---
@@ -100,13 +108,6 @@ def agrupar_preview_for_queryset(person_qs):
     # ordenar por rua/numero para apresentação
     rows.sort(key=lambda r: (r.get('rua') or '', r.get('numero') or ''))
     return rows
-
-
-def agrupar_apply_from_preview(rows):
-    """Aplica o agrupamento a partir das linhas de preview (cria GrupoCasa quando necessário e associa pessoas).
-    Retorna dict with created and updated counts.
-    """
-    created = 0
     updated = 0
     from django.db import transaction
 
@@ -222,6 +223,7 @@ def get_allowed_churches_for_membros(user, ministerio_param=None): # Adicionado 
     - Outros: Nenhuma igreja.
     - Retorna QuerySet vazio se o usuário não tiver perfil/ministério ou permissão de visualização.
     """
+
     if not user.is_authenticated:
         return Igreja.objects.none()
 
@@ -233,6 +235,11 @@ def get_allowed_churches_for_membros(user, ministerio_param=None): # Adicionado 
             ministerio = user.perfil.ministerio
         except Exception:
             ministerio = None
+
+    # SUPERUSUÁRIO SEMPRE VÊ TODAS AS IGREJAS DO MINISTÉRIO OU DO SISTEMA
+    if user.is_superuser:
+        # Superusuário SEMPRE vê todas as igrejas, independente de perfil ou ministério
+        return Igreja.objects.all()
 
     if not ministerio:
         return Igreja.objects.none()
@@ -275,7 +282,22 @@ def get_allowed_churches_for_membros(user, ministerio_param=None): # Adicionado 
     elif is_secretario(user) or is_lider_igreja(user) or is_tesoureiro(user):
         # Secretário, Líder e Tesoureiro têm acesso às igrejas explicitamente permitidas no perfil
         # Garante que as igrejas retornadas pertencem à ministério do usuário (segurança extra)
-        return user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
+        igrejas_perfil = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
+        if igrejas_perfil.exists():
+            return igrejas_perfil
+
+        # Fallback seguro: usa igreja(s) vinculada(s) ao membro do próprio usuário.
+        try:
+            igrejas_membro = Igreja.objects.filter(
+                membros__usuario=user,
+                ministerio=ministerio,
+            ).distinct()
+            if igrejas_membro.exists():
+                return igrejas_membro
+        except Exception:
+            pass
+
+        return Igreja.objects.none()
     else:
         # Por segurança, retorna vazio.
         return Igreja.objects.none()
