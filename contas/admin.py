@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import GroupAdmin
 from django.contrib.auth.models import Group
-from .models import Convite, NotaUsuario, ConsentimentoLGPD, PermissionRequest, HierarquiaPermissoes # Importe o modelo Convite
+from .models import Convite, NotaUsuario, ConsentimentoLGPD # Importe o modelo Convite
 from contas.constants import GRUPOS_TODOS
 
 
@@ -11,11 +11,11 @@ admin.site.unregister(Group)
 
 @admin.register(Group)
 class GroupAdminProtegido(GroupAdmin):
-    """Permite editar permiss?es, mas protege nomes de grupos centralizados."""
+    """Permite editar permissões, mas protege nomes de grupos centralizados."""
 
     def get_readonly_fields(self, request, obj=None):
         readonly = list(super().get_readonly_fields(request, obj))
-        if obj and obj.name in GRUPOS_TODOS and 'name' not in readonly:        
+        if obj and obj.name in GRUPOS_TODOS and 'name' not in readonly:
             readonly.append('name')
         return readonly
 
@@ -136,4 +136,4 @@ class ConsentimentoLGPDAdmin(admin.ModelAdmin):
         return False
 
 
-# Se você tiver outros modelos no app 'contas' para registrar, adicione-os aqui.
+# TODO: Adicionar admin para PermissionRequest e HierarquiaPermissoes após migrations
