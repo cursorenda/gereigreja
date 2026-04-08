@@ -2,7 +2,71 @@
 from django.contrib.auth.models import User, Group
 from configuracao.models import Igreja, PerfilUsuario # Importar PerfilUsuario e Igreja
 from django.db.models import Q # Importar Q para consultas complexas
-from contas.constants import ADMIN_MINISTERIO, PASTOR_REGIONAL, SECRETARIO_LOCAL, TESOUREIRO
+from contas.constants import ADMIN_MINISTERIO, PASTOR_REGIONAL, SECRETARIO_LOCAL, TESOUREIRO, LIDERANCA_SECRETARIA
+
+
+def _hierarquia_grupos_permissoes():
+    from contas.constants import (
+        ADMIN_MINISTERIO,
+        LIDERANCA_SECRETARIA,
+        LIDERANCA_FINANCEIRA,
+        PASTOR_REGIONAL,
+        PASTOR_LOCAL,
+        SECRETARIO_LOCAL,
+        TESOUREIRO,
+        SUPERINTENDENTE_EBD,
+        EQUIPE_EVENTOS,
+        EQUIPE_MIDIA,
+        EQUIPE_RECEPCAO,
+        PROFESSOR_EBD,
+        SECRETARIA_EBD,
+        MEMBRO_COMUM,
+    )
+    return [
+        ADMIN_MINISTERIO,
+        LIDERANCA_SECRETARIA,
+        LIDERANCA_FINANCEIRA,
+        PASTOR_REGIONAL,
+        PASTOR_LOCAL,
+        SECRETARIO_LOCAL,
+        TESOUREIRO,
+        SUPERINTENDENTE_EBD,
+        EQUIPE_EVENTOS,
+        EQUIPE_MIDIA,
+        EQUIPE_RECEPCAO,
+        PROFESSOR_EBD,
+        SECRETARIA_EBD,
+        MEMBRO_COMUM,
+    ]
+
+
+def _user_has_permission_level_or_higher(user, required_group):
+    try:
+        from contas.constants import user_has_permission_level_or_higher as _helper
+        return _helper(user, required_group)
+    except Exception:
+        if not getattr(user, 'is_authenticated', False):
+            return False
+        if getattr(user, 'is_superuser', False):
+            return True
+
+        hierarquia = _hierarquia_grupos_permissoes()
+        try:
+            required_idx = hierarquia.index(required_group)
+        except ValueError:
+            return False
+
+        user_groups = set(user.groups.values_list('name', flat=True))
+        user_level = None
+        for idx, group in enumerate(hierarquia):
+            if group in user_groups:
+                user_level = idx
+                break
+
+        if user_level is None:
+            return False
+
+        return user_level <= required_idx
 
 # --- Funções de Verificação de Grupo (Reutilizáveis) ---
 
@@ -21,42 +85,35 @@ def _user_in_group(user, group_name):
 
 def is_admin_org(user):
     """Verifica se o usuário é Admin da Ministério."""
-    from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
-    return user_has_permission_level_or_higher(user, ADMIN_MINISTERIO)
+    return _user_has_permission_level_or_higher(user, ADMIN_MINISTERIO)
 
 def is_secretario(user):
     """Verifica se o usuário é Secretário."""
-    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
-    return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
+    return _user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
 
 def is_lider_igreja(user):
     """Verifica se o usuário é Pastor Regional."""
-    from contas.constants import user_has_permission_level_or_higher, PASTOR_REGIONAL
-    return user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
+    return _user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
 
 def is_tesoureiro(user):
     """Verifica se o usuário é Tesoureiro."""
-    from contas.constants import user_has_permission_level_or_higher, TESOUREIRO
-    return user_has_permission_level_or_higher(user, TESOUREIRO)
+    return _user_has_permission_level_or_higher(user, TESOUREIRO)
 
 
 # Nova função para líder da secretaria
 def is_secretaria_leader(user):
     """ Verifica se o usuário é Admin da Ministério ou pertence ao grupo 'Secretaria Ministerial'. """
-    from contas.constants import user_has_permission_level_or_higher, LIDERANCA_SECRETARIA
-    return user_has_permission_level_or_higher(user, LIDERANCA_SECRETARIA)
+    return _user_has_permission_level_or_higher(user, LIDERANCA_SECRETARIA)
 
 # --- Funções de Verificação de Permissão para secretaria de Membros ---
 
 def has_membro_view_permission(user):
     """Verifica se o usuário tem permissão para VER dados de membros.""" # Adicionado is_secretaria_leader
-    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
-    return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
+    return _user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
 
 def has_membro_edit_permission(user):
     """Verifica se o usuário tem permissão para EDITAR/ADICIONAR/INATIVAR dados de membros."""
-    from contas.constants import user_has_permission_level_or_higher, SECRETARIO_LOCAL
-    return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
+    return _user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
 
 
 # --- Funções de agrupamento de GrupoCasa reutilizáveis (preview/apply) ---
