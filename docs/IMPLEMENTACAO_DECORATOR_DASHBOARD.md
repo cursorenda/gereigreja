@@ -142,8 +142,8 @@ def dashboard(request):
 |--------|--------|--------|
 | Superuser | ✅ | Sempre passa |
 | Admin Ministerio | ✅ | Em GRUPOS_OPERACIONAL |
-| Liderança Secretaria | ✅ | Em GRUPOS_OPERACIONAL |
-| Liderança Financeira | ✅ | Em GRUPOS_OPERACIONAL |
+| Secretaria Ministerial | ✅ | Em GRUPOS_OPERACIONAL |
+| Tesouraria Ministerial | ✅ | Em GRUPOS_OPERACIONAL |
 | Pastor Regional | ✅ | Em GRUPOS_OPERACIONAL |
 | Pastor Local | ✅ | Em GRUPOS_OPERACIONAL |
 | Secretário Local | ✅ | Em GRUPOS_OPERACIONAL |
