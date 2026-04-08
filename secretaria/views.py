@@ -3001,7 +3001,8 @@ def dashboard(request):
         'total_associacoes': total_associacoes,
     }
     # scope_label para badge de escopo no template
-    if request.igreja_ativa and request.igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
+    igrejas_permitidas = getattr(request, 'igrejas_permitidas', Igreja.objects.none())
+    if request.igreja_ativa and igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
         context['scope_label'] = f"Igreja: {request.igreja_ativa.nome_igreja}"
     elif igrejas_filtro.exists():
         _n_db = igrejas_filtro.count()
@@ -3314,7 +3315,9 @@ def editar_grupo_casa(request, grupo_id):
 @check_permission(has_membro_view_permission, login_url_name='login')
 def lista_membros(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = request.igrejas_permitidas
+    allowed_churches = getattr(request, 'igrejas_permitidas', None)
+    if allowed_churches is None:
+        allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     membros_queryset = _membros_queryset_por_escopo(request)
 
     # Filtro por nome/apelido (busca parcial)
@@ -3581,7 +3584,9 @@ def detalhe_membro(request, membro_id):
 def imprimir_lista_membros(request):
     """View para impressão da lista de membros com filtros aplicados."""
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = request.igrejas_permitidas
+    allowed_churches = getattr(request, 'igrejas_permitidas', None)
+    if allowed_churches is None:
+        allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     membros_queryset = _membros_queryset_por_escopo(request)
 
     # Filtro por nome/apelido (busca parcial)
