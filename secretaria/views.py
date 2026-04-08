@@ -62,7 +62,7 @@ from django.utils.crypto import get_random_string
 from django.views.decorators.http import require_GET, require_POST
 
 # Third-party/local apps
-from core.decorators import check_permission, verificar_assinatura_valida, user_passes_test_or_403, secretaria_dashboard_required, inject_igrejas_permitidas
+from core.decorators import check_permission, verificar_assinatura_valida, user_passes_test_or_403, secretaria_dashboard_required
 from core.group_sync import recalcular_grupos_efetivos_usuario
 from core.utils import get_ministerio_or_error, get_request_scoped_churches, resolve_lideranca_scope
 from eventos.models import Evento
@@ -557,7 +557,6 @@ def _membros_queryset_por_escopo(request):
     return Membro.objects.filter(igreja__in=igrejas_permitidas)
 
 @login_required
-@inject_igrejas_permitidas
 def lista_visitantes(request):
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '')
@@ -2461,7 +2460,6 @@ def salvar_nota_usuario(request):
 
 @login_required
 @secretaria_dashboard_required
-@inject_igrejas_permitidas
 def dashboard(request):
     from datetime import date, timedelta
     hoje_data = date.today()
@@ -3069,7 +3067,6 @@ def editar_grupo_casa(request, grupo_id):
 
 
 @check_permission(has_membro_view_permission, login_url_name='login')
-@inject_igrejas_permitidas
 def lista_membros(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = request.igrejas_permitidas
@@ -3337,7 +3334,6 @@ def detalhe_membro(request, membro_id):
 
 
 @login_required
-@inject_igrejas_permitidas
 def imprimir_lista_membros(request):
     """View para impressão da lista de membros com filtros aplicados."""
     ministerio = get_ministerio_or_error(request)
