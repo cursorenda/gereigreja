@@ -1,0 +1,48 @@
+Aqui estão as diferenças e possibilidades para implementar o painel de “Mostrar Usuários/Grupos” no Django Admin:
+
+---
+
+### 1. Painel Global (para todo o Admin)
+- O que é: Um botão fixo (ou menu) visível em todas as páginas do Django Admin, geralmente no topo ou na barra lateral.
+- Como funciona: Ao clicar, exibe uma lista de todos os superusuários, todos os usuários com acesso ao admin e todos os grupos com permissões administrativas.
+- Vantagens: Visão geral rápida de quem tem acesso ao admin inteiro. Útil para auditoria global e times pequenos.
+- Limitações: Não mostra permissões específicas por app/modelo. Pode ficar poluído em sistemas grandes.
+
+---
+
+### 2. Painel Contextual (por app/modelo/página)
+- O que é: Botão ou painel que aparece apenas em páginas específicas do admin (ex: lista de eventos, detalhes de um modelo).
+- Como funciona: Mostra apenas os usuários e grupos que têm permissão para aquele app/modelo/página.
+- Vantagens: Auditoria precisa: você vê quem pode acessar/modificar exatamente aquele recurso. Ajuda a identificar permissões indevidas em áreas sensíveis.
+- Limitações: Implementação um pouco mais complexa (precisa checar permissões dinâmicas). Pode ser necessário customizar cada ModelAdmin.
+
+---
+
+### 3. Modal, Painel Fixo ou Tabela no Topo
+- Modal: Abre uma janela sobre a página, sem recarregar. Visual limpo, não ocupa espaço fixo.
+- Painel Fixo: Sempre visível no topo ou lateral. Útil para monitoramento constante, mas pode poluir a interface.
+- Tabela no Topo: Exibe a lista logo acima do conteúdo da página. Simples, mas pode ocupar espaço e ser ignorado.
+
+---
+
+### 4. Permissão de Visualização
+- Apenas superusuário: Só quem é superuser vê o painel/botão. Segurança máxima.
+- Permissão customizada: Pode liberar para outros grupos (ex: auditores, TI). Mais flexível, mas exige controle.
+
+---
+
+### 5. Modo Local vs Produção
+- Modo local (DEBUG=True): Útil para desenvolvimento, testes e auditoria rápida. Sem risco de expor informações sensíveis em produção.
+- Produção: Pode ser ativado por configuração, IP, ou feature flag. Útil para times de TI, mas exige cuidado com privacidade.
+
+---
+
+### Resumo prático
+- Global: visão geral, fácil, mas menos detalhada.
+- Contextual: auditoria precisa, ideal para controle fino.
+- Modal: visual limpo, não polui.
+- Fixo/topo: sempre visível, mas pode poluir.
+- Superuser: máxima segurança.
+- Local/produção: escolha conforme necessidade e risco.
+
+Se quiser, posso implementar o modelo que preferir — só me dizer qual formato/contexto você acha mais útil para seu fluxo!
