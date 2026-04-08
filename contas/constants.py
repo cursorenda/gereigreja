@@ -76,6 +76,24 @@ GRUPOS_TODOS = GRUPOS_OPERACIONAL + GRUPOS_EQUIPES + [MEMBRO_COMUM]
 # Alias para compatibilidade
 GRUPOS_LIDERANCA = GRUPOS_LIDERANCA_REGIONAL  # Mantém nome antigo por compatibilidade
 
+# Ordem hierárquica para validações "igual ou superior"
+HIERARQUIA_GRUPOS = {
+    ADMIN_MINISTERIO: 1,
+    LIDERANCA_SECRETARIA: 2,
+    LIDERANCA_FINANCEIRA: 2,
+    PASTOR_REGIONAL: 3,
+    PASTOR_LOCAL: 4,
+    SECRETARIO_LOCAL: 5,
+    TESOUREIRO: 5,
+    SUPERINTENDENTE_EBD: 5,
+    EQUIPE_EVENTOS: 6,
+    EQUIPE_MIDIA: 6,
+    EQUIPE_RECEPCAO: 6,
+    PROFESSOR_EBD: 6,
+    SECRETARIA_EBD: 6,
+    MEMBRO_COMUM: 7,
+}
+
 # ===================================
 # HELPER FUNCTIONS
 # ===================================
@@ -110,6 +128,23 @@ def user_tem_qualquer_grupo(user, lista_grupos):
     if not user.is_authenticated:
         return False
     return user.groups.filter(name__in=lista_grupos).exists()
+
+
+def user_has_permission_level_or_higher(user, required_group):
+    """Retorna True se o usuário tiver grupo com nível hierárquico <= ao exigido."""
+    if not user.is_authenticated:
+        return False
+
+    required_level = HIERARQUIA_GRUPOS.get(required_group)
+    if required_level is None:
+        return False
+
+    user_groups = user.groups.values_list('name', flat=True)
+    for group_name in user_groups:
+        user_level = HIERARQUIA_GRUPOS.get(group_name)
+        if user_level is not None and user_level <= required_level:
+            return True
+    return False
 
 
 # ===================================
