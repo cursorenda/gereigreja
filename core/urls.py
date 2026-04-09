@@ -11,6 +11,8 @@ from contas.views import LandingPageView
 
 from core.views import notificacoes_enviadas_view
 from core.backup_views import backup_urls
+from core.views_painel_permissoes import painel_permissoes_view
+from core.views_teste_permissao import view_livre, view_admin_ministerio
 from configuracao.admin_dashboard import dashboard_desenvolvedor, executar_comando
 from configuracao.admin_metrics import metricas_produto
 from django.contrib.admin.views.decorators import staff_member_required
@@ -24,6 +26,11 @@ urlpatterns = [
     path('admin/executar-comando/', staff_member_required(executar_comando), name='admin_executar_comando'),
     # Métricas de Produto/Uso (ANTES do admin.site.urls)
     path('admin/api/metricas-produto/', staff_member_required(metricas_produto), name='admin_metricas_produto'),
+    # Painel de testes de permissoes/hierarquias
+    path('admin/painel-permissoes/', staff_member_required(painel_permissoes_view), name='admin_painel_permissoes'),
+    # Rotas de teste de permissao
+    path('teste-permissao/livre/', view_livre, name='teste_permissao_livre'),
+    path('teste-permissao/admin-ministerio/', view_admin_ministerio, name='teste_permissao_admin_ministerio'),
     path('admin/', admin.site.urls),
     path('financeiro/', include(('financeiro.urls', 'financeiro'), namespace='financeiro')),
     path('eventos/', include(('eventos.urls', 'eventos'), namespace='eventos')),
