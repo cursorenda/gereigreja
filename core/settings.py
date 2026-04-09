@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'escola_biblica',
     'deploy',
     'core',
+    'auditoria.apps.AuditoriaConfig',
     'storages',
     'cloudinary',
     'cloudinary_storage',
