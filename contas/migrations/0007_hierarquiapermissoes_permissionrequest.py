@@ -5,6 +5,23 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def _create_model_if_missing(apps, schema_editor, app_label, model_name):
+    model = apps.get_model(app_label, model_name)
+    table_name = model._meta.db_table
+    existing_tables = schema_editor.connection.introspection.table_names()
+    if table_name in existing_tables:
+        return
+    schema_editor.create_model(model)
+
+
+def _create_hierarquia_if_missing(apps, schema_editor):
+    _create_model_if_missing(apps, schema_editor, 'contas', 'HierarquiaPermissoes')
+
+
+def _create_permission_request_if_missing(apps, schema_editor):
+    _create_model_if_missing(apps, schema_editor, 'contas', 'PermissionRequest')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -15,47 +32,61 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='HierarquiaPermissoes',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nivel_superior', models.CharField(choices=[('Admin Ministerio', 'Admin Ministerio'), ('Pastor Regional', 'Pastor Regional'), ('Pastor Local', 'Pastor Local')], max_length=50)),
-                ('data_vinculo', models.DateTimeField(auto_now_add=True)),
-                ('ativo', models.BooleanField(default=True)),
-                ('igreja', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='hierarquias_permissoes', to='configuracao.igreja')),
-                ('usuario_subordinado', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='vinculos_subordinacao', to=settings.AUTH_USER_MODEL)),
-                ('usuario_superior', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='vinculos_supervisao', to=settings.AUTH_USER_MODEL)),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(_create_hierarquia_if_missing, migrations.RunPython.noop),
             ],
-            options={
-                'verbose_name': 'Hierarquia de Permissao',
-                'verbose_name_plural': 'Hierarquias de Permissoes',
-                'ordering': ['-data_vinculo'],
-                'indexes': [models.Index(fields=['usuario_superior', 'nivel_superior'], name='contas_hier_usuario_3c0912_idx'), models.Index(fields=['usuario_subordinado', 'ativo'], name='contas_hier_usuario_9de8f7_idx'), models.Index(fields=['igreja', 'nivel_superior'], name='contas_hier_igreja__172abc_idx')],
-                'unique_together': {('usuario_superior', 'usuario_subordinado', 'nivel_superior')},
-            },
+            state_operations=[
+                migrations.CreateModel(
+                    name='HierarquiaPermissoes',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('nivel_superior', models.CharField(choices=[('Admin Ministerio', 'Admin Ministerio'), ('Pastor Regional', 'Pastor Regional'), ('Pastor Local', 'Pastor Local')], max_length=50)),
+                        ('data_vinculo', models.DateTimeField(auto_now_add=True)),
+                        ('ativo', models.BooleanField(default=True)),
+                        ('igreja', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='hierarquias_permissoes', to='configuracao.igreja')),
+                        ('usuario_subordinado', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='vinculos_subordinacao', to=settings.AUTH_USER_MODEL)),
+                        ('usuario_superior', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='vinculos_supervisao', to=settings.AUTH_USER_MODEL)),
+                    ],
+                    options={
+                        'verbose_name': 'Hierarquia de Permissao',
+                        'verbose_name_plural': 'Hierarquias de Permissoes',
+                        'ordering': ['-data_vinculo'],
+                        'indexes': [models.Index(fields=['usuario_superior', 'nivel_superior'], name='contas_hier_usuario_3c0912_idx'), models.Index(fields=['usuario_subordinado', 'ativo'], name='contas_hier_usuario_9de8f7_idx'), models.Index(fields=['igreja', 'nivel_superior'], name='contas_hier_igreja__172abc_idx')],
+                        'unique_together': {('usuario_superior', 'usuario_subordinado', 'nivel_superior')},
+                    },
+                ),
+            ],
         ),
-        migrations.CreateModel(
-            name='PermissionRequest',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('justificativa', models.TextField(verbose_name='Justificativa')),
-                ('prioridade', models.CharField(choices=[('baixa', 'Baixa'), ('media', 'Media'), ('alta', 'Alta'), ('urgente', 'Urgente')], default='media', max_length=10)),
-                ('status', models.CharField(choices=[('pending', 'Pendente'), ('approved', 'Aprovada'), ('rejected', 'Rejeitada'), ('cancelled', 'Cancelada')], db_index=True, default='pending', max_length=10)),
-                ('data_solicitacao', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('data_resposta', models.DateTimeField(blank=True, null=True)),
-                ('observacao_resposta', models.TextField(blank=True)),
-                ('notificacao_enviada', models.BooleanField(default=False)),
-                ('grupo_solicitado', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='auth.group', verbose_name='Grupo Solicitado')),
-                ('igreja_contexto', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='configuracao.igreja')),
-                ('ministerio', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='configuracao.ministerio')),
-                ('usuario_aprovador', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='solicitacoes_avaliadas', to=settings.AUTH_USER_MODEL)),
-                ('usuario_solicitante', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='solicitacoes_permissao', to=settings.AUTH_USER_MODEL, verbose_name='Usuario Solicitante')),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(_create_permission_request_if_missing, migrations.RunPython.noop),
             ],
-            options={
-                'verbose_name': 'Solicitacao de Permissao',
-                'verbose_name_plural': 'Solicitacoes de Permissoes',
-                'ordering': ['-data_solicitacao'],
-                'indexes': [models.Index(fields=['status', '-data_solicitacao'], name='contas_perm_status_2ed14a_idx'), models.Index(fields=['usuario_solicitante', '-data_solicitacao'], name='contas_perm_usuario_e97f5a_idx'), models.Index(fields=['ministerio', 'status'], name='contas_perm_ministe_ed19d8_idx')],
-            },
+            state_operations=[
+                migrations.CreateModel(
+                    name='PermissionRequest',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('justificativa', models.TextField(verbose_name='Justificativa')),
+                        ('prioridade', models.CharField(choices=[('baixa', 'Baixa'), ('media', 'Media'), ('alta', 'Alta'), ('urgente', 'Urgente')], default='media', max_length=10)),
+                        ('status', models.CharField(choices=[('pending', 'Pendente'), ('approved', 'Aprovada'), ('rejected', 'Rejeitada'), ('cancelled', 'Cancelada')], db_index=True, default='pending', max_length=10)),
+                        ('data_solicitacao', models.DateTimeField(auto_now_add=True, db_index=True)),
+                        ('data_resposta', models.DateTimeField(blank=True, null=True)),
+                        ('observacao_resposta', models.TextField(blank=True)),
+                        ('notificacao_enviada', models.BooleanField(default=False)),
+                        ('grupo_solicitado', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='auth.group', verbose_name='Grupo Solicitado')),
+                        ('igreja_contexto', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='configuracao.igreja')),
+                        ('ministerio', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='configuracao.ministerio')),
+                        ('usuario_aprovador', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='solicitacoes_avaliadas', to=settings.AUTH_USER_MODEL)),
+                        ('usuario_solicitante', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='solicitacoes_permissao', to=settings.AUTH_USER_MODEL, verbose_name='Usuario Solicitante')),
+                    ],
+                    options={
+                        'verbose_name': 'Solicitacao de Permissao',
+                        'verbose_name_plural': 'Solicitacoes de Permissoes',
+                        'ordering': ['-data_solicitacao'],
+                        'indexes': [models.Index(fields=['status', '-data_solicitacao'], name='contas_perm_status_2ed14a_idx'), models.Index(fields=['usuario_solicitante', '-data_solicitacao'], name='contas_perm_usuario_e97f5a_idx'), models.Index(fields=['ministerio', 'status'], name='contas_perm_ministe_ed19d8_idx')],
+                    },
+                ),
+            ],
         ),
     ]
