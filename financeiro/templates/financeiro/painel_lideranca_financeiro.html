@@ -13,6 +13,8 @@
         <li class="breadcrumb-item active">Liderança</li>
     </ol>
 
+    {% include 'partials/_escopo_ativo.html' %}
+
 
 
     {% if erro_painel %}
@@ -36,13 +38,7 @@
                         <label class="input-group-text" for="igreja_filtro_select_lider">Igreja/Regional:</label>
                         <select name="igreja_filtro" id="igreja_filtro_select_lider" class="form-select form-select-sm" onchange="this.form.submit()">
                             {# Opção para "Toda a Rede" ou "Rede: [Nome da Regional Global]" #}
-                            <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>
-                                {% if request.igreja_ativa and request.igreja_ativa.get_descendants.count > 0 %}
-                                    Rede: {{ request.igreja_ativa.nome_igreja }}
-                                {% else %}
-                                    Toda a Rede (Permitidas)
-                                {% endif %}
-                            </option>                           
+                            <option value="" {% if not igreja_id_filtro_selecionado %}selected{% endif %}>{{ label_opcao_all }}</option>                           
                            
                            
                             {% for igreja_opt in igrejas_permitidas_filtro %}
