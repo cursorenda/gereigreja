@@ -38,6 +38,7 @@
             <td>{{ transferencia.data_solicitacao|date:'d/m/Y H:i' }}</td>
             <td>{{ transferencia.observacao|default:'-' }}</td>
             <td>
+              <a href="{% url 'secretaria:detalhe_membro' membro_id=transferencia.membro_id %}" class="btn btn-outline-primary btn-sm mb-1">Ver membro</a>
               {% if transferencia.status == 'aguardando' %}
                 {% if transferencia.igreja_destino_id in igrejas_permitidas_ids %}
                   <a href="{% url 'secretaria:aprovar_transferencia' transferencia.id %}" class="btn btn-success btn-sm mb-1">Aprovar</a>
@@ -47,10 +48,10 @@
                   <a href="{% url 'secretaria:cancelar_transferencia' transferencia.id %}" class="btn btn-outline-secondary btn-sm mb-1">Cancelar</a>
                 {% endif %}
                 {% if not transferencia.igreja_destino_id in igrejas_permitidas_ids and not transferencia.usuario_solicitante_id == request.user.id and not transferencia.igreja_origem_id in igrejas_permitidas_ids %}
-                  <span class="text-muted">-</span>
+                  <span class="text-muted d-inline-block">Sem ação no seu escopo</span>
                 {% endif %}
               {% else %}
-                <span class="text-muted">Processada</span>
+                <span class="text-muted d-inline-block">Processada</span>
               {% endif %}
             </td>
           </tr>

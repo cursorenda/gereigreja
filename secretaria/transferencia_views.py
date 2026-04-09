@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
@@ -93,6 +94,15 @@ def _append_observacao(transferencia, observacao):
         transferencia.observacao = texto
 
 
+def _parse_int_or_none(value):
+    if value in (None, ''):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError, ValidationError):
+        return None
+
+
 @login_required
 def solicitar_transferencia(request):
     if not _can_manage_transferencias(request.user):
@@ -102,10 +112,15 @@ def solicitar_transferencia(request):
 
     # Em POST, o campo membro pode vir desabilitado no form (não enviado);
     # por isso mantemos fallback para o membro_id da querystring.
-    membro_id = request.POST.get('membro') or request.GET.get('membro_id')
+    membro_id_raw = request.POST.get('membro') or request.GET.get('membro_id')
+    membro_id = _parse_int_or_none(membro_id_raw)
     membro = None
 
-    if membro_id:
+    if membro_id_raw and membro_id is None:
+        messages.error(request, 'ID de membro inválido para solicitar transferência.')
+        return redirect('secretaria:lista_membros')
+
+    if membro_id is not None:
         membro_qs = Membro.objects.select_related('igreja', 'igreja__ministerio')
         if igrejas_permitidas is not None:
             membro_qs = membro_qs.filter(igreja__in=igrejas_permitidas)
@@ -122,6 +137,16 @@ def solicitar_transferencia(request):
             transferencia.save()
 
             _notificar_igreja_destino_sobre_transferencia(transferencia)
+            Notificacao.objects.create(
+                user=request.user,
+                ministerio=transferencia.igreja_origem.ministerio,
+                message=(
+                    f"Solicitação registrada: {transferencia.membro.nome} -> "
+                    f"{transferencia.igreja_destino.nome_igreja}. Aguardando aprovação."
+                ),
+                notification_type='info',
+                url='/secretaria/transferencias/',
+            )
 
             messages.success(request, 'Solicitação de transferência criada com sucesso.')
             return redirect('secretaria:lista_transferencias')
