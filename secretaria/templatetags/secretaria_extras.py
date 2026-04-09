@@ -16,7 +16,8 @@ def has_group(user, group_names):
     if not user.is_authenticated:
         return False
     group_list = [g.strip() for g in group_names.split(',')]
-    return user.groups.filter(name__in=group_list).exists()
+    from contas.constants import user_tem_qualquer_grupo
+    return user_tem_qualquer_grupo(user, group_list)
 
 @register.filter(name='get_item')
 def get_item(dictionary, key):
