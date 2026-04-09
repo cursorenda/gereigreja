@@ -1,3 +1,32 @@
+def modo_auditoria_flag(request):
+    """
+    Adiciona o flag de modo auditoria ao contexto global.
+    """
+    return {'modo_auditoria_ativo': bool(request.session.get('modo_auditoria', False))}
+from django.apps import apps
+
+def ultimos_cadastros(request):
+    """
+    Adiciona os últimos 5 ministérios, igrejas e membros ao contexto global.
+    """
+    try:
+        Ministerio = apps.get_model('configuracao', 'Ministerio')
+        Igreja = apps.get_model('configuracao', 'Igreja')
+        Membro = apps.get_model('secretaria', 'Membro')
+    except LookupError:
+        return {}
+
+
+    ultimos_ministerios = Ministerio.objects.order_by('-id')[:5]
+    ultimas_igrejas = Igreja.objects.order_by('-id')[:5]
+    # Membro não tem id, usa chave como PK
+    ultimos_membros = Membro.objects.order_by('-chave')[:5]
+
+    return {
+        'ultimos_ministerios': ultimos_ministerios,
+        'ultimas_igrejas': ultimas_igrejas,
+        'ultimos_membros': ultimos_membros,
+    }
 from django.contrib import messages
 def deduplicate_assinatura_vencida(request):
     from django.utils.safestring import mark_safe
