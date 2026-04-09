@@ -1,9 +1,12 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+
+from contas.constants import SECRETARIO_LOCAL, user_has_permission_level_or_higher
 
 from .models import Membro, TransferenciaMembro
 from .transferencia_forms import TransferenciaMembroForm
@@ -15,9 +18,15 @@ def _get_igrejas_permitidas(request):
     return None
 
 
+def _can_manage_transferencias(user):
+    return user.is_superuser or user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
+
+
 @login_required
-@permission_required('secretaria.add_transferenciamembro', raise_exception=True)
 def solicitar_transferencia(request):
+    if not _can_manage_transferencias(request.user):
+        raise PermissionDenied
+
     igrejas_permitidas = _get_igrejas_permitidas(request)
 
     membro_id = request.POST.get('membro') if request.method == 'POST' else request.GET.get('membro_id')
@@ -54,8 +63,10 @@ def solicitar_transferencia(request):
 
 
 @login_required
-@permission_required('secretaria.view_transferenciamembro', raise_exception=True)
 def lista_transferencias(request):
+    if not _can_manage_transferencias(request.user):
+        raise PermissionDenied
+
     igrejas_permitidas = _get_igrejas_permitidas(request)
 
     transferencias = TransferenciaMembro.objects.select_related(
@@ -79,8 +90,10 @@ def lista_transferencias(request):
 
 
 @login_required
-@permission_required('secretaria.change_transferenciamembro', raise_exception=True)
 def aprovar_transferencia(request, pk):
+    if not _can_manage_transferencias(request.user):
+        raise PermissionDenied
+
     igrejas_permitidas = _get_igrejas_permitidas(request)
 
     qs = TransferenciaMembro.objects.select_related('membro', 'igreja_destino')

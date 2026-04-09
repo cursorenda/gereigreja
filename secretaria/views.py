@@ -3415,6 +3415,7 @@ def lista_membros(request): # noqa: E302
         membros_page = paginator.page(paginator.num_pages)
 
     can_edit = has_membro_edit_permission(request.user)
+    can_manage_transferencias = _user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL)
     igrejas_para_filtro_template = allowed_churches if not request.igreja_ativa else Igreja.objects.filter(pk=request.igreja_ativa.pk)
 
     if request.igreja_ativa:
@@ -3428,6 +3429,7 @@ def lista_membros(request): # noqa: E302
         'ministerio': ministerio,
         'query': query,
         'can_edit_membros': can_edit,
+        'can_manage_transferencias': can_manage_transferencias,
         'scope_label': scope_label_membros,
         'titulo_pagina': f"Lista de Membros{': ' + request.igreja_ativa.nome_igreja if request.igreja_ativa else ' (Consolidado)'}",
         'igrejas_org': igrejas_para_filtro_template, # Para o filtro da página
@@ -3577,6 +3579,7 @@ def detalhe_membro(request, membro_id):
         'ministerio': ministerio,
         'titulo_pagina': f'Visualizar: {membro.nome}',
         'pode_aprovar': pode_aprovar,
+        'can_manage_transferencias': _user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL),
         'membros_igreja_ativa': membros_igreja_ativa,
     }
     context.update(nav_context)

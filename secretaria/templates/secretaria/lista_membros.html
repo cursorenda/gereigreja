@@ -205,6 +205,12 @@
                             <i class="fas fa-print"></i>
                             <span style="margin-left: 0.4em;">Imprimir</span>
                         </a>
+                        {% if can_manage_transferencias %}
+                        <a href="{% url 'secretaria:solicitar_transferencia' %}?membro_id={{ membro.pk }}" class="btn btn-warning btn-icon me-1" title="Solicitar transferência de {{ membro.nome }}">
+                            <i class="fas fa-random"></i>
+                            <span style="margin-left: 0.4em;">Transferir</span>
+                        </a>
+                        {% endif %}
                     </td>
                     {% endif %}
                 </tr>
