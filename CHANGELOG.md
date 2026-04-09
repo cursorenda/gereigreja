@@ -1,3 +1,142 @@
+## v1.8.23 — 08/04/2026
+🔁 **Transferências: fluxo completo de decisão (aprovar, recusar, cancelar) com notificações**
+
+### Principais mudanças
+- ✅ Adicionadas ações de **Recusar** e **Cancelar** transferência com registro de motivo
+- ✅ Novas telas de confirmação para recusa e cancelamento
+- ✅ Lista de transferências atualizada com ações contextuais por escopo
+- ✅ Notificações automáticas para origem/destino conforme a decisão
+
+### Arquivos principais
+- `secretaria/transferencia_views.py`
+- `secretaria/transferencia_urls.py`
+- `secretaria/templates/secretaria/transferencia_list.html`
+- `secretaria/templates/secretaria/transferencia_recusar.html`
+- `secretaria/templates/secretaria/transferencia_cancelar.html`
+
+---
+
+## v1.8.22 — 08/04/2026
+🔔 **Transferências: notificação no sininho + badge de pendências**
+
+### Principais mudanças
+- ✅ Ao solicitar transferência, sistema cria notificação para gestores da igreja destino
+- ✅ Badge/alerta no topo para pendências de aprovação no escopo do usuário
+- ✅ Item de menu "Transferências" na Secretaria com contador de pendências
+
+### Arquivos principais
+- `secretaria/transferencia_views.py`
+- `core/context_processors.py`
+- `core/settings.py`
+- `templates/base_com_menu.html`
+- `templates/menu.html`
+
+---
+
+## v1.8.21 — 08/04/2026
+🧾 **Hotfix de formulário de transferência**
+
+### Correções
+- ✅ Corrigido envio de `membro_id` no POST com fallback para querystring
+- ✅ Removido falso erro de campo obrigatório quando membro está fixado e desabilitado
+
+---
+
+## v1.8.20 — 08/04/2026
+🐛 **Hotfix NameError em lista de pessoas**
+
+### Correções
+- ✅ Corrigido `NameError: SECRETARIO_LOCAL` em `secretaria/views.py`
+
+---
+
+## v1.8.19 — 08/04/2026
+👁️ **Transferências: visibilidade e acesso por hierarquia**
+
+### Correções
+- ✅ Botão "Transferir" exibido na lista e no detalhe de pessoas
+- ✅ Gate de acesso migrado para hierarquia (Secretário Local ou superior)
+
+---
+
+## v1.8.18 — 08/04/2026
+🚚 **Novo módulo de transferência de membros (origem → destino)**
+
+### Entregas
+- ✅ Modelo `TransferenciaMembro` + migration isolada (`10003_transferenciamembro`)
+- ✅ Fluxo inicial de solicitar, listar e aprovar transferência
+- ✅ Rotas específicas de transferência em `secretaria/transferencia_urls.py`
+- ✅ Botão de solicitação no detalhe de pessoa
+
+---
+
+## v1.8.17 — 08/04/2026
+🧩 **Padronização de grupos em template tags**
+
+### Ajuste
+- ✅ `has_group` de `secretaria_extras` passou a usar API central de grupos
+
+---
+
+## v1.8.16 — 08/04/2026
+💰 **Hotfix financeiro para Pastor Local**
+
+### Correções
+- ✅ Painel financeiro liberado para Pastor Local e níveis superiores na hierarquia
+
+---
+
+## v1.8.15 — 08/04/2026
+🧠 **Lote 4 (core): hierarquia em decorators e escopo global no middleware**
+
+### Entregas
+- ✅ Refatoração de decorators para `user_has_permission_level_or_higher`
+- ✅ `request.igrejas_permitidas` populado no middleware
+- ✅ Ajustes de context processors e views para modelo hierárquico
+
+---
+
+## v1.8.14 — 08/04/2026
+🎨 **Lote 3 (templates): melhorias de escopo e UX**
+
+### Entregas
+- ✅ Inclusão de escopo ativo em telas de secretaria/financeiro
+- ✅ Ajustes de estado vazio e filtros em lista de pessoas
+
+---
+
+## v1.8.13 — 08/04/2026
+🧪 **Lote 2: documentação e testes**
+
+### Entregas
+- ✅ Promoção de arquivos de `docs/` e `tests/` sem risco de runtime
+
+---
+
+## v1.8.12 — 08/04/2026
+🧱 **Lote 1: base de hierarquia de grupos**
+
+### Entregas
+- ✅ Inclusão de `HIERARQUIA_GRUPOS` e helper de comparação hierárquica
+
+---
+
+## v1.8.11 — 08/04/2026
+🧯 **Hotfix lista de pessoas vazia em Secretaria**
+
+### Correções
+- ✅ Fallback de escopo em `_membros_queryset_por_escopo` quando `request.igrejas_permitidas` não está definido
+
+---
+
+## v1.8.10 — 08/04/2026
+🧯 **Hotfix AttributeError em /secretaria/pessoas/**
+
+### Correções
+- ✅ Correção de acessos diretos a `request.igrejas_permitidas` com fallback seguro
+
+---
+
 ## v1.8.0 — 08/04/2026
 🔐 **FOCO EM SEGURANÇA: Renomeação de Grupos Ministeriais, Proteção de Dados e Controle de Acesso Hierárquico**
 

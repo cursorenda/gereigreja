@@ -82,12 +82,11 @@
 
 ## 📝 Release Notes
 
-### Versões Recentes (Raiz)
-- [../RELEASE_NOTES_v1.6.0.md](../RELEASE_NOTES_v1.6.0.md) - Última versão estável
-- [../RELEASE_NOTES_v1.5.0.md](../RELEASE_NOTES_v1.5.0.md)
+### Versões Recentes
+- [release-notes/RELEASE_NOTES_v1.8.23.md](release-notes/RELEASE_NOTES_v1.8.23.md) - Ciclo v1.8.10 até v1.8.23
 
-### Versões Antigas
-Ver pasta [release-notes/](release-notes/) para histórico completo (v1.0.0 até v1.3.1)
+### Histórico Completo
+Ver pasta [release-notes/](release-notes/) para histórico de versões.
 
 ---
 
@@ -97,10 +96,11 @@ Ver pasta [release-notes/](release-notes/) para histórico completo (v1.0.0 até
 Gereigreja/
 ├── docs/                          # 📚 Documentação técnica (VOCÊ ESTÁ AQUI)
 │   ├── INDEX.md                   # Este índice
-│   ├── release-notes/             # Release notes antigas
+│   ├── release-notes/             # Release notes por versão
 │   │   ├── RELEASE_NOTES_v1.0.0.md
 │   │   ├── ...
-│   │   └── RELEASE_NOTES_v1.3.1.md
+│   │   ├── RELEASE_NOTES_v1.3.1.md
+│   │   └── RELEASE_NOTES_v1.8.23.md
 │   ├── VALIDACOES_CADASTRO_PESSOAS.md
 │   ├── ANALISE_MELHORIAS_CADASTRO_PESSOAS.md
 │   ├── REGRAS_TIPOS_PESSOA_STATUS.md
@@ -120,7 +120,7 @@ Gereigreja/
 │
 ├── README.md                      # 📖 README principal
 ├── CHANGELOG.md                   # 📝 Changelog ativo
-└── RELEASE_NOTES_v1.x.x.md        # 🚀 Release notes recentes
+└── CHANGELOG.md                   # 📝 Histórico consolidado de mudanças
 ```
 
 ---
