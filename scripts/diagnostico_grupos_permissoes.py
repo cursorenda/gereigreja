@@ -227,7 +227,7 @@ def analisar_grupos_permissoes():
         'Admin Ministerio',
         'Superintendentes', 
         'Secretaria EBD',
-        'Lideranca Financeira',
+        'Tesouraria Ministerial',
         'Tesoureiro',
         'Lider Igreja',
         'Gestor',
