@@ -61,6 +61,7 @@ PROJECT_TEST_MIGRATION_DISABLE = [
     'configuracao',
     'comunicacao',
     'suporte',
+    'auditoria',
 ]
 
 MIGRATION_MODULES = {app: None for app in PROJECT_TEST_MIGRATION_DISABLE}
