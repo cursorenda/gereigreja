@@ -11,48 +11,52 @@ class ActiveChurchMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request.igreja_ativa = None # Inicializa o atributo no request
+        request.igreja_ativa = None  # Inicializa o atributo no request
+        request.igrejas_permitidas = None  # Escopo automático global
 
-        # Só processa para usuários autenticados, com perfil e que não sejam superusuários
-        if request.user.is_authenticated and \
-           hasattr(request.user, 'perfil') and \
-           request.user.perfil and \
-           not request.user.is_superuser:
-            
+        if request.user.is_authenticated:
             # Import lazy para permitir servidor iniciar sem BD
             from configuracao.models import Igreja
-            from financeiro.utils import get_allowed_churches_for_user
-            
+            from core.utils import get_igrejas_permitidas
+
             igreja_ativa_id = request.session.get('igreja_ativa_id')
-            allowed_churches = Igreja.objects.none() # Inicializa como queryset vazio
+            allowed_churches = Igreja.objects.none()
 
             try:
-                # É importante obter as igrejas permitidas a cada requisição ou de um cache confiável,
-                # pois as permissões podem mudar.
-                allowed_churches = get_allowed_churches_for_user(request.user)
+                if request.user.is_superuser:
+                    allowed_churches = Igreja.objects.all()
+                else:
+                    perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
+                    ministerio = getattr(perfil, 'ministerio', None)
+                    if ministerio:
+                        allowed_churches = get_igrejas_permitidas(request.user, ministerio)
+                request.igrejas_permitidas = allowed_churches
             except Exception as e:
                 logger.error(f"Erro ao obter igrejas permitidas para o usuário {request.user.username} no ActiveChurchMiddleware: {e}")
-                # allowed_churches permanece como queryset vazio, o que é seguro.
+                request.igrejas_permitidas = allowed_churches
 
-            if igreja_ativa_id:
-                try:
-                    # Verifica se a igreja da sessão ainda está entre as permitidas
-                    igreja = allowed_churches.get(pk=igreja_ativa_id)
-                    request.igreja_ativa = igreja
-                    logger.info(f"[ActiveChurchMiddleware] igreja_ativa definida: {igreja.nome_igreja} (ID: {igreja.pk}) para usuário {request.user.username}")
-                except Igreja.DoesNotExist:
-                    # Igreja não encontrada ou não mais permitida, limpar da sessão
-                    logger.warning(f"Igreja ativa ID {igreja_ativa_id} na sessão do usuário {request.user.username} não é válida ou não é mais permitida. Removendo da sessão.")
-                    if 'igreja_ativa_id' in request.session:
-                        del request.session['igreja_ativa_id']
-                except Exception as e:
-                    logger.error(f"Erro ao tentar obter igreja ativa ID {igreja_ativa_id} para usuário {request.user.username}: {e}")
-            # Se não houver igreja ativa na sessão e o usuário tiver acesso a apenas uma igreja, define automaticamente
-            elif allowed_churches.count() == 1:
-                igreja_unica = allowed_churches.first()
-                request.igreja_ativa = igreja_unica
-                request.session['igreja_ativa_id'] = igreja_unica.pk
-                logger.info(f"[ActiveChurchMiddleware] igreja_ativa definida automaticamente: {igreja_unica.nome_igreja} (ID: {igreja_unica.pk}) para usuário {request.user.username}")
+            # Só controla igreja ativa para usuários não superusuários
+            if not request.user.is_superuser:
+                if igreja_ativa_id:
+                    try:
+                        # Verifica se a igreja da sessão ainda está entre as permitidas
+                        igreja = allowed_churches.get(pk=igreja_ativa_id)
+                        request.igreja_ativa = igreja
+                        logger.info(f"[ActiveChurchMiddleware] igreja_ativa definida: {igreja.nome_igreja} (ID: {igreja.pk}) para usuário {request.user.username}")
+                    except Igreja.DoesNotExist:
+                        # Igreja não encontrada ou não mais permitida, limpar da sessão
+                        logger.warning(f"Igreja ativa ID {igreja_ativa_id} na sessão do usuário {request.user.username} não é válida ou não é mais permitida. Removendo da sessão.")
+                        if 'igreja_ativa_id' in request.session:
+                            del request.session['igreja_ativa_id']
+                    except Exception as e:
+                        logger.error(f"Erro ao tentar obter igreja ativa ID {igreja_ativa_id} para usuário {request.user.username}: {e}")
+                # Se não houver igreja ativa na sessão e o usuário tiver acesso a apenas uma igreja, define automaticamente
+                elif allowed_churches.count() == 1:
+                    igreja_unica = allowed_churches.first()
+                    request.igreja_ativa = igreja_unica
+                    request.session['igreja_ativa_id'] = igreja_unica.pk
+                    logger.info(f"[ActiveChurchMiddleware] igreja_ativa definida automaticamente: {igreja_unica.nome_igreja} (ID: {igreja_unica.pk}) para usuário {request.user.username}")
+
             logger.info(f"[ActiveChurchMiddleware] Valor final de request.igreja_ativa: {getattr(request.igreja_ativa, 'nome_igreja', None)}")
 
         response = self.get_response(request)
@@ -80,6 +84,7 @@ class VerificarGruposUsuarioMiddleware:
         '/static/',
         '/media/',
         '/admin/',  # Django admin é separado
+        '/teste-permissao/',  # Permite todas as rotas de teste de permissão
     ]
     
     def __init__(self, get_response):
@@ -98,9 +103,10 @@ class VerificarGruposUsuarioMiddleware:
         if any(request.path.startswith(url) for url in self.URLS_PERMITIDAS):
             return self.get_response(request)
         
-        # 4. Verifica se tem grupos
-        if not request.user.groups.exists():
-            # Não tem grupos → redireciona para página de aguardando
+        # 4. Verifica se tem permissão mínima (membro comum ou superior)
+        from contas.constants import user_has_permission_level_or_higher, MEMBRO_COMUM
+        if not user_has_permission_level_or_higher(request.user, MEMBRO_COMUM):
+            # Não tem permissão reconhecida → redireciona para página de aguardando
             from django.shortcuts import redirect
             return redirect('contas:aguardando_acesso')
         
