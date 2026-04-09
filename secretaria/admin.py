@@ -1,6 +1,6 @@
 # secretaria/admin.py
 from django.contrib import admin
-from .models import Membro, Pessoa, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, Cargo, MembroCargo, GrupoCasa, VisitaGrupoCasa, Tag # Adicionado Tag
+from .models import Membro, Pessoa, TipoPessoa, StatusPessoa, StatusHistorico, Contatos, InfoEclesiastica, Familia, Filhos, Observacoes, Cargo, MembroCargo, GrupoCasa, VisitaGrupoCasa, Tag, TransferenciaMembro # Adicionado Tag
 # Admin para Tag de Pessoa
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
@@ -104,6 +104,25 @@ class MembroCargoAdmin(admin.ModelAdmin):
     search_fields = ('membro__nome', 'cargo__nome')
     autocomplete_fields = ['membro', 'cargo']
     list_filter = ('cargo',)
+
+
+@admin.register(TransferenciaMembro)
+class TransferenciaMembroAdmin(admin.ModelAdmin):
+    list_display = (
+        'membro',
+        'igreja_origem',
+        'igreja_destino',
+        'status',
+        'data_solicitacao',
+        'usuario_solicitante',
+        'data_aprovacao',
+        'usuario_aprovador',
+    )
+    list_filter = ('status', 'igreja_origem', 'igreja_destino')
+    search_fields = ('membro__nome', 'motivo', 'observacao')
+    autocomplete_fields = ['membro', 'igreja_origem', 'igreja_destino', 'usuario_solicitante', 'usuario_aprovador']
+    readonly_fields = ('data_solicitacao', 'data_aprovacao')
+    ordering = ('-data_solicitacao',)
 # admin.site.register(Contatos)
 # admin.site.register(Eventos)
 # admin.site.register(EventosParticipacao)

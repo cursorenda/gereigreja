@@ -81,6 +81,11 @@
                     <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant-imprimir btn-sm" target="_blank">
                         <i class="fas fa-print"></i> Imprimir
                     </a>
+                    {% if perms.secretaria.add_transferenciamembro %}
+                    <a href="{% url 'secretaria:solicitar_transferencia' %}?membro_id={{ membro.pk }}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-random"></i> Solicitar Transferência
+                    </a>
+                    {% endif %}
                 </div>
             </div>
             {% if membro.criado_em or membro.atualizado_em %}
