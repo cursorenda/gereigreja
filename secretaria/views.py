@@ -71,7 +71,7 @@ from secretaria.utils import (
     has_membro_view_permission, is_secretaria_leader
 )
 from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
-from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, PASTOR_REGIONAL
+from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, PASTOR_REGIONAL, SECRETARIO_LOCAL
 from contas.models import NotaUsuario
 
 # Secretaria app forms/models
