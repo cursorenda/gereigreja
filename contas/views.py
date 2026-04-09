@@ -35,14 +35,16 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 from configuracao.models import Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionar Plano e AssinaturaMinisterio
 from secretaria.models import Membro # Importar Membro
-from contas.constants import ADMIN_MINISTERIO, user_is_admin
+from contas.constants import ADMIN_MINISTERIO, user_is_admin, user_has_permission_level_or_higher
 
-from .models import Convite
+from .models import Convite, PermissionRequest
 from .forms import (
     RegistroForm,
     ConviteForm,
     AceitarConviteSetPasswordForm,
-    EditarPapeisUsuarioForm
+    EditarPapeisUsuarioForm,
+    PermissionRequestForm,
+    PermissionRequestResponseForm,
 )
 from core.decorators import verificar_assinatura_valida, admin_ministerio_required # Ou o caminho correto
 
@@ -1447,3 +1449,204 @@ def sincronizar_dados_membro(request):
         messages.error(request, f'❌ Erro ao sincronizar dados: {str(e)}')
     
     return redirect('contas:editar_meu_perfil')
+
+
+def _resolve_ministerio_for_permissions(request):
+    perfil = getattr(request.user, 'perfil', None)
+    ministerio = getattr(perfil, 'ministerio', None)
+    if ministerio:
+        return ministerio
+
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    if igreja_ativa:
+        return igreja_ativa.ministerio
+    return None
+
+
+@login_required
+def hub_permissoes(request):
+    ministerio = _resolve_ministerio_for_permissions(request)
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    is_admin = user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO)
+
+    minhas_solicitacoes = PermissionRequest.objects.filter(
+        usuario_solicitante=request.user
+    ).select_related('grupo_solicitado', 'usuario_aprovador').order_by('-data_solicitacao')[:10]
+
+    stats_usuario = {
+        'pendentes': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='pending').count(),
+        'aprovadas': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='approved').count(),
+        'rejeitadas': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='rejected').count(),
+    }
+
+    solicitacoes_pendentes = None
+    stats_admin = None
+    if is_admin:
+        solicitacoes_pendentes = PermissionRequest.objects.select_related(
+            'usuario_solicitante',
+            'grupo_solicitado',
+            'igreja_contexto',
+        ).filter(status='pending')
+        if ministerio:
+            solicitacoes_pendentes = solicitacoes_pendentes.filter(ministerio=ministerio)
+        solicitacoes_pendentes = solicitacoes_pendentes.order_by('-data_solicitacao')[:10]
+
+        stats_admin = {
+            'pendentes': PermissionRequest.objects.filter(status='pending', ministerio=ministerio).count() if ministerio else PermissionRequest.objects.filter(status='pending').count(),
+            'aprovadas_hoje': PermissionRequest.objects.filter(
+                status='approved',
+                data_resposta__date=timezone.now().date(),
+            ).count(),
+        }
+
+    if request.method == 'POST':
+        form = PermissionRequestForm(request.POST, user=request.user, ministerio=ministerio, igreja_ativa=igreja_ativa)
+        if form.is_valid():
+            solicitacao = PermissionRequest.objects.create(
+                usuario_solicitante=request.user,
+                grupo_solicitado=form.cleaned_data['grupo'],
+                justificativa=form.cleaned_data['justificativa'],
+                prioridade=form.cleaned_data['prioridade'],
+                ministerio=ministerio,
+                igreja_contexto=form.cleaned_data.get('igreja_contexto'),
+            )
+            messages.success(
+                request,
+                f'Solicitacao enviada com sucesso. Grupo solicitado: {solicitacao.grupo_solicitado.name}.',
+            )
+            return redirect('contas:hub_permissoes')
+    else:
+        form = PermissionRequestForm(user=request.user, ministerio=ministerio, igreja_ativa=igreja_ativa)
+
+    context = {
+        'form': form,
+        'minhas_solicitacoes': minhas_solicitacoes,
+        'stats_usuario': stats_usuario,
+        'is_admin': is_admin,
+        'solicitacoes_pendentes': solicitacoes_pendentes,
+        'stats_admin': stats_admin,
+        'grupos_atuais': request.user.groups.all(),
+    }
+    return render(request, 'contas/hub_permissoes.html', context)
+
+
+@login_required
+def solicitar_permissao(request):
+    ministerio = _resolve_ministerio_for_permissions(request)
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+
+    if request.method == 'POST':
+        form = PermissionRequestForm(request.POST, user=request.user, ministerio=ministerio, igreja_ativa=igreja_ativa)
+        if form.is_valid():
+            PermissionRequest.objects.create(
+                usuario_solicitante=request.user,
+                grupo_solicitado=form.cleaned_data['grupo'],
+                justificativa=form.cleaned_data['justificativa'],
+                prioridade=form.cleaned_data['prioridade'],
+                ministerio=ministerio,
+                igreja_contexto=form.cleaned_data.get('igreja_contexto'),
+            )
+            messages.success(request, 'Solicitacao enviada com sucesso.')
+            return redirect('contas:minhas_solicitacoes')
+        messages.error(request, 'Erro no formulario. Verifique os campos.')
+    else:
+        form = PermissionRequestForm(user=request.user, ministerio=ministerio, igreja_ativa=igreja_ativa)
+
+    stats = {
+        'pendentes': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='pending').count(),
+        'aprovadas': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='approved').count(),
+        'rejeitadas': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='rejected').count(),
+    }
+    return render(request, 'contas/solicitar_permissao.html', {'form': form, 'stats': stats})
+
+
+@login_required
+def minhas_solicitacoes(request):
+    solicitacoes = PermissionRequest.objects.filter(
+        usuario_solicitante=request.user
+    ).select_related('grupo_solicitado', 'usuario_aprovador')
+
+    status_filter = request.GET.get('status')
+    if status_filter:
+        solicitacoes = solicitacoes.filter(status=status_filter)
+
+    return render(
+        request,
+        'contas/minhas_solicitacoes.html',
+        {'solicitacoes': solicitacoes.order_by('-data_solicitacao'), 'status_filter': status_filter},
+    )
+
+
+@login_required
+def cancelar_solicitacao(request, pk):
+    solicitacao = get_object_or_404(PermissionRequest, pk=pk, usuario_solicitante=request.user)
+    if solicitacao.status != 'pending':
+        messages.error(request, 'Apenas solicitacoes pendentes podem ser canceladas.')
+        return redirect('contas:minhas_solicitacoes')
+
+    if request.method == 'POST':
+        solicitacao.cancelar()
+        messages.success(request, 'Solicitacao cancelada com sucesso.')
+        return redirect('contas:minhas_solicitacoes')
+
+    return render(request, 'contas/cancelar_solicitacao.html', {'solicitacao': solicitacao})
+
+
+@login_required
+def listar_solicitacoes_pendentes(request):
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
+        messages.error(request, 'Voce nao tem permissao para acessar esta pagina.')
+        return redirect('contas:hub_permissoes')
+
+    ministerio = _resolve_ministerio_for_permissions(request)
+    solicitacoes = PermissionRequest.objects.select_related(
+        'usuario_solicitante',
+        'grupo_solicitado',
+        'igreja_contexto',
+    ).filter(status='pending')
+    if ministerio:
+        solicitacoes = solicitacoes.filter(ministerio=ministerio)
+
+    return render(
+        request,
+        'contas/listar_solicitacoes.html',
+        {'solicitacoes': solicitacoes.order_by('-data_solicitacao')},
+    )
+
+
+@login_required
+def avaliar_solicitacao(request, pk):
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
+        messages.error(request, 'Voce nao tem permissao para avaliar solicitacoes.')
+        return redirect('contas:hub_permissoes')
+
+    ministerio = _resolve_ministerio_for_permissions(request)
+    solicitacao_qs = PermissionRequest.objects.select_related(
+        'usuario_solicitante',
+        'grupo_solicitado',
+        'usuario_aprovador',
+    )
+    if ministerio:
+        solicitacao_qs = solicitacao_qs.filter(ministerio=ministerio)
+
+    solicitacao = get_object_or_404(solicitacao_qs, pk=pk)
+    if solicitacao.status != 'pending':
+        messages.warning(request, 'Esta solicitacao ja foi processada.')
+        return redirect('contas:listar_solicitacoes')
+
+    if request.method == 'POST':
+        form = PermissionRequestResponseForm(request.POST)
+        if form.is_valid():
+            acao = form.cleaned_data['acao']
+            observacao = form.cleaned_data['observacao']
+            if acao == 'aprovar':
+                solicitacao.aprovar(request.user, observacao)
+                messages.success(request, 'Solicitacao aprovada com sucesso.')
+            else:
+                solicitacao.rejeitar(request.user, observacao)
+                messages.success(request, 'Solicitacao rejeitada com sucesso.')
+            return redirect('contas:listar_solicitacoes')
+    else:
+        form = PermissionRequestResponseForm()
+
+    return render(request, 'contas/avaliar_solicitacao.html', {'solicitacao': solicitacao, 'form': form})

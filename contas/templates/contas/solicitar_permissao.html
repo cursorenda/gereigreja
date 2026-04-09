@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Solicitar Permissão - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>Solicitar Nova Permissão</h2>
+            <p class="text-muted">Preencha o formulário abaixo para solicitar acesso a um novo grupo de permissões.</p>
+            
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.grupo.id_for_label }}" class="form-label">
+                                {{ form.grupo.label }} *
+                            </label>
+                            {{ form.grupo }}
+                            {% if form.grupo.errors %}
+                            <div class="invalid-feedback d-block">{{ form.grupo.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.grupo.help_text }}</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.justificativa.id_for_label }}" class="form-label">
+                                {{ form.justificativa.label }} *
+                            </label>
+                            {{ form.justificativa }}
+                            {% if form.justificativa.errors %}
+                            <div class="invalid-feedback d-block">{{ form.justificativa.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.justificativa.help_text }}</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.prioridade.id_for_label }}" class="form-label">
+                                {{ form.prioridade.label }} *
+                            </label>
+                            {{ form.prioridade }}
+                            {% if form.prioridade.errors %}
+                            <div class="invalid-feedback d-block">{{ form.prioridade.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.prioridade.help_text }}</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.igreja_contexto.id_for_label }}" class="form-label">
+                                {{ form.igreja_contexto.label }}
+                            </label>
+                            {{ form.igreja_contexto }}
+                            {% if form.igreja_contexto.errors %}
+                            <div class="invalid-feedback d-block">{{ form.igreja_contexto.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.igreja_contexto.help_text }}</small>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Enviar Solicitação</button>
+                            <a href="{% url 'contas:minhas_solicitacoes' %}" class="btn btn-secondary">Ver Minhas Solicitações</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Suas Estatísticas</strong>
+                </div>
+                <div class="card-body">
+                    <p><strong>Solicitações Pendentes:</strong> {{ stats.pendentes }}</p>
+                    <p><strong>Aprovadas:</strong> {{ stats.aprovadas }}</p>
+                    <p><strong>Rejeitadas:</strong> {{ stats.rejeitadas }}</p>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <strong>Seus Grupos Atuais</strong>
+                </div>
+                <div class="card-body">
+                    {% if grupos_atuais %}
+                    <ul class="list-unstyled">
+                        {% for grupo in grupos_atuais %}
+                        <li><span class="badge bg-success">{{ grupo.name }}</span></li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted">Você ainda não possui grupos de permissão.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

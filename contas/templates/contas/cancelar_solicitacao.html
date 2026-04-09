@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Cancelar Solicitação - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">Confirmar Cancelamento</h5>
+                </div>
+                <div class="card-body">
+                    <p>Você tem certeza que deseja cancelar esta solicitação?</p>
+                    
+                    <dl class="row">
+                        <dt class="col-sm-4">Grupo:</dt>
+                        <dd class="col-sm-8"><strong>{{ solicitacao.grupo_solicitado.name }}</strong></dd>
+                        
+                        <dt class="col-sm-4">Data:</dt>
+                        <dd class="col-sm-8">{{ solicitacao.data_solicitacao|date:"d/m/Y H:i" }}</dd>
+                        
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8"><span class="badge bg-warning text-dark">{{ solicitacao.get_status_display }}</span></dd>
+                    </dl>
+                    
+                    <div class="alert alert-info">
+                        <small>Esta ação não pode ser desfeita. Você poderá fazer uma nova solicitação posteriormente.</small>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger">Sim, Cancelar Solicitação</button>
+                            <a href="{% url 'contas:minhas_solicitacoes' %}" class="btn btn-outline-secondary">Não, Voltar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

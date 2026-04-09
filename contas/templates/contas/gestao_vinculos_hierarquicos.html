@@ -1,0 +1,247 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Gestão de Vínculos Hierárquicos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+        <div>
+            <h1>Gestão de Vínculos Hierárquicos</h1>
+            <p class="text-muted mb-0">Defina quem pode gerenciar as permissões de quem no sistema.</p>
+        </div>
+    </div>
+
+    {# ===== FILTROS NO TOPO ===== #}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <a href="?ativos=1" class="btn btn-primary btn-sm {% if somente_ativos %}active{% endif %}">
+                    <i class="fas fa-check-circle me-1"></i>
+                    Somente Ativos
+                </a>
+                <a href="?ativos=0" class="btn btn-outline-primary btn-sm {% if not somente_ativos %}active{% endif %}">
+                    <i class="fas fa-times-circle me-1"></i>
+                    Mostrar Inativos
+                </a>
+            </div>
+        </div>
+    </div>
+    {# ===== FIM FILTROS NO TOPO ===== #}
+
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Vínculos Hierárquicos</li>
+    </ol>
+
+    {# ===== BLOCO EXPLICATIVO ===== #}
+    <div class="card border-primary mb-4">
+        <div class="card-header bg-primary text-white d-flex align-items-center gap-2" 
+             style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#collapseExplicacao" aria-expanded="false">
+            <i class="fas fa-circle-question fs-5"></i>
+            <strong>O que são vínculos hierárquicos e quando usar?</strong>
+            <i class="fas fa-angle-down ms-auto"></i>
+        </div>
+        <div class="collapse" id="collapseExplicacao">
+            <div class="card-body">
+
+                <h6 class="fw-bold text-primary"><i class="fas fa-info-circle me-1"></i> Para que serve</h6>
+                <p class="mb-3">
+                    Um <strong>vínculo hierárquico</strong> autoriza que um usuário de nível superior
+                    (ex.: Pastor Regional) visualize e edite as permissões de outro usuário
+                    (ex.: Pastor Local) dentro do painel do sistema. Sem esse vínculo, o
+                    subordinado simplesmente não aparece no painel do superior.
+                </p>
+
+                <h6 class="fw-bold text-primary"><i class="fas fa-lightbulb me-1"></i> Exemplos práticos</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuário Superior</th>
+                                <th>Nível</th>
+                                <th>Usuário Subordinado</th>
+                                <th>Igreja</th>
+                                <th>O que isso permite</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>João Silva</td>
+                                <td><span class="badge bg-danger">Admin Ministério</span></td>
+                                <td>Pedro Alves</td>
+                                <td>Qualquer</td>
+                                <td>João pode gerenciar as permissões de Pedro em todo o ministério.</td>
+                            </tr>
+                            <tr>
+                                <td>Maria Oliveira</td>
+                                <td><span class="badge bg-warning text-dark">Pastor Regional</span></td>
+                                <td>Carlos Souza</td>
+                                <td>Igreja Central Sul</td>
+                                <td>Maria pode gerenciar as permissões de Carlos, limitado à sua região.</td>
+                            </tr>
+                            <tr>
+                                <td>Lucas Ferreira</td>
+                                <td><span class="badge bg-info text-dark">Pastor Local</span></td>
+                                <td>Ana Lima</td>
+                                <td>Igreja Bom Pastor</td>
+                                <td>Lucas pode gerenciar as permissões de Ana dentro da própria igreja.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h6 class="fw-bold text-primary"><i class="fas fa-calendar-check me-1"></i> Quando criar um vínculo</h6>
+                <ul class="mb-3">
+                    <li>Quando um novo Pastor Local é designado para uma igreja e precisa ser supervisionado pelo Pastor Regional.</li>
+                    <li>Quando a equipe de uma igreja (secretário, tesoureiro, etc.) passa a ser administrada por um pastor específico.</li>
+                    <li>Quando houver reorganização na liderança do ministério.</li>
+                </ul>
+
+                <h6 class="fw-bold text-primary"><i class="fas fa-ban me-1"></i> Quando inativar (não excluir)</h6>
+                <ul class="mb-0">
+                    <li>Quando um pastor for transferido ou desligado — inative o vínculo para preservar o histórico.</li>
+                    <li>Quando a supervisão mudar de responsável — inative o antigo e crie um novo.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+    {# ===== FIM BLOCO EXPLICATIVO ===== #}
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-link"></i> Vínculos Cadastrados
+                </div>
+                <div class="card-body">
+                    {% if vinculos %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Superior</th>
+                                        <th>Subordinado</th>
+                                        <th>Nivel</th>
+                                        <th>Igreja</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Acoes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vinculo in vinculos %}
+                                        <tr>
+                                            <td>{{ vinculo.usuario_superior.get_full_name|default:vinculo.usuario_superior.username }}</td>
+                                            <td>{{ vinculo.usuario_subordinado.get_full_name|default:vinculo.usuario_subordinado.username }}</td>
+                                            <td>{{ vinculo.nivel_superior }}</td>
+                                            <td>{{ vinculo.igreja.nome_igreja|default:'-' }}</td>
+                                            <td>
+                                                {% if vinculo.ativo %}
+                                                    <span class="badge bg-success">Ativo</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inativo</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                <a href="{% url 'contas:editar_vinculo_hierarquico' vinculo.id %}" class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                {% if vinculo.ativo %}
+                                                <form method="post" action="{% url 'contas:inativar_vinculo_hierarquico' vinculo.id %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Confirma inativar este vinculo?');">
+                                                        <i class="fas fa-ban"></i>
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info mb-0">Nenhum vinculo encontrado para este filtro.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header"><i class="fas fa-plus-circle"></i> Novo Vinculo</div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-user me-1 text-secondary"></i>
+                                {{ form.usuario_subordinado.label }}
+                            </label>
+                            {{ form.usuario_subordinado }}
+                            {% if form.usuario_subordinado.help_text %}
+                                <div class="form-text">{{ form.usuario_subordinado.help_text }}</div>
+                            {% endif %}
+                            {% if form.usuario_subordinado.errors %}
+                                <div class="text-danger small">{{ form.usuario_subordinado.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-layer-group me-1 text-secondary"></i>
+                                {{ form.nivel_superior.label }}
+                            </label>
+                            {{ form.nivel_superior }}
+                            {% if form.nivel_superior.help_text %}
+                                <div class="form-text">{{ form.nivel_superior.help_text }}</div>
+                            {% endif %}
+                            {% if form.nivel_superior.errors %}
+                                <div class="text-danger small">{{ form.nivel_superior.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-church me-1 text-secondary"></i>
+                                {{ form.igreja.label }}
+                            </label>
+                            {{ form.igreja }}
+                            {% if form.igreja.help_text %}
+                                <div class="form-text">{{ form.igreja.help_text }}</div>
+                            {% endif %}
+                            {% if form.igreja.errors %}
+                                <div class="text-danger small">{{ form.igreja.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4 form-check">
+                            {{ form.ativo }}
+                            <label class="form-check-label fw-semibold" for="{{ form.ativo.id_for_label }}">
+                                {{ form.ativo.label }}
+                            </label>
+                            {% if form.ativo.help_text %}
+                                <div class="form-text">{{ form.ativo.help_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-save me-1"></i> Criar Vínculo
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

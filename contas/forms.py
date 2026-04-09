@@ -1,5 +1,6 @@
 # c:\Gereigreja\contas\forms.py
 from django import forms
+from django.db import models
 from django.contrib.auth.models import User, Group
 from configuracao.models import Ministerio, Igreja # Importar Igreja
 from .models import Convite
@@ -302,3 +303,95 @@ class EditarMeuPerfilForm(forms.Form):
                 raise forms.ValidationError('Apenas arquivos JPG e PNG são permitidos.')
         
         return foto
+
+
+class PermissionRequestForm(forms.Form):
+    grupo = forms.ModelChoiceField(
+        queryset=Group.objects.all(),
+        label='Permissao/Grupo Desejado',
+        empty_label='Selecione o grupo de permissao',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    justificativa = forms.CharField(
+        label='Justificativa',
+        widget=forms.Textarea(
+            attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Explique por que voce precisa desta permissao.',
+            }
+        ),
+    )
+    prioridade = forms.ChoiceField(
+        label='Prioridade',
+        choices=[
+            ('baixa', 'Baixa - Pode aguardar'),
+            ('media', 'Media - Necessario em breve'),
+            ('alta', 'Alta - Necessario urgente'),
+            ('urgente', 'Urgente - Bloqueio critico'),
+        ],
+        initial='media',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+    igreja_contexto = forms.ModelChoiceField(
+        queryset=Igreja.objects.none(),
+        label='Igreja Contexto',
+        required=False,
+        empty_label='Nenhuma igreja especifica',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        ministerio = kwargs.pop('ministerio', None)
+        igreja_ativa = kwargs.pop('igreja_ativa', None)
+        super().__init__(*args, **kwargs)
+
+        if user:
+            grupos_usuario = user.groups.values_list('id', flat=True)
+            self.fields['grupo'].queryset = Group.objects.exclude(id__in=grupos_usuario).order_by('name')
+
+        if user and ministerio:
+            from core.utils import get_igrejas_permitidas
+            igrejas_permitidas = get_igrejas_permitidas(user, ministerio)
+            if igreja_ativa:
+                igreja_id = igreja_ativa.pk if hasattr(igreja_ativa, 'pk') else igreja_ativa
+                self.fields['igreja_contexto'].queryset = Igreja.objects.filter(
+                    models.Q(pk__in=igrejas_permitidas.values_list('pk', flat=True)) | models.Q(pk=igreja_id)
+                ).filter(ministerio=ministerio).distinct()
+                self.initial['igreja_contexto'] = igreja_id
+            else:
+                self.fields['igreja_contexto'].queryset = igrejas_permitidas
+
+
+class PermissionRequestResponseForm(forms.Form):
+    ACAO_CHOICES = [
+        ('aprovar', 'Aprovar Solicitacao'),
+        ('rejeitar', 'Rejeitar Solicitacao'),
+    ]
+
+    acao = forms.ChoiceField(
+        label='Decisao',
+        choices=ACAO_CHOICES,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+    )
+    observacao = forms.CharField(
+        label='Observacao',
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Comentario da avaliacao',
+            }
+        ),
+        help_text='Explique o motivo da decisao, especialmente em rejeicao.',
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        acao = cleaned_data.get('acao')
+        observacao = cleaned_data.get('observacao', '')
+        if acao == 'rejeitar' and len(observacao.strip()) < 10:
+            raise forms.ValidationError('Forneca uma explicacao para a rejeicao (minimo 10 caracteres).')
+        return cleaned_data

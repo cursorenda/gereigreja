@@ -1,0 +1,498 @@
+{% extends "base_com_menu.html" %}
+{% load static %}
+{% load grupo_tags %}
+{% load permissoes_hierarquia %}
+
+{% block title %}Gerenciamento de Permissões{% endblock %}
+
+{% block extra_css %}
+<style>
+    .nav-tabs .nav-link {
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        font-weight: 500;
+        padding: 12px 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #0056b3;
+        border-bottom: 3px solid #e0e0e0;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #007bff;
+        border-bottom: 3px solid #007bff;
+        background: transparent;
+    }
+    
+    .stats-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .badge-priority-high { background: #dc3545; color: #fff; }
+    .badge-priority-medium { background: #ffc107; color: #000; }
+    .badge-priority-low { background: #6c757d; color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Cabeçalho -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-shield-alt text-primary"></i> Gerenciamento de Permissões</h2>
+                    <p class="text-muted mb-0">Gerencie suas permissões e solicitações em um só lugar</p>
+                </div>
+            </div>
+
+            <!-- Estatísticas Rápidas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card stats-card" style="border-left-color: #ffc107;">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-2">Pendentes</h6>
+                            <h3 class="mb-0">{{ stats_usuario.pendentes }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card" style="border-left-color: #28a745;">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-2">Aprovadas</h6>
+                            <h3 class="mb-0">{{ stats_usuario.aprovadas }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card" style="border-left-color: #dc3545;">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-2">Rejeitadas</h6>
+                            <h3 class="mb-0">{{ stats_usuario.rejeitadas }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card" style="border-left-color: #007bff;">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-2">Grupos Ativos</h6>
+                            <h3 class="mb-0">{{ grupos_atuais|length }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs de Navegação -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#solicitar">
+                        <i class="fas fa-plus-circle"></i> Solicitar Permissão
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#minhas">
+                        <i class="fas fa-list"></i> Minhas Solicitações ({{ stats_usuario.pendentes }})
+                    </a>
+                </li>
+                {% if is_admin %}
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#gerenciar">
+                        <i class="fas fa-tasks"></i> Gerenciar Todas 
+                        {% if stats_admin.pendentes > 0 %}
+                        <span class="badge bg-warning text-dark ms-1">{{ stats_admin.pendentes }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#meus-grupos">
+                        <i class="fas fa-users"></i> Meus Grupos Atuais
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Conteúdo das Tabs -->
+            <div class="tab-content">
+                <!-- Tab: Solicitar Nova Permissão -->
+                <div class="tab-pane fade show active" id="solicitar">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Nova Solicitação de Permissão</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if form.errors %}
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <h6><i class="fas fa-exclamation-triangle"></i> Erros no Formulário</h6>
+                                        <ul class="mb-0">
+                                        {% for field, errors in form.errors.items %}
+                                            <li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+                                        {% endfor %}
+                                        </ul>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        
+                                        <div class="form-group">
+                                            <label for="{{ form.grupo.id_for_label }}"><strong>Grupo Solicitado</strong></label>
+                                            {{ form.grupo }}
+                                            {% if form.grupo.errors %}
+                                            <div class="text-danger mt-1">{{ form.grupo.errors.0 }}</div>
+                                            {% endif %}
+                                            <small class="form-text text-muted">Grupos que você ainda não possui</small>
+                                        </div>
+
+                                        {% if form.igreja_contexto %}
+                                        <div class="form-group">
+                                            <label for="{{ form.igreja_contexto.id_for_label }}"><strong>Igreja Contexto</strong></label>
+                                            {{ form.igreja_contexto }}
+                                            {% if form.igreja_contexto.errors %}
+                                            <div class="text-danger mt-1">{{ form.igreja_contexto.errors.0 }}</div>
+                                            {% endif %}
+                                            <small class="form-text text-muted">
+                                                <i class="fas fa-info-circle"></i> 
+                                                Pré-selecionada: sua igreja ativa atual. Mostra apenas igrejas que você tem permissão.
+                                            </small>
+                                            <!-- DEBUG: Dados da igreja ativa -->
+                                            <div id="debug-igreja-data" 
+                                                 data-igreja-ativa="{{ request.igreja_ativa.pk|default:'None' }}"
+                                                 data-igreja-nome="{{ request.igreja_ativa.nome_igreja|default:'None' }}"
+                                                 style="display: none;"></div>
+                                        </div>
+                                        {% endif %}
+
+                                        <div class="form-group">
+                                            <label for="{{ form.justificativa.id_for_label }}"><strong>Justificativa</strong></label>
+                                            {{ form.justificativa }}
+                                            {% if form.justificativa.errors %}
+                                            <div class="text-danger mt-1">{{ form.justificativa.errors.0 }}</div>
+                                            {% endif %}
+                                            <small class="form-text text-muted">Explique por que precisa dessa permissão</small>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="{{ form.prioridade.id_for_label }}"><strong>Prioridade</strong></label>
+                                            {{ form.prioridade }}
+                                            {% if form.prioridade.errors %}
+                                            <div class="text-danger mt-1">{{ form.prioridade.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-paper-plane"></i> Enviar Solicitação
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-info-circle"></i> Informações</h6>
+                                    <ul class="mb-0">
+                                        <li class="mb-2">Solicitações são avaliadas por administradores</li>
+                                        <li class="mb-2">Você receberá notificação quando sua solicitação for avaliada</li>
+                                        <li class="mb-2">Justificativas claras aceleram a aprovação</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Minhas Solicitações -->
+                <div class="tab-pane fade" id="minhas">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-list"></i> Minhas Solicitações</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if minhas_solicitacoes %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Grupo</th>
+                                            <th>Prioridade</th>
+                                            <th>Status</th>
+                                            <th>Justificativa</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for sol in minhas_solicitacoes %}
+                                        <tr>
+                                            <td>{{ sol.data_solicitacao|date:"d/m/Y H:i" }}</td>
+                                            <td><strong>{{ sol.grupo_solicitado.name }}</strong></td>
+                                            <td>
+                                                {% if sol.prioridade == 'high' %}
+                                                <span class="badge badge-priority-high">Alta</span>
+                                                {% elif sol.prioridade == 'medium' %}
+                                                <span class="badge badge-priority-medium">Média</span>
+                                                {% else %}
+                                                <span class="badge badge-priority-low">Baixa</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if sol.status == 'pending' %}
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Pendente</span>
+                                                {% elif sol.status == 'approved' %}
+                                                <span class="badge bg-success"><i class="fas fa-check"></i> Aprovada</span>
+                                                {% elif sol.status == 'rejected' %}
+                                                <span class="badge bg-danger"><i class="fas fa-times"></i> Rejeitada</span>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Cancelada</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ sol.justificativa|truncatewords:10 }}</td>
+                                            <td>
+                                                {% if sol.status == 'pending' %}
+                                                <a href="{% url 'contas:cancelar_solicitacao' sol.pk %}" 
+                                                   class="btn btn-sm btn-danger"
+                                                   onclick="return confirm('Tem certeza que deseja cancelar?')">
+                                                    <i class="fas fa-times"></i> Cancelar
+                                                </a>
+                                                {% elif sol.observacao_resposta %}
+                                                <button class="btn btn-sm btn-info" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modal-obs-{{ sol.id }}">
+                                                    <i class="fas fa-comment"></i> Ver Resposta
+                                                </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Você ainda não fez nenhuma solicitação de permissão.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Gerenciar Todas (Admin) -->
+                {% if is_admin %}
+                <div class="tab-pane fade" id="gerenciar">
+                    <div class="card">
+                        <div class="card-header bg-warning">
+                            <h5 class="mb-0"><i class="fas fa-tasks"></i> Solicitações Pendentes - Administração</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if solicitacoes_pendentes %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Usuário</th>
+                                            <th>Grupo</th>
+                                            <th>Data</th>
+                                            <th>Prioridade</th>
+                                            <th>Justificativa</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for sol in solicitacoes_pendentes %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ sol.usuario_solicitante.get_full_name|default:sol.usuario_solicitante.username }}</strong>
+                                                <br><small class="text-muted">{{ sol.usuario_solicitante.email }}</small>
+                                            </td>
+                                            <td><strong>{{ sol.grupo_solicitado.name }}</strong></td>
+                                            <td>{{ sol.data_solicitacao|date:"d/m/Y H:i" }}</td>
+                                            <td>
+                                                {% if sol.prioridade == 'high' %}
+                                                <span class="badge badge-priority-high">Alta</span>
+                                                {% elif sol.prioridade == 'medium' %}
+                                                <span class="badge badge-priority-medium">Média</span>
+                                                {% else %}
+                                                <span class="badge badge-priority-low">Baixa</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ sol.justificativa|truncatewords:15 }}</td>
+                                            <td>
+                                                <a href="{% url 'contas:avaliar_solicitacao' sol.pk %}" 
+                                                   class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-gavel"></i> Avaliar
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-chart-bar"></i> 
+                                <strong>{{ stats_admin.pendentes }}</strong> solicitações pendentes no total |
+                                <strong>{{ stats_admin.aprovadas_hoje }}</strong> aprovadas hoje
+                            </div>
+                            {% else %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i> Nenhuma solicitação pendente no momento.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Tab: Meus Grupos Atuais -->
+                <div class="tab-pane fade" id="meus-grupos">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-users"></i> Grupos de Permissão Ativos</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if grupos_atuais %}
+                            <div class="row">
+                                {% for grupo in grupos_atuais %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-primary">
+                                                <i class="fas fa-shield-check"></i> {{ grupo.name }}
+                                            </h6>
+                                            <p class="card-text text-muted small mb-0">
+                                                {% with nivel=grupo.name|get_permission_level %}
+                                                Nível: <strong>{{ nivel }}</strong>
+                                                {% endwith %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> Você não possui grupos de permissão ativos.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals para Observações -->
+{% for sol in minhas_solicitacoes %}
+{% if sol.observacao_resposta %}
+<div class="modal fade" id="modal-obs-{{ sol.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Resposta do Avaliador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Grupo:</strong> {{ sol.grupo_solicitado.name }}</p>
+                <p><strong>Status:</strong> 
+                    {% if sol.status == 'approved' %}
+                    <span class="badge bg-success">Aprovada</span>
+                    {% else %}
+                    <span class="badge bg-danger">Rejeitada</span>
+                    {% endif %}
+                </p>
+                <p><strong>Avaliador:</strong> {{ sol.usuario_aprovador.get_full_name|default:sol.usuario_aprovador.username }}</p>
+                <p><strong>Data:</strong> {{ sol.data_resposta|date:"d/m/Y H:i" }}</p>
+                <hr>
+                <p><strong>Observação:</strong></p>
+                <div class="alert alert-light">{{ sol.observacao_resposta }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Ativar tooltips Bootstrap 5
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // PRÉ-SELECIONAR IGREJA CONTEXTO (solução JavaScript)
+        const igrejaField = document.querySelector('select[name="igreja_contexto"]');
+        const debugData = document.getElementById('debug-igreja-data');
+        
+        console.log('=== DEBUG IGREJA CONTEXTO ===');
+        
+        if (debugData) {
+            const igrejaAtivaId = debugData.getAttribute('data-igreja-ativa');
+            const igrejaAtivaNome = debugData.getAttribute('data-igreja-nome');
+            console.log('[DJANGO DEBUG] request.igreja_ativa.pk =', igrejaAtivaId);
+            console.log('[DJANGO DEBUG] request.igreja_ativa.nome =', igrejaAtivaNome);
+        } else {
+            console.log('[DJANGO DEBUG] Elemento debug-igreja-data NÃO ENCONTRADO');
+        }
+        
+        if (igrejaField) {
+            const dataInitial = igrejaField.getAttribute('data-initial');
+            
+            console.log('[JS DEBUG] Igreja Contexto field encontrado');
+            console.log('[JS DEBUG] data-initial =', dataInitial);
+            console.log('[JS DEBUG] Valor atual do campo =', igrejaField.value);
+            console.log('[JS DEBUG] Opções disponíveis:');
+            
+            // Lista todas as opções do select
+            Array.from(igrejaField.options).forEach((option, index) => {
+                console.log(`  [${index}] value="${option.value}" text="${option.text}"`);
+            });
+            
+            if (dataInitial && dataInitial !== '' && dataInitial !== 'None' && dataInitial !== 'null') {
+                // Força a seleção do valor
+                igrejaField.value = dataInitial;
+                console.log('[JS DEBUG] ✅ Campo pré-selecionado para ID =', dataInitial);
+                console.log('[JS DEBUG] Valor do campo após seleção =', igrejaField.value);
+                
+                // Dispara evento change para garantir que frameworks JS detectem a mudança
+                igrejaField.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                console.log('[JS DEBUG] ⚠️ Nenhum data-initial válido encontrado');
+                
+                // FALLBACK: Tenta usar o valor do debug-igreja-data
+                if (debugData) {
+                    const igrejaAtivaId = debugData.getAttribute('data-igreja-ativa');
+                    if (igrejaAtivaId && igrejaAtivaId !== 'None') {
+                        console.log('[JS DEBUG] 🔄 Tentando FALLBACK com igreja_ativa do request:', igrejaAtivaId);
+                        igrejaField.value = igrejaAtivaId;
+                        console.log('[JS DEBUG] ✅ FALLBACK aplicado! Valor atual:', igrejaField.value);
+                        igrejaField.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            }
+        } else {
+            console.log('[JS DEBUG] ❌ Campo igreja_contexto não encontrado no DOM');
+        }
+        
+        console.log('=== FIM DEBUG ===');
+    });
+</script>
+{% endblock %}

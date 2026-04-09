@@ -158,3 +158,152 @@ class ConsentimentoLGPD(models.Model):
         verbose_name = "Consentimento LGPD"
         verbose_name_plural = "Consentimentos LGPD"
         ordering = ['-data_consentimento']
+
+
+class PermissionRequest(models.Model):
+    """Solicitacao de permissao (grupo) por usuario."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pendente'),
+        ('approved', 'Aprovada'),
+        ('rejected', 'Rejeitada'),
+        ('cancelled', 'Cancelada'),
+    ]
+
+    PRIORIDADE_CHOICES = [
+        ('baixa', 'Baixa'),
+        ('media', 'Media'),
+        ('alta', 'Alta'),
+        ('urgente', 'Urgente'),
+    ]
+
+    usuario_solicitante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='solicitacoes_permissao',
+        verbose_name='Usuario Solicitante',
+    )
+    grupo_solicitado = models.ForeignKey(
+        'auth.Group',
+        on_delete=models.CASCADE,
+        verbose_name='Grupo Solicitado',
+    )
+    justificativa = models.TextField(verbose_name='Justificativa')
+    prioridade = models.CharField(max_length=10, choices=PRIORIDADE_CHOICES, default='media')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
+    data_solicitacao = models.DateTimeField(auto_now_add=True, db_index=True)
+    data_resposta = models.DateTimeField(null=True, blank=True)
+    usuario_aprovador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='solicitacoes_avaliadas',
+    )
+    observacao_resposta = models.TextField(blank=True)
+    ministerio = models.ForeignKey(Ministerio, on_delete=models.CASCADE, null=True, blank=True)
+    igreja_contexto = models.ForeignKey('configuracao.Igreja', on_delete=models.SET_NULL, null=True, blank=True)
+    notificacao_enviada = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Solicitacao de Permissao'
+        verbose_name_plural = 'Solicitacoes de Permissoes'
+        ordering = ['-data_solicitacao']
+        indexes = [
+            models.Index(fields=['status', '-data_solicitacao']),
+            models.Index(fields=['usuario_solicitante', '-data_solicitacao']),
+            models.Index(fields=['ministerio', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario_solicitante.username} -> {self.grupo_solicitado.name} ({self.get_status_display()})"
+
+    @property
+    def pendente(self):
+        return self.status == 'pending'
+
+    @property
+    def tempo_espera(self):
+        if self.data_resposta:
+            return self.data_resposta - self.data_solicitacao
+        return timezone.now() - self.data_solicitacao
+
+    def aprovar(self, aprovador, observacao=''):
+        self.status = 'approved'
+        self.usuario_aprovador = aprovador
+        self.data_resposta = timezone.now()
+        self.observacao_resposta = observacao
+        self.save(update_fields=['status', 'usuario_aprovador', 'data_resposta', 'observacao_resposta'])
+
+        self.usuario_solicitante.groups.add(self.grupo_solicitado)
+
+        from auditoria.models import PermissionChangeLog
+        PermissionChangeLog.objects.create(
+            usuario_afetado=self.usuario_solicitante,
+            grupo=self.grupo_solicitado,
+            acao='ADD',
+            usuario_executor=aprovador,
+            observacao=f'Aprovado via solicitacao #{self.id}: {observacao}',
+            ministerio=self.ministerio,
+        )
+        return True
+
+    def rejeitar(self, rejeitador, observacao=''):
+        self.status = 'rejected'
+        self.usuario_aprovador = rejeitador
+        self.data_resposta = timezone.now()
+        self.observacao_resposta = observacao
+        self.save(update_fields=['status', 'usuario_aprovador', 'data_resposta', 'observacao_resposta'])
+        return True
+
+    def cancelar(self):
+        if self.status != 'pending':
+            return False
+        self.status = 'cancelled'
+        self.save(update_fields=['status'])
+        return True
+
+
+class HierarquiaPermissoes(models.Model):
+    """Relacionamento hierarquico entre usuario superior e subordinado."""
+
+    NIVEL_CHOICES = [
+        ('Admin Ministerio', 'Admin Ministerio'),
+        ('Pastor Regional', 'Pastor Regional'),
+        ('Pastor Local', 'Pastor Local'),
+    ]
+
+    usuario_superior = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='vinculos_supervisao',
+    )
+    usuario_subordinado = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='vinculos_subordinacao',
+    )
+    nivel_superior = models.CharField(max_length=50, choices=NIVEL_CHOICES)
+    igreja = models.ForeignKey(
+        'configuracao.Igreja',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='hierarquias_permissoes',
+    )
+    data_vinculo = models.DateTimeField(auto_now_add=True)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'Hierarquia de Permissao'
+        verbose_name_plural = 'Hierarquias de Permissoes'
+        ordering = ['-data_vinculo']
+        unique_together = ('usuario_superior', 'usuario_subordinado', 'nivel_superior')
+        indexes = [
+            models.Index(fields=['usuario_superior', 'nivel_superior']),
+            models.Index(fields=['usuario_subordinado', 'ativo']),
+            models.Index(fields=['igreja', 'nivel_superior']),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario_superior.username} ({self.nivel_superior}) -> {self.usuario_subordinado.username}"

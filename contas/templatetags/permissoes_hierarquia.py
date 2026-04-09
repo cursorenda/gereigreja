@@ -18,7 +18,4 @@ def get_permission_level(group_name):
     Retorna o nível hierárquico do grupo (1-14).
     Uso: {% with nivel=grupo.name|get_permission_level %}
     """
-    try:
-        return HIERARQUIA_GRUPOS.index(group_name) + 1
-    except (ValueError, AttributeError):
-        return "N/A"
+    return HIERARQUIA_GRUPOS.get(group_name, "N/A")
