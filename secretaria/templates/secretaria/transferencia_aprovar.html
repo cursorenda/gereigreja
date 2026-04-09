@@ -1,0 +1,31 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Aprovar Transferência{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4" style="max-width: 960px; margin: 0 auto;">
+  <h1 class="mt-4">Aprovar Transferência</h1>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-check-circle me-1"></i>
+      Confirmação
+    </div>
+    <div class="card-body">
+      <p>
+        Confirma a transferência do membro <strong>{{ transferencia.membro }}</strong>
+        da igreja <strong>{{ transferencia.igreja_origem }}</strong>
+        para <strong>{{ transferencia.igreja_destino }}</strong>?
+      </p>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success">Confirmar aprovação</button>
+          <a href="{% url 'secretaria:lista_transferencias' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

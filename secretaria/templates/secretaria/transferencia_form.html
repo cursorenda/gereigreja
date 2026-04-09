@@ -1,0 +1,57 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Solicitar Transferência{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4" style="max-width: 960px; margin: 0 auto;">
+  <h1 class="mt-4">Solicitar Transferência de Membro</h1>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-random me-1"></i>
+      Transferência entre igrejas do mesmo ministério
+    </div>
+    <div class="card-body">
+      {% if membro %}
+      <p class="mb-3"><strong>Membro:</strong> {{ membro.nome }} | <strong>Igreja atual:</strong> {{ membro.igreja.nome_igreja }}</p>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.membro.label }}</label>
+          {{ form.membro }}
+          {% if form.membro.errors %}<div class="text-danger small">{{ form.membro.errors }}</div>{% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.igreja_destino.label }}</label>
+          {{ form.igreja_destino }}
+          {% if form.igreja_destino.errors %}<div class="text-danger small">{{ form.igreja_destino.errors }}</div>{% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.motivo.label }}</label>
+          {{ form.motivo }}
+          {% if form.motivo.errors %}<div class="text-danger small">{{ form.motivo.errors }}</div>{% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ form.observacao.label }}</label>
+          {{ form.observacao }}
+          {% if form.observacao.errors %}<div class="text-danger small">{{ form.observacao.errors }}</div>{% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Solicitar</button>
+          <a href="{% url 'secretaria:lista_transferencias' %}" class="btn btn-outline-secondary">Ver transferências</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -665,3 +665,62 @@ class AcompanhamentoVisita(models.Model):
 
     def __str__(self):
         return f"{self.membro} - {self.get_tipo_contato_display()} em {self.data:%d/%m/%Y}"
+
+
+class TransferenciaMembro(models.Model):
+    STATUS_AGUARDANDO = 'aguardando'
+    STATUS_APROVADA = 'aprovada'
+    STATUS_RECUSADA = 'recusada'
+    STATUS_CANCELADA = 'cancelada'
+
+    STATUS_CHOICES = [
+        (STATUS_AGUARDANDO, 'Aguardando aprovação'),
+        (STATUS_APROVADA, 'Aprovada'),
+        (STATUS_RECUSADA, 'Recusada'),
+        (STATUS_CANCELADA, 'Cancelada'),
+    ]
+
+    membro = models.ForeignKey(
+        Membro,
+        on_delete=models.CASCADE,
+        related_name='transferencias',
+    )
+    igreja_origem = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='transferencias_saida',
+    )
+    igreja_destino = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='transferencias_entrada',
+    )
+    data_solicitacao = models.DateTimeField(auto_now_add=True)
+    usuario_solicitante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='transferencias_solicitadas',
+    )
+    data_aprovacao = models.DateTimeField(null=True, blank=True)
+    usuario_aprovador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='transferencias_aprovadas',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_AGUARDANDO)
+    motivo = models.CharField(max_length=255, blank=True)
+    observacao = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = 'Transferência de Membro'
+        verbose_name_plural = 'Transferências de Membros'
+        ordering = ['-data_solicitacao']
+        permissions = [
+            ('transferir_membro', 'Pode solicitar transferência de membro para outra igreja do mesmo ministério'),
+            ('aprovar_transferencia_membro', 'Pode aprovar ou recusar transferência de membro para sua igreja'),
+        ]
+
+    def __str__(self):
+        return f"{self.membro} de {self.igreja_origem} para {self.igreja_destino} ({self.get_status_display()})"
