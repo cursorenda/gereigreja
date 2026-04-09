@@ -8,7 +8,8 @@ from configuracao.models import Igreja, PerfilUsuario # Importar PerfilUsuario
 from django.db.models import Q # Importar Q para consultas complexas
 from contas.constants import (
     ADMIN_MINISTERIO, TESOUREIRO, PASTOR_REGIONAL, LIDERANCA_FINANCEIRA,
-    user_is_admin, user_is_lideranca_financeira
+    user_is_admin, user_is_lideranca_financeira, user_has_permission_level_or_higher,
+    PASTOR_LOCAL
 )
 
 
@@ -34,19 +35,22 @@ def is_tesoureiro(user):
     return _user_in_group(user, TESOUREIRO)
 
 def is_lider_igreja(user):
-    """Verifica se o usuário é Pastor Regional."""
-    return _user_in_group(user, PASTOR_REGIONAL)
+    """Verifica se o usuário é Pastor Local ou superior na hierarquia."""
+    return user_has_permission_level_or_higher(user, PASTOR_LOCAL)
 
 # --- Funções de Verificação de Permissão Financeira ---
 
 def has_finance_view_permission(user):
-    """Verifica se o usuário tem permissão para VER dados financeiros."""
-    return is_admin_org(user) or is_tesoureiro(user) or is_lider_igreja(user)
+    """Verifica se o usuário tem permissão para VER dados financeiros.
+    Aceita: Admin, Liderança Financeira, Pastor Regional, Pastor Local e Tesoureiro.
+    """
+    return user_has_permission_level_or_higher(user, TESOUREIRO)
 
 def has_finance_edit_permission(user):
-    """Verifica se o usuário tem permissão para EDITAR/ADICIONAR/EXCLUIR dados financeiros."""
-    # Lider Igreja NÃO tem permissão de edição por padrão aqui.
-    return is_admin_org(user) or is_tesoureiro(user)
+    """Verifica se o usuário tem permissão para EDITAR/ADICIONAR/EXCLUIR dados financeiros.
+    Aceita: Admin, Liderança Financeira, Pastor Regional, Pastor Local e Tesoureiro.
+    """
+    return user_has_permission_level_or_higher(user, TESOUREIRO)
 
 
 def is_finance_leader(user):
