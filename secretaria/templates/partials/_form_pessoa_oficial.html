@@ -10,6 +10,15 @@
 <script src="{% static 'secretaria/form_dynamic.js' %}" defer></script>
 <form method="post" enctype="multipart/form-data">
 	{% csrf_token %}
+
+		{# --- BLOQUEIO DE CAMPOS EM MODO AUDITORIA --- #}
+		{% if modo_auditoria_ativo %}
+		<script>
+			document.addEventListener('DOMContentLoaded', function() {
+				document.querySelectorAll('form').forEach(f => f.querySelectorAll('input,select,textarea,button').forEach(e => e.disabled = true));
+			});
+		</script>
+		{% endif %}
 	<div class="container-fluid p-0">
 		{% load widget_tweaks %}
 		<!-- FOTO À ESQUERDA, CAMPOS À DIREITA -->

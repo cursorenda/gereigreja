@@ -22,6 +22,15 @@
             <form method="POST" enctype="multipart/form-data"> {# Action vazia submete para a mesma URL #}
                 {% csrf_token %}
 
+                    {# --- BLOQUEIO DE CAMPOS EM MODO AUDITORIA --- #}
+                    {% if modo_auditoria_ativo %}
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            document.querySelectorAll('form').forEach(f => f.querySelectorAll('input,select,textarea,button').forEach(e => e.disabled = true));
+                        });
+                    </script>
+                    {% endif %}
+
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">
                         {% for error in form.non_field_errors %}{{ error }}{% endfor %}

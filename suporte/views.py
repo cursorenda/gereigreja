@@ -6,14 +6,14 @@ from .forms import TicketForm, RespostaTicketForm
 from core.utils import get_ministerio_or_error
 from core.decorators import verificar_assinatura_valida
 from django.db.models import Q
-from contas.constants import user_is_admin
+from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
 
 @login_required
 @verificar_assinatura_valida
 def lista_tickets(request):
     ministerio = get_ministerio_or_error(request)
     # Admin do Minist. vê todos os tickets do ministério, usuário comum vê apenas os seus.
-    if user_is_admin(request.user):
+    if user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
         tickets_qs = Ticket.objects.filter(ministerio=ministerio)
     else:
         tickets_qs = Ticket.objects.filter(user=request.user)
@@ -56,7 +56,7 @@ def detalhe_ticket(request, pk):
     # Garante que o usuário só pode ver seus próprios tickets,
     # ou que um admin da org pode ver todos os tickets da org.
     query_filter = Q(pk=pk)
-    if not user_is_admin(request.user):
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
         query_filter &= Q(user=request.user)
     else:
         query_filter &= Q(ministerio=ministerio)
