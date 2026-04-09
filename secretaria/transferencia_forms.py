@@ -28,6 +28,7 @@ class TransferenciaMembroForm(forms.ModelForm):
         if membro is not None:
             self.fields['membro'].queryset = Membro.objects.filter(pk=membro.pk)
             self.fields['membro'].initial = membro.pk
+            self.fields['membro'].required = False
             self.fields['membro'].disabled = True
             self.fields['igreja_destino'].queryset = Igreja.objects.filter(
                 ministerio=membro.igreja.ministerio

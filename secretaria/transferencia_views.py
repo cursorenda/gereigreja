@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Q
@@ -29,7 +29,9 @@ def solicitar_transferencia(request):
 
     igrejas_permitidas = _get_igrejas_permitidas(request)
 
-    membro_id = request.POST.get('membro') if request.method == 'POST' else request.GET.get('membro_id')
+    # Em POST, o campo membro pode vir desabilitado no form (não enviado);
+    # por isso mantemos fallback para o membro_id da querystring.
+    membro_id = request.POST.get('membro') or request.GET.get('membro_id')
     membro = None
 
     if membro_id:
