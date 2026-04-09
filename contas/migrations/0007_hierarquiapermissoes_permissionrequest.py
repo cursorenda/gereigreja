@@ -33,9 +33,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunPython(_create_hierarquia_if_missing, migrations.RunPython.noop),
-            ],
+            database_operations=[],
             state_operations=[
                 migrations.CreateModel(
                     name='HierarquiaPermissoes',
@@ -58,10 +56,9 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
+        migrations.RunPython(_create_hierarquia_if_missing, migrations.RunPython.noop),
         migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunPython(_create_permission_request_if_missing, migrations.RunPython.noop),
-            ],
+            database_operations=[],
             state_operations=[
                 migrations.CreateModel(
                     name='PermissionRequest',
@@ -89,4 +86,5 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
+        migrations.RunPython(_create_permission_request_if_missing, migrations.RunPython.noop),
     ]
