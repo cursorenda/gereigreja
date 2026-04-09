@@ -59,6 +59,40 @@ def _notificar_igreja_destino_sobre_transferencia(transferencia):
         )
 
 
+def _notificar_gestores_igreja(igreja, transferencia, mensagem, exclude_user=None):
+    """Notifica gestores do escopo da igreja informada."""
+    User = get_user_model()
+    ministerio = igreja.ministerio
+    destinatarios = User.objects.filter(is_active=True, perfil__ministerio=ministerio).distinct()
+
+    for usuario in destinatarios:
+        if exclude_user and usuario.pk == exclude_user.pk:
+            continue
+        if not _can_manage_transferencias(usuario):
+            continue
+        igrejas_usuario = get_igrejas_permitidas(usuario, ministerio)
+        if not igrejas_usuario.filter(pk=igreja.pk).exists():
+            continue
+
+        Notificacao.objects.create(
+            user=usuario,
+            ministerio=ministerio,
+            message=mensagem,
+            notification_type='aviso',
+            url='/secretaria/transferencias/',
+        )
+
+
+def _append_observacao(transferencia, observacao):
+    texto = (observacao or '').strip()
+    if not texto:
+        return
+    if transferencia.observacao:
+        transferencia.observacao = f"{transferencia.observacao}\n{texto}"
+    else:
+        transferencia.observacao = texto
+
+
 @login_required
 def solicitar_transferencia(request):
     if not _can_manage_transferencias(request.user):
@@ -124,10 +158,17 @@ def lista_transferencias(request):
             Q(igreja_origem__in=igrejas_permitidas) | Q(igreja_destino__in=igrejas_permitidas)
         )
 
+    igrejas_permitidas_ids = []
+    if igrejas_permitidas is not None:
+        igrejas_permitidas_ids = list(igrejas_permitidas.values_list('id', flat=True))
+
     return render(
         request,
         'secretaria/transferencia_list.html',
-        {'transferencias': transferencias},
+        {
+            'transferencias': transferencias,
+            'igrejas_permitidas_ids': igrejas_permitidas_ids,
+        },
     )
 
 
@@ -159,11 +200,136 @@ def aprovar_transferencia(request, pk):
             transferencia.usuario_aprovador = request.user
             transferencia.save(update_fields=['status', 'data_aprovacao', 'usuario_aprovador'])
 
+        Notificacao.objects.create(
+            user=transferencia.usuario_solicitante,
+            ministerio=transferencia.igreja_destino.ministerio,
+            message=(
+                f"Transferência aprovada: {transferencia.membro.nome} foi recebido em "
+                f"{transferencia.igreja_destino.nome_igreja}."
+            ),
+            notification_type='sucesso',
+            url='/secretaria/transferencias/',
+        )
+
         messages.success(request, 'Transferência aprovada e membro movido para a igreja de destino.')
         return redirect('secretaria:lista_transferencias')
 
     return render(
         request,
         'secretaria/transferencia_aprovar.html',
+        {'transferencia': transferencia},
+    )
+
+
+@login_required
+def recusar_transferencia(request, pk):
+    if not _can_manage_transferencias(request.user):
+        raise PermissionDenied
+
+    igrejas_permitidas = _get_igrejas_permitidas(request)
+    qs = TransferenciaMembro.objects.select_related('membro', 'igreja_origem', 'igreja_destino', 'usuario_solicitante')
+    if igrejas_permitidas is not None:
+        qs = qs.filter(igreja_destino__in=igrejas_permitidas)
+
+    transferencia = get_object_or_404(qs, pk=pk)
+
+    if request.method == 'POST':
+        if transferencia.status != TransferenciaMembro.STATUS_AGUARDANDO:
+            messages.warning(request, 'A transferência já foi processada anteriormente.')
+            return redirect('secretaria:lista_transferencias')
+
+        motivo = request.POST.get('motivo', '').strip()
+
+        transferencia.status = TransferenciaMembro.STATUS_RECUSADA
+        transferencia.data_aprovacao = timezone.now()
+        transferencia.usuario_aprovador = request.user
+        _append_observacao(transferencia, f"[Recusa] {motivo}" if motivo else "[Recusa] Sem motivo informado")
+        transferencia.save(update_fields=['status', 'data_aprovacao', 'usuario_aprovador', 'observacao'])
+
+        mensagem = (
+            f"Transferência recusada por {transferencia.igreja_destino.nome_igreja}: "
+            f"{transferencia.membro.nome}."
+        )
+        if motivo:
+            mensagem += f" Motivo: {motivo}"
+
+        Notificacao.objects.create(
+            user=transferencia.usuario_solicitante,
+            ministerio=transferencia.igreja_destino.ministerio,
+            message=mensagem,
+            notification_type='alerta',
+            url='/secretaria/transferencias/',
+        )
+
+        _notificar_gestores_igreja(
+            transferencia.igreja_origem,
+            transferencia,
+            mensagem,
+            exclude_user=transferencia.usuario_solicitante,
+        )
+
+        messages.success(request, 'Transferência recusada e origem notificada.')
+        return redirect('secretaria:lista_transferencias')
+
+    return render(
+        request,
+        'secretaria/transferencia_recusar.html',
+        {'transferencia': transferencia},
+    )
+
+
+@login_required
+def cancelar_transferencia(request, pk):
+    if not _can_manage_transferencias(request.user):
+        raise PermissionDenied
+
+    transferencia = get_object_or_404(
+        TransferenciaMembro.objects.select_related('membro', 'igreja_origem', 'igreja_destino', 'usuario_solicitante'),
+        pk=pk,
+    )
+
+    ministerio = transferencia.igreja_origem.ministerio
+    igrejas_usuario = get_igrejas_permitidas(request.user, ministerio)
+    pode_cancelar = (
+        request.user.pk == transferencia.usuario_solicitante_id
+        or request.user.is_superuser
+        or igrejas_usuario.filter(pk=transferencia.igreja_origem_id).exists()
+    )
+    if not pode_cancelar:
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        if transferencia.status != TransferenciaMembro.STATUS_AGUARDANDO:
+            messages.warning(request, 'A transferência já foi processada anteriormente.')
+            return redirect('secretaria:lista_transferencias')
+
+        motivo = request.POST.get('motivo', '').strip()
+
+        transferencia.status = TransferenciaMembro.STATUS_CANCELADA
+        transferencia.data_aprovacao = timezone.now()
+        transferencia.usuario_aprovador = request.user
+        _append_observacao(transferencia, f"[Cancelamento] {motivo}" if motivo else "[Cancelamento] Sem motivo informado")
+        transferencia.save(update_fields=['status', 'data_aprovacao', 'usuario_aprovador', 'observacao'])
+
+        mensagem = (
+            f"Transferência cancelada na origem ({transferencia.igreja_origem.nome_igreja}): "
+            f"{transferencia.membro.nome}."
+        )
+        if motivo:
+            mensagem += f" Motivo: {motivo}"
+
+        _notificar_gestores_igreja(
+            transferencia.igreja_destino,
+            transferencia,
+            mensagem,
+            exclude_user=request.user,
+        )
+
+        messages.success(request, 'Transferência cancelada e destino notificado.')
+        return redirect('secretaria:lista_transferencias')
+
+    return render(
+        request,
+        'secretaria/transferencia_cancelar.html',
         {'transferencia': transferencia},
     )

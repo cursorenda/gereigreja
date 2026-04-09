@@ -22,6 +22,7 @@
             <th>Status</th>
             <th>Solicitado por</th>
             <th>Data</th>
+            <th>Observação</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -35,17 +36,27 @@
             <td>{{ transferencia.get_status_display }}</td>
             <td>{{ transferencia.usuario_solicitante }}</td>
             <td>{{ transferencia.data_solicitacao|date:'d/m/Y H:i' }}</td>
+            <td>{{ transferencia.observacao|default:'-' }}</td>
             <td>
-              {% if transferencia.status == 'aguardando' and perms.secretaria.change_transferenciamembro %}
-                <a href="{% url 'secretaria:aprovar_transferencia' transferencia.id %}" class="btn btn-success btn-sm">Aprovar</a>
+              {% if transferencia.status == 'aguardando' %}
+                {% if transferencia.igreja_destino_id in igrejas_permitidas_ids %}
+                  <a href="{% url 'secretaria:aprovar_transferencia' transferencia.id %}" class="btn btn-success btn-sm mb-1">Aprovar</a>
+                  <a href="{% url 'secretaria:recusar_transferencia' transferencia.id %}" class="btn btn-outline-danger btn-sm mb-1">Recusar</a>
+                {% endif %}
+                {% if transferencia.usuario_solicitante_id == request.user.id or transferencia.igreja_origem_id in igrejas_permitidas_ids %}
+                  <a href="{% url 'secretaria:cancelar_transferencia' transferencia.id %}" class="btn btn-outline-secondary btn-sm mb-1">Cancelar</a>
+                {% endif %}
+                {% if not transferencia.igreja_destino_id in igrejas_permitidas_ids and not transferencia.usuario_solicitante_id == request.user.id and not transferencia.igreja_origem_id in igrejas_permitidas_ids %}
+                  <span class="text-muted">-</span>
+                {% endif %}
               {% else %}
-                <span class="text-muted">-</span>
+                <span class="text-muted">Processada</span>
               {% endif %}
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="8" class="text-center text-muted">Nenhuma transferência encontrada.</td>
+            <td colspan="9" class="text-center text-muted">Nenhuma transferência encontrada.</td>
           </tr>
           {% endfor %}
         </tbody>

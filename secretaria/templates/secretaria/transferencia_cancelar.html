@@ -1,0 +1,35 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Cancelar Transferência{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4" style="max-width: 960px; margin: 0 auto;">
+  <h1 class="mt-4">Cancelar Transferência</h1>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-ban me-1"></i>
+      Confirmação de cancelamento
+    </div>
+    <div class="card-body">
+      <p>
+        Você está cancelando a transferência do membro <strong>{{ transferencia.membro }}</strong>
+        da igreja <strong>{{ transferencia.igreja_origem }}</strong>
+        para <strong>{{ transferencia.igreja_destino }}</strong>.
+      </p>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label" for="id_motivo">Motivo do cancelamento</label>
+          <textarea class="form-control" id="id_motivo" name="motivo" rows="3" required></textarea>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-secondary">Confirmar cancelamento</button>
+          <a href="{% url 'secretaria:lista_transferencias' %}" class="btn btn-outline-secondary">Voltar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
