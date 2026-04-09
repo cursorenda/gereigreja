@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
 from django.urls import reverse
+from django.core.paginator import Paginator
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.contrib.sites.shortcuts import get_current_site
@@ -1557,7 +1558,15 @@ def solicitar_permissao(request):
         'aprovadas': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='approved').count(),
         'rejeitadas': PermissionRequest.objects.filter(usuario_solicitante=request.user, status='rejected').count(),
     }
-    return render(request, 'contas/solicitar_permissao.html', {'form': form, 'stats': stats})
+    return render(
+        request,
+        'contas/solicitar_permissao.html',
+        {
+            'form': form,
+            'stats': stats,
+            'grupos_atuais': request.user.groups.all(),
+        },
+    )
 
 
 @login_required
@@ -1599,18 +1608,46 @@ def listar_solicitacoes_pendentes(request):
         return redirect('contas:hub_permissoes')
 
     ministerio = _resolve_ministerio_for_permissions(request)
-    solicitacoes = PermissionRequest.objects.select_related(
+    solicitacoes_qs = PermissionRequest.objects.select_related(
         'usuario_solicitante',
         'grupo_solicitado',
         'igreja_contexto',
-    ).filter(status='pending')
+        'usuario_aprovador',
+    )
     if ministerio:
-        solicitacoes = solicitacoes.filter(ministerio=ministerio)
+        solicitacoes_qs = solicitacoes_qs.filter(ministerio=ministerio)
+
+    status_filter = request.GET.get('status', '').strip()
+    prioridade_filter = request.GET.get('prioridade', '').strip()
+
+    if status_filter:
+        solicitacoes_qs = solicitacoes_qs.filter(status=status_filter)
+    if prioridade_filter:
+        solicitacoes_qs = solicitacoes_qs.filter(prioridade=prioridade_filter)
+
+    stats_base = PermissionRequest.objects.all()
+    if ministerio:
+        stats_base = stats_base.filter(ministerio=ministerio)
+
+    stats = {
+        'pendentes': stats_base.filter(status='pending').count(),
+        'aprovadas_hoje': stats_base.filter(status='approved', data_resposta__date=timezone.now().date()).count(),
+        'rejeitadas_hoje': stats_base.filter(status='rejected', data_resposta__date=timezone.now().date()).count(),
+    }
+
+    paginator = Paginator(solicitacoes_qs.order_by('-data_solicitacao'), 20)
+    page_number = request.GET.get('page')
+    solicitacoes = paginator.get_page(page_number)
 
     return render(
         request,
         'contas/listar_solicitacoes.html',
-        {'solicitacoes': solicitacoes.order_by('-data_solicitacao')},
+        {
+            'solicitacoes': solicitacoes,
+            'stats': stats,
+            'status_filter': status_filter,
+            'prioridade_filter': prioridade_filter,
+        },
     )
 
 
