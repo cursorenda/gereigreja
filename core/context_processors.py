@@ -86,3 +86,30 @@ def unread_notifications(request):
             return {'unread_notifications_count': unread_count}
     # Retorna 0 se não autenticado ou sem ministério
     return {'unread_notifications_count': 0}
+
+
+def transferencias_pendentes_count(request):
+    """
+    Adiciona a contagem de transferências pendentes para a igreja de destino
+    dentro do escopo do usuário logado.
+    """
+    if not request.user.is_authenticated:
+        return {'transferencias_pendentes_count': 0}
+
+    try:
+        from contas.constants import SECRETARIO_LOCAL, user_has_permission_level_or_higher
+        from secretaria.models import TransferenciaMembro
+
+        if not (request.user.is_superuser or user_has_permission_level_or_higher(request.user, SECRETARIO_LOCAL)):
+            return {'transferencias_pendentes_count': 0}
+
+        qs = TransferenciaMembro.objects.filter(status=TransferenciaMembro.STATUS_AGUARDANDO)
+
+        igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+        if igrejas_permitidas is not None:
+            qs = qs.filter(igreja_destino__in=igrejas_permitidas)
+
+        return {'transferencias_pendentes_count': qs.count()}
+    except Exception:
+        # Falha segura para não quebrar renderização do menu.
+        return {'transferencias_pendentes_count': 0}

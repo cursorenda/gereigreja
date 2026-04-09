@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Q
@@ -7,6 +8,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from contas.constants import SECRETARIO_LOCAL, user_has_permission_level_or_higher
+from core.utils import get_igrejas_permitidas
+from comunicacao.models import Notificacao
 
 from .models import Membro, TransferenciaMembro
 from .transferencia_forms import TransferenciaMembroForm
@@ -20,6 +23,40 @@ def _get_igrejas_permitidas(request):
 
 def _can_manage_transferencias(user):
     return user.is_superuser or user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
+
+
+def _notificar_igreja_destino_sobre_transferencia(transferencia):
+    """
+    Cria notificações para usuários que podem aprovar na igreja destino.
+    """
+    User = get_user_model()
+    ministerio = transferencia.igreja_destino.ministerio
+    destinatarios = User.objects.filter(
+        is_active=True,
+        perfil__ministerio=ministerio,
+    ).distinct()
+
+    for usuario in destinatarios:
+        if usuario == transferencia.usuario_solicitante:
+            continue
+
+        if not _can_manage_transferencias(usuario):
+            continue
+
+        igrejas_usuario = get_igrejas_permitidas(usuario, ministerio)
+        if not igrejas_usuario.filter(pk=transferencia.igreja_destino_id).exists():
+            continue
+
+        Notificacao.objects.create(
+            user=usuario,
+            ministerio=ministerio,
+            message=(
+                f"Nova solicitação de transferência para aprovação: "
+                f"{transferencia.membro.nome} -> {transferencia.igreja_destino.nome_igreja}."
+            ),
+            notification_type='aviso',
+            url='/secretaria/transferencias/',
+        )
 
 
 @login_required
@@ -49,6 +86,9 @@ def solicitar_transferencia(request):
             transferencia.usuario_solicitante = request.user
             transferencia.status = TransferenciaMembro.STATUS_AGUARDANDO
             transferencia.save()
+
+            _notificar_igreja_destino_sobre_transferencia(transferencia)
+
             messages.success(request, 'Solicitação de transferência criada com sucesso.')
             return redirect('secretaria:lista_transferencias')
     else:

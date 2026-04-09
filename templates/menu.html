@@ -51,6 +51,15 @@
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
                 Pessoas
             </a>
+            <a class="nav-link d-flex align-items-center justify-content-between" href="{% url 'secretaria:lista_transferencias' %}">
+                <span>
+                    <span class="sb-nav-link-icon"><i class="fas fa-exchange-alt"></i></span>
+                    Transferências
+                </span>
+                {% if transferencias_pendentes_count > 0 %}
+                <span class="badge bg-warning text-dark ms-2">{{ transferencias_pendentes_count }}</span>
+                {% endif %}
+            </a>
             <a class="nav-link" href="{% url 'secretaria:lista_cargos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
                 Cargos

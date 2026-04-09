@@ -311,6 +311,21 @@
         <div id="layoutSidenav_content">
             <main>
                 {% include 'partials/_messages.html' %}
+                {% if transferencias_pendentes_count > 0 %}
+                <div class="container-fluid px-4 mt-3">
+                    <div class="alert alert-warning d-flex align-items-center justify-content-between mb-2" role="alert">
+                        <div>
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>{{ transferencias_pendentes_count }}</strong>
+                            transferência{% if transferencias_pendentes_count > 1 %}s{% endif %}
+                            aguardando aprovação para sua igreja/escopo.
+                        </div>
+                        <a href="{% url 'secretaria:lista_transferencias' %}" class="btn btn-sm btn-outline-dark">
+                            Revisar agora
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
                 <div style="margin-bottom: 100px;">
                     {% block content %}
                     {% endblock %}
