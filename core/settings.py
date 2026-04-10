@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'deploy',
     'core',
     'auditoria.apps.AuditoriaConfig',
+    'painel_testes',
     'storages',
     'cloudinary',
     'cloudinary_storage',
