@@ -3,16 +3,19 @@ import csv
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db.models import Count
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from contas.constants import user_has_permission_level_or_higher
 
 from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
+
+User = get_user_model()
 
 
 def _get_user_ministerio(user):
@@ -271,3 +274,97 @@ def analise_atividades_suspeitas(request):
         'logs_recentes': logs_negados_periodo.order_by('-data_hora')[:30],
     }
     return render(request, 'auditoria/analise_atividades_suspeitas.html', context)
+
+
+@login_required
+def detalhes_usuario_auditoria(request, user_id):
+    if not _can_access_auditoria(request.user):
+        messages.error(request, 'Voce nao tem permissao para acessar os detalhes de auditoria.')
+        return redirect('/')
+
+    usuario = get_object_or_404(User, pk=user_id)
+
+    alteracoes = _scope_queryset_by_ministerio(
+        PermissionChangeLog.objects.filter(usuario_afetado=usuario).select_related('grupo', 'usuario_executor'),
+        request.user,
+    )[:50]
+    acessos_negados = _scope_queryset_by_ministerio(
+        AccessDeniedLog.objects.filter(usuario=usuario).select_related('igreja_tentada'),
+        request.user,
+    )[:50]
+    sessoes = _scope_queryset_by_ministerio(
+        AuditSession.objects.filter(usuario=usuario).select_related('ministerio', 'igreja_ativa'),
+        request.user,
+    )[:20]
+
+    stats = {
+        'total_alteracoes': _scope_queryset_by_ministerio(
+            PermissionChangeLog.objects.filter(usuario_afetado=usuario), request.user
+        ).count(),
+        'total_acessos_negados': _scope_queryset_by_ministerio(
+            AccessDeniedLog.objects.filter(usuario=usuario), request.user
+        ).count(),
+        'total_sessoes': _scope_queryset_by_ministerio(
+            AuditSession.objects.filter(usuario=usuario), request.user
+        ).count(),
+        'grupos_atuais': usuario.groups.all(),
+    }
+
+    context = {
+        'usuario_auditado': usuario,
+        'alteracoes': alteracoes,
+        'acessos_negados': acessos_negados,
+        'sessoes': sessoes,
+        'stats': stats,
+    }
+    return render(request, 'auditoria/detalhes_usuario.html', context)
+
+
+@login_required
+def acumulacao_permissoes(request):
+    if not _can_access_auditoria(request.user):
+        messages.error(request, 'Voce nao tem permissao para acessar acumulacao de permissoes.')
+        return redirect('/')
+
+    ministerio = _get_user_ministerio(request.user)
+    if ministerio and not request.user.is_superuser:
+        usuarios = User.objects.filter(perfil_usuario__ministerio=ministerio, is_active=True).distinct()
+    else:
+        usuarios = User.objects.filter(is_active=True)
+
+    usuarios_com_permissoes = []
+    for usuario in usuarios:
+        grupos = usuario.groups.all()
+        num_grupos = grupos.count()
+        if num_grupos == 0:
+            continue
+        usuarios_com_permissoes.append(
+            {
+                'usuario': usuario,
+                'num_grupos': num_grupos,
+                'grupos': grupos,
+                'nivel_risco': 'ALTO' if num_grupos >= 5 else 'MEDIO' if num_grupos >= 3 else 'BAIXO',
+            }
+        )
+
+    usuarios_com_permissoes.sort(key=lambda item: item['num_grupos'], reverse=True)
+
+    stats = {
+        'total_usuarios': len(usuarios_com_permissoes),
+        'usuarios_alto_risco': sum(1 for item in usuarios_com_permissoes if item['nivel_risco'] == 'ALTO'),
+        'usuarios_medio_risco': sum(1 for item in usuarios_com_permissoes if item['nivel_risco'] == 'MEDIO'),
+        'media_grupos': (
+            sum(item['num_grupos'] for item in usuarios_com_permissoes) / len(usuarios_com_permissoes)
+            if usuarios_com_permissoes
+            else 0
+        ),
+    }
+
+    return render(
+        request,
+        'auditoria/acumulacao_permissoes.html',
+        {
+            'usuarios_com_permissoes': usuarios_com_permissoes[:50],
+            'stats': stats,
+        },
+    )

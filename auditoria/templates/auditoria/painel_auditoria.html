@@ -26,6 +26,9 @@
         <div class="col-auto d-flex align-items-end">
             <a class="btn btn-sm btn-outline-warning" href="{% url 'auditoria:analise_atividades_suspeitas' %}">Analise de atividades suspeitas</a>
         </div>
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-warning" href="{% url 'auditoria:acumulacao_permissoes' %}">Acumulacao de permissoes</a>
+        </div>
         {% if request.user.is_superuser %}
         <div class="col-auto d-flex align-items-end">
             <a class="btn btn-sm btn-outline-danger" href="{% url 'auditoria:alternar_modo_auditoria' %}">Alternar modo auditoria</a>
