@@ -1,0 +1,97 @@
+{% extends 'base_com_sistema.html' %}
+
+{% block title %}Analise de Atividades Suspeitas{% endblock %}
+{% block nome_departamento %}Auditoria{% endblock %}
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'auditoria:painel_auditoria' %}">Painel</a></li>
+<li class="breadcrumb-item active">Atividades Suspeitas</li>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="p-3">
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-2">
+            <label class="form-label">Periodo (dias)</label>
+            <input type="number" name="dias" class="form-control form-control-sm" min="1" max="90" value="{{ dias }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Limite de negacoes</label>
+            <input type="number" name="limite" class="form-control form-control-sm" min="1" max="500" value="{{ limite }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-sm btn-primary">Atualizar</button>
+        </div>
+    </form>
+
+    <div class="alert alert-secondary py-2">
+        Total de logs no periodo: <strong>{{ total_logs_periodo }}</strong>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <h5>Usuarios acima do limite</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr><th>Usuario</th><th>Ministerio</th><th>Total de Negacoes</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for item in usuarios_suspeitos %}
+                        <tr>
+                            <td>{{ item.usuario__username }}</td>
+                            <td>{{ item.ministerio__nome|default:'-' }}</td>
+                            <td>{{ item.total_negados }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3">Nenhum usuario acima do limite.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <h5>Recursos com mais negacoes</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr><th>Recurso</th><th>Total</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for item in recursos_mais_negados %}
+                        <tr>
+                            <td>{{ item.recurso }}</td>
+                            <td>{{ item.total }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="2">Sem registros.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <h5 class="mt-4">Ultimos acessos negados no periodo</h5>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr><th>Data</th><th>Usuario</th><th>Tipo</th><th>Recurso</th><th>IP</th></tr>
+            </thead>
+            <tbody>
+            {% for log in logs_recentes %}
+                <tr>
+                    <td>{{ log.data_hora|date:'d/m/Y H:i' }}</td>
+                    <td>{{ log.usuario }}</td>
+                    <td>{{ log.tipo_acesso }}</td>
+                    <td>{{ log.recurso }}</td>
+                    <td>{{ log.ip_address|default:'-' }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5">Sem registros recentes.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

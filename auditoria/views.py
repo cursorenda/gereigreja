@@ -1,7 +1,9 @@
 from datetime import timedelta
+import csv
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.shortcuts import redirect, render
@@ -33,6 +35,14 @@ def _scope_queryset_by_ministerio(queryset, user):
     if ministerio is None:
         return queryset.none()
     return queryset.filter(ministerio=ministerio)
+
+
+def _parse_int_param(raw_value, default_value, min_value, max_value):
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        return default_value
+    return max(min_value, min(max_value, value))
 
 
 @login_required
@@ -151,3 +161,110 @@ def sessoes_ativas(request):
     page_obj = paginator.get_page(request.GET.get('page', 1))
 
     return render(request, 'auditoria/sessoes_ativas.html', {'page_obj': page_obj})
+
+
+@login_required
+def alternar_modo_auditoria(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Apenas superusuarios podem alternar o modo auditoria.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    modo_ativo = bool(request.session.get('modo_auditoria', False))
+    request.session['modo_auditoria'] = not modo_ativo
+    request.session.modified = True
+
+    if modo_ativo:
+        messages.info(request, 'Modo auditoria desativado.')
+    else:
+        messages.info(request, 'Modo auditoria ativado: operacoes sensiveis ficam em somente leitura.')
+
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+def exportar_logs_csv(request):
+    if not _can_access_auditoria(request.user):
+        messages.error(request, 'Voce nao tem permissao para exportar logs de auditoria.')
+        return redirect('/')
+
+    tipo = request.GET.get('tipo', 'alteracoes').strip().lower()
+    dias = _parse_int_param(request.GET.get('dias', 30), default_value=30, min_value=1, max_value=365)
+    data_inicio = timezone.now() - timedelta(days=dias)
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="auditoria_{tipo}_{timezone.now():%Y%m%d_%H%M%S}.csv"'
+    writer = csv.writer(response)
+
+    if tipo == 'acessos_negados':
+        logs = _scope_queryset_by_ministerio(
+            AccessDeniedLog.objects.select_related('usuario', 'ministerio').filter(data_hora__gte=data_inicio),
+            request.user,
+        )
+        writer.writerow(['data_hora', 'usuario', 'tipo_acesso', 'recurso', 'permissao_requerida', 'ministerio', 'ip'])
+        for log in logs.iterator():
+            writer.writerow([
+                log.data_hora.strftime('%Y-%m-%d %H:%M:%S'),
+                log.usuario.username,
+                log.tipo_acesso,
+                log.recurso,
+                log.permissao_requerida,
+                getattr(log.ministerio, 'nome', ''),
+                log.ip_address or '',
+            ])
+        return response
+
+    logs = _scope_queryset_by_ministerio(
+        PermissionChangeLog.objects.select_related('usuario_afetado', 'usuario_executor', 'grupo', 'ministerio').filter(
+            data_hora__gte=data_inicio
+        ),
+        request.user,
+    )
+    writer.writerow(['data_hora', 'usuario_afetado', 'acao', 'grupo', 'executor', 'ministerio', 'ip'])
+    for log in logs.iterator():
+        writer.writerow([
+            log.data_hora.strftime('%Y-%m-%d %H:%M:%S'),
+            log.usuario_afetado.username,
+            log.acao,
+            getattr(log.grupo, 'name', ''),
+            getattr(log.usuario_executor, 'username', ''),
+            getattr(log.ministerio, 'nome', ''),
+            log.ip_address or '',
+        ])
+    return response
+
+
+@login_required
+def analise_atividades_suspeitas(request):
+    if not _can_access_auditoria(request.user):
+        messages.error(request, 'Voce nao tem permissao para acessar a analise de atividades suspeitas.')
+        return redirect('/')
+
+    dias = _parse_int_param(request.GET.get('dias', 7), default_value=7, min_value=1, max_value=90)
+    limite = _parse_int_param(request.GET.get('limite', 5), default_value=5, min_value=1, max_value=500)
+    data_inicio = timezone.now() - timedelta(days=dias)
+
+    logs_negados_periodo = _scope_queryset_by_ministerio(
+        AccessDeniedLog.objects.select_related('usuario', 'ministerio').filter(data_hora__gte=data_inicio),
+        request.user,
+    )
+
+    usuarios_suspeitos = (
+        logs_negados_periodo.values('usuario__username', 'ministerio__nome')
+        .annotate(total_negados=Count('id'))
+        .filter(total_negados__gte=limite)
+        .order_by('-total_negados')
+    )
+
+    recursos_mais_negados = (
+        logs_negados_periodo.values('recurso').annotate(total=Count('id')).order_by('-total')[:10]
+    )
+
+    context = {
+        'dias': dias,
+        'limite': limite,
+        'total_logs_periodo': logs_negados_periodo.count(),
+        'usuarios_suspeitos': usuarios_suspeitos,
+        'recursos_mais_negados': recursos_mais_negados,
+        'logs_recentes': logs_negados_periodo.order_by('-data_hora')[:30],
+    }
+    return render(request, 'auditoria/analise_atividades_suspeitas.html', context)
