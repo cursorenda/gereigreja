@@ -74,3 +74,156 @@ class PermissionChangeLog(models.Model):
         grupo = self.grupo.name if self.grupo else 'sem grupo'
         data_hora = self.data_hora.strftime('%d/%m/%Y %H:%M')
         return f'{self.acao}: {self.usuario_afetado} - {grupo} ({data_hora})'
+
+
+class AccessDeniedLog(models.Model):
+    TIPO_CHOICES = [
+        ('VIEW', 'Acesso a View'),
+        ('OBJECT', 'Acesso a Objeto'),
+        ('ACTION', 'Execucao de Acao'),
+        ('API', 'Acesso a API'),
+    ]
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='logs_acesso_negado',
+        verbose_name='Usuario',
+    )
+    tipo_acesso = models.CharField(
+        max_length=10,
+        choices=TIPO_CHOICES,
+        verbose_name='Tipo de Acesso',
+    )
+    recurso = models.CharField(
+        max_length=255,
+        verbose_name='Recurso',
+    )
+    permissao_requerida = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Permissao Requerida',
+    )
+    igreja_tentada = models.ForeignKey(
+        'configuracao.Igreja',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Igreja',
+    )
+    data_hora = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name='Data/Hora',
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name='IP',
+    )
+    user_agent = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='User Agent',
+    )
+    url_path = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='URL',
+    )
+    metodo_http = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name='Metodo HTTP',
+    )
+    ministerio = models.ForeignKey(
+        'configuracao.Ministerio',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name='Ministerio',
+    )
+
+    class Meta:
+        ordering = ['-data_hora']
+        verbose_name = 'Log de Acesso Negado'
+        verbose_name_plural = 'Logs de Acessos Negados'
+        indexes = [
+            models.Index(fields=['-data_hora', 'usuario']),
+            models.Index(fields=['ministerio', '-data_hora']),
+            models.Index(fields=['tipo_acesso', '-data_hora']),
+        ]
+
+    def __str__(self):
+        data_hora = self.data_hora.strftime('%d/%m/%Y %H:%M')
+        return f'Acesso Negado: {self.usuario} - {self.recurso} ({data_hora})'
+
+
+class AuditSession(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sessoes_auditoria',
+        verbose_name='Usuario',
+    )
+    login_data_hora = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name='Login',
+    )
+    logout_data_hora = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Logout',
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name='IP',
+    )
+    user_agent = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='User Agent',
+    )
+    ministerio = models.ForeignKey(
+        'configuracao.Ministerio',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name='Ministerio',
+    )
+    igreja_ativa = models.ForeignKey(
+        'configuracao.Igreja',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Igreja Ativa',
+    )
+    paginas_visitadas = models.IntegerField(
+        default=0,
+        verbose_name='Paginas Visitadas',
+    )
+
+    class Meta:
+        ordering = ['-login_data_hora']
+        verbose_name = 'Sessao de Auditoria'
+        verbose_name_plural = 'Sessoes de Auditoria'
+        indexes = [
+            models.Index(fields=['-login_data_hora', 'usuario']),
+            models.Index(fields=['ministerio', '-login_data_hora']),
+        ]
+
+    def __str__(self):
+        login = self.login_data_hora.strftime('%d/%m/%Y %H:%M')
+        return f'Sessao: {self.usuario} - {login}'
+
+    @property
+    def duracao(self):
+        if self.logout_data_hora:
+            return self.logout_data_hora - self.login_data_hora
+        return timezone.now() - self.login_data_hora
+
+    @property
+    def ativa(self):
+        return self.logout_data_hora is None
