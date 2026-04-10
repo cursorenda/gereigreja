@@ -4,7 +4,7 @@ import csv
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db.models import Count
@@ -367,4 +367,69 @@ def acumulacao_permissoes(request):
             'usuarios_com_permissoes': usuarios_com_permissoes[:50],
             'stats': stats,
         },
+    )
+
+
+@login_required
+def api_estatisticas_auditoria(request):
+    if not _can_access_auditoria(request.user):
+        return JsonResponse({'error': 'Permissao negada'}, status=403)
+
+    dias = _parse_int_param(request.GET.get('dias', 30), default_value=30, min_value=1, max_value=365)
+    data_inicio = timezone.now() - timedelta(days=dias)
+
+    logs_alteracoes_qs = _scope_queryset_by_ministerio(PermissionChangeLog.objects.all(), request.user)
+    logs_negados_qs = _scope_queryset_by_ministerio(AccessDeniedLog.objects.all(), request.user)
+
+    serie_alteracoes = []
+    serie_acessos_negados = []
+    for i in range(dias):
+        dia = timezone.now() - timedelta(days=i)
+        inicio_dia = dia.replace(hour=0, minute=0, second=0, microsecond=0)
+        fim_dia = inicio_dia + timedelta(days=1)
+
+        serie_alteracoes.append(
+            {
+                'data': inicio_dia.strftime('%d/%m'),
+                'total': logs_alteracoes_qs.filter(data_hora__gte=inicio_dia, data_hora__lt=fim_dia).count(),
+            }
+        )
+        serie_acessos_negados.append(
+            {
+                'data': inicio_dia.strftime('%d/%m'),
+                'total': logs_negados_qs.filter(data_hora__gte=inicio_dia, data_hora__lt=fim_dia).count(),
+            }
+        )
+
+    serie_alteracoes.reverse()
+    serie_acessos_negados.reverse()
+
+    distribuicao_acoes = list(
+        logs_alteracoes_qs.filter(data_hora__gte=data_inicio)
+        .values('acao')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    distribuicao_tipos_negados = list(
+        logs_negados_qs.filter(data_hora__gte=data_inicio)
+        .values('tipo_acesso')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+    top_grupos = list(
+        logs_alteracoes_qs.filter(data_hora__gte=data_inicio)
+        .values('grupo__name')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:10]
+    )
+
+    return JsonResponse(
+        {
+            'dias': dias,
+            'serie_alteracoes': serie_alteracoes,
+            'serie_acessos_negados': serie_acessos_negados,
+            'distribuicao_acoes': distribuicao_acoes,
+            'distribuicao_tipos_negados': distribuicao_tipos_negados,
+            'top_grupos': top_grupos,
+        }
     )
