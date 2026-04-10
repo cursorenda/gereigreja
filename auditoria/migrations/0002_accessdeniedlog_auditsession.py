@@ -15,6 +15,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.SeparateDatabaseAndState(
+          database_operations=[],
+          state_operations=[
         migrations.CreateModel(
             name='AccessDeniedLog',
             fields=[
@@ -58,4 +61,5 @@ class Migration(migrations.Migration):
                 'indexes': [models.Index(fields=['-login_data_hora', 'usuario'], name='auditoria_a_login_d_565a68_idx'), models.Index(fields=['ministerio', '-login_data_hora'], name='auditoria_a_ministe_b3c6ff_idx')],
             },
         ),
+          ]),
     ]
