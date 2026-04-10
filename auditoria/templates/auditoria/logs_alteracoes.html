@@ -1,0 +1,308 @@
+{% extends 'base_com_sistema.html' %}
+
+{% block title %}Logs de Alteracoes{% endblock %}
+{% block nome_departamento %}Auditoria{% endblock %}
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'auditoria:painel_auditoria' %}">Painel</a></li>
+<li class="breadcrumb-item active">Logs de Alteracoes</li>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="p-3">
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-3">
+            <label class="form-label">Usuario</label>
+            <input type="text" name="usuario" class="form-control form-control-sm" value="{{ usuario }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Acao</label>
+            <select name="acao" class="form-select form-select-sm">
+                <option value="">Todas</option>
+                {% for valor, nome in acoes_disponiveis %}
+                <option value="{{ valor }}" {% if acao == valor %}selected{% endif %}>{{ nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-sm">
+            <thead><tr><th>Data</th><th>Usuario Afetado</th><th>Acao</th><th>Grupo</th><th>Executor</th></tr></thead>
+            <tbody>
+            {% for log in page_obj %}
+                <tr>
+                    <td>{{ log.data_hora|date:'d/m/Y H:i' }}</td>
+                    <td>{{ log.usuario_afetado }}</td>
+                    <td>{{ log.acao }}</td>
+                    <td>{{ log.grupo|default:'-' }}</td>
+                    <td>{{ log.usuario_executor|default:'-' }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5">Sem registros.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div>
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&usuario={{ usuario }}&acao={{ acao }}">Anterior</a>{% endif %}
+        <span class="mx-2">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&usuario={{ usuario }}&acao={{ acao }}">Proxima</a>{% endif %}
+    </div>
+</div>
+{% endblock %}
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .logs-page {
+        padding: 20px;
+    }
+    
+    .filters-bar {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .filters-bar form {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .filter-group label {
+        font-weight: bold;
+        font-size: 12px;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .log-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        margin-top: 20px;
+    }
+    
+    .log-table th {
+        background: #3498db;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+    }
+    
+    .log-table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .log-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .badge-add { background: #d4edda; color: #155724; }
+    .badge-remove { background: #f8d7da; color: #721c24; }
+    .badge-create { background: #cce5ff; color: #004085; }
+    .badge-delete { background: #f5c6cb; color: #721c24; }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .pagination a {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #3498db;
+    }
+    
+    .pagination a:hover {
+        background: #3498db;
+        color: white;
+    }
+    
+    .btn-primary {
+        background: #3498db;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="logs-page">
+    <h1>Logs de Alterações de Permissões</h1>
+    
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'auditoria:painel_auditoria' %}" class="btn-secondary">← Voltar ao Painel</a>
+    </div>
+    
+    <div class="filters-bar">
+        <form method="get">
+            <div class="filter-group">
+                <label>Usuário:</label>
+                <select name="usuario">
+                    <option value="">Todos</option>
+                    {% for u in usuarios %}
+                    <option value="{{ u.id }}" {% if filtros_ativos.usuario == u.id|stringformat:"s" %}selected{% endif %}>
+                        {{ u.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Grupo:</label>
+                <select name="grupo">
+                    <option value="">Todos</option>
+                    {% for g in grupos %}
+                    <option value="{{ g.id }}" {% if filtros_ativos.grupo == g.id|stringformat:"s" %}selected{% endif %}>
+                        {{ g.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Ação:</label>
+                <select name="acao">
+                    <option value="">Todas</option>
+                    {% for acao_code, acao_label in acoes %}
+                    <option value="{{ acao_code }}" {% if filtros_ativos.acao == acao_code %}selected{% endif %}>
+                        {{ acao_label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Período:</label>
+                <select name="dias">
+                    <option value="">Tudo</option>
+                    <option value="7" {% if filtros_ativos.dias == "7" %}selected{% endif %}>Últimos 7 dias</option>
+                    <option value="30" {% if filtros_ativos.dias == "30" %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="90" {% if filtros_ativos.dias == "90" %}selected{% endif %}>Últimos 90 dias</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <button type="submit" class="btn-primary">Filtrar</button>
+            </div>
+        </form>
+    </div>
+    
+    {% if logs %}
+    <table class="log-table">
+        <thead>
+            <tr>
+                <th>Data/Hora</th>
+                <th>Usuário Afetado</th>
+                <th>Ação</th>
+                <th>Grupo</th>
+                <th>Executado Por</th>
+                <th>IP</th>
+                <th>Observação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.data_hora|date:"d/m/Y H:i:s" }}</td>
+                <td>
+                    <a href="{% url 'auditoria:detalhes_usuario' log.usuario_afetado.id %}">
+                        {{ log.usuario_afetado.username }}
+                    </a>
+                </td>
+                <td>
+                    {% if log.acao == 'ADD' %}
+                    <span class="badge badge-add">{{ log.get_acao_display }}</span>
+                    {% elif log.acao == 'REMOVE' %}
+                    <span class="badge badge-remove">{{ log.get_acao_display }}</span>
+                    {% elif log.acao == 'CREATE' %}
+                    <span class="badge badge-create">{{ log.get_acao_display }}</span>
+                    {% elif log.acao == 'DELETE' %}
+                    <span class="badge badge-delete">{{ log.get_acao_display }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ log.grupo.name|default:"-" }}</td>
+                <td>{{ log.usuario_executor.username|default:"Sistema" }}</td>
+                <td>{{ log.ip_address|default:"-" }}</td>
+                <td>{{ log.observacao|truncatewords:10|default:"-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Paginação -->
+    {% if logs.has_other_pages %}
+    <div class="pagination">
+        {% if logs.has_previous %}
+        <a href="?page={{ logs.previous_page_number }}{% for key, value in filtros_ativos.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+            &laquo; Anterior
+        </a>
+        {% endif %}
+        
+        <span style="padding: 8px;">
+            Página {{ logs.number }} de {{ logs.paginator.num_pages }}
+        </span>
+        
+        {% if logs.has_next %}
+        <a href="?page={{ logs.next_page_number }}{% for key, value in filtros_ativos.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+            Próxima &raquo;
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #7f8c8d;">
+        <p>Nenhum log encontrado com os filtros selecionados.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -59,6 +59,7 @@ urlpatterns = [
 
     # Escola Bíblica Dominical
     path('escola_biblica/', include(('escola_biblica.urls', 'escola_biblica'), namespace='escola_biblica')),
+    path('auditoria/', include(('auditoria.urls', 'auditoria'), namespace='auditoria')),
     # URLs de backup
     *backup_urls,
 ]

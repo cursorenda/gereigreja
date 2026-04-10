@@ -1,0 +1,12 @@
+from django.urls import path
+
+from . import views
+
+app_name = 'auditoria'
+
+urlpatterns = [
+    path('painel/', views.painel_auditoria, name='painel_auditoria'),
+    path('logs/alteracoes/', views.logs_alteracoes_permissoes, name='logs_alteracoes'),
+    path('logs/acessos-negados/', views.logs_acessos_negados, name='logs_acessos_negados'),
+    path('sessoes-ativas/', views.sessoes_ativas, name='sessoes_ativas'),
+]
