@@ -94,9 +94,12 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'auditoria.middleware.RegistrarAuditoriaMiddleware',
+    'auditoria.middleware.BloquearEscritaModoAuditoriaMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.PermissionDeniedMiddleware',  # Captura PermissionDenied e mostra 403.html
+    'auditoria.middleware.CapturarAcessoNegadoMiddleware',
     'core.middleware.VerificarGruposUsuarioMiddleware',  # Middleware para verificar se usuário tem grupos
     'core.middleware.ActiveChurchMiddleware',
     'secretaria.middleware.DisableCacheMiddleware',
@@ -122,6 +125,7 @@ TEMPLATES = [
                 'core.context_processors.unread_notifications',
                 'core.context_processors.transferencias_pendentes_count',
                 'core.context_processors.sistema_nome',
+                'auditoria.context_processors.modo_auditoria_flag',
             ],
         },
     },

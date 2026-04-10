@@ -35,6 +35,11 @@
     <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
 </head>
 <body class="sb-nav-fixed">
+    {% if modo_auditoria_ativo %}
+    <div class="alert alert-warning text-center mb-0 rounded-0 py-2" role="alert">
+        <strong>Modo Auditoria ativo.</strong> Operacoes de escrita do superusuario ficam bloqueadas ate nova alternancia.
+    </div>
+    {% endif %}
     <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
         <!-- Navbar Brand-->
             <a class="navbar-brand ps-3" href="{% if user.is_authenticated %}{% url 'secretaria:dashboard' %}{% else %}{% url 'login' %}{% endif %}">
