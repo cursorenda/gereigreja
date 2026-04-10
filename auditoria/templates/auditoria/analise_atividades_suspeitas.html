@@ -39,7 +39,7 @@
                     {% for item in usuarios_suspeitos %}
                         <tr>
                             <td>{{ item.usuario__username }}</td>
-                            <td>{{ item.ministerio__nome|default:'-' }}</td>
+                            <td>{{ item.ministerio__nome_fantasia|default:'-' }}</td>
                             <td>{{ item.total_negados }}</td>
                         </tr>
                     {% empty %}

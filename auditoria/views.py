@@ -4,6 +4,7 @@ import csv
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
+from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.shortcuts import redirect, render
@@ -165,9 +166,11 @@ def sessoes_ativas(request):
 
 @login_required
 def alternar_modo_auditoria(request):
+    redirect_destino = request.META.get('HTTP_REFERER') or reverse('auditoria:painel_auditoria')
+
     if not request.user.is_superuser:
         messages.error(request, 'Apenas superusuarios podem alternar o modo auditoria.')
-        return redirect(request.META.get('HTTP_REFERER', '/'))
+        return redirect(redirect_destino)
 
     modo_ativo = bool(request.session.get('modo_auditoria', False))
     request.session['modo_auditoria'] = not modo_ativo
@@ -178,7 +181,7 @@ def alternar_modo_auditoria(request):
     else:
         messages.info(request, 'Modo auditoria ativado: operacoes sensiveis ficam em somente leitura.')
 
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    return redirect(redirect_destino)
 
 
 @login_required
@@ -208,7 +211,7 @@ def exportar_logs_csv(request):
                 log.tipo_acesso,
                 log.recurso,
                 log.permissao_requerida,
-                getattr(log.ministerio, 'nome', ''),
+                getattr(log.ministerio, 'nome_fantasia', ''),
                 log.ip_address or '',
             ])
         return response
@@ -227,7 +230,7 @@ def exportar_logs_csv(request):
             log.acao,
             getattr(log.grupo, 'name', ''),
             getattr(log.usuario_executor, 'username', ''),
-            getattr(log.ministerio, 'nome', ''),
+            getattr(log.ministerio, 'nome_fantasia', ''),
             log.ip_address or '',
         ])
     return response
@@ -249,7 +252,7 @@ def analise_atividades_suspeitas(request):
     )
 
     usuarios_suspeitos = (
-        logs_negados_periodo.values('usuario__username', 'ministerio__nome')
+        logs_negados_periodo.values('usuario__username', 'ministerio__nome_fantasia')
         .annotate(total_negados=Count('id'))
         .filter(total_negados__gte=limite)
         .order_by('-total_negados')
