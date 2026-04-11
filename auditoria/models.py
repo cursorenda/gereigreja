@@ -75,6 +75,17 @@ class PermissionChangeLog(models.Model):
         data_hora = self.data_hora.strftime('%d/%m/%Y %H:%M')
         return f'{self.acao}: {self.usuario_afetado} - {grupo} ({data_hora})'
 
+    @property
+    def nivel_hierarquia(self):
+        if not self.grupo:
+            return None
+        from contas.constants import HIERARQUIA_GRUPOS
+
+        try:
+            return HIERARQUIA_GRUPOS.index(self.grupo.name)
+        except ValueError:
+            return None
+
 
 class AccessDeniedLog(models.Model):
     TIPO_CHOICES = [
@@ -157,6 +168,10 @@ class AccessDeniedLog(models.Model):
     def __str__(self):
         data_hora = self.data_hora.strftime('%d/%m/%Y %H:%M')
         return f'Acesso Negado: {self.usuario} - {self.recurso} ({data_hora})'
+
+    @property
+    def grupos_usuario(self):
+        return ', '.join(self.usuario.groups.values_list('name', flat=True))
 
 
 class AuditSession(models.Model):
