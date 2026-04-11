@@ -1,12 +1,34 @@
 {% extends 'admin/base_site.html' %}
 {% load i18n %}
 
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="/admin/">Inicio</a> &rsaquo; Auditoria de Permissoes
+</div>
+{% endblock %}
+
 {% block content %}
 <div id="content-main">
-    {% if app_list %}
-        {% include 'admin/app_list.html' with app_list=app_list show_changelinks=True %}
-    {% else %}
-        <p>{% translate "You don't have permission to view or edit anything." %}</p>
-    {% endif %}
+    <div class="module" style="max-width: 920px;">
+        <h2 style="margin-top: 0;">Central de Auditoria</h2>
+        <p style="margin-bottom: 16px;">Acesse as operacoes mais usadas da auditoria sem depender do menu do admin padrao.</p>
+
+        <ul style="margin: 0 0 20px 18px;">
+            <li><a href="/auditoria/painel/">Abrir painel de auditoria</a></li>
+            <li><a href="/auditoria/auditar/">Executar auditoria de permissoes</a></li>
+            <li><a href="/auditoria/logs/alteracoes/">Ver logs de alteracoes</a></li>
+            <li><a href="/auditoria/logs/acessos-negados/">Ver logs de acessos negados</a></li>
+            <li><a href="/auditoria/sessoes-ativas/">Ver sessoes ativas</a></li>
+            <li><a href="/auditoria/acumulacao-permissoes/">Ver acumulacao de permissoes</a></li>
+            <li><a href="/admin/">Voltar para admin principal</a></li>
+        </ul>
+
+        {% if app_list %}
+            <h3 style="margin-top: 0;">Modelos registrados neste admin</h3>
+            {% include 'admin/app_list.html' with app_list=app_list show_changelinks=True %}
+        {% else %}
+            <p style="margin-bottom: 0;"><strong>Observacao:</strong> este usuario nao possui permissoes de modelo no admin dedicado. Os links acima continuam disponiveis para navegacao.</p>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
