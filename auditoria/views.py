@@ -66,11 +66,22 @@ def painel_auditoria(request):
     logs_alteracoes_periodo = logs_alteracoes_qs.filter(data_hora__gte=data_inicio)
     logs_negados_periodo = logs_negados_qs.filter(data_hora__gte=data_inicio)
 
+    ministerio = _get_user_ministerio(request.user)
+    if ministerio and not request.user.is_superuser:
+        usuarios_base = User.objects.filter(perfil_usuario__ministerio=ministerio, is_active=True).distinct()
+    else:
+        usuarios_base = User.objects.filter(is_active=True)
+
+    usuarios_alto_risco = (
+        usuarios_base.annotate(num_grupos=Count('groups', distinct=True)).filter(num_grupos__gte=5).count()
+    )
+
     stats = {
         'total_alteracoes': logs_alteracoes_periodo.count(),
         'total_acessos_negados': logs_negados_periodo.count(),
         'usuarios_afetados': logs_alteracoes_periodo.values('usuario_afetado').distinct().count(),
         'sessoes_ativas': sessoes_qs.filter(logout_data_hora__isnull=True).count(),
+        'usuarios_alto_risco': usuarios_alto_risco,
     }
 
     distribuicao_acoes = logs_alteracoes_periodo.values('acao').annotate(total=Count('id')).order_by('-total')

@@ -39,11 +39,19 @@
         {% endif %}
     </form>
 
+    {% if stats.usuarios_alto_risco > 0 %}
+    <div class="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
+        <span><strong>Atencao:</strong> {{ stats.usuarios_alto_risco }} usuario(s) com risco ALTO de acumulacao de permissoes.</span>
+        <a class="btn btn-sm btn-light" href="{% url 'auditoria:acumulacao_permissoes' %}">Ver detalhes</a>
+    </div>
+    {% endif %}
+
     <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="card"><div class="card-body"><strong>Alteracoes</strong><br>{{ stats.total_alteracoes }}</div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><strong>Acessos Negados</strong><br>{{ stats.total_acessos_negados }}</div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><strong>Usuarios Afetados</strong><br>{{ stats.usuarios_afetados }}</div></div></div>
-        <div class="col-md-3"><div class="card"><div class="card-body"><strong>Sessoes Ativas</strong><br>{{ stats.sessoes_ativas }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Alteracoes</strong><br>{{ stats.total_alteracoes }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Acessos Negados</strong><br>{{ stats.total_acessos_negados }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Usuarios Afetados</strong><br>{{ stats.usuarios_afetados }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Sessoes Ativas</strong><br>{{ stats.sessoes_ativas }}</div></div></div>
+        <div class="col-md-12 col-xl-4"><div class="card border-danger"><div class="card-body"><strong>Usuarios Alto Risco</strong><br>{{ stats.usuarios_alto_risco }}</div></div></div>
     </div>
 
     <div class="row g-3 mb-4">
