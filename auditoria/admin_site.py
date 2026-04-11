@@ -13,6 +13,7 @@ class AuditoriaAdminSite(admin.AdminSite):
     site_title = 'Auditoria de Permissoes'
     index_title = 'Auditoria de Permissoes'
     index_template = 'admin/auditoria_index.html'
+    enable_nav_sidebar = False
 
     def get_urls(self):
         urls = super().get_urls()
