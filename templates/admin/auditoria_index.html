@@ -9,26 +9,32 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="module" style="max-width: 920px;">
+    <div class="module" style="max-width: 980px; padding: 12px 14px;">
         <h2 style="margin-top: 0;">Central de Auditoria</h2>
-        <p style="margin-bottom: 16px;">Acesse as operacoes mais usadas da auditoria sem depender do menu do admin padrao.</p>
+        <p style="margin: 0 0 18px 0;">Acesso rapido as operacoes e consultas, sem depender de menus secundarios.</p>
 
-        <ul style="margin: 0 0 20px 18px;">
-            <li><a href="/auditoria/painel/">Abrir painel de auditoria</a></li>
-            <li><a href="/auditoria/auditar/">Executar auditoria de permissoes</a></li>
-            <li><a href="/auditoria/logs/alteracoes/">Ver logs de alteracoes</a></li>
-            <li><a href="/auditoria/logs/acessos-negados/">Ver logs de acessos negados</a></li>
-            <li><a href="/auditoria/sessoes-ativas/">Ver sessoes ativas</a></li>
-            <li><a href="/auditoria/acumulacao-permissoes/">Ver acumulacao de permissoes</a></li>
-            <li><a href="/admin/">Voltar para admin principal</a></li>
-        </ul>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 14px;">
+            <div class="module" style="margin: 0; padding: 10px 12px;">
+                <h3 style="margin: 0 0 8px 0;">Operacoes</h3>
+                <p style="margin: 0 0 10px 0;">Acoes de execucao e navegacao principal.</p>
+                <p style="margin: 0 0 8px 0;"><a class="button" href="/auditoria/painel/">Abrir painel de auditoria</a></p>
+                <p style="margin: 0 0 8px 0;"><a class="button" href="/auditoria/auditar/">Executar auditoria de permissoes</a></p>
+                <p style="margin: 0;"><a href="/admin/">Voltar para admin principal</a></p>
+            </div>
 
-        {% if app_list %}
-            <h3 style="margin-top: 0;">Modelos registrados neste admin</h3>
-            {% include 'admin/app_list.html' with app_list=app_list show_changelinks=True %}
-        {% else %}
-            <p style="margin-bottom: 0;"><strong>Observacao:</strong> este usuario nao possui permissoes de modelo no admin dedicado. Os links acima continuam disponiveis para navegacao.</p>
-        {% endif %}
+            <div class="module" style="margin: 0; padding: 10px 12px;">
+                <h3 style="margin: 0 0 8px 0;">Consultas</h3>
+                <p style="margin: 0 0 10px 0;">Acompanhe eventos e riscos de seguranca.</p>
+                <ul style="margin: 0; padding-left: 18px;">
+                    <li><a href="/auditoria/logs/alteracoes/">Logs de alteracoes</a></li>
+                    <li><a href="/auditoria/logs/acessos-negados/">Logs de acessos negados</a></li>
+                    <li><a href="/auditoria/sessoes-ativas/">Sessoes ativas</a></li>
+                    <li><a href="/auditoria/acumulacao-permissoes/">Acumulacao de permissoes</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <p style="margin: 0; color: #666; font-size: 12px;">Este painel foi simplificado para evitar duplicidade visual com menus laterais do tema admin.</p>
     </div>
 </div>
 {% endblock %}
