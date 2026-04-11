@@ -17,6 +17,7 @@ from painel_testes.admin import painel_pytest_view
 from configuracao.admin_dashboard import dashboard_desenvolvedor, executar_comando
 from configuracao.admin_metrics import metricas_produto
 from django.contrib.admin.views.decorators import staff_member_required
+from auditoria.admin_site import auditoria_admin_site
 
 
 urlpatterns = [
@@ -31,6 +32,7 @@ urlpatterns = [
     path('admin/painel-permissoes/', staff_member_required(painel_permissoes_view), name='admin_painel_permissoes'),
     # Painel de testes unitários (pytest)
     path('admin/painel-testes/pytest/', admin.site.admin_view(painel_pytest_view), name='admin_painel_pytest'),
+    path('admin-auditoria/', auditoria_admin_site.urls),
     # Rotas de teste de permissao
     path('teste-permissao/livre/', view_livre, name='teste_permissao_livre'),
     path('teste-permissao/admin-ministerio/', view_admin_ministerio, name='teste_permissao_admin_ministerio'),
