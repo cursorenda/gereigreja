@@ -304,7 +304,7 @@ def analise_atividades_suspeitas(request):
         'recursos_mais_negados': recursos_mais_negados,
         'logs_recentes': logs_negados_periodo.order_by('-data_hora')[:30],
     }
-    return render(request, 'auditoria/analise_atividades_suspeitas.html', context)
+    return render(request, 'auditoria/atividades_suspeitas.html', context)
 
 
 @login_required

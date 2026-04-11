@@ -15,5 +15,6 @@ urlpatterns = [
     path('acumulacao-permissoes/', views.acumulacao_permissoes, name='acumulacao_permissoes'),
     path('alternar-modo/', views.alternar_modo_auditoria, name='alternar_modo_auditoria'),
     path('exportar-csv/', views.exportar_logs_csv, name='exportar_logs_csv'),
+    path('atividades-suspeitas/', views.analise_atividades_suspeitas, name='atividades_suspeitas'),
     path('analise/atividades-suspeitas/', views.analise_atividades_suspeitas, name='analise_atividades_suspeitas'),
 ]
