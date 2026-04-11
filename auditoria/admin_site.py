@@ -8,6 +8,7 @@ class AuditoriaAdminSite(admin.AdminSite):
     site_header = 'Auditoria de Permissoes'
     site_title = 'Auditoria de Permissoes'
     index_title = 'Auditoria de Permissoes'
+    index_template = 'admin/auditoria_index.html'
 
     def get_urls(self):
         urls = super().get_urls()
