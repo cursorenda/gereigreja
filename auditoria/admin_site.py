@@ -1,7 +1,11 @@
 from django.contrib import admin
+from django.contrib.admin.sites import AlreadyRegistered
+from django.contrib.auth.models import User
 from django.urls import path
 
 from . import views
+from .admin import AccessDeniedLogAdmin, AuditSessionAdmin, PermissionChangeLogAdmin, UserAuditAdmin
+from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
 
 
 class AuditoriaAdminSite(admin.AdminSite):
@@ -19,3 +23,15 @@ class AuditoriaAdminSite(admin.AdminSite):
 
 
 auditoria_admin_site = AuditoriaAdminSite(name='auditoria_admin')
+
+
+for model, model_admin in [
+    (User, UserAuditAdmin),
+    (PermissionChangeLog, PermissionChangeLogAdmin),
+    (AccessDeniedLog, AccessDeniedLogAdmin),
+    (AuditSession, AuditSessionAdmin),
+]:
+    try:
+        auditoria_admin_site.register(model, model_admin)
+    except AlreadyRegistered:
+        pass
