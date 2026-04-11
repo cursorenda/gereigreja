@@ -14,6 +14,7 @@ from django.utils import timezone
 from contas.constants import user_has_permission_level_or_higher
 
 from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
+from .utils import rodar_auditoria_permissoes
 
 User = get_user_model()
 
@@ -82,6 +83,25 @@ def painel_auditoria(request):
         'logs_negados_recentes': logs_negados_qs.select_related('usuario', 'igreja_tentada')[:15],
     }
     return render(request, 'auditoria/painel_auditoria.html', context)
+
+
+@login_required
+def auditar_permissoes_view(request):
+    if not _can_access_auditoria(request.user):
+        messages.error(request, 'Voce nao tem permissao para executar auditoria de permissoes.')
+        return redirect('/')
+
+    resultado = None
+    if request.method == 'POST':
+        resultado = rodar_auditoria_permissoes()
+
+    return render(
+        request,
+        'auditoria/auditar_permissoes.html',
+        {
+            'resultado': resultado,
+        },
+    )
 
 
 @login_required

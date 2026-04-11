@@ -6,6 +6,7 @@ app_name = 'auditoria'
 
 urlpatterns = [
     path('painel/', views.painel_auditoria, name='painel_auditoria'),
+    path('auditar/', views.auditar_permissoes_view, name='auditar_permissoes'),
     path('api/estatisticas/', views.api_estatisticas_auditoria, name='api_estatisticas'),
     path('logs/alteracoes/', views.logs_alteracoes_permissoes, name='logs_alteracoes'),
     path('logs/acessos-negados/', views.logs_acessos_negados, name='logs_acessos_negados'),
