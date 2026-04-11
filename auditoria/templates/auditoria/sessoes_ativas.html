@@ -9,30 +9,73 @@
 
 {% block conteudo_principal %}
 <div class="p-3">
-    <div class="table-responsive">
-        <table class="table table-striped table-sm">
-            <thead><tr><th>Login</th><th>Usuario</th><th>Ministerio</th><th>Igreja Ativa</th><th>Paginas</th><th>IP</th></tr></thead>
-            <tbody>
-            {% for sessao in page_obj %}
-                <tr>
-                    <td>{{ sessao.login_data_hora|date:'d/m/Y H:i' }}</td>
-                    <td>{{ sessao.usuario }}</td>
-                    <td>{{ sessao.ministerio|default:'-' }}</td>
-                    <td>{{ sessao.igreja_ativa|default:'-' }}</td>
-                    <td>{{ sessao.paginas_visitadas }}</td>
-                    <td>{{ sessao.ip_address|default:'-' }}</td>
-                </tr>
-            {% empty %}
-                <tr><td colspan="6">Sem sessoes ativas.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'auditoria:painel_auditoria' %}">Voltar ao painel</a>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'auditoria:logs_alteracoes' %}">Logs de alteracoes</a>
+        <a class="btn btn-sm btn-outline-warning" href="{% url 'auditoria:logs_acessos_negados' %}">Acessos negados</a>
     </div>
 
-    <div>
-        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
-        <span class="mx-2">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Proxima</a>{% endif %}
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <strong>Sessoes ativas na pagina</strong>
+                    <div class="fs-4 mt-2">{{ page_obj|length }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <strong>Total de sessoes ativas</strong>
+                    <div class="fs-4 mt-2">{{ page_obj.paginator.count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between">
+            <strong>Usuarios online</strong>
+            <span class="text-muted">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-sm mb-0 align-middle">
+                <thead>
+                    <tr><th>Login</th><th>Usuario</th><th>Ministerio</th><th>Igreja ativa</th><th>Paginas</th><th>IP</th><th>Duracao</th></tr>
+                </thead>
+                <tbody>
+                {% for sessao in page_obj %}
+                    <tr>
+                        <td>{{ sessao.login_data_hora|date:'d/m/Y H:i' }}</td>
+                        <td>{{ sessao.usuario }}</td>
+                        <td>{{ sessao.ministerio|default:'-' }}</td>
+                        <td>{{ sessao.igreja_ativa|default:'-' }}</td>
+                        <td>{{ sessao.paginas_visitadas }}</td>
+                        <td>{{ sessao.ip_address|default:'-' }}</td>
+                        <td>{{ sessao.duracao }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="text-center py-4">Sem sessoes ativas no momento.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-3">
+        <div class="btn-group btn-group-sm" role="group">
+            {% if page_obj.has_previous %}
+            <a class="btn btn-outline-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+            {% else %}
+            <span class="btn btn-outline-secondary disabled">Anterior</span>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a class="btn btn-outline-secondary" href="?page={{ page_obj.next_page_number }}">Proxima</a>
+            {% else %}
+            <span class="btn btn-outline-secondary disabled">Proxima</span>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}
