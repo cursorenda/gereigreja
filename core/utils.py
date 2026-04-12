@@ -132,10 +132,16 @@ def get_ministerio_or_error(request):
                 if not any(m.message == mensagem_aviso for m in messages.get_messages(request)):
                     messages.warning(request, mensagem_aviso)
 
-                # Notificação no sininho para todos os usuários ativos do ministério
+                # Notificação no sininho apenas para perfis ministeriais responsáveis
+                # (Admin Ministerio e Tesouraria Ministerial).
+                from contas.constants import ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA
                 from configuracao.models import PerfilUsuario
-                from django.utils import timezone
-                users_in_org = [p.user for p in PerfilUsuario.objects.filter(ministerio=ministerio, user__is_active=True)]
+                perfis_notificados = PerfilUsuario.objects.filter(
+                    ministerio=ministerio,
+                    user__is_active=True,
+                    user__groups__name__in=[ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA],
+                ).select_related('user').distinct()
+                users_in_org = [p.user for p in perfis_notificados]
                 for user in users_in_org:
                     existe = Notificacao.objects.filter(
                         user=user,
