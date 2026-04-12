@@ -83,11 +83,3 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-    // Script para auto-submeter o formulário de filtro ao mudar a seleção
-    document.getElementById('notificationFilter').addEventListener('change', function() {
-        this.form.submit();
-    });
-</script>
-{% endblock %}
