@@ -405,8 +405,11 @@
                     <span class="card-icon"><i class="fas fa-clock"></i></span>
                     <span class="card-title ms-2">Contas Pendentes</span>
                 </div>
-                <div class="card-desc">Total de contas pendentes</div>
-                <span class="card-badge">{{ contas_pendentes|default:0 }}</span>
+                <div class="card-desc">Valor pendente</div>
+                <span class="card-badge">R$ {{ total_contas_pendentes|floatformat:2|intcomma }}</span>
+                <div class="card-action d-flex gap-2 mt-2">
+                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_contas_pagar' %}?status=PEN">{{ qtd_contas_pendentes }} conta(s)</a>
+                </div>
             </div>
         </div>
         <!-- Card Contas Vencidas -->
@@ -416,8 +419,11 @@
                     <span class="card-icon"><i class="fas fa-exclamation-triangle"></i></span>
                     <span class="card-title ms-2">Contas Vencidas</span>
                 </div>
-                <div class="card-desc">Total de contas vencidas</div>
-                <span class="card-badge">{{ contas_vencidas|default:0 }}</span>
+                <div class="card-desc">Valor vencido</div>
+                <span class="card-badge">R$ {{ total_contas_vencidas|floatformat:2|intcomma }}</span>
+                <div class="card-action d-flex gap-2 mt-2">
+                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_contas_pagar' %}?status=VEN">{{ qtd_contas_vencidas }} conta(s)</a>
+                </div>
             </div>
         </div>
         <!-- Card Fechamento de Caixa -->

@@ -182,6 +182,8 @@ def painel_financeiro(request):
         total_contas_vencidas = contas_pagar_base.filter(
             status='VEN' # Ou usar a propriedade is_vencida se preferir, mas status='VEN' é mais direto
         ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+        qtd_contas_pendentes = contas_pagar_base.filter(status='PEN').count()
+        qtd_contas_vencidas = contas_pagar_base.filter(status='VEN').count()
         # --- FIM Indicadores de Contas a Pagar ---
 
        
@@ -438,6 +440,8 @@ def painel_financeiro(request):
              # Indicadores de Contas a Pagar
             'total_contas_pendentes': total_contas_pendentes,
             'total_contas_vencidas': total_contas_vencidas,
+            'qtd_contas_pendentes': qtd_contas_pendentes,
+            'qtd_contas_vencidas': qtd_contas_vencidas,
              # Dados para o novo gráfico de categorias de receita
             'grafico_cat_rec_labels_json': json.dumps(grafico_cat_rec_labels),
             'grafico_cat_rec_valores_json': json.dumps(grafico_cat_rec_valores),
