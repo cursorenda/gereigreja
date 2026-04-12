@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 
+from contas.constants import MEMBRO_COMUM
 from comunicacao.models import Notificacao
 from configuracao.models import Ministerio, PerfilUsuario
 
@@ -34,6 +36,10 @@ class NotificacoesViewsTests(TestCase):
             password='12345678',
         )
         PerfilUsuario.objects.create(user=self.other_user, ministerio=self.ministerio)
+
+        grupo_membro_comum, _ = Group.objects.get_or_create(name=MEMBRO_COMUM)
+        self.user.groups.add(grupo_membro_comum)
+        self.other_user.groups.add(grupo_membro_comum)
 
     def test_marcar_todas_notificacoes_lidas_atualiza_apenas_usuario_logado(self):
         Notificacao.objects.create(

@@ -372,8 +372,10 @@ def executar_testes():
     Retorna aviso se falhar, mas não bloqueia o deploy.
     """
     try:
+        # Usa settings de teste (SQLite in-memory + migrations simplificadas)
+        # para evitar inconsistências de histórico de migrations no banco padrão.
         resultado = subprocess.run(
-            ['python', 'manage.py', 'test', '--failfast', '--no-input'],
+            ['python', 'manage.py', 'test', '--failfast', '--no-input', '--settings=core.settings_test'],
             capture_output=True,
             text=True,
             cwd=settings.BASE_DIR,
