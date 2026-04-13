@@ -1,3 +1,13 @@
+## v1.8.72 — 13/04/2026
+📚 **Pacote de análise arquitetural de cadastros e automação de publicação de atualizações**
+
+### Principais mudanças
+- ✅ Inclusão de análise completa sobre consolidação entre Secretaria (Pessoa) e EBD (CadastroAluno)
+- ✅ Inclusão de guias executivo, técnico e índice de navegação para apoio à decisão e implementação
+- ✅ Script utilitário para publicar atualizações do changelog no histórico do sistema
+
+---
+
 ## v1.8.71 — 13/04/2026
 🧾 **Refino visual da auditoria e consolidação da documentação v1.8.x**
 
