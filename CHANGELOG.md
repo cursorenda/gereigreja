@@ -1,3 +1,13 @@
+## v1.8.69 — 13/04/2026
+🧭 **Hub de perfil integrado entre Configuração e Secretaria**
+
+### Principais mudanças
+- ✅ Novo hub de perfil com visão consolidada de Pessoa, Usuário e vínculos EBD
+- ✅ Abas dedicadas para acesso, Secretaria, aluno EBD e professor EBD
+- ✅ Links diretos da Secretaria para abertura do hub de perfil do usuário vinculado
+
+---
+
 ## v1.8.68 — 13/04/2026
 🛡️ **Hardening parcial de produção em secretaria, core e deploy**
 

@@ -197,6 +197,12 @@
                             <i class="fas fa-eye"></i>
                             <span style="margin-left: 0.4em;">Visualizar</span>
                         </a>
+                        {% if membro.usuario_id %}
+                        <a href="{% url 'configuracao:perfil_usuario' user_id=membro.usuario_id %}" class="btn btn-outline-primary btn-icon me-1" title="Abrir hub de perfil de {{ membro.nome }}">
+                            <i class="fas fa-id-card"></i>
+                            <span style="margin-left: 0.4em;">Perfil</span>
+                        </a>
+                        {% endif %}
                         <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-editar btn-icon me-1" title="Editar {{ membro.nome }}">
                             <i class="fas fa-edit"></i>
                             <span style="margin-left: 0.4em;">Editar</span>

@@ -78,6 +78,11 @@
                     <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-editar btn-sm">
                         <i class="fas fa-edit"></i> Editar
                     </a>
+                    {% if membro.usuario_id %}
+                    <a href="{% url 'configuracao:perfil_usuario' user_id=membro.usuario_id %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-id-card"></i> Hub do Perfil
+                    </a>
+                    {% endif %}
                     <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant-imprimir btn-sm" target="_blank">
                         <i class="fas fa-print"></i> Imprimir
                     </a>

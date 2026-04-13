@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -12,6 +13,7 @@ from contas.constants import (
     PASTOR_LOCAL,
     PASTOR_REGIONAL,
 )
+from escola_biblica.models import Aluno, AnoLetivo, CadastroAluno, Classe, Frequencia, Turma
 from financeiro.models import CategoriaDespesa, ContaBancaria, Despesas, Receitas
 from secretaria.models import Membro, StatusPessoa, TipoPessoa
 
@@ -543,3 +545,178 @@ class EscopoPerfisIntegracaoTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Rede: Regional Perfis", response.context["titulo_dashboard"])
         self.assertEqual(response.context["allowed_churches_count"], 3)
+
+    def test_meu_perfil_exibe_aba_aluno_ebd_com_links_consolidados(self):
+        self.membro_congregacao.usuario = self.usuario_local
+        self.membro_congregacao.save(update_fields=["usuario"])
+
+        ano_letivo = AnoLetivo.objects.create(ano=2026, ativo=True)
+        classe = Classe.objects.create(
+            igreja=self.congregacao,
+            nome="Classe Perfil Unificado",
+            departamento="ADULTO",
+        )
+        turma = Turma.objects.create(
+            nome="Turma Perfil Unificado",
+            igreja=self.congregacao,
+            classe=classe,
+            ano_letivo=ano_letivo,
+        )
+        cadastro = CadastroAluno.objects.create(
+            igreja=self.congregacao,
+            pessoa=self.membro_congregacao,
+            nome=self.membro_congregacao.nome,
+            data_nascimento=self.membro_congregacao.nascimento,
+        )
+        matricula = Aluno.objects.create(
+            cadastro=cadastro,
+            turma=turma,
+            nome=self.membro_congregacao.nome,
+            data_nascimento=self.membro_congregacao.nascimento,
+            ativo=True,
+        )
+        Frequencia.objects.create(
+            aluno=matricula,
+            data=date(2026, 4, 12),
+            presente=True,
+        )
+
+        self.client.force_login(self.usuario_local)
+
+        response = self.client.get(reverse("configuracao:meu_perfil"), {"aba": "ebd-aluno"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Hub do Perfil")
+        self.assertContains(response, "Visão do Aluno EBD")
+        self.assertContains(
+            response,
+            reverse("escola_biblica:aluno_detail", args=[matricula.pk]),
+        )
+        self.assertContains(
+            response,
+            reverse("escola_biblica:aluno_historico_consolidado", args=[matricula.pk]),
+        )
+        self.assertContains(response, "Turma Perfil Unificado")
+        self.assertEqual(response.context["cadastro_ebd"], cadastro)
+        self.assertEqual(response.context["matricula_referencia_ebd"], matricula)
+
+    def test_perfil_usuario_exibe_hub_com_aba_ebd_do_usuario_alvo(self):
+        self.membro_congregacao.usuario = self.usuario_local
+        self.membro_congregacao.save(update_fields=["usuario"])
+
+        ano_letivo = AnoLetivo.objects.create(ano=2027, ativo=True)
+        classe = Classe.objects.create(
+            igreja=self.congregacao,
+            nome="Classe Perfil Terceiro",
+            departamento="ADULTO",
+        )
+        turma = Turma.objects.create(
+            nome="Turma Perfil Terceiro",
+            igreja=self.congregacao,
+            classe=classe,
+            ano_letivo=ano_letivo,
+        )
+        cadastro = CadastroAluno.objects.create(
+            igreja=self.congregacao,
+            pessoa=self.membro_congregacao,
+            nome=self.membro_congregacao.nome,
+            data_nascimento=self.membro_congregacao.nascimento,
+        )
+        matricula = Aluno.objects.create(
+            cadastro=cadastro,
+            turma=turma,
+            nome=self.membro_congregacao.nome,
+            data_nascimento=self.membro_congregacao.nascimento,
+            ativo=True,
+        )
+
+        self.client.force_login(self.usuario_ministerial)
+
+        response = self.client.get(
+            reverse("configuracao:perfil_usuario", args=[self.usuario_local.pk]),
+            {"aba": "ebd-aluno"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Perfil de {self.usuario_local.username}")
+        self.assertContains(response, "Visão do Aluno EBD")
+        self.assertContains(
+            response,
+            reverse("escola_biblica:aluno_detail", args=[matricula.pk]),
+        )
+        self.assertContains(response, "Turma Perfil Terceiro")
+        self.assertEqual(response.context["usuario"], self.usuario_local)
+        self.assertEqual(response.context["cadastro_ebd"], cadastro)
+        self.assertEqual(response.context["matricula_referencia_ebd"], matricula)
+
+    def test_meu_perfil_exibe_aba_secretaria_com_dados_do_membro_vinculado(self):
+        self.membro_congregacao.usuario = self.usuario_local
+        self.membro_congregacao.telefone = "1111-1111"
+        self.membro_congregacao.celular = "99999-1111"
+        self.membro_congregacao.email = "membro_congregacao@example.com"
+        self.membro_congregacao.save(update_fields=["usuario", "telefone", "celular", "email"])
+
+        self.client.force_login(self.usuario_local)
+
+        response = self.client.get(reverse("configuracao:meu_perfil"), {"aba": "secretaria"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cadastro da Secretaria")
+        self.assertContains(response, self.congregacao.nome_igreja)
+        self.assertContains(response, "membro_congregacao@example.com")
+        self.assertContains(
+            response,
+            reverse("secretaria:detalhe_membro", args=[self.membro_congregacao.pk]),
+        )
+        self.assertEqual(response.context["membro_secretaria_obj"], self.membro_congregacao)
+
+    def test_meu_perfil_resumo_exibe_hierarquia_pessoa_usuario_cadastroebd(self):
+        """Testa que o Resumo exibe a hierarquia visual Pessoa → Usuário → Cadastro(s) EBD"""
+        self.membro_congregacao.usuario = self.usuario_local
+        self.membro_congregacao.save(update_fields=["usuario"])
+
+        ano_letivo = AnoLetivo.objects.create(ano=2026, ativo=True)
+        classe = Classe.objects.create(
+            igreja=self.congregacao,
+            nome="Classe Hierarquia",
+            departamento="ADULTO",
+        )
+        turma = Turma.objects.create(
+            nome="Turma Hierarquia",
+            igreja=self.congregacao,
+            classe=classe,
+            ano_letivo=ano_letivo,
+        )
+        cadastro = CadastroAluno.objects.create(
+            igreja=self.congregacao,
+            pessoa=self.membro_congregacao,
+            nome=self.membro_congregacao.nome,
+            data_nascimento=self.membro_congregacao.nascimento,
+        )
+        matricula = Aluno.objects.create(
+            cadastro=cadastro,
+            turma=turma,
+            nome=self.membro_congregacao.nome,
+            data_nascimento=self.membro_congregacao.nascimento,
+            ativo=True,
+        )
+
+        self.client.force_login(self.usuario_local)
+
+        response = self.client.get(reverse("configuracao:meu_perfil"))
+
+        self.assertEqual(response.status_code, 200)
+        # Valida que está na aba Resumo padrão
+        self.assertEqual(response.context["aba_ativa"], "resumo")
+        # Valida estrutura hierárquica: Pessoa (Membro)
+        self.assertContains(response, "Hierarquia de Vínculo no Sistema")
+        self.assertContains(response, "PESSOA")
+        self.assertContains(response, self.membro_congregacao.nome)
+        # Valida estrutura: Usuário
+        self.assertContains(response, "USUÁRIO")
+        self.assertContains(response, self.usuario_local.username)
+        # Valida estrutura: Cadastro(s) EBD
+        self.assertContains(response, "CADASTRO(S) EBD")
+        self.assertContains(response, "Total: 1 cadastro(s)")
+        self.assertContains(response, "Turma ativa:")
+        self.assertContains(response, "Turma Hierarquia")

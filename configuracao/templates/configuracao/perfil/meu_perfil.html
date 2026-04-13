@@ -1,68 +1,36 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
+{% load permissoes_hierarquia %}
 
 {% block title %}{{ titulo_pagina }} - {{ block.super }}{% endblock %}
 
 {% block content %}
-            {% if turmas_aluno %}
-            <div class="card border-info mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-user-graduate me-2"></i>Painel do Aluno EBD</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <strong>Turmas em que está matriculado:</strong>
-                        <ul class="mb-1">
-                            {% for turma in turmas_aluno %}
-                                <li>{{ turma.nome }}{% if turma.get_professor_nome %} <span class="text-muted small">(Professor: {{ turma.get_professor_nome }})</span>{% endif %}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    <div class="mb-3">
-                        <strong>Próximas Aulas:</strong>
-                        {% if proximas_licoes_aluno %}
-                            <ul class="mb-1">
-                                {% for licao in proximas_licoes_aluno %}
-                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <span class="text-muted">Nenhuma aula agendada.</span>
-                        {% endif %}
-                    </div>
-                    <div class="mb-3">
-                        <strong>Frequência:</strong>
-                        {% if frequencia_aluno %}
-                            <span class="badge bg-success">{{ frequencia_aluno.percentual|floatformat:1 }}% de presença</span>
-                            <span class="text-muted small">({{ frequencia_aluno.presentes }}/{{ frequencia_aluno.total }} aulas)</span>
-                        {% else %}
-                            <span class="text-muted">Sem dados de frequência.</span>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <strong>Histórico de Aulas Assistidas:</strong>
-                        {% if historico_licoes_aluno %}
-                            <ul class="mb-1" style="max-height: 180px; overflow-y: auto;">
-                                {% for licao in historico_licoes_aluno %}
-                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <span class="text-muted">Nenhuma aula registrada.</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-12">
             <div class="card shadow-lg border-0 mb-4">
-                <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
-                    <h3 class="mb-0"><i class="fas fa-user-circle me-2"></i>{{ titulo_pagina }}</h3>
-                    <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-light btn-sm">
-                        <i class="fas fa-edit me-1"></i> Editar Perfil
-                    </a>
+                <div class="card-header profile-header text-white d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <p class="text-uppercase small mb-1 opacity-75">Hub do Perfil</p>
+                        <h3 class="mb-0"><i class="fas fa-user-circle me-2"></i>{{ titulo_pagina }}</h3>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if usuario.id == request.user.id %}
+                            <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-light btn-sm">
+                                <i class="fas fa-edit me-1"></i> Editar Perfil
+                            </a>
+                        {% endif %}
+                        {% if perfil_ebd_url %}
+                            <a href="{{ perfil_ebd_url }}" class="btn btn-outline-light btn-sm">
+                                <i class="fas fa-school me-1"></i> Perfil detalhado da EBD
+                            </a>
+                        {% endif %}
+                        {% if historico_ebd_url %}
+                            <a href="{{ historico_ebd_url }}" class="btn btn-outline-light btn-sm">
+                                <i class="fas fa-clock-rotate-left me-1"></i> Histórico anual EBD
+                            </a>
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row align-items-center mb-4">
@@ -99,116 +67,526 @@
                             {% endif %}
                         </div>
                     </div>
-                    <hr>
-                    <div class="row mb-3">
-                        <div class="col-md-6 mb-3 mb-md-0">
-                            <h5 class="fw-bold mb-2"><i class="fas fa-church me-2"></i>Ministério</h5>
-                            <p class="mb-1"><strong>Ministério:</strong> {{ perfil_usuario.ministerio.nome_fantasia }}</p>
-                            {% if perfil_usuario.igrejas_permitidas.exists %}
-                                <p class="mb-1"><strong>Igrejas Permitidas:</strong></p>
-                                <ul class="mb-1 ps-3">
-                                    {% for igreja in perfil_usuario.igrejas_permitidas.all %}
-                                        <li>{{ igreja.nome_igreja }}</li>
-                                    {% endfor %}
-                                </ul>
+
+                    <ul class="nav nav-pills profile-tabs mb-4">
+                        <li class="nav-item">
+                            <a class="nav-link {% if aba_ativa|default:'resumo' == 'resumo' %}active{% endif %}" href="?aba=resumo">Resumo</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if aba_ativa == 'acesso' %}active{% endif %}" href="?aba=acesso">Acesso e papéis</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if aba_ativa == 'secretaria' %}active{% endif %}" href="?aba=secretaria">Secretaria</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if aba_ativa == 'ebd-aluno' %}active{% endif %}" href="?aba=ebd-aluno">Aluno EBD</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if aba_ativa == 'ebd-professor' %}active{% endif %}" href="?aba=ebd-professor">Professor EBD</a>
+                        </li>
+                    </ul>
+
+                    {% if aba_ativa|default:'resumo' == 'resumo' %}
+                        <!-- Hierarquia de Vínculo: Pessoa → Usuário → Cadastro(s) EBD -->
+                        <h5 class="fw-bold mb-3 d-flex align-items-center">
+                            <i class="fas fa-sitemap me-2" style="color: #0d6efd;"></i>
+                            Hierarquia de Vínculo no Sistema
+                        </h5>
+                        
+                        <div class="row g-3 mb-4">
+                            <!-- Nível 1: Pessoa (Membro da Secretaria) -->
+                            <div class="col-lg-4 col-md-6">
+                                <div class="border-start border-5" style="border-color: #dc3545 !important; padding: 0;">
+                                    <div class="section-card h-100">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px;">
+                                                <i class="fas fa-id-card"></i>
+                                            </div>
+                                            <h6 class="fw-bold mb-0 ms-2">PESSOA</h6>
+                                        </div>
+                                        {% if membro_secretaria_obj %}
+                                            <p class="mb-2"><strong>{{ membro_secretaria_obj.nome }}</strong></p>
+                                            <p class="mb-1 small"><span class="badge bg-light text-dark">{{ membro_secretaria_obj.tipo_pessoa.nome|default:"Tipo não definido" }}</span></p>
+                                            {% if membro_secretaria_obj.status_pessoa %}
+                                                <p class="mb-1 small text-muted">Status: <strong>{{ membro_secretaria_obj.status_pessoa.nome }}</strong></p>
+                                            {% endif %}
+                                            {% if membro_secretaria_obj.grupo_casa %}
+                                                <p class="mb-0 small text-muted">Grupo: <strong>{{ membro_secretaria_obj.grupo_casa.nome }}</strong></p>
+                                            {% endif %}
+                                        {% else %}
+                                            <p class="mb-0 text-muted small">Sem vínculo com Secretaria (Membro)</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Seta de fluxo responsiva -->
+                            <div class="col-lg-4 col-md-6 d-flex justify-content-center align-items-center">
+                                <div class="text-center">
+                                    <p class="mb-2 small text-muted">Vinculado como</p>
+                                    <i class="fas fa-arrow-down" style="font-size: 28px; color: #0d6efd;"></i>
+                                </div>
+                            </div>
+
+                            <!-- Nível 2: Usuário (User do Sistema) -->
+                            <div class="col-lg-4 col-md-6">
+                                <div class="border-start border-5" style="border-color: #0d6efd !important; padding: 0;">
+                                    <div class="section-card h-100">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px;">
+                                                <i class="fas fa-user-shield"></i>
+                                            </div>
+                                            <h6 class="fw-bold mb-0 ms-2">USUÁRIO</h6>
+                                        </div>
+                                        <p class="mb-2"><strong>{{ usuario.username }}</strong></p>
+                                        <p class="mb-1 small text-muted">Email: {{ usuario.email }}</p>
+                                        <p class="mb-0 small text-muted">Membro desde: {{ usuario.date_joined|date:"d/m/Y" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Seta de fluxo responsiva -->
+                            <div class="col-lg-4 col-md-6 d-flex justify-content-center align-items-center">
+                                <div class="text-center">
+                                    <p class="mb-2 small text-muted">Enrolado em</p>
+                                    <i class="fas fa-arrow-down" style="font-size: 28px; color: #0d6efd;"></i>
+                                </div>
+                            </div>
+
+                            <!-- Nível 3: Cadastro(s) EBD -->
+                            <div class="col-lg-4 col-md-6">
+                                <div class="border-start border-5" style="border-color: #28a745 !important; padding: 0;">
+                                    <div class="section-card h-100">
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px;">
+                                                <i class="fas fa-book"></i>
+                                            </div>
+                                            <h6 class="fw-bold mb-0 ms-2">CADASTRO(S) EBD</h6>
+                                        </div>
+                                        {% if cadastros_ebd %}
+                                            <p class="mb-2"><strong>Total: {{ cadastros_ebd|length }} cadastro(s)</strong></p>
+                                            {% if cadastro_ebd %}
+                                                <p class="mb-1 small text-muted">Principal: <strong>{{ cadastro_ebd.nome }}</strong></p>
+                                            {% endif %}
+                                            {% if matricula_referencia_ebd %}
+                                                <p class="mb-0 small text-muted">Turma ativa: <strong>{{ matricula_referencia_ebd.turma.nome }}</strong></p>
+                                            {% endif %}
+                                        {% else %}
+                                            <p class="mb-0 text-muted small">Sem cadastro EBD vinculado</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cards de Métricas Resumidas -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6 col-lg-3">
+                                <div class="summary-card h-100">
+                                    <span class="summary-label">Ministério</span>
+                                    <strong>{{ perfil_usuario.ministerio.nome_fantasia }}</strong>
+                                    <small>{{ perfil_usuario.igrejas_permitidas.count|default:0 }} perm.</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <div class="summary-card h-100 accent-blue">
+                                    <span class="summary-label">Frequência EBD</span>
+                                    <strong>{% if frequencia_aluno %}{{ frequencia_aluno.percentual|floatformat:1 }}%{% else %}-{% endif %}</strong>
+                                    <small>{% if frequencia_aluno %}{{ frequencia_aluno.presentes }}/{{ frequencia_aluno.total }}{% else %}Sem registro{% endif %}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <div class="summary-card h-100 accent-green">
+                                    <span class="summary-label">Atuação</span>
+                                    <strong>
+                                        {% if is_professor_ebd %}
+                                            Professor
+                                        {% elif cadastros_ebd %}
+                                            Aluno
+                                        {% else %}
+                                            Geral
+                                        {% endif %}
+                                    </strong>
+                                    <small>{{ cargos_ativos|length }} cargo(s)</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-3">
+                                <div class="summary-card h-100 accent-amber">
+                                    <span class="summary-label">Avaliações</span>
+                                    <strong>{{ total_avaliacoes_ebd }}</strong>
+                                    <small>+ {{ total_transferencias_ebd }} transf.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Seções Contextuais -->
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="section-card h-100">
+                                    <h5 class="fw-bold mb-3"><i class="fas fa-church me-2"></i>Contexto Organizacional</h5>
+                                    <p class="mb-2"><strong>Ministério:</strong> {{ perfil_usuario.ministerio.nome_fantasia }}</p>
+                                    {% if perfil_usuario.igrejas_permitidas.exists %}
+                                        <p class="mb-2"><strong>Igrejas Permitidas:</strong></p>
+                                        <ul class="mb-0 ps-3">
+                                            {% for igreja in perfil_usuario.igrejas_permitidas.all %}
+                                                <li>{{ igreja.nome_igreja }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="mb-0 text-muted">Acesso calculado pelo papel e escopo hierárquico do ministério.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="section-card h-100">
+                                    <h5 class="fw-bold mb-3"><i class="fas fa-school me-2"></i>Panorama EBD</h5>
+                                    {% if cadastros_ebd %}
+                                        <p class="mb-2"><strong>Cadastro principal:</strong> {{ cadastro_ebd.nome }}</p>
+                                        <p class="mb-2"><strong>Turma de referência:</strong> {{ matricula_referencia_ebd.turma.nome }}</p>
+                                        <p class="mb-2"><strong>Transferências registradas:</strong> {{ total_transferencias_ebd }}</p>
+                                        <p class="mb-0"><strong>Avaliações registradas:</strong> {{ total_avaliacoes_ebd }}</p>
+                                    {% else %}
+                                        <p class="mb-0 text-muted">Este perfil ainda não possui vínculo consolidado com a EBD.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% elif aba_ativa == 'acesso' %}
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="section-card h-100">
+                                    <h5 class="fw-bold mb-3"><i class="fas fa-users me-2"></i>Papéis e Grupos</h5>
+                                    {% if usuario.groups.all %}
+                                        <div class="d-flex flex-wrap gap-2">
+                                            {% for group in usuario.groups.all %}
+                                                <span class="badge bg-secondary px-3 py-2">{{ group.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted mb-0">Nenhum grupo atribuído.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="section-card h-100">
+                                    <h5 class="fw-bold mb-3"><i class="fas fa-briefcase me-2"></i>Cargos Ativos</h5>
+                                    {% if cargos_ativos %}
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            {% for mc in cargos_ativos %}
+                                                <span class="badge bg-info text-dark px-3 py-2">{{ mc.cargo.nome }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">Nenhum cargo ativo.</p>
+                                    {% endif %}
+                                    {% if request.user.is_superuser or request.user|tem_permissao_hierarquica:'Admin Ministerio' or request.user|tem_permissao_hierarquica:'Pastor Regional' %}
+                                        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-info btn-sm"><i class="fas fa-crown me-1"></i> Gerenciar Assinatura</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% elif aba_ativa == 'secretaria' %}
+                        <div class="section-card">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+                                <h5 class="fw-bold mb-0"><i class="fas fa-address-card me-2"></i>Cadastro da Secretaria</h5>
+                                {% if secretaria_detalhe_url %}
+                                    <a href="{{ secretaria_detalhe_url }}" class="btn btn-outline-primary btn-sm">Abrir cadastro completo</a>
+                                {% endif %}
+                            </div>
+
+                            {% if membro_secretaria_obj %}
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100 accent-blue">
+                                            <span class="summary-label">Igreja</span>
+                                            <strong>{{ membro_secretaria_obj.igreja.nome_igreja }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100 accent-green">
+                                            <span class="summary-label">Tipo</span>
+                                            <strong>{{ membro_secretaria_obj.tipo_pessoa.nome|default:'-' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100 accent-amber">
+                                            <span class="summary-label">Status</span>
+                                            <strong>{{ membro_secretaria_obj.status_pessoa.nome|default:'-' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100">
+                                            <span class="summary-label">Grupo/Casa</span>
+                                            <strong>{{ membro_secretaria_obj.grupo_casa|default:'-' }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-4 mb-4">
+                                    <div class="col-lg-6">
+                                        <div class="section-card h-100">
+                                            <h6 class="fw-bold mb-3">Identificação</h6>
+                                            <p class="mb-2"><strong>Nome:</strong> {{ membro_secretaria_obj.nome }}</p>
+                                            <p class="mb-2"><strong>Apelido:</strong> {{ membro_secretaria_obj.apelido|default:'-' }}</p>
+                                            <p class="mb-2"><strong>Data de nascimento:</strong> {{ membro_secretaria_obj.nascimento|date:'d/m/Y'|default:'-' }}</p>
+                                            <p class="mb-0"><strong>Data de entrada:</strong> {{ membro_secretaria_obj.data_entrada|date:'d/m/Y'|default:'-' }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="section-card h-100">
+                                            <h6 class="fw-bold mb-3">Contato</h6>
+                                            <p class="mb-2"><strong>Telefone:</strong> {{ membro_secretaria_obj.telefone|default:'-' }}</p>
+                                            <p class="mb-2"><strong>Celular:</strong> {{ membro_secretaria_obj.celular|default:'-' }}</p>
+                                            <p class="mb-0"><strong>E-mail:</strong> {{ membro_secretaria_obj.email|default:'-' }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-4">
+                                    <div class="col-lg-6">
+                                        <div class="section-card h-100">
+                                            <h6 class="fw-bold mb-3">Localização</h6>
+                                            <p class="mb-2"><strong>Rua:</strong> {{ membro_secretaria_obj.rua|default:'-' }}</p>
+                                            <p class="mb-2"><strong>Número:</strong> {{ membro_secretaria_obj.numero_casa|default:'-' }}</p>
+                                            <p class="mb-2"><strong>Bairro:</strong> {{ membro_secretaria_obj.bairro_distrito|default:'-' }}</p>
+                                            <p class="mb-0"><strong>Cidade/UF:</strong> {{ membro_secretaria_obj.cidade|default:'-' }}{% if membro_secretaria_obj.estado %}/{{ membro_secretaria_obj.estado }}{% endif %}</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <div class="section-card h-100">
+                                            <h6 class="fw-bold mb-3">Vínculos</h6>
+                                            <p class="mb-2"><strong>Usuário do sistema:</strong> {{ usuario.username }}</p>
+                                            <p class="mb-2"><strong>Igreja:</strong> {{ membro_secretaria_obj.igreja.nome_igreja }}</p>
+                                            <p class="mb-2"><strong>Tipo:</strong> {{ membro_secretaria_obj.tipo_pessoa.nome|default:'-' }}</p>
+                                            <p class="mb-0"><strong>Status:</strong> {{ membro_secretaria_obj.status_pessoa.nome|default:'-' }}</p>
+                                        </div>
+                                    </div>
+                                </div>
                             {% else %}
-                                <p class="mb-1"><strong>Igrejas Permitidas:</strong> Todas do ministério (acesso baseado em papel).</p>
+                                <p class="text-muted mb-0">Este usuário ainda não possui cadastro vinculado na Secretaria.</p>
                             {% endif %}
                         </div>
-                        <div class="col-md-6">
-                            <h5 class="fw-bold mb-2"><i class="fas fa-users me-2"></i>Papéis, Grupos e Cargos</h5>
-                            <p class="mb-1"><strong>Papéis/Grupos:</strong>
-                                {% if usuario.groups.all %}
-                                    {% for group in usuario.groups.all %}
-                                        <span class="badge bg-secondary me-1 mb-1">{{ group.name }}</span>
+                    {% elif aba_ativa == 'ebd-aluno' %}
+                        <div class="section-card">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <h5 class="fw-bold mb-0"><i class="fas fa-user-graduate me-2"></i>Visão do Aluno EBD</h5>
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% if perfil_ebd_url %}
+                                        <a href="{{ perfil_ebd_url }}" class="btn btn-outline-primary btn-sm">Abrir perfil da matrícula</a>
+                                    {% endif %}
+                                    {% if historico_ebd_url %}
+                                        <a href="{{ historico_ebd_url }}" class="btn btn-primary btn-sm">Abrir histórico anual</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if ebd_vinculo_legado %}
+                                <div class="alert alert-warning">
+                                    O painel da EBD foi localizado por correspondência legada de nome. O ideal é vincular este cadastro a uma Pessoa da Secretaria para consolidar o perfil com segurança.
+                                </div>
+                            {% endif %}
+
+                            {% if cadastros_ebd %}
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100 accent-blue">
+                                            <span class="summary-label">Cadastros</span>
+                                            <strong>{{ cadastros_ebd|length }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100 accent-green">
+                                            <span class="summary-label">Turmas ativas</span>
+                                            <strong>{{ turmas_aluno|length }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100 accent-amber">
+                                            <span class="summary-label">Transferências</span>
+                                            <strong>{{ total_transferencias_ebd }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6">
+                                        <div class="summary-card h-100">
+                                            <span class="summary-label">Avaliações</span>
+                                            <strong>{{ total_avaliacoes_ebd }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-4 mb-4">
+                                    <div class="col-lg-6">
+                                        <h6 class="fw-bold mb-3">Turmas em andamento</h6>
+                                        {% if turmas_aluno %}
+                                            <ul class="list-group list-group-flush rounded overflow-hidden border">
+                                                {% for turma in turmas_aluno %}
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <span>{{ turma.nome }}</span>
+                                                        {% if turma.get_professor_nome %}
+                                                            <span class="text-muted small">{{ turma.get_professor_nome }}</span>
+                                                        {% endif %}
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-muted mb-0">Nenhuma turma ativa localizada.</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <h6 class="fw-bold mb-3">Medição consolidada</h6>
+                                        {% if frequencia_aluno %}
+                                            <p class="mb-2"><strong>Frequência:</strong> {{ frequencia_aluno.percentual|floatformat:1 }}% de presença</p>
+                                            <p class="mb-0 text-muted">{{ frequencia_aluno.presentes }} presença(s) em {{ frequencia_aluno.total }} aula(s) registradas.</p>
+                                        {% else %}
+                                            <p class="text-muted mb-0">Sem frequência suficiente para consolidar este painel.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="row g-4 mb-4">
+                                    <div class="col-lg-6">
+                                        <h6 class="fw-bold mb-3">Próximas aulas</h6>
+                                        {% if proximas_licoes_aluno %}
+                                            <ul class="list-group list-group-flush rounded overflow-hidden border">
+                                                {% for licao in proximas_licoes_aluno %}
+                                                    <li class="list-group-item">
+                                                        <strong>{{ licao.data|date:'d/m/Y' }}</strong> - {{ licao.tema }}
+                                                        <div class="text-muted small">{{ licao.turma.nome }}</div>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-muted mb-0">Nenhuma aula agendada.</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <h6 class="fw-bold mb-3">Histórico recente de aulas</h6>
+                                        {% if historico_licoes_aluno %}
+                                            <ul class="list-group list-group-flush rounded overflow-hidden border history-list">
+                                                {% for licao in historico_licoes_aluno %}
+                                                    <li class="list-group-item">
+                                                        <strong>{{ licao.data|date:'d/m/Y' }}</strong> - {{ licao.tema }}
+                                                        <div class="text-muted small">{{ licao.turma.nome }}</div>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-muted mb-0">Nenhuma aula registrada.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <h6 class="fw-bold mb-3">Cadastros e matrículas vinculadas</h6>
+                                <div class="row g-3">
+                                    {% for item in cadastros_ebd %}
+                                        <div class="col-xl-6">
+                                            <div class="border rounded-4 p-3 h-100 bg-light-subtle">
+                                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                                    <div>
+                                                        <strong>{{ item.cadastro.nome }}</strong>
+                                                        <div class="text-muted small">{{ item.total_matriculas }} matrícula(s) vinculada(s)</div>
+                                                    </div>
+                                                    {% if item.possui_matricula_ativa %}
+                                                        <span class="badge bg-success">Ativo</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Histórico</span>
+                                                    {% endif %}
+                                                </div>
+                                                <p class="mb-2"><strong>Turma de referência:</strong> {{ item.matricula_referencia.turma.nome }}</p>
+                                                <p class="mb-0 text-muted small">Ano letivo: {{ item.matricula_referencia.turma.ano_letivo.ano }}</p>
+                                            </div>
+                                        </div>
                                     {% endfor %}
-                                {% else %}
-                                    <span class="text-muted">Nenhum papel atribuído.</span>
-                                {% endif %}
-                            </p>
-                            <p class="mb-1"><strong>Cargos Ativos:</strong>
-                                {% if cargos_ativos %}
-                                    {% for mc in cargos_ativos %}
-                                        <span class="badge bg-info me-1 mb-1">{{ mc.cargo.nome }}</span>
-                                    {% endfor %}
-                                {% else %}
-                                    <span class="text-muted">Nenhum cargo ativo.</span>
-                                {% endif %}
-                            </p>
-                            {% load permissoes_hierarquia %}
-                            {% if request.user.is_superuser or request.user|tem_permissao_hierarquica:'Admin Ministerio' or request.user|tem_permissao_hierarquica:'Pastor Regional' %}
-                                <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-info btn-sm mt-2"><i class="fas fa-crown me-1"></i> Gerenciar Assinatura</a>
+                                </div>
+                            {% else %}
+                                <p class="text-muted mb-0">Nenhum cadastro EBD vinculado a este perfil.</p>
                             {% endif %}
                         </div>
-                    </div>
+                    {% elif aba_ativa == 'ebd-professor' %}
+                        <div class="section-card">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <h5 class="fw-bold mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Visão do Professor EBD</h5>
+                                {% if is_professor_ebd %}
+                                    <span class="badge bg-success-subtle text-success-emphasis px-3 py-2">Professor ativo</span>
+                                {% endif %}
+                            </div>
+
+                            {% if is_professor_ebd %}
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-4">
+                                        <div class="summary-card h-100 accent-green">
+                                            <span class="summary-label">Aulas no ano</span>
+                                            <strong>{{ stats_professor.total_licoes|default:'0' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="summary-card h-100 accent-blue">
+                                            <span class="summary-label">Média de notas</span>
+                                            <strong>{{ stats_professor.media_nota|floatformat:2|default:'-' }}</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="summary-card h-100 accent-amber">
+                                            <span class="summary-label">Participação média</span>
+                                            <strong>{% if stats_professor.freq_media %}{{ stats_professor.freq_media|floatformat:1 }}%{% else %}-{% endif %}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-4">
+                                    <div class="col-lg-4">
+                                        <h6 class="fw-bold mb-3">Turmas em que atua</h6>
+                                        {% if turmas_professor %}
+                                            <ul class="list-group list-group-flush rounded overflow-hidden border">
+                                                {% for turma in turmas_professor %}
+                                                    <li class="list-group-item">{{ turma.nome }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-muted mb-0">Nenhuma turma associada.</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <h6 class="fw-bold mb-3">Próximas aulas</h6>
+                                        {% if proximas_licoes %}
+                                            <ul class="list-group list-group-flush rounded overflow-hidden border">
+                                                {% for licao in proximas_licoes %}
+                                                    <li class="list-group-item">
+                                                        <strong>{{ licao.data|date:'d/m/Y' }}</strong> - {{ licao.tema }}
+                                                        <div class="text-muted small">{{ licao.turma.nome }}</div>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-muted mb-0">Nenhuma aula agendada.</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <h6 class="fw-bold mb-3">Histórico recente</h6>
+                                        {% if historico_licoes_ministradas %}
+                                            <ul class="list-group list-group-flush rounded overflow-hidden border history-list">
+                                                {% for licao in historico_licoes_ministradas %}
+                                                    <li class="list-group-item">
+                                                        <strong>{{ licao.data|date:'d/m/Y' }}</strong> - {{ licao.tema }}
+                                                        <div class="text-muted small">{{ licao.turma.nome }}</div>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <p class="text-muted mb-0">Nenhuma aula ministrada.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <p class="text-muted mb-0">Este perfil não possui atuação ativa como professor da EBD.</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="card-footer text-muted text-center small">
                     <i class="fas fa-clock me-1"></i>Última atualização: {{ perfil_usuario.data_atualizacao|date:"d/m/Y H:i"|default:"N/A" }}
                 </div>
             </div>
-
-            {% if is_professor_ebd %}
-            <div class="card border-success mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Painel do Professor EBD</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <strong>Total de Aulas Ministradas:</strong><br>
-                            <span class="fs-5">{{ stats_professor.total_licoes|default:'0' }}</span>
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Média de Notas dos Alunos:</strong><br>
-                            <span class="fs-5">{{ stats_professor.media_nota|floatformat:2|default:'-' }}</span>
-                        </div>
-                        <div class="col-md-4">
-                            <strong>Frequência Média dos Alunos:</strong><br>
-                            <span class="fs-5">{% if stats_professor.freq_media %}{{ stats_professor.freq_media|floatformat:1 }}%{% else %}-{% endif %}</span>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <strong>Turmas em que atua:</strong>
-                        {% if turmas_professor %}
-                            <ul class="mb-1">
-                                {% for turma in turmas_professor %}
-                                    <li>{{ turma.nome }}</li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <span class="text-muted">Nenhuma turma associada.</span>
-                        {% endif %}
-                    </div>
-                    <div class="mb-3">
-                        <strong>Próximas Aulas:</strong>
-                        {% if proximas_licoes %}
-                            <ul class="mb-1">
-                                {% for licao in proximas_licoes %}
-                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <span class="text-muted">Nenhuma aula agendada.</span>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <strong>Histórico de Aulas Ministradas:</strong>
-                        {% if historico_licoes_ministradas %}
-                            <ul class="mb-1" style="max-height: 180px; overflow-y: auto;">
-                                {% for licao in historico_licoes_ministradas %}
-                                    <li>{{ licao.data|date:'d/m/Y' }} - {{ licao.tema }} ({{ licao.turma.nome }})</li>
-                                {% endfor %}
-                            </ul>
-                            {% if historico_licoes_ministradas|length > 10 %}
-                                <span class="text-muted">Exibindo as 10 mais recentes.</span>
-                            {% endif %}
-                        {% else %}
-                            <span class="text-muted">Nenhuma aula ministrada.</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
 
             {% if request.user.is_superuser or 'Admin Ministerio' in request.user.groups.all|join:", " %}
             <div class="card border-primary mb-4">
@@ -227,6 +605,80 @@
     .card {
         border-radius: 1rem;
     }
+
+    .profile-header {
+        background: linear-gradient(135deg, #0d6efd 0%, #0b3d91 100%);
+    }
+
+    .profile-tabs {
+        gap: .5rem;
+    }
+
+    .profile-tabs .nav-link {
+        border-radius: 999px;
+        color: #4b5563;
+        font-weight: 600;
+        background: #f3f6fb;
+    }
+
+    .profile-tabs .nav-link.active {
+        background: #0d6efd;
+        color: #fff;
+    }
+
+    .summary-card,
+    .section-card {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        padding: 1.25rem;
+    }
+
+    .summary-card {
+        display: flex;
+        flex-direction: column;
+        gap: .35rem;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .summary-card strong {
+        font-size: 1.35rem;
+        line-height: 1.1;
+        color: #111827;
+    }
+
+    .summary-card small,
+    .summary-label {
+        color: #6b7280;
+    }
+
+    .summary-label {
+        font-size: .78rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .accent-blue {
+        border-color: rgba(13, 110, 253, .2);
+        background: linear-gradient(180deg, rgba(13, 110, 253, .08) 0%, #ffffff 100%);
+    }
+
+    .accent-green {
+        border-color: rgba(25, 135, 84, .2);
+        background: linear-gradient(180deg, rgba(25, 135, 84, .08) 0%, #ffffff 100%);
+    }
+
+    .accent-amber {
+        border-color: rgba(255, 193, 7, .3);
+        background: linear-gradient(180deg, rgba(255, 193, 7, .14) 0%, #ffffff 100%);
+    }
+
+    .history-list {
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
     .rounded-circle {
         border-radius: 50% !important;
     }

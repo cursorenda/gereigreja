@@ -130,6 +130,52 @@ class EscopoSecretariaFinanceiroIntegracaoTest(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_secretaria_detalhe_membro_exibe_link_para_hub_perfil_quando_usuario_vinculado(self):
+        usuario_alvo = get_user_model().objects.create_user(
+            username="membro_a_sf_usuario",
+            email="membro_a_sf@example.com",
+            password="senha123",
+        )
+        PerfilUsuario.objects.create(
+            user=usuario_alvo,
+            ministerio=self.ministerio,
+        )
+        self.membro_a.usuario = usuario_alvo
+        self.membro_a.save(update_fields=["usuario"])
+
+        self.client.force_login(self.usuario_secretaria)
+
+        response = self.client.get(reverse("secretaria:detalhe_membro", args=[self.membro_a.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("configuracao:perfil_usuario", kwargs={"user_id": usuario_alvo.pk}),
+        )
+
+    def test_secretaria_lista_membros_exibe_link_para_hub_perfil_quando_usuario_vinculado(self):
+        usuario_alvo = get_user_model().objects.create_user(
+            username="membro_lista_sf_usuario",
+            email="membro_lista_sf@example.com",
+            password="senha123",
+        )
+        PerfilUsuario.objects.create(
+            user=usuario_alvo,
+            ministerio=self.ministerio,
+        )
+        self.membro_a.usuario = usuario_alvo
+        self.membro_a.save(update_fields=["usuario"])
+
+        self.client.force_login(self.usuario_secretaria)
+
+        response = self.client.get(reverse("secretaria:lista_membros"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("configuracao:perfil_usuario", kwargs={"user_id": usuario_alvo.pk}),
+        )
+
     def test_financeiro_lista_receitas_retorna_apenas_igreja_permitida(self):
         self.client.force_login(self.usuario_financeiro)
 

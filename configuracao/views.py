@@ -6,72 +6,200 @@ from contas.constants import ADMIN_MINISTERIO, user_is_admin
 from core.decorators import user_passes_test_or_403, admin_ministerio_required  # Importar decorator que lança 403
 
 # --- NOVA VIEW: Perfil de qualquer usuário (admin/gestor pode ver o perfil de outro usuário) ---
-@login_required
-def perfil_usuario(request, user_id):
-    User = get_user_model()
-    user = User.objects.filter(id=user_id).first()
-    if not user or not hasattr(user, 'perfil'):
-        from django.contrib import messages
-        messages.error(request, 'Usuário ou perfil não encontrado.')
-        return redirect('configuracao:configuracao')
-    perfil_usuario = user.perfil
-    # --- Permissão: só admin, gestor, superuser ou quem tem cargo ativo na EBD pode ver o perfil de outro usuário ---
-    pode_ver = False
-    if request.user.is_superuser or request.user.groups.filter(name__in=[ADMIN_MINISTERIO, "Gestor"]).exists():
-        pode_ver = True
-    elif request.user == user:
-        pode_ver = True
-    else:
-        # Verifica se o usuário logado tem cargo ativo na EBD
-        try:
-            from secretaria.models import Membro, MembroCargo
-            membro_logado = Membro.objects.filter(usuario=request.user).first()
-            if membro_logado:
-                cargos_ativos = MembroCargo.objects.filter(membro=membro_logado, cargo__is_ebd=True, data_fim__isnull=True)
-                if cargos_ativos.exists():
-                    pode_ver = True
-        except Exception:
-            pass
-    if not pode_ver:
-        from django.contrib import messages
-        messages.error(request, 'Você não tem permissão para visualizar o perfil deste usuário.')
-        return redirect('configuracao:configuracao')
+def _usuario_pode_ver_perfil(viewer, target_user):
+    if viewer.is_superuser or viewer.groups.filter(name__in=[ADMIN_MINISTERIO, 'Gestor']).exists():
+        return True
+    if viewer == target_user:
+        return True
 
-    # Reaproveita a lógica do meu_perfil para mostrar painel de professor, etc.
-    from escola_biblica.utils import is_professor_ebd
-    from escola_biblica.models import Licao, Turma, Avaliacao
-    membro = None
     try:
-        from secretaria.models import Membro
-        membro = Membro.objects.filter(usuario=user).first()
+        from secretaria.models import MembroCargo
+
+        membro_logado = getattr(viewer, 'membro_secretaria', None)
+        if membro_logado:
+            return MembroCargo.objects.filter(
+                membro=membro_logado,
+                cargo__is_ebd=True,
+                data_fim__isnull=True,
+            ).exists()
     except Exception:
-        membro = None
+        return False
+
+    return False
+
+
+def _montar_contexto_hub_perfil(request, usuario_alvo, perfil_usuario_obj, titulo_pagina):
+    from collections import defaultdict
+    from django.db.models import Avg, ExpressionWrapper, IntegerField
+    from django.utils import timezone
+    from escola_biblica.models import Aluno, Avaliacao, Frequencia, Licao, TransferenciaAluno, Turma
+    from escola_biblica.utils import is_professor_ebd
+
+    aba_ativa = request.GET.get('aba', 'resumo')
+    abas_validas = {'resumo', 'acesso', 'secretaria', 'ebd-aluno', 'ebd-professor'}
+    if aba_ativa not in abas_validas:
+        aba_ativa = 'resumo'
+
+    membro = getattr(usuario_alvo, 'membro_secretaria', None)
+    hoje = timezone.now().date()
+    secretaria_detalhe_url = None
+    if membro:
+        try:
+            from secretaria.utils import get_allowed_churches_for_membros
+
+            allowed_churches = get_allowed_churches_for_membros(request.user, perfil_usuario_obj.ministerio)
+            if request.user.is_superuser or allowed_churches.filter(pk=membro.igreja_id).exists():
+                secretaria_detalhe_url = reverse('secretaria:detalhe_membro', args=[membro.pk])
+        except Exception:
+            secretaria_detalhe_url = None
+
     is_professor = is_professor_ebd(membro) if membro else False
     licoes_ministradas = []
     turmas_professor = []
     stats_professor = {}
     proximas_licoes = []
+    historico_licoes_ministradas = []
     if is_professor and membro:
-        licoes_ministradas = Licao.objects.filter(professor=membro).order_by('-data')
-        turmas_professor = Turma.objects.filter(membros=membro).distinct()
+        ano_atual = hoje.year
+        licoes_ministradas = Licao.objects.filter(professor=membro, turma__ano_letivo__ano=ano_atual).order_by('-data')
+        turmas_professor_qs = Turma.objects.filter(membros=membro, ano_letivo__ano=ano_atual)
+        nomes_unicos = set()
+        for turma in turmas_professor_qs:
+            nome_normalizado = turma.nome.strip().lower()
+            if nome_normalizado not in nomes_unicos:
+                turmas_professor.append(turma)
+                nomes_unicos.add(nome_normalizado)
         total_licoes = licoes_ministradas.count()
         avaliacoes = Avaliacao.objects.filter(licao__in=licoes_ministradas)
-        media_nota = avaliacoes.aggregate(models.Avg('nota'))['nota__avg'] if avaliacoes.exists() else None
-        from django.db.models import IntegerField, ExpressionWrapper, Avg
+        media_nota = avaliacoes.aggregate(Avg('nota'))['nota__avg'] if avaliacoes.exists() else None
         freq_media = None
         if total_licoes > 0 and avaliacoes.exists():
-            # Corrige erro: AVG(boolean) não existe no PostgreSQL. Faz cast para inteiro.
-            avaliacoes_com_cast = avaliacoes.annotate(participacao_int=ExpressionWrapper(models.F('participacao'), output_field=IntegerField()))
+            avaliacoes_com_cast = avaliacoes.annotate(
+                participacao_int=ExpressionWrapper(models.F('participacao'), output_field=IntegerField())
+            )
             freq_media = avaliacoes_com_cast.aggregate(freq=Avg('participacao_int'))['freq']
-        from django.utils import timezone
-        hoje = timezone.now().date()
         proximas_licoes = licoes_ministradas.filter(data__gte=hoje).order_by('data')[:5]
+        historico_licoes_ministradas = licoes_ministradas.filter(data__lte=hoje).order_by('-data')[:10]
         stats_professor = {
             'total_licoes': total_licoes,
             'media_nota': media_nota,
             'freq_media': freq_media,
         }
-    # --- CARGOS ATIVOS ---
+
+    cadastros_ebd = []
+    cadastro_ebd = None
+    matricula_referencia_ebd = None
+    turmas_aluno = []
+    proximas_licoes_aluno = []
+    frequencia_aluno = None
+    historico_licoes_aluno = []
+    professores_turmas = {}
+    total_transferencias_ebd = 0
+    total_avaliacoes_ebd = 0
+    ebd_vinculo_legado = False
+    perfil_ebd_url = None
+    historico_ebd_url = None
+    if membro:
+        alunos = Aluno.objects.select_related(
+            'cadastro',
+            'cadastro__pessoa',
+            'turma',
+            'turma__ano_letivo',
+            'turma__classe',
+        ).filter(cadastro__pessoa_id=membro.pk).order_by(
+            '-ativo', '-turma__ano_letivo__ano', '-updated_at', '-id'
+        )
+
+        if not alunos.exists():
+            alunos = Aluno.objects.select_related(
+                'cadastro',
+                'cadastro__pessoa',
+                'turma',
+                'turma__ano_letivo',
+                'turma__classe',
+            ).filter(
+                cadastro__pessoa__isnull=True,
+                cadastro__igreja_id=membro.igreja_id,
+                nome__iexact=membro.nome,
+            ).order_by('-ativo', '-turma__ano_letivo__ano', '-updated_at', '-id')
+            ebd_vinculo_legado = alunos.exists()
+
+        matriculas_ebd = list(alunos)
+        if matriculas_ebd:
+            matriculas_por_cadastro = defaultdict(list)
+            for matricula in matriculas_ebd:
+                matriculas_por_cadastro[matricula.cadastro_id].append(matricula)
+
+            for matriculas_cadastro in matriculas_por_cadastro.values():
+                cadastro_atual = matriculas_cadastro[0].cadastro
+                matricula_referencia = cadastro_atual.get_matricula_referencia(
+                    data_referencia=hoje,
+                    matriculas=matriculas_cadastro,
+                ) or matriculas_cadastro[0]
+                cadastros_ebd.append({
+                    'cadastro': cadastro_atual,
+                    'matricula_referencia': matricula_referencia,
+                    'matriculas': matriculas_cadastro,
+                    'total_matriculas': len(matriculas_cadastro),
+                    'possui_matricula_ativa': any(m.ativo for m in matriculas_cadastro),
+                })
+
+            cadastros_ebd.sort(
+                key=lambda item: (
+                    1 if item['matricula_referencia'] and item['matricula_referencia'].ativo else 0,
+                    getattr(getattr(item['matricula_referencia'].turma, 'ano_letivo', None), 'ano', 0) if item['matricula_referencia'] else 0,
+                    item['matricula_referencia'].id if item['matricula_referencia'] else 0,
+                ),
+                reverse=True,
+            )
+
+            cadastro_ebd = cadastros_ebd[0]['cadastro']
+            matricula_referencia_ebd = cadastros_ebd[0]['matricula_referencia']
+
+            turma_ids_ativas = []
+            for matricula in matriculas_ebd:
+                if matricula.ativo and matricula.turma_id not in turma_ids_ativas:
+                    turma_ids_ativas.append(matricula.turma_id)
+                    turmas_aluno.append(matricula.turma)
+
+            if not turmas_aluno:
+                for item in cadastros_ebd:
+                    matricula_referencia = item['matricula_referencia']
+                    if matricula_referencia and matricula_referencia.turma_id not in turma_ids_ativas:
+                        turma_ids_ativas.append(matricula_referencia.turma_id)
+                        turmas_aluno.append(matricula_referencia.turma)
+
+            if turma_ids_ativas:
+                proximas_licoes_aluno = list(
+                    Licao.objects.filter(turma_id__in=turma_ids_ativas, data__gte=hoje)
+                    .select_related('turma')
+                    .order_by('data', 'id')[:5]
+                )
+                historico_licoes_aluno = list(
+                    Licao.objects.filter(turma_id__in=turma_ids_ativas, data__lte=hoje)
+                    .select_related('turma')
+                    .order_by('-data', '-id')[:10]
+                )
+                professores_turmas = {turma.id: turma.get_professor_nome() for turma in turmas_aluno}
+
+            cadastro_ids = [item['cadastro'].id for item in cadastros_ebd]
+            frequencias_qs = Frequencia.objects.filter(aluno__cadastro_id__in=cadastro_ids)
+            total_frequencias = frequencias_qs.count()
+            if total_frequencias:
+                presencas = frequencias_qs.filter(presente=True).count()
+                frequencia_aluno = {
+                    'total': total_frequencias,
+                    'presentes': presencas,
+                    'percentual': (presencas / total_frequencias * 100),
+                }
+
+            total_transferencias_ebd = TransferenciaAluno.objects.filter(aluno__cadastro_id__in=cadastro_ids).count()
+            total_avaliacoes_ebd = Avaliacao.objects.filter(aluno__cadastro_id__in=cadastro_ids).count()
+
+            if matricula_referencia_ebd:
+                perfil_ebd_url = reverse('escola_biblica:aluno_detail', args=[matricula_referencia_ebd.pk])
+                historico_ebd_url = reverse('escola_biblica:aluno_historico_consolidado', args=[matricula_referencia_ebd.pk])
+
     cargos_ativos = []
     if membro:
         try:
@@ -80,18 +208,57 @@ def perfil_usuario(request, user_id):
         except Exception:
             cargos_ativos = []
 
-    context = {
-        'perfil_usuario': perfil_usuario,
-        'usuario': user,
-        'titulo_pagina': f"Perfil de {user.get_full_name() or user.username}",
-        'ministerio': perfil_usuario.ministerio,
+    return {
+        'perfil_usuario': perfil_usuario_obj,
+        'usuario': usuario_alvo,
+        'titulo_pagina': titulo_pagina,
+        'ministerio': perfil_usuario_obj.ministerio,
         'is_professor_ebd': is_professor,
         'licoes_ministradas': licoes_ministradas,
+        'historico_licoes_ministradas': historico_licoes_ministradas,
         'turmas_professor': turmas_professor,
         'stats_professor': stats_professor,
         'proximas_licoes': proximas_licoes,
         'cargos_ativos': cargos_ativos,
+        'turmas_aluno': turmas_aluno,
+        'proximas_licoes_aluno': proximas_licoes_aluno,
+        'frequencia_aluno': frequencia_aluno,
+        'historico_licoes_aluno': historico_licoes_aluno,
+        'professores_turmas': professores_turmas,
+        'aba_ativa': aba_ativa,
+        'cadastros_ebd': cadastros_ebd,
+        'cadastro_ebd': cadastro_ebd,
+        'matricula_referencia_ebd': matricula_referencia_ebd,
+        'total_transferencias_ebd': total_transferencias_ebd,
+        'total_avaliacoes_ebd': total_avaliacoes_ebd,
+        'ebd_vinculo_legado': ebd_vinculo_legado,
+        'perfil_ebd_url': perfil_ebd_url,
+        'historico_ebd_url': historico_ebd_url,
+        'membro_secretaria_obj': membro,
+        'secretaria_detalhe_url': secretaria_detalhe_url,
     }
+
+
+@login_required
+def perfil_usuario(request, user_id):
+    User = get_user_model()
+    user = User.objects.filter(id=user_id).first()
+    if not user or not hasattr(user, 'perfil'):
+        from django.contrib import messages
+        messages.error(request, 'Usuário ou perfil não encontrado.')
+        return redirect('configuracao:configuracao')
+
+    if not _usuario_pode_ver_perfil(request.user, user):
+        from django.contrib import messages
+        messages.error(request, 'Você não tem permissão para visualizar o perfil deste usuário.')
+        return redirect('configuracao:configuracao')
+
+    context = _montar_contexto_hub_perfil(
+        request=request,
+        usuario_alvo=user,
+        perfil_usuario_obj=user.perfil,
+        titulo_pagina=f"Perfil de {user.get_full_name() or user.username}",
+    )
     return render(request, 'configuracao/perfil/meu_perfil.html', context)
 from django.contrib.auth.decorators import login_required
 from .forms import ConfiguracaoSistemaForm
@@ -827,106 +994,15 @@ def meu_perfil(request):
 
         return redirect('secretaria:index') # Ou outra página apropriada
 
-    # Aqui você pode adicionar lógica para um formulário de edição do perfil, se desejar.
-    # Por enquanto, apenas exibiremos os dados.
-
     logger.debug(f"Usuário: {request.user}")
     logger.debug(f"PerfilUsuario: {perfil_usuario}")
     logger.debug(f"Ministério: {perfil_usuario.ministerio if perfil_usuario else None}")
-
-    # --- INTEGRAÇÃO PROFESSOR E ALUNO EBD ---
-    from escola_biblica.utils import is_professor_ebd, calcular_frequencia_aluno
-    from escola_biblica.models import Licao, Turma, Avaliacao, Aluno
-    membro = None
-    try:
-        from secretaria.models import Membro
-        membro = Membro.objects.filter(usuario=request.user).first()
-    except Exception as e:
-        membro = None
-    # --- Professor ---
-    is_professor = is_professor_ebd(membro) if membro else False
-    licoes_ministradas = []
-    turmas_professor = []
-    stats_professor = {}
-    proximas_licoes = []
-    historico_licoes_ministradas = []
-    if is_professor and membro:
-        from django.utils import timezone
-        hoje = timezone.now().date()
-        ano_atual = hoje.year
-        licoes_ministradas = Licao.objects.filter(professor=membro, turma__ano_letivo__ano=ano_atual).order_by('-data')
-        # Turmas do professor no ano atual, sem duplicidade
-        turmas_professor_qs = Turma.objects.filter(membros=membro, ano_letivo__ano=ano_atual)
-        nomes_unicos = set()
-        turmas_professor = []
-        for turma in turmas_professor_qs:
-            nome_normalizado = turma.nome.strip().lower()
-            if nome_normalizado not in nomes_unicos:
-                turmas_professor.append(turma)
-                nomes_unicos.add(nome_normalizado)
-        total_licoes = licoes_ministradas.count()
-        avaliacoes = Avaliacao.objects.filter(licao__in=licoes_ministradas)
-        media_nota = avaliacoes.aggregate(models.Avg('nota'))['nota__avg'] if avaliacoes.exists() else None
-        from django.db.models import IntegerField, ExpressionWrapper, Avg
-        freq_media = None
-        if total_licoes > 0 and avaliacoes.exists():
-            avaliacoes_com_cast = avaliacoes.annotate(participacao_int=ExpressionWrapper(models.F('participacao'), output_field=IntegerField()))
-            freq_media = avaliacoes_com_cast.aggregate(freq=Avg('participacao_int'))['freq']
-        proximas_licoes = licoes_ministradas.filter(data__gte=hoje).order_by('data')[:5]
-        historico_licoes_ministradas = licoes_ministradas.filter(data__lte=hoje).order_by('-data')[:10]
-        stats_professor = {
-            'total_licoes': total_licoes,
-            'media_nota': media_nota,
-            'freq_media': freq_media,
-        }
-    # --- Aluno EBD ---
-    turmas_aluno = []
-    proximas_licoes_aluno = []
-    frequencia_aluno = None
-    historico_licoes_aluno = []
-    professores_turmas = {}
-    if membro:
-        alunos = Aluno.objects.filter(nome=membro.nome, ativo=True)  # Busca por nome, ajuste se necessário
-        turmas_aluno = [aluno.turma for aluno in alunos]
-        # Próximas aulas das turmas do aluno
-        from django.utils import timezone
-        hoje = timezone.now().date()
-        proximas_licoes_aluno = Licao.objects.filter(turma__in=turmas_aluno, data__gte=hoje).order_by('data')[:5]
-        # Frequência e histórico
-        if alunos.exists():
-            aluno = alunos.first()  # Se houver mais de um, pega o primeiro
-            frequencia_aluno = calcular_frequencia_aluno(aluno)
-            historico_licoes_aluno = Licao.objects.filter(turma=aluno.turma, data__lte=hoje).order_by('-data')[:10]
-            # Professores das turmas
-            professores_turmas = {turma.id: turma.get_professor_nome() for turma in turmas_aluno}
-    # --- CARGOS ATIVOS ---
-    cargos_ativos = []
-    if membro:
-        try:
-            from secretaria.models import MembroCargo
-            cargos_ativos = MembroCargo.objects.filter(membro=membro, data_fim__isnull=True).select_related('cargo')
-        except Exception:
-            cargos_ativos = []
-
-    context = {
-        'perfil_usuario': perfil_usuario,
-        'usuario': request.user,
-        'titulo_pagina': "Meu Perfil",
-        'ministerio': perfil_usuario.ministerio,
-        'is_professor_ebd': is_professor,
-        'licoes_ministradas': licoes_ministradas,
-        'historico_licoes_ministradas': historico_licoes_ministradas,
-        'turmas_professor': turmas_professor,
-        'stats_professor': stats_professor,
-        'proximas_licoes': proximas_licoes,
-        'cargos_ativos': cargos_ativos,
-        # Dados de aluno EBD:
-        'turmas_aluno': turmas_aluno,
-        'proximas_licoes_aluno': proximas_licoes_aluno,
-        'frequencia_aluno': frequencia_aluno,
-        'historico_licoes_aluno': historico_licoes_aluno,
-        'professores_turmas': professores_turmas,
-    }
+    context = _montar_contexto_hub_perfil(
+        request=request,
+        usuario_alvo=request.user,
+        perfil_usuario_obj=perfil_usuario,
+        titulo_pagina="Meu Perfil",
+    )
     return render(request, 'configuracao/perfil/meu_perfil.html', context)
 # --- FIM NOVA VIEW ---
 
@@ -969,12 +1045,9 @@ def editar_meu_perfil(request):
 
                 logger.info("Salvando perfil_form...")
                 perfil_form.save()
-                # print("[DEBUG VIEW] Após salvar perfil_form, foto_perfil:", perfil_usuario.foto_perfil) # Removido para produção
                 logger.info("perfil_form salvo com sucesso.")
 
-                # --- DEBUG: Mostra o valor do campo de imagem após salvar ---
-                logger.info(f"[DEBUG view] Valor de perfil_usuario.foto_perfil: {perfil_usuario.foto_perfil}")
-                # print(f"[DEBUG view] Valor de perfil_usuario.foto_perfil: {perfil_usuario.foto_perfil}") # Removido para produção
+                logger.info("Valor de perfil_usuario.foto_perfil atualizado.")
 
                 messages.success(request, 'Seu perfil foi atualizado com sucesso!')
                 return redirect('configuracao:meu_perfil') # Redireciona para a página de visualização do perfil
