@@ -19,7 +19,7 @@
             <table class="table table-bordered table-striped align-middle mb-0">
                 <thead class="table-primary">
                     <tr>
-                        <th>Aluno</th>
+                        <th>Cadastro</th>
                         <th>Turma</th>
                         <th>Data</th>
                         <th>Presente</th>
@@ -28,7 +28,7 @@
                 <tbody>
                     {% for freq in frequencias %}
                     <tr>
-                        <td>{{ freq.aluno }}</td>
+                        <td>{{ freq.aluno.cadastro.nome }}</td>
                         <td>{{ freq.aluno.turma }}</td>
                         <td>{{ freq.data }}</td>
                         <td>{{ freq.presente|yesno:'Sim,Não' }}</td>

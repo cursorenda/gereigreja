@@ -23,7 +23,8 @@
             <table class="table table-bordered table-striped align-middle mb-0">
                 <thead class="table-primary">
                     <tr>
-                        <th>Aluno</th>
+                        <th>Cadastro</th>
+                        <th>Turma</th>
                         <th>Lição</th>
                         <th>Nota</th>
                         <th>Participação</th>
@@ -34,7 +35,8 @@
                 <tbody>
                     {% for avaliacao in avaliacoes %}
                     <tr>
-                        <td>{{ avaliacao.aluno }}</td>
+                        <td>{{ avaliacao.aluno.cadastro.nome }}</td>
+                        <td>{{ avaliacao.aluno.turma }}</td>
                         <td>{{ avaliacao.licao }}</td>
                         <td>{{ avaliacao.nota }}</td>
                         <td>{% if avaliacao.participacao %}Sim{% else %}Não{% endif %}</td>
@@ -45,7 +47,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6">Nenhuma avaliação cadastrada.</td></tr>
+                    <tr><td colspan="7">Nenhuma avaliação cadastrada.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

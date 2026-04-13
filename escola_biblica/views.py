@@ -1,10 +1,15 @@
 # --- RELATÓRIO GERAL DO DIA DA EBD ---
-from django.db.models import Count, Sum, Q
+import logging
+from django.db.models import Count, Sum, Q, OuterRef, Subquery
 from django.utils.dateparse import parse_date
 from django.contrib.auth.decorators import login_required
 from core.decorators import secretaria_ebd_required, user_passes_test_or_403
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
+from core.utils import get_igrejas_permitidas, get_request_scoped_churches
+from contas.constants import SECRETARIA_EBD, user_has_permission_level_or_higher
 from secretaria.models import MembroCargo
+
+logger = logging.getLogger(__name__)
 
 # --- FUNÇÕES HELPER DE PERMISSÕES ---
 def pode_acessar_chamada_turma(user, turma):
@@ -21,7 +26,7 @@ def pode_acessar_chamada_turma(user, turma):
         return True
     
     # Secretaria/Superintendente EBD podem acessar todas as turmas
-    if user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists():
+    if user_has_permission_level_or_higher(user, SECRETARIA_EBD):
         return True
     
     # Verifica se é professor da turma
@@ -40,8 +45,8 @@ def pode_acessar_chamada_turma(user, turma):
                 ).exists()
                 if cargo_professor_ativo:
                     return True
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('Falha ao validar acesso de chamada da turma para user=%s: %s', user.pk, exc)
     
     return False
 
@@ -72,8 +77,8 @@ def get_turmas_professor(user):
                     turmas_professor.append(turma.id)
             
             return Turma.objects.filter(id__in=turmas_professor)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('Falha ao buscar turmas do professor para user=%s: %s', user.pk, exc)
     
     return Turma.objects.none()
 
@@ -91,11 +96,166 @@ def pode_ver_aluno(user, aluno):
         return True
     
     # Secretaria/Superintendente EBD podem ver todos
-    if user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists():
+    if user_has_permission_level_or_higher(user, SECRETARIA_EBD):
         return True
     
     # Verifica se é professor da turma do aluno
     return pode_acessar_chamada_turma(user, aluno.turma)
+
+
+def usuario_pode_gerenciar_ebd(user):
+    return user.is_superuser or user_has_permission_level_or_higher(user, SECRETARIA_EBD)
+
+
+def get_ebd_scope_churches(request):
+    from configuracao.models import Igreja
+
+    igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+    if igrejas_permitidas is None:
+        perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
+        ministerio = getattr(perfil, 'ministerio', None)
+        if ministerio:
+            igrejas_permitidas = get_igrejas_permitidas(request.user, ministerio)
+            if not igrejas_permitidas.exists() and usuario_pode_gerenciar_ebd(request.user):
+                igrejas_permitidas = Igreja.objects.filter(ministerio=ministerio)
+        else:
+            igreja_ativa = getattr(request, 'igreja_ativa', None)
+            if igreja_ativa:
+                return Igreja.objects.filter(pk=igreja_ativa.pk)
+            return Igreja.objects.all() if request.user.is_superuser else Igreja.objects.none()
+
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    if igreja_ativa and igrejas_permitidas.filter(pk=igreja_ativa.pk).exists():
+        return igrejas_permitidas.filter(pk=igreja_ativa.pk)
+
+    igreja_ativa_id = request.session.get('igreja_ativa_id')
+    if igreja_ativa_id and igrejas_permitidas.filter(pk=igreja_ativa_id).exists():
+        return igrejas_permitidas.filter(pk=igreja_ativa_id)
+
+    return get_request_scoped_churches(request, igrejas_permitidas)
+
+
+def filtrar_queryset_ebd(queryset, request, igreja_lookup):
+    igrejas = get_ebd_scope_churches(request)
+    return queryset.filter(**{f'{igreja_lookup}__in': igrejas}).distinct()
+
+
+def filtrar_turmas_ebd(queryset, request):
+    igrejas = get_ebd_scope_churches(request)
+    return queryset.filter(
+        Q(igreja__in=igrejas) | Q(igreja__isnull=True, membros__igreja__in=igrejas)
+    ).distinct()
+
+
+def filtrar_classes_ebd(queryset, request):
+    igrejas = get_ebd_scope_churches(request)
+    return queryset.filter(
+        Q(igreja__in=igrejas) | Q(igreja__isnull=True, turma__membros__igreja__in=igrejas)
+    ).distinct()
+
+
+def filtrar_alunos_ebd(queryset, request):
+    igrejas = get_ebd_scope_churches(request)
+    return queryset.filter(
+        Q(turma__igreja__in=igrejas) |
+        Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas)
+    ).distinct()
+
+
+def filtrar_frequencias_ebd(queryset, request):
+    return queryset.filter(aluno__in=filtrar_alunos_ebd(Aluno.objects.all(), request)).distinct()
+
+
+def filtrar_avaliacoes_ebd(queryset, request):
+    return queryset.filter(aluno__in=filtrar_alunos_ebd(Aluno.objects.all(), request)).distinct()
+
+
+def colapsar_alunos_por_cadastro(queryset):
+    ultimo_aluno_por_cadastro = queryset.filter(cadastro_id=OuterRef('cadastro_id')).order_by(
+        '-ativo', '-turma__ano_letivo__ano', '-updated_at', '-id'
+    ).values('id')[:1]
+    return queryset.filter(id=Subquery(ultimo_aluno_por_cadastro))
+
+
+def consolidar_alunos_por_cadastro_periodo(queryset, inicio=None, fim=None, turma_id=None, classe_id=None):
+    data_referencia = fim or inicio or timezone.now().date()
+    matriculas = list(queryset.select_related('cadastro', 'turma', 'turma__classe', 'turma__ano_letivo'))
+    if not matriculas:
+        return []
+
+    matriculas_por_cadastro = defaultdict(list)
+    for matricula in matriculas:
+        matriculas_por_cadastro[matricula.cadastro_id].append(matricula)
+
+    alunos_referencia = []
+    for cadastro_id, matriculas_cadastro in matriculas_por_cadastro.items():
+        cadastro = matriculas_cadastro[0].cadastro
+        matricula_referencia = cadastro.get_matricula_referencia(data_referencia=data_referencia, matriculas=matriculas_cadastro)
+        if matricula_referencia is None:
+            continue
+        if turma_id and str(matricula_referencia.turma_id) != str(turma_id):
+            continue
+        if classe_id and str(matricula_referencia.turma.classe_id) != str(classe_id):
+            continue
+        alunos_referencia.append(matricula_referencia)
+
+    if not alunos_referencia:
+        return []
+
+    cadastro_ids = [aluno.cadastro_id for aluno in alunos_referencia]
+
+    frequencias = Frequencia.objects.filter(aluno__cadastro_id__in=cadastro_ids)
+    if inicio:
+        frequencias = frequencias.filter(data__gte=inicio)
+    if fim:
+        frequencias = frequencias.filter(data__lte=fim)
+    frequencias_por_cadastro = {
+        item['aluno__cadastro_id']: item
+        for item in frequencias.values('aluno__cadastro_id').annotate(
+            total_freq=Count('id'),
+            presencas=Count('id', filter=Q(presente=True)),
+        )
+    }
+
+    avaliacoes = Avaliacao.objects.filter(aluno__cadastro_id__in=cadastro_ids)
+    if inicio:
+        avaliacoes = avaliacoes.filter(licao__data__gte=inicio)
+    if fim:
+        avaliacoes = avaliacoes.filter(licao__data__lte=fim)
+    avaliacoes_por_cadastro = {
+        item['aluno__cadastro_id']: item
+        for item in avaliacoes.values('aluno__cadastro_id').annotate(
+            media_nota=Avg('nota'),
+            participacao=Count('id', filter=Q(participacao=True)),
+        )
+    }
+
+    for aluno in alunos_referencia:
+        aluno.nome_exibicao = aluno.cadastro.nome
+        freq_info = frequencias_por_cadastro.get(aluno.cadastro_id, {})
+        total_freq = freq_info.get('total_freq', 0)
+        presencas = freq_info.get('presencas', 0)
+        aluno.total_freq = total_freq
+        aluno.presencas = presencas
+        aluno.freq_percent = round((presencas / total_freq) * 100, 1) if total_freq else None
+
+        aval_info = avaliacoes_por_cadastro.get(aluno.cadastro_id, {})
+        media_nota = aval_info.get('media_nota')
+        aluno.media_nota = round(media_nota, 2) if media_nota is not None else None
+        aluno.participacao = aval_info.get('participacao', 0)
+
+    return sorted(alunos_referencia, key=lambda item: (item.nome_exibicao.lower(), item.turma.nome.lower()))
+
+
+def get_object_or_404_ebd(queryset, request, igreja_lookup, **lookup):
+    return get_object_or_404(filtrar_queryset_ebd(queryset, request, igreja_lookup), **lookup)
+
+
+def oferta_queryset_por_turma_data(turma, data):
+    return OfertaClasse.objects.filter(
+        Q(turma=turma) | Q(turma__isnull=True, classe=turma.classe),
+        data=data,
+    )
 
 @login_required
 @secretaria_ebd_required
@@ -109,7 +269,7 @@ def relatorio_ebd_dia(request):
         data = parse_date(data_str)
     else:
         # Busca a data da lição mais recente
-        ultima_licao = Licao.objects.order_by('-data').first()
+        ultima_licao = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__membros__igreja').order_by('-data').first()
         data = ultima_licao.data if ultima_licao else timezone.now().date()
     
     # Filtra turmas apenas do ano letivo correspondente à data selecionada
@@ -117,15 +277,15 @@ def relatorio_ebd_dia(request):
     ano_da_data = data.year
     ano_letivo = AnoLetivo.objects.filter(ano=ano_da_data).first()
     if ano_letivo:
-        turmas_com_licao = Licao.objects.filter(data=data).values_list('turma_id', flat=True)
-        turmas = Turma.objects.filter(ano_letivo=ano_letivo, id__in=turmas_com_licao)
+        turmas_com_licao = filtrar_queryset_ebd(Licao.objects.filter(data=data), request, 'turma__membros__igreja').values_list('turma_id', flat=True)
+        turmas = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo=ano_letivo, id__in=turmas_com_licao), request, 'membros__igreja')
     else:
         turmas = Turma.objects.none()
     
     # Busca todas as datas com lições do ano letivo para o campo de seleção
     datas_com_licoes = []
     if ano_letivo:
-        datas_com_licoes = Licao.objects.filter(turma__ano_letivo=ano_letivo).values_list('data', flat=True).distinct().order_by('-data')
+        datas_com_licoes = filtrar_queryset_ebd(Licao.objects.filter(turma__ano_letivo=ano_letivo), request, 'turma__membros__igreja').values_list('data', flat=True).distinct().order_by('-data')
     
     relatorio_turmas = []
     total_geral = {
@@ -141,7 +301,7 @@ def relatorio_ebd_dia(request):
         visitantes = freq.filter(trouxe_visitante=True).count()
         biblias = freq.filter(trouxe_biblia=True).count()
         revistas = freq.filter(trouxe_revista=True).count()
-        oferta = OfertaClasse.objects.filter(classe=turma.classe if hasattr(turma, 'classe') else None, data=data).aggregate(s=Sum('valor'))['s'] or Decimal('0.0')
+        oferta = oferta_queryset_por_turma_data(turma, data).aggregate(s=Sum('valor'))['s'] or Decimal('0.0')
         relatorio_turmas.append({
             'nome': turma.nome,
             'matriculados': matriculados,
@@ -173,8 +333,8 @@ def relatorio_ebd_dia(request):
             pass
     
     if data_anterior and ano_letivo:
-        turmas_anterior = Licao.objects.filter(data=data_anterior).values_list('turma_id', flat=True)
-        turmas_ant = Turma.objects.filter(ano_letivo=ano_letivo, id__in=turmas_anterior)
+        turmas_anterior = filtrar_queryset_ebd(Licao.objects.filter(data=data_anterior), request, 'turma__membros__igreja').values_list('turma_id', flat=True)
+        turmas_ant = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo=ano_letivo, id__in=turmas_anterior), request, 'membros__igreja')
         total_anterior = {
             'matriculados': 0, 'presentes': 0, 'ausentes': 0, 'visitantes': 0,
             'biblias': 0, 'revistas': 0, 'oferta': Decimal('0.0')
@@ -188,7 +348,7 @@ def relatorio_ebd_dia(request):
             visitantes = freq.filter(trouxe_visitante=True).count()
             biblias = freq.filter(trouxe_biblia=True).count()
             revistas = freq.filter(trouxe_revista=True).count()
-            oferta = OfertaClasse.objects.filter(classe=turma.classe if hasattr(turma, 'classe') else None, data=data_anterior).aggregate(s=Sum('valor'))['s'] or Decimal('0.0')
+            oferta = oferta_queryset_por_turma_data(turma, data_anterior).aggregate(s=Sum('valor'))['s'] or Decimal('0.0')
             total_anterior['matriculados'] += matriculados
             total_anterior['presentes'] += presentes
             total_anterior['ausentes'] += ausentes
@@ -221,7 +381,7 @@ def chamada_presenca(request, turma_id):
     - Secretaria EBD / Superintendente EBD (todas as turmas)
     - Professor da turma (apenas sua turma)
     """
-    turma = get_object_or_404(Turma, pk=turma_id)
+    turma = get_object_or_404(filtrar_turmas_ebd(Turma.objects.all(), request), pk=turma_id)
     
     # Verifica permissão (secretaria EBD ou professor da turma)
     if not pode_acessar_chamada_turma(request.user, turma):
@@ -256,7 +416,7 @@ def chamada_presenca(request, turma_id):
         messages.warning(request, msg)
 
     # --- Repete busca da turma e alunos para garantir contexto atualizado ---
-    turma = get_object_or_404(Turma, pk=turma_id)
+    turma = get_object_or_404(filtrar_turmas_ebd(Turma.objects.all(), request), pk=turma_id)
     alunos = turma.alunos.filter(ativo=True).order_by('nome')
     ano_letivo = turma.ano_letivo
     tipo_periodo = 'trimestre'
@@ -297,7 +457,7 @@ def chamada_presenca(request, turma_id):
     if classe:
 
     # --- Formulário de chamada de presença ---
-        oferta_obj = OfertaClasse.objects.filter(classe=classe, data=data).first()
+        oferta_obj = oferta_queryset_por_turma_data(turma, data).first()
         if oferta_obj and oferta_obj.valor is not None:
             valor_oferta_atual = f"{oferta_obj.valor:.2f}"  # Mantém ponto para input type='number'
     # Formset de chamada
@@ -347,8 +507,9 @@ def chamada_presenca(request, turma_id):
                         valor_str = str(valor_oferta).replace(',', '.').strip()
                         valor_float = float(valor_str) if valor_str else 0.0
                         oferta_obj, created = OfertaClasse.objects.get_or_create(
-                            classe=classe, data=data,
-                            defaults={'valor': valor_float}
+                            turma=turma,
+                            data=data,
+                            defaults={'classe': classe, 'valor': valor_float}
                         )
                         if not created:
                             oferta_obj.valor = valor_float
@@ -404,7 +565,7 @@ def gerar_cronograma_wizard(request):
     # Ano letivo: apenas atual e próximo (se existir)
     anos_letivos = AnoLetivo.objects.filter(ano__gte=ano_atual).order_by('ano')
     # Turmas: únicas, ordem alfabética
-    turmas = Turma.objects.filter(ano_letivo__ano__gte=ano_atual).order_by('nome').distinct()
+    turmas = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ano__gte=ano_atual).order_by('nome').distinct(), request, 'membros__igreja')
     # Períodos: só do ano letivo selecionado, abertos/futuros
     periodo_ano_raw = request.POST.get('ano_letivo', ano_atual)
     periodo_ano = int(str(periodo_ano_raw).replace('.', '').replace(' ', ''))
@@ -438,7 +599,7 @@ def gerar_cronograma_wizard(request):
             periodo_obj = PeriodoEBD.objects.filter(ano_letivo__ano=ano_letivo, numero=periodo).first()
             periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Período"
             periodos_prox = PeriodoEBD.objects.filter(ano_letivo__ano=ano_letivo, data_fim__gte=hoje).order_by('numero')
-            turmas_prox = Turma.objects.filter(ano_letivo__ano=ano_letivo).order_by('nome').distinct()
+            turmas_prox = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ano=ano_letivo).order_by('nome').distinct(), request, 'membros__igreja')
             context.update({
                 'ano_letivo': ano_letivo,
                 'periodo': periodo,
@@ -457,9 +618,6 @@ def gerar_cronograma_wizard(request):
 
     # Etapa 2: Configuração
     if etapa == 2:
-        import logging
-        logger = logging.getLogger('django')
-        logger.warning(f"DEBUG ETAPA2: POST={dict(request.POST)}, etapa={etapa}")
         ano_letivo_raw = request.POST.get('ano_letivo')
         ano_letivo = int(str(ano_letivo_raw).replace('.', '').replace(' ', ''))
         periodo = int(request.POST.get('periodo'))
@@ -501,21 +659,14 @@ def gerar_cronograma_wizard(request):
             'nome_licao_padrao': nome_licao_padrao,
         })
         if request.POST.get('wizard_next'):
-            import logging
-            logger = logging.getLogger('django')
-            logger.warning('DEBUG ETAPA: %s', etapa)
-            logger.warning('DEBUG POST: %s', dict(request.POST))
-            logger.warning('DEBUG TURMAS_IDS: %s', turmas_ids)
             erro_wizard = None
             if not turmas_ids or not periodo_obj:
-                import sys
-                raise Exception(f"DEBUG: turmas_ids={turmas_ids}, periodo_obj={periodo_obj}, POST={dict(request.POST)}")
                 erro_wizard = 'Selecione ao menos uma turma e um período válido para continuar.'
                 context['erro_wizard'] = erro_wizard
                 return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
             context['etapa'] = 3
             # Pré-visualização das lições
-            turmas_objs = Turma.objects.filter(id__in=turmas_ids)
+            turmas_objs = filtrar_queryset_ebd(Turma.objects.filter(id__in=turmas_ids), request, 'membros__igreja')
             licoes_preview = []
             if periodo_obj:
                 from .utils import gerar_domingos_periodo
@@ -547,9 +698,6 @@ def gerar_cronograma_wizard(request):
 
     # Etapa 3: Confirmação e geração
     if etapa == 3:
-        import logging
-        logger = logging.getLogger('django')
-        logger.warning(f"DEBUG ETAPA3: POST={dict(request.POST)}")
         ano_letivo_raw = request.POST.get('ano_letivo')
         ano_letivo = int(str(ano_letivo_raw).replace('.', '').replace(' ', ''))
         periodo = int(request.POST.get('periodo'))
@@ -561,7 +709,7 @@ def gerar_cronograma_wizard(request):
         nome_licao_padrao = request.POST.get('nome_licao_padrao', '')
         periodo_obj = PeriodoEBD.objects.filter(ano_letivo__ano=ano_letivo, numero=periodo).first()
         periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Período"
-        turmas_objs = Turma.objects.filter(id__in=turmas_ids)
+        turmas_objs = filtrar_queryset_ebd(Turma.objects.filter(id__in=turmas_ids), request, 'membros__igreja')
         licoes_geradas = 0
         if request.POST.get('wizard_confirm'):
             from .utils import gerar_domingos_periodo
@@ -644,9 +792,9 @@ def copiar_periodo_selecao(request):
     if not ano_letivo_origem:
         messages.error(request, f'Não existe ano letivo anterior ({ano_origem}) para copiar.')
         return redirect('escola_biblica:turma_list')
-    turmas = Turma.objects.filter(ano_letivo=ano_letivo_origem)
-    classes = Classe.objects.all()
-    alunos = Aluno.objects.filter(turma__ano_letivo=ano_letivo_origem, ativo=True)
+    turmas = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo=ano_letivo_origem), request, 'membros__igreja')
+    classes = Classe.objects.filter(turma__in=turmas).distinct()
+    alunos = filtrar_queryset_ebd(Aluno.objects.filter(turma__ano_letivo=ano_letivo_origem, ativo=True), request, 'turma__membros__igreja')
     if request.method == 'POST':
         turmas_ids = request.POST.getlist('turmas_selecionadas')
         classes_ids = request.POST.getlist('classes_selecionadas')
@@ -656,9 +804,13 @@ def copiar_periodo_selecao(request):
         # Copiar classes (só cria se não existir)
         classes_criadas = 0
         for classe in classes.filter(id__in=classes_ids):
-            if not Classe.objects.filter(nome=classe.nome).exists():
+            filtro_classe = Classe.objects.filter(nome=classe.nome)
+            if classe.igreja_id:
+                filtro_classe = filtro_classe.filter(igreja_id=classe.igreja_id)
+            if not filtro_classe.exists():
                 Classe.objects.create(
                     nome=classe.nome,
+                    igreja=classe.igreja,
                     departamento=classe.departamento,
                     faixa_etaria=classe.faixa_etaria,
                     descricao=classe.descricao
@@ -669,12 +821,16 @@ def copiar_periodo_selecao(request):
         turmas_criadas = 0
         membros_copiados_total = 0
         for turma in turmas.filter(id__in=turmas_ids):
-            classe_dest = Classe.objects.get(nome=turma.classe.nome)
+            classe_dest = Classe.objects.filter(nome=turma.classe.nome)
+            if turma.igreja_id:
+                classe_dest = classe_dest.filter(igreja_id=turma.igreja_id)
+            classe_dest = classe_dest.first() or turma.classe
             turma_nova, created = Turma.objects.get_or_create(
                 nome=turma.nome,
                 ano_letivo=ano_letivo_dest,
                 defaults={
                     'classe': classe_dest,
+                    'igreja': turma.igreja,
                 }
             )
             if created:
@@ -757,26 +913,34 @@ def copiar_turmas_ano_anterior(request):
         messages.error(request, f'Não existe ano letivo anterior ({ano_origem}) para copiar.')
         return redirect('escola_biblica:turma_list')
     # Copiar classes se não existirem
-    classes_origem = Classe.objects.all()
+    turmas_origem = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo=ano_letivo_origem), request, 'membros__igreja')
+    classes_origem = Classe.objects.filter(turma__in=turmas_origem).distinct()
     for classe in classes_origem:
-        if not Classe.objects.filter(nome=classe.nome).exists():
+        filtro_classe = Classe.objects.filter(nome=classe.nome)
+        if classe.igreja_id:
+            filtro_classe = filtro_classe.filter(igreja_id=classe.igreja_id)
+        if not filtro_classe.exists():
             Classe.objects.create(
                 nome=classe.nome,
+                igreja=classe.igreja,
                 departamento=classe.departamento,
                 faixa_etaria=classe.faixa_etaria,
                 descricao=classe.descricao
             )
     # Copiar turmas
-    turmas_origem = Turma.objects.filter(ano_letivo=ano_letivo_origem)
     turmas_criadas = 0
     alunos_copiados = 0
     for turma in turmas_origem:
-        classe_dest = Classe.objects.get(nome=turma.classe.nome)
+        classe_dest = Classe.objects.filter(nome=turma.classe.nome)
+        if turma.igreja_id:
+            classe_dest = classe_dest.filter(igreja_id=turma.igreja_id)
+        classe_dest = classe_dest.first() or turma.classe
         turma_nova, created = Turma.objects.get_or_create(
             nome=turma.nome,
             ano_letivo=ano_letivo_dest,
             defaults={
                 'classe': classe_dest,
+                'igreja': turma.igreja,
             }
         )
         if created:
@@ -884,22 +1048,25 @@ from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from core.decorators import superintendente_required, secretaria_ebd_required, verificar_assinatura_valida
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Case, Count, IntegerField, Q, Sum, Value, When
 from django.db import transaction
-from .models import Licao, Aluno, Turma, Frequencia, Classe, Avaliacao, OfertaClasse, TransferenciaAluno, Departamento, DEPARTAMENTOS_SUGERIDOS
+from .models import Licao, Aluno, CadastroAluno, Turma, Frequencia, Classe, Avaliacao, OfertaClasse, TransferenciaAluno, Departamento, DEPARTAMENTOS_SUGERIDOS
 from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, AvaliacaoForm, OfertaClasseForm, TransferenciaAlunoForm, ChamadaPresencaFormSet, DepartamentoForm, GerarCronogramaForm
+from secretaria.models import Pessoa
 
 
 @login_required
+@secretaria_ebd_required
+@verificar_assinatura_valida
 @require_GET
 def get_professor_nome(request):
     turma_id = request.GET.get('turma_id')
     nome = ''
     if turma_id:
         try:
-            turma = Turma.objects.get(pk=turma_id)
+            turma = get_object_or_404_ebd(Turma.objects.all(), request, 'membros__igreja', pk=turma_id)
             nome = turma.get_professor_nome() or ''
-        except Turma.DoesNotExist:
+        except Exception:
             nome = ''
     return JsonResponse({'professor': nome})
 
@@ -912,13 +1079,13 @@ def turma_create(request):
     ano_atual = date.today().year
     ano_letivo, created = AnoLetivo.objects.get_or_create(ano=ano_atual, defaults={'ativo': True})
     if request.method == 'POST':
-        form = TurmaForm(request.POST)
+        form = TurmaForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Turma cadastrada com sucesso!')
             return redirect('escola_biblica:turma_list')
     else:
-        form = TurmaForm(initial={'ano_letivo': ano_letivo.pk})
+        form = TurmaForm(initial={'ano_letivo': ano_letivo.pk}, request=request)
     return render(request, 'escola_biblica/turma_form.html', {'form': form})
 @login_required
 @secretaria_ebd_required
@@ -949,149 +1116,6 @@ def departamento_edit(request, pk):
         form = DepartamentoForm(instance=departamento)
     return render(request, 'escola_biblica/departamento_form.html', {'form': form, 'departamento': departamento, 'departamentos_sugeridos': DEPARTAMENTOS_SUGERIDOS})
 
-
-        # Buscar lição do dia para a turma
-    from .models import Licao
-    turma = get_object_or_404(Turma, pk=turma_id)
-    alunos = turma.alunos.filter(ativo=True).order_by('nome')
-    print(f"DEBUG: Turma {turma.id} - Alunos ativos encontrados: {alunos.count()}")
-    from .models import PeriodoEBD
-    from configuracao.models import ConfiguracaoSistema
-    # Descobrir o período vigente da turma
-    ano_letivo = turma.ano_letivo
-    # Descobrir tipo_periodo
-    tipo_periodo = 'trimestre'
-    perfil = getattr(request.user, 'perfil', None)
-    if perfil and hasattr(perfil, 'ministerio'):
-        config = ConfiguracaoSistema.objects.filter(ministerio=perfil.ministerio).first()
-        if config:
-            tipo_periodo = config.ebd_periodo
-            dia_ebd = config.ebd_dia_semana if config.ebd_dia_semana is not None else 6
-        else:
-            dia_ebd = 6
-    else:
-        dia_ebd = 6
-    # Selecionar período vigente (primeiro do ano, ou lógica mais refinada se necessário)
-    periodo = PeriodoEBD.objects.filter(ano_letivo=ano_letivo, tipo=tipo_periodo).order_by('numero').first()
-    datas_validas = []
-    if periodo:
-        # Gera lista de datas do dia da semana correto no período
-        data_atual = periodo.data_inicio
-        while data_atual <= periodo.data_fim:
-            if data_atual.weekday() == dia_ebd:
-                datas_validas.append(data_atual)
-            data_atual += timezone.timedelta(days=1)
-    # Data padrão: domingo mais próximo de hoje (>= hoje), senão primeira válida
-    data = request.POST.get('data') or request.GET.get('data')
-    if not data or not any(str(d) == str(data) for d in datas_validas):
-        hoje = timezone.now().date()
-        data_hoje_ou_proxima = None
-        for d in datas_validas:
-            if d >= hoje:
-                data_hoje_ou_proxima = d
-                break
-        if not data_hoje_ou_proxima and datas_validas:
-            data_hoje_ou_proxima = datas_validas[-1]  # Se todas já passaram, pega a última
-        data = data_hoje_ou_proxima.isoformat() if data_hoje_ou_proxima else timezone.now().date().isoformat()
-    # Buscar lição do dia para a turma (após data definida)
-    licao_do_dia = Licao.objects.filter(turma=turma, data=data).first()
-    if not alunos.exists():
-        messages.warning(request, 'Não há alunos ativos nesta turma para realizar a chamada de presença.')
-        return render(request, 'escola_biblica/chamada_presenca.html', {
-            'turma': turma,
-            'formset': None,
-            'data': data,
-            'datas_validas': datas_validas,
-        })
-    if request.method == 'POST':
-        # Se for troca de data, apenas recarrega a página normalmente
-        if 'troca_data' in request.POST:
-            initial = [
-                {
-                    'aluno_id': aluno.id,
-                    'nome': aluno.nome,
-                    'presente': Frequencia.objects.filter(aluno=aluno, data=data, presente=True).exists(),
-                    'trouxe_biblia': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_biblia=True).exists(),
-                    'trouxe_revista': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_revista=True).exists(),
-                    'trouxe_visitante': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_visitante=True).exists(),
-                    'trouxe_oferta': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_oferta=True).exists(),
-                }
-                for aluno in alunos
-            ]
-            formset = ChamadaPresencaFormSet(initial=initial)
-        # Só processa o registro se o submit veio do botão Salvar Chamada
-        elif 'valor_oferta' in request.POST or 'presente' in request.POST:
-            formset = ChamadaPresencaFormSet(request.POST)
-            if formset.is_valid():
-                erro_validacao = False
-                for form in formset:
-                    aluno_id = form.cleaned_data['aluno_id']
-                    presente = form.cleaned_data.get('presente', False)
-                    trouxe_biblia = form.cleaned_data.get('trouxe_biblia', False)
-                    trouxe_revista = form.cleaned_data.get('trouxe_revista', False)
-                    trouxe_visitante = form.cleaned_data.get('trouxe_visitante', False)
-                    trouxe_oferta = form.cleaned_data.get('trouxe_oferta', False)
-                    # Cria instância para validar
-                    freq, created = Frequencia.objects.get_or_create(
-                        aluno_id=aluno_id,
-                        data=data,
-                        defaults={
-                            'presente': presente,
-                            'trouxe_biblia': trouxe_biblia,
-                            'trouxe_revista': trouxe_revista,
-                            'trouxe_visitante': trouxe_visitante,
-                            'trouxe_oferta': trouxe_oferta,
-                        }
-                    )
-                    freq.presente = presente
-                    freq.trouxe_biblia = trouxe_biblia
-                    freq.trouxe_revista = trouxe_revista
-                    freq.trouxe_visitante = trouxe_visitante
-                    freq.trouxe_oferta = trouxe_oferta
-                    try:
-                        freq.full_clean()
-                        freq.save()
-                    except Exception as e:
-                        erro_validacao = True
-                        messages.error(request, f'Erro ao registrar chamada para {freq.aluno.nome}: {e}')
-                if not erro_validacao:
-                    messages.success(request, f'Chamada de presença registrada para {turma} em {data}.')
-                    return redirect('escola_biblica:turma_list')
-                messages.success(request, f'Chamada de presença registrada para {turma} em {data}.')
-                return redirect('escola_biblica:turma_list')
-            else:
-                messages.error(request, 'Erro ao registrar chamada de presença. Verifique os dados e tente novamente.')
-    else:
-        initial = [
-            {
-                'aluno_id': aluno.id,
-                'nome': aluno.nome,
-                'presente': Frequencia.objects.filter(aluno=aluno, data=data, presente=True).exists(),
-                'trouxe_biblia': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_biblia=True).exists(),
-                'trouxe_revista': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_revista=True).exists(),
-                'trouxe_visitante': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_visitante=True).exists(),
-                'trouxe_oferta': Frequencia.objects.filter(aluno=aluno, data=data, trouxe_oferta=True).exists(),
-            }
-            for aluno in alunos
-        ]
-        formset = ChamadaPresencaFormSet(initial=initial)
-    # Busca valor atual de oferta para exibir no campo
-    valor_oferta_atual = None
-    from .models import OfertaClasse
-    classe = turma.classe if hasattr(turma, 'classe') else None
-    if classe:
-        oferta_obj = OfertaClasse.objects.filter(classe=classe, data=data).first()
-        if oferta_obj:
-            valor_oferta_atual = oferta_obj.valor
-    return render(request, 'escola_biblica/chamada_presenca.html', {
-        'turma': turma,
-        'formset': formset,
-        'data': data,
-        'datas_validas': datas_validas,
-        'valor_oferta_atual': valor_oferta_atual,
-        'licao_do_dia': licao_do_dia,
-    })
-
 # --- PERFIL DO ALUNO E HISTÓRICO DE TRANSFERÊNCIAS ---
 
 
@@ -1104,16 +1128,345 @@ def aluno_detail(request, pk):
     Secretaria/Superintendente: veem qualquer aluno
     Professores: veem apenas alunos de suas turmas
     """
-    aluno = get_object_or_404(Aluno, pk=pk)
+    aluno = get_object_or_404(
+        filtrar_alunos_ebd(
+            Aluno.objects.select_related(
+            'turma',
+            'cadastro',
+            'cadastro__pessoa',
+            'cadastro__pessoa__tipo_pessoa',
+            'cadastro__pessoa__status_pessoa',
+            'cadastro__pessoa__grupo_casa',
+            ),
+            request,
+        ),
+        pk=pk,
+    )
     
     # Verifica permissão
     if not pode_ver_aluno(request.user, aluno):
         raise PermissionDenied("Você não tem permissão para ver detalhes deste aluno.")
     
-    transferencias = aluno.transferencias.select_related('turma_origem', 'turma_destino', 'usuario_responsavel').all()
+    transferencias = TransferenciaAluno.objects.filter(aluno__cadastro_id=aluno.cadastro_id).select_related(
+        'aluno',
+        'turma_origem',
+        'turma_destino',
+        'usuario_responsavel',
+    )
+    matriculas_relacionadas = aluno.cadastro.matriculas.select_related('turma', 'turma__ano_letivo').exclude(pk=aluno.pk).order_by('-turma__ano_letivo__ano', '-id')
+    perfil_usuario_vinculado_url = None
+    pessoa_vinculada = getattr(aluno.cadastro, 'pessoa', None)
+    usuario_vinculado = getattr(pessoa_vinculada, 'usuario', None) if pessoa_vinculada else None
+    if usuario_vinculado and hasattr(usuario_vinculado, 'perfil'):
+        perfil_usuario_vinculado_url = reverse('configuracao:perfil_usuario', args=[usuario_vinculado.pk])
     return render(request, 'escola_biblica/aluno_detail.html', {
         'aluno': aluno,
         'transferencias': transferencias,
+        'matriculas_relacionadas': matriculas_relacionadas,
+        'perfil_usuario_vinculado_url': perfil_usuario_vinculado_url,
+    })
+
+
+@login_required
+@verificar_assinatura_valida
+def aluno_historico_consolidado(request, pk):
+    alunos_escopo = filtrar_alunos_ebd(
+        Aluno.objects.select_related(
+            'turma',
+            'turma__ano_letivo',
+            'cadastro',
+            'cadastro__pessoa',
+        ),
+        request,
+    )
+
+    aluno = alunos_escopo.filter(pk=pk).first()
+    if aluno is None:
+        aluno = alunos_escopo.filter(cadastro_id=pk).order_by(
+            '-ativo', '-turma__ano_letivo__ano', '-updated_at', '-id'
+        ).first()
+
+    if aluno is None:
+        messages.warning(request, 'Aluno não encontrado no escopo atual. Abra o histórico pela lista de alunos.')
+        return redirect('escola_biblica:aluno_list')
+
+    if not pode_ver_aluno(request.user, aluno):
+        raise PermissionDenied("Você não tem permissão para ver detalhes deste aluno.")
+
+    cadastro = aluno.cadastro
+    matriculas = list(
+        cadastro.matriculas.select_related('turma', 'turma__ano_letivo')
+        .order_by('-turma__ano_letivo__ano', '-updated_at', '-id')
+    )
+
+    transferencias = list(
+        TransferenciaAluno.objects.filter(aluno__cadastro_id=cadastro.id)
+        .select_related('aluno', 'turma_origem', 'turma_destino', 'usuario_responsavel')
+        .order_by('-data_transferencia', '-id')
+    )
+
+    frequencias = list(
+        Frequencia.objects.filter(aluno__cadastro_id=cadastro.id)
+        .select_related('aluno', 'aluno__turma', 'aluno__turma__ano_letivo')
+        .order_by('-data', '-id')
+    )
+
+    avaliacoes = list(
+        Avaliacao.objects.filter(aluno__cadastro_id=cadastro.id)
+        .select_related('aluno', 'aluno__turma', 'licao', 'licao__turma', 'licao__turma__ano_letivo')
+        .order_by('-licao__data', '-id')
+    )
+
+    por_ano = {}
+
+    def _ano_bucket(ano):
+        return por_ano.setdefault(
+            ano,
+            {
+                'ano': ano,
+                'matriculas': [],
+                'transferencias': [],
+                'total_frequencias': 0,
+                'presencas': 0,
+                'percentual_frequencia': None,
+                'total_avaliacoes': 0,
+                'media_notas': None,
+                'participacoes': 0,
+            },
+        )
+
+    for matricula in matriculas:
+        ano = getattr(getattr(matricula.turma, 'ano_letivo', None), 'ano', None) or 'Sem ano'
+        _ano_bucket(ano)['matriculas'].append(matricula)
+
+    for transferencia in transferencias:
+        ano = transferencia.data_transferencia.year if transferencia.data_transferencia else 'Sem ano'
+        _ano_bucket(ano)['transferencias'].append(transferencia)
+
+    acumulado_notas = defaultdict(list)
+
+    for freq in frequencias:
+        ano = freq.data.year if freq.data else 'Sem ano'
+        bucket = _ano_bucket(ano)
+        bucket['total_frequencias'] += 1
+        if freq.presente:
+            bucket['presencas'] += 1
+
+    for avaliacao in avaliacoes:
+        data_licao = getattr(avaliacao.licao, 'data', None)
+        ano = data_licao.year if data_licao else 'Sem ano'
+        bucket = _ano_bucket(ano)
+        bucket['total_avaliacoes'] += 1
+        if avaliacao.participacao:
+            bucket['participacoes'] += 1
+        if avaliacao.nota is not None:
+            acumulado_notas[ano].append(float(avaliacao.nota))
+
+    for ano, bucket in por_ano.items():
+        if bucket['total_frequencias']:
+            bucket['percentual_frequencia'] = round((bucket['presencas'] / bucket['total_frequencias']) * 100, 1)
+        if acumulado_notas.get(ano):
+            notas = acumulado_notas[ano]
+            bucket['media_notas'] = round(sum(notas) / len(notas), 2)
+
+    anos_ordenados = sorted(
+        por_ano.values(),
+        key=lambda item: item['ano'] if isinstance(item['ano'], int) else -1,
+        reverse=True,
+    )
+
+    return render(request, 'escola_biblica/aluno_historico_consolidado.html', {
+        'aluno': aluno,
+        'cadastro': cadastro,
+        'historico_anual': anos_ordenados,
+        'total_matriculas': len(matriculas),
+        'total_transferencias': len(transferencias),
+        'total_frequencias': len(frequencias),
+        'total_avaliacoes': len(avaliacoes),
+    })
+
+
+@login_required
+@secretaria_ebd_required
+@verificar_assinatura_valida
+def aluno_vinculo_secretaria(request, pk):
+    aluno = get_object_or_404(
+        filtrar_alunos_ebd(
+            Aluno.objects.select_related(
+            'turma',
+            'cadastro',
+            'cadastro__pessoa',
+            'cadastro__pessoa__tipo_pessoa',
+            'cadastro__pessoa__status_pessoa',
+            ),
+            request,
+        ),
+        pk=pk,
+    )
+    cadastro = aluno.cadastro
+    busca = request.GET.get('q', '').strip()
+
+    pessoas_base = Pessoa.objects.filter(igreja_id=cadastro.igreja_id).select_related('tipo_pessoa', 'status_pessoa')
+    if busca:
+        pessoas_candidatas = pessoas_base.filter(nome__icontains=busca)
+    else:
+        primeiro_nome = ((cadastro.nome or '').strip().split() or [''])[0]
+        pessoas_candidatas = pessoas_base
+        if cadastro.data_nascimento and primeiro_nome:
+            pessoas_candidatas = pessoas_candidatas.filter(
+                Q(nascimento=cadastro.data_nascimento) | Q(nome__icontains=primeiro_nome)
+            )
+        elif cadastro.data_nascimento:
+            pessoas_candidatas = pessoas_candidatas.filter(nascimento=cadastro.data_nascimento)
+        elif primeiro_nome:
+            pessoas_candidatas = pessoas_candidatas.filter(nome__icontains=primeiro_nome)
+
+    pessoas_candidatas = pessoas_candidatas.annotate(
+        prioridade_nome=Case(
+            When(nome__iexact=cadastro.nome, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+        prioridade_data=Case(
+            When(nascimento=cadastro.data_nascimento, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+    ).order_by('prioridade_nome', 'prioridade_data', 'nome')[:30]
+
+    if request.method == 'POST':
+        acao = request.POST.get('acao')
+
+        if acao == 'desvincular':
+            cadastro.pessoa = None
+            cadastro.save()
+            messages.success(request, 'Vínculo com a Secretaria removido com sucesso.')
+            return redirect('escola_biblica:aluno_vinculo_secretaria', pk=aluno.pk)
+
+        pessoa_id = request.POST.get('pessoa_id')
+        if not pessoa_id:
+            messages.error(request, 'Selecione uma pessoa da Secretaria para vincular.')
+        else:
+            pessoa = get_object_or_404(pessoas_base, pk=pessoa_id)
+            cadastro.pessoa = pessoa
+            cadastro.save()
+            messages.success(request, f'Aluno vinculado com sucesso à pessoa {pessoa.nome}.')
+            return redirect('escola_biblica:aluno_vinculo_secretaria', pk=aluno.pk)
+
+    return render(request, 'escola_biblica/aluno_vinculo_secretaria.html', {
+        'aluno': aluno,
+        'cadastro': cadastro,
+        'pessoas_candidatas': pessoas_candidatas,
+        'busca': busca,
+    })
+
+
+@login_required
+@secretaria_ebd_required
+@verificar_assinatura_valida
+def aluno_vinculo_secretaria_lote(request):
+    if not usuario_pode_gerenciar_ebd(request.user):
+        raise PermissionDenied('Você não tem permissão para gerenciar vínculos em lote.')
+
+    nome_filtro = request.GET.get('nome', '').strip()
+    turma_filtro = request.GET.get('turma', '').strip()
+    ativo_filtro = request.GET.get('ativo', '').strip()
+    historico = request.GET.get('historico') == '1'
+
+    ano_atual = date.today().year
+    ano_filtro_raw = request.GET.get('ano', '').strip()
+    try:
+        ano_filtro = int(ano_filtro_raw) if ano_filtro_raw else ano_atual
+    except ValueError:
+        ano_filtro = ano_atual
+
+    alunos_list = filtrar_alunos_ebd(Aluno.objects.all().order_by('nome'), request)
+
+    if not historico:
+        alunos_list = alunos_list.filter(turma__ano_letivo__ano=ano_filtro)
+    if nome_filtro:
+        alunos_list = alunos_list.filter(nome__icontains=nome_filtro)
+    if turma_filtro:
+        alunos_list = alunos_list.filter(turma_id=turma_filtro)
+    if ativo_filtro in ('True', 'False'):
+        alunos_list = alunos_list.filter(ativo=(ativo_filtro == 'True'))
+
+    if not historico:
+        alunos_list = colapsar_alunos_por_cadastro(alunos_list)
+
+    aluno_por_cadastro = dict(alunos_list.values_list('cadastro_id', 'id'))
+    cadastro_ids = alunos_list.filter(cadastro__pessoa__isnull=True).values_list('cadastro_id', flat=True).distinct()
+    cadastros = list(
+        CadastroAluno.objects.filter(id__in=cadastro_ids, pessoa__isnull=True)
+        .select_related('igreja')
+        .order_by('nome')
+    )
+
+    linhas = []
+    for cadastro in cadastros:
+        pessoas_base = Pessoa.objects.filter(igreja_id=cadastro.igreja_id).select_related('tipo_pessoa', 'status_pessoa')
+        primeiro_nome = ((cadastro.nome or '').strip().split() or [''])[0]
+        pessoas_candidatas = pessoas_base
+        if cadastro.data_nascimento and primeiro_nome:
+            pessoas_candidatas = pessoas_candidatas.filter(
+                Q(nascimento=cadastro.data_nascimento) | Q(nome__icontains=primeiro_nome)
+            )
+        elif cadastro.data_nascimento:
+            pessoas_candidatas = pessoas_candidatas.filter(nascimento=cadastro.data_nascimento)
+        elif primeiro_nome:
+            pessoas_candidatas = pessoas_candidatas.filter(nome__icontains=primeiro_nome)
+
+        linhas.append({
+            'cadastro': cadastro,
+            'aluno_id': aluno_por_cadastro.get(cadastro.id),
+            'pessoas': list(
+                pessoas_candidatas.annotate(
+                    prioridade_nome=Case(
+                        When(nome__iexact=cadastro.nome, then=Value(0)),
+                        default=Value(1),
+                        output_field=IntegerField(),
+                    ),
+                    prioridade_data=Case(
+                        When(nascimento=cadastro.data_nascimento, then=Value(0)),
+                        default=Value(1),
+                        output_field=IntegerField(),
+                    ),
+                ).order_by('prioridade_nome', 'prioridade_data', 'nome')[:20]
+            ),
+        })
+
+    if request.method == 'POST':
+        vinculos_realizados = []
+        for cadastro in cadastros:
+            pessoa_id = request.POST.get(f'pessoa_cadastro_{cadastro.id}')
+            if not pessoa_id:
+                continue
+
+            pessoa = Pessoa.objects.filter(pk=pessoa_id, igreja_id=cadastro.igreja_id).first()
+            if pessoa is None:
+                continue
+
+            cadastro.pessoa = pessoa
+            cadastro.save()
+            vinculos_realizados.append(f'{cadastro.nome} -> {pessoa.nome}')
+
+        if vinculos_realizados:
+            exibicao = ', '.join(vinculos_realizados[:10])
+            restantes = len(vinculos_realizados) - 10
+            sufixo = f' (+{restantes} outro(s))' if restantes > 0 else ''
+            messages.success(request, f'Vínculos aplicados: {exibicao}{sufixo}.')
+        else:
+            messages.info(request, 'Nenhum vínculo foi selecionado para aplicar.')
+
+        querystring_pos_post = request.GET.urlencode()
+        redirect_url = reverse('escola_biblica:aluno_vinculo_secretaria_lote')
+        if querystring_pos_post:
+            redirect_url = f'{redirect_url}?{querystring_pos_post}'
+        return redirect(redirect_url)
+
+    return render(request, 'escola_biblica/aluno_vinculo_secretaria_lote.html', {
+        'linhas': linhas,
+        'total_cadastros': len(cadastros),
     })
 
 # --- TRANSFERÊNCIA DE ALUNO ENTRE TURMAS/CLASSES ---
@@ -1122,23 +1475,27 @@ def aluno_detail(request, pk):
 @verificar_assinatura_valida
 @transaction.atomic
 def transferir_aluno(request, aluno_id):
-    aluno = get_object_or_404(Aluno, pk=aluno_id)
+    aluno = get_object_or_404(
+        filtrar_alunos_ebd(Aluno.objects.select_related('turma', 'cadastro'), request),
+        pk=aluno_id,
+    )
     turma_origem = aluno.turma
     if request.method == 'POST':
-        form = TransferenciaAlunoForm(request.POST)
+        form = TransferenciaAlunoForm(request.POST, request=request)
         if form.is_valid():
-            transferencia = form.save(commit=False)
-            transferencia.aluno = aluno
-            transferencia.turma_origem = turma_origem
-            transferencia.usuario_responsavel = request.user
-            transferencia.save()
-            # Atualiza turma do aluno
-            aluno.turma = transferencia.turma_destino
-            aluno.save()
-            messages.success(request, f'Transferência realizada com sucesso para {transferencia.turma_destino}!')
-            return redirect('escola_biblica:aluno_list')
+            try:
+                transferencia, matricula_destino = aluno.transferir_para(
+                    turma_destino=form.cleaned_data['turma_destino'],
+                    usuario_responsavel=request.user,
+                    motivo=form.cleaned_data.get('motivo', ''),
+                )
+            except ValidationError as exc:
+                form.add_error('turma_destino', exc.message)
+            else:
+                messages.success(request, f'Transferência realizada com sucesso para {transferencia.turma_destino}!')
+                return redirect('escola_biblica:aluno_detail', pk=matricula_destino.pk)
     else:
-        form = TransferenciaAlunoForm(initial={'aluno': aluno})
+        form = TransferenciaAlunoForm(request=request)
     return render(request, 'escola_biblica/transferir_aluno.html', {
         'form': form,
         'aluno': aluno,
@@ -1152,42 +1509,23 @@ def transferir_aluno(request, aluno_id):
 @secretaria_ebd_required
 @verificar_assinatura_valida
 def relatorio_frequencia(request):
-    turmas = Turma.objects.all()
-    classes = Classe.objects.all()
-    alunos = Aluno.objects.select_related('turma', 'turma__classe').all()
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        turmas = turmas.filter(membros__igreja=request.igreja_ativa).distinct()
-        classes = classes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
-        alunos = alunos.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+    turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
+    classes = filtrar_classes_ebd(Classe.objects.all(), request)
+    alunos = filtrar_alunos_ebd(Aluno.objects.select_related('cadastro', 'turma', 'turma__classe').all(), request)
     turma_id = request.GET.get('turma')
     classe_id = request.GET.get('classe')
-    inicio = request.GET.get('inicio')
-    fim = request.GET.get('fim')
-    if turma_id:
-        alunos = alunos.filter(turma_id=turma_id)
-    if classe_id:
-        alunos = alunos.filter(turma__classe_id=classe_id)
-    # Cálculo de frequência detalhada
-    for aluno in alunos:
-        freq_qs = Frequencia.objects.filter(aluno=aluno)
-        if inicio:
-            freq_qs = freq_qs.filter(data__gte=inicio)
-        if fim:
-            freq_qs = freq_qs.filter(data__lte=fim)
-        total_freq = freq_qs.count()
-        presencas = freq_qs.filter(presente=True).count()
-        aluno.freq_percent = round((presencas/total_freq)*100, 1) if total_freq else None
-        aluno.total_freq = total_freq
-        aluno.presencas = presencas
+    inicio = parse_date(request.GET.get('inicio') or '')
+    fim = parse_date(request.GET.get('fim') or '')
+    alunos = consolidar_alunos_por_cadastro_periodo(alunos, inicio=inicio, fim=fim, turma_id=turma_id, classe_id=classe_id)
     # Exportação CSV
     if 'export' in request.GET:
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="relatorio_frequencia.csv"'
         writer = csv.writer(response)
-        writer.writerow(['Aluno', 'Turma', 'Classe', 'Presenças', 'Total Aulas', 'Frequência (%)'])
+        writer.writerow(['Cadastro', 'Turma de Referência', 'Classe', 'Presenças', 'Total Aulas', 'Frequência (%)'])
         for aluno in alunos:
             writer.writerow([
-                aluno.nome,
+            aluno.nome_exibicao,
                 aluno.turma,
                 aluno.turma.classe if aluno.turma else '',
                 aluno.presencas,
@@ -1210,8 +1548,7 @@ def cargos_ebd_list(request):
     cargo_nome = request.GET.get('cargo')
     cargos_disponiveis = Cargo.objects.filter(is_ebd=True).values_list('nome', flat=True).distinct()
     colaboradores = MembroCargo.objects.select_related('membro', 'cargo').filter(cargo__is_ebd=True)
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        colaboradores = colaboradores.filter(membro__igreja=request.igreja_ativa)
+    colaboradores = filtrar_queryset_ebd(colaboradores, request, 'membro__igreja')
     if cargo_nome:
         colaboradores = colaboradores.filter(cargo__nome__iexact=cargo_nome)
     return render(request, 'escola_biblica/cargos_ebd_list.html', {
@@ -1222,6 +1559,7 @@ def cargos_ebd_list(request):
 
 # --- GRÁFICOS DE EVOLUÇÃO ---
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def graficos_evolucao(request):
     hoje = timezone.now().date()
@@ -1231,7 +1569,7 @@ def graficos_evolucao(request):
     alunos_evolucao = defaultdict(lambda: [0]*12)
     for idx, mes in enumerate(meses):
         prox_mes = (mes + timezone.timedelta(days=32)).replace(day=1)
-        for turma in Turma.objects.filter(ano_letivo__ativo=True, classe__isnull=False):
+        for turma in filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ativo=True, classe__isnull=False), request, 'membros__igreja'):
             classe_nome = turma.classe.nome
             count = Aluno.objects.filter(turma=turma, data_matricula__lte=prox_mes, data_saida__isnull=True).count()
             alunos_evolucao[classe_nome][idx] += count
@@ -1239,8 +1577,8 @@ def graficos_evolucao(request):
     ofertas_evolucao = defaultdict(lambda: [0]*12)
     for idx, mes in enumerate(meses):
         prox_mes = (mes + timezone.timedelta(days=32)).replace(day=1)
-        for classe in Classe.objects.all():
-            total = OfertaClasse.objects.filter(classe=classe, data__gte=mes, data__lt=prox_mes).aggregate(s=Sum('valor'))['s'] or 0
+        for classe in filtrar_queryset_ebd(Classe.objects.all(), request, 'turma__membros__igreja'):
+            total = filtrar_queryset_ebd(OfertaClasse.objects.filter(classe=classe, data__gte=mes, data__lt=prox_mes), request, 'classe__turma__membros__igreja').aggregate(s=Sum('valor'))['s'] or 0
             ofertas_evolucao[classe.nome][idx] = float(total)
 
     context = {
@@ -1252,28 +1590,40 @@ def graficos_evolucao(request):
 
 # --- DASHBOARD GRÁFICOS ---
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def dashboard_graficos(request):
     departamentos = dict(Classe.DEPARTAMENTO_CHOICES)
+    igrejas_escopo = get_ebd_scope_churches(request)
     alunos_por_departamento = {d: 0 for d in departamentos.values()}
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        for dep_key, dep_label in departamentos.items():
-            alunos_por_departamento[dep_label] = Aluno.objects.filter(turma__classe__departamento=dep_key, turma__membros__igreja=request.igreja_ativa).distinct().count()
-    else:
-        for dep_key, dep_label in departamentos.items():
-            alunos_por_departamento[dep_label] = Aluno.objects.filter(turma__classe__departamento=dep_key).count()
+    for dep_key, dep_label in departamentos.items():
+        alunos_por_departamento[dep_label] = filtrar_queryset_ebd(Aluno.objects.filter(turma__classe__departamento=dep_key), request, 'turma__membros__igreja').count()
 
     ofertas_por_departamento = {d: 0 for d in departamentos.values()}
     for dep_key, dep_label in departamentos.items():
-        ofertas_por_departamento[dep_label] = OfertaClasse.objects.filter(classe__departamento=dep_key).aggregate(total=Sum('valor'))['total'] or 0
+        ofertas_por_departamento[dep_label] = OfertaClasse.objects.filter(
+            Q(turma__classe__departamento=dep_key) | Q(turma__isnull=True, classe__departamento=dep_key)
+        ).filter(
+            Q(turma__igreja__in=igrejas_escopo) |
+            Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
+        ).distinct().aggregate(total=Sum('valor'))['total'] or 0
 
     ofertas_por_classe = {}
-    for classe in Classe.objects.all():
-        ofertas_por_classe[classe.nome] = OfertaClasse.objects.filter(classe=classe).aggregate(total=Sum('valor'))['total'] or 0
+    for classe in filtrar_queryset_ebd(Classe.objects.all(), request, 'turma__membros__igreja'):
+        ofertas_por_classe[classe.nome] = OfertaClasse.objects.filter(
+            Q(turma__classe=classe) | Q(turma__isnull=True, classe=classe)
+        ).filter(
+            Q(turma__igreja__in=igrejas_escopo) |
+            Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
+        ).distinct().aggregate(total=Sum('valor'))['total'] or 0
 
     alunos_por_classe = {}
-    for classe in Classe.objects.all():
-        alunos_por_classe[classe.nome] = Aluno.objects.filter(turma__classe=classe).count()
+    for classe in filtrar_queryset_ebd(Classe.objects.all(), request, 'turma__membros__igreja'):
+        alunos_por_classe[classe.nome] = filtrar_queryset_ebd(Aluno.objects.filter(turma__classe=classe), request, 'turma__membros__igreja').count()
 
     context = {
         'alunos_por_departamento': json.dumps(alunos_por_departamento),
@@ -1288,9 +1638,13 @@ def dashboard_graficos(request):
 @secretaria_ebd_required
 @verificar_assinatura_valida
 def oferta_classe_list(request):
-    ofertas = OfertaClasse.objects.select_related('classe').order_by('-data')
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        ofertas = ofertas.filter(classe__turma__membros__igreja=request.igreja_ativa).distinct()
+    igrejas_escopo = get_ebd_scope_churches(request)
+    ofertas = OfertaClasse.objects.select_related('turma', 'classe').order_by('-data').filter(
+        Q(turma__igreja__in=igrejas_escopo) |
+        Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
+        Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
+        Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
+    ).distinct()
     return render(request, 'escola_biblica/oferta_classe_list.html', {'ofertas': ofertas})
 
 @login_required
@@ -1298,35 +1652,53 @@ def oferta_classe_list(request):
 @verificar_assinatura_valida
 def oferta_classe_create(request):
     if request.method == 'POST':
-        form = OfertaClasseForm(request.POST)
+        form = OfertaClasseForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Oferta registrada com sucesso!')
             return redirect('escola_biblica:oferta_classe_list')
     else:
-        form = OfertaClasseForm()
+        form = OfertaClasseForm(request=request)
     return render(request, 'escola_biblica/oferta_classe_form.html', {'form': form})
 
 @login_required
 @secretaria_ebd_required
 @verificar_assinatura_valida
 def oferta_classe_edit(request, pk):
-    oferta = get_object_or_404(OfertaClasse, pk=pk)
+    igrejas_escopo = get_ebd_scope_churches(request)
+    oferta = get_object_or_404(
+        OfertaClasse.objects.select_related('turma', 'classe').filter(
+            Q(turma__igreja__in=igrejas_escopo) |
+            Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
+        ).distinct(),
+        pk=pk,
+    )
     if request.method == 'POST':
-        form = OfertaClasseForm(request.POST, instance=oferta)
+        form = OfertaClasseForm(request.POST, instance=oferta, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Oferta atualizada com sucesso!')
             return redirect('escola_biblica:oferta_classe_list')
     else:
-        form = OfertaClasseForm(instance=oferta)
+        form = OfertaClasseForm(instance=oferta, request=request)
     return render(request, 'escola_biblica/oferta_classe_form.html', {'form': form, 'oferta': oferta})
 
 @login_required
 @superintendente_required
 @verificar_assinatura_valida
 def oferta_classe_delete(request, pk):
-    oferta = get_object_or_404(OfertaClasse, pk=pk)
+    igrejas_escopo = get_ebd_scope_churches(request)
+    oferta = get_object_or_404(
+        OfertaClasse.objects.select_related('turma', 'classe').filter(
+            Q(turma__igreja__in=igrejas_escopo) |
+            Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
+            Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
+        ).distinct(),
+        pk=pk,
+    )
     if request.method == 'POST':
         oferta.delete()
         messages.success(request, 'Oferta excluída com sucesso!')
@@ -1335,40 +1707,17 @@ def oferta_classe_delete(request, pk):
 
 # --- RELATÓRIO DE ALUNOS ---
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def relatorio_alunos(request):
-    turmas = Turma.objects.all()
-    classes = Classe.objects.all()
-    alunos = Aluno.objects.select_related('turma', 'turma__classe').all()
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        turmas = turmas.filter(membros__igreja=request.igreja_ativa).distinct()
-        classes = classes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
-        alunos = alunos.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+    turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
+    classes = filtrar_classes_ebd(Classe.objects.all(), request)
+    alunos = filtrar_alunos_ebd(Aluno.objects.select_related('cadastro', 'turma', 'turma__classe').all(), request)
     turma_id = request.GET.get('turma')
     classe_id = request.GET.get('classe')
-    inicio = request.GET.get('inicio')
-    fim = request.GET.get('fim')
-    if turma_id:
-        alunos = alunos.filter(turma_id=turma_id)
-    if classe_id:
-        alunos = alunos.filter(turma__classe_id=classe_id)
-    # Cálculo de frequência, média de nota e participação
-    for aluno in alunos:
-        freq_qs = Frequencia.objects.filter(aluno=aluno)
-        if inicio:
-            freq_qs = freq_qs.filter(data__gte=inicio)
-        if fim:
-            freq_qs = freq_qs.filter(data__lte=fim)
-        total_freq = freq_qs.count()
-        presencas = freq_qs.filter(presente=True).count()
-        aluno.freq_percent = round((presencas/total_freq)*100, 1) if total_freq else None
-        aval_qs = Avaliacao.objects.filter(aluno=aluno)
-        if inicio:
-            aval_qs = aval_qs.filter(licao__data__gte=inicio)
-        if fim:
-            aval_qs = aval_qs.filter(licao__data__lte=fim)
-        aluno.media_nota = round(aval_qs.aggregate(m=Avg('nota'))['m'] or 0, 2) if aval_qs.exists() else None
-        aluno.participacao = aval_qs.filter(participacao=True).count()
+    inicio = parse_date(request.GET.get('inicio') or '')
+    fim = parse_date(request.GET.get('fim') or '')
+    alunos = consolidar_alunos_por_cadastro_periodo(alunos, inicio=inicio, fim=fim, turma_id=turma_id, classe_id=classe_id)
     return render(request, 'escola_biblica/relatorio_alunos.html', {
         'turmas': turmas,
         'classes': classes,
@@ -1381,9 +1730,10 @@ def relatorio_alunos(request):
 @secretaria_ebd_required
 @verificar_assinatura_valida
 def avaliacao_list(request):
-    avaliacoes = Avaliacao.objects.select_related('aluno', 'licao').all()
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        avaliacoes = avaliacoes.filter(aluno__turma__membros__igreja=request.igreja_ativa).distinct()
+    avaliacoes = filtrar_avaliacoes_ebd(
+        Avaliacao.objects.select_related('aluno', 'aluno__cadastro', 'aluno__turma', 'licao', 'licao__turma').all(),
+        request,
+    ).order_by('-licao__data', 'aluno__cadastro__nome')
     return render(request, 'escola_biblica/avaliacao_list.html', {'avaliacoes': avaliacoes})
 
 @login_required
@@ -1391,40 +1741,47 @@ def avaliacao_list(request):
 @verificar_assinatura_valida
 def avaliacao_create(request):
     if request.method == 'POST':
-        form = AvaliacaoForm(request.POST)
+        form = AvaliacaoForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Avaliação cadastrada com sucesso!')
             return redirect('escola_biblica:avaliacao_list')
     else:
-        form = AvaliacaoForm()
+        form = AvaliacaoForm(request=request)
     return render(request, 'escola_biblica/avaliacao_form.html', {'form': form})
 
 @login_required
 @secretaria_ebd_required
 @verificar_assinatura_valida
 def avaliacao_edit(request, pk):
-    avaliacao = get_object_or_404(Avaliacao, pk=pk)
+    avaliacao = get_object_or_404(
+        filtrar_avaliacoes_ebd(Avaliacao.objects.select_related('aluno', 'aluno__cadastro', 'licao'), request),
+        pk=pk,
+    )
     if request.method == 'POST':
-        form = AvaliacaoForm(request.POST, instance=avaliacao)
+        form = AvaliacaoForm(request.POST, instance=avaliacao, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Avaliação atualizada com sucesso!')
             return redirect('escola_biblica:avaliacao_list')
     else:
-        form = AvaliacaoForm(instance=avaliacao)
+        form = AvaliacaoForm(instance=avaliacao, request=request)
     return render(request, 'escola_biblica/avaliacao_form.html', {'form': form, 'avaliacao': avaliacao})
 
 @login_required
 @superintendente_required
 def avaliacao_delete(request, pk):
-    avaliacao = get_object_or_404(Avaliacao, pk=pk)
+    avaliacao = get_object_or_404(
+        filtrar_avaliacoes_ebd(Avaliacao.objects.select_related('aluno', 'aluno__cadastro', 'licao'), request),
+        pk=pk,
+    )
     if request.method == 'POST':
         avaliacao.delete()
         messages.success(request, 'Avaliação excluída com sucesso!')
         return redirect('escola_biblica:avaliacao_list')
     return render(request, 'escola_biblica/avaliacao_confirm_delete.html', {'avaliacao': avaliacao})
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def licao_list(request):
     from .models import PeriodoEBD, AnoLetivo
@@ -1440,14 +1797,12 @@ def licao_list(request):
         periodo_selecionado = periodos.filter(id=periodo_id).first()
     else:
         periodo_selecionado = periodo_atual
-    licoes = Licao.objects.all()
+    licoes = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__membros__igreja')
     if periodo_selecionado:
         licoes = licoes.filter(data__gte=periodo_selecionado.data_inicio, data__lte=periodo_selecionado.data_fim)
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        licoes = licoes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
     # Buscar turmas para o filtro
     from .models import Turma
-    turma_nomes = Turma.objects.values_list('nome', flat=True).distinct().order_by('nome')
+    turma_nomes = filtrar_queryset_ebd(Turma.objects.all(), request, 'membros__igreja').values_list('nome', flat=True).distinct().order_by('nome')
     turma_nome = request.GET.get('turma')
     if turma_nome:
         licoes = licoes.filter(turma__nome=turma_nome)
@@ -1459,7 +1814,7 @@ def licao_list(request):
         cargo__nome__icontains='professor',
         data_fim__isnull=True
     ).values_list('membro_id', flat=True)
-    professores = Membro.objects.filter(chave__in=membros_professor_ids).order_by('nome')
+    professores = Membro.objects.filter(chave__in=membros_professor_ids, igreja__in=get_ebd_scope_churches(request)).order_by('nome')
     professor_id = request.GET.get('professor')
     if professor_id:
         licoes = licoes.filter(professor_id=professor_id)
@@ -1482,37 +1837,40 @@ def licao_list(request):
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def licao_create(request):
-    turmas = Turma.objects.all()
+    turmas = filtrar_queryset_ebd(Turma.objects.all(), request, 'membros__igreja')
     if request.method == 'POST':
-        form = LicaoForm(request.POST, request.FILES)
+        form = LicaoForm(request.POST, request.FILES, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Lição cadastrada com sucesso!')
             return redirect('escola_biblica:licao_list')
     else:
-        form = LicaoForm()
+        form = LicaoForm(request=request)
     return render(request, 'escola_biblica/licao_form.html', {'form': form, 'turmas': turmas})
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def licao_edit(request, pk):
-    licao = get_object_or_404(Licao, pk=pk)
-    turmas = Turma.objects.all()
+    licao = get_object_or_404_ebd(Licao.objects.select_related('turma'), request, 'turma__membros__igreja', pk=pk)
+    turmas = filtrar_queryset_ebd(Turma.objects.all(), request, 'membros__igreja')
     if request.method == 'POST':
-        form = LicaoForm(request.POST, request.FILES, instance=licao)
+        form = LicaoForm(request.POST, request.FILES, instance=licao, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Lição atualizada com sucesso!')
             return redirect('escola_biblica:licao_list')
     else:
-        form = LicaoForm(instance=licao)
+        form = LicaoForm(instance=licao, request=request)
     return render(request, 'escola_biblica/licao_form.html', {'form': form, 'licao': licao, 'turmas': turmas})
 
 @login_required
 @superintendente_required
+@verificar_assinatura_valida
 def licao_delete(request, pk):
-    licao = get_object_or_404(Licao, pk=pk)
+    licao = get_object_or_404_ebd(Licao.objects.select_related('turma'), request, 'turma__membros__igreja', pk=pk)
     if request.method == 'POST':
         licao.delete()
         messages.success(request, 'Lição excluída com sucesso!')
@@ -1520,44 +1878,46 @@ def licao_delete(request, pk):
 # --- CLASSES ---
 # --- CLASSES ---
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def classe_list(request):
-    classes = Classe.objects.all()
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        classes = classes.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+    classes = filtrar_classes_ebd(Classe.objects.all(), request)
     return render(request, 'escola_biblica/classe_list.html', {'classes': classes})
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def classe_create(request):
     if request.method == 'POST':
-        form = ClasseForm(request.POST)
+        form = ClasseForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Classe cadastrada com sucesso!')
             return redirect('escola_biblica:classe_list')
     else:
-        form = ClasseForm()
+        form = ClasseForm(request=request)
     return render(request, 'escola_biblica/classe_form.html', {'form': form})
 
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def classe_edit(request, pk):
-    classe = get_object_or_404(Classe, pk=pk)
+    classe = get_object_or_404(filtrar_classes_ebd(Classe.objects.all(), request), pk=pk)
     if request.method == 'POST':
-        form = ClasseForm(request.POST, instance=classe)
+        form = ClasseForm(request.POST, instance=classe, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Classe atualizada com sucesso!')
             return redirect('escola_biblica:classe_list')
     else:
-        form = ClasseForm(instance=classe)
+        form = ClasseForm(instance=classe, request=request)
     return render(request, 'escola_biblica/classe_form.html', {'form': form, 'classe': classe})
 
 @login_required
 @superintendente_required
+@verificar_assinatura_valida
 def classe_delete(request, pk):
-    classe = get_object_or_404(Classe, pk=pk)
+    classe = get_object_or_404(filtrar_classes_ebd(Classe.objects.all(), request), pk=pk)
     if request.method == 'POST':
         classe.delete()
         messages.success(request, 'Classe excluída com sucesso!')
@@ -1574,22 +1934,22 @@ def classe_delete(request, pk):
 @login_required
 @verificar_assinatura_valida
 def dashboard(request):
-    turmas = Turma.objects.all()
-    alunos = Aluno.objects.all()
-    classes = Classe.objects.all()
-    licoes = Licao.objects.all()
-    avaliacoes = Avaliacao.objects.all()
-    total_oferta = OfertaClasse.objects.aggregate(total=Sum('valor'))['total'] or 0
+    turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
+    alunos = filtrar_alunos_ebd(Aluno.objects.all(), request)
+    classes = filtrar_classes_ebd(Classe.objects.all(), request)
+    licoes = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__igreja')
+    avaliacoes = filtrar_queryset_ebd(Avaliacao.objects.all(), request, 'aluno__turma__igreja')
+    igrejas_escopo = get_ebd_scope_churches(request)
+    total_oferta = OfertaClasse.objects.filter(
+        Q(turma__igreja__in=igrejas_escopo) |
+        Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
+        Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
+        Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
+    ).distinct().aggregate(total=Sum('valor'))['total'] or 0
 
-    # Filtro por igreja ativa
     igreja = getattr(request, 'igreja_ativa', None)
-    if igreja:
-        turmas = turmas.filter(membros__igreja=igreja).distinct()
-        alunos = alunos.filter(turma__membros__igreja=igreja).distinct()
-        classes = classes.filter(turma__membros__igreja=igreja).distinct()
-        licoes = licoes.filter(turma__membros__igreja=igreja).distinct()
-        avaliacoes = avaliacoes.filter(aluno__turma__membros__igreja=igreja).distinct()
-        total_oferta = OfertaClasse.objects.filter(classe__turma__membros__igreja=igreja).aggregate(total=Sum('valor'))['total'] or 0
+    if igreja is None and igrejas_escopo.count() == 1:
+        igreja = igrejas_escopo.first()
 
     hoje = date.today()
     mes_atual = hoje.replace(day=1)
@@ -1667,9 +2027,17 @@ def dashboard(request):
 
     ranking_ofertas = []
     for classe in classes:
-        oferta_qs = OfertaClasse.objects.filter(classe=classe, data__year=ano_atual)
+        oferta_qs = OfertaClasse.objects.filter(
+            Q(turma__classe=classe) | Q(turma__isnull=True, classe=classe),
+            data__year=ano_atual,
+        )
         if igreja:
-            oferta_qs = oferta_qs.filter(classe__turma__membros__igreja=igreja).distinct()
+            oferta_qs = oferta_qs.filter(
+                Q(turma__igreja=igreja) |
+                Q(turma__igreja__isnull=True, turma__membros__igreja=igreja) |
+                Q(turma__isnull=True, classe__igreja=igreja) |
+                Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja=igreja)
+            ).distinct()
         total_oferta_classe = oferta_qs.aggregate(s=Sum('valor'))['s'] or 0
         ranking_ofertas.append({'classe': classe.nome, 'total_oferta': float(total_oferta_classe)})
     ranking_ofertas = sorted(ranking_ofertas, key=lambda x: x['total_oferta'], reverse=True)
@@ -1681,7 +2049,10 @@ def dashboard(request):
 
     transferidos_mes_qs = TransferenciaAluno.objects.filter(data_transferencia__gte=mes_atual, data_transferencia__lt=hoje+timedelta(days=1))
     if igreja:
-        transferidos_mes_qs = transferidos_mes_qs.filter(aluno__turma__membros__igreja=igreja).distinct()
+        transferidos_mes_qs = transferidos_mes_qs.filter(
+            Q(turma_origem__membros__igreja=igreja) |
+            Q(turma_destino__membros__igreja=igreja)
+        ).distinct()
     transferidos_mes = transferidos_mes_qs.count()
 
     faixas = [
@@ -1732,21 +2103,113 @@ def aluno_list(request):
     Secretaria/Superintendente EBD: veem todos os alunos
     Professores: veem apenas alunos de suas turmas
     """
+    from .models import AnoLetivo
+
     # Verifica se é secretaria EBD (acesso total)
     is_secretaria = (
         request.user.is_superuser or 
         request.user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists()
     )
+
+    nome_filtro = request.GET.get('nome', '').strip()
+    turma_filtro = request.GET.get('turma', '').strip()
+    ativo_filtro = request.GET.get('ativo', '').strip()
+    vinculo_filtro = request.GET.get('vinculo', '').strip()
+    historico = request.GET.get('historico') == '1'
+
+    ano_atual = date.today().year
+    ano_filtro_raw = request.GET.get('ano', '').strip()
+    try:
+        ano_filtro = int(ano_filtro_raw) if ano_filtro_raw else ano_atual
+    except ValueError:
+        ano_filtro = ano_atual
     
     if is_secretaria:
         # Secretaria vê todos os alunos
         alunos_list = Aluno.objects.all().order_by('nome')
-        if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-            alunos_list = alunos_list.filter(turma__membros__igreja=request.igreja_ativa).distinct()
+        alunos_list = filtrar_alunos_ebd(alunos_list, request)
     else:
         # Professor vê apenas alunos de suas turmas
         turmas_professor = get_turmas_professor(request.user)
-        alunos_list = Aluno.objects.filter(turma__in=turmas_professor).order_by('nome').distinct()
+        alunos_list = filtrar_alunos_ebd(Aluno.objects.filter(turma__in=turmas_professor).order_by('nome').distinct(), request)
+
+    if not historico:
+        alunos_list = alunos_list.filter(turma__ano_letivo__ano=ano_filtro)
+
+    if nome_filtro:
+        alunos_list = alunos_list.filter(nome__icontains=nome_filtro)
+
+    if turma_filtro:
+        alunos_list = alunos_list.filter(turma_id=turma_filtro)
+
+    if ativo_filtro in ('True', 'False'):
+        alunos_list = alunos_list.filter(ativo=(ativo_filtro == 'True'))
+
+    if vinculo_filtro == 'vinculado':
+        alunos_list = alunos_list.filter(cadastro__pessoa__isnull=False)
+    elif vinculo_filtro == 'sem_vinculo':
+        alunos_list = alunos_list.filter(cadastro__pessoa__isnull=True)
+
+    if request.method == 'POST' and is_secretaria and request.POST.get('acao') == 'tentar_vinculo_lote':
+        cadastro_ids = alunos_list.values_list('cadastro_id', flat=True).distinct()
+        cadastros_sem_vinculo = CadastroAluno.objects.filter(
+            id__in=cadastro_ids,
+            pessoa__isnull=True,
+        )
+        vinculados = 0
+        sem_correspondencia = 0
+        vinculados_detalhes = []
+
+        for cadastro in cadastros_sem_vinculo:
+            pessoa = cadastro.tentar_vincular_pessoa(force=True)
+            if pessoa is None:
+                sem_correspondencia += 1
+                continue
+            cadastro.save()
+            vinculados += 1
+            nome_cadastro = (cadastro.nome or '').strip() or 'Sem nome'
+            nome_pessoa = (pessoa.nome or '').strip()
+            if nome_pessoa and nome_pessoa != nome_cadastro:
+                vinculados_detalhes.append(f'{nome_cadastro} -> {nome_pessoa}')
+            else:
+                vinculados_detalhes.append(nome_cadastro)
+
+        if vinculados:
+            exibicao = ', '.join(vinculados_detalhes[:10])
+            restantes = len(vinculados_detalhes) - 10
+            sufixo = f' (+{restantes} outro(s))' if restantes > 0 else ''
+            messages.success(
+                request,
+                f'{vinculados} cadastro(s) vinculados automaticamente à Secretaria. Vinculados: {exibicao}{sufixo}.',
+            )
+        if sem_correspondencia:
+            messages.warning(request, f'{sem_correspondencia} cadastro(s) continuam sem correspondência segura.')
+        if not vinculados and not sem_correspondencia:
+            messages.info(request, 'Nenhum cadastro elegível para tentativa de vínculo automático.')
+
+        querystring_pos_post = request.GET.urlencode()
+        redirect_url = reverse('escola_biblica:aluno_list')
+        if querystring_pos_post:
+            redirect_url = f'{redirect_url}?{querystring_pos_post}'
+        return redirect(redirect_url)
+
+    if not historico:
+        alunos_list = colapsar_alunos_por_cadastro(alunos_list)
+
+    alunos_list = alunos_list.select_related('cadastro', 'cadastro__pessoa', 'turma', 'turma__ano_letivo').order_by('nome', '-turma__ano_letivo__ano')
+
+    total_alunos = alunos_list.count()
+
+    turmas_filtro = filtrar_turmas_ebd(Turma.objects.all(), request).order_by('nome')
+    if not historico:
+        turmas_filtro = turmas_filtro.filter(ano_letivo__ano=ano_filtro)
+
+    anos_letivos = AnoLetivo.objects.order_by('-ano')
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        query_params.pop('page')
+    querystring = query_params.urlencode()
     
     paginator = Paginator(alunos_list, 20)  # 20 alunos por página
     page = request.GET.get('page')
@@ -1756,19 +2219,29 @@ def aluno_list(request):
         alunos = paginator.page(1)
     except EmptyPage:
         alunos = paginator.page(paginator.num_pages)
-    return render(request, 'escola_biblica/aluno_list.html', {'alunos': alunos})
+    return render(request, 'escola_biblica/aluno_list.html', {
+        'alunos': alunos,
+        'total_alunos': total_alunos,
+        'turmas': turmas_filtro,
+        'anos_letivos': anos_letivos,
+        'ano_filtro': ano_filtro,
+        'historico': historico,
+        'vinculo_filtro': vinculo_filtro,
+        'querystring': querystring,
+        'usuario_pode_vincular': is_secretaria,
+    })
 
 @login_required
 @secretaria_ebd_required
 @verificar_assinatura_valida
 def aluno_create(request):
     if request.method == 'POST':
-        form = AlunoForm(request.POST)
+        form = AlunoForm(request.POST, request=request)
         if form.is_valid():
             form.save()
             return redirect('escola_biblica:aluno_list')
     else:
-        form = AlunoForm()
+        form = AlunoForm(request=request)
     return render(request, 'escola_biblica/aluno_form.html', {'form': form})
 
 @login_required
@@ -1826,10 +2299,7 @@ def turma_list(request):
     turmas_list = Turma.objects.filter(ano_letivo=ano_letivo_selecionado)
     
     # Verifica se é secretaria EBD (acesso total) ou professor (acesso limitado)
-    is_secretaria = (
-        request.user.is_superuser or 
-        request.user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists()
-    )
+    is_secretaria = usuario_pode_gerenciar_ebd(request.user)
     
     if not is_secretaria:
         # Professores veem apenas suas turmas
@@ -1844,8 +2314,7 @@ def turma_list(request):
         # Se quiser filtrar por período, adicione lógica aqui (exemplo: turmas_list = turmas_list.filter(periodo=periodo_selecionado))
         pass
     turmas_list = turmas_list.order_by('nome')
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-        turmas_list = turmas_list.filter(membros__igreja=request.igreja_ativa).distinct()
+    turmas_list = filtrar_turmas_ebd(turmas_list, request)
     paginator = Paginator(turmas_list, 20)
     page = request.GET.get('page')
     try:
@@ -1895,22 +2364,23 @@ from django.shortcuts import get_object_or_404, redirect, render
 @secretaria_ebd_required
 @verificar_assinatura_valida
 def turma_edit(request, pk):
-    turma = get_object_or_404(Turma, pk=pk)
+    turma = get_object_or_404_ebd(Turma.objects.all(), request, 'membros__igreja', pk=pk)
     if request.method == 'POST':
-        form = TurmaForm(request.POST, instance=turma)
+        form = TurmaForm(request.POST, instance=turma, request=request)
         if form.is_valid():
             form.save()
             messages.success(request, 'Turma atualizada com sucesso!')
             return redirect('escola_biblica:turma_list')
     else:
-        form = TurmaForm(instance=turma)
+        form = TurmaForm(instance=turma, request=request)
     return render(request, 'escola_biblica/turma_form.html', {'form': form, 'turma': turma})
 
 # --- EXCLUIR TURMA ---
 @login_required
 @superintendente_required
+@verificar_assinatura_valida
 def turma_delete(request, pk):
-    turma = get_object_or_404(Turma, pk=pk)
+    turma = get_object_or_404_ebd(Turma.objects.all(), request, 'membros__igreja', pk=pk)
     if request.method == 'POST':
         turma.delete()
         messages.success(request, 'Turma excluída com sucesso!')
@@ -1918,9 +2388,13 @@ def turma_delete(request, pk):
     return render(request, 'escola_biblica/turma_confirm_delete.html', {'turma': turma})
 
 @login_required
+@secretaria_ebd_required
 @verificar_assinatura_valida
 def frequencia_list(request):
-    frequencias_list = Frequencia.objects.select_related('aluno', 'aluno__turma').all().order_by('-data')
+    frequencias_list = filtrar_frequencias_ebd(
+        Frequencia.objects.select_related('aluno', 'aluno__cadastro', 'aluno__turma').all().order_by('-data'),
+        request,
+    )
     paginator = Paginator(frequencias_list, 30)
     page = request.GET.get('page')
     try:
@@ -1935,12 +2409,13 @@ def frequencia_list(request):
 # --- NOVA VIEW: Geração automática de períodos e lições em lote ---
 @login_required
 @secretaria_ebd_required
+@verificar_assinatura_valida
 def gerar_cronograma(request):
     from django.contrib import messages
     from datetime import date
     from .models import Licao
     ano_atual = date.today().year
-    turmas = Turma.objects.filter(ano_letivo__ano=ano_atual, ano_letivo__ativo=True)
+    turmas = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ano=ano_atual, ano_letivo__ativo=True), request, 'membros__igreja')
     turma_selecionada = None
     config = None
     tipo_periodo = 'trimestre'
@@ -1953,10 +2428,10 @@ def gerar_cronograma(request):
                 config = ConfiguracaoSistema.objects.filter(ministerio=perfil.ministerio).first()
                 if config:
                     tipo_periodo = config.ebd_periodo
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning('Falha ao carregar configuração de período EBD para user=%s: %s', request.user.pk, exc)
     if request.method == 'POST':
-        form = GerarCronogramaForm(request.POST)
+        form = GerarCronogramaForm(request.POST, request=request)
         if form.is_valid():
             turma_id = form.cleaned_data.get('turma')
             turma_selecionada = Turma.objects.filter(id=turma_id.id if hasattr(turma_id, 'id') else turma_id).first()
@@ -2001,7 +2476,7 @@ def gerar_cronograma(request):
                 for error in errors:
                     messages.error(request, f'Erro no campo {field}: {error}')
     else:
-        form = GerarCronogramaForm()
+        form = GerarCronogramaForm(request=request)
         turma_id = request.GET.get('turma')
         if turma_id:
             turma_selecionada = Turma.objects.filter(id=turma_id).first()

@@ -1,3 +1,13 @@
+## v1.8.70 — 13/04/2026
+🏫 **EBD consolidada com cadastro mestre, escopo por igreja e vínculo com Secretaria**
+
+### Principais mudanças
+- ✅ Cadastro mestre de aluno na EBD com histórico consolidado de matrículas e transferências
+- ✅ Escopo por igreja aplicado em listagens, formulários, relatórios e ações sensíveis da EBD
+- ✅ Fluxos de vínculo individual e em lote entre cadastro da EBD e Pessoa da Secretaria
+
+---
+
 ## v1.8.69 — 13/04/2026
 🧭 **Hub de perfil integrado entre Configuração e Secretaria**
 

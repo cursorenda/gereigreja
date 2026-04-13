@@ -1,0 +1,116 @@
+{% extends 'base_com_menu.html' %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="mb-0">Histórico Consolidado do Aluno</h2>
+    <div class="d-flex gap-2">
+      <a href="{% url 'escola_biblica:aluno_detail' aluno.id %}" class="btn btn-secondary btn-sm">Voltar ao Perfil</a>
+      <a href="{% url 'escola_biblica:aluno_list' %}" class="btn btn-outline-secondary btn-sm">Lista de Alunos</a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h4 class="card-title mb-2">{{ cadastro.nome }}</h4>
+      <p class="mb-1"><strong>Nascimento:</strong> {{ cadastro.data_nascimento|date:'d/m/Y'|default:'-' }}</p>
+      <p class="mb-1"><strong>Igreja:</strong> {{ cadastro.igreja }}</p>
+      <p class="mb-0"><strong>Pessoa Secretaria:</strong> {{ cadastro.pessoa.nome|default:'Não vinculada' }}</p>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="small text-muted">Matrículas</div>
+          <div class="h4 mb-0">{{ total_matriculas }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="small text-muted">Transferências</div>
+          <div class="h4 mb-0">{{ total_transferencias }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="small text-muted">Frequências</div>
+          <div class="h4 mb-0">{{ total_frequencias }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card h-100">
+        <div class="card-body text-center">
+          <div class="small text-muted">Avaliações</div>
+          <div class="h4 mb-0">{{ total_avaliacoes }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if historico_anual %}
+    {% for item in historico_anual %}
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <strong>Ano:</strong> {{ item.ano }}
+        </div>
+        <div class="small text-muted">
+          Frequência: {{ item.presencas }}/{{ item.total_frequencias }}
+          {% if item.percentual_frequencia is not None %}
+            ({{ item.percentual_frequencia }}%)
+          {% endif %}
+          | Avaliações: {{ item.total_avaliacoes }}
+          {% if item.media_notas is not None %}
+            | Média: {{ item.media_notas }}
+          {% endif %}
+          | Participações: {{ item.participacoes }}
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <h6 class="mb-2">Matrículas no ano</h6>
+            {% if item.matriculas %}
+            <ul class="mb-0">
+              {% for matricula in item.matriculas %}
+              <li>
+                {{ matricula.turma }} - {{ matricula.ativo|yesno:'Ativa,Inativa' }}
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted mb-0">Sem matrículas registradas.</p>
+            {% endif %}
+          </div>
+          <div class="col-lg-6">
+            <h6 class="mb-2">Transferências no ano</h6>
+            {% if item.transferencias %}
+            <ul class="mb-0">
+              {% for transferencia in item.transferencias %}
+              <li>
+                {{ transferencia.data_transferencia|date:'d/m/Y' }}: {{ transferencia.turma_origem }} → {{ transferencia.turma_destino }}
+                {% if transferencia.motivo %}
+                  ({{ transferencia.motivo }})
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted mb-0">Sem transferências registradas.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="alert alert-info mb-0">Nenhum histórico anual consolidado encontrado para este cadastro.</div>
+  {% endif %}
+</div>
+{% endblock %}

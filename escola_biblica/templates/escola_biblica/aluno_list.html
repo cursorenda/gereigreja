@@ -16,45 +16,79 @@
             <div class="d-flex align-items-center">
                 <i class="fas fa-user-graduate me-2"></i>
                 <span style="font-size:1.1rem; font-weight:600;">Alunos</span>
-                <span class="ms-2 text-light" style="font-weight:400;">({{ alunos.count }})</span>
+                <span class="ms-2 text-light" style="font-weight:400;">({{ total_alunos }})</span>
             </div>
             <a href="{% url 'escola_biblica:aluno_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Adicionar</a>
         </div>
     </div>
     <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
-        <form method="GET" action="" class="row g-3 mb-3 align-items-center">
-            <div class="col-lg-4 col-12">
-                <input type="text" name="nome" class="form-control form-control-sm" placeholder="Nome ou Apelido" value="{{ request.GET.nome|default:'' }}">
+        <form method="GET" action="" class="row g-2 mb-3 align-items-center">
+            <div class="col-lg-1 col-md-2 col-6">
+                <select name="ano" class="form-select form-select-sm" style="height:40px;" {% if historico %}disabled{% endif %}>
+                    {% for ano_item in anos_letivos %}
+                        <option value="{{ ano_item.ano }}" {% if ano_filtro == ano_item.ano %}selected{% endif %}>{{ ano_item.ano }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="col-lg-3 col-6">
-                <select name="turma" class="form-select form-select-sm">
+            <div class="col-lg-2 col-md-4 col-12">
+                <input type="text" name="nome" class="form-control form-control-sm" style="height:40px;" placeholder="Nome ou Apelido" value="{{ request.GET.nome|default:'' }}">
+            </div>
+            <div class="col-lg-1 col-md-3 col-6">
+                <select name="turma" class="form-select form-select-sm" style="height:40px;">
                     <option value="">Turma</option>
                     {% for turma in turmas %}
                         <option value="{{ turma.id }}" {% if request.GET.turma == turma.id|stringformat:'s' %}selected{% endif %}>{{ turma.nome }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-lg-2 col-6">
-                <select name="ativo" class="form-select form-select-sm">
+            <div class="col-lg-1 col-md-2 col-6">
+                <select name="ativo" class="form-select form-select-sm" style="height:40px;">
                     <option value="">Ativo?</option>
                     <option value="True" {% if request.GET.ativo == 'True' %}selected{% endif %}>Sim</option>
                     <option value="False" {% if request.GET.ativo == 'False' %}selected{% endif %}>Não</option>
                 </select>
             </div>
-            <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
-                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                <a href="{% url 'escola_biblica:aluno_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span></a>
-                {% if request.GET.nome or request.GET.turma or request.GET.ativo %}
-                    <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+            <div class="col-lg-1 col-md-3 col-6">
+                <select name="vinculo" class="form-select form-select-sm" style="height:40px;">
+                    <option value="">Todos</option>
+                    <option value="vinculado" {% if vinculo_filtro == 'vinculado' %}selected{% endif %}>Vinculados</option>
+                    <option value="sem_vinculo" {% if vinculo_filtro == 'sem_vinculo' %}selected{% endif %}>Sem vínculo</option>
+                </select>
+            </div>
+            <div class="col-lg-1 col-md-12 col-12 d-flex align-items-center">
+                <div class="form-check mb-0 d-flex align-items-center" style="height:40px; padding-top:0;">
+                    <input class="form-check-input" type="checkbox" value="1" id="historico" name="historico" {% if historico %}checked{% endif %}>
+                    <label class="form-check-label ms-2 mb-0" for="historico" style="line-height: 1;">Ver histórico</label>
+                </div>
+            </div>
+            <div class="col-lg-5 col-md-12 col-12 d-flex align-items-center gap-2 flex-wrap flex-lg-nowrap">
+                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:90px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                {% if request.GET.nome or request.GET.turma or request.GET.ativo or request.GET.historico or request.GET.ano or request.GET.vinculo %}
+                    <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca" style="height:40px; min-width:80px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 {% endif %}
             </div>
         </form>
+        {% if usuario_pode_vincular and vinculo_filtro == 'sem_vinculo' and total_alunos %}
+        <div class="mb-3 d-flex justify-content-end gap-2 flex-wrap">
+            <a href="{% url 'escola_biblica:aluno_vinculo_secretaria_lote' %}{% if querystring %}?{{ querystring }}{% endif %}" class="btn btn-vibrant-blue btn-sm" style="height:36px; font-weight:600; border-radius:8px;">
+                <i class="fas fa-pen-to-square me-1"></i> Vinculação manual em massa
+            </a>
+            <form method="post" action="{% if querystring %}?{{ querystring }}{% endif %}">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="tentar_vinculo_lote">
+                <button type="submit" class="btn btn-vibrant-green btn-sm" style="height:36px; font-weight:600; border-radius:8px;">
+                    <i class="fas fa-link me-1"></i> Tentar vínculo automático (lote)
+                </button>
+            </form>
+        </div>
+        {% endif %}
         <div class="table-responsive">
             <table id="alunosTable" class="table table-striped table-bordered table-hover table-sm">
                 <thead class="table-light">
                     <tr>
                         <th>Nome</th>
                         <th>Turma</th>
+                        <th>Secretaria</th>
                         <th>Ativo</th>
                         <th>Ações</th>
                     </tr>
@@ -64,9 +98,20 @@
                     <tr>
                         <td>{{ aluno.nome }}</td>
                         <td>{{ aluno.turma }}</td>
+                        <td>
+                            {% if aluno.cadastro.pessoa %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Vinculado à Secretaria</span>
+                                <div class="small text-muted mt-1">{{ aluno.cadastro.pessoa.nome }}</div>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Sem vínculo na Secretaria</span>
+                            {% endif %}
+                        </td>
                         <td>{{ aluno.ativo|yesno:'Sim,Não' }}</td>
                         <td>
                             <a href="{% url 'escola_biblica:aluno_detail' aluno.id %}" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Ver Perfil"><i class="fas fa-user me-1"></i> Perfil</a>
+                            {% if usuario_pode_vincular %}
+                            <a href="{% url 'escola_biblica:aluno_vinculo_secretaria' aluno.id %}" class="btn btn-vibrant-green btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:120px; height:36px; font-weight:600; border-radius:8px;" title="Gerenciar vínculo com Secretaria"><i class="fas fa-link me-1"></i> Vínculo</a>
+                            {% endif %}
                             <a href="{% url 'escola_biblica:transferir_aluno' aluno.id %}" class="btn btn-vibrant-orange btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:110px; height:36px; font-weight:600; border-radius:8px;" title="Transferir Aluno"><i class="fas fa-random me-1"></i> Transferir</a>
                         </td>
                     </tr>
@@ -78,7 +123,7 @@
                 <ul class="pagination justify-content-center">
                     {% if alunos.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ alunos.previous_page_number }}" aria-label="Anterior">
+                            <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ alunos.previous_page_number }}" aria-label="Anterior">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -89,12 +134,12 @@
                         {% if alunos.number == num %}
                             <li class="page-item active"><span class="page-link">{{ num }}</span></li>
                         {% else %}
-                            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                            <li class="page-item"><a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ num }}">{{ num }}</a></li>
                         {% endif %}
                     {% endfor %}
                     {% if alunos.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ alunos.next_page_number }}" aria-label="Próxima">
+                            <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ alunos.next_page_number }}" aria-label="Próxima">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>

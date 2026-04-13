@@ -19,7 +19,10 @@ urlpatterns = [
     # Alunos
     path('alunos/', views.aluno_list, name='aluno_list'),
     path('alunos/novo/', views.aluno_create, name='aluno_create'),
+    path('alunos/vinculo-secretaria/lote/', views.aluno_vinculo_secretaria_lote, name='aluno_vinculo_secretaria_lote'),
     path('alunos/<int:pk>/', views.aluno_detail, name='aluno_detail'),
+    path('alunos/<int:pk>/historico-consolidado/', views.aluno_historico_consolidado, name='aluno_historico_consolidado'),
+    path('alunos/<int:pk>/vinculo-secretaria/', views.aluno_vinculo_secretaria, name='aluno_vinculo_secretaria'),
     path('alunos/<int:aluno_id>/transferir/', views.transferir_aluno, name='transferir_aluno'),
 
     # Classes

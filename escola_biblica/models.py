@@ -1,7 +1,17 @@
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from collections import defaultdict
+import unicodedata
 from secretaria.models import Membro
+from configuracao.models import Igreja
+
+
+def _normalizar_texto(valor):
+    texto = unicodedata.normalize('NFKD', (valor or '').strip())
+    texto_sem_acentos = ''.join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    return ' '.join(texto_sem_acentos.casefold().split())
 
 # --- MODELO DEPARTAMENTO ---
 class Departamento(models.Model):
@@ -73,7 +83,15 @@ class Classe(models.Model):
         ("INFANTIL", "Infantil"),
         ("ADULTO", "Adulto"),
     ]
-    nome = models.CharField(max_length=100, unique=True)
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='classes_ebd',
+        null=True,
+        blank=True,
+        verbose_name='Igreja',
+    )
+    nome = models.CharField(max_length=100)
     departamento = models.CharField(max_length=20, choices=DEPARTAMENTO_CHOICES, default="INFANTIL")
     faixa_etaria = models.CharField(max_length=50, blank=True)
     descricao = models.TextField(blank=True)
@@ -84,6 +102,9 @@ class Classe(models.Model):
         ordering = ['nome']
         verbose_name = 'Classe'
         verbose_name_plural = 'Classes'
+        constraints = [
+            models.UniqueConstraint(fields=['igreja', 'nome'], name='uq_classe_nome_por_igreja'),
+        ]
 
     def __str__(self):
         return self.nome
@@ -95,6 +116,14 @@ class Classe(models.Model):
 class Turma(models.Model):
     """Turma de alunos da EBD, vinculada a um ano letivo e classe."""
     nome = models.CharField(max_length=100)
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='turmas_ebd',
+        null=True,
+        blank=True,
+        verbose_name='Igreja',
+    )
     classe = models.ForeignKey(Classe, on_delete=models.PROTECT)
     ano_letivo = models.ForeignKey(AnoLetivo, on_delete=models.PROTECT)
     membros = models.ManyToManyField(Membro, related_name='turmas_ebd', blank=True, verbose_name='Colaboradores/Membros da Turma')
@@ -109,6 +138,12 @@ class Turma(models.Model):
     def __str__(self):
         return f"{self.nome} ({self.ano_letivo})"
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.classe_id and self.igreja_id and self.classe.igreja_id and self.classe.igreja_id != self.igreja_id:
+            raise ValidationError('A turma deve estar vinculada a uma classe da mesma igreja.')
+
     def get_professor_nome(self):
         from secretaria.models import MembroCargo
         cargos = MembroCargo.objects.filter(
@@ -121,8 +156,167 @@ class Turma(models.Model):
             return cargos.first().membro.nome
         return ''
 
+
+class CadastroAluno(models.Model):
+    """Cadastro mestre do aluno na EBD, independente do ano/turma."""
+    pessoa = models.ForeignKey(
+        'secretaria.Pessoa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registros_ebd',
+        verbose_name='Pessoa (Secretaria)',
+    )
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='cadastros_alunos_ebd',
+        verbose_name='Igreja',
+    )
+    nome = models.CharField(max_length=150)
+    data_nascimento = models.DateField(null=True, blank=True)
+    responsavel = models.CharField(max_length=150, blank=True)
+    telefone_responsavel = models.CharField(max_length=20, blank=True)
+    observacoes = models.TextField(blank=True)
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['nome']
+        indexes = [
+            models.Index(fields=['pessoa']),
+            models.Index(fields=['igreja', 'nome']),
+            models.Index(fields=['ativo']),
+        ]
+        verbose_name = 'Cadastro de Aluno EBD'
+        verbose_name_plural = 'Cadastros de Alunos EBD'
+
+    def __str__(self):
+        return self.nome
+
+    def tentar_vincular_pessoa(self, force=False):
+        if self.pessoa_id and not force:
+            return self.pessoa
+
+        pessoa = self._resolver_pessoa_existente()
+        if pessoa is not None:
+            self.pessoa = pessoa
+        return pessoa
+
+    def _resolver_pessoa_existente(self):
+        if self.pessoa_id or not self.igreja_id:
+            return self.pessoa if self.pessoa_id else None
+
+        nome = (self.nome or '').strip()
+        if not nome:
+            return None
+
+        from secretaria.models import Pessoa
+
+        candidatos = list(Pessoa.objects.filter(igreja_id=self.igreja_id, nome__iexact=nome))
+        if not candidatos:
+            return None
+
+        if self.data_nascimento:
+            correspondencias_exatas = [
+                pessoa for pessoa in candidatos if pessoa.nascimento == self.data_nascimento
+            ]
+            if len(correspondencias_exatas) == 1:
+                return correspondencias_exatas[0]
+            return None
+
+        correspondencias_por_nome = [
+            pessoa for pessoa in candidatos if _normalizar_texto(pessoa.nome) == _normalizar_texto(nome)
+        ]
+        if len(correspondencias_por_nome) == 1:
+            return correspondencias_por_nome[0]
+        return None
+
+    def _sincronizar_com_pessoa(self):
+        if not self.pessoa_id:
+            return
+
+        if self.pessoa.igreja_id and self.igreja_id != self.pessoa.igreja_id:
+            self.igreja = self.pessoa.igreja
+        if self.nome != self.pessoa.nome:
+            self.nome = self.pessoa.nome
+        if self.data_nascimento != self.pessoa.nascimento:
+            self.data_nascimento = self.pessoa.nascimento
+
+    def _sincronizar_matriculas(self):
+        if not self.pk:
+            return
+
+        matriculas = self.matriculas.all()
+        if self.pessoa_id:
+            matriculas.exclude(nome=self.nome, data_nascimento=self.data_nascimento).update(
+                nome=self.nome,
+                data_nascimento=self.data_nascimento,
+            )
+
+    def save(self, *args, **kwargs):
+        if not self.pessoa_id:
+            pessoa = self._resolver_pessoa_existente()
+            if pessoa is not None:
+                self.pessoa = pessoa
+
+        self._sincronizar_com_pessoa()
+        super().save(*args, **kwargs)
+        self._sincronizar_matriculas()
+
+    def get_matricula_atual(self):
+        return self.matriculas.select_related('turma', 'turma__ano_letivo').order_by(
+            '-ativo', '-turma__ano_letivo__ano', '-updated_at', '-id'
+        ).first()
+
+    def get_matricula_referencia(self, data_referencia=None, matriculas=None):
+        data_referencia = data_referencia or timezone.now().date()
+        matriculas = list(matriculas if matriculas is not None else self.matriculas.select_related('turma', 'turma__ano_letivo').all())
+        if not matriculas:
+            return None
+
+        matriculas_por_turma = defaultdict(list)
+        for matricula in matriculas:
+            matriculas_por_turma[matricula.turma_id].append(matricula)
+
+        for turma_id in matriculas_por_turma:
+            matriculas_por_turma[turma_id].sort(key=lambda item: (item.ativo, item.updated_at, item.id), reverse=True)
+
+        transferencias = list(
+            TransferenciaAluno.objects.filter(aluno__cadastro_id=self.pk)
+            .select_related('turma_origem', 'turma_destino')
+            .order_by('data_transferencia', 'id')
+        )
+
+        transferencia_passada = None
+        transferencia_futura = None
+        for transferencia in transferencias:
+            if transferencia.data_transferencia and transferencia.data_transferencia <= data_referencia:
+                transferencia_passada = transferencia
+            elif transferencia_futura is None:
+                transferencia_futura = transferencia
+                break
+
+        if transferencia_passada is not None:
+            candidatas = matriculas_por_turma.get(transferencia_passada.turma_destino_id)
+            if candidatas:
+                return candidatas[0]
+
+        if transferencia_futura is not None:
+            candidatas = matriculas_por_turma.get(transferencia_futura.turma_origem_id)
+            if candidatas:
+                return candidatas[0]
+
+        matricula_ativa = next((matricula for matricula in sorted(matriculas, key=lambda item: (item.ativo, item.updated_at, item.id), reverse=True) if matricula.ativo), None)
+        if matricula_ativa is not None:
+            return matricula_ativa
+
+        return sorted(matriculas, key=lambda item: (item.updated_at, item.id), reverse=True)[0]
+
 class Aluno(models.Model):
     """Aluno matriculado na EBD."""
+    cadastro = models.ForeignKey('CadastroAluno', on_delete=models.PROTECT, related_name='matriculas')
     nome = models.CharField(max_length=150)
     data_nascimento = models.DateField(null=True, blank=True)
     turma = models.ForeignKey('Turma', on_delete=models.PROTECT, related_name='alunos')
@@ -140,6 +334,157 @@ class Aluno(models.Model):
 
     def __str__(self):
         return self.nome
+
+    def _resolver_igreja_cadastro(self):
+        if not self.turma_id:
+            return None
+        turma = getattr(self, 'turma', None)
+        if turma is None:
+            turma = Turma.objects.select_related('igreja', 'classe__igreja').filter(pk=self.turma_id).first()
+        if turma is None:
+            return None
+        igreja = turma.igreja or getattr(turma.classe, 'igreja', None)
+        if igreja is not None:
+            return igreja
+
+        igreja_ids = list(
+            turma.membros.exclude(igreja_id__isnull=True)
+            .values_list('igreja_id', flat=True)
+            .distinct()[:2]
+        )
+        if len(igreja_ids) == 1:
+            return Igreja.objects.filter(pk=igreja_ids[0]).first()
+
+        return None
+
+    def _resolver_cadastro_existente(self, igreja):
+        nome = (self.nome or '').strip()
+        responsavel = (self.responsavel or '').strip()
+        telefone = (self.telefone_responsavel or '').strip()
+
+        qs = CadastroAluno.objects.filter(igreja=igreja, nome__iexact=nome)
+        if self.data_nascimento:
+            qs = qs.filter(data_nascimento=self.data_nascimento)
+        else:
+            qs = qs.filter(data_nascimento__isnull=True)
+            if responsavel:
+                qs = qs.filter(responsavel__iexact=responsavel)
+            if telefone:
+                qs = qs.filter(telefone_responsavel=telefone)
+        return qs.order_by('id').first()
+
+    def _obter_ou_criar_cadastro(self):
+        igreja = self._resolver_igreja_cadastro()
+        if igreja is None:
+            return None
+
+        cadastro_existente = self._resolver_cadastro_existente(igreja)
+        if cadastro_existente:
+            return cadastro_existente
+
+        cadastro = CadastroAluno(
+            igreja=igreja,
+            nome=self.nome,
+            data_nascimento=self.data_nascimento,
+            responsavel=self.responsavel,
+            telefone_responsavel=self.telefone_responsavel,
+            observacoes=self.observacoes,
+            ativo=self.ativo,
+        )
+        cadastro.save()
+        return cadastro
+
+    def _sincronizar_do_cadastro(self):
+        if not self.cadastro_id:
+            return
+
+        cadastro = getattr(self, 'cadastro', None)
+        if cadastro is None or cadastro.pk != self.cadastro_id:
+            cadastro = CadastroAluno.objects.select_related('pessoa').filter(pk=self.cadastro_id).first()
+            if cadastro is None:
+                return
+            self.cadastro = cadastro
+
+        if cadastro.pessoa_id:
+            self.nome = cadastro.nome
+            self.data_nascimento = cadastro.data_nascimento
+
+    def _sincronizar_cadastro(self):
+        if not self.cadastro_id:
+            return
+
+        cadastro = getattr(self, 'cadastro', None)
+        if cadastro is None or cadastro.pk != self.cadastro_id:
+            cadastro = CadastroAluno.objects.select_related('pessoa').filter(pk=self.cadastro_id).first()
+            if cadastro is None:
+                return
+            self.cadastro = cadastro
+
+        igreja = self._resolver_igreja_cadastro()
+        mudou = False
+
+        if igreja and cadastro.igreja_id != igreja.id:
+            cadastro.igreja = igreja
+            mudou = True
+
+        campos_sincronizados = ['responsavel', 'telefone_responsavel', 'observacoes', 'ativo']
+        if not cadastro.pessoa_id:
+            campos_sincronizados = ['nome', 'data_nascimento', *campos_sincronizados]
+
+        for field in campos_sincronizados:
+            valor_atual = getattr(cadastro, field)
+            valor_novo = getattr(self, field)
+            if valor_atual != valor_novo:
+                setattr(cadastro, field, valor_novo)
+                mudou = True
+
+        if mudou:
+            cadastro.save()
+
+    def save(self, *args, **kwargs):
+        if not self.cadastro_id:
+            cadastro = self._obter_ou_criar_cadastro()
+            if cadastro is not None:
+                self.cadastro = cadastro
+        self._sincronizar_do_cadastro()
+        super().save(*args, **kwargs)
+        self._sincronizar_cadastro()
+
+    def transferir_para(self, turma_destino, usuario_responsavel=None, motivo=''):
+        if turma_destino.pk == self.turma_id:
+            raise ValidationError('A turma de origem e destino não podem ser iguais.')
+
+        matricula_ativa_destino = Aluno.objects.filter(
+            cadastro_id=self.cadastro_id,
+            turma=turma_destino,
+            ativo=True,
+        ).exclude(pk=self.pk).first()
+        if matricula_ativa_destino is not None:
+            raise ValidationError('Este aluno já possui uma matrícula ativa na turma de destino.')
+
+        turma_origem = self.turma
+        self.ativo = False
+        self.save()
+
+        matricula_destino = Aluno.objects.create(
+            cadastro=self.cadastro,
+            nome=self.nome,
+            data_nascimento=self.data_nascimento,
+            turma=turma_destino,
+            responsavel=self.responsavel,
+            telefone_responsavel=self.telefone_responsavel,
+            observacoes=self.observacoes,
+            ativo=True,
+        )
+
+        transferencia = TransferenciaAluno.objects.create(
+            aluno=self,
+            turma_origem=turma_origem,
+            turma_destino=turma_destino,
+            motivo=motivo or '',
+            usuario_responsavel=usuario_responsavel,
+        )
+        return transferencia, matricula_destino
 
 class Frequencia(models.Model):
     """Registro de presença do aluno por data."""
@@ -205,6 +550,7 @@ class Licao(models.Model):
 # Oferta por Classe e Data
 class OfertaClasse(models.Model):
     """Oferta arrecadada por classe em uma data."""
+    turma = models.ForeignKey('Turma', on_delete=models.CASCADE, null=True, blank=True, related_name='ofertas')
     classe = models.ForeignKey(Classe, on_delete=models.CASCADE)
     data = models.DateField()
     valor = models.DecimalField("Oferta (R$)", max_digits=8, decimal_places=2)
@@ -213,12 +559,29 @@ class OfertaClasse(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("classe", "data")
         verbose_name = "Oferta da Classe"
         verbose_name_plural = "Ofertas das Classes"
+        constraints = [
+            models.UniqueConstraint(fields=['turma', 'data'], name='uq_oferta_turma_data'),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.turma_id:
+            if self.classe_id and self.turma.classe_id != self.classe_id:
+                raise ValidationError('A oferta deve usar a mesma classe vinculada na turma.')
+        elif not self.classe_id:
+            raise ValidationError('Informe a turma da oferta.')
+
+    def save(self, *args, **kwargs):
+        if self.turma_id:
+            self.classe = self.turma.classe
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.classe} - {self.data} - R$ {self.valor}"
+        referencia = self.turma if self.turma_id else self.classe
+        return f"{referencia} - {self.data} - R$ {self.valor}"
 
 
 # Registro de transferências de alunos entre turmas/classes
@@ -239,7 +602,6 @@ class TransferenciaAluno(models.Model):
         verbose_name_plural = 'Transferências de Alunos'
 
     def clean(self):
-        from django.core.exceptions import ValidationError
         if self.turma_origem == self.turma_destino:
             raise ValidationError("A turma de origem e destino não podem ser iguais.")
 
