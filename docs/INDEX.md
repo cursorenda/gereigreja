@@ -1,6 +1,6 @@
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 08/04/2026
+**Última Atualização:** 12/04/2026
 
 ---
 
@@ -10,6 +10,15 @@
 |-----------|-----------|-------------------|
 | [../README.md](../README.md) | README principal do projeto | — |
 | [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 12/03/2026 |
+
+---
+
+## 📌 Consolidado v1.8.x
+
+| Documento | Descrição | Última Atualização |
+|-----------|-----------|-------------------|
+| [MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md) | Consolidação técnica do ciclo v1.8.0 até v1.8.67 | 12/04/2026 |
+| [MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md) | Consolidação funcional para usuários finais (v1.8.0-v1.8.67) | 12/04/2026 |
 
 ---
 
@@ -126,6 +135,17 @@ Gereigreja/
 ---
 
 ## 🆕 Documentações Recentes (Março 2026)
+
+### 12/04/2026 - Consolidação do ciclo v1.8.x
+- **Arquivo:** [MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md)
+- **Conteúdo:**
+   - consolidação técnica por blocos (segurança, transferências, auditoria, deploy e financeiro)
+   - resumo executivo e inventário por fase do ciclo v1.8.x
+
+- **Arquivo:** [MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md)
+- **Conteúdo:**
+   - visão para operação diária em linguagem de usuário
+   - principais ganhos por módulo e orientações práticas
 
 ### 08/04/2026 - Modulo de Cargos
 - **Arquivo:** [CARGOS_USUARIOS.md](CARGOS_USUARIOS.md)

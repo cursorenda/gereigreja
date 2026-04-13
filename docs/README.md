@@ -10,19 +10,25 @@ A documentação está organizada em categorias temáticas. Veja o **[INDEX.md](
 
 ### Documentações Mais Acessadas
 
-1. **[VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md)**  
+1. **[MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md)**  
+   Consolidação técnica do ciclo v1.8.x (segurança, permissões, auditoria, testes e deploy)
+
+2. **[MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md)**  
+   Consolidação funcional para usuários finais (o que mudou no uso diário)
+
+3. **[VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md)**  
    Sistema completo de validações (CPF, Email, Máscaras, ViaCEP) - **NOVO 12/03/2026**
 
-2. **[ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](ANALISE_MELHORIAS_CADASTRO_PESSOAS.md)**  
+4. **[ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](ANALISE_MELHORIAS_CADASTRO_PESSOAS.md)**  
    23 melhorias propostas para o cadastro de pessoas
 
-3. **[GRUPOS_PERMISSOES.md](GRUPOS_PERMISSOES.md)**  
+5. **[GRUPOS_PERMISSOES.md](GRUPOS_PERMISSOES.md)**  
    Sistema de grupos e permissões do sistema
 
-4. **[ARQUITETURA_TEMPLATES.md](ARQUITETURA_TEMPLATES.md)**  
+6. **[ARQUITETURA_TEMPLATES.md](ARQUITETURA_TEMPLATES.md)**  
    Estrutura de templates e componentes reutilizáveis
 
-5. **[LGPD_IMPLEMENTACAO.md](LGPD_IMPLEMENTACAO.md)**  
+7. **[LGPD_IMPLEMENTACAO.md](LGPD_IMPLEMENTACAO.md)**  
    Conformidade com LGPD
 
 ## 🔍 Encontrar Documentação

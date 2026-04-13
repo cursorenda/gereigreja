@@ -1,3 +1,13 @@
+## v1.8.71 — 13/04/2026
+🧾 **Refino visual da auditoria e consolidação da documentação v1.8.x**
+
+### Principais mudanças
+- ✅ Ajustes de interface nas telas de acumulação de permissões e detalhes de usuário da Auditoria
+- ✅ Atualização do índice e da página principal de documentação com referências consolidadas
+- ✅ Inclusão dos documentos de consolidação técnica e funcional do ciclo v1.8.0 a v1.8.67
+
+---
+
 ## v1.8.70 — 13/04/2026
 🏫 **EBD consolidada com cadastro mestre, escopo por igreja e vínculo com Secretaria**
 
