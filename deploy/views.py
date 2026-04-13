@@ -60,10 +60,6 @@ def obter_commits_desde_ultimo_deploy():
     Obtém mudanças LOCAIS que ainda não foram enviadas ao servidor.
     Mostra commits feitos localmente mas que ainda não foram para o remote (origin).
     """
-    # DEBUG: Logar diretório corrente, branch e resultado do git log
-    import logging
-    logger = logging.getLogger('deploy_debug')
-    logger.warning('DEBUG deploy: cwd=%s', settings.BASE_DIR)
     branch_result_dbg = subprocess.run(
         ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
         capture_output=True,
@@ -71,7 +67,6 @@ def obter_commits_desde_ultimo_deploy():
         cwd=settings.BASE_DIR,
         encoding='utf-8'
     )
-    logger.warning('DEBUG deploy: branch local=%s', branch_result_dbg.stdout.strip())
     log_result_dbg = subprocess.run(
         ['git', 'log', 'origin/master..HEAD', '--oneline'],
         capture_output=True,
@@ -79,7 +74,6 @@ def obter_commits_desde_ultimo_deploy():
         cwd=settings.BASE_DIR,
         encoding='utf-8'
     )
-    logger.warning('DEBUG deploy: git log origin/master..HEAD --oneline = %s', log_result_dbg.stdout.strip())
     try:
         from .models import DeployHistorico
         

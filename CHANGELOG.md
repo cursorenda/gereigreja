@@ -1,3 +1,397 @@
+## v1.8.68 — 13/04/2026
+🛡️ **Hardening parcial de produção em secretaria, core e deploy**
+
+### Principais mudanças
+- ✅ Removidos handlers silenciosos e melhorada a observabilidade em fluxos críticos da Secretaria
+- ✅ Substituídos `print` de produção por `logger.debug` em utilitários centrais de escopo
+- ✅ Removidos logs residuais de debug no fluxo de deploy
+
+---
+
+## v1.8.67 — 12/04/2026
+💳 **Painel financeiro: indicadores corretos de contas a pagar**
+
+### Principais mudanças
+- ✅ Corrigidos cards de **Contas Pendentes** e **Contas Vencidas** no painel financeiro
+- ✅ Exibição de valor total por status (PEN/VEN)
+- ✅ Exibição de quantidade de contas por status com link direto para lista filtrada
+
+---
+
+## v1.8.66 — 12/04/2026
+🧪 **Estabilidade do fluxo de testes no deploy**
+
+### Principais mudanças
+- ✅ Execução de testes no deploy ajustada para `core.settings_test`
+- ✅ Evita erro de histórico inconsistente de migrations em execução automatizada
+- ✅ Ajustes nos testes de notificações para passar pelo middleware de grupos
+
+---
+
+## v1.8.65 — 12/04/2026
+🔔 **Notificações de assinatura com destinatários corretos**
+
+### Principais mudanças
+- ✅ Notificações de assinatura restritas a perfis financeiros ministeriais
+- ✅ Escopo de envio alinhado a `Admin Ministerio` e `Tesouraria Ministerial`
+
+---
+
+## v1.8.64 — 12/04/2026
+📬 **Hotfix de notificações (marcar todas)**
+
+### Principais mudanças
+- ✅ Corrigido fluxo de **Marcar Todas Lidas**
+- ✅ Endpoint reforçado para aceitar apenas `POST`
+- ✅ Removido JavaScript inválido que causava erro em runtime na tela de notificações
+
+---
+
+## v1.8.63 — 11/04/2026
+🎨 **Refino visual: logs e sessões da auditoria**
+
+### Principais mudanças
+- ✅ Reorganização de layout em `logs_alteracoes`, `logs_acessos_negados` e `sessoes_ativas`
+- ✅ Melhorias de filtros, leitura de tabela e paginação
+
+---
+
+## v1.8.62 — 11/04/2026
+🧭 **Rota canônica para atividades suspeitas**
+
+### Principais mudanças
+- ✅ Adicionada rota principal `/auditoria/atividades-suspeitas/`
+- ✅ Mantida compatibilidade com rota/template legado
+
+---
+
+## v1.8.61 — 11/04/2026
+🧱 **Consolidação de migrations da auditoria**
+
+### Principais mudanças
+- ✅ `0001_initial` consolidada com os 3 modelos da auditoria
+- ✅ `0002` transformada em no-op para compatibilidade de ambientes existentes
+
+---
+
+## v1.8.60 — 11/04/2026
+🗂️ **Admin-auditoria: central reorganizada em blocos**
+
+### Principais mudanças
+- ✅ Tela inicial do admin dedicado reorganizada em blocos de operação/consulta
+- ✅ Navegação mais clara para equipes técnicas e administrativas
+
+---
+
+## v1.8.59 — 11/04/2026
+🧭 **Admin-auditoria utilitário com links diretos**
+
+### Principais mudanças
+- ✅ Central da auditoria com links funcionais para ações principais
+- ✅ Breadcrumb ajustado para retorno ao `/admin/`
+
+---
+
+## v1.8.58 — 11/04/2026
+🧹 **Remoção de menu duplicado no admin-auditoria**
+
+### Principais mudanças
+- ✅ Eliminação de duplicidade visual no menu lateral
+- ✅ Navegação do admin dedicado simplificada
+
+---
+
+## v1.8.57 — 11/04/2026
+🔐 **Registro de modelos no admin-auditoria**
+
+### Principais mudanças
+- ✅ Modelos registrados no `AuditoriaAdminSite`
+- ✅ Superusuário passou a visualizar corretamente os recursos do módulo
+
+---
+
+## v1.8.56 — 11/04/2026
+🩹 **Fix NoReverseMatch no admin-auditoria**
+
+### Principais mudanças
+- ✅ Template de index dedicado para evitar reverse inválido
+- ✅ Estabilização da landing do admin dedicado
+
+---
+
+## v1.8.55 — 11/04/2026
+🚀 **Exposição do admin dedicado da auditoria**
+
+### Principais mudanças
+- ✅ Nova rota `/admin-auditoria/` integrada ao projeto
+
+---
+
+## v1.8.54 — 11/04/2026
+🛠️ **Admin da auditoria atualizado**
+
+### Principais mudanças
+- ✅ Ajustes em `auditoria/admin.py`
+- ✅ Inclusão de `admin_site` dedicado para o módulo
+
+---
+
+## v1.8.53 — 11/04/2026
+📈 **Painel de auditoria com KPI de alto risco**
+
+### Principais mudanças
+- ✅ Indicador de usuários com alta acumulação de grupos
+- ✅ Alerta visual para acelerar investigação
+
+---
+
+## v1.8.52 — 11/04/2026
+📊 **Correção de altura infinita dos gráficos da auditoria**
+
+### Principais mudanças
+- ✅ Ajustes de container/configuração para renderização estável
+
+---
+
+## v1.8.51 — 11/04/2026
+📉 **Gráficos no painel de auditoria via API**
+
+### Principais mudanças
+- ✅ Dashboard passou a consumir endpoint de estatísticas
+- ✅ Visualização inicial de métricas de auditoria
+
+---
+
+## v1.8.50 — 11/04/2026
+🕵️ **Tela para execução de auditoria de permissões**
+
+### Principais mudanças
+- ✅ Interface para acionar auditorias de permissão
+- ✅ Suporte operacional para conferências rápidas
+
+---
+
+## v1.8.49 — 11/04/2026
+🔌 **API de estatísticas da auditoria**
+
+### Principais mudanças
+- ✅ Endpoint de dados para gráficos e indicadores do painel
+
+---
+
+## v1.8.48 — 11/04/2026
+🧽 **Limpeza de templates de auditoria (snapshot residual)**
+
+### Principais mudanças
+- ✅ Removido conteúdo residual que contaminava templates novos
+- ✅ Estabilização de renderização e manutenção
+
+---
+
+## v1.8.47 — 11/04/2026
+🔎 **Detalhes de usuário e acumulação de permissões**
+
+### Principais mudanças
+- ✅ Nova análise de acumulação de permissões
+- ✅ Tela de detalhes de usuário para investigação contextual
+
+---
+
+## v1.8.46 — 11/04/2026
+🏗️ **Infraestrutura de auditoria automatizada**
+
+### Principais mudanças
+- ✅ Inclusão de middleware/signals/context processor/utilitários de auditoria
+- ✅ Indicador visual de modo auditoria
+
+---
+
+## v1.8.45 — 10/04/2026
+🧩 **Correção de favicon e charset em base landing**
+
+### Principais mudanças
+- ✅ Ajustes de compatibilidade visual e encoding em templates base
+
+---
+
+## v1.8.44 — 10/04/2026
+🩹 **Ajustes na análise de auditoria e alternar modo**
+
+### Principais mudanças
+- ✅ Correção de referência `nome_fantasia`
+- ✅ Ajuste de redirect no fluxo de alternância de modo
+
+---
+
+## v1.8.43 — 10/04/2026
+🧰 **Modo auditoria, exportação CSV e atividades suspeitas**
+
+### Principais mudanças
+- ✅ Alternância de modo auditoria
+- ✅ Exportação CSV
+- ✅ Primeira versão da análise de atividades suspeitas
+
+---
+
+## v1.8.42 — 10/04/2026
+🗃️ **Compatibilidade de migration para Render**
+
+### Principais mudanças
+- ✅ Migration `0002` ajustada com `SeparateDatabaseAndState`
+- ✅ Tratamento para tabelas já existentes em produção
+
+---
+
+## v1.8.41 — 10/04/2026
+🧹 **Hotfix de limpeza em templates da auditoria**
+
+### Principais mudanças
+- ✅ Removidos trechos residuais que quebravam consistência de templates
+
+---
+
+## v1.8.40 — 10/04/2026
+📌 **Lote 17: painel e rotas básicas da auditoria**
+
+### Principais mudanças
+- ✅ Primeira entrega de interface e endpoints do módulo de auditoria
+
+---
+
+## v1.8.39 — 10/04/2026
+🧱 **Lote 16: expansão da base de modelos da auditoria**
+
+### Principais mudanças
+- ✅ Evolução estrutural dos modelos do app de auditoria
+
+---
+
+## v1.8.38 — 10/04/2026
+🧪 **Lote 15: painel pytest no admin**
+
+### Principais mudanças
+- ✅ App `painel_testes` para execução e visibilidade de testes no admin
+
+---
+
+## v1.8.37 — 10/04/2026
+🧪 **Lote 14: padronização pytest com settings_test**
+
+### Principais mudanças
+- ✅ Base de testes ajustada para ambiente controlado e reprodutível
+
+---
+
+## v1.8.36 — 10/04/2026
+🏁 **Lote 13: base mínima da app auditoria**
+
+### Principais mudanças
+- ✅ Estrutura inicial da app `auditoria` no projeto
+
+---
+
+## v1.8.35 — 10/04/2026
+🛡️ **Lote 12: painel admin de permissões e rotas de teste**
+
+### Principais mudanças
+- ✅ Ativação de painel administrativo de permissões
+- ✅ Inclusão de rotas de teste de autorização
+
+---
+
+## v1.8.34 — 10/04/2026
+🖼️ **Padronização de layout em telas de permissões**
+
+### Principais mudanças
+- ✅ Ajustes visuais para uso consistente com menu lateral
+
+---
+
+## v1.8.33 — 10/04/2026
+🩹 **Fix de ordem de state/migration em contas 0007**
+
+### Principais mudanças
+- ✅ Corrigida sequência para evitar inconsistência durante migração
+
+---
+
+## v1.8.32 — 10/04/2026
+🧰 **Lote 11: ajustes em testes de eventos e scripts auxiliares**
+
+### Principais mudanças
+- ✅ Melhorias seguras em testes e scripts de apoio
+
+---
+
+## v1.8.31 — 10/04/2026
+🔁 **Idempotência em migration contas 0007**
+
+### Principais mudanças
+- ✅ Migration ajustada para cenários com tabelas pré-existentes
+
+---
+
+## v1.8.30 — 10/04/2026
+🧭 **Lote 10: solicitação de permissões e painéis hierárquicos**
+
+### Principais mudanças
+- ✅ Fluxo de solicitação de permissões
+- ✅ Painéis hierárquicos para gestão de vínculos e aprovações
+
+---
+
+## v1.8.29 — 10/04/2026
+🧷 **Fix de favicon em templates base**
+
+### Principais mudanças
+- ✅ Correção de referência de favicon e limpeza de arquivo stale
+
+---
+
+## v1.8.28 — 10/04/2026
+🧩 **Lote 9: melhorias em tags, auditoria e templates**
+
+### Principais mudanças
+- ✅ Templatetag de hierarquia e helpers de auditoria
+- ✅ Refatorações em suporte/configuração e templates de formulários
+
+---
+
+## v1.8.27 — 09/04/2026
+🛠️ **Backfill de notificações de transferências**
+
+### Principais mudanças
+- ✅ Novo comando para repovoar notificações de transferências já existentes
+
+---
+
+## v1.8.26 — 09/04/2026
+🩹 **Fix em transferências: validação e ações/notificações**
+
+### Principais mudanças
+- ✅ Tratamento de `membro_id` inválido
+- ✅ Melhorias de ações e notificações no fluxo
+
+---
+
+## v1.8.25 — 09/04/2026
+🧱 **Lote 8: assets/admin panel e testes de cargos**
+
+### Principais mudanças
+- ✅ Promoção de assets e ajustes seguros no painel admin
+- ✅ Evolução de testes de cargos
+
+---
+
+## v1.8.24 — 09/04/2026
+🔄 **Sincronização central de grupos por cargos ativos**
+
+### Principais mudanças
+- ✅ Serviço central para sincronizar grupos de acordo com cargos ativos
+- ✅ Redução de divergência entre cargo funcional e permissões efetivas
+
+---
+
 ## v1.8.23 — 08/04/2026
 🔁 **Transferências: fluxo completo de decisão (aprovar, recusar, cancelar) com notificações**
 

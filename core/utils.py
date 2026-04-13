@@ -197,67 +197,67 @@ def get_igrejas_permitidas(user, ministerio=None):
     from configuracao.models import Igreja
     from contas.constants import user_escopo_ministerial, user_escopo_regional, user_escopo_local
     
-    print(f"\n[GET_IGREJAS_PERMITIDAS] Iniciando para user={user.username}")
+    logger.debug("[GET_IGREJAS_PERMITIDAS] Iniciando para user=%s", user.username)
     
     # Superusuário vê TUDO
     if user.is_superuser:
-        print(f"[GET_IGREJAS_PERMITIDAS] Usuário é SUPERUSER - retornando TODAS")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Usuário é SUPERUSER - retornando TODAS")
         return Igreja.objects.all()
     
     if not user.is_authenticated:
-        print(f"[GET_IGREJAS_PERMITIDAS] Usuário NÃO autenticado - retornando VAZIO")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Usuário NÃO autenticado - retornando VAZIO")
         return Igreja.objects.none()
     
     # Tenta pegar ministério do perfil se não foi fornecido
     if not ministerio:
         try:
             ministerio = user.perfil.ministerio
-            print(f"[GET_IGREJAS_PERMITIDAS] Ministério obtido do perfil: {ministerio}")
-        except:
-            print(f"[GET_IGREJAS_PERMITIDAS] Erro ao obter ministério do perfil")
+            logger.debug("[GET_IGREJAS_PERMITIDAS] Ministério obtido do perfil: %s", ministerio)
+        except Exception:
+            logger.debug("[GET_IGREJAS_PERMITIDAS] Erro ao obter ministério do perfil")
             return Igreja.objects.none()
     
     if not ministerio:
-        print(f"[GET_IGREJAS_PERMITIDAS] Ministério é None - retornando VAZIO")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Ministério é None - retornando VAZIO")
         return Igreja.objects.none()
     
     # ESCOPO MINISTERIAL: Admin, Liderança Secretaria, Liderança Financeira
     if user_escopo_ministerial(user):
-        print(f"[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO MINISTERIAL")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO MINISTERIAL")
         # Verifica se tem igrejas específicas no perfil
         if hasattr(user, 'perfil') and user.perfil.igrejas_permitidas.exists():
             igrejas = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
-            print(f"[GET_IGREJAS_PERMITIDAS] Usando igrejas_permitidas do perfil: {list(igrejas.values_list('id', 'nome_igreja'))}")
+            logger.debug("[GET_IGREJAS_PERMITIDAS] Usando igrejas_permitidas do perfil")
             return igrejas
         # Se não tem restrição, vê TODAS do ministério
         igrejas = Igreja.objects.filter(ministerio=ministerio)
-        print(f"[GET_IGREJAS_PERMITIDAS] Retornando TODAS as igrejas do ministério: {list(igrejas.values_list('id', 'nome_igreja'))}")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Retornando TODAS as igrejas do ministério")
         return igrejas
     
     # ESCOPO REGIONAL: Pastor Regional
     elif user_escopo_regional(user):
-        print(f"[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO REGIONAL")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO REGIONAL")
         # TODO: Implementar filtro por região quando o campo estiver pronto
         # Por enquanto, usa igrejas_permitidas do perfil
         if hasattr(user, 'perfil') and user.perfil.igrejas_permitidas.exists():
             igrejas_base = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
             # Inclui subordinadas
             igrejas = _get_igrejas_com_subordinadas(igrejas_base, ministerio)
-            print(f"[GET_IGREJAS_PERMITIDAS] Retornando igrejas regionais + subordinadas: {list(igrejas.values_list('id', 'nome_igreja'))}")
+            logger.debug("[GET_IGREJAS_PERMITIDAS] Retornando igrejas regionais + subordinadas")
             return igrejas
         # Se não tem igrejas no perfil, retorna vazio
-        print(f"[GET_IGREJAS_PERMITIDAS] Sem igrejas_permitidas - retornando VAZIO")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Sem igrejas_permitidas - retornando VAZIO")
         return Igreja.objects.none()
     
     # ESCOPO LOCAL: Pastor Local, Secretário, Tesoureiro, Equipes, etc
     elif user_escopo_local(user):
-        print(f"[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO LOCAL")
+        logger.debug("[GET_IGREJAS_PERMITIDAS] Usuário tem ESCOPO LOCAL")
         if hasattr(user, 'perfil'):
             # Usa igrejas_permitidas do perfil
             if user.perfil.igrejas_permitidas.exists():
                 igrejas_base = user.perfil.igrejas_permitidas.filter(ministerio=ministerio)
                 igrejas = _get_igrejas_com_subordinadas(igrejas_base, ministerio)
-                print(f"[GET_IGREJAS_PERMITIDAS] Usando igrejas_permitidas: {list(igrejas.values_list('id', 'nome_igreja'))}")
+                logger.debug("[GET_IGREJAS_PERMITIDAS] Usando igrejas_permitidas")
                 return igrejas
             else:
                 # Fallback seguro: usa igreja(s) vinculada(s) ao membro do próprio usuário.
@@ -268,19 +268,19 @@ def get_igrejas_permitidas(user, ministerio=None):
                         ministerio=ministerio,
                     ).distinct()
                     if igrejas_membro.exists():
-                        print(f"[GET_IGREJAS_PERMITIDAS] Fallback por vínculo de membro: {list(igrejas_membro.values_list('id', 'nome_igreja'))}")
+                        logger.debug("[GET_IGREJAS_PERMITIDAS] Fallback por vínculo de membro")
                         return igrejas_membro
                 except Exception as exc:
-                    print(f"[GET_IGREJAS_PERMITIDAS] Falha no fallback por membro: {exc}")
+                    logger.debug("[GET_IGREJAS_PERMITIDAS] Falha no fallback por membro: %s", exc)
 
-                print(f"[GET_IGREJAS_PERMITIDAS] Perfil sem igrejas_permitidas e sem vínculo de membro - retornando VAZIO")
+                logger.debug("[GET_IGREJAS_PERMITIDAS] Perfil sem igrejas_permitidas e sem vínculo de membro - retornando VAZIO")
         else:
-            print(f"[GET_IGREJAS_PERMITIDAS] Usuário sem perfil - retornando VAZIO")
+            logger.debug("[GET_IGREJAS_PERMITIDAS] Usuário sem perfil - retornando VAZIO")
         
         return Igreja.objects.none()
     
     # Sem grupo: sem acesso
-    print(f"[GET_IGREJAS_PERMITIDAS] Usuário SEM ESCOPO definido - retornando VAZIO")
+    logger.debug("[GET_IGREJAS_PERMITIDAS] Usuário SEM ESCOPO definido - retornando VAZIO")
     return Igreja.objects.none()
 
 

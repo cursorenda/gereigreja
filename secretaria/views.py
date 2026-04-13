@@ -853,8 +853,8 @@ def buscar_visitantes(request):
     termo = request.GET.get('q', '').strip()
     try:
         logger.info('buscar_visitantes called q=%s user=%s evento=%s', termo, getattr(request, 'user', None), request.GET.get('evento'))
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug('Falha ao registrar log inicial de buscar_visitantes: %s', exc)
     # Busca ignorando acentuação (PostgreSQL: unaccent)
     import unicodedata
     def remover_acentos(txt):
@@ -906,13 +906,10 @@ def buscar_visitantes(request):
                         except Exception:
                             # As a last resort, make a QuerySet that contains only the active church
                             allowed_churches = _Igreja.objects.filter(pk=request.igreja_ativa.pk)
-                    try:
-                        logger.debug('buscar_visitantes: recepcao fallback applied; igreja_ativa=%s', request.igreja_ativa)
-                    except Exception:
-                        pass
-            except Exception:
+                    logger.debug('buscar_visitantes: recepcao fallback applied; igreja_ativa=%s', request.igreja_ativa)
+            except Exception as exc:
                 # Don't break the search if this fallback fails; continue with original allowed_churches
-                pass
+                logger.warning('buscar_visitantes: falha no fallback de recepcao: %s', exc)
 
             # Determine escola_qs_kwargs de forma robusta (suporta QuerySet ou lista)
             escola_qs_kwargs = None
@@ -973,20 +970,10 @@ def buscar_visitantes(request):
             info['allowed_churches'] = str(allowed_churches)
         except Exception:
             info['allowed_churches'] = 'n/a'
-        try:
-            logger.debug('buscar_visitantes debug: %s', info)
-        except Exception:
-            pass
+        logger.debug('buscar_visitantes debug: %s', info)
         return JsonResponse(info, safe=False)
 
-    try:
-        # debug log to help diagnose empty autocomplete results
-        try:
-            logger.debug('buscar_visitantes q=%s results=%s', termo, len(visitantes))
-        except Exception:
-            pass
-    except Exception:
-        pass
+    logger.debug('buscar_visitantes q=%s results=%s', termo, len(visitantes))
     return JsonResponse(visitantes, safe=False)
 from .forms_presenca_visitante_evento import PresencaVisitanteEventoForm
 from eventos.models import Evento
@@ -1000,9 +987,8 @@ def registrar_presenca_visitante_evento(request):
     # Garantir conexões ativas/recém-abertas (mitiga 'connection already closed')
     try:
         close_old_connections()
-    except Exception:
-        pass
-    print(f"[DEBUG] igreja_ativa: {getattr(request, 'igreja_ativa', None)} | id: {getattr(getattr(request, 'igreja_ativa', None), 'id', None)} | user: {request.user}")
+    except Exception as exc:
+        logger.warning('registrar_presenca_visitante_evento: falha em close_old_connections: %s', exc)
     hoje = timezone.localdate()
     fim = hoje + timezone.timedelta(days=7)
     eventos_do_dia = Evento.objects.none()
@@ -1089,10 +1075,7 @@ def registrar_presenca_visitante_evento(request):
             messages.error(request, 'Evento selecionado não encontrado.')
         except Exception as e:
             # Evita 500 quando o banco está indisponível ou outra falha ocorre; registra e mostra mensagem amigável
-            try:
-                logger.exception('Erro ao carregar evento selecionado: %s', e)
-            except Exception:
-                pass
+            logger.exception('Erro ao carregar evento selecionado: %s', e)
             evento_selecionado = None
             pessoas_presentes = []
             messages.error(request, 'Erro ao carregar o evento selecionado. Verifique os logs.')
@@ -1149,10 +1132,7 @@ def registrar_presenca_visitante_evento(request):
                                 sessao_obj = None
                         ParticipacaoEvento.objects.create(evento=evento, membro=membro, sessao=sessao_obj, papel='PARTICIPANTE', status='PRESENTE', confirmado_em=_tz.now())
                 except Exception:
-                    try:
-                        logger.exception('Erro ao sincronizar ParticipacaoEvento após registrar PresencaVisitanteEvento')
-                    except Exception:
-                        pass
+                    logger.exception('Erro ao sincronizar ParticipacaoEvento após registrar PresencaVisitanteEvento')
                 messages.success(request, f'Presença de "{presenca.membro.nome}" registrada no evento!')
             # Redirect back to the same path with the evento querystring.
             try:
@@ -1165,10 +1145,7 @@ def registrar_presenca_visitante_evento(request):
             try:
                 logger.warning('presenca form invalid: errors=%s; POST keys=%s', dict(form.errors), list(request.POST.keys()))
             except Exception:
-                try:
-                    logger.warning('presenca form invalid; unable to serialize errors; POST keys=%s', list(request.POST.keys()))
-                except Exception:
-                    pass
+                logger.warning('presenca form invalid; unable to serialize errors; POST keys=%s', list(request.POST.keys()))
             messages.error(request, 'Erro ao registrar presença: verifique se a pessoa e o evento foram selecionados corretamente.')
     else:
         form = PresencaVisitanteEventoForm(request=request)
@@ -1193,8 +1170,8 @@ def ajax_registrar_presenca_evento(request):
     try:
         try:
             close_old_connections()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning('ajax_registrar_presenca_evento: falha em close_old_connections: %s', exc)
         # generate a short trace id for this AJAX request to correlate logs/responses
         try:
             import uuid
@@ -1203,14 +1180,14 @@ def ajax_registrar_presenca_evento(request):
             trace_id = 'na'
         try:
             logger.info('ajax_registrar_presenca_evento called trace=%s user=%s POST_keys=%s', trace_id, request.user, list(request.POST.keys()))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug('ajax_registrar_presenca_evento: falha em log de entrada: %s', exc)
         evento_id = request.POST.get('evento') or request.POST.get('evento_id')
         membro_id = request.POST.get('membro') or request.POST.get('membro_id')
         try:
             logger.debug('ajax_registrar_presenca_evento POST keys: %s', list(request.POST.keys()))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug('ajax_registrar_presenca_evento: falha em log de POST keys: %s', exc)
         if not evento_id or not membro_id:
             return JsonResponse({'error': 'Evento ou membro não informado.', 'trace_id': trace_id}, status=400)
         # Tenta localizar evento e membro
@@ -1244,10 +1221,7 @@ def ajax_registrar_presenca_evento(request):
         try:
             logger.info('Presença salva via AJAX: trace=%s presenca_pk=%s membro_chave=%s evento_id=%s', trace_id, presenca.pk, getattr(membro, 'chave', membro.pk), getattr(evento, 'pk', None))
         except Exception:
-            try:
-                logger.info('Presença salva via AJAX (could not format identifiers)')
-            except Exception:
-                pass
+            logger.info('Presença salva via AJAX (could not format identifiers)')
         # Também sincroniza com ParticipacaoEvento para que a presença apareça
         try:
             from eventos.models import ParticipacaoEvento, EventoSessao
@@ -1268,10 +1242,7 @@ def ajax_registrar_presenca_evento(request):
                 try:
                     logger.info('ParticipacaoEvento updated via AJAX: evento=%s membro_chave=%s sessao=%s count=%s', evento.pk, getattr(membro, 'chave', membro.pk), sessao_id, parts.count())
                 except Exception:
-                    try:
-                        logger.info('ParticipacaoEvento updated via AJAX (could not format identifiers)')
-                    except Exception:
-                        pass
+                    logger.info('ParticipacaoEvento updated via AJAX (could not format identifiers)')
             else:
                 sessao_obj = None
                 if sessao_id:
@@ -1283,15 +1254,9 @@ def ajax_registrar_presenca_evento(request):
                 try:
                     logger.info('ParticipacaoEvento criado via AJAX: pk=%s evento=%s membro_chave=%s sessao=%s', new_part.pk, evento.pk, getattr(membro, 'chave', membro.pk), getattr(sessao_obj, 'pk', None) if sessao_obj else None)
                 except Exception:
-                    try:
-                        logger.info('ParticipacaoEvento criado via AJAX (could not format identifiers)')
-                    except Exception:
-                        pass
+                    logger.info('ParticipacaoEvento criado via AJAX (could not format identifiers)')
         except Exception:
-            try:
-                logger.exception('Erro ao sincronizar ParticipacaoEvento após ajax_registrar_presenca_evento')
-            except Exception:
-                pass
+            logger.exception('Erro ao sincronizar ParticipacaoEvento após ajax_registrar_presenca_evento')
         hora = presenca.data_registro.strftime('%H:%M') if presenca.data_registro else ''
         presenca_data = {'id': presenca.pk, 'nome': membro.nome, 'apelido': getattr(membro, 'apelido', '') or '', 'hora': hora}
         try:
@@ -1616,27 +1581,27 @@ def safe_instantiate_membroform(*args, **kwargs):
                             inst.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
                         else:
                             inst.fields['igreja'].queryset = Igreja.objects.none()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug('cadastrar_visitante._resolve_membroform: falha ao configurar queryset de igreja: %s', exc)
                     try:
                         if igreja_inicial and getattr(inst.fields['igreja'].queryset, 'filter', None):
                             if inst.fields['igreja'].queryset.filter(pk=igreja_inicial.pk).exists():
                                 inst.initial.setdefault('igreja', igreja_inicial)
                                 inst.fields['igreja'].disabled = True
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug('cadastrar_visitante._resolve_membroform: falha ao aplicar igreja inicial: %s', exc)
                 if 'tipo_pessoa' in inst.fields:
                     try:
                         inst.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug('cadastrar_visitante._resolve_membroform: falha ao configurar tipo_pessoa: %s', exc)
                 if 'status_pessoa' in inst.fields:
                     try:
                         inst.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    except Exception as exc:
+                        logger.debug('cadastrar_visitante._resolve_membroform: falha ao configurar status_pessoa: %s', exc)
+        except Exception as exc:
+            logger.warning('cadastrar_visitante._resolve_membroform: falha em ajuste pós-init do formulário: %s', exc)
         return inst
 ## Imports above
 # --- VIEW PARA CADASTRAR VISITANTE (cria membro com tipo_pessoa=Visitante) ---
@@ -1729,8 +1694,8 @@ def criar_visitante_parcial(request):
     """Retorna o formulário parcial do visitante para uso em modal (GET) ou processa criação via AJAX (POST -> JSON)."""
     try:
         close_old_connections()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('criar_visitante_parcial: falha em close_old_connections: %s', exc)
     # Debug writes for visitante creation are controlled by Django's settings.DEBUG.
     # Temporary forcing toggles were removed to avoid writing debug files in production.
     ministerio = get_ministerio_or_error(request)
@@ -1742,15 +1707,9 @@ def criar_visitante_parcial(request):
         # we still want to process the creation and return structured JSON instead of
         # rendering the partial HTML (which causes the browser to navigate to the partial).
         is_ajax = bool(request.headers.get('x-requested-with') == 'XMLHttpRequest')
-        try:
-            logger.debug('criar_visitante_parcial called via POST; is_ajax=%s; POST keys=%s', is_ajax, list(request.POST.keys()))
-        except Exception:
-            pass
+        logger.debug('criar_visitante_parcial called via POST; is_ajax=%s; POST keys=%s', is_ajax, list(request.POST.keys()))
         # Log incoming POST keys for easier debugging when the client reports missing IDs
-        try:
-            logger.debug('criar_visitante_parcial POST keys (before injection): %s', list(request.POST.keys()))
-        except Exception:
-            pass
+        logger.debug('criar_visitante_parcial POST keys (before injection): %s', list(request.POST.keys()))
 
         # Ensure the POST contains the required tipo_pessoa (Visitante) and a sensible default status_pessoa
         try:
@@ -1762,7 +1721,8 @@ def criar_visitante_parcial(request):
         try:
             # from .models import StatusPessoa  # Already imported at top if needed
             default_status = StatusPessoa.objects.filter(nome__iexact='Ativo').first() or StatusPessoa.objects.first()
-        except Exception:
+        except Exception as exc:
+            logger.warning('criar_visitante_parcial: falha ao buscar status padrão: %s', exc)
             default_status = None
 
         # Copy POST data and inject tipo_pessoa and status_pessoa so form validation passes
@@ -1775,13 +1735,10 @@ def criar_visitante_parcial(request):
         try:
             if not data.get('igreja') or str(data.get('igreja')).strip() == '':
                 data['igreja'] = str(request.igreja_ativa.pk) if hasattr(request, 'igreja_ativa') and request.igreja_ativa else ''
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning('criar_visitante_parcial: falha ao injetar igreja ativa no payload: %s', exc)
 
-        try:
-            logger.debug('criar_visitante_parcial POST keys (after injection): %s', list(data.keys()))
-        except Exception:
-            pass
+        logger.debug('criar_visitante_parcial POST keys (after injection): %s', list(data.keys()))
 
         # For visitante creation, some choice fields in MembroForm are required but
         # the modal/client typically sends a minimal payload. Inject sensible
@@ -1796,8 +1753,8 @@ def criar_visitante_parcial(request):
             # escolaridade: choose a safe default matching choices in forms
             if not data.get('escolaridade'):
                 data['escolaridade'] = 'Sem Escolaridade'
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning('criar_visitante_parcial: falha ao injetar defaults de campos obrigatórios: %s', exc)
 
         try:
             form = MembroForm(data, request.FILES,
@@ -1964,8 +1921,8 @@ def criar_visitante_parcial(request):
                     logger.debug('visitante create - validation_failed - user=%s post=%s errors=%s', request.user, sanitized, errors)
                 except Exception:
                     logger.debug('visitante create - failed to log validation_failed', exc_info=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug('visitante create - falha ao serializar payload para log: %s', exc)
             return JsonResponse({'errors': errors, 'errors_html': errors_html}, status=400)
 
     # GET -> render partial
@@ -2011,8 +1968,8 @@ def criar_visitante_parcial(request):
             form.initial['nome'] = q
             if 'nome' in form.fields:
                 form.fields['nome'].initial = q
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning('criar_visitante_parcial: falha ao preencher nome inicial: %s', exc)
 
     # Ensure the partial knows which tipo/status will be applied so we can render hidden inputs
     try:
@@ -2021,7 +1978,8 @@ def criar_visitante_parcial(request):
         tipo_visitante = None
     try:
         default_status = StatusPessoa.objects.filter(nome__iexact='Ativo').first() or StatusPessoa.objects.first()
-    except Exception:
+    except Exception as exc:
+        logger.warning('criar_visitante_parcial: falha ao buscar status padrão (GET): %s', exc)
         default_status = None
     # Ensure the form's igreja queryset includes the active church so the select shows the correct value
     try:
@@ -2032,21 +1990,22 @@ def criar_visitante_parcial(request):
                     from configuracao.models import Igreja as _Igreja
                     # prepend the active church to the queryset so it appears in the select
                     form.fields['igreja'].queryset = _Igreja.objects.filter(pk=request.igreja_ativa.pk) | igreja_field_qs
-            except Exception:
+            except Exception as exc:
+                logger.warning('criar_visitante_parcial: falha ao ajustar queryset de igreja: %s', exc)
                 # fallback: set queryset to include at least the active church
                 try:
                     from configuracao.models import Igreja as _Igreja
                     form.fields['igreja'].queryset = _Igreja.objects.filter(pk=request.igreja_ativa.pk)
-                except Exception:
-                    pass
+                except Exception as exc2:
+                    logger.warning('criar_visitante_parcial: falha no fallback de queryset de igreja: %s', exc2)
             # set initial if not already set
             try:
                 if not form.initial.get('igreja'):
                     form.initial['igreja'] = request.igreja_ativa
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as exc:
+                logger.warning('criar_visitante_parcial: falha ao setar igreja inicial: %s', exc)
+    except Exception as exc:
+        logger.warning('criar_visitante_parcial: falha ao preparar campo de igreja: %s', exc)
 
     return render(request, 'secretaria/partials/_visitante_form.html', {
         'form': form,
@@ -2070,8 +2029,8 @@ def ajax_get_presencas_evento(request):
     """Retorna fragmento HTML com as presenças do evento (para atualização parcial)."""
     try:
         close_old_connections()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning('ajax_get_presencas_evento: falha em close_old_connections: %s', exc)
     evento_id = request.GET.get('evento')
     if not evento_id:
         return JsonResponse({'error': 'evento não informado.'}, status=400)
@@ -3251,8 +3210,8 @@ def criar_grupo_casa(request):
                 try:
                     if getattr(allowed_churches, 'count', None) and allowed_churches.count() == 1:
                         grupo.igreja = allowed_churches.first()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning('criar_grupo_casa: falha ao inferir igreja única permitida: %s', exc)
             grupo.responsavel = request.user
             if not getattr(grupo, 'igreja', None):
                 messages.error(request, 'Não foi possível determinar a igreja para o novo grupo. Verifique sua seleção de igreja/permissões.')
@@ -3883,8 +3842,8 @@ def editar_membro(request, membro_id): # noqa: E302
             from datetime import datetime
             filtro_data_dt = datetime.strptime(filtro_data, '%Y-%m-%d').date()
             acompanhamentos_visita = acompanhamentos_visita.filter(data__date=filtro_data_dt)
-        except Exception:
-            pass
+        except ValueError:
+            logger.debug('editar_membro: filtro_data inválido recebido: %s', filtro_data)
     from .models import MembroCargo
     cargos_historico = MembroCargo.objects.filter(membro=membro).select_related('cargo').order_by('-data_inicio')
     
