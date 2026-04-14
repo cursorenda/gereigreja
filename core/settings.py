@@ -126,6 +126,7 @@ TEMPLATES = [
                 'core.context_processors.transferencias_pendentes_count',
                 'core.context_processors.sistema_nome',
                 'auditoria.context_processors.modo_auditoria_flag',
+                'configuracao.context_onboarding.onboarding_context',
             ],
         },
     },

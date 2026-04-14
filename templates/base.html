@@ -19,6 +19,40 @@
 </head>
 <body class="bg-light"> {# Pode usar bg-primary ou outra cor de fundo se preferir para login/registro #}
 
+        {# Assistente de Onboarding Global #}
+        {% if mostrar_assistente %}
+            <div id="onboarding-assistente" class="onboarding-modal">
+                <div class="onboarding-header">
+                    <span class="onboarding-icone">🤖</span>
+                    <span class="onboarding-titulo">
+                        {% if onboarding_etapa == 1 %} Cadastro da Igreja
+                        {% elif onboarding_etapa == 2 %} Cadastro de Membros
+                        {% elif onboarding_etapa == 3 %} Configurações Iniciais
+                        {% elif onboarding_etapa == 4 %} Cadastro de Usuários
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="onboarding-conteudo">
+                    {% if onboarding_etapa == 1 %}
+                        <p>Bem-vindo! Cadastre a primeira igreja do seu ministério para começar a usar o sistema.</p>
+                        <a href="{% url 'configuracao:adicionar_igreja' %}" class="btn btn-primary">Cadastrar Igreja</a>
+                    {% elif onboarding_etapa == 2 %}
+                        <p>Agora cadastre pelo menos um membro vinculado à igreja cadastrada.</p>
+                        <a href="{% url 'secretaria:adicionar_membro' %}" class="btn btn-primary">Cadastrar Membro</a>
+                    {% elif onboarding_etapa == 3 %}
+                        <p>Configure permissões básicas e horários de reuniões para sua igreja.</p>
+                        <a href="{% url 'configuracao:editar_configuracoes_sistema' %}" class="btn btn-primary">Configurar Sistema</a>
+                    {% elif onboarding_etapa == 4 %}
+                        <p>Cadastre outros usuários que terão acesso ao sistema.</p>
+                        <a href="{% url 'configuracao:adicionar_usuario' %}" class="btn btn-primary">Cadastrar Usuário</a>
+                    {% endif %}
+                </div>
+                <div class="onboarding-footer">
+                    <span>Etapa {{ onboarding_etapa }} de 4</span>
+                </div>
+            </div>
+        {% endif %}
+
     {# Estrutura para páginas de autenticação/fora do sistema #}
     <div id="layoutAuthentication">
         <div id="layoutAuthentication_content">
