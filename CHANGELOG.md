@@ -1,3 +1,32 @@
+## v1.8.73 — 14/04/2026
+🤖 **Assistente de Onboarding e Permissões + Bugfix Admin Ministerio**
+
+### Novas funcionalidades
+- Adicionado assistente de onboarding global (modelos, context processor, admin, sinais, utilitários)
+- Bloco de assistente no template base
+- Documentação de permissões e fluxo de usuários
+- Ajuste em settings para context processor
+- Migration onboarding
+
+### Correções de bugs
+- Permite acesso ao sistema para usuários do grupo Admin Ministerio mesmo sem vínculo com membro
+- Ajuste na view de sincronização de dados do membro
+
+### Arquivos principais
+- `configuracao/models_onboarding.py`
+- `configuracao/context_onboarding.py`
+- `configuracao/onboarding_progress.py`
+- `configuracao/utils_onboarding.py`
+- `configuracao/signals_onboarding.py`
+- `configuracao/admin_onboarding.py`
+- `configuracao/migrations/0009_onboardingstatus.py`
+- `templates/base.html`
+- `core/settings.py`
+- `DOCUMENTACAO_PERMISSOES.md`
+- `contas/views.py`
+
+---
+
 ## v1.8.72 — 13/04/2026
 📚 **Pacote de análise arquitetural de cadastros e automação de publicação de atualizações**
 
