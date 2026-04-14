@@ -151,6 +151,7 @@ def registrar_usuario_e_org(request):
                         last_name=ultimo_nome,
                         is_active=True
                     )
+
                     nova_ministerio = Ministerio.objects.create(
                         nome_fantasia=nome_fantasia_org,
                         administrador_principal=novo_usuario,
@@ -160,6 +161,12 @@ def registrar_usuario_e_org(request):
                         user=novo_usuario,
                         ministerio=nova_ministerio
                     )
+
+                    # Adiciona o usuário ao grupo Admin Ministerio (sempre)
+                    from django.contrib.auth.models import Group
+                    grupo_admin, _ = Group.objects.get_or_create(name=ADMIN_MINISTERIO)
+                    novo_usuario.groups.add(grupo_admin)
+                    logger.info(f"Usuário '{email}' adicionado ao grupo Admin Ministerio.")
 
                     # --- REGISTRAR CONSENTIMENTO LGPD ---
                     from .models import ConsentimentoLGPD
@@ -1413,10 +1420,12 @@ def sincronizar_dados_membro(request):
         membro = usuario.membro_secretaria
     else:
         membro = Membro.objects.filter(email__iexact=usuario.email).first()
-    
+
+    # Permitir acesso sem membro apenas para Admin Ministerio
     if not membro:
-        messages.error(request, '❌ Você não possui cadastro de membro vinculado.')
-        return redirect('contas:editar_meu_perfil')
+        if not usuario.groups.filter(name="Admin Ministerio").exists():
+            messages.error(request, '❌ Você não possui cadastro de membro vinculado.')
+            return redirect('contas:editar_meu_perfil')
     
     try:
         with transaction.atomic():
