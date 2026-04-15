@@ -7,6 +7,46 @@
 
 <html lang="pt-BR"> {# Alterado para pt-BR #}
 <head>
+        <style>
+        /* Bolha do assistente minimizado */
+        #onboarding-bolha {
+            display: none;
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            z-index: 2100;
+            background: #4e73df;
+            color: #fff;
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #onboarding-bolha:hover {
+            background: #2e59d9;
+        }
+        .onboarding-minimizar {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.3em;
+            cursor: pointer;
+            z-index: 2200;
+            transition: color 0.2s;
+        }
+        .onboarding-minimizar:hover {
+            color: #222;
+        }
+        </style>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
@@ -16,6 +56,7 @@
     <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
 
     {# --- CSS --- #}
+    <link href="{% static 'css/onboarding.css' %}" rel="stylesheet" />
     {# DataTables CSS #}
     <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
     {# Seu CSS principal #}
@@ -35,6 +76,158 @@
     <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
 </head>
 <body class="sb-nav-fixed">
+    {# Assistente de Onboarding Global #}
+    {% if mostrar_assistente %}
+        <div id="onboarding-assistente" class="onboarding-modal" style="display:block;">
+            <button class="onboarding-minimizar" id="onboarding-minimizar" title="Minimizar" aria-label="Minimizar">&minus;</button>
+            <div class="onboarding-header">
+                <span class="onboarding-icone">🤖</span>
+                <span class="onboarding-titulo">
+                    Assistente de Ajuda
+                </span>
+            </div>
+            <div class="onboarding-conteudo">
+                {% if onboarding_etapa == 1 %}
+                    <p><strong>Bem-vindo ao Gereigreja!</strong></p>
+                    <p>Confira os dados do seu ministério abaixo. Se algo estiver incorreto, clique em <b>Editar dados</b> para corrigir antes de prosseguir.</p>
+                    <div class="onboarding-ministerio-box" style="background:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:12px 16px; margin-bottom:10px;">
+                        <b>Nome fantasia:</b> {{ onboarding_ministerio_dados.nome_fantasia }}<br>
+                        <b>Razão social:</b> {{ onboarding_ministerio_dados.razao_social }}<br>
+                        <b>CNPJ:</b> {{ onboarding_ministerio_dados.cnpj }}<br>
+                        <b>Responsável:</b> {{ onboarding_ministerio_dados.responsavel }}<br>
+                        <b>E-mail:</b> {{ onboarding_ministerio_dados.email }}<br>
+                        <b>Telefone:</b> {{ onboarding_ministerio_dados.telefone }}<br>
+                        <b>Endereço:</b> {{ onboarding_ministerio_dados.endereco }}
+                    </div>
+                    <a href="{% url 'configuracao:detalhes_ministerio' %}" class="btn btn-outline-secondary btn-sm mb-2">Editar dados</a>
+                    <div style="font-size:0.95em; color:#666; margin-bottom:10px;">
+                        <b>Exemplo de ministério:</b><br>
+                        Nome fantasia: Ministério Esperança<br>
+                        Razão social: Igreja Ministério Esperança Ltda<br>
+                        CNPJ: 12.345.678/0001-99<br>
+                        Responsável: João Silva<br>
+                        E-mail: contato@ministerioesperanca.org<br>
+                        Telefone: (11) 99999-9999<br>
+                        Endereço: Rua das Flores, 123, Centro, São Paulo, SP
+                    </div>
+                    <div style="margin-bottom:8px;">Se os dados estiverem corretos, prossiga para cadastrar sua primeira igreja:</div>
+                    <a href="{% url 'configuracao:adicionar_igreja' %}" class="btn btn-primary">Cadastrar Primeira Igreja</a>
+                {% elif onboarding_etapa == 2 %}
+                    <p><strong>Etapa 2: Igreja do Ministério</strong></p>
+                    {% if onboarding_igreja_dados %}
+                        <p>O sistema já criou automaticamente uma igreja vinculada ao seu ministério. Por favor, revise e complete os dados da igreja abaixo:</p>
+                        <div class="onboarding-ministerio-box" style="background:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:12px 16px; margin-bottom:10px;">
+                            <b>Nome:</b> {{ onboarding_igreja_dados.nome_igreja }}<br>
+                            <b>Tipo:</b> {{ onboarding_igreja_dados.tipo_igreja }}<br>
+                            <b>Endereço:</b> {{ onboarding_igreja_dados.endereco }}<br>
+                            <b>Responsável:</b> {{ onboarding_igreja_dados.responsavel }}<br>
+                            <b>Telefone:</b> {{ onboarding_igreja_dados.telefone }}<br>
+                            <b>E-mail:</b> {{ onboarding_igreja_dados.email }}<br>
+                            <b>CNPJ:</b> {{ onboarding_igreja_dados.cnpj }}<br>
+                            <b>Data de fundação:</b> {{ onboarding_igreja_dados.data_fundacao|date:'d/m/Y' }}
+                        </div>
+                        <a href="{% url 'configuracao:editar_igreja_config' onboarding_igreja_dados.id %}" class="btn btn-primary">Editar/Completar Igreja</a>
+                        <div style="font-size:0.95em; color:#666; margin-top:10px;">
+                            <b>Dica:</b> Complete todos os campos importantes para garantir o funcionamento correto do sistema.
+                        </div>
+                    {% else %}
+                        <p>Para começar a usar o sistema, é necessário cadastrar pelo menos uma igreja vinculada ao seu ministério.</p>
+                        <div style="font-size:0.95em; color:#666; margin-bottom:10px;">
+                            <b>Campos importantes:</b><br>
+                            Nome da igreja, tipo (Sede, Regional, Congregação), endereço completo, responsável, telefone, e-mail, CNPJ, data de fundação.<br>
+                        </div>
+                        <div style="font-size:0.95em; color:#666; margin-bottom:10px;">
+                            <b>Exemplo de igreja:</b><br>
+                            Nome: Igreja Central<br>
+                            Tipo: Sede<br>
+                            Endereço: Rua das Flores, 123, Centro, São Paulo, SP<br>
+                            Responsável: Pr. João Silva<br>
+                            Telefone: (11) 99999-9999<br>
+                            E-mail: central@ministerioesperanca.org<br>
+                            CNPJ: 12.345.678/0001-99<br>
+                            Data de fundação: 01/01/2000
+                        </div>
+                        <a href="{% url 'configuracao:adicionar_igreja' %}" class="btn btn-primary">Cadastrar Igreja</a>
+                    {% endif %}
+                {% elif onboarding_etapa == 3 %}
+                    <p><strong>Etapa 3: Configuração do Sistema</strong></p>
+                    <p>Agora revise e configure as principais opções do sistema para garantir o funcionamento adequado da sua igreja.</p>
+                    <div style="font-size:0.95em; color:#666; margin-bottom:10px;">
+                        <b>O que revisar:</b><br>
+                        - Permissões de acesso dos usuários<br>
+                        - Horários de reuniões e cultos<br>
+                        - Notificações automáticas (aniversários, eventos)<br>
+                        - Dados de contato e informações gerais<br>
+                    </div>
+                    <div style="font-size:0.95em; color:#666; margin-bottom:10px;">
+                        <b>Exemplo de configuração:</b><br>
+                        Permitir notificações de aniversários: Sim<br>
+                        Horário padrão da EBD: Domingo, 09:00<br>
+                        Período da EBD: Trimestre<br>
+                        Dados de contato: (11) 99999-9999, secretaria@igreja.org
+                    </div>
+                    <a href="{% url 'configuracao:editar_configuracoes_sistema' %}" class="btn btn-primary">Configurar Sistema</a>
+                {% elif onboarding_etapa == 4 %}
+                    <p><strong>Etapa 4: Cadastro de Membros</strong></p>
+                    <p>Para finalizar o onboarding, cadastre pelo menos um membro vinculado à igreja cadastrada. O primeiro membro pode ser você mesmo ou alguém da equipe.</p>
+                    <div style="font-size:0.95em; color:#666; margin-bottom:10px;">
+                        <b>Campos importantes:</b><br>
+                        Nome completo, data de nascimento, tipo de pessoa (membro, visitante), status (ativo), e-mail, telefone, igreja vinculada.<br>
+                    </div>
+                    <div style="font-size:0.95em; color:#666; margin-bottom:10px;">
+                        <b>Exemplo de membro:</b><br>
+                        Nome: Maria Souza<br>
+                        Data de nascimento: 10/02/1990<br>
+                        Tipo: Membro<br>
+                        Status: Ativo<br>
+                        E-mail: maria@email.com<br>
+                        Telefone: (11) 98888-8888<br>
+                        Igreja: Igreja Central
+                    </div>
+                    <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-primary">Cadastrar Membro</a>
+                {% endif %}
+            </div>
+            <div class="onboarding-footer">
+                <span>Etapa {{ onboarding_etapa }} de 4</span>
+            </div>
+        </div>
+        <div id="onboarding-bolha" title="Abrir assistente" aria-label="Abrir assistente">🤖</div>
+        <script>
+        // Minimizar/restaurar assistente com persistência
+        function showOnboardingModal() {
+            document.getElementById('onboarding-assistente').style.display = 'block';
+            document.getElementById('onboarding-bolha').style.display = 'none';
+            localStorage.setItem('onboarding_minimizado', '0');
+        }
+        function hideOnboardingModal() {
+            document.getElementById('onboarding-assistente').style.display = 'none';
+            document.getElementById('onboarding-bolha').style.display = 'flex';
+            localStorage.setItem('onboarding_minimizado', '1');
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            var assistente = document.getElementById('onboarding-assistente');
+            var bolha = document.getElementById('onboarding-bolha');
+            var btnMin = document.getElementById('onboarding-minimizar');
+            if (btnMin) btnMin.onclick = hideOnboardingModal;
+            if (bolha) bolha.onclick = showOnboardingModal;
+            // Sempre reabre ao trocar de etapa
+            if (assistente && bolha) {
+                var etapaAtual = '{{ onboarding_etapa }}';
+                var etapaSalva = localStorage.getItem('onboarding_etapa');
+                var minimizado = localStorage.getItem('onboarding_minimizado');
+                if (etapaAtual !== etapaSalva) {
+                    // Nova etapa: reabre
+                    showOnboardingModal();
+                    localStorage.setItem('onboarding_etapa', etapaAtual);
+                } else if (minimizado === '1') {
+                    hideOnboardingModal();
+                } else {
+                    showOnboardingModal();
+                }
+            }
+        });
+        </script>
+    {% endif %}
     {% if modo_auditoria_ativo %}
     <div class="alert alert-warning text-center mb-0 rounded-0 py-2" role="alert">
         <strong>Modo Auditoria ativo.</strong> Operacoes de escrita do superusuario ficam bloqueadas ate nova alternancia.

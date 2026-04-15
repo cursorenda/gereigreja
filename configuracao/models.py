@@ -1,4 +1,6 @@
 from django.db import models
+# Importa o modelo de onboarding para registro no app
+from .models_onboarding import OnboardingStatus
 # --- Configurações Globais do Sistema (Notificações, etc) ---
 class ConfiguracaoSistema(models.Model):
     DIAS_SEMANA = [

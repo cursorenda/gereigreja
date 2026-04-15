@@ -2262,8 +2262,12 @@ from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
 def index(request):
 
     # Permissão: redireciona membros comuns usando helper centralizado
-    from contas.constants import MEMBRO_COMUM
-    if _user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
+    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO
+    from contas.constants import user_tem_grupo
+    # Redireciona apenas membros comuns (não admins)
+    if (user_tem_grupo(request.user, MEMBRO_COMUM)
+        and not user_tem_grupo(request.user, ADMIN_MINISTERIO)
+        and not request.user.is_staff):
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
@@ -2672,8 +2676,12 @@ def dashboard(request):
         return redirect('admin:index')
 
     # Permissão: redireciona membros comuns usando helper centralizado
-    from contas.constants import MEMBRO_COMUM
-    if _user_has_permission_level_or_higher(request.user, MEMBRO_COMUM) and not request.user.is_staff:
+    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO
+    from contas.constants import user_tem_grupo
+    # Redireciona apenas membros comuns (não admins)
+    if (user_tem_grupo(request.user, MEMBRO_COMUM)
+        and not user_tem_grupo(request.user, ADMIN_MINISTERIO)
+        and not request.user.is_staff):
         return redirect('secretaria:portal_membro')
 
     ministerio = get_ministerio_or_error(request)
