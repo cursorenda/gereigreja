@@ -1,101 +1,137 @@
+
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 12/04/2026
+**Última Atualização:** 16/04/2026
 
 ---
+
 
 ## 🎯 Documentação Principal
 
 | Documento | Descrição | Última Atualização |
 |-----------|-----------|-------------------|
 | [../README.md](../README.md) | README principal do projeto | — |
-| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 12/03/2026 |
+| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 16/04/2026 |
 
 ---
+
 
 ## 📌 Consolidado v1.8.x
 
 | Documento | Descrição | Última Atualização |
 |-----------|-----------|-------------------|
-| [MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md) | Consolidação técnica do ciclo v1.8.0 até v1.8.67 | 12/04/2026 |
-| [MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md) | Consolidação funcional para usuários finais (v1.8.0-v1.8.67) | 12/04/2026 |
+| [sistema/MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](sistema/MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md) | Consolidação técnica do ciclo v1.8.0 até v1.8.67 | 12/04/2026 |
+| [usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md) | Consolidação funcional para usuários finais (v1.8.0-v1.8.67) | 12/04/2026 |
 
 ---
+
 
 ## 🏗️ Arquitetura & Estrutura
 
 | Documento | Descrição |
 |-----------|-----------|
-| [ARQUITETURA_TEMPLATES.md](ARQUITETURA_TEMPLATES.md) | Estrutura de templates do sistema |
-| [DECORATORS_SEGURANCA.md](DECORATORS_SEGURANCA.md) | Decorators de segurança e autenticação |
-| [IMPLEMENTACAO_DECORATOR_DASHBOARD.md](IMPLEMENTACAO_DECORATOR_DASHBOARD.md) | Implementação de decorators no dashboard |
-| [ANALISE_DECORATORS_SISTEMA.md](ANALISE_DECORATORS_SISTEMA.md) | Análise completa dos decorators |
+| [templates/ARQUITETURA_TEMPLATES.md](templates/ARQUITETURA_TEMPLATES.md) | Estrutura de templates do sistema |
+| [sistema/DECORATORS_SEGURANCA.md](sistema/DECORATORS_SEGURANCA.md) | Decorators de segurança e autenticação |
+| [sistema/IMPLEMENTACAO_DECORATOR_DASHBOARD.md](sistema/IMPLEMENTACAO_DECORATOR_DASHBOARD.md) | Implementação de decorators no dashboard |
+| [sistema/ANALISE_DECORATORS_SISTEMA.md](sistema/ANALISE_DECORATORS_SISTEMA.md) | Análise completa dos decorators |
 
 ---
+
 
 ## 🔐 Segurança & Permissões
 
 | Documento | Descrição |
 |-----------|-----------|
-| [GRUPOS_PERMISSOES.md](GRUPOS_PERMISSOES.md) | Sistema de grupos e permissões |
-| [AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md](AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md) | Auditoria completa de permissões |
-| [AUDITORIA_PERMISSOES_PROFESSOR_EBD.md](AUDITORIA_PERMISSOES_PROFESSOR_EBD.md) | Permissões específicas Escola Bíblica |
-| [ANALISE_MENUS_BASEADOS_PERMISSOES.md](ANALISE_MENUS_BASEADOS_PERMISSOES.md) | Sistema de menus baseado em permissões |
-| [LGPD_IMPLEMENTACAO.md](LGPD_IMPLEMENTACAO.md) | Implementação de conformidade LGPD |
+| [sistema/GRUPOS_PERMISSOES.md](sistema/GRUPOS_PERMISSOES.md) | Sistema de grupos e permissões |
+| [sistema/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md](sistema/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md) | Auditoria completa de permissões |
+| [sistema/AUDITORIA_PERMISSOES_PROFESSOR_EBD.md](sistema/AUDITORIA_PERMISSOES_PROFESSOR_EBD.md) | Permissões específicas Escola Bíblica |
+| [sistema/ANALISE_MENUS_BASEADOS_PERMISSOES.md](sistema/ANALISE_MENUS_BASEADOS_PERMISSOES.md) | Sistema de menus baseado em permissões |
+| [deploy/LGPD_IMPLEMENTACAO.md](deploy/LGPD_IMPLEMENTACAO.md) | Implementação de conformidade LGPD |
 
 ---
+
 
 ## ⚙️ Funcionalidades & Módulos
 
 ### Cadastro de Pessoas
 | Documento | Descrição |
 |-----------|-----------|
-| [VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md) | **NOVO:** Sistema de validações (CPF, Email, Máscaras, ViaCEP) |
-| [ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](ANALISE_MELHORIAS_CADASTRO_PESSOAS.md) | Análise completa: 23 melhorias propostas |
-| [REGRAS_TIPOS_PESSOA_STATUS.md](REGRAS_TIPOS_PESSOA_STATUS.md) | Regras de negócio: Tipos e Status de Pessoas |
+| [sistema/VALIDACOES_CADASTRO_PESSOAS.md](sistema/VALIDACOES_CADASTRO_PESSOAS.md) | **NOVO:** Sistema de validações (CPF, Email, Máscaras, ViaCEP) |
+| [sistema/ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](sistema/ANALISE_MELHORIAS_CADASTRO_PESSOAS.md) | Análise completa: 23 melhorias propostas |
+| [sistema/REGRAS_TIPOS_PESSOA_STATUS.md](sistema/REGRAS_TIPOS_PESSOA_STATUS.md) | Regras de negócio: Tipos e Status de Pessoas |
 
 ### Cargos
 | Documento | Descrição |
 |-----------|-----------|
-| [CARGOS_USUARIOS.md](CARGOS_USUARIOS.md) | Guia operacional para secretaria e liderancas no uso da tela de cargos |
-| [CARGOS_SISTEMA.md](CARGOS_SISTEMA.md) | Regras tecnicas, sincronizacao de grupos e checklist pre-deploy |
+| [sistema/CARGOS_USUARIOS.md](sistema/CARGOS_USUARIOS.md) | Guia operacional para secretaria e liderancas no uso da tela de cargos |
+| [sistema/CARGOS_SISTEMA.md](sistema/CARGOS_SISTEMA.md) | Regras tecnicas, sincronizacao de grupos e checklist pre-deploy |
 
 ### Participantes & Eventos
 | Documento | Descrição |
 |-----------|-----------|
-| [SISTEMA_HIBRIDO_PARTICIPANTES.md](SISTEMA_HIBRIDO_PARTICIPANTES.md) | Sistema híbrido de participantes (visitantes/membros) |
+| [sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md](sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md) | Sistema híbrido de participantes (visitantes/membros) |
 
 ### Seletor de Igreja
 | Documento | Descrição |
 |-----------|-----------|
-| [SELETOR_IGREJA.md](SELETOR_IGREJA.md) | Funcionalidade de seleção de igreja ativa |
-| [AI_CONTEXT_CHURCH_SELECTOR.md](AI_CONTEXT_CHURCH_SELECTOR.md) | Contexto AI: seletor de igreja |
+| [sistema/SELETOR_IGREJA.md](sistema/SELETOR_IGREJA.md) | Funcionalidade de seleção de igreja ativa |
+| [ai/AI_CONTEXT_CHURCH_SELECTOR.md](ai/AI_CONTEXT_CHURCH_SELECTOR.md) | Contexto AI: seletor de igreja |
 
 ---
+
 
 ## 🚀 Deploy & Infraestrutura
 
 | Documento | Descrição |
 |-----------|-----------|
-| [ANALISE_SISTEMA_DEPLOY.md](ANALISE_SISTEMA_DEPLOY.md) | Análise completa do sistema de deploy |
+| [deploy/ANALISE_SISTEMA_DEPLOY.md](deploy/ANALISE_SISTEMA_DEPLOY.md) | Análise completa do sistema de deploy |
 
 ---
+
 
 ## 🐛 Troubleshooting & UX
 
 | Documento | Descrição |
 |-----------|-----------|
-| [PROBLEMA_UX_PAGINA_VAZIA.md](PROBLEMA_UX_PAGINA_VAZIA.md) | Solução: problema de páginas vazias |
+| [relatorios/PROBLEMA_UX_PAGINA_VAZIA.md](relatorios/PROBLEMA_UX_PAGINA_VAZIA.md) | Solução: problema de páginas vazias |
 
 ---
+
 
 ## 📝 Release Notes
 
 ### Versões Recentes
 - [release-notes/RELEASE_NOTES_v1.8.23.md](release-notes/RELEASE_NOTES_v1.8.23.md) - Ciclo v1.8.10 até v1.8.23
+- [release-notes/RELEASE_NOTES_v1.7.2.md](release-notes/RELEASE_NOTES_v1.7.2.md)
 
 ### Histórico Completo
 Ver pasta [release-notes/](release-notes/) para histórico de versões.
+
+---
+
+## 📊 Relatórios e Análises
+
+| Documento | Descrição |
+|-----------|-----------|
+| [relatorios/RESUMO_EXECUTIVO_CADASTROS.md](relatorios/RESUMO_EXECUTIVO_CADASTROS.md) | Resumo executivo dos cadastros |
+| [relatorios/README_ANALISE_CADASTROS.md](relatorios/README_ANALISE_CADASTROS.md) | README análise de cadastros |
+| [relatorios/INDICE_ANALISE_CADASTROS.md](relatorios/INDICE_ANALISE_CADASTROS.md) | Índice análise de cadastros |
+| [relatorios/ANTES_E_DEPOIS_CONSOLIDACAO.md](relatorios/ANTES_E_DEPOIS_CONSOLIDACAO.md) | Antes e depois da consolidação |
+| [relatorios/ANALISE_CADASTRO_PESSOA_ALUNO.md](relatorios/ANALISE_CADASTRO_PESSOA_ALUNO.md) | Análise cadastro pessoa/aluno |
+
+---
+
+
+## 👤 Documentação do Usuário
+
+| Documento | Descrição |
+|-----------|-----------|
+| [usuario/USUARIO_MANUAL.md](usuario/USUARIO_MANUAL.md) | Manual do usuário |
+| [usuario/README_IGREJA_USER.md](usuario/README_IGREJA_USER.md) | Guia rápido - Página Igreja |
+| [usuario/MELHORIAS_USUARIOS_v1.7.2.md](usuario/MELHORIAS_USUARIOS_v1.7.2.md) | Novidades v1.7.2 |
+| [usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md) | Novidades v1.8.0 a v1.8.67 |
+| [usuario/MELHORIAS_USUARIOS_v1.8.75.md](usuario/MELHORIAS_USUARIOS_v1.8.75.md) | Novidades v1.8.75 |
+| [usuario/chat_respostas.md](usuario/chat_respostas.md) | Respostas rápidas/FAQ |
 
 ---
 

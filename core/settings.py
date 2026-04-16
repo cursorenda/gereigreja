@@ -125,6 +125,7 @@ TEMPLATES = [
                 'core.context_processors.unread_notifications',
                 'core.context_processors.transferencias_pendentes_count',
                 'core.context_processors.sistema_nome',
+                'core.context_processors.ultimos_cadastros',  # <-- ADICIONE AQUI
                 'auditoria.context_processors.modo_auditoria_flag',
                 'configuracao.context_onboarding.onboarding_context',
             ],

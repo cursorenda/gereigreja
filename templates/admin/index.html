@@ -347,14 +347,7 @@ body.dashboard .dashboard-sidebar td a {
                         <a href="{% url 'admin:deploy_nova_versao' %}" class="addlink" style="font-size: 11px;">Nova Versão</a> | 
                         <a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink" style="font-size: 11px;">Histórico</a>
                     </td>
-                </tr>
-                <tr class="model-dashboard">
-                    <th scope="row">
-                        <a href="/admin/dashboard-dev/" style="color: #667eea; font-weight: 600;">🔧 Dashboard</a>
-                    </th>
-                    <td style="color: #667eea; font-size: 11px;">⚡ Monitoramento técnico</td>
-                </tr>
-                <tr class="model-logs">
+                            <tr class="model-logs">
                     <th scope="row">
                         <a href="/admin/configuracao/ministerio/" style="color: #f59e0b;">🏢 Ministérios</a>
                     </th>
@@ -408,14 +401,12 @@ body.dashboard .dashboard-sidebar td a {
 
 <!-- COLUNA 2: Métricas -->
 <div id="content-main">
-<!-- ===== PAINEL DE MÉTRICAS DE PRODUTO ===== -->
-<div class="metrics-dashboard">
+    <div class="metrics-dashboard">
         <h2>📊 Visão Geral do Sistema</h2>
-        
+        {% include "admin/custom_dashboard_panel.html" with ultimos_ministerios=ultimos_ministerios ultimas_igrejas=ultimas_igrejas ultimos_membros=ultimos_membros %}
         <div class="loading" id="loading">
             <i class="fas fa-spinner fa-spin"></i> Carregando métricas...
         </div>
-        
         <div id="metrics-content" style="display: none;">
             <!-- Cards Principais -->
             <div class="metrics-grid">
