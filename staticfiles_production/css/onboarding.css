@@ -1,0 +1,45 @@
+/* Estilo mínimo para o modal do assistente de onboarding */
+.onboarding-modal {
+    position: fixed;
+    top: 60px;
+    right: 30px;
+    z-index: 2000;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    padding: 24px 28px 18px 28px;
+    min-width: 320px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 2px solid #e3e6f0;
+    font-family: inherit;
+    animation: fadeInOnboarding 0.4s;
+}
+.onboarding-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.onboarding-icone {
+    font-size: 2em;
+}
+.onboarding-titulo {
+    font-size: 1.1em;
+    font-weight: 700;
+}
+.onboarding-conteudo {
+    margin-bottom: 12px;
+}
+.onboarding-footer {
+    font-size: 0.95em;
+    color: #888;
+    text-align: right;
+}
+@keyframes fadeInOnboarding {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}

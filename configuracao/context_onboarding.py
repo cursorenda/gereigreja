@@ -38,7 +38,7 @@ def onboarding_context(request):
                     'responsavel': getattr(ministerio, 'administrador_principal', None),
                     'email': getattr(ministerio, 'email', ''),
                     'telefone': getattr(ministerio, 'telefone', ''),
-                    'endereco': f"{getattr(ministerio, 'rua', '')}, {getattr(ministerio, 'numero', '')} {getattr(ministerio, 'bairro', '')} {getattr(ministerio, 'cidade', '')} {getattr(ministerio, 'estado', '')}",
+                    'endereco': f"{getattr(ministerio, 'rua', '')}, {getattr(ministerio, 'numero_casa', '')} {getattr(ministerio, 'bairro_distrito', '')} {getattr(ministerio, 'cidade', '')} {getattr(ministerio, 'estado', '')}",
                 }
                 if ministerio_dados['responsavel']:
                     ministerio_dados['responsavel'] = str(ministerio_dados['responsavel'])
@@ -50,7 +50,7 @@ def onboarding_context(request):
                         'id': igreja.id,
                         'nome_igreja': igreja.nome_igreja,
                         'tipo_igreja': igreja.get_tipo_igreja_display() if hasattr(igreja, 'get_tipo_igreja_display') else '',
-                        'endereco': f"{igreja.rua or ''}, {igreja.numero or ''} {igreja.bairro or ''} {igreja.cidade or ''} {igreja.estado or ''}",
+                        'endereco': f"{igreja.rua or ''}, {igreja.numero_casa or ''} {getattr(igreja, 'bairro', '') or ''} {igreja.cidade or ''} {igreja.estado or ''}",
                         'responsavel': igreja.pastor_local or '',
                         'telefone': igreja.telefone or '',
                         'email': igreja.email or '',

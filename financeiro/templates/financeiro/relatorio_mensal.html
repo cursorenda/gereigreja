@@ -51,7 +51,7 @@
                             </div>
                             <div class="info-line">
                                 <div class="info-line-left" style="width: 100%;"> {# Ocupa toda a linha #}
-                                    <label>ENDEREÇO:</label> <span>{{ igreja.rua|default:"" }}{% if igreja.numero %}, {{ igreja.numero }}{% endif %}{% if igreja.complemento %} - {{ igreja.complemento }}{% endif %}</span>
+                                    <label>ENDEREÇO:</label> <span>{{ igreja.rua|default:"" }}{% if igreja.numero_casa %}, {{ igreja.numero_casa }}{% endif %}{% if igreja.complemento %} - {{ igreja.complemento }}{% endif %}</span>
                                 </div>
                             </div>
                         </div>

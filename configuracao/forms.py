@@ -74,7 +74,7 @@ class IgrejaForm(forms.ModelForm):
         # Listar todos os campos do modelo unificado (exceto ministerio)
         fields = [
             'nome_igreja', 'tipo_igreja', 'igreja_superior', 'data_fundacao',
-            'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais',
+            'cep', 'rua', 'numero_casa', 'complemento', 'bairro_distrito', 'cidade', 'estado', 'pais',
             'email', 'cnpj', 'telefone', 'celular', 'site', 'conta_padrao_receitas', 'conta_padrao_despesas',
             'pastor_local', 'pastor_regional',
             'moeda', 'observacoes', 'logo1', 'logo2',
@@ -86,9 +86,9 @@ class IgrejaForm(forms.ModelForm):
             'data_fundacao': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'cep': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'rua': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
-            'numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+            'numero_casa': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'complemento': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
-            'bairro': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+            'bairro_distrito': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'cidade': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'estado': forms.Select(attrs={'class': 'form-select'}), # Modelo já tem choices
             'pais': forms.TextInput(attrs={'class': 'form-control'}),
@@ -219,19 +219,37 @@ class IgrejaEditForm(forms.ModelForm):
         required=False # Mantém como opcional
     )
     class Meta:
-        model = Igreja
-        fields = [
-            'nome_igreja', 'tipo_igreja', 'igreja_superior', 'data_fundacao',
-            'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais',
-            'email', 'cnpj', 'telefone', 'celular', 'site',
-            'pastor_local', 'pastor_regional',
-            'moeda', 'observacoes', 'logo1', 'logo2', # Mantidos aqui para o ModelForm
-            'conta_padrao_receitas', 'conta_padrao_despesas' # Adicionar os campos aqui
-        ]
-        widgets = {
-            'data_fundacao': forms.DateInput(attrs={'type': 'date'}),
-            # Adicione outros widgets se necessário
-        }
+            model = Igreja
+            fields = [
+                'nome_igreja', 'tipo_igreja', 'igreja_superior', 'data_fundacao',
+                'cep', 'rua', 'numero_casa', 'complemento', 'bairro_distrito', 'cidade', 'estado', 'pais',
+                'email', 'cnpj', 'telefone', 'celular', 'site',
+                'pastor_local', 'pastor_regional',
+                'moeda', 'observacoes', 'logo1', 'logo2',
+                'conta_padrao_receitas', 'conta_padrao_despesas'
+            ]
+            widgets = {
+                'data_fundacao': forms.DateInput(attrs={'type': 'date'}),
+                'cep': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'rua': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'numero_casa': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'complemento': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'bairro_distrito': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'cidade': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'estado': forms.Select(attrs={'class': 'form-select'}),
+                'pais': forms.TextInput(attrs={'class': 'form-control'}),
+                'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'cnpj': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'celular': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'site': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'pastor_local': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do Pastor/Responsável'}),
+                'pastor_regional': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+                'moeda': forms.TextInput(attrs={'class': 'form-control'}),
+                'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
+                'logo1': forms.FileInput(attrs={'class': 'form-control'}),
+                'logo2': forms.FileInput(attrs={'class': 'form-control'}),
+            }
 
     def __init__(self, *args, **kwargs):
         ministerio = kwargs.pop('ministerio', None)

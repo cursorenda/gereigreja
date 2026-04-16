@@ -1,10 +1,14 @@
+{# Extende o template base com menu lateral #}
 {% extends 'base_com_menu.html' %}
 {% load static %}
 
+{# Título da página #}
 {% block title %}{{ titulo_pagina|default:"Editar Igreja" }}{% endblock %}
 
+{# Início do conteúdo principal da página #}
 {% block content %}
 <div class="container-fluid px-4">
+    {# Cabeçalho e navegação breadcrumb #}
     <h1 class="mt-4">{{ titulo_pagina }}</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
@@ -12,15 +16,18 @@
         <li class="breadcrumb-item active">Editar Igreja</li>
     </ol>
 
+    {# Card do formulário de edição #}
     <div class="card">
         <div class="card-header">
             <i class="fas fa-church me-1"></i>
             Formulário de Edição da Igreja
         </div>
         <div class="card-body">
+            {# Formulário principal #}
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
+                {# Bloco: Informações Básicas #}
                 <h4>Informações Básicas</h4>
                 <hr>
                 <div class="row">
@@ -36,7 +43,7 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-6 mb-3" id="div_igreja_superior">
                         <label for="{{ form.igreja_superior.id_for_label }}" class="form-label">{{ form.igreja_superior.label }}</label>
                         {{ form.igreja_superior }}
                         {% if form.igreja_superior.help_text %}<div class="form-text">{{ form.igreja_superior.help_text|safe }}</div>{% endif %}
@@ -49,55 +56,60 @@
                     </div>
                 </div>
                 
+                {# Bloco: Endereço #}
                 <h5 class="mt-4">Endereço</h5>
                 <hr>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
+                <div class="row g-1 align-items-end">
+                    <div class="col-md-2">
                         <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}</label>
                         {{ form.cep }}
                         {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|join:", " }}</div>{% endif %}
                     </div>
-                     <div class="col-md-8 mb-3">
+                    <div class="col-md-4">
                         <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}</label>
                         {{ form.rua }}
                         {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|join:", " }}</div>{% endif %}
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <label for="{{ form.numero.id_for_label }}" class="form-label">{{ form.numero.label }}</label>
-                        {{ form.numero }}
-                        {% if form.numero.errors %}<div class="invalid-feedback d-block">{{ form.numero.errors|join:", " }}</div>{% endif %}
+                    <div class="col-md-2">
+                        <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}</label>
+                        {{ form.numero_casa }}
+                        {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-9 mb-3">
+                    <div class="col-md-4">
+                        <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}</label>
+                        {{ form.bairro_distrito }}
+                        {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <!-- Campo Site removido do lado do CEP -->
+                    <div class="col-md-2">
                         <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}</label>
                         {{ form.complemento }}
                         {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|join:", " }}</div>{% endif %}
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.bairro.id_for_label }}" class="form-label">{{ form.bairro.label }}</label>
-                        {{ form.bairro }}
-                        {% if form.bairro.errors %}<div class="invalid-feedback d-block">{{ form.bairro.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3">
                         <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}</label>
                         {{ form.cidade }}
                         {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-md-1">
                         <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}</label>
                         {{ form.estado }}
                         {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-md-1">
                         <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}</label>
-                        {{ form.pais }}
+                        <div class="input-group">
+                            {{ form.pais }}
+                            <span class="input-group-text" id="bandeira-brasil" style="padding: 0 0.5rem; background: none; border: none;">
+                                <img src="https://cdn.jsdelivr.net/gh/hjnilsson/country-flags/svg/br.svg" alt="Brasil" style="width: 24px; height: 16px; vertical-align: middle;" />
+                            </span>
+                        </div>
                         {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|join:", " }}</div>{% endif %}
                     </div>
                 </div>
+                <!-- Complemento movido para a linha acima, ao lado esquerdo de Cidade -->
 
+                {# Bloco: Contato e Documentos #}
                 <h5 class="mt-4">Contato e Documentos</h5>
                 <hr>
                 <div class="row">
@@ -124,12 +136,22 @@
                         {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors|join:", " }}</div>{% endif %}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }}</label>
-                        {{ form.cnpj }}
+                        <label for="cnpj_selector" class="form-label">CNPJ</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <select id="cnpj_selector" class="form-select" style="max-width: 50%; min-width: 120px;">
+                                <option value="proprio">Usar CNPJ próprio</option>
+                                <option value="ministerio">Usar CNPJ do Ministério: {{ cnpj_ministerio }}</option>
+                            </select>
+                            <span id="cnpj_ministerio_valor" style="display:none;">{{ cnpj_ministerio }}</span>
+                            <div style="flex:1;">
+                                {{ form.cnpj }}
+                            </div>
+                        </div>
                         {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|join:", " }}</div>{% endif %}
                     </div>
                 </div>
 
+                {# Bloco: Responsáveis #}
                 <h5 class="mt-4">Responsáveis</h5>
                 <hr>
                 <div class="row">
@@ -138,13 +160,23 @@
                         {{ form.pastor_local }}
                         {% if form.pastor_local.errors %}<div class="invalid-feedback d-block">{{ form.pastor_local.errors|join:", " }}</div>{% endif %}
                     </div>
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-6 mb-3" id="div_pastor_regional" style="display:none;">
                         <label for="{{ form.pastor_regional.id_for_label }}" class="form-label">{{ form.pastor_regional.label }}</label>
-                        {{ form.pastor_regional }}
+                        <div class="d-flex gap-2 align-items-center">
+                            <select id="pastor_regional_selector" class="form-select" style="max-width: 50%; min-width: 120px;">
+                                <option value="regional">Usar pastor da regional</option>
+                                <option value="manual">Inserir manualmente</option>
+                            </select>
+                            <span id="pastor_regional_padrao" style="display:none;">{{ pastor_regional_padrao|default:'' }}</span>
+                            <div style="flex:1;">
+                                {{ form.pastor_regional }}
+                            </div>
+                        </div>
                         {% if form.pastor_regional.errors %}<div class="invalid-feedback d-block">{{ form.pastor_regional.errors|join:", " }}</div>{% endif %}
                     </div>
                 </div>
 
+                {# Bloco: Configurações Financeiras Padrão #}
                 <h5 class="mt-4">Configurações Financeiras Padrão</h5>
                 <hr>
                 <div class="row">
@@ -167,6 +199,7 @@
                     </div>
                 </div>
 
+                {# Bloco: Outras Informações #}
                 <h5 class="mt-4">Outras Informações</h5>
                 <hr>
                  <div class="mb-3">
@@ -203,6 +236,7 @@
                     </div>
                 </div>
 
+                {# Botões de ação do formulário #}
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                     <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-secondary">Cancelar</a>
@@ -211,4 +245,34 @@
         </div>
     </div>
 </div>
+{# Bloco de scripts extras para máscaras, autocomplete e lógica dinâmica do formulário #}
+{% block extra_js %}
+    <script src="{% static 'secretaria/form_masks.js' %}"></script>
+    <script src="{% static 'secretaria/cep_autocomplete.js' %}"></script>
+    <script src="{% static 'secretaria/oculta_igreja_superior.js' %}"></script>
+    <script src="{% static 'configuracao/pastor_regional_dinamico.js' %}"></script>
+    <script src="{% static 'secretaria/cnpj_igreja.js' %}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Preencher automaticamente o campo país como Brasil ao buscar o CEP
+        var paisInput = document.getElementById('id_pais');
+        var cepInput = document.getElementById('id_cep');
+        if (cepInput && paisInput) {
+            cepInput.addEventListener('blur', function() {
+                let cep = this.value.replace(/\D/g, '');
+                if (cep.length === 8) {
+                    paisInput.value = 'Brasil';
+                }
+            });
+        }
+        // Sempre que o campo país for limpo, volta para Brasil
+        if (paisInput) {
+            paisInput.addEventListener('blur', function() {
+                if (!this.value) this.value = 'Brasil';
+            });
+        }
+        // Máscara para CNPJ agora está centralizada em form_masks.js
+    });
+    </script>
+{% endblock %}
 {% endblock %}

@@ -1,3 +1,4 @@
+{% load static %}
 {% extends 'base_com_menu.html' %}
 
 {% block title %}{{ titulo_pagina|default:"Gerenciar Igreja" }}{% endblock %}
@@ -29,10 +30,10 @@
 
                 <div class="row">
                     {# --- Identificação e Tipo --- #}
-                    <div class="col-md-8 mb-3">
-                        <label for="{{ form.nome_igreja.id_for_label }}" class="form-label">{{ form.nome_igreja.label }}:</label>
-                        {{ form.nome_igreja }}
-                        {% if form.nome_igreja.errors %}<div class="invalid-feedback d-block">{{ form.nome_igreja.errors|striptags }}</div>{% endif %}
+                     <div class="col-md-4 mb-3">
+                        <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
+                        {{ form.numero_casa }}
+                        {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|striptags }}</div>{% endif %}
                     </div>
                     {# --- ADICIONADO TIPO IGREJA --- #}
                     <div class="col-md-4 mb-3">
@@ -50,10 +51,10 @@
                         {% endif %}
                     </div>
                     {# --- FIM ADIÇÕES --- #}
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }}:</label>
-                        {{ form.cnpj }}
-                        {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|striptags }}</div>{% endif %}
+                     <div class="col-md-4 mb-3">
+                        <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
+                        {{ form.bairro_distrito }}
+                        {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|striptags }}</div>{% endif %}
                     </div>
                      <div class="col-md-6 mb-3">
                         <label for="{{ form.data_fundacao.id_for_label }}" class="form-label">{{ form.data_fundacao.label }}:</label>
@@ -63,88 +64,93 @@
 
                     {# --- Endereço --- #}
                     <hr class="my-3">
-                     <div class="col-md-4 mb-3">
-                        <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
-                        {{ form.cep }}
-                        {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
+                    <div class="row">
+                        <div class="col-md-2 mb-3">
+                            <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
+                            {{ form.cep }}
+                            {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
+                            {{ form.rua }}
+                            {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
+                            {{ form.numero_casa }}
+                            {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
+                            {{ form.complemento }}
+                            {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
+                            {{ form.bairro_distrito }}
+                            {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
+                            {{ form.cidade }}
+                            {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
+                            {{ form.estado }}
+                            {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
+                            {{ form.pais }}
+                            {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
+                        </div>
                     </div>
-                     <div class="col-md-8 mb-3">
-                        <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
-                        {{ form.rua }}
-                        {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
-                    </div>
-                     <div class="col-md-4 mb-3">
-                        <label for="{{ form.numero.id_for_label }}" class="form-label">{{ form.numero.label }}:</label>
-                        {{ form.numero }}
-                        {% if form.numero.errors %}<div class="invalid-feedback d-block">{{ form.numero.errors|striptags }}</div>{% endif %}
-                    </div>
-                     <div class="col-md-8 mb-3">
-                        <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
-                        {{ form.complemento }}
-                        {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
-                    </div>
-                     <div class="col-md-4 mb-3">
-                        <label for="{{ form.bairro.id_for_label }}" class="form-label">{{ form.bairro.label }}:</label>
-                        {{ form.bairro }}
-                        {% if form.bairro.errors %}<div class="invalid-feedback d-block">{{ form.bairro.errors|striptags }}</div>{% endif %}
-                    </div>
-                     <div class="col-md-4 mb-3">
-                        <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
-                        {{ form.cidade }}
-                        {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
-                    </div>
-                     <div class="col-md-4 mb-3">
-                        <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
-                        {{ form.estado }}
-                        {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
-                    </div>
-                    {# --- ADICIONADO PAIS --- #}
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
-                        {{ form.pais }}
-                        {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
-                    </div>
-                    {# --- FIM ADIÇÃO --- #}
 
                     {# --- Contato --- #}
                     <hr class="my-3">
-                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
-                        {{ form.email }}
-                        {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
+                    <div class="row">
+                        <div class="col-md-2 mb-3">
+                            <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
+                            {{ form.cep }}
+                            {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
+                            {{ form.rua }}
+                            {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}:</label>
+                            {{ form.numero_casa }}
+                            {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
+                            {{ form.complemento }}
+                            {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}:</label>
+                            {{ form.bairro_distrito }}
+                            {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
+                            {{ form.cidade }}
+                            {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
+                            {{ form.estado }}
+                            {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-1 mb-3">
+                            <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}:</label>
+                            {{ form.pais }}
+                            {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|striptags }}</div>{% endif %}
+                        </div>
                     </div>
-                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
-                        {{ form.telefone }}
-                        {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
-                    </div>
-                    {# --- ADICIONADO CELULAR E SITE --- #}
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.celular.id_for_label }}" class="form-label">{{ form.celular.label }}:</label>
-                        {{ form.celular }}
-                        {% if form.celular.errors %}<div class="invalid-feedback d-block">{{ form.celular.errors|striptags }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.site.id_for_label }}" class="form-label">{{ form.site.label }}:</label>
-                        {{ form.site }}
-                        {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors|striptags }}</div>{% endif %}
-                    </div>
-                    {# --- FIM ADIÇÕES --- #}
-
-                    {# --- Responsáveis --- #}
-                    <hr class="my-3">
-                    <div class="col-md-6 mb-3">
-                       <label for="{{ form.pastor_local.id_for_label }}" class="form-label">{{ form.pastor_local.label }}:</label>
-                       {{ form.pastor_local }}
-                       {% if form.pastor_local.errors %}<div class="invalid-feedback d-block">{{ form.pastor_local.errors|striptags }}</div>{% endif %}
-                       {% if form.pastor_local.help_text %}
-                           <div class="form-text">{{ form.pastor_local.help_text|safe }}</div>
-                       {% endif %}
-                   </div>
-                   {# --- ADICIONADO PASTOR REGIONAL --- #}
-                   <div class="col-md-6 mb-3">
-                       <label for="{{ form.pastor_regional.id_for_label }}" class="form-label">{{ form.pastor_regional.label }}:</label>
-                       {{ form.pastor_regional }}
                        {% if form.pastor_regional.errors %}<div class="invalid-feedback d-block">{{ form.pastor_regional.errors|striptags }}</div>{% endif %}
                    </div>
                    {# --- FIM ADIÇÃO --- #}
@@ -200,39 +206,33 @@
 {% endblock content %}
 
 {% block extra_js %}
-{# ... (Scripts de máscara como estavam) ... #}
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const tipoIgrejaSelect = document.getElementById('{{ form.tipo_igreja.id_for_label }}');
-    const igrejaSuperiorContainer = document.getElementById('container_igreja_superior'); // Usando o ID que adicionamos
-    const igrejaSuperiorSelect = document.getElementById('{{ form.igreja_superior.id_for_label }}');
-
-    function toggleIgrejaSuperiorField() {
-        if (!tipoIgrejaSelect || !igrejaSuperiorContainer || !igrejaSuperiorSelect) {
-            // console.warn('Campos tipo_igreja ou igreja_superior não encontrados para manipulação dinâmica.');
-            return;
+    <script src="{% static 'secretaria/form_masks.js' %}"></script>
+    <script src="{% static 'secretaria/cep_autocomplete.js' %}"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Lógica dinâmica do campo igreja_superior
+        const tipoIgrejaSelect = document.getElementById('{{ form.tipo_igreja.id_for_label }}');
+        const igrejaSuperiorContainer = document.getElementById('container_igreja_superior');
+        const igrejaSuperiorSelect = document.getElementById('{{ form.igreja_superior.id_for_label }}');
+        function toggleIgrejaSuperiorField() {
+            if (!tipoIgrejaSelect || !igrejaSuperiorContainer || !igrejaSuperiorSelect) return;
+            const tipoSelecionado = tipoIgrejaSelect.value;
+            if (tipoSelecionado === 'sede' || tipoSelecionado === 'independente') {
+                igrejaSuperiorContainer.style.display = 'none';
+                igrejaSuperiorSelect.value = '';
+            } else {
+                igrejaSuperiorContainer.style.display = '';
+            }
         }
-
-        const tipoSelecionado = tipoIgrejaSelect.value;
-        if (tipoSelecionado === 'sede' || tipoSelecionado === 'independente') {
-            igrejaSuperiorContainer.style.display = 'none';
-            igrejaSuperiorSelect.value = ''; // Limpa a seleção do campo igreja_superior
-            // Opcional: desabilitar o campo para que não seja enviado se visível por algum motivo
-            // igrejaSuperiorSelect.disabled = true;
-        } else {
-            igrejaSuperiorContainer.style.display = ''; // Mostra o campo (remove o display:none)
-            // igrejaSuperiorSelect.disabled = false;
+        if (tipoIgrejaSelect) {
+            toggleIgrejaSuperiorField();
+            tipoIgrejaSelect.addEventListener('change', toggleIgrejaSuperiorField);
         }
-    }
-
-    if (tipoIgrejaSelect) {
-        // Chama a função ao carregar a página para o caso de um valor já estar selecionado
-        toggleIgrejaSuperiorField();
-        // Adiciona o listener para o evento 'change'
-        tipoIgrejaSelect.addEventListener('change', toggleIgrejaSuperiorField);
-    }
-});
-</script>
-
+        // Máscara para CNPJ: 99.999.999/9999-99
+        const cnpjInput = document.getElementById('id_cnpj');
+        if (cnpjInput) {
+            aplicarMascara(cnpjInput, '##.###.###/####-##');
+        }
+    });
+    </script>
 {% endblock extra_js %}

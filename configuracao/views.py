@@ -682,7 +682,8 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
     context = {
         'form': form,
         'igreja': igreja,
-        'titulo_pagina': f"Editar Igreja: {igreja.nome_igreja}"
+        'titulo_pagina': f"Editar Igreja: {igreja.nome_igreja}",
+        'cnpj_ministerio': ministerio.cnpj if hasattr(ministerio, 'cnpj') and ministerio.cnpj else ''
     }
     return render(request, 'configuracao/igrejas/editar_igreja_config.html', context) # Ajustado para 'igrejas' no plural
 

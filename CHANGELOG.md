@@ -1,3 +1,40 @@
+## v1.8.75 — 16/04/2026
+🛠️ **Melhorias na Página de Igreja: Máscara de CNPJ e Integração com Ministério**
+
+### Novidades
+- Campo CNPJ agora recebe máscara automaticamente, mesmo ao preencher via sistema ou ao selecionar "Usar CNPJ do Ministério".
+- Seletor de CNPJ integrado: ao escolher "Usar CNPJ do Ministério", o campo é preenchido e bloqueado para edição; ao retornar para "CNPJ próprio", o campo é liberado.
+- Modularização dos scripts: máscaras centralizadas em `form_masks.js` e lógica do seletor em `cnpj_igreja.js`.
+
+### Correções
+- O campo CNPJ recebe corretamente o valor do ministério.
+- A máscara é aplicada ao valor inicial e a valores preenchidos automaticamente.
+
+### Documentação
+- Release notes e guia de novidades para usuários atualizados em `docs/`.
+
+---
+
+## v1.8.74 — 14/04/2026
+✨ **Novo Assistente de Ajuda e Onboarding Inteligente**
+
+### Novidades
+- Novo Assistente de Ajuda: onboarding guiado, minimizável e com bolha flutuante.
+- Fluxo inteligente: identifica igreja inicial e sugere edição ao invés de novo cadastro.
+- Título genérico para o assistente, válido para todas as etapas.
+- Visual moderno, exemplos e dicas em cada etapa do onboarding.
+- Correções de fluxo e melhorias de usabilidade.
+
+### Melhorias
+- Experiência aprimorada para novos administradores.
+- Onboarding mais rápido, intuitivo e sem duplicidade de igrejas.
+
+### Ajustes Técnicos
+- Versionamento e deploy realizados.
+- Código do assistente modularizado e fácil de evoluir.
+
+---
+
 ## v1.8.73 — 14/04/2026
 🤖 **Assistente de Onboarding e Permissões + Bugfix Admin Ministerio**
 

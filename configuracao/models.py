@@ -288,9 +288,9 @@ class Igreja(models.Model):
     # --- Endereço ---
     cep = models.CharField(max_length=9, blank=True, null=True, verbose_name="CEP")
     rua = models.CharField(max_length=255, blank=True, null=True, verbose_name="Rua")
-    numero = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
+    numero_casa = models.CharField(max_length=10, blank=True, null=True, verbose_name="Número")
     complemento = models.CharField(max_length=100, blank=True, null=True, verbose_name="Complemento")
-    bairro = models.CharField(max_length=255, blank=True, null=True, verbose_name="Bairro")
+    bairro_distrito = models.CharField(max_length=255, blank=True, null=True, verbose_name="Bairro/Distrito")
     cidade = models.CharField(max_length=100, blank=True, null=True, verbose_name="Cidade")
     estado = models.CharField(
         max_length=2,
