@@ -25,6 +25,63 @@ def cadastro_publico_igreja(request, igreja_id):
             pessoa.status_pessoa = status_pendente
             pessoa.tipo_pessoa = tipo_membro
             pessoa.save()
+
+            # --- Notificações de auto-cadastro conforme configuração ---
+            from contas.constants import SECRETARIO_LOCAL, PASTOR_LOCAL, ADMIN_MINISTERIO
+            from comunicacao.models import Notificacao
+            from configuracao.models import PerfilUsuario, ConfiguracaoSistema
+            from django.contrib.auth.models import Group
+
+            # Obtém configuração do ministério
+            try:
+                config = ConfiguracaoSistema.objects.get(ministerio=igreja.ministerio)
+            except ConfiguracaoSistema.DoesNotExist:
+                config = None
+
+            mensagem = f"Novo cadastro de membro aguardando aprovação na igreja {igreja.nome_igreja}."
+            try:
+                url = reverse('secretaria:lista_membros')
+            except Exception:
+                url = ''
+
+            # Notificar Secretário/Pastor Local
+            if not config or config.notificar_pre_cadastro_secretario_pastor:
+                grupos = Group.objects.filter(name__in=[SECRETARIO_LOCAL, PASTOR_LOCAL])
+                perfis = PerfilUsuario.objects.filter(
+                    igrejas_permitidas=igreja,
+                    user__is_active=True,
+                    user__groups__in=grupos
+                ).select_related('user').distinct()
+                usuarios = [p.user for p in perfis]
+                for user in usuarios:
+                    Notificacao.objects.create(
+                        user=user,
+                        ministerio=igreja.ministerio,
+                        message=mensagem,
+                        notification_type='membro',
+                        url=url,
+                        content_object=pessoa
+                    )
+
+            # Notificar Admin Ministério
+            if config and config.notificar_pre_cadastro_admin:
+                admin_group = Group.objects.filter(name=ADMIN_MINISTERIO).first()
+                if admin_group:
+                    admin_perfis = PerfilUsuario.objects.filter(
+                        ministerio=igreja.ministerio,
+                        user__is_active=True,
+                        user__groups=admin_group
+                    ).select_related('user').distinct()
+                    for perfil in admin_perfis:
+                        Notificacao.objects.create(
+                            user=perfil.user,
+                            ministerio=igreja.ministerio,
+                            message=mensagem,
+                            notification_type='membro',
+                            url=url,
+                            content_object=pessoa
+                        )
+
             messages.success(request, 'Cadastro enviado! Aguarde aprovação da secretaria.')
             return render(request, 'secretaria/cadastro_publico_sucesso.html', {'igreja': igreja})
     else:

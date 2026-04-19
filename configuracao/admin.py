@@ -17,7 +17,12 @@ class ConfiguracaoSistemaAdmin(admin.ModelAdmin):
             'fields': ('ministerio', 'ebd_periodo', 'ebd_dia_semana')
         }),
         ('Notificações', {
-            'fields': ('notificar_eventos', 'notificar_aniversarios'),
+            'fields': (
+                'notificar_eventos',
+                'notificar_aniversarios',
+                'notificar_pre_cadastro_secretario_pastor',
+                'notificar_pre_cadastro_admin',
+            ),
             'classes': ('collapse',)
         }),
     )

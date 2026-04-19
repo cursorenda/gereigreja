@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnIr && select) {
         btnIr.addEventListener('click', function() {
             var baseUrl = select.getAttribute('data-base-url');
-            var membroId = select.value;
+            var membroId = select.value.replace(/\D/g, ''); // remove tudo que não for dígito
             if (membroId) {
                 window.location.href = baseUrl.replace('0', membroId);
             }
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (select) {
         select.addEventListener('change', function() {
             var baseUrl = select.getAttribute('data-base-url');
-            var membroId = select.value;
+            var membroId = select.value.replace(/\D/g, ''); // remove tudo que não for dígito
             if (membroId) {
                 window.location.href = baseUrl.replace('0', membroId);
             }

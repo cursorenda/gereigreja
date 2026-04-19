@@ -300,14 +300,24 @@ def configuracoes_sistema(request):
         can_edit_finance = has_finance_edit_permission(request.user)
         config, _ = ConfiguracaoSistema.objects.get_or_create(ministerio=ministerio)
 
+
+        import logging
+        from .forms import ConfiguracaoNotificacoesForm
+        logger = logging.getLogger("django")
         # Notificações
         if request.method == 'POST' and request.POST.get('aba_ativa') == 'notificacoes':
-            notificacoes_form = ConfiguracaoSistemaForm(request.POST, instance=config)
+            logger.info(f"POST recebido: {request.POST}")
+            notificacoes_form = ConfiguracaoNotificacoesForm(request.POST, instance=config)
             if notificacoes_form.is_valid():
                 notificacoes_form.save()
+                config.refresh_from_db()
                 messages.success(request, "Configurações de notificações atualizadas com sucesso!")
+            else:
+                logger.warning(f"Erros no formulário de notificações: {notificacoes_form.errors}")
+                messages.error(request, f"Erros ao salvar: {notificacoes_form.errors}")
+            notificacoes_form = ConfiguracaoNotificacoesForm(instance=config)
         else:
-            notificacoes_form = ConfiguracaoSistemaForm(instance=config)
+            notificacoes_form = ConfiguracaoNotificacoesForm(instance=config)
 
         # EBD
         if request.method == 'POST' and request.POST.get('aba_ativa') == 'ebd':

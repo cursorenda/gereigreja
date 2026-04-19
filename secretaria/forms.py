@@ -204,6 +204,8 @@ class MembroForm(forms.ModelForm):
             self.fields.pop('igreja', None)
             self.fields.pop('tipo_pessoa', None)
             self.fields.pop('status_pessoa', None)
+            # Evita KeyError: retorna imediatamente se campos removidos
+            return
         # Widgets/classes
         for field_name in self.fields:
             if isinstance(self.fields[field_name], (forms.ChoiceField, forms.ModelChoiceField)):

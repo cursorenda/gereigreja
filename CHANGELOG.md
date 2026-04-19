@@ -1,3 +1,41 @@
+## v1.8.77 — 19/04/2026
+🚀 **Melhorias de Organização, Onboarding e Correção de Bugs**
+
+-### Novidades e Melhorias
+- **Auto Cadastro Corrigido e Aprimorado:**
+  - Corrigido erro no fluxo de auto_cadastro de novos usuários/membros, garantindo que o cadastro público funcione corretamente em todos os cenários.
+  - Ajustes para maior robustez e validação dos dados enviados pelo usuário.
+  - Experiência aprimorada para quem realiza o primeiro acesso ou cadastro externo.
+- **Assistente de Onboarding Evoluído:**
+  - O assistente de onboarding foi aprimorado, tornando-se ainda mais modular, intuitivo e fácil de personalizar.
+  - Etapas revisadas, dados dinâmicos e integração total com o contexto do sistema.
+  - Documentação e dicas de uso atualizadas para facilitar o onboarding de novos administradores.
+
+- **Base do Sistema Mais Organizada:**
+  - Refatoração e separação de formulários de configuração, facilitando manutenção e evolução.
+  - Estrutura de permissões, grupos e escopos revisada para maior previsibilidade e segurança.
+  - Melhorias em helpers, decorators e context processors para padronização e robustez.
+  - Incrementos na documentação técnica e de uso, promovendo clareza e governança.
+
+### Correções de Bugs
+- **Selector de Pessoas (Secretaria):**
+  - Corrigido bug no seletor de pessoas na tela de edição, que gerava URLs inválidas (com ponto) e causava erro 404.
+  - Navegação agora sanitiza corretamente o ID do membro antes de redirecionar.
+
+- **Notificações e Fluxos:**
+  - Correção no salvamento das configurações de notificações para administradores e secretários.
+  - Ajustes em campos ocultos e lógica de backend para garantir persistência correta.
+
+- **Cache e Estáticos:**
+  - Corrigido uso do static tag para garantir atualização de arquivos JS e evitar cache desatualizado.
+  - Orientação para limpeza de cache e atualização de templates.
+
+### Documentação
+- Documentação do assistente de onboarding revisada em `docs/sistema/ASSISTENTE_ONBOARDING.md`.
+- Detalhamento de permissões e grupos em `docs/sistema/GRUPOS_PERMISSOES.md` e `docs/sistema/DOCUMENTACAO_PERMISSOES.md`.
+- Consolidação de melhorias técnicas e funcionais em `docs/sistema/MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md` e `docs/usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md`.
+
+---
 ## v1.8.76 — 18/04/2026
 ✨ **Assistente de Onboarding Modular e Etapa de Membros**
 

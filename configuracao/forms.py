@@ -2,13 +2,48 @@
 from django import forms
 from .models import ConfiguracaoSistema
 
-class ConfiguracaoSistemaForm(forms.ModelForm):
+class ConfiguracaoNotificacoesForm(forms.ModelForm):
     class Meta:
         model = ConfiguracaoSistema
-        fields = ['notificar_eventos', 'notificar_aniversarios', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario']
+        fields = [
+            'notificar_eventos',
+            'notificar_aniversarios',
+            'notificar_pre_cadastro_secretario_pastor',
+            'notificar_pre_cadastro_admin',
+        ]
         widgets = {
             'notificar_eventos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'notificar_aniversarios': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notificar_pre_cadastro_secretario_pastor': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notificar_pre_cadastro_admin': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'notificar_eventos': 'Enviar notificações de eventos?',
+            'notificar_aniversarios': 'Enviar notificações de aniversários?',
+            'notificar_pre_cadastro_secretario_pastor': 'Notificar Secretário/Pastor Local sobre auto-cadastro?',
+            'notificar_pre_cadastro_admin': 'Notificar Admin Ministério sobre auto-cadastro?',
+        }
+
+from django import forms
+from .models import ConfiguracaoSistema
+
+class ConfiguracaoSistemaForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracaoSistema
+        fields = [
+            'notificar_eventos',
+            'notificar_aniversarios',
+            'notificar_pre_cadastro_secretario_pastor',
+            'notificar_pre_cadastro_admin',
+            'ebd_periodo',
+            'ebd_dia_semana',
+            'ebd_horario',
+        ]
+        widgets = {
+            'notificar_eventos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notificar_aniversarios': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notificar_pre_cadastro_secretario_pastor': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notificar_pre_cadastro_admin': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
             'ebd_dia_semana': forms.Select(attrs={'class': 'form-select'}),
             'ebd_horario': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
@@ -16,6 +51,8 @@ class ConfiguracaoSistemaForm(forms.ModelForm):
         labels = {
             'notificar_eventos': 'Enviar notificações de eventos?',
             'notificar_aniversarios': 'Enviar notificações de aniversários?',
+            'notificar_pre_cadastro_secretario_pastor': 'Notificar Secretário/Pastor Local sobre auto-cadastro?',
+            'notificar_pre_cadastro_admin': 'Notificar Admin Ministério sobre auto-cadastro?',
             'ebd_periodo': 'Período da Escola Bíblica',
             'ebd_dia_semana': 'Dia padrão da EBD',
             'ebd_horario': 'Horário padrão da EBD',

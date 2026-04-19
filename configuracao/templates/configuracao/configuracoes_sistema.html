@@ -64,6 +64,27 @@
                     </div>
                     {{ notificacoes_form.notificar_aniversarios.errors }}
                 </div>
+                <div class="mb-3">
+                    <label for="id_notificar_pre_cadastro_secretario_pastor" class="form-label">{{ notificacoes_form.notificar_pre_cadastro_secretario_pastor.label }}</label>
+                    <div class="form-check">
+                        {{ notificacoes_form.notificar_pre_cadastro_secretario_pastor }}
+                        <label class="form-check-label" for="id_notificar_pre_cadastro_secretario_pastor">
+                            {{ notificacoes_form.notificar_pre_cadastro_secretario_pastor.help_text }}
+                        </label>
+                    </div>
+                    {{ notificacoes_form.notificar_pre_cadastro_secretario_pastor.errors }}
+                </div>
+                <div class="mb-3">
+                    <label for="id_notificar_pre_cadastro_admin" class="form-label">{{ notificacoes_form.notificar_pre_cadastro_admin.label }}</label>
+                    <div class="form-check">
+                        {{ notificacoes_form.notificar_pre_cadastro_admin }}
+                        <label class="form-check-label" for="id_notificar_pre_cadastro_admin">
+                            {{ notificacoes_form.notificar_pre_cadastro_admin.help_text }}
+                        </label>
+                    </div>
+                    {{ notificacoes_form.notificar_pre_cadastro_admin.errors }}
+                </div>
+                <input type="hidden" name="aba_ativa" value="notificacoes">
                 <button type="submit" class="btn btn-primary">Salvar Configurações</button>
             </form>
             {% else %}

@@ -21,6 +21,17 @@ class ConfiguracaoSistema(models.Model):
     ministerio = models.OneToOneField('Ministerio', on_delete=models.CASCADE, related_name='configuracao', verbose_name='Ministério')
     notificar_eventos = models.BooleanField(default=True, verbose_name='Enviar notificações de eventos?')
     notificar_aniversarios = models.BooleanField(default=True, verbose_name='Enviar notificações de aniversários?')
+    # Notificações de pré-cadastro
+    notificar_pre_cadastro_secretario_pastor = models.BooleanField(
+        default=True,
+        verbose_name='Notificar Secretário/Pastor Local sobre auto-cadastro?',
+        help_text='Se marcado, Secretários e Pastores Locais receberão notificação de novos auto-cadastros.'
+    )
+    notificar_pre_cadastro_admin = models.BooleanField(
+        default=False,
+        verbose_name='Notificar Admin Ministério sobre auto-cadastro?',
+        help_text='Se marcado, o Admin Ministério também receberá notificação de novos auto-cadastros.'
+    )
     EBD_PERIODO_CHOICES = [
         ('trimestre', 'Trimestre'),
         ('quadrimestre', 'Quadrimestre'),
