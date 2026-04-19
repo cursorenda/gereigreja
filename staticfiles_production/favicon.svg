@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect width="64" height="64" fill="#fff"/>
-  <text x="18" y="44" font-size="36" font-family="Arial, sans-serif" fill="#FF8800" font-weight="bold">G</text>
-  <g>
-    <rect x="40" y="36" width="12" height="10" fill="#FF8800" stroke="#fff" stroke-width="2" rx="2"/>
-    <polygon points="46,36 46,30 50,30 50,36" fill="#FF8800"/>
-    <polygon points="43,30 48,24 53,30" fill="#FF8800"/>
-  </g>
-</svg>
