@@ -4292,9 +4292,20 @@ def relatorio_reuniao_membros(request):
 
     # Dados do cabeçalho
     nome_igreja = igreja.nome_igreja if hasattr(igreja, 'nome_igreja') else str(igreja)
+    rua = getattr(igreja, 'rua', '')
+    numero = getattr(igreja, 'numero_casa', '')
     bairro = getattr(igreja, 'bairro', '')
     cidade = getattr(igreja, 'cidade', '')
-    nome_ministerio = getattr(ministerio, 'nome_fantasia', str(ministerio))
+    estado = getattr(igreja, 'estado', '')
+    endereco_completo = f"{rua}, {numero} - {bairro}, {cidade} - {estado}".strip(', -')
+    razao_social = getattr(ministerio, 'razao_social', '')
+    nome_fantasia = getattr(ministerio, 'nome_fantasia', '')
+    if razao_social:
+        nome_ministerio = razao_social
+    elif nome_fantasia:
+        nome_ministerio = nome_fantasia
+    else:
+        nome_ministerio = str(ministerio)
     pastor_local = getattr(igreja, 'pastor_local', '')
     pastor_regional = getattr(igreja, 'pastor_regional', '')
     data_reuniao = timezone.now().strftime('%d de %B de %Y')
@@ -4316,6 +4327,10 @@ def relatorio_reuniao_membros(request):
         'nome_igreja': nome_igreja,
         'bairro': bairro,
         'cidade': cidade,
+        'estado': estado,
+        'rua': rua,
+        'numero': numero,
+        'endereco_completo': endereco_completo,
         'nome_ministerio': nome_ministerio,
         'pastor_local': pastor_local,
         'pastor_regional': pastor_regional,

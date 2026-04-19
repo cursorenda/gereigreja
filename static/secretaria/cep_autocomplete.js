@@ -12,11 +12,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(response => response.json())
                     .then(data => {
                         if (!data.erro) {
-                            if (data.logradouro && document.getElementById('id_rua')) document.getElementById('id_rua').value = data.logradouro;
-                            if (data.bairro && document.getElementById('id_bairro_distrito')) document.getElementById('id_bairro_distrito').value = data.bairro;
+                            if (data.logradouro) {
+                                if (document.getElementById('id_rua')) document.getElementById('id_rua').value = data.logradouro;
+                            }
+                            if (data.bairro) {
+                                if (document.getElementById('id_bairro_distrito')) document.getElementById('id_bairro_distrito').value = data.bairro;
+                                if (document.getElementById('id_bairro')) document.getElementById('id_bairro').value = data.bairro;
+                            }
                             if (data.localidade && document.getElementById('id_cidade')) document.getElementById('id_cidade').value = data.localidade;
                             if (data.uf && document.getElementById('id_estado')) document.getElementById('id_estado').value = data.uf;
-                            const numeroInput = document.getElementById('id_numero_casa');
+                            // Foca no campo de número, seja numero_casa ou numero
+                            let numeroInput = document.getElementById('id_numero_casa');
+                            if (!numeroInput) numeroInput = document.getElementById('id_numero');
                             if (numeroInput) numeroInput.focus();
                             cepInput.style.borderColor = '#28a745';
                             setTimeout(() => { cepInput.style.borderColor = ''; }, 2000);
@@ -27,7 +34,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     })
                     .catch(error => {
-                        console.error('Erro ao buscar CEP:', error);
                         alert('Erro ao buscar CEP. Verifique sua conexão.');
                     })
                     .finally(() => {

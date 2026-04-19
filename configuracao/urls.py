@@ -18,8 +18,8 @@ app_name = 'configuracao' # Define o namespace
 urlpatterns = [
     # URL Principal de Configuração (agora lista as igrejas)
     path('', views.configuracao_view, name='configuracao'), # Aponta para a view refatorada
-    path('minha-ministerio/', views.detalhes_ministerio, name='detalhes_ministerio'),
-    path('minha-ministerio/editar/', views.editar_ministerio, name='editar_ministerio'),
+    path('meu-ministerio/', views.detalhes_ministerio, name='detalhes_ministerio'),
+    path('meu-ministerio/editar/', views.editar_ministerio, name='editar_ministerio'),
  
     # URL para Gerenciar Assinatura
     path('assinatura/', views.gerenciar_assinatura, name='gerenciar_assinatura'),
@@ -41,6 +41,7 @@ urlpatterns = [
     path('igrejas/<int:igreja_id>/excluir/', views.excluir_igreja, name='excluir_igreja'),    
     path('definir-igreja-ativa/', views.set_active_church, name='set_active_church'), # Nova URL
     path('configuracoes/', views.configuracoes_sistema, name='configuracoes_sistema'),
+
 
     
     # ==================================================

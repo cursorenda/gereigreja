@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from .forms import ConfiguracaoSistemaForm
 from .models import ConfiguracaoSistema
 from contas.constants import ADMIN_MINISTERIO, user_is_admin
-from core.decorators import user_passes_test_or_403, admin_ministerio_required  # Importar decorator que lança 403
+from core.decorators import user_passes_test_or_403, admin_ministerio_required, verificar_assinatura_valida  # Importar decorator que lança 403 e assinatura
 
 # --- NOVA VIEW: Perfil de qualquer usuário (admin/gestor pode ver o perfil de outro usuário) ---
 def _usuario_pode_ver_perfil(viewer, target_user):
@@ -272,38 +272,10 @@ def is_admin_ministerio(user):
 
 @login_required
 @user_passes_test_or_403(is_admin_ministerio)
-def editar_configuracoes_sistema(request):
-    """
-    Permite ao admin/pastor editar as configurações de notificações do sistema para seu ministério.
-    """
-    perfil = getattr(request.user, 'perfil', None)
-    ministerio = getattr(perfil, 'ministerio', None)
-    if not ministerio:
-        messages.error(request, "Seu usuário não está associado a um ministério.")
-        return redirect('configuracao:configuracao')
 
-    config, _ = ConfiguracaoSistema.objects.get_or_create(ministerio=ministerio)
 
-    if request.method == 'POST':
-        form = ConfiguracaoSistemaForm(request.POST, instance=config)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Configurações de notificações atualizadas com sucesso!")
-            return redirect('configuracao:editar_configuracoes_sistema')
-        else:
-            messages.error(request, "Por favor, corrija os erros no formulário.")
-    else:
-        form = ConfiguracaoSistemaForm(instance=config)
 
-    context = {
-        'form': form,
-        'ministerio': ministerio,
-        'titulo_pagina': 'Configurações de Notificações',
-    }
-    return render(request, 'configuracao/editar_configuracoes_sistema.html', context)
-from django.shortcuts import render
 
-from core.decorators import verificar_assinatura_valida
 
 @login_required
 @verificar_assinatura_valida

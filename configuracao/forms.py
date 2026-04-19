@@ -175,27 +175,21 @@ class MinisterioEditForm(forms.ModelForm):
     )
 
     class Meta:
-        model = Ministerio # Corrigido para o nome correto do modelo
+        model = Ministerio
         fields = ['logo', 'nome_fantasia', 'razao_social', 'cnpj', 'telefone', 'email', 'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado']
-        # Adicionar 'logo' aos fields        
-      
-        
         widgets = {
-            # Adicionar classes Bootstrap e máscaras se necessário
             'nome_fantasia': forms.TextInput(attrs={'class': 'form-control'}),
             'razao_social': forms.TextInput(attrs={'class': 'form-control'}),
-            'cnpj': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}), # Adicionar máscara JS
-            'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}), # Adicionar máscara JS
+            'cnpj': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
+            'telefone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
-            'cep': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}), # Adicionar máscara JS
+            'cep': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'rua': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'complemento': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'bairro': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'cidade': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
-            # 'estado' já está definido acima com ChoiceField e Select widget
-            'logo': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
-
+            'logo': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm', 'id': 'id_logo'}),
         }
 
 # Nota: A classe IgrejaEditForm abaixo parece ser uma duplicação de IgrejaForm.

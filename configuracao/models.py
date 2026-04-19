@@ -148,6 +148,10 @@ class Ministerio(models.Model):
         verbose_name="Ativo (Aprovado pelo Desenvolvedor)",
         help_text="Ministérios inativos podem ter acesso limitado até serem aprovados."
     )
+    data_atualizacao = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Data de Atualização"
+    )
     cnpj = models.CharField(max_length=18, unique=True, null=True, blank=True, verbose_name="CNPJ")
     telefone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(max_length=100, blank=True, null=True)

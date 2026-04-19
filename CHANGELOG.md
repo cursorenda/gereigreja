@@ -1,3 +1,29 @@
+## v1.8.76 — 18/04/2026
+✨ **Assistente de Onboarding Modular e Etapa de Membros**
+
+### Novidades
+- Assistente de onboarding totalmente modular, com lógica em JS e dados dinâmicos via data-attributes.
+- Etapas do assistente revisadas e robustas:
+  1. Dados do Ministério (edição direta)
+  2. Dados da Igreja Principal
+  3. Configuração do Sistema (resumo e edição)
+  4. Cadastro de Membros (novo: botão para cadastrar e link para lista)
+- Cada etapa exibe dados reais do sistema e oferece ações contextuais.
+- Progresso salvo no navegador, assistente minimizável e reabrível.
+- Documentação detalhada criada em `docs/sistema/ASSISTENTE_ONBOARDING.md`.
+
+### Melhorias Técnicas
+- Modularização completa do JS do assistente (`static/js/assistente.js`).
+- Dados de contexto passados via blocos ocultos no template (`partials/assistente_ajuda.html`).
+- Backend preparado para fornecer todos os dados necessários via context processor.
+- Fácil personalização de etapas, textos e ações.
+
+### Documentação
+- Novo manual do assistente de onboarding: `docs/sistema/ASSISTENTE_ONBOARDING.md`.
+- Atualização recomendada do índice de documentação.
+
+---
+
 ## v1.8.75 — 16/04/2026
 🛠️ **Melhorias na Página de Igreja: Máscara de CNPJ e Integração com Ministério**
 

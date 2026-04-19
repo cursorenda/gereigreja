@@ -18,32 +18,37 @@
             Detalhes da Ministério
         </div>
         <div class="card-body">
-            {% if ministerio.logo %}
-                <div class="mb-3 text-center">
-                    <img src="{{ ministerio.logo.url }}" alt="Logo de {{ ministerio.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
-                </div>
-                <hr>
-            {% endif %}
-            <dl class="row">
-                <dt class="col-sm-3">Nome Fantasia:</dt>
-                <dd class="col-sm-9">{{ ministerio.nome_fantasia }}</dd>
-                <dt class="col-sm-3">Razão Social:</dt>
-                <dd class="col-sm-9">{{ ministerio.razao_social|default:"N/A" }}</dd>
-                <dt class="col-sm-3">CNPJ:</dt>
-                <dd class="col-sm-9">{{ ministerio.cnpj|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Data Criação:</dt>
-                <dd class="col-sm-9">{{ ministerio.data_criacao|date:"d/m/Y H:i" }}</dd>
-                <dt class="col-sm-3">Status:</dt>
-                <dd class="col-sm-9">
-                    {% if ministerio.ativo %}
-                        <span class="badge bg-success">Ativa</span>
-                    {% else %}
-                        <span class="badge bg-warning text-dark">Aguardando Aprovação</span>
+            <div class="row align-items-center mb-4">
+                <div class="col-12 col-md-4 text-center mb-3 mb-md-0">
+                    {% if ministerio.logo %}
+                        <img src="{{ ministerio.logo.url }}" alt="Logo de {{ ministerio.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
                     {% endif %}
-                </dd>
-                <dt class="col-sm-3">Administrador Principal:</dt>
-                <dd class="col-sm-9">{{ ministerio.administrador_principal.get_full_name|default:ministerio.administrador_principal.username }}</dd>
-                <hr class="my-3">
+                </div>
+                <div class="col-12 col-md-8">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Nome Fantasia:</dt>
+                        <dd class="col-sm-8">{{ ministerio.nome_fantasia }}</dd>
+                        <dt class="col-sm-4">Razão Social:</dt>
+                        <dd class="col-sm-8">{{ ministerio.razao_social|default:"N/A" }}</dd>
+                        <dt class="col-sm-4">CNPJ:</dt>
+                        <dd class="col-sm-8">{{ ministerio.cnpj|default:"N/A" }}</dd>
+                        <dt class="col-sm-4">Data Criação:</dt>
+                        <dd class="col-sm-8">{{ ministerio.data_criacao|date:"d/m/Y H:i" }}</dd>
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            {% if ministerio.ativo %}
+                                <span class="badge bg-success">Ativa</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Aguardando Aprovação</span>
+                            {% endif %}
+                        </dd>
+                        <dt class="col-sm-4">Administrador Principal:</dt>
+                        <dd class="col-sm-8">{{ ministerio.administrador_principal.get_full_name|default:ministerio.administrador_principal.username }}</dd>
+                    </dl>
+                </div>
+            </div>
+            <hr>
+            <dl class="row">
                 <dt class="col-sm-3">Telefone:</dt>
                 <dd class="col-sm-9">{{ ministerio.telefone|default:"N/A" }}</dd>
                 <dt class="col-sm-3">Email:</dt>

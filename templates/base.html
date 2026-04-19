@@ -41,7 +41,7 @@
                         <a href="{% url 'secretaria:adicionar_membro' %}" class="btn btn-primary">Cadastrar Membro</a>
                     {% elif onboarding_etapa == 3 %}
                         <p>Configure permissões básicas e horários de reuniões para sua igreja.</p>
-                        <a href="{% url 'configuracao:editar_configuracoes_sistema' %}" class="btn btn-primary">Configurar Sistema</a>
+                        <a href="{% url 'configuracao:configuracoes_sistema' %}" class="btn btn-primary">Configurar Sistema</a>
                     {% elif onboarding_etapa == 4 %}
                         <p>Cadastre outros usuários que terão acesso ao sistema.</p>
                         <a href="{% url 'configuracao:adicionar_usuario' %}" class="btn btn-primary">Cadastrar Usuário</a>

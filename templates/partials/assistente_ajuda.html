@@ -1,0 +1,63 @@
+    {# Bloco oculto com as configurações do sistema, lidos pelo JS via data-attributes #}
+    {% if configuracao_sistema %}
+    <div id="onboarding-configuracao-dados"
+        data-ebd-dia-semana="{{ configuracao_sistema.get_ebd_dia_semana_display|default_if_none:'' }}"
+        data-ebd-periodo="{{ configuracao_sistema.get_ebd_periodo_display|default_if_none:'' }}"
+        data-ebd-horario="{{ configuracao_sistema.ebd_horario|default_if_none:'' }}"
+        data-notificar-eventos="{{ configuracao_sistema.notificar_eventos }}"
+        data-notificar-aniversarios="{{ configuracao_sistema.notificar_aniversarios }}"
+        style="display:none"></div>
+    {% endif %}
+{# ------------------------------------------------------------------------- #}
+{# Template parcial do Assistente de Ajuda/Onboarding                      #}
+{# Incluído no base_com_menu.html. Só aparece se mostrar_assistente=True   #}
+{# ------------------------------------------------------------------------- #}
+{% if mostrar_assistente %}
+    {# Modal principal do assistente. Fica visível quando ativo. #}
+    <div id="onboarding-assistente" class="onboarding-modal" style="display:block;">
+        {# Botão para minimizar o assistente (fecha o modal, mas não remove do DOM) #}
+        <button class="onboarding-minimizar" id="onboarding-minimizar" title="Minimizar" aria-label="Minimizar">&minus;</button>
+        <div class="onboarding-header">
+            <span class="onboarding-icone">🤖</span>
+            <span class="onboarding-titulo">Assistente de Ajuda</span>
+        </div>
+        {# Conteúdo dinâmico das etapas do onboarding, preenchido via JS #}
+        <div id="onboarding-conteudo-dinamico"></div>
+        <div class="onboarding-footer">
+            {# Label da etapa atual, atualizado via JS #}
+            <span id="onboarding-etapa-label">Etapa 1 de 4</span>
+            <div class="d-flex justify-content-end gap-2 mt-2">
+                {# Botões de navegação entre etapas #}
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="onboarding-voltar">Voltar</button>
+                <button type="button" class="btn btn-primary btn-sm" id="onboarding-avancar">Avançar</button>
+            </div>
+        </div>
+    </div>
+    {# Bloco oculto com os dados do ministério, lidos pelo JS via data-attributes #}
+    <div id="onboarding-dados"
+        data-nome-fantasia="{{ onboarding_ministerio_dados.nome_fantasia|default_if_none:'' }}"
+        data-razao-social="{{ onboarding_ministerio_dados.razao_social|default_if_none:'' }}"
+        data-cnpj="{{ onboarding_ministerio_dados.cnpj|default_if_none:'' }}"
+        data-responsavel="{{ onboarding_ministerio_dados.responsavel|default_if_none:'' }}"
+        data-email="{{ onboarding_ministerio_dados.email|default_if_none:'' }}"
+        data-telefone="{{ onboarding_ministerio_dados.telefone|default_if_none:'' }}"
+        data-endereco="{{ onboarding_ministerio_dados.endereco|default_if_none:'' }}"
+        data-url-editar="{% url 'configuracao:editar_ministerio' %}"
+        style="display:none"></div>
+
+    {# Bloco oculto com os dados da igreja principal, lidos pelo JS via data-attributes #}
+    {% if onboarding_igreja_dados %}
+    <div id="onboarding-igreja-dados"
+        data-nome-igreja="{{ onboarding_igreja_dados.nome_igreja|default_if_none:'' }}"
+        data-tipo-igreja="{{ onboarding_igreja_dados.tipo_igreja|default_if_none:'' }}"
+        data-endereco="{{ onboarding_igreja_dados.endereco|default_if_none:'' }}"
+        data-responsavel="{{ onboarding_igreja_dados.responsavel|default_if_none:'' }}"
+        data-telefone="{{ onboarding_igreja_dados.telefone|default_if_none:'' }}"
+        data-email="{{ onboarding_igreja_dados.email|default_if_none:'' }}"
+        data-cnpj="{{ onboarding_igreja_dados.cnpj|default_if_none:'' }}"
+        data-data-fundacao="{{ onboarding_igreja_dados.data_fundacao|default_if_none:'' }}"
+        style="display:none"></div>
+    {% endif %}
+    {# Bolha flutuante para reabrir o assistente quando minimizado #}
+    <div id="onboarding-bolha" title="Abrir assistente" aria-label="Abrir assistente">🤖</div>
+{% endif %}

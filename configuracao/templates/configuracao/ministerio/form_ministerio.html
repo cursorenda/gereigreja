@@ -1,97 +1,155 @@
+{#
+  Template: Editar Ministério
+  - Exibe formulário para editar dados do ministério
+  - Utiliza Django forms e Bootstrap para layout
+#}
 {% extends 'base_com_menu.html' %}
+{% load static %}
 
+{# Bloco do título da página #}
 {% block title %}{{ titulo_pagina|default:"Editar Ministério" }}{% endblock %}
 
+{# Bloco principal de conteúdo #}
 {% block content %}
 <div class="container-fluid px-4">
+    {# Título e breadcrumb de navegação #}
     <h1 class="mt-4">{{ titulo_pagina|default:"Editar Ministério" }}</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="{% url 'configuracao:detalhes_ministerio' %}">Meu Ministério</a></li>
         <li class="breadcrumb-item active">Editar</li>
     </ol>
-    {% include 'partials/_messages.html' %}
+    {# Mensagens de feedback removidas daqui para exibir apenas no bloco global/base #}
     <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-edit me-1"></i> Editar Dados do Ministério
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <i class="fas fa-edit me-1"></i> Editar Dados do Ministério
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge bg-info" style="font-size: 0.95rem; font-weight: normal;">
+                    <i class="fas fa-calendar-plus me-1"></i>
+                    Cadastrado em: {{ form.instance.data_criacao|date:'d/m/Y H:i' }}
+                </span>
+                {% if form.instance.data_atualizacao %}
+                <span class="badge bg-secondary" style="font-size: 0.95rem; font-weight: normal;">
+                    <i class="fas fa-clock me-1"></i>
+                    Última alteração: {{ form.instance.data_atualizacao|date:'d/m/Y H:i' }}
+                </span>
+                {% endif %}
+            </div>
         </div>
         <div class="card-body">
+            {# Formulário de edição do ministério #}
             <form method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
+                {# Exibe erros não relacionados a campos específicos #}
                 {% if form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">
                         {% for error in form.non_field_errors %}{{ error }}{% endfor %}
                     </div>
                 {% endif %}
                 <div class="row">
+                    {# Grid topo: logo, link e upload na coluna 1 (33%), coluna 2 (66%) livre #}
                     <div class="col-md-12 mb-3">
-                        <label for="{{ form.logo.id_for_label }}" class="form-label">{{ form.logo.label }}:</label>
-                        {{ form.logo }}
-                        {% if form.logo.help_text %}
-                            <div class="form-text">{{ form.logo.help_text|safe }}</div>
-                        {% endif %}
-                        {% if form.logo.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.logo.errors|join:", " }}
+                        <div class="row align-items-center">
+                            <div class="col-12 col-md-4" style="max-width:33%; flex:0 0 33%;">
+                                <div class="text-center">
+                                    <div id="logo-preview-container" style="margin-top:10px;">
+                                        {% if form.instance.logo %}
+                                            <img src="{{ form.instance.logo.url }}" alt="Logo atual" style="max-width: 200px; max-height: 120px; display: block; margin: 0 auto;">
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex justify-content-center mt-2">
+                                        <div style="width: 100%; min-width: 120px;">
+                                            {{ form.logo }}
+                                        </div>
+                                    </div>
+                                    {% if form.logo.help_text %}
+                                        <div class="form-text">{{ form.logo.help_text|safe }}</div>
+                                    {% endif %}
+                                    {% if form.logo.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.logo.errors|join:", " }}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.instance.logo and 'cloudinary.com' in form.instance.logo.url %}
+                                        <div class="mt-2">
+                                            <span class="text-muted small">Logo atual hospedado:</span>
+                                            <a href="{{ form.instance.logo.url }}" target="_blank" class="small">{{ form.instance.logo.url|truncatechars:40 }}</a>
+                                        </div>
+                                    {% endif %}
+                                </div>
                             </div>
-                        {% endif %}
+                            <div class="col-12 col-md-8" style="max-width:66%; flex:0 0 66%;">
+                                <div class="row">
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label for="{{ form.nome_fantasia.id_for_label }}" class="form-label">{{ form.nome_fantasia.label }}:</label>
+                                        {{ form.nome_fantasia }}
+                                        {% if form.nome_fantasia.errors %}<div class="invalid-feedback d-block">{{ form.nome_fantasia.errors|striptags }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label for="{{ form.razao_social.id_for_label }}" class="form-label">{{ form.razao_social.label }}:</label>
+                                        {{ form.razao_social }}
+                                        {% if form.razao_social.errors %}<div class="invalid-feedback d-block">{{ form.razao_social.errors|striptags }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }}:</label>
+                                        {{ form.cnpj }}
+                                        {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|striptags }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 col-md-6 mb-3">
+                                        <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
+                                        {{ form.telefone }}
+                                        {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 mb-3">
+                                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
+                                        {{ form.email }}
+                                        {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.nome_fantasia.id_for_label }}" class="form-label">{{ form.nome_fantasia.label }}:</label>
-                        {{ form.nome_fantasia }}
-                        {% if form.nome_fantasia.errors %}<div class="invalid-feedback d-block">{{ form.nome_fantasia.errors|striptags }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.razao_social.id_for_label }}" class="form-label">{{ form.razao_social.label }}:</label>
-                        {{ form.razao_social }}
-                        {% if form.razao_social.errors %}<div class="invalid-feedback d-block">{{ form.razao_social.errors|striptags }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.cnpj.id_for_label }}" class="form-label">{{ form.cnpj.label }}:</label>
-                        {{ form.cnpj }}
-                        {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|striptags }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}:</label>
-                        {{ form.telefone }}
-                        {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|striptags }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-12 mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}:</label>
-                        {{ form.email }}
-                        {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|striptags }}</div>{% endif %}
-                    </div>
+                    {# Os campos acima foram movidos para a coluna 2 do grid #}
                     <hr class="my-3">
+                    {# Campo: CEP #}
                     <div class="col-md-4 mb-3">
                         <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}:</label>
                         {{ form.cep }}
                         {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|striptags }}</div>{% endif %}
                     </div>
+                    {# Campo: Rua #}
                     <div class="col-md-8 mb-3">
                         <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}:</label>
                         {{ form.rua }}
                         {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|striptags }}</div>{% endif %}
                     </div>
+                    {# Campo: Número #}
                     <div class="col-md-4 mb-3">
                         <label for="{{ form.numero.id_for_label }}" class="form-label">{{ form.numero.label }}:</label>
                         {{ form.numero }}
                         {% if form.numero.errors %}<div class="invalid-feedback d-block">{{ form.numero.errors|striptags }}</div>{% endif %}
                     </div>
+                    {# Campo: Complemento #}
                     <div class="col-md-8 mb-3">
                         <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}:</label>
                         {{ form.complemento }}
                         {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|striptags }}</div>{% endif %}
                     </div>
+                    {# Campo: Bairro #}
                     <div class="col-md-4 mb-3">
                         <label for="{{ form.bairro.id_for_label }}" class="form-label">{{ form.bairro.label }}:</label>
                         {{ form.bairro }}
                         {% if form.bairro.errors %}<div class="invalid-feedback d-block">{{ form.bairro.errors|striptags }}</div>{% endif %}
                     </div>
+                    {# Campo: Cidade #}
                     <div class="col-md-4 mb-3">
                         <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}:</label>
                         {{ form.cidade }}
                         {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|striptags }}</div>{% endif %}
                     </div>
+                    {# Campo: Estado #}
                     <div class="col-md-4 mb-3">
                         <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}:</label>
                         {{ form.estado }}
@@ -99,6 +157,7 @@
                     </div>
                 </div>
                 <hr>
+                {# Botões de ação: Salvar e Cancelar #}
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-1"></i> Salvar Alterações
                 </button>
@@ -109,14 +168,11 @@
 </div>
 {% endblock content %}
 
+{# Bloco para scripts JS extras (jQuery, máscaras e autocomplete de CEP) #}
 {% block extra_js %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
-<script>
-    $(document).ready(function(){
-        $('#id_cnpj').mask('00.000.000/0000-00');
-        $('#id_cep').mask('00000-000');
-        $('#id_telefone').mask('(00) 00000-0000');
-    });
-</script>
+<script src="{% static 'secretaria/form_masks.js' %}"></script>
+<script src="{% static 'secretaria/cep_autocomplete.js' %}"></script>
+<script src="{% static 'js/foto_preview.js' %}"></script>
+<!-- Preview de imagem centralizado via js/foto_preview.js -->
 {% endblock extra_js %}
