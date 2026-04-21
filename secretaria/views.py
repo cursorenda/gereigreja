@@ -1,4 +1,71 @@
-﻿from django.contrib.auth.decorators import login_required
+﻿# Corrigir importação de login_required
+from django.contrib.auth.decorators import login_required
+# --- BULK EDIT PESSOAS ---
+from django.shortcuts import render, redirect
+from .forms import PessoaBulkEditForm
+
+@login_required
+def bulk_edit_pessoas(request):
+    from django.contrib import messages
+    from .models import Membro, MembroCargo
+
+    if request.method == 'POST':
+        # Converter para inteiros válidos
+        raw_pessoa_ids = request.POST.getlist('pessoa_ids')
+        print('DEBUG pessoa_ids recebidos no POST:', raw_pessoa_ids)
+        pessoa_ids = []
+        for pid in raw_pessoa_ids:
+            pid = pid.strip()
+            try:
+                pessoa_ids.append(int(pid))
+            except (ValueError, TypeError):
+                continue
+        form = PessoaBulkEditForm(request.POST)
+        if not pessoa_ids:
+            messages.error(request, 'Nenhum membro selecionado para alteração.')
+            return redirect('secretaria:lista_membros')
+        if form.is_valid():
+            membros = Membro.objects.filter(chave__in=pessoa_ids)
+            alterados = 0
+            for membro in membros:
+                data = form.cleaned_data
+                if data['status_pessoa']:
+                    membro.status_pessoa = data['status_pessoa']
+                if data['tipo_pessoa']:
+                    membro.tipo_pessoa = data['tipo_pessoa']
+
+                if data['data_mudanca_tipo']:
+                    membro.data_mudanca_tipo = data['data_mudanca_tipo']
+                if data['data_mudanca_status']:
+                    membro.data_mudanca_status = data['data_mudanca_status']
+                if data['sub_status_inativo']:
+                    membro.sub_status_inativo = data['sub_status_inativo']
+                if data['observacoes']:
+                    membro.observacoes = data['observacoes']
+                # Novos campos de endereço
+                if data['bairro_distrito']:
+                    membro.bairro_distrito = data['bairro_distrito']
+                if data['cidade']:
+                    membro.cidade = data['cidade']
+                if data['estado']:
+                    membro.estado = data['estado']
+                if data['pais']:
+                    membro.pais = data['pais']
+                if data['cep']:
+                    membro.cep = data['cep']
+                membro.save()
+                if data['tags']:
+                    membro.tags.set(data['tags'])
+                alterados += 1
+            messages.success(request, f'Alteração em massa realizada para {alterados} membro(s).')
+            return redirect('secretaria:lista_membros')
+        else:
+            messages.error(request, 'Corrija os erros no formulário.')
+    else:
+        # Receber pessoa_ids via GET para manter seleção
+        pessoa_ids = request.GET.getlist('pessoa_ids')
+        return render(request, 'secretaria/bulk_edit_pessoas.html', {'form': PessoaBulkEditForm(), 'pessoa_ids': pessoa_ids})
+from django.contrib.auth.decorators import login_required
 
 # --- VIEW PÚBLICA: Cadastro de pessoa via link único por igreja ---
 from django.views.decorators.csrf import csrf_exempt

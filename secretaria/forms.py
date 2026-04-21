@@ -1,4 +1,81 @@
+# --- IMPORTS NECESSÁRIOS PARA O FORMULÁRIO DE ALTERAÇÃO EM MASSA ---
 from django import forms
+from .models import StatusPessoa, TipoPessoa, Tag, Cargo
+# --- Formulário para Alteração em Massa de Pessoas ---
+class PessoaBulkEditForm(forms.Form):
+    # Campos de endereço para edição em massa
+    bairro_distrito = forms.CharField(
+        required=False,
+        label='Bairro/Distrito',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50})
+    )
+    cidade = forms.CharField(
+        required=False,
+        label='Cidade',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50})
+    )
+    estado = forms.CharField(
+        required=False,
+        label='Estado',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50})
+    )
+    pais = forms.CharField(
+        required=False,
+        label='País',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50})
+    )
+    cep = forms.CharField(
+        required=False,
+        label='CEP',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'maxlength': 9, 'placeholder': '00000-000'})
+    )
+    status_pessoa = forms.ModelChoiceField(
+        queryset=StatusPessoa.objects.all(),
+        required=False,
+        label='Status',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    tipo_pessoa = forms.ModelChoiceField(
+        queryset=TipoPessoa.objects.all(),
+        required=False,
+        label='Tipo de Pessoa',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    tags = forms.ModelMultipleChoiceField(
+        queryset=Tag.objects.all().order_by('nome'),
+        required=False,
+        label='Tags',
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 6})
+    )
+
+    data_mudanca_tipo = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        label='Data da mudança de tipo'
+    )
+    data_mudanca_status = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        label='Data da mudança de status'
+    )
+    sub_status_inativo = forms.ChoiceField(
+        choices=[
+            ('', '---------'),
+            ('FALECIDO', 'Falecido'),
+            ('MUDOU', 'Mudou (outro ministério ou denominação)'),
+            ('TRANSFERIDO', 'Transferido (outra congregação do mesmo ministério)'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Sub status (se inativo)'
+    )
+    observacoes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        label='Observações'
+    )
+
+# --- IMPORTS ADICIONAIS ---
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from .models import Membro, Pessoa

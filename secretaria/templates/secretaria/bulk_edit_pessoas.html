@@ -1,0 +1,250 @@
+{% extends 'base_com_sistema.html' %}
+{% load static %}
+{# --- TEMPLATE: EDIÇÃO EM MASSA DE PESSOAS --- #}
+{# Exibe o formulário para alteração em massa dos membros selecionados. Recebe pessoa_ids via hidden. #}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:0 !important; padding-left:2rem;">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-users me-1"></i>
+        <span style="font-size:1.1rem; font-weight:600;">Alteração em Massa de Pessoas</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="mt-4 d-flex justify-content-center">
+    <form id="bulk-edit-form" method="post" class="w-100" style="max-width:1800px; min-width:320px; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(13,110,253,0.07); padding: 2.5rem 3vw;">
+        {% csrf_token %}
+        {% for pid in pessoa_ids %}
+            <input type="hidden" name="pessoa_ids" value="{{ pid }}" />
+        {% endfor %}
+        <div class="mb-2">
+            <strong>Membros selecionados para alteração:</strong>
+            <span style="color: #2196f3;">{{ pessoa_ids|join:", " }}</span>
+        </div>
+        <div class="row mb-3 g-3">
+            <div class="col-12 col-md-6 col-lg-6">
+                <label for="id_tipo_pessoa" class="form-label"><strong>Tipo de Pessoa:</strong></label>
+                <div class="input-group input-group-data-mudanca">
+                    {{ form.tipo_pessoa }}
+                    <span class="input-group-text"><i class="fas fa-calendar-alt text-muted"></i></span>
+                    {{ form.data_mudanca_tipo }}
+                </div>
+                <small class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Quando a mudança de tipo ocorreu (editável)</small>
+            </div>
+            <div class="col-12 col-md-6 col-lg-6">
+                <label for="id_status_pessoa" class="form-label"><strong>Status:</strong></label>
+                <div class="input-group input-group-data-mudanca mb-2">
+                    {{ form.status_pessoa }}
+                    <span class="input-group-text"><i class="fas fa-calendar-alt text-muted"></i></span>
+                    {{ form.data_mudanca_status }}
+                </div>
+                <small class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Quando a mudança de status ocorreu (editável)</small>
+                <div class="mt-2 row" id="row-sub-status-inativo" style="display: none;">
+                    <div class="col-12">
+                        <label for="id_sub_status_inativo" class="form-label">Sub status (se inativo)</label>
+                        {{ form.sub_status_inativo }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-3 g-3">
+            <div class="col-12 col-md-4">
+                <label for="id_cep" class="form-label">CEP</label>
+                {{ form.cep }}
+            </div>
+            <div class="col-12 col-md-4">
+                <label for="id_bairro_distrito" class="form-label">Bairro/Distrito</label>
+                {{ form.bairro_distrito }}
+            </div>
+            <div class="col-12 col-md-4">
+                <label for="id_cidade" class="form-label">Cidade</label>
+                {{ form.cidade }}
+            </div>
+        </div>
+        <div class="row mb-3 g-3">
+            <div class="col-12 col-md-6">
+                <label for="id_estado" class="form-label">Estado</label>
+                {{ form.estado }}
+            </div>
+            <div class="col-12 col-md-6">
+                <label for="id_pais" class="form-label">País</label>
+                <div class="input-group">
+                    <span class="input-group-text" id="bandeira-brasil" style="background: none; border: none; padding-right: 0; display: none;">
+                        <img src="https://cdn.jsdelivr.net/gh/lipis/flag-icons/flags/4x3/br.svg" alt="Brasil" style="width: 28px; height: 20px;"> 
+                    </span>
+                    {{ form.pais }}
+                </div>
+            </div>
+        </div>
+        <div class="row mb-3 g-3">
+            <div class="col-12">
+                <label for="id_observacoes" class="form-label">Observações</label>
+                {{ form.observacoes }}
+            </div>
+        </div>
+        <div class="row mb-3 g-3">
+            <div class="col-12 col-lg-6">
+                <label class="form-label">Tags disponíveis:</label>
+                <label for="tag-badges-list" class="visually-hidden">Selecione as tags disponíveis</label>
+                <div id="tag-badges-list" class="d-flex flex-row flex-wrap align-items-center gap-2" style="max-width: 500px;">
+                    {% for tag in form.fields.tags.queryset %}
+                        <button type="button" class="badge tag-badge-select" style="background-color:{{ tag.cor }}; color: #fff; font-size:1em; margin-bottom:4px;" data-tag-id="{{ tag.id }}" aria-label="Selecionar tag {{ tag.nome }}">{{ tag.nome }}</button>
+                    {% endfor %}
+                </div>
+                <label class="form-label mt-3">Tags já selecionadas:</label>
+                <label for="selected-tags-preview" class="visually-hidden">Tags já selecionadas</label>
+                <div id="selected-tags-preview" class="d-flex flex-row flex-wrap align-items-center gap-2 mt-1 mb-3"></div>
+                <small class="text-muted mb-2 d-block">Clique nas tags disponíveis para selecionar. Clique nas tags já selecionadas para remover.</small>
+                {% if form.tags.errors %}<div class="invalid-feedback d-block">{{ form.tags.errors|striptags }}</div>{% endif %}
+                <div style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
+                    {{ form.tags }}
+                </div>
+                <script>
+                var allTags = [
+                    {% for tag in form.fields.tags.queryset %}
+                        {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+                </script>
+            </div>
+        </div>
+                </form>
+                </div>
+                <style>
+                @media (max-width: 900px) {
+                    form[method="post"] {
+                        padding: 1.2rem 0.5rem !important;
+                    }
+                }
+                </style>
+                <div class="d-flex justify-content-between mt-4 w-100">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#confirmModal">Salvar Alterações</button>
+                    <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
+                </div>
+        </form>
+        <!-- Modal de Confirmação -->
+        <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="confirmModalLabel">Confirmar Alteração em Massa</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Tem certeza que deseja aplicar as alterações em massa para os membros selecionados?</p>
+                        <div id="resumo-alteracoes" class="mb-2">
+                            <strong>Resumo das alterações:</strong>
+                            <ul style="margin-bottom:0;">
+                                <li><b>Tipo de Pessoa:</b> <span id="resumo-tipo-pessoa"></span></li>
+                                <li><b>Status:</b> <span id="resumo-status-pessoa"></span></li>
+                                <li><b>Tags:</b> <span id="resumo-tags"></span></li>
+                                <li><b>Data da mudança de tipo:</b> <span id="resumo-data-tipo"></span></li>
+                                <li><b>Data da mudança de status:</b> <span id="resumo-data-status"></span></li>
+                                <li><b>Sub status (se inativo):</b> <span id="resumo-sub-status"></span></li>
+                                <li><b>Observações:</b> <span id="resumo-observacoes"></span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" id="btn-confirmar-salvar" class="btn btn-primary">Confirmar e Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // Preencher o resumo das alterações no modal
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.querySelector('[data-bs-target="#confirmModal"]');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                document.getElementById('resumo-tipo-pessoa').textContent = document.getElementById('id_tipo_pessoa').selectedOptions[0]?.text || '';
+                document.getElementById('resumo-status-pessoa').textContent = document.getElementById('id_status_pessoa').selectedOptions[0]?.text || '';
+                var tags = Array.from(document.getElementById('id_tags').selectedOptions).map(opt => opt.text).join(', ');
+                document.getElementById('resumo-tags').textContent = tags;
+                // document.getElementById('resumo-cargo').textContent = document.getElementById('id_grupo_cargo')?.selectedOptions[0]?.text || '';
+                document.getElementById('resumo-data-tipo').textContent = document.getElementById('id_data_mudanca_tipo').value;
+                document.getElementById('resumo-data-status').textContent = document.getElementById('id_data_mudanca_status').value;
+                // Sub status (se inativo)
+                var subStatusSelect = document.getElementById('id_sub_status_inativo');
+                var subStatusText = '';
+                if (subStatusSelect) {
+                    var selected = subStatusSelect.options[subStatusSelect.selectedIndex];
+                    if (selected && selected.value) {
+                        subStatusText = selected.text;
+                    }
+                }
+                document.getElementById('resumo-sub-status').textContent = subStatusText;
+                // Observações
+                var obs = document.getElementById('id_observacoes');
+                document.getElementById('resumo-observacoes').textContent = obs && obs.value ? obs.value.trim() : '';
+            });
+        }
+    });
+    </script>
+</form>
+<script src="{% static 'secretaria/form_tags.js' %}"></script>
+<script src="{% static 'secretaria/form_dynamic.js' %}"></script>
+<script src="{% static 'secretaria/cep_autocomplete.js' %}"></script>
+<script>
+// Preencher país como Brasil ao buscar CEP e exibir bandeira dinamicamente
+document.addEventListener('DOMContentLoaded', function() {
+    var cepInput = document.getElementById('id_cep');
+    var paisInput = document.getElementById('id_pais');
+    var flag = document.getElementById('bandeira-brasil');
+    function updateFlag() {
+        if (paisInput && flag) {
+            if (paisInput.value.trim().toLowerCase() === 'brasil') {
+                flag.style.display = '';
+            } else {
+                flag.style.display = 'none';
+            }
+        }
+    }
+    if (paisInput) {
+        paisInput.addEventListener('input', updateFlag);
+        updateFlag();
+    }
+    if (cepInput && paisInput) {
+        cepInput.addEventListener('blur', function() {
+            let cep = this.value.replace(/\D/g, '');
+            if (cep.length === 8) {
+                // Após o autocomplete do endereço, garantir país Brasil
+                setTimeout(function() {
+                    if (!paisInput.value || paisInput.value.trim() === '') {
+                        paisInput.value = 'Brasil';
+                        updateFlag();
+                    }
+                }, 600);
+            }
+        });
+    }
+});
+</script>
+<script>
+// Submeter o formulário principal ao confirmar no modal
+document.addEventListener('DOMContentLoaded', function() {
+    var btnConfirmar = document.getElementById('btn-confirmar-salvar');
+    var modal = document.getElementById('confirmModal');
+    // Seleciona o formulário correto pelo id
+    var form = document.getElementById('bulk-edit-form');
+    if (btnConfirmar && form) {
+        btnConfirmar.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Fechar o modal (Bootstrap 5)
+            var modalInstance = bootstrap.Modal.getInstance(modal);
+            if (modalInstance) modalInstance.hide();
+            // Submeter o formulário principal
+            setTimeout(function() {
+                // DEBUG: Confirma submit
+                console.log('DEBUG: Submetendo formulário principal do bulk edit');
+                form.submit();
+            }, 200); // Pequeno delay para fechar o modal antes
+        });
+    }
+});
+</script>
+</div>
+{% endblock %}

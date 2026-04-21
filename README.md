@@ -60,7 +60,23 @@ python manage.py configurar_permissoes_grupos
 Para detalhes sobre cada grupo, permissões específicas e guias de uso, consulte:
 - **[docs/GRUPOS_PERMISSOES.md](docs/GRUPOS_PERMISSOES.md)** - Documentação completa do sistema de permissões
 
-## �🛠️ Tecnologias
+## 🆕 Melhorias Recentes (v1.8.78 — 21/04/2026)
+
+- **Alteração em Massa de Pessoas (Bulk Edit):**
+  - Corrigido bug de logout inesperado ao salvar alteração em massa.
+  - Submit do modal agora aciona sempre o formulário correto, evitando conflitos com o form de logout.
+  - Seleção de tags e campos harmonizada com cadastro/edição individual.
+- **Mensagens Globais:**
+  - Removido bloco de mensagens duplicado na lista de membros; apenas o global permanece.
+- **Middleware/Contexto:**
+  - Middleware ajustado para não exigir seleção de igreja para usuários de igreja única.
+  - Selector de igreja oculto para esses usuários, evitando POSTs desnecessários.
+- **UX:**
+  - Ajustes em botões, modais e feedback visual para maior clareza e robustez.
+
+Veja detalhes completos no [CHANGELOG.md](CHANGELOG.md) e na documentação de permissões/grupos.
+
+##🛠️ Tecnologias
 
 - **Backend**: Python 3.x + Django Framework
 - **Frontend**: HTML5, CSS3 (Bootstrap), JavaScript (jQuery, Chart.js)

@@ -114,12 +114,11 @@
           {# --- INÍCIO DO SELETOR DE IGREJA ATIVA --- #}
         {# Este formulário será inserido aqui, antes do menu do usuário à direita #}
         {% if user.is_authenticated and not user.is_superuser and user.perfil %}
-            {% get_allowed_churches_for_user_tag as allowed_churches_list %} {# Chama a tag para obter as igrejas #}
-            {% if allowed_churches_list and allowed_churches_list.count > 0 %} {# Só mostra se houver igrejas permitidas #}
+            {% get_allowed_churches_for_user_tag as allowed_churches_list %}
+            {# Só mostra o seletor se houver MAIS de uma igreja permitida #}
+            {% if allowed_churches_list and allowed_churches_list.count > 1 %}
                 <form method="POST" action="{% url 'configuracao:set_active_church' %}" class="d-flex ms-auto me-md-3 my-2 my-md-0 align-items-center" id="activeChurchForm">
                     {% csrf_token %}
-                    {# O label pode ser visualmente oculto se preferir, mas é bom para acessibilidade #}
-                    {# <label for="igreja_id_selector_nav" class="me-2 text-white-50 small d-none d-md-inline">Igreja Ativa:</label> #}
                     <select name="igreja_id_selector" id="igreja_id_selector_nav" class="font-size-selector-custom igreja-selector-wide" onchange="document.getElementById('activeChurchForm').submit();" title="Selecionar igreja ativa">
                         <option value="todas" {% if not request.igreja_ativa %}selected{% endif %}>Todas Permitidas</option>
                         {% for igreja_item in allowed_churches_list %}

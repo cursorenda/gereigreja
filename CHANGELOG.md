@@ -1,3 +1,30 @@
+## v1.8.78 — 21/04/2026
+🛠️ **Melhorias em Alteração em Massa, UX e Correções de Sessão**
+
+### Novidades e Melhorias
+- **Alteração em Massa de Pessoas (Bulk Edit):**
+  - Corrigido bug onde o submit do modal podia acionar o formulário de logout, causando logout inesperado.
+  - O formulário de alteração em massa agora possui id único e o JS garante o submit correto.
+  - Experiência de seleção de tags e campos harmonizada com a tela de cadastro/edição individual.
+- **Bloco de Mensagens:**
+  - Removido bloco de mensagens duplicado na lista de membros; agora apenas o bloco global exibe avisos.
+- **Middleware e Contexto de Igreja Ativa:**
+  - Middleware ajustado para não exigir seleção de igreja para usuários de igreja única.
+  - Selector de igreja oculto para usuários de igreja única, evitando POSTs desnecessários.
+- **UX e Robustez:**
+  - Ajustes nos botões, modais e feedback visual para maior clareza e prevenção de erros.
+  - Mensagens de sucesso e erro revisadas para maior clareza.
+
+### Correções de Bugs
+- Corrigido bug de logout ao salvar alteração em massa.
+- Corrigido submit de formulário errado ao confirmar no modal.
+- Corrigido POST desnecessário ao selecionar igreja para usuários de igreja única.
+- Garantido redirecionamento correto e exibição de mensagem após alteração em massa.
+
+### Documentação
+- Atualizado README.md e documentação de permissões/grupos para refletir as melhorias recentes.
+
+---
 ## v1.8.77 — 19/04/2026
 🚀 **Melhorias de Organização, Onboarding e Correção de Bugs**
 

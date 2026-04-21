@@ -1,0 +1,157 @@
+/* Ajustes de layout globais */
+.compacto {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+.card.compacto {
+  padding: 0.7rem 1rem !important;
+}
+
+/* ===== LAYOUT RESPONSIVO (MOBILE-FIRST) ===== */
+
+body.dashboard #container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 20px !important;
+}
+
+body.dashboard #content {
+    display: block !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+body.dashboard .dashboard-sidebar,
+body.dashboard #content-main,
+body.dashboard #content-related {
+    width: 100%;
+    margin-bottom: 20px;
+    position: static;
+}
+
+/* ===== DESKTOP: 3 COLUNAS ===== */
+@media (min-width: 1200px) {
+    body.dashboard #container {
+        padding: 20px !important;
+    }
+    body.dashboard #content {
+        display: grid !important;
+        grid-template-columns: 286px 1fr 317px !important;
+        gap: 30px !important;
+    }
+    body.dashboard .dashboard-sidebar {
+        grid-column: 1 !important;
+        position: sticky;
+        top: 20px;
+        align-self: start;
+        padding-top: 20px;
+        margin-bottom: 0;
+        max-width: 286px;
+    }
+    body.dashboard #content-main {
+        grid-column: 2 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        margin-bottom: 0;
+    }
+    body.dashboard #content-related {
+        grid-column: 3 !important;
+        position: sticky;
+        top: 20px;
+        align-self: start;
+        margin: 0 !important;
+        padding: 0 !important;
+        margin-bottom: 0;
+        max-width: 317px;
+    }
+}
+
+/* Ajuste para telas médias (tablet) */
+@media (min-width: 768px) and (max-width: 1199px) {
+    body.dashboard #content {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 20px !important;
+    }
+    body.dashboard .dashboard-sidebar {
+        grid-column: 1 !important;
+    }
+    body.dashboard #content-main {
+        grid-column: 1 / -1 !important;
+        order: 2;
+    }
+    body.dashboard #content-related {
+        grid-column: 2 !important;
+        order: 3;
+    }
+}
+
+/* ===== GRID DE CARDS ===== */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+@media (min-width: 480px) {
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (min-width: 992px) {
+    .metrics-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metric-card:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+.metric-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 8px 0 5px 0;
+}
+
+.metric-label {
+    font-size: 12px;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-sublabel {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 25px 0 12px 0;
+    opacity: 0.95;
+}
