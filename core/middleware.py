@@ -1,3 +1,23 @@
+from django.core.exceptions import ValidationError
+from django.shortcuts import render
+
+class ValidationErrorMiddleware:
+    """
+    Middleware para capturar ValidationError não tratados e exibir uma página personalizada.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        try:
+            response = self.get_response(request)
+            return response
+        except ValidationError as e:
+            # Renderiza um template customizado para erros de validação
+            return render(request, 'core/validation_error.html', {
+                'mensagem': str(e),
+                'erros': getattr(e, 'error_list', None) or getattr(e, 'messages', None) or [],
+            }, status=400)
 # c:\Gereigreja\core\middleware.py
 # NÃO importar models no topo para permitir servidor iniciar sem BD
 import logging

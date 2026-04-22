@@ -232,7 +232,7 @@ python manage.py createsuperuser
 ## 📦 Deploy
 
 O sistema usa deploy automatizado via Render com integração GitHub:
-1. Push para a branch `main`
+1. Push para a branch `master`
 2. Render detecta mudanças
 3. Build e deploy automáticos
 4. Migrações e collectstatic executados

@@ -1,0 +1,24 @@
+{% extends 'base_com_sistema.html' %}
+{% load static %}
+
+{% block conteudo_principal %}
+<div class="container mt-4">
+    <h2>Importar Pessoas em Massa</h2>
+    <p>Faça upload do arquivo Excel modelo preenchido. <a href="{% static 'docs/modelo_importacao_pessoas.xlsx' %}" download>Baixar modelo</a></p>
+    <form method="post" enctype="multipart/form-data" class="mb-4">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Importar</button>
+    </form>
+    {% if erros %}
+        <div class="alert alert-warning">
+            <strong>Linhas com erro:</strong>
+            <ul>
+                {% for erro in erros %}
+                    <li>Linha {{ erro.linha }}: {{ erro.erros|join:', ' }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

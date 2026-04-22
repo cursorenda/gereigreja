@@ -10,11 +10,12 @@
 
 1. [Visão Geral](#visão-geral)
 2. [Validações Backend](#validações-backend)
-3. [Máscaras JavaScript (Frontend)](#máscaras-javascript-frontend)
-4. [Busca Automática de Endereço (ViaCEP)](#busca-automática-de-endereço-viacep)
-5. [Como Testar](#como-testar)
-6. [Localização do Código](#localização-do-código)
-7. [Troubleshooting](#troubleshooting)
+3. [Importação em Massa: Excel](#importação-em-massa-excel)
+4. [Máscaras JavaScript (Frontend)](#máscaras-javascript-frontend)
+5. [Busca Automática de Endereço (ViaCEP)](#busca-automática-de-endereço-viacep)
+6. [Como Testar](#como-testar)
+7. [Localização do Código](#localização-do-código)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -22,10 +23,37 @@
 
 Sistema completo de validação de dados para o cadastro de pessoas, implementando:
 
+
 - ✅ **Validação Backend:** CPF e Email com algoritmos robustos
+- ✅ **Importação em Massa:** Planilha Excel com validação, máscaras e tratamento de erros amigável
 - ✅ **Máscaras Automáticas:** Formatação em tempo real (CPF, Telefone, CEP, RG)
 - ✅ **Busca de Endereço:** Integração com API ViaCEP para preenchimento automático
 - ✅ **Feedback Visual:** Indicadores visuais de sucesso/erro
+- ✅ **Tratamento Global de ValidationError:** Middleware exibe página personalizada para erros de validação
+## 🚀 Importação em Massa: Excel
+
+### Funcionalidades
+- Modelo Excel gerado automaticamente com exemplos, aba de dicas e máscaras de exibição para CPF, Data de Nascimento e Telefone.
+- Validação robusta de todos os campos na importação (CPF, data, obrigatórios, tipos, status, igreja).
+- Erros de importação são exibidos de forma amigável na tela, linha a linha, sem travar o sistema.
+- Se o CPF já existir, o cadastro é atualizado.
+- Log de importação salvo em arquivo.
+
+### Máscaras e Validação no Excel
+- CPF e Telefone: células formatadas como texto (evita arredondamento e perda de zeros).
+- Data de Nascimento: formato dd/mm/aaaa (célula formatada como data).
+- Aba "Dicas" explica todos os campos obrigatórios e exemplos de preenchimento.
+
+**Limitação:** O Excel não exibe máscara visual ao digitar, mas impede erros comuns de formatação.
+
+### Tratamento de Erros
+- Qualquer erro de validação (ex: data inválida, CPF errado, igreja/tipo/status não encontrados) é exibido na tela de importação, sem página de erro do Django.
+- Middleware global captura ValidationError e exibe página personalizada em todo o sistema.
+
+### Código Relacionado
+- Geração do modelo: `gerar_modelo_excel.py`
+- Importação: `secretaria/views_importacao.py`
+- Middleware: `core/middleware.py` (ValidationErrorMiddleware)
 
 ### 📊 Tabela Resumo
 
@@ -40,6 +68,24 @@ Sistema completo de validação de dados para o cadastro de pessoas, implementan
 ---
 
 ## 🔐 Validações Backend
+---
+
+## 🌐 Tratamento Global de ValidationError
+
+**Implementação:** Middleware customizado captura qualquer ValidationError não tratado e exibe uma página amigável (`core/validation_error.html`).
+
+**Arquivo:** `core/middleware.py`
+
+**Exemplo de mensagem exibida:**
+
+> Erro de Validação
+> O valor "01/01/1990" tem um formato de data inválido. Deve ser no formato YYYY-MM-DD.
+
+**Benefícios:**
+- Nenhum erro de validação quebra o sistema ou exibe stacktrace.
+- Usuário sempre recebe feedback claro e seguro.
+
+---
 
 ### 1. Validação de CPF
 

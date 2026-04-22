@@ -1,3 +1,25 @@
+## v1.8.79 — 22/04/2026
+✨ **Melhorias na Lista de Pessoas: Separação de Colunas, Ordenação e Usabilidade**
+
+### Novidades e Melhorias
+- **Importação de Cadastro de Pessoas Aprimorada:**
+  - Processo de importação em massa via Excel totalmente revisado: validação robusta dos dados, lógica de update-or-create, logging detalhado e mensagens de feedback claras para o usuário.
+  - Novo template Excel com máscaras, dicas e validação de CPF, e-mail e datas.
+  - Tratamento global de erros de validação, garantindo experiência amigável e segura.
+  - Documentação atualizada sobre regras e dicas de importação.
+- **Colunas Individuais para Tipo e Status:**
+  - A coluna "Tipo/Status" foi separada em duas colunas independentes: "Tipo" e "Status", facilitando a leitura, filtragem e ordenação dos dados.
+- **Ajuste de Cabeçalho:**
+  - O cabeçalho "Data de Nascimento" foi renomeado para "Data de Nasc." para melhor aproveitamento de espaço e clareza visual.
+- **Ordenação Aprimorada:**
+  - Todas as colunas principais da lista de pessoas agora suportam ordenação clicável (A-Z/Z-A), incluindo as novas colunas "Tipo" e "Status".
+- **Revisão de Usabilidade:**
+  - A visualização da lista ficou mais clara e intuitiva, seguindo boas práticas de UX e organização de dados.
+
+### Documentação
+- Atualizada a documentação interna para refletir as mudanças na interface e comportamento da lista de pessoas.
+
+---
 ## v1.8.78 — 21/04/2026
 🛠️ **Melhorias em Alteração em Massa, UX e Correções de Sessão**
 

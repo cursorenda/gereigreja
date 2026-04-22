@@ -109,6 +109,9 @@
                 <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-adicionar d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;">
                     <i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span>
                 </a>
+                <a href="{% url 'secretaria:importar_pessoas' %}" class="btn btn-outline-success d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Importar pessoas em massa">
+                    <i class="fas fa-file-excel"></i><span style="margin-left: 0.4em;">Importar Excel</span>
+                </a>
             {% endif %}
             <a href="{% url 'secretaria:imprimir_lista_membros' %}?{{ request.GET.urlencode }}" class="btn btn-vibrant-imprimir d-flex align-items-center" target="_blank" style="height:38px; font-size:1em; border-radius:8px;" title="Imprimir lista com filtros aplicados">
                 <i class="fas fa-print"></i><span style="margin-left: 0.4em;">Imprimir Lista</span>
@@ -150,8 +153,17 @@
                     <th>
                         <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=tipo&order_dir={% if order_by == 'tipo' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
                            class="sortable-header{% if order_by == 'tipo' %} active{% endif %}">
-                            Tipo / Status
+                            Tipo
                             {% if order_by == 'tipo' %}
+                                <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=status&order_dir={% if order_by == 'status' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
+                           class="sortable-header{% if order_by == 'status' %} active{% endif %}">
+                            Status
+                            {% if order_by == 'status' %}
                                 <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
                             {% endif %}
                         </a>
@@ -159,7 +171,7 @@
                     <th>
                         <a href="?{% for key, value in request.GET.items %}{% if key != 'order_by' and key != 'order_dir' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}order_by=data_nascimento&order_dir={% if order_by == 'data_nascimento' and order_dir == 'asc' %}desc{% else %}asc{% endif %}" 
                            class="sortable-header{% if order_by == 'data_nascimento' %} active{% endif %}">
-                            Data de Nascimento
+                            Data de Nasc.
                             {% if order_by == 'data_nascimento' %}
                                 <span class="sort-icon">{% if order_dir == 'asc' %}↑{% else %}↓{% endif %}</span>
                             {% endif %}
@@ -200,7 +212,8 @@
                     <td>{{ membro.get_genero_display|default:"N/I" }}</td>
                     <td>                                   
                         {% if membro.tipo_pessoa %} {{ membro.tipo_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Tipo</span> {% endif %}
-                        / 
+                    </td>
+                    <td>
                         {% if membro.status_pessoa %} {{ membro.status_pessoa.nome }} {% else %} <span class="badge bg-light text-dark border">Sem Status</span> {% endif %}
                     </td>
                     <td>{{ membro.nascimento|date:"d/m/Y"|default:"N/I" }}</td>

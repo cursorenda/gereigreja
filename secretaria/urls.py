@@ -1,7 +1,7 @@
-
 from django.urls import path, include
 from . import views
 from .views_test_tag import test_tag_form_view
+from .views_importacao import importar_pessoas
 
 
 app_name = 'secretaria'
@@ -81,6 +81,7 @@ urlpatterns = [
     # --- BULK EDIT PESSOAS ---
     path('pessoas/bulk-edit/', views.bulk_edit_pessoas, name='bulk_edit_pessoas'),
     path('ajax/desvincular_usuario_membro/', views.desvincular_usuario_membro, name='desvincular_usuario_membro'),
+    path('pessoas/importar/', importar_pessoas, name='importar_pessoas'),
 
     # Transferência de membros entre igrejas do mesmo ministério
     path('', include('secretaria.transferencia_urls')),

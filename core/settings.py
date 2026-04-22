@@ -89,6 +89,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'core.middleware.DatabaseErrorMiddleware',  # Captura erros de BD e mostra página amigável
+    'core.middleware.ValidationErrorMiddleware',  # Captura ValidationError globalmente
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
