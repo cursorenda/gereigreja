@@ -70,7 +70,7 @@ def ministerio_context(request):
             return {'ministerio': request.user.perfil.ministerio}
     return {'ministerio': None}
 
-from comunicacao.models import Notificacao
+from notificacoes.models import Notificacao
 
 def unread_notifications(request):
     """

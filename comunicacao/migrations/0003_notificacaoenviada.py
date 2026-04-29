@@ -13,16 +13,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='NotificacaoEnviada',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('tipo', models.CharField(choices=[('evento', 'Evento'), ('aniversario', 'Aniversário'), ('outro', 'Outro')], max_length=20)),
-                ('titulo', models.CharField(max_length=200)),
-                ('mensagem', models.TextField()),
-                ('destinatario', models.EmailField(max_length=254)),
-                ('data_envio', models.DateTimeField(auto_now_add=True)),
-                ('usuario', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-            ],
-        ),
+        # NotificacaoEnviada model removido (migrado para notificacoes app)
     ]

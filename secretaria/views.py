@@ -1,4 +1,29 @@
-﻿# Corrigir importação de login_required
+﻿from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import redirect
+from django.db.models import Count
+@staff_member_required
+def limpar_grupos_casa_vazios(request):
+    """Remove todos os grupos/casas sem moradores (pessoas). Protegido para admins/staff."""
+    qs = GrupoCasa.objects.annotate(num_pessoas=Count('pessoas'), num_visitas=Count('visitas'))
+    empty_qs = qs.filter(num_pessoas=0)
+    total = empty_qs.count()
+    deleted = 0
+    skipped = 0
+    for g in empty_qs:
+        if g.visitas.exists():
+            skipped += 1
+            continue
+        g.delete()
+        deleted += 1
+    if deleted:
+        messages.success(request, f"{deleted} grupo(s)/casa(s) vazios removidos com sucesso.")
+    if skipped:
+        messages.warning(request, f"{skipped} grupo(s)/casa(s) não removidos pois possuem visitas associadas.")
+    if not deleted and not skipped:
+        messages.info(request, "Nenhum grupo/casa vazio encontrado para remover.")
+    return redirect('secretaria:lista_grupos_casa')
+# Corrigir importação de login_required
 from django.contrib.auth.decorators import login_required
 # --- BULK EDIT PESSOAS ---
 from django.shortcuts import render, redirect
@@ -95,7 +120,7 @@ def cadastro_publico_igreja(request, igreja_id):
 
             # --- Notificações de auto-cadastro conforme configuração ---
             from contas.constants import SECRETARIO_LOCAL, PASTOR_LOCAL, ADMIN_MINISTERIO
-            from comunicacao.models import Notificacao
+            from notificacoes.models import Notificacao
             from configuracao.models import PerfilUsuario, ConfiguracaoSistema
             from django.contrib.auth.models import Group
 
@@ -1227,9 +1252,9 @@ def registrar_presenca_visitante_evento(request):
                 presenca.responsavel_registro = request.user
                 presenca.save()
                 try:
-                    logger.info('registrar_presenca_visitante_evento presenca_saved trace=%s presenca_pk=%s membro=%s evento=%s', trace_id, presenca.pk, getattr(presenca.membro, 'pk', None), getattr(presenca.evento, 'pk', None))
+                    logger.info('Presença salva via AJAX: trace=%s presenca_pk=%s membro_chave=%s evento_id=%s', trace_id, presenca.pk, getattr(membro, 'chave', membro.pk), getattr(evento, 'pk', None))
                 except Exception:
-                    logger.info('registrar_presenca_visitante_evento presenca_saved (could not format ids)')
+                    logger.info('Presença salva via AJAX (could not format ids)')
                 # Sincronizar com ParticipacaoEvento (evento.participacoes)
                 try:
                     from eventos.models import ParticipacaoEvento, EventoSessao
@@ -3128,15 +3153,23 @@ def lista_grupos_casa(request):
 
     qs = qs.order_by('rua', 'numero')
     # Permissão para exibir botão de agrupamento na UI
-    can_agrupar = is_admin_or_pastor(request.user)
+    can_agrupar = is_admin_or_pastor(request.user) or is_admin_or_pastor_local(request.user)
     # Permissão para editar grupos (pode ser mais restrita se necessário)
     try:
         can_edit_grupo = is_admin_or_pastor(request.user) or has_membro_edit_permission(request.user)
     except Exception:
         can_edit_grupo = is_admin_or_pastor(request.user)
 
+    # Anexar somente membros ativos a cada grupo (para uso no template)
+    grupos = list(qs.select_related('igreja', 'responsavel').prefetch_related('pessoas__status_pessoa'))
+
+    # Mostrar membros com status 'Ativo', 'Desligado' e 'Em Disciplina', ocultando apenas 'Inativo'
+    status_permitidos = ['Ativo', 'Desligado', 'Em Disciplina']
+    for g in grupos:
+        g.membros_permitidos = g.pessoas.filter(status_pessoa__nome__in=status_permitidos)
+
     context = {
-        'grupos': qs.select_related('igreja', 'responsavel'),
+        'grupos': grupos,
         'titulo_pagina': 'Grupos / Casas',
         'query': q,
         'ministerio': ministerio,
@@ -3149,7 +3182,7 @@ def lista_grupos_casa(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor_local)
 def agrupar_grupos_preview(request):
     """Preview das mudanças que o agrupamento faria. Mostra agrupamentos detectados por endereço."""
     ministerio = get_ministerio_or_error(request)
@@ -3166,7 +3199,9 @@ def agrupar_grupos_preview(request):
     else:
         people_qs = Membro.objects.none()
 
-    # considerar apenas pessoas com endereço mínimo (rua ou cep)
+    # considerar apenas pessoas com status permitido e endereço mínimo (rua ou cep)
+    status_permitidos = ['Ativo', 'Desligado', 'Em Disciplina']
+    people_qs = people_qs.filter(status_pessoa__nome__in=status_permitidos)
     people_qs = people_qs.filter(Q(rua__isnull=False) | Q(cep__isnull=False)).order_by('rua', 'numero_casa')
 
     rows = agrupar_preview_for_queryset(people_qs)
@@ -3182,7 +3217,7 @@ def agrupar_grupos_preview(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor_local)
 def agrupar_grupos_apply(request):
     """Aplica o agrupamento (cria GrupoCasa e associa pessoas).
     Esta view recalcula o preview e aplica apenas os agrupamentos com 2+ pessoas.
@@ -3268,7 +3303,8 @@ def detalhe_grupo_casa(request, grupo_id):
     except PermissionDenied:
         raise Http404()
 
-    membros = grupo.pessoas.all().select_related('tipo_pessoa', 'status_pessoa')
+    status_permitidos = ['Ativo', 'Desligado', 'Em Disciplina']
+    membros = grupo.pessoas.filter(status_pessoa__nome__in=status_permitidos).select_related('tipo_pessoa', 'status_pessoa')
     visitas = grupo.visitas.all().order_by('-data')[:50]
 
     if request.method == 'POST':
@@ -3363,7 +3399,7 @@ def criar_grupo_casa(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@user_passes_test_or_403(is_admin_or_pastor_local)
 def editar_grupo_casa(request, grupo_id):
     """Editar um GrupoCasa existente. Sem migrações de modelo — apenas edição via form."""
     ministerio = get_ministerio_or_error(request)

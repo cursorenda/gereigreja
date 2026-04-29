@@ -1,7 +1,8 @@
 # c:\Gereigreja\comunicacao\signals.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Aviso, Notificacao
+from .models import Aviso
+from notificacoes.models import Notificacao
 from configuracao.models import PerfilUsuario # Para pegar todos os usuários do ministério
 from django.urls import reverse # Para gerar a URL da notificação
 

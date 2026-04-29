@@ -1,3 +1,22 @@
+## v1.8.80 — 28/04/2026
+🔔 **Modularização e melhorias no sistema de notificações**
+
+### Novidades e Melhorias
+- **Novo app `notificacoes`:**
+  - Todo o sistema de notificações foi extraído do app comunicação e agora está centralizado em um app próprio, facilitando manutenção e evolução.
+  - URLs, views, templates e permissões revisados e organizados.
+  - Página de lista de notificações revisada, com filtros por lidas/não lidas e ações em lote.
+- **Correções de bugs e robustez:**
+  - Corrigidos erros de template e fechamento de blocos.
+  - Garantido funcionamento dos filtros, marcação individual e em lote de notificações.
+  - Ajustes em permissões e testes para garantir acesso correto.
+
+### Recomendações
+- Testar as páginas de notificações: lista, marcar como lida, marcar todas como lidas.
+- Verificar permissões de acesso conforme perfil do usuário.
+
+---
+
 ## v1.8.79 — 22/04/2026
 ✨ **Melhorias na Lista de Pessoas: Separação de Colunas, Ordenação e Usabilidade**
 
@@ -20,6 +39,7 @@
 - Atualizada a documentação interna para refletir as mudanças na interface e comportamento da lista de pessoas.
 
 ---
+
 ## v1.8.78 — 21/04/2026
 🛠️ **Melhorias em Alteração em Massa, UX e Correções de Sessão**
 
@@ -47,6 +67,7 @@
 - Atualizado README.md e documentação de permissões/grupos para refletir as melhorias recentes.
 
 ---
+
 ## v1.8.77 — 19/04/2026
 🚀 **Melhorias de Organização, Onboarding e Correção de Bugs**
 
@@ -85,6 +106,7 @@
 - Consolidação de melhorias técnicas e funcionais em `docs/sistema/MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md` e `docs/usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md`.
 
 ---
+
 ## v1.8.76 — 18/04/2026
 ✨ **Assistente de Onboarding Modular e Etapa de Membros**
 
@@ -2296,7 +2318,7 @@ def minha_view(request):
 ### 📚 Impacto
 
 - **Segurança**: Fechadas 22 brechas de acesso não autorizado
-- **UX**: Eliminada confusão de usuários autenticados vendo tela de login
+- **UX**: Elimina confusão de usuários autenticados vendo tela de login
 - **Escalabilidade**: Sistema de permissões preparado para 1000+ membros, 50+ igrejas
 - **Manutenibilidade**: Padrão consistente facilita auditorias futuras
 

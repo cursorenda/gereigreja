@@ -139,7 +139,7 @@
             {% if user.is_authenticated %}
             {# --- INÍCIO: Ícone de Notificações --- #}
             <li class="nav-item dropdown">
-                <a class="nav-link d-flex align-items-center position-relative" href="{% url 'comunicacao:lista_notificacoes' %}" role="button" aria-expanded="false" title="Notificações">
+                <a class="nav-link d-flex align-items-center position-relative" href="{% url 'notificacoes:lista_notificacoes' %}" role="button" aria-expanded="false" title="Notificações">
                     <i class="fas fa-bell" style="font-size: 24px; color: #ffc107;"></i>
                     {% if unread_notifications_count > 0 %}
                         <span class="badge bg-danger rounded-pill position-absolute" style="top: 2px; right: -8px; font-size: 10px;">
@@ -284,7 +284,7 @@
                                     <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
                                     Mural de Avisos
                                 </a>
-                                <a class="nav-link" href="{% url 'comunicacao:lista_notificacoes' %}">
+                                <a class="nav-link" href="{% url 'notificacoes:lista_notificacoes' %}">
                                     <div class="sb-nav-link-icon"><i class="fas fa-bell"></i></div>
                                     Minhas Notificações
                                 </a>
@@ -325,7 +325,7 @@
                                 <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
                                 Mural de Avisos
                             </a>
-                            <a class="nav-link" href="{% url 'comunicacao:lista_notificacoes' %}">
+                            <a class="nav-link" href="{% url 'notificacoes:lista_notificacoes' %}">
                                 <div class="sb-nav-link-icon"><i class="fas fa-bell"></i></div>
                                 Minhas Notificações
                             </a>

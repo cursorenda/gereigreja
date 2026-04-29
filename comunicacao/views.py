@@ -47,7 +47,8 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from datetime import date
 
-from .models import Aviso, Notificacao # Importar os modelos Aviso e Notificacao
+from .models import Aviso
+from notificacoes.models import Notificacao
 from .forms import AvisoForm # Manter o AvisoForm
 
 from core.utils import get_ministerio_or_error
@@ -336,7 +337,7 @@ def lista_notificacoes(request):
         'titulo_pagina': "Minhas Notificações",
         'status_filter': status_filter,
     }
-    return render(request, 'comunicacao/notificacoes/lista_notificacoes.html', context)
+    return render(request, 'notificacoes/lista_notificacoes.html', context)
 
 @login_required
 @verificar_assinatura_valida

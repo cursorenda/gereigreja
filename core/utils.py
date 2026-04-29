@@ -5,7 +5,7 @@ from configuracao.models import PerfilUsuario
 from django.urls import reverse
 
 from configuracao.models import AssinaturaMinisterio
-from comunicacao.models import Notificacao
+from notificacoes.models import Notificacao
 
 from django.core.mail import send_mail
 from django.conf import settings
@@ -91,7 +91,7 @@ def get_ministerio_or_error(request):
     from django.contrib import messages
     from django.shortcuts import reverse
     from configuracao.models import AssinaturaMinisterio
-    from comunicacao.models import Notificacao
+    from notificacoes.models import Notificacao
     import logging
     logger = logging.getLogger(__name__)
     

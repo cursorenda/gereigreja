@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
-from comunicacao.models import NotificacaoEnviada
+from notificacoes.models import NotificacaoEnviada
 from contas.constants import ADMIN_MINISTERIO, PASTOR_REGIONAL
 from core.decorators import user_passes_test_or_403  # Importar decorator que lança 403
 

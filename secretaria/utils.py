@@ -1,3 +1,105 @@
+# Função utilitária para aplicar agrupamento de grupos/casas a partir do preview
+from django.db import transaction
+def agrupar_apply_from_preview(rows):
+    """
+    Aplica agrupamento de grupos/casas a partir de uma lista de dicts (como gerado por agrupar_preview_for_queryset).
+    Cria GrupoCasa e associa pessoas conforme necessário.
+    Retorna {'created': X, 'updated': Y}
+    """
+    from .models import Pessoa, GrupoCasa
+    created = 0
+    updated = 0
+    def _pretty_address(rua_val, numero_val, complemento_val, cep_val):
+        parts = []
+        try:
+            if rua_val:
+                parts.append(str(rua_val).strip())
+            if numero_val:
+                parts.append(str(numero_val).strip())
+            if complemento_val:
+                parts.append(str(complemento_val).strip())
+            if cep_val:
+                parts.append(str(cep_val).strip())
+        except Exception:
+            pass
+        if not parts:
+            return 'Casa'
+        txt = ', '.join(parts)
+        try:
+            return txt.title()
+        except Exception:
+            return txt
+
+    with transaction.atomic():
+        for r in rows:
+            igreja_id = r.get('igreja_id') or None
+            rua = r.get('rua') or None
+            numero = r.get('numero') or None
+            complemento = r.get('complemento') or None
+            cep = r.get('cep') or None
+
+            nome_padrao = f"Casa — {_pretty_address(rua, numero, complemento, cep)}"
+
+            # Tentar extrair bairro/cidade/estado a partir dos moradores (primeiro não-vazio)
+            bairro_val = None
+            cidade_val = None
+            estado_val = None
+            ids = r.get('pessoas_ids', [])
+            status_permitidos = ['Ativo', 'Desligado', 'Em Disciplina']
+            persons_qs = Pessoa.objects.filter(pk__in=ids, status_pessoa__nome__in=status_permitidos)
+            for p in persons_qs:
+                if not bairro_val and getattr(p, 'bairro_distrito', None):
+                    bairro_val = p.bairro_distrito.strip()
+                if not cidade_val and getattr(p, 'cidade', None):
+                    cidade_val = p.cidade.strip()
+                if not estado_val and getattr(p, 'estado', None):
+                    estado_val = p.estado.strip()
+                if bairro_val and cidade_val and estado_val:
+                    break
+
+            defaults = {'nome': nome_padrao}
+            if bairro_val:
+                defaults['bairro'] = bairro_val
+            if cidade_val:
+                defaults['cidade'] = cidade_val
+            if estado_val:
+                defaults['estado'] = estado_val
+
+            group, created_flag = GrupoCasa.objects.get_or_create(
+                igreja_id=igreja_id,
+                rua=rua,
+                numero=numero,
+                complemento=complemento,
+                cep=cep,
+                defaults=defaults
+            )
+
+            if created_flag:
+                created += 1
+            else:
+                changed = False
+                if not getattr(group, 'bairro', None) and bairro_val:
+                    group.bairro = bairro_val
+                    changed = True
+                if not getattr(group, 'cidade', None) and cidade_val:
+                    group.cidade = cidade_val
+                    changed = True
+                if not getattr(group, 'estado', None) and estado_val:
+                    group.estado = estado_val
+                    changed = True
+                if changed:
+                    try:
+                        group.save()
+                    except Exception:
+                        pass
+
+            for p in persons_qs:
+                if p.grupo_casa_id != group.id:
+                    p.grupo_casa = group
+                    p.save()
+                    updated += 1
+
+    return {'created': created, 'updated': updated}
 # c:\Gereigreja\secretaria\utils.py
 from django.contrib.auth.models import User, Group
 from configuracao.models import Igreja, PerfilUsuario # Importar PerfilUsuario e Igreja

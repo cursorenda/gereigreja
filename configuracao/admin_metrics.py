@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.db.models import Count, Avg, Q, Sum
 from django.utils import timezone
 from datetime import datetime, timedelta
+from notificacoes.models import Notificacao, NotificacaoEnviada
 
 
 @staff_member_required
@@ -17,7 +18,6 @@ def metricas_produto(request):
     # Imports dentro da função para evitar circular imports
     from secretaria.models import Pessoa
     from eventos.models import Evento, ParticipacaoEvento
-    from comunicacao.models import Notificacao, NotificacaoEnviada
     from financeiro.models import Receitas, Despesas
     from suporte.models import Ticket
     from django.contrib.auth.models import User

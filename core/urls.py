@@ -40,6 +40,7 @@ urlpatterns = [
     path('financeiro/', include(('financeiro.urls', 'financeiro'), namespace='financeiro')),
     path('eventos/', include(('eventos.urls', 'eventos'), namespace='eventos')),
     path('comunicacao/', include(('comunicacao.urls', 'comunicacao'), namespace='comunicacao')),
+    path('notificacoes/', include(('notificacoes.urls', 'notificacoes'), namespace='notificacoes')),
     path('configuracao/', include('configuracao.urls')),
     path('suporte/', include('suporte.urls', namespace='suporte')),
 

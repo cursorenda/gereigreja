@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contas.constants import MEMBRO_COMUM
-from comunicacao.models import Notificacao
+from notificacoes.models import Notificacao
 from configuracao.models import Ministerio, PerfilUsuario
 
 
@@ -92,3 +92,4 @@ class NotificacoesViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('comunicacao:lista_notificacoes'))
+        # Arquivo migrado para notificacoes/tests/test_notificacoes.py. Remover após validação.

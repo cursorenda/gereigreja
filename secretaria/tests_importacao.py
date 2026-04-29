@@ -13,7 +13,9 @@ class ImportacaoPessoasTest(TestCase):
         self.user.user_permissions.add(perm)
         self.client = Client()
         self.client.login(username='admin', password='1234')
-        self.igreja = Igreja.objects.create(nome='Central')
+        from configuracao.models import Ministerio
+        self.ministerio = Ministerio.objects.create(nome_fantasia='Ministério Teste', administrador_principal=self.user)
+        self.igreja = Igreja.objects.create(nome_igreja='Central', ministerio=self.ministerio)
         self.status = StatusPessoa.objects.create(nome='Ativo')
         self.tipo = TipoPessoa.objects.create(nome='Membro')
 

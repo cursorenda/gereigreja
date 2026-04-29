@@ -3,10 +3,10 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from agenda.models import AgendaEvento
 from secretaria.models import Membro
+from notificacoes.models import NotificacaoEnviada
 
 from django.core.mail import send_mail
 from django.conf import settings
-from comunicacao.models import NotificacaoEnviada
 
 class Command(BaseCommand):
     help = 'Envia notificações automáticas do sistema (eventos, aniversários, etc)'

@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from contas.constants import SECRETARIO_LOCAL, user_has_permission_level_or_higher
 from core.utils import get_igrejas_permitidas
-from comunicacao.models import Notificacao
+from notificacoes.models import Notificacao
 
 from .models import Membro, TransferenciaMembro
 from .transferencia_forms import TransferenciaMembroForm

@@ -15,23 +15,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='Notificacao',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('message', models.TextField(verbose_name='Mensagem')),
-                ('notification_type', models.CharField(choices=[('info', 'Informação'), ('aviso', 'Novo Aviso'), ('financeiro', 'Financeiro'), ('membro', 'Membro'), ('alerta', 'Alerta'), ('sucesso', 'Sucesso')], default='info', max_length=20, verbose_name='Tipo')),
-                ('is_read', models.BooleanField(default=False, verbose_name='Lida?')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Criada Em')),
-                ('url', models.CharField(blank=True, help_text='Link para a página relacionada à notificação.', max_length=255, null=True, verbose_name='URL de Destino')),
-                ('object_id', models.PositiveIntegerField(blank=True, null=True)),
-            ],
-            options={
-                'verbose_name': 'Notificação',
-                'verbose_name_plural': 'Notificações',
-                'ordering': ['-created_at'],
-            },
-        ),
+        # Notificacao model removido (migrado para notificacoes app)
         migrations.CreateModel(
             name='Aviso',
             fields=[

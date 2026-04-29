@@ -18,7 +18,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
 
-from comunicacao.models import Notificacao
+from notificacoes.models import Notificacao
 from core.utils import get_igrejas_permitidas
 from secretaria.models import TransferenciaMembro
 

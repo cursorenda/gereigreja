@@ -27,19 +27,5 @@ class Migration(migrations.Migration):
             name='ministerio',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='avisos_comunicacao', to='configuracao.ministerio', verbose_name='Ministério'),
         ),
-        migrations.AddField(
-            model_name='notificacao',
-            name='content_type',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='contenttypes.contenttype'),
-        ),
-        migrations.AddField(
-            model_name='notificacao',
-            name='ministerio',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notificacoes_ministerio', to='configuracao.ministerio', verbose_name='Ministério'),
-        ),
-        migrations.AddField(
-            model_name='notificacao',
-            name='user',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notificacoes', to=settings.AUTH_USER_MODEL, verbose_name='Usuário Destino'),
-        ),
+        # Notificacao fields removidos (migrado para notificacoes app)
     ]
