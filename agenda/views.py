@@ -1,6 +1,6 @@
 
 from django.contrib.auth.decorators import login_required
-from core.decorators import verificar_assinatura_valida
+from core.decorators import verificar_assinatura_valida, page_access_required
 from django.db import models
 from django.shortcuts import render, redirect, get_object_or_404
 from datetime import date, timedelta
@@ -11,6 +11,7 @@ from django.contrib import messages
 from .forms import AgendaEventoForm
 
 @login_required
+@page_access_required('agenda')
 def editar_evento(request, pk):
 	evento = get_object_or_404(AgendaEvento, pk=pk)
 	if request.method == 'POST':
@@ -85,6 +86,7 @@ def editar_evento(request, pk):
 	return render(request, 'agenda/editar_evento.html', {'form': form, 'evento': evento})
 
 @login_required
+@page_access_required('agenda')
 def excluir_evento(request, pk):
 	evento = get_object_or_404(AgendaEvento, pk=pk)
 	if request.method == 'POST':
@@ -94,11 +96,13 @@ def excluir_evento(request, pk):
 	return render(request, 'agenda/excluir_evento.html', {'evento': evento})
 
 @login_required
+@page_access_required('agenda')
 def detalhe_evento(request, pk):
 	evento = get_object_or_404(AgendaEvento, pk=pk)
 	return render(request, 'agenda/detalhe_evento.html', {'evento': evento})
 
 @login_required
+@page_access_required('agenda')
 def criar_evento(request):
 	if request.method == 'POST':
 		form = AgendaEventoForm(request.POST, request=request)
@@ -273,6 +277,7 @@ def agenda_eventos_json(request):
 
 @login_required
 @verificar_assinatura_valida
+@page_access_required('agenda')
 def agenda_view(request):
 	# Exibe eventos do mês atual
 	hoje = date.today()
@@ -298,6 +303,7 @@ def agenda_view(request):
 
 @login_required
 @verificar_assinatura_valida
+@page_access_required('agenda')
 def exportar_ics(request):
 	"""Exporta eventos filtrados como arquivo ICS para importação em Google Calendar/Outlook"""
 	from django.http import HttpResponse
@@ -378,6 +384,7 @@ def exportar_ics(request):
 
 @login_required
 @verificar_assinatura_valida
+@page_access_required('agenda')
 def importar_feriados_view(request):
 	"""View para importar feriados brasileiros via interface web"""
 	from django.utils import timezone

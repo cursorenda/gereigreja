@@ -1,3 +1,5 @@
+> **Aviso:** documento histórico (mar/2026). Pode divergir do estado atual após a migração para `@page_access_required` + `PAGE_ACCESS_RULES`.
+
 # ANÁLISE COMPLETA: MÓDULO DE CADASTRO DE PESSOAS
 **Data da Análise:** 11/03/2026  
 **Módulo:** Secretaria - Cadastro/Edição/Visualização/Impressão de Pessoas  

@@ -1,24 +1,14 @@
 # c:\Gereigreja\comunicacao\utils.py
 from configuracao.models import PerfilUsuario
-from contas.constants import ADMIN_MINISTERIO
+from contas.constants import user_pode_gerenciar_comunicacao
 
 def can_manage_avisos(user):
     """
     Verifica se o usuário pode gerenciar (criar, editar, excluir) avisos.
-    Exemplo: Superusuários ou usuários com um papel específico na ministério.
     """
     if not user.is_authenticated:
         return False
-    if user.is_superuser:
-        return True
-    
-    # Verifica se o usuário tem um perfil e uma ministério associada
-    if hasattr(user, 'perfil') and user.perfil and user.perfil.ministerio:
-        # Permite se for staff (acesso ao admin) ou pertencer a grupos específicos
-        # ou se for o administrador principal do ministério.
-        is_admin_org = user.perfil.ministerio.administrador_principal == user
-        return user.is_staff or user.groups.filter(name__in=[ADMIN_MINISTERIO, 'ComunicacaoManager']).exists() or is_admin_org
-    return False
+    return user_pode_gerenciar_comunicacao(user)
 
 def can_view_avisos(user):
     """

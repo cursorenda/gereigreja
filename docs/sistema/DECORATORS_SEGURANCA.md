@@ -1,7 +1,7 @@
 # Guia de Decorators de Segurança - GereIgreja
 
-**Versão:** 1.2.1  
-**Última atualização:** 13/02/2026
+**Versão:** 1.8.80  
+**Última atualização:** 01/05/2026
 
 ---
 
@@ -30,6 +30,27 @@ Este documento descreve os decorators de segurança disponíveis no GereIgreja e
 ### Localização dos Decorators
 
 Todos os decorators customizados estão em: **`core/decorators.py`**
+
+### Padrão Vigente (2026)
+
+Para views de modulo/pagina, o padrão principal do projeto e:
+
+1. `@login_required`
+2. `@page_access_required('<chave>')`
+3. Regra centralizada em `contas/page_permissions.py` (`PAGE_ACCESS_RULES`)
+
+**Exemplo recomendado:**
+```python
+from django.contrib.auth.decorators import login_required
+from core.decorators import page_access_required
+
+@login_required
+@page_access_required('financeiro')
+def listar_transacoes(request):
+    return render(request, 'financeiro/lista.html')
+```
+
+Decorators como `@user_passes_test_or_403` e `@check_permission` permanecem para casos legados ou regras muito especificas.
 
 ---
 
@@ -171,12 +192,16 @@ def chamada_presenca(request, turma_id):
 
 ---
 
-### 5. `@secretaria_dashboard_required`
+### 5. ~~`@secretaria_dashboard_required`~~ (DEPRECIADO)
 
-**Propósito:** Requer que usuário seja parte da liderança operacional ou ministerial para acessar dashboard analítico da secretaria.
+> **Depreciado em v1.9.0.** Este decorator foi substituído por `@page_access_required('dashboard_secretaria')` centralizado em `PAGE_ACCESS_RULES`. O decorator ainda existe em `core/decorators.py` por compatibilidade mas **não deve ser usado em código novo**.
+>
+> **Substituto:** `@page_access_required('dashboard_secretaria')`
+
+**Propósito original:** Requer que usuário seja parte da liderança operacional ou ministerial para acessar dashboard analítico da secretaria.
 
 **Quando usar:**
-- ✅ Dashboard analítico da secretaria (`/secretaria/dashboard/`)
+- ~~✅ Dashboard analítico da secretaria (`/secretaria/dashboard/`)~~
 - ✅ Relatórios estratégicos com dados sensíveis
 - ✅ Análise de tendências e métricas gerenciais
 - ✅ Visualizações que não são necessárias para operações do dia a dia
@@ -605,8 +630,9 @@ Ao criar ou revisar uma view, use este checklist:
 - [ ] Se é AJAX/API, adicionar `@require_GET` ou `@require_POST`
 
 ### Views com Permissões
-- [ ] Definir função de teste ou usar decorator existente
-- [ ] Usar `@user_passes_test_or_403` ou similar
+- [ ] Existe chave de acesso para a funcionalidade em `PAGE_ACCESS_RULES`?
+- [ ] Usar `@page_access_required('<chave>')` quando houver chave equivalente
+- [ ] Se nao houver chave, justificar uso de decorator legado (`@user_passes_test_or_403`/`@check_permission`)
 - [ ] **NUNCA** usar `return redirect('login')` em verificações
 - [ ] Documentar grupos permitidos no docstring
 
@@ -616,7 +642,8 @@ Ao criar ou revisar uma view, use este checklist:
 - [ ] Adicionar logs para operações sensíveis
 
 ### Views Financeiras
-- [ ] Usar `@check_permission` com função apropriada
+- [ ] Preferir `@page_access_required('financeiro')`
+- [ ] Usar `@check_permission` apenas em trechos ainda nao migrados
 - [ ] Verificar escopo de igrejas permitidas
 - [ ] Validar dados antes de salvar
 
@@ -640,7 +667,10 @@ Ao criar ou revisar uma view, use este checklist:
 if not tem_permissao(request.user):
     return redirect('login')
 
-# Adicionar decorator:
+# Adicionar decorator padrão:
+@page_access_required('chave_da_pagina')
+
+# Ou, se não houver chave equivalente ainda:
 @user_passes_test_or_403(tem_permissao)
 ```
 

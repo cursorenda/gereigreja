@@ -18,6 +18,7 @@ from configuracao.admin_dashboard import dashboard_desenvolvedor, executar_coman
 from configuracao.admin_metrics import metricas_produto
 from django.contrib.admin.views.decorators import staff_member_required
 from auditoria.admin_site import auditoria_admin_site
+from secretaria import views as secretaria_views
 
 
 urlpatterns = [
@@ -55,7 +56,12 @@ urlpatterns = [
     path('', LandingPageView.as_view(), name='landing_page'),
     # O sistema interno (secretaria, etc.) agora começa com '/secretaria/'
     path('secretaria/', include(('secretaria.urls', 'secretaria'), namespace='secretaria')),
+    # Aliases legados para clientes/testes que ainda usam o prefixo antigo /sistema/
+    path('sistema/visitantes/criar-parcial/', secretaria_views.criar_visitante_parcial),
+    path('sistema/visitantes/ajax-registrar-presenca-evento/', secretaria_views.ajax_registrar_presenca_evento),
     path('agenda/', include(('agenda.urls', 'agenda'), namespace='agenda')),
+    # Rotas do modo demonstração
+    path('demo/', include(('demo.urls', 'demo'), namespace='demo')),
 
     # Página de acompanhamento de notificações enviadas
     path('notificacoes-enviadas/', notificacoes_enviadas_view, name='notificacoes_enviadas'),

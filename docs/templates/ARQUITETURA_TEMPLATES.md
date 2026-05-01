@@ -1,7 +1,8 @@
 # 📐 Arquitetura de Templates - Gereigreja
 
-> **Última atualização:** 08/03/2026  
-> **Versão do sistema:** v1.3.1
+> **Última atualização:** 01/05/2026  
+> **Versão do sistema:** v1.9.0  
+> **Status:** Versão publicada em produção
 
 ---
 
@@ -386,27 +387,24 @@ def ministerio_context(request):
 
 ### Menu Lateral (`menu.html`)
 
-Incluído apenas em `base_com_menu.html`:
+Incluído sempre em `base_com_menu.html` (sem condicional). As seções internas são condicionais via templatetags de permissão:
 
 ```django
-{% if user.is_staff or user|has_group:'Admin Ministerio' %}
-    {% include 'menu.html' %}
-{% else %}
-    <!-- Menu simplificado para membros comuns -->
-{% endif %}
+{% include 'menu.html' %}
 ```
 
 #### Seções do Menu:
-1. **Principal** - Home, Dashboard
-2. **Secretaria** - Pessoas, Cargos, Grupos, Tags, Relatórios
-3. **Recepção** - Visitantes
-4. **Agenda & Eventos**
-5. **Escola Dominical**
-6. **Financeiro**
-7. **Liderança** (condicional - multi-igreja)
-8. **Sistema** - Dashboard Sistema, Novidades, Configurações
-9. **Comunicação** - E-mail, Templates, Avisos
-10. **Suporte**
+1. **Principal** — Home, Dashboard. O heading só aparece para superusuários, usuários com ministério inativo ou quem tem acesso ao `dashboard_secretaria`. Fica oculto para Membro Comum.
+2. **Minha Conta** — Meu Portal, Meu Perfil, Mural de Avisos. Visível para todo usuário autenticado com ministério ativo (inclusive Membro Comum).
+3. **Secretaria** — Pessoas, Cargos, Grupos, Tags, Relatórios
+4. **Recepção** — Visitantes
+5. **Agenda & Eventos**
+6. **Escola Dominical**
+7. **Financeiro**
+8. **Liderança** (condicional — apenas ministérios com > 1 igreja)
+9. **Sistema** — Dashboard Sistema, Novidades, Configurações
+10. **Comunicação** — E-mail em Massa, Templates, Mural de Avisos (restrito a gestores)
+11. **Suporte** (oculto para Membro Comum)
 
 ---
 
@@ -431,13 +429,17 @@ Componentes (esquerda → direita):
 - Notificações Enviadas
 - Gerenciar Usuários
 
-**Seção 2: Todos os Usuários**
+**Seção 2: Todos os Usuários autenticados com ministério ativo**
+- Meu Portal
+- Mural de Avisos (para autenticados)
+
+**Seção 3: Conta**
 - Meu Perfil
 - Gerenciar Assinatura (apenas Admin Ministerio)
 - Alterar Senha
 - Meus Dados - LGPD
 
-**Seção 3: Logout**
+**Seção 4: Logout**
 - Sair (formulário POST + CSRF)
 
 ---

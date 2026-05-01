@@ -1,4 +1,4 @@
-﻿from django.contrib import messages
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import redirect
 from django.db.models import Count
@@ -211,13 +211,13 @@ from django.utils.crypto import get_random_string
 from django.views.decorators.http import require_GET, require_POST
 
 # Third-party/local apps
-from core.decorators import check_permission, verificar_assinatura_valida, user_passes_test_or_403, secretaria_dashboard_required
+from core.decorators import verificar_assinatura_valida, page_access_required
 from core.utils import get_ministerio_or_error
 from eventos.models import Evento
 from financeiro.models import Receitas
 from secretaria.utils import (
     get_allowed_churches_for_membros, is_admin_org, has_membro_edit_permission,
-    has_membro_view_permission, is_secretaria_leader
+    is_secretaria_leader
 )
 from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
 from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, PASTOR_REGIONAL, SECRETARIO_LOCAL
@@ -707,7 +707,7 @@ def excluir_acompanhamento_visita(request, acompanhamento_id):
 
 # --- VIEW PARA ESCOLHER PESSOA PARA REGISTRAR ACOMPANHAMENTO ---
 @login_required
-@user_passes_test_or_403(has_membro_view_permission)
+@page_access_required('secretaria_acompanhamentos')
 def escolher_pessoa_para_acompanhamento(request):
     """Escolhe pessoa para registrar acompanhamento, filtrando por igrejas permitidas."""
     ministerio = get_ministerio_or_error(request)
@@ -730,7 +730,7 @@ def escolher_pessoa_para_acompanhamento(request):
 
 # --- VIEW PARA EDITAR TAG ---
 @login_required
-@user_passes_test_or_403(pode_gerenciar_tags)
+@page_access_required('secretaria_tags')
 def editar_tag(request, tag_id):
     """
     Permite editar uma tag existente.
@@ -757,7 +757,7 @@ def editar_tag(request, tag_id):
 
 # --- VIEW PARA EXCLUIR TAG ---
 @login_required
-@user_passes_test_or_403(pode_gerenciar_tags)
+@page_access_required('secretaria_tags')
 def excluir_tag(request, tag_id):
     """
     Exclui uma tag existente.
@@ -782,7 +782,7 @@ def excluir_tag(request, tag_id):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(has_membro_view_permission)
+@page_access_required('secretaria_acompanhamentos')
 def lista_acompanhamentos_visita(request):
     """
     Listagem geral de acompanhamentos de visita com filtros padrão.
@@ -951,6 +951,8 @@ def _membros_queryset_por_escopo(request):
     return Membro.objects.filter(igreja__in=igrejas_permitidas)
 
 @login_required
+@verificar_assinatura_valida
+@page_access_required('recepcao_visitantes')
 def lista_visitantes(request):
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '')
@@ -1131,6 +1133,8 @@ from django.utils import timezone
 
 # --- VIEW: REGISTRAR PRESENÇA DE VISITANTE EM EVENTO ---
 @login_required
+@verificar_assinatura_valida
+@page_access_required('recepcao_visitantes')
 def registrar_presenca_visitante_evento(request):
     busca_evento = request.GET.get('busca_evento', '').strip()
     # Garantir conexões ativas/recém-abertas (mitiga 'connection already closed')
@@ -1458,23 +1462,8 @@ def registrar_acompanhamento_visita(request, membro_id):
 
 # --- Associação em massa de membros a usuários ---
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
-@verificar_assinatura_valida
 
-
-## Imports above
-
-# Gerenciar ocupantes do cargo
-
-## Imports above
-
-
-
-# --- NOVA VIEW: Gerenciar Ocupantes (usando novos modelos) ---
-## Imports above
-
-@login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
+@page_access_required('secretaria_cargos')
 def gerenciar_ocupantes(request, cargo_id):
     # Busca o cargo pelo ID recebido na URL
     cargo = get_object_or_404(Cargo, id=cargo_id)
@@ -1564,8 +1553,8 @@ def gerenciar_ocupantes(request, cargo_id):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
 @verificar_assinatura_valida
+@page_access_required('secretaria_cargos')
 def excluir_cargo(request, cargo_id):
     cargo = get_object_or_404(Cargo, id=cargo_id)
     if not _cargo_dentro_escopo_usuario(request.user, cargo):
@@ -1586,8 +1575,8 @@ def excluir_cargo(request, cargo_id):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
 @verificar_assinatura_valida
+@page_access_required('secretaria_cargos')
 def criar_cargo(request):
     grupos_permitidos = _nomes_grupos_permitidos_para_cargos(request.user)
     if request.method == 'POST':
@@ -1607,8 +1596,8 @@ def criar_cargo(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
 @verificar_assinatura_valida
+@page_access_required('secretaria_cargos')
 def editar_cargo(request, cargo_id):
     cargo = get_object_or_404(Cargo, id=cargo_id)
     if not _cargo_dentro_escopo_usuario(request.user, cargo):
@@ -1631,8 +1620,8 @@ def editar_cargo(request, cargo_id):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
 @verificar_assinatura_valida
+@page_access_required('secretaria_cargos')
 def lista_cargos(request):
     nome_cargo = request.GET.get('nome_cargo', '').strip()
     grupo_permissao_id = request.GET.get('grupo_permissao', '').strip()
@@ -2165,8 +2154,8 @@ def criar_visitante_parcial(request):
         'igreja_inicial_name': (getattr(igreja_inicial_for_form, 'nome_igreja', str(igreja_inicial_for_form)) if igreja_inicial_for_form else '')
     })
 from core.utils import get_ministerio_or_error
-from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_view_permission, has_membro_edit_permission
-from core.decorators import check_permission
+from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_edit_permission
+from core.decorators import page_access_required
 from configuracao.models import AssinaturaMinisterio, Igreja, PerfilUsuario
 
 # --- Função de permissão para uso em decorators ---
@@ -2197,7 +2186,7 @@ def ajax_get_presencas_evento(request):
     return JsonResponse({'html': html})
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@page_access_required('secretaria_acompanhamentos')
 @verificar_assinatura_valida
 def linha_do_tempo(request):
     # Força valor padrão do filtro período
@@ -2571,7 +2560,10 @@ def index(request):
     assinatura_alerta = None
     hoje = hoje_data
     if hasattr(ministerio, 'assinatura') and ministerio.assinatura:
-        dias_restantes = (ministerio.assinatura.data_fim - hoje).days if ministerio.assinatura.data_fim else None
+        data_fim_raw = ministerio.assinatura.data_fim
+        if data_fim_raw and hasattr(data_fim_raw, 'date'):
+            data_fim_raw = data_fim_raw.date()
+        dias_restantes = (data_fim_raw - hoje).days if data_fim_raw else None
         if dias_restantes is not None and dias_restantes <= 10 and ministerio.assinatura.status != 'ATIVA':
             assinatura_alerta = {
                 'dias_restantes': dias_restantes,
@@ -2815,7 +2807,7 @@ def salvar_nota_usuario(request):
 
 
 @login_required
-@secretaria_dashboard_required
+@page_access_required('dashboard_secretaria')
 def dashboard(request):
     from datetime import date, timedelta
     hoje_data = date.today()
@@ -2855,7 +2847,7 @@ def dashboard(request):
         status_pessoa__nome__iexact="Ativo"
     )
 
-    # ✅ Gráficos e cards - uso de igrejas_filtro
+    # ? Gráficos e cards - uso de igrejas_filtro
     membros_base_para_grafico_status = Membro.objects.filter(igreja__in=igrejas_filtro)
 
     status_data_qs = membros_base_para_grafico_status.values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome')
@@ -2980,7 +2972,10 @@ def dashboard(request):
     assinatura_alerta = None
     hoje = hoje_data
     if hasattr(ministerio, 'assinatura') and ministerio.assinatura:
-        dias_restantes = (ministerio.assinatura.data_fim - hoje).days if ministerio.assinatura.data_fim else None
+        data_fim_raw = ministerio.assinatura.data_fim
+        if data_fim_raw and hasattr(data_fim_raw, 'date'):
+            data_fim_raw = data_fim_raw.date()
+        dias_restantes = (data_fim_raw - hoje).days if data_fim_raw else None
         if dias_restantes is not None and dias_restantes <= 10 and ministerio.assinatura.status != 'ATIVA':
             assinatura_alerta = {
                 'dias_restantes': dias_restantes,
@@ -3021,7 +3016,7 @@ def dashboard(request):
     # Pie Chart: distribuição dinâmica de membros por tipo_pessoa
     tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
     
-    # ✅ Uso de igrejas_filtro (respeita igreja selecionada)
+    # ? Uso de igrejas_filtro (respeita igreja selecionada)
     membros_para_grafico_tipo = Membro.objects.filter(igreja__in=igrejas_filtro)
 
     membros_por_tipo = (
@@ -3039,7 +3034,7 @@ def dashboard(request):
     # --- Participação por Categoria de Evento ---
     from eventos.models import ParticipacaoEvento, Evento
     
-    # ✅ Uso de igrejas_filtro (respeita igreja selecionada)
+    # ? Uso de igrejas_filtro (respeita igreja selecionada)
     eventos_ids = list(Evento.objects.filter(igreja__in=igrejas_filtro).values_list('id', flat=True))
     
     participacoes_qs = ParticipacaoEvento.objects.filter(status__in=["CONFIRMADO", "PRESENTE", "AUSENTE"], evento_id__in=eventos_ids)
@@ -3063,7 +3058,7 @@ def dashboard(request):
     # Total de visitantes
     total_visitantes = membros_base_para_grafico_status.filter(tipo_pessoa__nome__iexact='Visitante').count()
     
-    # ✅ Cards adicionais - uso de igrejas_filtro (respeita igreja selecionada)
+    # ? Cards adicionais - uso de igrejas_filtro (respeita igreja selecionada)
     total_cargos = Cargo.objects.filter(membrocargo__membro__igreja__in=igrejas_filtro).distinct().count()
     total_grupos_casa = GrupoCasa.objects.filter(igreja__in=igrejas_filtro).count()
     total_acompanhamentos = AcompanhamentoVisita.objects.filter(membro__igreja__in=igrejas_filtro).count()
@@ -3132,6 +3127,8 @@ def dashboard(request):
 
 
 @login_required
+@verificar_assinatura_valida
+@page_access_required('secretaria_grupos_casa')
 def lista_grupos_casa(request):
     """Lista de GrupoCasa (casas/famílias) com escopo por igreja/ministerio semelhante a outras views."""
     ministerio = get_ministerio_or_error(request)
@@ -3182,7 +3179,7 @@ def lista_grupos_casa(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
+@page_access_required('secretaria_grupos_casa')
 def agrupar_grupos_preview(request):
     """Preview das mudanças que o agrupamento faria. Mostra agrupamentos detectados por endereço."""
     ministerio = get_ministerio_or_error(request)
@@ -3217,7 +3214,7 @@ def agrupar_grupos_preview(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
+@page_access_required('secretaria_grupos_casa')
 def agrupar_grupos_apply(request):
     """Aplica o agrupamento (cria GrupoCasa e associa pessoas).
     Esta view recalcula o preview e aplica apenas os agrupamentos com 2+ pessoas.
@@ -3251,7 +3248,7 @@ def agrupar_grupos_apply(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@page_access_required('secretaria_grupos_casa')
 def reagrupar_grupo_casa(request, grupo_id):
     """Reagrupar moradores do GrupoCasa: recalcula preview para as pessoas deste grupo e aplica apenas os agrupamentos relevantes.
     Fluxo seguro: só executa para membros do próprio grupo/igreja no escopo do usuário.
@@ -3360,7 +3357,7 @@ def detalhe_grupo_casa(request, grupo_id):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor)
+@page_access_required('secretaria_grupos_casa')
 def criar_grupo_casa(request):
     """Cria um novo GrupoCasa. Se houver `request.igreja_ativa`, vincula automaticamente."""
     ministerio = get_ministerio_or_error(request)
@@ -3399,7 +3396,7 @@ def criar_grupo_casa(request):
 
 
 @login_required
-@user_passes_test_or_403(is_admin_or_pastor_local)
+@page_access_required('secretaria_grupos_casa')
 def editar_grupo_casa(request, grupo_id):
     """Editar um GrupoCasa existente. Sem migrações de modelo — apenas edição via form."""
     ministerio = get_ministerio_or_error(request)
@@ -3442,7 +3439,8 @@ def editar_grupo_casa(request, grupo_id):
     return render(request, 'secretaria/grupocasa_form.html', context)
 
 
-@check_permission(has_membro_view_permission, login_url_name='login')
+@login_required
+@page_access_required('secretaria_pessoas')
 def lista_membros(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = getattr(request, 'igrejas_permitidas', None)
@@ -3830,7 +3828,8 @@ def imprimir_lista_membros(request):
     return render(request, 'secretaria/imprimir_lista_membros.html', context)
 
 
-@check_permission(has_membro_edit_permission, login_url_name='login')
+@login_required
+@page_access_required('secretaria_pessoas')
 def editar_membro(request, membro_id): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
@@ -4036,7 +4035,8 @@ def editar_membro(request, membro_id): # noqa: E302
     return render(request, 'secretaria/editar_membro.html', context)
 
 
-@check_permission(has_membro_edit_permission, login_url_name='login')
+@login_required
+@page_access_required('secretaria_pessoas')
 def criar_membro(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
@@ -4107,7 +4107,8 @@ def criar_membro(request): # noqa: E302
 
 
 # --- NOVA VIEW PARA ALTERNAR STATUS DO MEMBRO ---
-@check_permission(has_membro_edit_permission, login_url_name='login')
+@login_required
+@page_access_required('secretaria_pessoas')
 def alternar_status_membro(request, membro_id): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
@@ -4153,7 +4154,8 @@ def alternar_status_membro(request, membro_id): # noqa: E302
 
 
 # --- NOVA VIEW PARA FICHA DE MEMBRO PARA IMPRESSÃO ---
-@check_permission(has_membro_view_permission, login_url_name='login')
+@login_required
+@page_access_required('secretaria_pessoas')
 def ficha_membro_impressao(request, membro_id): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
@@ -4190,7 +4192,8 @@ def ficha_membro_impressao(request, membro_id): # noqa: E302
 # --- FIM NOVA VIEW ---
 
 from secretaria.utils import is_secretaria_leader
-@check_permission(is_secretaria_leader, login_url_name='login') # Usa helper centralizado para liderança secretaria
+@login_required
+@page_access_required('lideranca_secretaria')
 def painel_lideranca_secretaria(request): # noqa: E302
     try:
         # Chama get_ministerio_or_error no início para validar o acesso à ministério
@@ -4347,7 +4350,8 @@ def painel_lideranca_secretaria(request): # noqa: E302
         return redirect('secretaria:dashboard')
 
 # --- VIEW PARA ADICIONAR HISTÓRICO DE STATUS MANUALMENTE ---
-@check_permission(has_membro_edit_permission, login_url_name='login')
+@login_required
+@page_access_required('secretaria_pessoas')
 def adicionar_historico_status_manual(request, membro_id=None): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     membro_obj = None
@@ -4390,30 +4394,178 @@ def adicionar_historico_status_manual(request, membro_id=None): # noqa: E302
 # --- NOVA VIEW PARA O PORTAL DO MEMBRO COMUM ---
 @login_required
 def portal_membro(request):
-    """
-    Página inicial para usuários do grupo 'Membro Comum'.
-    Exibe um resumo dos dados pessoais e atalhos.
-    """
-    ministerio = get_ministerio_or_error(request)
-    try:
-        # Busca o objeto Membro associado ao usuário logado
-        membro_obj = Membro.objects.get(email__iexact=request.user.email, igreja__ministerio=ministerio)
-    except Membro.DoesNotExist:
-        # Se não encontrar um registro de membro correspondente, mostra uma mensagem.
-        # Isso pode acontecer se o e-mail do usuário não corresponder ao e-mail no cadastro de membro.
-        messages.warning(request, "Seu cadastro de membro não foi encontrado. Por favor, contate a secretaria da sua igreja para verificar seus dados.")
-        membro_obj = None
+    """Portal do membro com visão consolidada e atalhos úteis."""
+    from django.db.models import Sum
+    from comunicacao.models import Aviso
+    from eventos.models import Evento, ParticipacaoEvento
+    from notificacoes.models import Notificacao
+    from escola_biblica.models import Aluno, CadastroAluno, Licao, Turma
+    from contas.page_permissions import user_can_access_page
+    from configuracao.models import ConfiguracaoSistema
 
-    # Busca o histórico de contribuições se o membro foi encontrado
-    contribuicoes = []
+    ministerio = get_ministerio_or_error(request)
+    hoje = timezone.now().date()
+    agora = timezone.now()
+    membro_obj = None
+
+    # Lê configurações do ministério (URLs devocionais, etc.)
+    _config = ConfiguracaoSistema.objects.filter(ministerio=ministerio).first()
+    _biblia_url = (_config.url_biblia_online if _config and _config.url_biblia_online else 'https://www.bibliaonline.com.br/')
+    _harpa_url = (_config.url_harpa_crista if _config and _config.url_harpa_crista else 'https://www.harpa-crista.com/')
+
+    # Prioriza vínculo direto com Pessoa/Membro para evitar ambiguidade por e-mail.
+    membro_vinculado = getattr(request.user, 'membro_secretaria', None)
+    if membro_vinculado and getattr(membro_vinculado, 'igreja', None) and membro_vinculado.igreja.ministerio_id == ministerio.id:
+        membro_obj = membro_vinculado
+    else:
+        try:
+            membro_obj = Membro.objects.get(email__iexact=request.user.email, igreja__ministerio=ministerio)
+        except Membro.DoesNotExist:
+            membro_obj = None
+
+    igrejas_permitidas = get_allowed_churches_for_membros(request.user, ministerio)
+    igreja_contexto = None
+    if getattr(request, 'igreja_ativa', None) and igrejas_permitidas.filter(pk=request.igreja_ativa.pk).exists():
+        igreja_contexto = request.igreja_ativa
+    elif membro_obj and membro_obj.igreja_id:
+        igreja_contexto = membro_obj.igreja
+    elif igrejas_permitidas.exists():
+        igreja_contexto = igrejas_permitidas.first()
+
+    if membro_obj is None:
+        messages.warning(
+            request,
+            "Não encontramos seu cadastro de pessoa vinculado a este usuário. O portal foi carregado com dados da conta; para completar, peça o vínculo à secretaria.",
+        )
+
+    # Comunicação e notificações
+    avisos_qs = Aviso.objects.filter(
+        ministerio=ministerio,
+        publicado=True,
+    ).filter(
+        Q(data_expiracao__isnull=True) | Q(data_expiracao__gte=hoje)
+    )
+    if igreja_contexto:
+        avisos_qs = avisos_qs.filter(Q(igrejas_destino__isnull=True) | Q(igrejas_destino=igreja_contexto)).distinct()
+    else:
+        avisos_qs = avisos_qs.filter(igrejas_destino__isnull=True).distinct()
+    avisos_recentes = avisos_qs.order_by('-data_publicacao')[:5]
+
+    notificacoes_qs = Notificacao.objects.filter(user=request.user, ministerio=ministerio).order_by('-created_at')
+    notificacoes_recentes = notificacoes_qs[:6]
+    notificacoes_nao_lidas = notificacoes_qs.filter(is_read=False).count()
+
+    # Eventos e participações
+    eventos_qs = Evento.objects.none()
+    if igreja_contexto:
+        eventos_qs = Evento.objects.filter(igreja=igreja_contexto, data_inicio__gte=agora).order_by('data_inicio')
+    proximos_eventos = eventos_qs[:6]
+
+    minhas_participacoes = ParticipacaoEvento.objects.none()
     if membro_obj:
-        contribuicoes = Receitas.objects.filter(membro=membro_obj).order_by('-data')[:10] # Pega as 10 últimas
+        minhas_participacoes = ParticipacaoEvento.objects.filter(
+            membro=membro_obj,
+            evento__igreja=igreja_contexto if igreja_contexto else None,
+            evento__data_inicio__gte=agora,
+        ).select_related('evento').order_by('evento__data_inicio')
+        if not igreja_contexto:
+            minhas_participacoes = ParticipacaoEvento.objects.filter(
+                membro=membro_obj,
+                evento__data_inicio__gte=agora,
+            ).select_related('evento').order_by('evento__data_inicio')
+
+    # Financeiro pessoal
+    contribuicoes_qs = Receitas.objects.none()
+    total_contribuicoes_ano = 0
+    if membro_obj:
+        contribuicoes_qs = Receitas.objects.filter(membro=membro_obj).order_by('-data')
+        total_contribuicoes_ano = (
+            contribuicoes_qs.filter(data__year=hoje.year).aggregate(total=Sum('valor'))['total']
+            or 0
+        )
+    contribuicoes_recentes = contribuicoes_qs[:6]
+
+    # EBD: aluno e professor
+    matriculas_ativas_qs = Aluno.objects.none()
+    cadastros_ebd_qs = CadastroAluno.objects.none()
+    turmas_professor_qs = Turma.objects.none()
+    proximas_licoes_aluno = Licao.objects.none()
+    proximas_licoes_professor = Licao.objects.none()
+
+    if membro_obj:
+        cadastros_ebd_qs = CadastroAluno.objects.filter(pessoa_id=membro_obj.pk).order_by('nome')
+        matriculas_ativas_qs = Aluno.objects.filter(cadastro__pessoa_id=membro_obj.pk, ativo=True).select_related(
+            'turma', 'turma__classe', 'turma__ano_letivo'
+        )
+        turmas_professor_qs = Turma.objects.filter(membros__pk=membro_obj.pk).distinct()
+
+        proximas_licoes_aluno = Licao.objects.filter(
+            turma__alunos__cadastro__pessoa_id=membro_obj.pk,
+            data__gte=hoje,
+        ).select_related('turma').distinct().order_by('data')[:5]
+
+        proximas_licoes_professor = Licao.objects.filter(
+            professor_id=membro_obj.pk,
+            data__gte=hoje,
+        ).select_related('turma').order_by('data')[:5]
+
+    total_ebd_vinculos = matriculas_ativas_qs.count() + turmas_professor_qs.count()
+
+    # Atalhos condicionados por permissão/papel
+    can_open_mural = user_can_access_page(request.user, 'comunicacao')
+    can_open_eventos = user_can_access_page(request.user, 'eventos')
+
+    atalhos = [
+        {
+            'titulo': 'Meu Perfil',
+            'descricao': 'Dados pessoais, vínculo e papéis.',
+            'icone': 'fas fa-user-circle',
+            'url': reverse('configuracao:meu_perfil'),
+            'habilitado': True,
+        },
+        {
+            'titulo': 'Mural de Avisos',
+            'descricao': 'Comunicados e publicações recentes.',
+            'icone': 'fas fa-bullhorn',
+            'url': reverse('comunicacao:lista_avisos'),
+            'habilitado': can_open_mural,
+        },
+        {
+            'titulo': 'Minhas Notificações',
+            'descricao': 'Central de alertas da sua conta.',
+            'icone': 'fas fa-bell',
+            'url': reverse('notificacoes:lista_notificacoes'),
+            'habilitado': True,
+            'badge': notificacoes_nao_lidas,
+        },
+    ]
 
     context = {
         'ministerio': ministerio,
         'membro': membro_obj,
-        'contribuicoes': contribuicoes,
-        'titulo_pagina': "Meu Portal"
+        'igreja_contexto': igreja_contexto,
+        'ano_atual': hoje.year,
+        'titulo_pagina': 'Meu Portal',
+        'can_open_mural': can_open_mural,
+        'can_open_eventos': can_open_eventos,
+        'biblia_online_url': _biblia_url,
+        'harpa_crista_url': _harpa_url,
+        'atalhos': atalhos,
+        'avisos_recentes': avisos_recentes,
+        'total_avisos': avisos_qs.count(),
+        'notificacoes_recentes': notificacoes_recentes,
+        'notificacoes_nao_lidas': notificacoes_nao_lidas,
+        'proximos_eventos': proximos_eventos,
+        'total_eventos_proximos': eventos_qs.count(),
+        'minhas_participacoes': minhas_participacoes[:6],
+        'contribuicoes': contribuicoes_recentes,
+        'total_contribuicoes_ano': total_contribuicoes_ano,
+        'cadastros_ebd': cadastros_ebd_qs,
+        'matriculas_ativas_ebd': matriculas_ativas_qs,
+        'turmas_professor_ebd': turmas_professor_qs,
+        'proximas_licoes_aluno': proximas_licoes_aluno,
+        'proximas_licoes_professor': proximas_licoes_professor,
+        'total_ebd_vinculos': total_ebd_vinculos,
     }
     return render(request, 'secretaria/portal_membro.html', context)
 
@@ -4508,7 +4660,7 @@ from django.shortcuts import redirect
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(pode_gerenciar_tags)
+@page_access_required('secretaria_tags')
 def criar_tag(request):
     if request.method == 'POST':
         form = TagForm(request.POST)

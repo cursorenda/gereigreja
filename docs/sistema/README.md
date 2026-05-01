@@ -4,7 +4,7 @@ Esta pasta contém toda a documentação técnica do sistema Gereigreja.
 
 ## 🗂️ Organização
 
-A documentação está organizada em categorias temáticas. Veja o **[INDEX.md](INDEX.md)** para uma lista completa e navegável de todos os documentos.
+A documentação está organizada em categorias temáticas. Veja o **[INDEX.md](../INDEX.md)** para uma lista completa e navegável de todos os documentos.
 
 ## 📖 Acesso Rápido
 
@@ -13,7 +13,7 @@ A documentação está organizada em categorias temáticas. Veja o **[INDEX.md](
 1. **[MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md)**  
    Consolidação técnica do ciclo v1.8.x (segurança, permissões, auditoria, testes e deploy)
 
-2. **[MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md)**  
+2. **[MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](../usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md)**  
    Consolidação funcional para usuários finais (o que mudou no uso diário)
 
 3. **[VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md)**  
@@ -25,16 +25,19 @@ A documentação está organizada em categorias temáticas. Veja o **[INDEX.md](
 5. **[GRUPOS_PERMISSOES.md](GRUPOS_PERMISSOES.md)**  
    Sistema de grupos e permissões do sistema
 
-6. **[ARQUITETURA_TEMPLATES.md](ARQUITETURA_TEMPLATES.md)**  
+6. **[MODO_DEMO.md](MODO_DEMO.md)**  
+   App de demonstração: usuários, dados populados, URLs, segurança e comandos
+
+6. **[ARQUITETURA_TEMPLATES.md](../templates/ARQUITETURA_TEMPLATES.md)**  
    Estrutura de templates e componentes reutilizáveis
 
-7. **[LGPD_IMPLEMENTACAO.md](LGPD_IMPLEMENTACAO.md)**  
+7. **[LGPD_IMPLEMENTACAO.md](../deploy/LGPD_IMPLEMENTACAO.md)**  
    Conformidade com LGPD
 
 ## 🔍 Encontrar Documentação
 
 **Método 1: Usar o Índice**
-- Abra [INDEX.md](INDEX.md)
+- Abra [INDEX.md](../INDEX.md)
 - Navegue pelas categorias
 - Clique no link do documento desejado
 
@@ -79,13 +82,13 @@ ls docs/*.md
    ```
 
 3. **Atualizar o índice:**
-   - Abra [INDEX.md](INDEX.md)
+   - Abra [INDEX.md](../INDEX.md)
    - Adicione entrada na categoria apropriada
    - Atualize data de "Última Atualização"
 
 4. **Commit com mensagem descritiva:**
    ```bash
-   git add docs/NOME_DA_DOCUMENTACAO.md docs/INDEX.md
+   git add docs/sistema/NOME_DA_DOCUMENTACAO.md docs/INDEX.md
    git commit -m "docs: adiciona documentação sobre [assunto]"
    ```
 

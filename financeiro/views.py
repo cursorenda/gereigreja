@@ -1,11 +1,11 @@
-from django.contrib.auth import get_user_model
+﻿from django.contrib.auth import get_user_model
 from .models import PermissaoCaixa
-from django.contrib.admin.views.decorators import staff_member_required
 # --- Gestão de Permissões de Caixa ---
 from django.contrib.auth.decorators import login_required
+from core.decorators import page_access_required
 
 @login_required
-@staff_member_required
+@page_access_required('financeiro')
 
 def gerenciar_permissoes_caixa(request, caixa_id):
     caixa = get_object_or_404(ContaBancaria, pk=caixa_id)
@@ -60,7 +60,6 @@ from django.db.models import Sum, Q, Count # Adicionado Count
 
 from .utils import has_finance_view_permission, has_finance_edit_permission, get_allowed_churches_for_user, is_finance_leader, is_admin_org # Importar is_admin_org
 from core.utils import get_ministerio_or_error # Importar de core.utils # noqa: E402
-from core.decorators import check_permission # <<< ADICIONE ESTA LINHA
 # --- FIM IMPORT ---
 from decimal import Decimal # Import Decimal
 import locale
@@ -104,7 +103,7 @@ if not locale_set:
 ## A função get_ministerio_or_error foi movida para core.utils.py ##
 
 
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def painel_financeiro(request):
     """ Painel/Dashboard Financeiro da Ministério ou de uma Igreja específica. """
     ministerio = get_ministerio_or_error(request)
@@ -483,7 +482,7 @@ def painel_financeiro(request):
 # ... (restante das views) ...
 
 # --- Receitas ---
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def lista_receitas(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
@@ -569,7 +568,7 @@ def lista_receitas(request): # noqa: E302
 
 
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def cadastrar_receita(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -622,7 +621,7 @@ def cadastrar_receita(request): # noqa: E302
         return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def editar_receita(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -659,7 +658,7 @@ def editar_receita(request, pk): # noqa: E302
         return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
-@check_permission(has_finance_edit_permission)
+@page_access_required('financeiro')
 def excluir_receita(request, pk): # noqa: E302
     # Apenas quem pode editar pode excluir
     ministerio = get_ministerio_or_error(request)
@@ -698,7 +697,7 @@ def excluir_receita(request, pk): # noqa: E302
 
 
 # --- Despesas (Estrutura similar às Receitas) ---
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def lista_despesas(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
@@ -771,7 +770,7 @@ def lista_despesas(request): # noqa: E302
         return redirect('financeiro:painel_financeiro')
 
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def cadastrar_despesa(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -828,7 +827,7 @@ def cadastrar_despesa(request): # noqa: E302
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
-@check_permission(has_finance_edit_permission)
+@page_access_required('financeiro')
 def editar_despesa(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -860,7 +859,7 @@ def editar_despesa(request, pk): # noqa: E302
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
-@check_permission(has_finance_edit_permission)
+@page_access_required('financeiro')
 def excluir_despesa(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -880,7 +879,7 @@ def excluir_despesa(request, pk): # noqa: E302
 
 
 # --- Categorias de Despesa ---
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def lista_categorias_despesa(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     categorias = CategoriaDespesa.objects.filter(ministerio=ministerio).order_by('nome')
@@ -892,7 +891,7 @@ def lista_categorias_despesa(request): # noqa: E302
     }
     return render(request, 'financeiro/categorias/lista_categorias.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def cadastrar_categoria_despesa(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     if request.method == 'POST':
@@ -921,7 +920,7 @@ def cadastrar_categoria_despesa(request): # noqa: E302
 # ========= INÍCIO: VIEWS PARA CONTAS BANCÁRIAS =========
 # ====================================================
 
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def lista_contas_bancarias(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
@@ -948,7 +947,7 @@ def lista_contas_bancarias(request): # noqa: E302
         return redirect('financeiro:painel_financeiro')
 
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def criar_conta_bancaria(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1013,7 +1012,7 @@ def criar_conta_bancaria(request): # noqa: E302
     }
     return render(request, 'financeiro/contas_bancarias/form_conta_bancaria.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def editar_conta_bancaria(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1046,7 +1045,7 @@ def editar_conta_bancaria(request, pk): # noqa: E302
     }
     return render(request, 'financeiro/contas_bancarias/form_conta_bancaria.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def excluir_conta_bancaria(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
@@ -1089,7 +1088,7 @@ def excluir_conta_bancaria(request, pk): # noqa: E302
 
 
 # --- Fechamento de Caixa (Refatorado) ---
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def lista_fechamentos_caixa(request): # noqa: E302
     """ Lista os fechamentos de caixa do ministério. """
     ministerio = get_ministerio_or_error(request)
@@ -1119,7 +1118,7 @@ def lista_fechamentos_caixa(request): # noqa: E302
 # financeiro/views.py
 # ... (imports e outras views como estão) ...
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def criar_fechamento_caixa(request): # noqa: E302
     """
     ETAPA 1: Exibe o formulário para selecionar igreja/período (GET)
@@ -1219,7 +1218,7 @@ def criar_fechamento_caixa(request): # noqa: E302
 # --- FIM DA VIEW criar_fechamento_caixa MODIFICADA ---
 
 # --- NOVA VIEW para finalizar o fechamento ---
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def finalizar_fechamento_caixa(request): # noqa: E302
     """
     ETAPA 2: Recebe o POST da página de confirmação e efetivamente
@@ -1308,7 +1307,7 @@ def finalizar_fechamento_caixa(request): # noqa: E302
 # ... (restante das views: detalhe_fechamento_caixa, reabrir_fechamento_caixa, etc.) ...
 
 
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def detalhe_fechamento_caixa(request, pk): # noqa: E302
     """ Mostra os detalhes de um fechamento específico. """
     ministerio = get_ministerio_or_error(request)
@@ -1347,7 +1346,7 @@ def detalhe_fechamento_caixa(request, pk): # noqa: E302
         return redirect('financeiro:lista_fechamentos_caixa')
 
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def reabrir_fechamento_caixa(request, pk): # noqa: E302
     """ Reabre um caixa fechado, marcando as receitas/despesas como abertas novamente. """
     ministerio = get_ministerio_or_error(request)
@@ -1384,7 +1383,7 @@ def reabrir_fechamento_caixa(request, pk): # noqa: E302
 
 
 # --- Relatórios ---
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def relatorio_mensal_detalhe(request, pk): # noqa: E302
     """ Gera o relatório formatado de um fechamento de caixa específico. """
     ministerio = get_ministerio_or_error(request)
@@ -1442,18 +1441,11 @@ def relatorio_mensal_detalhe(request, pk): # noqa: E302
         return redirect('financeiro:lista_fechamentos_caixa')
 
 
-# Remover a classe FechamentoCaixaService e as funções soltas buscar_dados_fechamento,
-# calcular_totais_fechamento, fechar_caixa, pois a lógica foi incorporada na view criar_fechamento_caixa.
-# Remover a definição duplicada de lista_fechamentos_caixa.
-# Remover a view editar_fechamento_caixa antiga, pois a lógica de reabrir é diferente.
-
-
-
 # ====================================================
 # ========= INÍCIO: VIEWS PARA FORNECEDORES =========
 # ====================================================
 
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def lista_fornecedores(request):
     """ Lista os fornecedores do ministério, com filtros. """
     ministerio = get_ministerio_or_error(request)
@@ -1496,7 +1488,7 @@ def lista_fornecedores(request):
         messages.error(request, f"Ocorreu um erro ao listar os fornecedores: {e}")
         return redirect('financeiro:painel_financeiro') # Redireciona para painel em caso de erro
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def criar_fornecedor(request): # noqa: E302
     """ Cria um novo fornecedor para a ministério. """
     ministerio = get_ministerio_or_error(request)
@@ -1525,7 +1517,7 @@ def criar_fornecedor(request): # noqa: E302
     context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Criar Novo Fornecedor'}
     return render(request, 'financeiro/fornecedores/form_fornecedor.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def editar_fornecedor(request, pk): # noqa: E302
     """ Edita um fornecedor existente do ministério. """
     ministerio = get_ministerio_or_error(request)
@@ -1553,7 +1545,7 @@ def editar_fornecedor(request, pk): # noqa: E302
     context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': f'Editar Fornecedor: {fornecedor.nome}', 'fornecedor': fornecedor}
     return render(request, 'financeiro/fornecedores/form_fornecedor.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def alternar_status_fornecedor(request, pk): # noqa: E302
     """ Ativa ou desativa um fornecedor (requer método POST). """
     ministerio = get_ministerio_or_error(request)
@@ -1581,7 +1573,7 @@ def alternar_status_fornecedor(request, pk): # noqa: E302
 # ========= FIM: VIEWS PARA FORNECEDORES =========
 # ==================================================
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def editar_categoria_despesa(request, pk): # noqa: E302
     """ Edita uma categoria de despesa existente. """
     ministerio = get_ministerio_or_error(request)
@@ -1618,7 +1610,7 @@ def editar_categoria_despesa(request, pk): # noqa: E302
     # Reutilizar o template do formulário de cadastro
     return render(request, 'financeiro/categorias/form_categoria.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def excluir_categoria_despesa(request, pk): # noqa: E302
     """ Exclui uma categoria de despesa (requer POST e confirmação). """
     ministerio = get_ministerio_or_error(request)
@@ -1651,7 +1643,7 @@ def excluir_categoria_despesa(request, pk): # noqa: E302
 # ========= INÍCIO: VIEWS PARA CONTAS A PAGAR =========
 # ====================================================
 
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def lista_contas_pagar(request): # noqa: E302
     """ Lista as contas a pagar do ministério, com filtros. """
     ministerio = get_ministerio_or_error(request)
@@ -1748,7 +1740,7 @@ def lista_contas_pagar(request): # noqa: E302
         messages.error(request, f"Ocorreu um erro ao listar as contas a pagar: {e}")
         return redirect('financeiro:painel_financeiro')
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def criar_conta_pagar(request): # noqa: E302
     """ Cria uma nova conta a pagar (ou uma parcela). """
     ministerio = get_ministerio_or_error(request)
@@ -1823,7 +1815,7 @@ def criar_conta_pagar(request): # noqa: E302
     }
     return render(request, 'financeiro/contas_pagar/form_conta_pagar.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
     """ Registra o pagamento de uma conta a pagar específica. """
     ministerio = get_ministerio_or_error(request)
@@ -1915,7 +1907,7 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
 # ========= CONTINUAÇÃO: VIEWS PARA CONTAS A PAGAR =========
 # ====================================================
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def editar_conta_pagar(request, pk): # noqa: E302
     """ Edita uma conta a pagar existente (se ainda não estiver paga ou cancelada). """
     ministerio = get_ministerio_or_error(request)
@@ -1956,7 +1948,7 @@ def editar_conta_pagar(request, pk): # noqa: E302
     # Reutiliza o mesmo template do formulário de criação
     return render(request, 'financeiro/contas_pagar/form_conta_pagar.html', context)
 
-@check_permission(has_finance_view_permission) # MODIFICADO
+@page_access_required('financeiro')
 def detalhe_conta_pagar(request, pk): # noqa: E302
     """ Exibe os detalhes completos de uma conta a pagar. """
     ministerio = get_ministerio_or_error(request)
@@ -1985,7 +1977,7 @@ def detalhe_conta_pagar(request, pk): # noqa: E302
     }
     return render(request, 'financeiro/contas_pagar/detalhe_conta_pagar.html', context)
 
-@check_permission(has_finance_edit_permission) # MODIFICADO
+@page_access_required('financeiro')
 def cancelar_conta_pagar(request, pk): # noqa: E302
     """ Marca uma conta a pagar como Cancelada (requer POST). """
     ministerio = get_ministerio_or_error(request)
@@ -2017,7 +2009,7 @@ def cancelar_conta_pagar(request, pk): # noqa: E302
 # ==================================================
 # ========= FIM: VIEWS PARA CONTAS A PAGAR =========
 # ==================================================
-@check_permission(is_finance_leader) # MODIFICADO
+@page_access_required('lideranca_financeira')
 def painel_lideranca_financeiro(request):
     ministerio_usuario = get_ministerio_or_error(request)
     allowed_churches_base_financeiro = get_allowed_churches_for_user(request.user)
@@ -2266,9 +2258,9 @@ def painel_lideranca_financeiro(request):
 # --- Transferência entre Caixas ---
 from .models import TransferenciaCaixa
 from .forms import TransferenciaCaixaForm
-from django.contrib.auth.decorators import login_required
 
 @login_required
+@page_access_required('financeiro')
 def transferencia_caixa_create(request):
     if request.method == 'POST':
         form = TransferenciaCaixaForm(request.POST)
@@ -2296,3 +2288,5 @@ def transferencia_caixa_create(request):
         'transferencias': transferencias,
         'auditoria': auditoria,
     })
+
+

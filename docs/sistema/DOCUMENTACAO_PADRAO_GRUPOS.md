@@ -11,15 +11,16 @@ Este documento define o padrão oficial de nomenclatura para grupos e permissõe
 ## 2. Exemplo de Definição
 ```python
 # contas/constants.py
-GRUPO_PASTOR_REGIONAL = "Pastor Regional"
-GRUPO_ADMIN_MINISTERIO = "Admin Ministerio"
+PASTOR_REGIONAL = "Pastor Regional"
+ADMIN_MINISTERIO = "Admin Ministerio"
 # ... demais grupos
 ```
 
 ## 3. Uso Correto
 ```python
-from contas.constants import GRUPO_PASTOR_REGIONAL
-if user.groups.filter(name=GRUPO_PASTOR_REGIONAL).exists():
+from contas.constants import user_tem_grupo, PASTOR_REGIONAL
+
+if user_tem_grupo(user, PASTOR_REGIONAL):
     # ...
 ```
 

@@ -18,6 +18,9 @@
 ## 📑 Documentação Relacionada
 
 - [DOCUMENTACAO_PADRAO_GRUPOS.md](DOCUMENTACAO_PADRAO_GRUPOS.md): Padrão oficial de nomenclatura e uso de grupos/permissões no código.
+- [DOCUMENTACAO_PERMISSOES.md](DOCUMENTACAO_PERMISSOES.md): Arquitetura atual de controle de acesso — `@page_access_required` + `PAGE_ACCESS_RULES` (padrão vigente desde 2026).
+
+> **Nota:** O controle de acesso a páginas/módulos é feito via `@page_access_required('<chave>')` consultando `contas/page_permissions.py`. Os grupos listados neste arquivo determinam quem pode acessar cada chave. Consulte `DOCUMENTACAO_PERMISSOES.md` para a matriz completa.
 
 ---
 

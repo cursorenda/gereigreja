@@ -1,3 +1,5 @@
+> **Aviso:** documento histórico (mar/2026). Pode divergir do estado atual após a migração para `@page_access_required` + `PAGE_ACCESS_RULES`.
+
 # 🔍 Análise Completa: Decorators no Sistema GereIgreja
 
 **Data da Análise:** 04/03/2026  

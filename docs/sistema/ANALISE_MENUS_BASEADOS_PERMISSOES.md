@@ -1,3 +1,5 @@
+> **Aviso:** documento histórico (fev/2026). Pode divergir do estado atual após a migração para `@page_access_required` + `PAGE_ACCESS_RULES`.
+
 # 🔍 Análise Comparativa: Menus Baseados em Permissões
 ## Sistemas de Gerenciamento de Igreja vs Sistemas Administrativos
 

@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from django.test import TestCase
 from decimal import Decimal
 from financeiro.models import Receitas, Despesas, FechamentoCaixa, CategoriaDespesa
-from financeiro.views import FechamentoCaixaService
+from financeiro.services import FechamentoCaixaService
 
 class FechamentoCaixaServiceTest(TestCase):
     def setUp(self):
@@ -30,8 +30,8 @@ class FechamentoCaixaServiceTest(TestCase):
 
 
     def test_buscar_dados(self):
-        with patch('financeiro.views.Receitas.objects.filter', return_value=[self.mock_receita1, self.mock_receita2]):
-            with patch('financeiro.views.Despesas.objects.filter', return_value=[self.mock_despesa1]):
+        with patch('financeiro.services.Receitas.objects.filter', return_value=[self.mock_receita1, self.mock_receita2]):
+            with patch('financeiro.services.Despesas.objects.filter', return_value=[self.mock_despesa1]):
                 service = FechamentoCaixaService(data_inicio='2024-01-01', data_fim='2024-01-31')
                 receitas, despesas = service.buscar_dados()
                 self.assertEqual(len(receitas), 2)
@@ -50,7 +50,7 @@ class FechamentoCaixaServiceTest(TestCase):
         self.assertEqual(total_saidas, Decimal(200))
         self.assertEqual(saldo_final, Decimal(1300))
 
-    @patch('financeiro.views.FechamentoCaixa.objects.create', return_value=MagicMock(spec=FechamentoCaixa))
+    @patch('financeiro.services.FechamentoCaixa.objects.create', return_value=MagicMock(spec=FechamentoCaixa))
     def test_fechar_caixa(self, mock_fechamento_create):
         mock_receitas_queryset = MagicMock()
         mock_receitas_queryset.aggregate.return_value = {'valor__sum': Decimal(1500)}

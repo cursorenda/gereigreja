@@ -5,81 +5,395 @@
 {% block title %}{{ titulo_pagina|default:"Meu Portal" }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina }}</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item active">Meu Portal</li>
-    </ol>
+<style>
+    .portal-member {
+        --portal-bg: linear-gradient(135deg, #f7fafc 0%, #eef2ff 45%, #eef9f3 100%);
+        --portal-ink: #1f2937;
+        --portal-soft: #64748b;
+        --portal-border: #e2e8f0;
+        --portal-card: #ffffff;
+        --portal-primary: #2563eb;
+        --portal-success: #16a34a;
+        --portal-warning: #d97706;
+    }
 
+    .portal-shell {
+        background: var(--portal-bg);
+        border-radius: 18px;
+        padding: 1rem;
+    }
 
+    .portal-hero {
+        background: linear-gradient(120deg, #0f172a 0%, #1d4ed8 55%, #0891b2 100%);
+        border-radius: 16px;
+        color: #fff;
+        padding: 1rem;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.25);
+    }
 
-    {% if membro %}
-        <div class="row">
-            <!-- Coluna do Perfil -->
-            <div class="col-lg-4">
-                <div class="card mb-4">
-                    <div class="card-body text-center">
-                        {% if membro.foto %}
-                            <img src="{{ membro.foto.url }}" alt="Foto de {{ membro.nome }}" class="rounded-circle img-fluid" style="width: 150px; height: 150px; object-fit: cover;">
+    .portal-avatar {
+        width: 84px;
+        height: 84px;
+        border-radius: 999px;
+        border: 3px solid rgba(255, 255, 255, 0.45);
+        object-fit: cover;
+        background: rgba(255, 255, 255, 0.2);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+
+    .portal-kpis {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .portal-kpi {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 0.65rem 0.8rem;
+    }
+
+    .portal-kpi-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        opacity: 0.85;
+        margin-bottom: 0.2rem;
+    }
+
+    .portal-kpi-value {
+        font-size: 1.15rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .portal-card {
+        border: 1px solid var(--portal-border);
+        border-radius: 14px;
+        background: var(--portal-card);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        height: 100%;
+    }
+
+    .portal-card .card-header {
+        border-bottom: 1px solid var(--portal-border);
+        background: #fff;
+        border-radius: 14px 14px 0 0;
+        font-weight: 700;
+    }
+
+    .portal-quick-link {
+        border: 1px solid var(--portal-border);
+        border-radius: 12px;
+        padding: 0.75rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        background: #fff;
+        color: var(--portal-ink);
+        text-decoration: none;
+        display: block;
+        height: 100%;
+    }
+
+    .portal-quick-link:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+        color: var(--portal-ink);
+    }
+
+    .portal-quick-link i {
+        color: var(--portal-primary);
+        font-size: 1.15rem;
+    }
+
+    .portal-empty {
+        color: var(--portal-soft);
+        border: 1px dashed var(--portal-border);
+        border-radius: 12px;
+        padding: 0.8rem;
+        background: #f8fafc;
+    }
+
+    @media (max-width: 991.98px) {
+        .portal-kpis {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .portal-shell {
+            border-radius: 0;
+            padding: 0.25rem;
+            background: transparent;
+        }
+
+        .portal-hero {
+            border-radius: 14px;
+        }
+
+        .portal-kpis {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+</style>
+
+<div class="container-fluid px-3 px-lg-4 portal-member">
+    <div class="portal-shell">
+        <h1 class="mt-2 mb-3">{{ titulo_pagina }}</h1>
+
+        <div class="portal-hero mb-4">
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-6">
+                    <div class="d-flex align-items-center gap-3">
+                        {% if membro and membro.foto %}
+                            <img src="{{ membro.foto.url }}" alt="Foto de {{ membro.nome }}" class="portal-avatar">
                         {% else %}
-                            <img src="{% static 'img/default_avatar.png' %}" alt="Sem foto" class="rounded-circle img-fluid" style="width: 150px;">
+                            <div class="portal-avatar"><i class="fas fa-user"></i></div>
                         {% endif %}
-                        <h5 class="my-3">{{ membro.nome_completo }}</h5>
-                        <p class="text-muted mb-1">{{ membro.tipo_pessoa.nome|default:"-" }} na {{ membro.igreja.nome_igreja }}</p>
-                        <p class="text-muted mb-4">{{ membro.status_pessoa.nome|default:"-" }}</p>
-                        <div class="d-flex justify-content-center mb-2">
-                            <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-primary">Editar Meus Dados</a>
-                            <a href="{% url 'secretaria:ficha_membro_impressao' membro.chave %}" target="_blank" class="btn btn-outline-primary ms-1">Ver Ficha</a>
+                        <div>
+                            <div class="small text-uppercase opacity-75">Central do Membro</div>
+                            <h3 class="mb-1">{{ membro.nome_completo|default:request.user.get_full_name|default:request.user.username }}</h3>
+                            <div class="small opacity-75">
+                                {{ membro.tipo_pessoa.nome|default:'Perfil em configuração' }}
+                                {% if igreja_contexto %}
+                                    • {{ igreja_contexto.nome_igreja }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="portal-kpis">
+                        <div class="portal-kpi">
+                            <div class="portal-kpi-label">Avisos</div>
+                            <div class="portal-kpi-value">{{ total_avisos }}</div>
+                        </div>
+                        <div class="portal-kpi">
+                            <div class="portal-kpi-label">Não Lidas</div>
+                            <div class="portal-kpi-value">{{ notificacoes_nao_lidas }}</div>
+                        </div>
+                        <div class="portal-kpi">
+                            <div class="portal-kpi-label">Eventos</div>
+                            <div class="portal-kpi-value">{{ total_eventos_proximos }}</div>
+                        </div>
+                        <div class="portal-kpi">
+                            <div class="portal-kpi-label">Vínculos EBD</div>
+                            <div class="portal-kpi-value">{{ total_ebd_vinculos }}</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Coluna de Informações e Contribuições -->
-            <div class="col-lg-8">
-                <div class="card mb-4">
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a href="{% url 'configuracao:meu_perfil' %}" class="btn btn-light btn-sm">
+                    <i class="fas fa-id-badge me-1"></i> Meu Perfil
+                </a>
+                {% if membro %}
+                    <a href="{% url 'configuracao:editar_meu_perfil' %}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-user-edit me-1"></i> Editar Perfil
+                    </a>
+                    <a href="{% url 'secretaria:ficha_membro_impressao' membro.chave %}" target="_blank" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-file-alt me-1"></i> Ficha Cadastral
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            {% for atalho in atalhos %}
+                {% if atalho.habilitado %}
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <a href="{{ atalho.url }}" class="portal-quick-link">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <i class="{{ atalho.icone }}"></i>
+                                {% if atalho.badge is not None and atalho.badge > 0 %}
+                                    <span class="badge bg-danger">{{ atalho.badge }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="fw-semibold">{{ atalho.titulo }}</div>
+                            <div class="small text-muted mt-1">{{ atalho.descricao }}</div>
+                        </a>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-xl-6">
+                <div class="card portal-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-bullhorn me-2 text-primary"></i>Comunicação</span>
+                        {% if can_open_mural %}
+                            <a href="{% url 'comunicacao:lista_avisos' %}" class="btn btn-outline-primary btn-sm">Ver mural</a>
+                        {% endif %}
+                    </div>
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-sm-3"><p class="mb-0">Nome Completo</p></div>
-                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.nome }}</p></div>
+                        {% if avisos_recentes %}
+                            <div class="list-group list-group-flush">
+                                {% for aviso in avisos_recentes %}
+                                    {% if can_open_mural %}
+                                        <a href="{% url 'comunicacao:detalhe_aviso' aviso.pk %}" class="list-group-item list-group-item-action px-0">
+                                            <div class="fw-semibold">{{ aviso.titulo }}</div>
+                                            <div class="small text-muted">Publicado em {{ aviso.data_publicacao|date:'d/m/Y H:i' }}</div>
+                                        </a>
+                                    {% else %}
+                                        <div class="list-group-item px-0">
+                                            <div class="fw-semibold">{{ aviso.titulo }}</div>
+                                            <div class="small text-muted">Publicado em {{ aviso.data_publicacao|date:'d/m/Y H:i' }}</div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="portal-empty">Nenhum aviso disponível no momento.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <div class="card portal-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-bell me-2 text-warning"></i>Notificações</span>
+                        <a href="{% url 'notificacoes:lista_notificacoes' %}" class="btn btn-outline-secondary btn-sm">Abrir central</a>
+                    </div>
+                    <div class="card-body">
+                        {% if notificacoes_recentes %}
+                            <div class="list-group list-group-flush">
+                                {% for n in notificacoes_recentes %}
+                                    <div class="list-group-item px-0 d-flex justify-content-between align-items-start">
+                                        <div class="pe-2">
+                                            <div class="fw-semibold">{{ n.message|truncatechars:90 }}</div>
+                                            <div class="small text-muted">{{ n.created_at|date:'d/m/Y H:i' }}</div>
+                                        </div>
+                                        {% if not n.is_read %}
+                                            <span class="badge bg-danger">Nova</span>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="portal-empty">Você não possui notificações recentes.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <div class="card portal-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-calendar-alt me-2 text-success"></i>Próximos Eventos</span>
+                        {% if can_open_eventos %}
+                            <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-outline-success btn-sm">Agenda</a>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if proximos_eventos %}
+                            {% for evento in proximos_eventos %}
+                                <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+                                    <div>
+                                        <div class="fw-semibold">{{ evento.titulo }}</div>
+                                        <div class="small text-muted">{{ evento.local|default:'Local a definir' }}</div>
+                                    </div>
+                                    <div class="text-end small">
+                                        <div class="fw-semibold">{{ evento.data_inicio|date:'d/m' }}</div>
+                                        <div class="text-muted">{{ evento.data_inicio|date:'H:i' }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="portal-empty">Nenhum evento próximo para seu contexto atual.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <div class="card portal-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-book-open me-2 text-info"></i>Recursos Devocionais</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-3">
+                            Espaço para acesso rápido a ferramentas espirituais do dia a dia.
+                        </p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ biblia_online_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary">
+                                <i class="fas fa-bible me-2"></i>Bíblia Online
+                            </a>
+                            <a href="{{ harpa_crista_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success">
+                                <i class="fas fa-music me-2"></i>Harpa Cristã
+                            </a>
                         </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-sm-3"><p class="mb-0">Email</p></div>
-                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.email|default:"Não informado" }}</p></div>
-                        </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-sm-3"><p class="mb-0">Telefone</p></div>
-                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.telefone|default:"Não informado" }}</p></div>
-                        </div>
-                        <hr>
-                        <div class="row">
-                            <div class="col-sm-3"><p class="mb-0">Endereço</p></div>
-                            <div class="col-sm-9"><p class="text-muted mb-0">{{ membro.rua|default:'-' }}, {{ membro.numero_casa|default:'' }} - {{ membro.cidade|default:'' }}</p></div>
+                        <div class="portal-empty mt-3">
+                            Se você quiser, posso transformar esses links em configuração do sistema para o Admin Ministério editar sem alterar código.
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="card mb-4">
-                    <div class="card-header"><i class="fas fa-hand-holding-usd me-1"></i>Últimas Contribuições</div>
+            <div class="col-12 col-xl-6">
+                <div class="card portal-card">
+                    <div class="card-header"><i class="fas fa-graduation-cap me-2 text-primary"></i>Vida EBD</div>
                     <div class="card-body">
-                        {% if contribuicoes %}
-                            <ul class="list-group list-group-flush">
-                                {% for c in contribuicoes %}
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>{{ c.data|date:"d/m/Y" }} - {{ c.get_categoria_display }}</span>
-                                        <span class="badge bg-primary rounded-pill">R$ {{ c.valor|intcomma }}</span>
-                                    </li>
-                                {% endfor %}
-                            </ul>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="small text-muted">Matrículas Ativas</div>
+                                    <div class="fw-bold fs-5">{{ matriculas_ativas_ebd|length }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <div class="small text-muted">Turmas (Professor)</div>
+                                    <div class="fw-bold fs-5">{{ turmas_professor_ebd|length }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if proximas_licoes_aluno or proximas_licoes_professor %}
+                            <div class="small text-uppercase text-muted mb-2">Próximas lições</div>
+                            {% for licao in proximas_licoes_aluno %}
+                                <div class="small mb-1">Aluno • {{ licao.data|date:'d/m' }} • {{ licao.tema|truncatechars:48 }}</div>
+                            {% endfor %}
+                            {% for licao in proximas_licoes_professor %}
+                                <div class="small mb-1">Professor • {{ licao.data|date:'d/m' }} • {{ licao.tema|truncatechars:48 }}</div>
+                            {% endfor %}
                         {% else %}
-                            <p class="text-muted">Nenhuma contribuição registrada.</p>
+                            <div class="portal-empty">Sem agenda EBD cadastrada para seu perfil no momento.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <div class="card portal-card">
+                    <div class="card-header"><i class="fas fa-hand-holding-usd me-2 text-success"></i>Contribuições</div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="small text-muted">Total no ano {{ ano_atual }}</div>
+                            <div class="fw-bold text-success">R$ {{ total_contribuicoes_ano|floatformat:2|intcomma }}</div>
+                        </div>
+                        {% if contribuicoes %}
+                            {% for c in contribuicoes %}
+                                <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
+                                    <div>
+                                        <div class="fw-semibold">{{ c.get_categoria_display }}</div>
+                                        <div class="small text-muted">{{ c.data|date:'d/m/Y' }}</div>
+                                    </div>
+                                    <div class="fw-semibold">R$ {{ c.valor|floatformat:2|intcomma }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="portal-empty">Nenhuma contribuição registrada para seu cadastro.</div>
                         {% endif %}
                     </div>
                 </div>
             </div>
         </div>
-    {% endif %}
+    </div>
 </div>
 {% endblock %}

@@ -5,11 +5,30 @@
 {% load secretaria_tags %} {# Carrega os templatetags da secretaria #}
 {% load secretaria_extras %}
 {% load grupo_tags %} {# Carrega templatetags de grupos #}
+{% load permissoes_hierarquia %}
+
+{% user_can_access request.user 'dashboard_secretaria' as can_dashboard_secretaria %}
+{% user_can_access_any_tag request.user 'secretaria_pessoas' 'secretaria_transferencias' 'secretaria_cargos' 'secretaria_grupos_casa' 'secretaria_acompanhamentos' 'secretaria_tags' 'secretaria_relatorios' as can_section_secretaria %}
+{% user_can_access request.user 'recepcao_visitantes' as can_section_recepcao %}
+{% user_can_access_any_tag request.user 'agenda' 'eventos' as can_section_eventos %}
+{% user_can_access request.user 'escola_biblica' as can_section_ebd %}
+{% user_can_access request.user 'financeiro' as can_section_financeiro %}
+{% user_can_access_any_tag request.user 'lideranca_secretaria' 'lideranca_financeira' as can_section_lideranca %}
+{% user_can_access_any_tag request.user 'dashboard_sistema' 'novidades_sistema' 'configuracoes_sistema' as can_section_sistema %}
+{% user_can_access request.user 'comunicacao_massa' as can_comunicacao_massa %}
+{% user_can_access request.user 'mural_avisos' as can_mural_avisos %}
+{% user_can_access request.user 'suporte' as can_suporte %}
 
 <div class="sb-sidenav-menu">
     <div class="nav">
         <!-- Seção Principal -->
+        {% if request.user.is_authenticated %}
+        {% if request.user.is_superuser or can_dashboard_secretaria %}
         <div class="sb-sidenav-menu-heading">Principal</div>
+        {% elif request.user.perfil and request.user.perfil.ministerio and not request.user.perfil.ministerio.ativo %}
+        <div class="sb-sidenav-menu-heading">Principal</div>
+        {% endif %}
+        {% endif %}
     <!-- Dashboard removido para evitar duplicidade -->
 
         {# Link Principal - Varia conforme o status do usuário/ministério #}
@@ -28,12 +47,34 @@
                 </a>
             {% else %}
                 {# Usuário com ministério ATIVA (ou sem perfil/org, que será tratado pela view) #}
+                {% if can_dashboard_secretaria %}
                 <a class="nav-link" href="{% url 'secretaria:index' %}">
                     <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
                     Home
                 </a>
+                {% endif %}
             {% endif %}
         {% endif %}
+
+            {# --- Minha Conta: visível para TODOS os usuários autenticados com ministério ativa --- #}
+            {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
+            <div class="sb-sidenav-menu-heading">Minha Conta</div>
+            <a class="nav-link" href="{% url 'secretaria:portal_membro' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-th-large"></i></div>
+                Meu Portal
+            </a>
+            <a class="nav-link" href="{% url 'configuracao:meu_perfil' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
+                Meu Perfil
+            </a>
+            {% if can_mural_avisos and not can_comunicacao_massa %}
+            <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
+                Mural de Avisos
+            </a>
+            {% endif %}
+            {% endif %}
+            {# --- Fim Minha Conta --- #}
 
 
         {# Menu Completo - Exibido apenas se o usuário tiver uma ministério ATIVA #}
@@ -41,16 +82,22 @@
 
 
 
+            {% if can_dashboard_secretaria %}
             <a class="nav-link" href="{% url 'secretaria:dashboard' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 Dashboard
             </a>
+            {% endif %}
 
+            {% if can_section_secretaria %}
             <div class="sb-sidenav-menu-heading">Secretaria</div>
+            {% if can_dashboard_secretaria %}
             <a class="nav-link" href="{% url 'secretaria:lista_pessoas' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
                 Pessoas
             </a>
+            {% endif %}
+            {% if can_dashboard_secretaria %}
             <a class="nav-link d-flex align-items-center justify-content-between" href="{% url 'secretaria:lista_transferencias' %}">
                 <span>
                     <span class="sb-nav-link-icon"><i class="fas fa-exchange-alt"></i></span>
@@ -60,25 +107,39 @@
                 <span class="badge bg-warning text-dark ms-2">{{ transferencias_pendentes_count }}</span>
                 {% endif %}
             </a>
+            {% endif %}
+            {% user_can_access request.user 'secretaria_cargos' as can_secretaria_cargos %}
+            {% if can_secretaria_cargos %}
             <a class="nav-link" href="{% url 'secretaria:lista_cargos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
                 Cargos
             </a>
-                <a class="nav-link" href="{% url 'secretaria:lista_grupos_casa' %}">
-                    <div class="sb-nav-link-icon"><i class="fas fa-house-user"></i></div>
-                    Grupos / Casas
-                </a>
-                <a class="nav-link" href="{% url 'secretaria:acompanhamentos_visita' %}">
-                    <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
-                    Visitas Individuais
-                </a>
+            {% endif %}
+            {% user_can_access request.user 'secretaria_grupos_casa' as can_secretaria_grupos %}
+            {% if can_secretaria_grupos %}
+            <a class="nav-link" href="{% url 'secretaria:lista_grupos_casa' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-house-user"></i></div>
+                Grupos / Casas
+            </a>
+            {% endif %}
+            {% user_can_access request.user 'secretaria_acompanhamentos' as can_secretaria_acompanhamentos %}
+            {% if can_secretaria_acompanhamentos %}
+            <a class="nav-link" href="{% url 'secretaria:acompanhamentos_visita' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
+                Visitas Individuais
+            </a>
+            {% endif %}
+            {% user_can_access request.user 'secretaria_tags' as can_secretaria_tags %}
+            {% if can_secretaria_tags %}
             <a class="nav-link" href="{% url 'secretaria:criar_tag' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-tags"></i></div>
                 Gerenciar Tags
             </a>
+            {% endif %}
             <!-- Item de menu 'associar usuário' removido -->
                 <!-- Ícone e nome do item 'Associar Usuários' removidos -->
-            </a>
+            {% user_can_access request.user 'secretaria_relatorios' as can_secretaria_relatorios %}
+            {% if can_secretaria_relatorios %}
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseRelatoriosSecretaria" aria-expanded="false" aria-controls="collapseRelatoriosSecretaria">
                 <div class="sb-nav-link-icon"><i class="fas fa-file-alt"></i></div>
                 Relatórios
@@ -96,9 +157,12 @@
                         </a>
                 </nav>
             </div>
+            {% endif %}
+            {% endif %}
 
 
 
+            {% if can_section_recepcao %}
             <div class="sb-sidenav-menu-heading">Recepção</div>
             <a class="nav-link" href="{% url 'secretaria:lista_visitantes' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
@@ -108,32 +172,45 @@
                 <div class="sb-nav-link-icon"><i class="fas fa-clipboard-check"></i></div>
                 Registro de Visitantes
             </a>
+            {% endif %}
+            {% if can_section_eventos %}
             <div class="sb-sidenav-menu-heading">Agenda & Eventos</div>
+            {% user_can_access request.user 'agenda' as can_agenda %}
+            {% if can_agenda %}
             <a class="nav-link" href="{% url 'agenda:agenda' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-calendar-week"></i></div>
                 Agenda
             </a>
+            {% endif %}
 
+            {% user_can_access request.user 'eventos' as can_eventos %}
+            {% if can_eventos %}
             <a class="nav-link" href="{% url 'eventos:lista_eventos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
                 Eventos
             </a>
+            {% endif %}
+            {% endif %}
 
 
 
             <!-- BLOCO ESCOLA DOMINICAL -->
+            {% if can_section_ebd %}
             <div class="sb-sidenav-menu-heading">ESCOLA DOMINICAL</div>
-                <a class="nav-link" href="{% url 'escola_biblica:dashboard' %}">
-                    <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
-                    Escola Dominical
-                </a>
+            <a class="nav-link" href="{% url 'escola_biblica:dashboard' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
+                Escola Dominical
+            </a>
+            {% endif %}
 
 
+            {% if can_section_financeiro %}
             <div class="sb-sidenav-menu-heading">Financeiro</div>
             <a class="nav-link" href="{% url 'financeiro:painel_financeiro' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-landmark"></i></div>
                 Painel Financeiro
             </a>
+            {% endif %}
 
             <!--
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLancamentos" aria-expanded="false" aria-controls="collapseLancamentos">
@@ -203,6 +280,7 @@
             {% with request.user.perfil.ministerio as ministerio %}
                 {% if can_see_lideranca_secretaria or can_see_lideranca_financeira %}
                     {% if ministerio|igrejas_ativas_count > 1 %}
+                {% if can_section_lideranca %}
                 <div class="sb-sidenav-menu-heading">Liderança</div>
                 <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLiderancaPaineis" aria-expanded="false" aria-controls="collapseLiderancaPaineis">
                     <div class="sb-nav-link-icon"><i class="fas fa-user-tie"></i></div>
@@ -225,6 +303,7 @@
                         {% endif %}
                     </nav>
                 </div>
+                {% endif %}
             {% endif %}
         {% endif %}
     {% endwith %}
@@ -234,20 +313,29 @@
         {% endif %} {# Fim do bloco de menu completo para ministério ativa #}
 
         {# Seção Sistema: Novidades e Configurações do Sistema #}
-        {% if request.user.is_authenticated and not request.user.is_superuser %}
+        {% if request.user.is_authenticated and not request.user.is_superuser and can_section_sistema %}
             <div class="sb-sidenav-menu-heading">Sistema</div>
+            {% user_can_access request.user 'dashboard_sistema' as can_dashboard_sistema %}
+            {% if can_dashboard_sistema %}
             <a class="nav-link" href="{% url 'configuracao:dashboard_sistema' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-heartbeat"></i></div>
                 Dashboard do Sistema
             </a>
+            {% endif %}
+            {% user_can_access request.user 'novidades_sistema' as can_novidades_sistema %}
+            {% if can_novidades_sistema %}
             <a class="nav-link" href="{% url 'configuracao:lista_atualizacoes_sistema' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
                 Novidades do Sistema
             </a>
+            {% endif %}
+            {% user_can_access request.user 'configuracoes_sistema' as can_configuracoes_sistema %}
+            {% if can_configuracoes_sistema %}
             <a class="nav-link" href="{% url 'configuracao:configuracoes_sistema' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
                 Configurações do Sistema
             </a>
+            {% endif %}
             {# Link para Auditoria de Permissões (apenas Admin Ministerio) #}
             {% user_is_admin_ministerio request.user as is_admin_ministerio %}
             {% if is_admin_ministerio %}
@@ -257,6 +345,7 @@
             </a>
             {% endif %}
             {# --- NOVO LINK PARA MURAL DE AVISOS --- #}
+            {% if can_comunicacao_massa %}
             <div class="sb-sidenav-menu-heading">Comunicação</div>
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseComunicacao" aria-expanded="false" aria-controls="collapseComunicacao">
                 <div class="sb-nav-link-icon"><i class="fas fa-comments"></i></div>
@@ -265,6 +354,7 @@
             </a>
             <div class="collapse" id="collapseComunicacao" aria-labelledby="headingComunicacao" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
+                    {% if can_comunicacao_massa %}
                     <a class="nav-link" href="{% url 'comunicacao:enviar_email_massa' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-paper-plane"></i></div>
                         Enviar E-mail em Massa
@@ -273,17 +363,23 @@
                         <div class="sb-nav-link-icon"><i class="fas fa-envelope-open-text"></i></div>
                         Templates de E-mail
                     </a>
+                    {% endif %}
+                    {% if can_mural_avisos %}
                     <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                         Mural de Avisos
                     </a>
+                    {% endif %}
                 </nav>
             </div>
+            {% endif %}
             {# --- NOVO LINK PARA SUPORTE --- #}
+            {% if can_suporte %}
             <a class="nav-link" href="{% url 'suporte:lista_tickets' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-life-ring"></i></div>
                 Suporte
             </a>
+            {% endif %}
         {% endif %}
 
         

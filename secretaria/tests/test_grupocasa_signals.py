@@ -1,10 +1,18 @@
 from django.test import TestCase
+from django.contrib.auth import get_user_model
 from secretaria.models import Membro, GrupoCasa, TipoPessoa, StatusPessoa
-from configuracao.models import Igreja
+from configuracao.models import Igreja, Ministerio
 
 class GrupoCasaSignalsTest(TestCase):
     def setUp(self):
-        self.igreja = Igreja.objects.create(nome_igreja='Igreja Teste')
+        user_model = get_user_model()
+        self.admin_user = user_model.objects.create_user(username='admin_grupocasa', password='pass123')
+        self.ministerio = Ministerio.objects.create(
+            nome_fantasia='Ministerio Teste Grupo Casa',
+            administrador_principal=self.admin_user,
+            ativo=True,
+        )
+        self.igreja = Igreja.objects.create(nome_igreja='Igreja Teste', ministerio=self.ministerio)
         self.tipo = TipoPessoa.objects.create(nome='Membro')
         self.status = StatusPessoa.objects.create(nome='Ativo')
 

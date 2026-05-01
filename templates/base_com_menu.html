@@ -10,6 +10,7 @@
 {% load static %}
 {% load financeiro_tags %}
 {% load grupo_tags %}
+{% load permissoes_hierarquia %}
 {% load versao %}
 
 
@@ -57,6 +58,66 @@
     <script src="{% static 'js/assistente.js' %}"></script>
 
 
+    {% if request.user.is_authenticated and request.user.username|slice:":5" == "demo_" %}
+    <div id="demo-banner" style="background:#ffc107;color:#212529;text-align:center;padding:6px 16px;font-weight:700;font-size:0.93em;position:fixed;top:0;left:0;width:100%;z-index:2000;border-bottom:2px solid #e0a800;">
+        🧪 <strong>MODO DEMONSTRAÇÃO</strong> — Dados fictícios. Explore à vontade.
+        &nbsp;|&nbsp;
+        <button type="button" data-bs-toggle="modal" data-bs-target="#modalTrocarPerfil" style="background:none;border:none;padding:0;color:#212529;text-decoration:underline;font-weight:700;font-size:inherit;cursor:pointer;">Trocar perfil</button>
+        &nbsp;|&nbsp;
+        <a href="{% url 'demo:demo_reset' %}" style="color:#212529;text-decoration:underline;">Resetar dados</a>
+    </div>
+
+    <!-- Modal Trocar Perfil Demo -->
+    <div class="modal fade" id="modalTrocarPerfil" tabindex="-1" aria-labelledby="modalTrocarPerfilLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark border-0">
+                    <h5 class="modal-title fw-bold" id="modalTrocarPerfilLabel">🔄 Trocar Perfil — Modo Demonstração</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <form method="post" action="{% url 'demo:demo_trocar_perfil' %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Selecione o perfil que deseja explorar. O sistema carregará com as permissões deste perfil.</p>
+                        <div class="mb-3">
+                            <label for="modalPerfilSelect" class="form-label fw-semibold">Perfil</label>
+                            <select name="perfil" id="modalPerfilSelect" class="form-select" required>
+                                <option value="admin">Administrador</option>
+                                <option value="tesoureiro">Tesoureiro</option>
+                                <option value="pastor">Pastor</option>
+                                <option value="secretario">Secretário</option>
+                                <option value="membro">Membro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning fw-bold">Trocar perfil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Fim Modal Trocar Perfil Demo -->
+    <script>
+    function adjustDemoBannerOffset() {
+        var banner = document.getElementById('demo-banner');
+        if (banner) {
+            var h = banner.offsetHeight;
+            var nav = document.querySelector('.sb-topnav');
+            var sidebar = document.querySelector('#layoutSidenav_nav');
+            if (nav) nav.style.top = h + 'px';
+            if (sidebar) {
+                sidebar.style.top = (56 + h) + 'px';
+                sidebar.style.height = 'calc(100vh - ' + (56 + h) + 'px)';
+                sidebar.style.overflowY = 'auto';
+            }
+        }
+    }
+    adjustDemoBannerOffset();
+    window.addEventListener('load', adjustDemoBannerOffset);
+    </script>
+    {% endif %}
     {% if modo_auditoria_ativo %}
     <div class="alert alert-warning text-center mb-0 rounded-0 py-2" role="alert">
         <strong>Modo Auditoria ativo.</strong> Operacoes de escrita do superusuario ficam bloqueadas ate nova alternancia.
@@ -208,11 +269,27 @@
                     {% endfor %}
                 {% endif %}
                 {# --- FIM Links de Configuração da Ministério --- #}
+                    {% user_can_access user 'mural_avisos' as can_mural_avisos_dropdown %}
+                    {% if user.is_authenticated and not user.is_superuser and user.perfil and user.perfil.ministerio and user.perfil.ministerio.ativo %}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'secretaria:portal_membro' %}">
+                            <i class="fas fa-th-large fa-fw me-1 text-muted"></i>Meu Portal
+                        </a>
+                    </li>
+                    {% endif %}
                     <li>
                         <a class="dropdown-item" href="{% url 'configuracao:meu_perfil' %}">
                             <i class="fas fa-id-card fa-fw me-1 text-muted"></i>Meu Perfil
                         </a>
                     </li>
+                    {% if can_mural_avisos_dropdown %}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'comunicacao:lista_avisos' %}">
+                            <i class="fas fa-bullhorn fa-fw me-1 text-muted"></i>Mural de Avisos
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider" /></li>
 
                     {# --- Links da Conta do Usuário (Para TODOS os logados) --- #}
                     <li>
@@ -266,31 +343,7 @@
             </div>
             <div class="offcanvas-body p-0">
                 <nav class="sb-sidenav accordion sb-sidenav-dark h-100" id="sidenavAccordionMobile">
-                    {% if user.is_staff or user|has_group:'Admin Ministerio' %}
-                        {% include 'menu.html' %}
-                    {% else %}
-                        <div class="sb-sidenav-menu">
-                            <div class="nav">
-                                <div class="sb-sidenav-menu-heading">Navegação</div>
-                                <a class="nav-link" href="{% url 'secretaria:portal_membro' %}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
-                                    Meu Portal
-                                </a>
-                                <a class="nav-link" href="{% url 'configuracao:meu_perfil' %}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
-                                    Meu Perfil
-                                </a>
-                                <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
-                                    Mural de Avisos
-                                </a>
-                                <a class="nav-link" href="{% url 'notificacoes:lista_notificacoes' %}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-bell"></i></div>
-                                    Minhas Notificações
-                                </a>
-                            </div>
-                        </div>
-                    {% endif %}
+                    {% include 'menu.html' %}
                     {# Rodapé removido para eliminar espaço/quadro vazio #}
                 </nav>
             </div>
@@ -307,31 +360,7 @@
                         </div>
                     {% endif %}
                 </div>
-                {% if user.is_staff or user|has_group:'Admin Ministerio' %}
-                    {% include 'menu.html' %}
-                {% else %}
-                    <div class="sb-sidenav-menu">
-                        <div class="nav">
-                            <div class="sb-sidenav-menu-heading">Navegação</div>
-                            <a class="nav-link" href="{% url 'secretaria:portal_membro' %}">
-                                <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
-                                Meu Portal
-                            </a>
-                            <a class="nav-link" href="{% url 'configuracao:meu_perfil' %}">
-                                <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
-                                Meu Perfil
-                            </a>
-                            <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
-                                <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
-                                Mural de Avisos
-                            </a>
-                            <a class="nav-link" href="{% url 'notificacoes:lista_notificacoes' %}">
-                                <div class="sb-nav-link-icon"><i class="fas fa-bell"></i></div>
-                                Minhas Notificações
-                            </a>
-                        </div>
-                    </div>
-                {% endif %}
+                {% include 'menu.html' %}
                 {# Rodapé removido para eliminar espaço/quadro vazio #}
             </nav>
         </div>

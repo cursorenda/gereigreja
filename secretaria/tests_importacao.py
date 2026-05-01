@@ -30,32 +30,33 @@ class ImportacaoPessoasTest(TestCase):
         for linha in linhas:
             ws.append(linha)
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
-        wb.save(tmp.name)
-        tmp.seek(0)
-        return tmp
+        tmp_path = tmp.name
+        tmp.close()
+        wb.save(tmp_path)
+        return tmp_path
 
     def test_importacao_sucesso(self):
         dados = [
             ["123.456.789-09", "João Teste", "Pai", "Mãe", "01/01/1990", "M", "Central", "Ativo", "Membro",
              "Rua A", "100", "Centro", "CidadeX", "SP", "(11) 99999-9999", "joao@teste.com"]
         ]
-        tmp = self.gerar_excel(dados)
-        with open(tmp.name, 'rb') as f:
+        tmp_path = self.gerar_excel(dados)
+        with open(tmp_path, 'rb') as f:
             resp = self.client.post(reverse('secretaria:importar_pessoas'), {'arquivo': f})
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(Pessoa.objects.filter(nome="João Teste").exists())
-        os.unlink(tmp.name)
+        os.unlink(tmp_path)
 
     def test_importacao_erro_cpf(self):
         dados = [
             ["111.111.111-11", "Erro CPF", "Pai", "Mãe", "01/01/1990", "M", "Central", "Ativo", "Membro",
              "Rua A", "100", "Centro", "CidadeX", "SP", "(11) 99999-9999", "erro@teste.com"]
         ]
-        tmp = self.gerar_excel(dados)
-        with open(tmp.name, 'rb') as f:
+        tmp_path = self.gerar_excel(dados)
+        with open(tmp_path, 'rb') as f:
             resp = self.client.post(reverse('secretaria:importar_pessoas'), {'arquivo': f})
         self.assertContains(resp, 'CPF inválido', status_code=200)
-        os.unlink(tmp.name)
+        os.unlink(tmp_path)
 
     def test_importacao_atualiza_existente(self):
         Pessoa.objects.create(
@@ -65,22 +66,22 @@ class ImportacaoPessoasTest(TestCase):
             ["123.456.789-09", "Novo Nome", "Pai", "Mãe", "01/01/1990", "M", "Central", "Ativo", "Membro",
              "Rua B", "200", "BairroY", "CidadeY", "SP", "(11) 98888-8888", "novo@teste.com"]
         ]
-        tmp = self.gerar_excel(dados)
-        with open(tmp.name, 'rb') as f:
+        tmp_path = self.gerar_excel(dados)
+        with open(tmp_path, 'rb') as f:
             resp = self.client.post(reverse('secretaria:importar_pessoas'), {'arquivo': f})
         self.assertEqual(resp.status_code, 302)
         pessoa = Pessoa.objects.get(cpf="123.456.789-09")
         self.assertEqual(pessoa.nome, "Novo Nome")
         self.assertEqual(pessoa.rua, "Rua B")
-        os.unlink(tmp.name)
+        os.unlink(tmp_path)
 
     def test_importacao_erro_data(self):
         dados = [
             ["123.456.789-09", "Data Errada", "Pai", "Mãe", "1990-01-01", "M", "Central", "Ativo", "Membro",
              "Rua A", "100", "Centro", "CidadeX", "SP", "(11) 99999-9999", "data@teste.com"]
         ]
-        tmp = self.gerar_excel(dados)
-        with open(tmp.name, 'rb') as f:
+        tmp_path = self.gerar_excel(dados)
+        with open(tmp_path, 'rb') as f:
             resp = self.client.post(reverse('secretaria:importar_pessoas'), {'arquivo': f})
         self.assertContains(resp, 'Data de nascimento deve estar no formato dd/mm/aaaa', status_code=200)
-        os.unlink(tmp.name)
+        os.unlink(tmp_path)

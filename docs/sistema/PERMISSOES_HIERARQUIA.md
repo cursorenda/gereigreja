@@ -8,7 +8,8 @@ O GereIgreja utiliza um modelo de permissões hierárquico, onde cada grupo poss
 ## Como funciona a hierarquia
 - A hierarquia é definida em `contas/constants.py` na lista `HIERARQUIA_GRUPOS`.
 - O helper central `user_has_permission_level_or_higher(user, required_group)` garante que quem está acima na hierarquia pode tudo que está abaixo.
-- O superusuário (`is_superuser=True`) sempre tem acesso total, independentemente dos grupos.
+- Em views protegidas por `@page_access_required`, o superusuário também segue a regra da `page_key` (não há bypass automático global).
+- Para permissões por tela/modulo, use `@page_access_required` com chaves em `contas/page_permissions.py`.
 
 ---
 
@@ -21,7 +22,7 @@ Se uma view exige permissão de "Tesoureiro":
 ---
 
 ## Fluxo de checagem de permissão
-1. Se `user.is_superuser` → acesso total.
+1. Verificar autenticação e regra aplicada (ex.: `@page_access_required` ou helper hierárquico).
 2. Se `user_has_permission_level_or_higher(user, required_group)` → acesso concedido.
 3. Caso contrário → acesso negado.
 
@@ -40,7 +41,7 @@ else:
 
 ## Checklist para permissões hierárquicas
 - [x] Toda checagem de permissão usa o helper central
-- [x] Superusuário nunca é bloqueado
+- [x] Regra de superusuário está documentada conforme o decorator usado
 - [x] Não há checagens manuais de grupo fora do helper
 - [x] Documentação e exemplos atualizados
 

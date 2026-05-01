@@ -1,69 +1,100 @@
-# Documentação de Permissões e Fluxo de Usuários – Gereigreja
+# Documentação de Permissões e Fluxo de Usuários - Gereigreja
 
 ## 1. Conceitos-Chave
 
 - **Usuário**: Conta de acesso ao sistema (Django User).
-- **Membro**: Pessoa cadastrada na secretaria, pode ou não ter acesso ao sistema.
-- **Vínculo Usuário ↔ Membro**: Relacionamento opcional (OneToOneField) entre User e Membro.
-- **Grupo/Papel**: Define permissões e acesso ao sistema (ex: Admin Ministerio, Pastor Local).
+- **Membro**: Pessoa cadastrada na secretaria, com ou sem login no sistema.
+- **Grupo/Papel**: Papel em Django Groups que define nível hierárquico e escopo.
+- **Página/Feature key**: Chave de acesso centralizada no `PAGE_ACCESS_RULES`.
 
-## 2. Fluxo de Cadastro e Onboarding
+## 2. Arquitetura Atual de Permissões (padrão vigente)
 
-1. **Criação do Usuário**
-   - Cadastro via onboarding, admin ou convite.
-   - Obrigatório: nome, e-mail, senha.
-2. **Atribuição de Grupo/Papel**
-   - Usuário deve ser adicionado a pelo menos um grupo para acessar o sistema.
-   - Exemplo: "Admin Ministerio" garante acesso total.
-3. **(Opcional) Vínculo com Membro**
-   - Recomenda-se vincular o usuário a um membro para funcionalidades avançadas (secretaria, relatórios, notificações).
-   - Não é obrigatório para acesso básico.
+O controle de acesso de módulos deve seguir este fluxo:
 
-## 3. Controle de Acesso
+1. `@login_required`
+2. `@page_access_required('<chave_da_pagina>')`
+3. Regra resolvida via `contas/page_permissions.py` (`PAGE_ACCESS_RULES`)
 
-- **Permissão de acesso**: Controlada por grupos/papéis (Django Groups).
-- **Usuário sem grupo**: Redirecionado para tela "Aguardando Configuração de Permissões".
-- **Usuário com grupo**: Tem acesso ao sistema conforme permissões do grupo.
-- **Vínculo com membro**: Opcional, mas pode ser necessário para relatórios, secretaria, integração de dados pessoais.
+### Exemplo
 
-## 4. Hierarquia de Grupos (contas/constants.py)
+```python
+from django.contrib.auth.decorators import login_required
+from core.decorators import page_access_required
 
-- Grupos principais:
-  - Admin Ministerio (acesso total)
-  - Pastor Regional
-  - Pastor Local
-  - Operacional
-  - Equipes
-  - Membro Comum
-- Funções utilitárias:
-  - `user_tem_grupo(user, nome_grupo)`
-  - `user_tem_qualquer_grupo(user, lista_grupos)`
-  - `user_has_permission_level_or_higher(user, required_group)`
-
-## 5. Recomendações e Boas Práticas
-
-- Sempre atribua um grupo ao criar um novo usuário.
-- Vincule o usuário a um membro se desejar integração com secretaria ou relatórios personalizados.
-- Use os grupos definidos em `contas/constants.py` para evitar erros de permissão.
-- Documente e treine os administradores para revisar permissões periodicamente.
-
-## 6. Resumo Visual do Fluxo
-
-```mermaid
-graph TD;
-    Cadastro_Usuario --> Atribuicao_Grupo;
-    Atribuicao_Grupo -->|Grupo atribuído| Acesso_Sistema;
-    Atribuicao_Grupo -->|Sem grupo| Tela_Aguardando_Permissao;
-    Cadastro_Usuario -->|Opcional| Vinculo_Membro;
-    Vinculo_Membro --> Funcionalidades_Avancadas;
+@login_required
+@page_access_required('financeiro')
+def listar_transacoes(request):
+    ...
 ```
+
+## 3. Matriz Central de Acesso
+
+Fonte oficial: `contas/page_permissions.py`.
+
+Chaves em uso no sistema:
+
+- `menu_interno`
+- `dashboard_secretaria`
+- `secretaria_pessoas`
+- `secretaria_transferencias`
+- `secretaria_cargos`
+- `secretaria_grupos_casa`
+- `secretaria_acompanhamentos`
+- `secretaria_tags`
+- `secretaria_relatorios`
+- `recepcao_visitantes`
+- `agenda`
+- `eventos`
+- `escola_biblica`
+- `escola_biblica_professor`
+- `financeiro`
+- `lideranca_secretaria`
+- `lideranca_financeira`
+- `comunicacao`
+- `comunicacao_massa`
+- `mural_avisos`
+- `suporte`
+- `dashboard_sistema`
+- `novidades_sistema`
+- `configuracoes_sistema`
+
+> **Notas importantes sobre permissões de acesso:**
+>
+> | Chave | Regra | Observação |
+> |---|---|---|
+> | `mural_avisos` | `_is_authenticated` | Qualquer usuário logado — inclui Membro Comum. Usado em `lista_avisos` e `detalhe_aviso` |
+> | `comunicacao` | `user_pode_gerenciar_comunicacao` | Restrito a gestores. Usado em criar/editar/excluir avisos |
+> | `suporte` | `_can_view_internal_menu` | Oculto para Membro Comum (requer grupo diferente de `MEMBRO_COMUM`) |
+
+## 4. Quando Usar Decorators Legados
+
+Decorators legados ainda existem e podem ser usados em casos específicos:
+
+- `@admin_ministerio_required`: operações estritamente administrativas.
+- `@user_passes_test_or_403`: regra muito específica de objeto/contexto que ainda não virou chave central.
+- `@check_permission`: compatibilidade em trechos antigos, preferindo migração gradual para `page_access_required`.
+
+Regra prática: para páginas de módulo, **prefira sempre** `@page_access_required`.
+
+## 5. Fluxo de Cadastro e Onboarding
+
+1. Criar usuário (nome/e-mail/senha).
+2. Atribuir grupo adequado.
+3. (Opcional) Vincular com membro para fluxos de secretaria/relatórios.
+
+## 6. Boas Práticas
+
+- Nunca usar strings literais para grupos.
+- Nunca duplicar regra de grupo dentro da view quando há chave equivalente.
+- Atualizar `PAGE_ACCESS_RULES` ao criar novo módulo/tela protegida.
+- Documentar novas chaves neste arquivo e nos guias de onboarding.
 
 ## 7. Pontos de Atenção
 
-- O vínculo "Membro da Equipe" não é obrigatório para acesso, mas pode ser exibido no admin para referência.
-- O acesso bloqueado (tela cinza) geralmente ocorre por falta de grupo, não por falta de vínculo com membro.
-- Para liberar acesso total, basta garantir que o usuário está no grupo "Admin Ministerio".
+- Usuário sem grupo tende a ficar sem acesso funcional mesmo autenticado.
+- Superusuário não recebe bypass automático em `page_access_required`; acesso depende da regra da `page_key`, exceto em fluxos com checagem explícita de `is_superuser`.
+- Divergência entre docs e `PAGE_ACCESS_RULES` deve ser tratada como bug de documentação.
 
 ---
 
-*Esta documentação deve ser revisada e atualizada conforme evoluções do sistema e das regras de negócio.*
+Ultima revisao: 29/04/2026

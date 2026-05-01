@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="demo-banner">Você está em <strong>Modo Demonstração</strong>.</div>
+<h2>Resetar Dados Demo</h2>
+<p>Apenas o <strong>admin demo</strong> pode resetar os dados demo.</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Resetar dados demo</button>
+</form>
+<a href="{% url 'demo_dashboard' %}">Voltar ao dashboard</a>
+{% if messages %}
+  <ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

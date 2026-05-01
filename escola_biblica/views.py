@@ -3,7 +3,7 @@ import logging
 from django.db.models import Count, Sum, Q, OuterRef, Subquery
 from django.utils.dateparse import parse_date
 from django.contrib.auth.decorators import login_required
-from core.decorators import secretaria_ebd_required, user_passes_test_or_403
+from core.decorators import secretaria_ebd_required, user_passes_test_or_403, page_access_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from core.utils import get_igrejas_permitidas, get_request_scoped_churches
 from contas.constants import SECRETARIA_EBD, user_has_permission_level_or_higher
@@ -257,8 +257,7 @@ def oferta_queryset_por_turma_data(turma, data):
         data=data,
     )
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 def relatorio_ebd_dia(request):
     from .models import Turma, Frequencia, OfertaClasse, AnoLetivo, Licao
     from decimal import Decimal
@@ -373,6 +372,7 @@ from django.utils import timezone
 from django.contrib import messages
 
 @login_required
+@page_access_required('escola_biblica_professor')
 def chamada_presenca(request, turma_id):
     """
     Chamada de presença da turma.
@@ -552,8 +552,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from core.decorators import secretaria_ebd_required
 # --- WIZARD: Geração de lições em etapas ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @csrf_exempt
 def gerar_cronograma_wizard(request):
     from .models import AnoLetivo, PeriodoEBD, Turma, Licao
@@ -776,8 +775,7 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 
 # --- SELEÇÃO DE DADOS PARA CÓPIA DO PERÍODO ANTERIOR ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @require_http_methods(["GET", "POST"])
 def copiar_periodo_selecao(request):
     from .models import AnoLetivo, Turma, Classe, Aluno
@@ -895,8 +893,7 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 
 # --- COPIAR TURMAS/CLASSES/ALUNOS DO ANO ANTERIOR ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @require_POST
 def copiar_turmas_ano_anterior(request):
     from .models import AnoLetivo, Turma, Classe, Aluno
@@ -966,8 +963,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from core.decorators import secretaria_ebd_required
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @require_POST
 def abrir_novo_periodo(request):
     from .models import AnoLetivo, PeriodoEBD
@@ -1055,8 +1051,7 @@ from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, 
 from secretaria.models import Pessoa
 
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 @require_GET
 def get_professor_nome(request):
@@ -1070,8 +1065,7 @@ def get_professor_nome(request):
             nome = ''
     return JsonResponse({'professor': nome})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def turma_create(request):
     from datetime import date
@@ -1087,8 +1081,7 @@ def turma_create(request):
     else:
         form = TurmaForm(initial={'ano_letivo': ano_letivo.pk}, request=request)
     return render(request, 'escola_biblica/turma_form.html', {'form': form})
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def departamento_create(request):
     if request.method == 'POST':
@@ -1101,8 +1094,7 @@ def departamento_create(request):
         form = DepartamentoForm()
     return render(request, 'escola_biblica/departamento_form.html', {'form': form, 'departamentos_sugeridos': DEPARTAMENTOS_SUGERIDOS})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def departamento_edit(request, pk):
     departamento = get_object_or_404(Departamento, pk=pk)
@@ -1120,6 +1112,7 @@ def departamento_edit(request, pk):
 
 
 @login_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def aluno_detail(request, pk):
     """
@@ -1168,6 +1161,7 @@ def aluno_detail(request, pk):
 
 
 @login_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def aluno_historico_consolidado(request, pk):
     alunos_escopo = filtrar_alunos_ebd(
@@ -1286,8 +1280,7 @@ def aluno_historico_consolidado(request, pk):
     })
 
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def aluno_vinculo_secretaria(request, pk):
     aluno = get_object_or_404(
@@ -1361,8 +1354,7 @@ def aluno_vinculo_secretaria(request, pk):
     })
 
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def aluno_vinculo_secretaria_lote(request):
     if not usuario_pode_gerenciar_ebd(request.user):
@@ -1470,8 +1462,7 @@ def aluno_vinculo_secretaria_lote(request):
     })
 
 # --- TRANSFERÊNCIA DE ALUNO ENTRE TURMAS/CLASSES ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 @transaction.atomic
 def transferir_aluno(request, aluno_id):
@@ -1505,8 +1496,7 @@ def transferir_aluno(request, aluno_id):
 
 
 # --- RELATÓRIO DE FREQUÊNCIA DETALHADO ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def relatorio_frequencia(request):
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
@@ -1540,8 +1530,7 @@ def relatorio_frequencia(request):
     })
 
 # --- LISTAGEM DINÂMICA DE CARGOS/FUNÇÕES ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def cargos_ebd_list(request):
     from secretaria.models import MembroCargo, Cargo
@@ -1558,8 +1547,7 @@ def cargos_ebd_list(request):
     })
 
 # --- GRÁFICOS DE EVOLUÇÃO ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def graficos_evolucao(request):
     hoje = timezone.now().date()
@@ -1589,8 +1577,7 @@ def graficos_evolucao(request):
     return render(request, 'escola_biblica/graficos_evolucao.html', context)
 
 # --- DASHBOARD GRÁFICOS ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def dashboard_graficos(request):
     departamentos = dict(Classe.DEPARTAMENTO_CHOICES)
@@ -1634,8 +1621,7 @@ def dashboard_graficos(request):
     return render(request, 'escola_biblica/dashboard_graficos.html', context)
 
 # --- OFERTAS POR CLASSE ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def oferta_classe_list(request):
     igrejas_escopo = get_ebd_scope_churches(request)
@@ -1647,8 +1633,7 @@ def oferta_classe_list(request):
     ).distinct()
     return render(request, 'escola_biblica/oferta_classe_list.html', {'ofertas': ofertas})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def oferta_classe_create(request):
     if request.method == 'POST':
@@ -1661,8 +1646,7 @@ def oferta_classe_create(request):
         form = OfertaClasseForm(request=request)
     return render(request, 'escola_biblica/oferta_classe_form.html', {'form': form})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def oferta_classe_edit(request, pk):
     igrejas_escopo = get_ebd_scope_churches(request)
@@ -1706,8 +1690,7 @@ def oferta_classe_delete(request, pk):
     return render(request, 'escola_biblica/oferta_classe_confirm_delete.html', {'oferta': oferta})
 
 # --- RELATÓRIO DE ALUNOS ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def relatorio_alunos(request):
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
@@ -1726,8 +1709,7 @@ def relatorio_alunos(request):
 # --- LICOES ---
  
  # --- AVALIAÇÕES ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def avaliacao_list(request):
     avaliacoes = filtrar_avaliacoes_ebd(
@@ -1736,8 +1718,7 @@ def avaliacao_list(request):
     ).order_by('-licao__data', 'aluno__cadastro__nome')
     return render(request, 'escola_biblica/avaliacao_list.html', {'avaliacoes': avaliacoes})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def avaliacao_create(request):
     if request.method == 'POST':
@@ -1750,8 +1731,7 @@ def avaliacao_create(request):
         form = AvaliacaoForm(request=request)
     return render(request, 'escola_biblica/avaliacao_form.html', {'form': form})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def avaliacao_edit(request, pk):
     avaliacao = get_object_or_404(
@@ -1780,8 +1760,7 @@ def avaliacao_delete(request, pk):
         messages.success(request, 'Avaliação excluída com sucesso!')
         return redirect('escola_biblica:avaliacao_list')
     return render(request, 'escola_biblica/avaliacao_confirm_delete.html', {'avaliacao': avaliacao})
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def licao_list(request):
     from .models import PeriodoEBD, AnoLetivo
@@ -1835,8 +1814,7 @@ def licao_list(request):
         'turma_nome': turma_nome,
     })
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def licao_create(request):
     turmas = filtrar_queryset_ebd(Turma.objects.all(), request, 'membros__igreja')
@@ -1850,8 +1828,7 @@ def licao_create(request):
         form = LicaoForm(request=request)
     return render(request, 'escola_biblica/licao_form.html', {'form': form, 'turmas': turmas})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def licao_edit(request, pk):
     licao = get_object_or_404_ebd(Licao.objects.select_related('turma'), request, 'turma__membros__igreja', pk=pk)
@@ -1877,15 +1854,13 @@ def licao_delete(request, pk):
         return redirect('escola_biblica:licao_list')
 # --- CLASSES ---
 # --- CLASSES ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def classe_list(request):
     classes = filtrar_classes_ebd(Classe.objects.all(), request)
     return render(request, 'escola_biblica/classe_list.html', {'classes': classes})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def classe_create(request):
     if request.method == 'POST':
@@ -1898,8 +1873,7 @@ def classe_create(request):
         form = ClasseForm(request=request)
     return render(request, 'escola_biblica/classe_form.html', {'form': form})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def classe_edit(request, pk):
     classe = get_object_or_404(filtrar_classes_ebd(Classe.objects.all(), request), pk=pk)
@@ -1929,9 +1903,7 @@ def classe_delete(request, pk):
 
 
 
-@login_required
-@secretaria_ebd_required
-@login_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def dashboard(request):
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
@@ -2095,6 +2067,7 @@ def dashboard(request):
     })
 
 @login_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def aluno_list(request):
     """
@@ -2231,8 +2204,7 @@ def aluno_list(request):
         'usuario_pode_vincular': is_secretaria,
     })
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def aluno_create(request):
     if request.method == 'POST':
@@ -2245,6 +2217,7 @@ def aluno_create(request):
     return render(request, 'escola_biblica/aluno_form.html', {'form': form})
 
 @login_required
+@page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def turma_list(request):
     now = date.today()
@@ -2360,8 +2333,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def turma_edit(request, pk):
     turma = get_object_or_404_ebd(Turma.objects.all(), request, 'membros__igreja', pk=pk)
@@ -2387,8 +2359,7 @@ def turma_delete(request, pk):
         return redirect('escola_biblica:turma_list')
     return render(request, 'escola_biblica/turma_confirm_delete.html', {'turma': turma})
 
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def frequencia_list(request):
     frequencias_list = filtrar_frequencias_ebd(
@@ -2407,8 +2378,7 @@ def frequencia_list(request):
 
 
 # --- NOVA VIEW: Geração automática de períodos e lições em lote ---
-@login_required
-@secretaria_ebd_required
+@page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def gerar_cronograma(request):
     from django.contrib import messages

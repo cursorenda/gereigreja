@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'widget_tweaks',
     'notificacoes',
+    'demo',
 ]
 
 MIDDLEWARE = [

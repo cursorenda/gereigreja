@@ -24,6 +24,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="notificacoes-tab" data-bs-toggle="tab" data-bs-target="#notificacoes" type="button" role="tab" aria-controls="notificacoes" aria-selected="false">Notificações</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="portal-tab" data-bs-toggle="tab" data-bs-target="#portal" type="button" role="tab" aria-controls="portal" aria-selected="false">Portal do Membro</button>
+        </li>
     </ul>
     <div class="tab-content mt-3" id="configTabsContent">
         <div class="tab-pane fade show active" id="fornecedores" role="tabpanel" aria-labelledby="fornecedores-tab">
@@ -37,6 +40,9 @@
         </div>
         <div class="tab-pane fade" id="ebd" role="tabpanel" aria-labelledby="ebd-tab">
             {% include 'configuracao/partials/_ebd.html' %}
+        </div>
+        <div class="tab-pane fade" id="portal" role="tabpanel" aria-labelledby="portal-tab">
+            {% include 'configuracao/partials/_portal.html' %}
         </div>
         <div class="tab-pane fade" id="notificacoes" role="tabpanel" aria-labelledby="notificacoes-tab">
             {% if notificacoes_form %}

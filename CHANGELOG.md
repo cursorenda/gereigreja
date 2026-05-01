@@ -1,3 +1,57 @@
+## v1.9.0 — 01/05/2026
+🎯 **Experiência do Membro Comum, Menu Unificado e Melhorias de UX**
+
+### Novidades e Melhorias
+
+#### Portal do Membro — URLs Configuráveis
+- Adicionados campos `url_biblia_online` e `url_harpa_crista` no model `ConfiguracaoSistema`, com valores padrão (bibliaonline.com.br e harpacrista.com.br).
+- Migration criada e aplicada (`configuracao/migrations/0013_add_url_biblia_harpa.py`).
+- Formulário de configurações do sistema atualizado com os novos campos.
+- Nova aba **Portal do Membro** nas Configurações do Sistema para editar as URLs.
+- View `portal_membro` agora lê as URLs da configuração com fallback nos padrões.
+
+#### Menu Lateral — Unificação e Visibilidade por Perfil
+- Removido bloco de menu separado para membros comuns em `base_com_menu.html`; o `menu.html` é agora incluído sempre, de forma única.
+- Nova seção **Minha Conta** no menu lateral, visível para todos os usuários autenticados com ministério ativo:
+  - **Meu Portal** — acesso ao portal do membro
+  - **Meu Perfil** — dados pessoais e senha
+  - **Mural de Avisos** — exibido apenas quando o usuário não é gestor de comunicação (para gestores o Mural fica dentro da seção Comunicação)
+- Heading **Principal** agora é condicional: oculto para Membro Comum (só aparece para superusuário, ministério inativo ou quem tem acesso ao dashboard).
+- Link **Home** no bloco Principal oculto para Membro Comum.
+- Seção **Comunicação** no menu restrita a `can_comunicacao_massa` — eliminando link duplicado do Mural para gestores.
+- Link **Suporte** oculto para Membro Comum (permissão `suporte` agora usa `_can_view_internal_menu`).
+
+#### Redirecionamento Inteligente Pós-Login
+- Membro Comum agora aterra no **Portal do Membro** em vez do dashboard (que bloqueava com "Acesso Negado").
+- Todas as views de `contas/views.py` (`registrar_usuario_e_org`, `aceitar_convite`, `aguardando_aprovacao`) redirecionam para `secretaria:index`, que resolve o destino correto por perfil.
+- Modo demo: adicionada função `_demo_redirect_home(user)` em `demo/views.py` — verifica `dashboard_secretaria` e redireciona para dashboard ou portal conforme permissão.
+
+#### Avatar Dropdown (Topnav)
+- Adicionados links **Meu Portal** e **Mural de Avisos** no dropdown do avatar, disponíveis para usuários com ministério ativo.
+
+#### Mural de Avisos — Correção de Acesso
+- Views `lista_avisos` e `detalhe_aviso` em `comunicacao/views.py` corrigidas: decorator trocado de `@page_access_required('comunicacao')` para `@page_access_required('mural_avisos')`.
+- Membro Comum agora acessa o Mural sem "Acesso Negado".
+- Views de criação, edição e exclusão de avisos permanecem restritas à permissão `comunicacao`.
+
+#### Modo Demo — Modal de Troca de Perfil
+- O link "Trocar perfil" no banner amarelo de demonstração deixou de navegar para uma página separada.
+- Agora abre um **modal Bootstrap** diretamente na página atual, com o mesmo formulário e sem recarregamento da tela.
+- Backend (`demo_trocar_perfil_view`) e URL não foram alterados.
+
+### Correções de Bugs
+- Corrigido `TemplateSyntaxError` no `menu.html` causado por parênteses em expressão `{% if %}` (parser Django não suporta). Reescrito com `if`/`elif` aninhados.
+- Corrigido redirect de Membro Comum para dashboard sem permissão em todos os fluxos de login (demo e produção).
+
+### Documentação
+- `docs/sistema/MODO_DEMO.md` — atualizado fluxo de redirect, troca de perfil via modal, versão.
+- `docs/sistema/DOCUMENTACAO_PERMISSOES.md` — tabela explicativa de `mural_avisos` × `comunicacao` × `suporte`.
+- `docs/templates/ARQUITETURA_TEMPLATES.md` — seções do menu atualizadas, dropdown revisado, versão.
+- `docs/usuario/USUARIO_MANUAL.md` — tela inicial por perfil, seção Minha Conta, Mural para todos.
+- Todos os docs receberam campo **Status: Versão publicada em produção** para distinguir documentação publicada de em desenvolvimento.
+
+---
+
 ## v1.8.80 — 28/04/2026
 🔔 **Modularização e melhorias no sistema de notificações**
 

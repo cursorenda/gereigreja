@@ -4,6 +4,7 @@ from secretaria.models import Membro, TipoPessoa, StatusPessoa, Cargo, MembroCar
 # Endpoint AJAX para autocomplete de convidados conforme filtros
 from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
+from core.decorators import page_access_required, verificar_assinatura_valida
 
 @login_required
 @require_GET
@@ -323,7 +324,7 @@ from django.http import HttpResponse
 from django.db.models.functions import Coalesce
 from django.utils.text import slugify
 # Exportação de participantes para Excel
-@login_required
+@page_access_required('eventos')
 def exportar_participantes_excel(request, pk):
 	from .models import ParticipacaoEvento, Evento
 	evento = Evento.objects.get(pk=pk)
@@ -395,10 +396,8 @@ def exportar_participantes_excel(request, pk):
 	response['Content-Disposition'] = f'attachment; filename={filename}'
 	wb.save(response)
 	return response
-from django.contrib.auth.decorators import login_required
-from core.decorators import verificar_assinatura_valida
 import sys
-@login_required
+@page_access_required('eventos')
 def criar_evento_profissional(request):
 	
 	if request.method == 'POST':
@@ -635,11 +634,10 @@ def criar_evento_profissional(request):
 			igreja_nome = getattr(igreja_obj, 'nome_igreja', str(igreja_obj))
 	return render(request, 'eventos/criar_evento.html', {'form': form, 'igreja_nome': igreja_nome})
 
-from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from .models import ParticipacaoEvento, EventoSessao
 
-@login_required
+@page_access_required('eventos')
 @require_http_methods(["GET", "POST"])
 def marcar_presenca_evento(request, pk):
 	evento = get_object_or_404(Evento, pk=pk)
@@ -768,10 +766,9 @@ from django.urls import reverse
 from django.contrib import messages
 from .forms import EventoForm
 from .models import Evento
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 
-@login_required
+@page_access_required('eventos')
 def excluir_evento_profissional(request, pk):
 	evento = get_object_or_404(Evento, pk=pk)
 	if request.method == 'POST':
@@ -780,7 +777,7 @@ def excluir_evento_profissional(request, pk):
 		return redirect(reverse('eventos:lista_eventos'))
 	return render(request, 'eventos/excluir_evento.html', {'evento': evento})
 
-@login_required
+@page_access_required('eventos')
 def editar_evento_profissional(request, pk):
 	evento = get_object_or_404(Evento, pk=pk)
 	from django.utils import timezone
@@ -927,7 +924,7 @@ def editar_evento_profissional(request, pk):
 	
 	return render(request, 'eventos/editar_evento.html', {'form': form, 'evento': evento})
 
-@login_required
+@page_access_required('eventos')
 @verificar_assinatura_valida
 def lista_eventos(request):
 	from django.utils import timezone
@@ -1006,7 +1003,7 @@ def lista_eventos(request):
 
 ## DUPLICIDADE REMOVIDA: manter apenas uma definição de criar_evento_profissional
 
-@login_required
+@page_access_required('eventos')
 def detalhe_evento_profissional(request, pk):
 	evento = get_object_or_404(Evento, pk=pk)
 	# IDs dos tipos de pessoa para "Membro" e "Congregado"

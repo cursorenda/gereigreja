@@ -1,5 +1,24 @@
-﻿from django.contrib.auth.decorators import login_required
-from core.decorators import verificar_assinatura_valida, user_passes_test_or_403
+﻿from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.utils import timezone
+from django.db.models import Q
+from django.core.exceptions import PermissionDenied
+
+from django.core.mail import send_mail, BadHeaderError
+from django.template.loader import render_to_string
+from django.conf import settings
+from datetime import date
+
+from .models import Aviso
+from .forms import AvisoForm # Manter o AvisoForm
+
+from core.utils import get_ministerio_or_error
+from configuracao.models import Igreja # Para filtrar igrejas
+from .utils import can_manage_avisos # Para contexto de template
+from core.decorators import verificar_assinatura_valida, page_access_required # Decorator de assinatura
+
+# Crie suas views aqui.
 
 @login_required
 @verificar_assinatura_valida
@@ -9,6 +28,7 @@ def templates_email(request):
     """
     return render(request, 'comunicacao/templates_email.html')
 
+@login_required
 def visualizar_template_email_massa(request):
     """
     Renderiza o template de e-mail em massa para visualização.
@@ -22,6 +42,7 @@ def visualizar_template_email_massa(request):
     }
     return render(request, 'comunicacao/email/email_massa_template.html', contexto)
 
+@login_required
 def visualizar_template_password_reset(request):
     """
     Renderiza o template de redefinição de senha para visualização.
@@ -35,32 +56,10 @@ def visualizar_template_password_reset(request):
         'user': type('User', (), {'get_username': lambda self: 'usuario_exemplo'})(),
     }
     return render(request, 'contas/password_reset_email.html', contexto)
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.utils import timezone
-from django.db.models import Q
-from django.core.exceptions import PermissionDenied
-
-from django.core.mail import send_mail, BadHeaderError
-from django.template.loader import render_to_string
-from django.conf import settings
-from datetime import date
-
-from .models import Aviso
-from notificacoes.models import Notificacao
-from .forms import AvisoForm # Manter o AvisoForm
-
-from core.utils import get_ministerio_or_error
-from configuracao.models import Igreja # Para filtrar igrejas
-from .utils import can_manage_avisos, can_view_avisos # Nossas funções de permissão
-from core.decorators import verificar_assinatura_valida # Decorator de assinatura
-
-# Crie suas views aqui.
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(can_view_avisos)
+@page_access_required('mural_avisos')
 def lista_avisos(request):
     ministerio = get_ministerio_or_error(request)
     avisos_qs = Aviso.objects.filter(ministerio=ministerio, publicado=True)
@@ -102,7 +101,7 @@ def lista_avisos(request):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(can_view_avisos)
+@page_access_required('mural_avisos')
 def detalhe_aviso(request, pk):
     ministerio = get_ministerio_or_error(request)
     aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio, publicado=True)
@@ -125,11 +124,12 @@ def detalhe_aviso(request, pk):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(can_manage_avisos)
+@page_access_required('comunicacao')
 def criar_aviso(request):
     ministerio = get_ministerio_or_error(request)
     if request.method == 'POST':
-        form = AvisoForm(request.POST)
+        form = AvisoForm(request.POST, ministerio=ministerio)
+        form.fields['ministerio'].disabled = True
         if form.is_valid():
             try:
                 aviso = form.save(commit=False)
@@ -145,9 +145,7 @@ def criar_aviso(request):
         else:
             messages.error(request, "Por favor, corrija os erros no formulário.")
     else:
-        form = AvisoForm(initial={'ministerio': ministerio, 'autor': request.user})
-        # Filtra o queryset de igrejas_destino para a ministério atual
-        form.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        form = AvisoForm(initial={'ministerio': ministerio, 'autor': request.user}, ministerio=ministerio)
         form.fields['ministerio'].disabled = True # Não permitir mudar a ministério
         # O campo autor pode ser preenchido automaticamente e desabilitado ou oculto
         # form.fields['autor'].disabled = True
@@ -161,13 +159,14 @@ def criar_aviso(request):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(can_manage_avisos)
+@page_access_required('comunicacao')
 def editar_aviso(request, pk):
     ministerio = get_ministerio_or_error(request)
     aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio)
 
     if request.method == 'POST':
-        form = AvisoForm(request.POST, instance=aviso)
+        form = AvisoForm(request.POST, instance=aviso, ministerio=ministerio)
+        form.fields['ministerio'].disabled = True
         if form.is_valid():
             try:
                 # Garante que a ministério não seja alterada
@@ -188,8 +187,7 @@ def editar_aviso(request, pk):
         else:
             messages.error(request, "Por favor, corrija os erros no formulário.")
     else:
-        form = AvisoForm(instance=aviso)
-        form.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        form = AvisoForm(instance=aviso, ministerio=ministerio)
         form.fields['ministerio'].disabled = True
         # form.fields['autor'].disabled = True # Se o autor não puder ser alterado
 
@@ -203,7 +201,7 @@ def editar_aviso(request, pk):
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(can_manage_avisos)
+@page_access_required('comunicacao')
 def excluir_aviso(request, pk):
     ministerio = get_ministerio_or_error(request)
     aviso = get_object_or_404(Aviso, pk=pk, ministerio=ministerio)
@@ -230,7 +228,7 @@ from secretaria.models import Membro # Importar o modelo Membro
 
 @login_required
 @verificar_assinatura_valida
-@user_passes_test_or_403(can_manage_avisos) # Reutilizando a permissão de gerenciar avisos por enquanto
+@page_access_required('comunicacao')
 def enviar_email_massa(request):
     ministerio = get_ministerio_or_error(request)
 
@@ -313,61 +311,3 @@ def enviar_email_massa(request):
         'titulo_pagina': "Enviar E-mail em Massa",
     }
     return render(request, 'comunicacao/email/form_email_massa.html', context)
-
-# --- VIEWS PARA NOTIFICAÇÕES ---
-@login_required
-@verificar_assinatura_valida
-def lista_notificacoes(request):
-    """
-    Lista todas as notificações do usuário logado.
-    """
-    ministerio = get_ministerio_or_error(request)
-    notificacoes_qs = Notificacao.objects.filter(user=request.user, ministerio=ministerio).order_by('-created_at')
-
-    # Opcional: Filtrar por lidas/não lidas
-    status_filter = request.GET.get('status', 'todas')
-    if status_filter == 'nao_lidas':
-        notificacoes_qs = notificacoes_qs.filter(is_read=False)
-    elif status_filter == 'lidas':
-        notificacoes_qs = notificacoes_qs.filter(is_read=True)
-
-    context = {
-        'notificacoes': notificacoes_qs,
-        'ministerio': ministerio,
-        'titulo_pagina': "Minhas Notificações",
-        'status_filter': status_filter,
-    }
-    return render(request, 'notificacoes/lista_notificacoes.html', context)
-
-@login_required
-@verificar_assinatura_valida
-def marcar_notificacao_lida(request, pk):
-    """
-    Marca uma notificação específica como lida.
-    """
-    ministerio = get_ministerio_or_error(request)
-    notificacao = get_object_or_404(Notificacao, pk=pk, user=request.user, ministerio=ministerio)
-
-    if request.method == 'POST':
-        notificacao.is_read = True
-        notificacao.save()
-        messages.success(request, "Notificação marcada como lida.")
-        # Redireciona para a URL da notificação se houver, senão para a lista
-        if notificacao.url:
-            return redirect(notificacao.url)
-        return redirect('comunicacao:lista_notificacoes')
-    
-    messages.error(request, "Método inválido para marcar notificação como lida.")
-    return redirect('comunicacao:lista_notificacoes')
-
-@login_required
-@verificar_assinatura_valida
-def marcar_todas_notificacoes_lidas(request):
-    if request.method != 'POST':
-        messages.error(request, "Método inválido para marcar todas as notificações como lidas.")
-        return redirect('comunicacao:lista_notificacoes')
-
-    ministerio = get_ministerio_or_error(request)
-    Notificacao.objects.filter(user=request.user, ministerio=ministerio, is_read=False).update(is_read=True)
-    messages.success(request, "Todas as notificações foram marcadas como lidas.")
-    return redirect('comunicacao:lista_notificacoes')

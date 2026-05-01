@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <div class="alert alert-warning text-center mb-4 shadow-sm" role="alert" style="font-size:1.1rem;">
+    <i class="fa-solid fa-flask-vial me-2"></i>
+    Você está acessando o <strong>Modo Demonstração</strong>.<br>
+    Explore o sistema como visitante, sem afetar dados reais.
+  </div>
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card shadow-lg border-0 mb-4">
+        <div class="card-body p-4">
+          <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-3">
+            <h2 class="card-title mb-2 mb-md-0" style="font-weight:700;">
+              <i class="fa-solid fa-gauge-high me-2"></i>Dashboard Demo
+            </h2>
+            <div>
+              <a href="{% url 'demo:demo_trocar_perfil' %}" class="btn btn-outline-primary btn-sm me-2"><i class="fa-solid fa-user-switch me-1"></i>Trocar perfil</a>
+              <a href="{% url 'demo:demo_reset' %}" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-rotate-left me-1"></i>Resetar dados demo</a>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-4">
+              <div class="bg-light rounded p-3 text-center h-100">
+                <div class="fw-bold text-secondary">Ministério</div>
+                <div class="fs-5">{{ ministerio.nome_fantasia }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="bg-light rounded p-3 text-center h-100">
+                <div class="fw-bold text-secondary">Igrejas</div>
+                <div class="fs-5">{{ igrejas|length }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="bg-light rounded p-3 text-center h-100">
+                <div class="fw-bold text-secondary">Membros</div>
+                <div class="fs-5">{{ membros|length }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="bg-light rounded p-3 text-center h-100">
+                <div class="fw-bold text-secondary">Receitas</div>
+                <div class="fs-5">{{ receitas|length }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="bg-light rounded p-3 text-center h-100">
+                <div class="fw-bold text-secondary">Despesas</div>
+                <div class="fs-5">{{ despesas|length }}</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-4">
+              <div class="bg-light rounded p-3 text-center h-100">
+                <div class="fw-bold text-secondary">Eventos</div>
+                <div class="fs-5">{{ eventos|length }}</div>
+              </div>
+            </div>
+          </div>
+          <hr>
+          <nav class="nav nav-pills flex-wrap justify-content-center gap-2 mb-3">
+            <a class="nav-link btn btn-outline-secondary" href="#" onclick="alert('Simulação: Listagem de membros demo!');return false;"><i class="fa-solid fa-users me-1"></i>Membros</a>
+            <a class="nav-link btn btn-outline-secondary" href="#" onclick="alert('Simulação: Financeiro demo!');return false;"><i class="fa-solid fa-coins me-1"></i>Financeiro</a>
+            <a class="nav-link btn btn-outline-secondary" href="#" onclick="alert('Simulação: Eventos demo!');return false;"><i class="fa-solid fa-calendar-days me-1"></i>Eventos</a>
+            <a class="nav-link btn btn-outline-secondary" href="#" onclick="alert('Simulação: Notificações demo!');return false;"><i class="fa-solid fa-bell me-1"></i>Notificações</a>
+          </nav>
+          <div class="text-center mt-3">
+            <a href="{% url 'contas:registrar' %}" class="btn btn-warning btn-lg fw-bold">
+              <i class="fa-solid fa-door-open me-2"></i>Entrar no sistema real
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

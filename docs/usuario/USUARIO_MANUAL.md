@@ -1,8 +1,9 @@
 # 📖 Manual do Usuário - Gereigreja
 
 **Data de Criação:** 12/03/2026  
-**Última Atualização:** 12/03/2026  
-**Versão do Sistema:** v1.6.1
+**Última Atualização:** 01/05/2026  
+**Versão do Sistema:** v1.9.0
+**Status:** Versão publicada em produção
 
 ---
 
@@ -20,6 +21,23 @@ Bem-vindo ao Gereigreja! Este manual foi criado para ajudar você, usuário, a u
 1. **Acesse:** [https://gereigreja.site](https://gereigreja.site) ou endereço fornecido pela sua igreja.
 2. **Login:** Informe seu e-mail e senha cadastrados.
 3. **Esqueceu a senha?** Clique em "Esqueci minha senha" e siga as instruções.
+
+### Tela inicial após o login
+
+O destino após o login varia conforme o perfil do usuário:
+
+| Perfil | Tela inicial |
+|---|---|
+| Administrador, Pastor, Secretário, Tesoureiro e similares | Dashboard da Secretaria |
+| **Membro Comum** | **Portal do Membro** (acesso rápido a recursos do membro) |
+
+### Menu lateral — sessão "Minha Conta"
+
+Todos os usuários autenticados com ministério ativo vêem a sessão **Minha Conta** no menu lateral:
+
+- **Meu Portal** — Acesso rápido ao portal do membro
+- **Meu Perfil** — Dados pessoais e configurações de conta
+- **Mural de Avisos** — Avisos publicados pela igreja (visível para todos os perfis)
 
 ---
 
@@ -67,6 +85,12 @@ Bem-vindo ao Gereigreja! Este manual foi criado para ajudar você, usuário, a u
 
 ## 📧 6. Comunicação
 
+### Mural de Avisos (todos os usuários)
+1. Menu lateral → **Minha Conta** → "Mural de Avisos"
+2. Veja os avisos publicados pela liderança da sua igreja.
+3. Clique em um aviso para ler os detalhes.
+
+### Envio de E-mails e Comunicação em Massa (gestores)
 1. Menu lateral → **Comunicação**
 2. Envie e-mails, SMS ou notificações para grupos ou pessoas específicas.
 3. Use filtros para segmentar o público.

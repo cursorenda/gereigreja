@@ -3,6 +3,8 @@
 ## Visão Geral
 O GereIgreja utiliza um sistema hierárquico de grupos para controlar o acesso a todas as funcionalidades. A lógica de permissão é centralizada em helpers únicos, garantindo consistência, segurança e facilidade de manutenção.
 
+Para controle de acesso em views de modulo, o projeto usa `@page_access_required('<chave>')` com regras em `contas/page_permissions.py`.
+
 ---
 
 ## 1. Hierarquia de Grupos
@@ -30,11 +32,12 @@ A hierarquia é definida em `contas/constants.py` na lista `HIERARQUIA_GRUPOS`, 
 
 ## 2. Helpers Centrais
 
-### `get_user_permission_level(user)`
-Retorna o nível hierárquico do usuário (0 = mais alto). Superusuário sempre retorna 0.
-
 ### `user_has_permission_level_or_higher(user, required_group)`
 Retorna `True` se o usuário tem permissão igual ou superior ao grupo exigido.
+
+### Observação sobre helper de nível
+Atualmente o projeto não expõe um helper público `get_user_permission_level(user)` em `contas/constants.py`.
+O padrão vigente é usar `user_has_permission_level_or_higher`, `user_tem_grupo` e `user_tem_qualquer_grupo`.
 
 **Exemplo:**
 ```python
@@ -46,8 +49,8 @@ if user_has_permission_level_or_higher(user, PASTOR_LOCAL):
 ---
 
 ## 3. Política de Superusuário
-- Usuários com `is_superuser=True` têm acesso total, independentemente dos grupos.
-- Sempre cheque `is_superuser` antes de aplicar regras de grupo.
+- Em regras via `@page_access_required`, não há bypass automático para `is_superuser`.
+- Se a tela exigir acesso de superusuário fora da matriz por chave, a view deve tratar isso explicitamente.
 
 ---
 
@@ -84,7 +87,7 @@ def minha_view(request):
 ## 6. Testes de Permissão
 - Teste todos os papéis: superusuário, staff sem grupo, staff com grupo correto, staff com grupo errado, usuário comum.
 - Exemplo de resultado esperado:
-    - Superuser tem acesso total: OK
+    - Superuser segue a regra da `page_key` quando a view usa `@page_access_required`: OK
     - Staff sem grupo não tem acesso: OK
     - Staff com grupo correto tem acesso: OK
     - Staff com grupo errado bloqueado: OK

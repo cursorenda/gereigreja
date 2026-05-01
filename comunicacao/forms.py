@@ -34,12 +34,17 @@ class AvisoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
-        # O campo 'ministerio' será filtrado na view ou no admin,
-        # mas podemos garantir que o queryset inicial não seja muito amplo se necessário.
-        # self.fields['ministerio'].queryset = Ministerio.objects.filter(...) # Exemplo de filtro
+
+        if ministerio is not None:
+            self.fields['ministerio'].queryset = Ministerio.objects.filter(pk=ministerio.pk)
+            self.fields['ministerio'].initial = ministerio
+            self.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        else:
+            self.fields['igrejas_destino'].queryset = Igreja.objects.all().order_by('nome_igreja')
+
         self.fields['autor'].queryset = User.objects.filter(is_staff=True).order_by('first_name', 'last_name') # Exemplo: apenas staff pode ser autor
-        self.fields['igrejas_destino'].queryset = Igreja.objects.all().order_by('nome_igreja') # Pode precisar filtrar por ministério na view/form init se necessário
         self.fields['data_expiracao'].required = False # Tornar opcional explicitamente
         self.fields['autor'].required = False # Tornar opcional explicitamente (SET_NULL no modelo)
         self.fields['ministerio'].required = True # Tornar obrigatório explicitamente (CASCADE no modelo)

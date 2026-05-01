@@ -94,6 +94,15 @@ HIERARQUIA_GRUPOS = {
     MEMBRO_COMUM: 7,
 }
 
+
+def _is_admin_ministerio_principal(user):
+    if not getattr(user, 'is_authenticated', False):
+        return False
+
+    from configuracao.models import Ministerio
+
+    return Ministerio.objects.filter(administrador_principal=user).exists()
+
 # ===================================
 # HELPER FUNCTIONS
 # ===================================
@@ -111,6 +120,8 @@ def user_tem_grupo(user, nome_grupo):
     """
     if not user.is_authenticated:
         return False
+    if nome_grupo == ADMIN_MINISTERIO and _is_admin_ministerio_principal(user):
+        return True
     return user.groups.filter(name=nome_grupo).exists()
 
 
@@ -127,6 +138,8 @@ def user_tem_qualquer_grupo(user, lista_grupos):
     """
     if not user.is_authenticated:
         return False
+    if ADMIN_MINISTERIO in lista_grupos and _is_admin_ministerio_principal(user):
+        return True
     return user.groups.filter(name__in=lista_grupos).exists()
 
 
@@ -138,6 +151,11 @@ def user_has_permission_level_or_higher(user, required_group):
     required_level = HIERARQUIA_GRUPOS.get(required_group)
     if required_level is None:
         return False
+
+    if _is_admin_ministerio_principal(user):
+        admin_level = HIERARQUIA_GRUPOS[ADMIN_MINISTERIO]
+        if admin_level <= required_level:
+            return True
 
     user_groups = user.groups.values_list('name', flat=True)
     for group_name in user_groups:
@@ -207,10 +225,11 @@ def user_pode_gerenciar_secretaria(user):
 def user_pode_gerenciar_cargos(user):
     """
     Verifica se pode gerenciar cargos (criar/editar/deletar).
-    Cargos são LOCAIS - apenas Admin, Pastor Local e Secretário Local da igreja.
+    Cargos seguem escopo hierárquico - Admin, Pastor Regional, Pastor Local e Secretário Local.
     """
     return user_tem_qualquer_grupo(user, [
         ADMIN_MINISTERIO,
+        PASTOR_REGIONAL,
         PASTOR_LOCAL,
         SECRETARIO_LOCAL,
     ])
@@ -286,6 +305,14 @@ def user_pode_enviar_comunicacao_massa(user):
     Inclui: Admin, Lideranças
     """
     return user_tem_qualquer_grupo(user, GRUPOS_LIDERANCA)
+
+
+def user_pode_gerenciar_comunicacao(user):
+    """
+    Verifica se pode gerenciar comunicação (avisos, e-mail).
+    Inclui: Pastor Local, Secretário Local, Tesoureiro e acima.
+    """
+    return user_tem_qualquer_grupo(user, GRUPOS_OPERACIONAL)
 
 
 # ===================================

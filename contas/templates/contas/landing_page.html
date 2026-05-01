@@ -56,8 +56,11 @@
     <div class="container">
         <h1 class="display-4">Transforme a Gestão da Sua Igreja</h1>
         <p class="lead">Organize, cresça e pastoreie com mais eficiência. O Gereigreja centraliza a gestão de membros, finanças e comunicação em um único lugar, de forma simples e poderosa.</p>
-        <a href="{% url 'contas:registrar' %}" class="btn btn-cta-primary btn-lg me-2">Comece Gratuitamente</a>
-        <a href="#pricing" class="btn btn-cta-secondary btn-lg">Ver Planos</a>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <a href="{% url 'contas:registrar' %}" class="btn btn-cta-primary btn-lg">Comece Gratuitamente</a>
+            <a href="#pricing" class="btn btn-cta-secondary btn-lg">Ver Planos</a>
+            <a href="/demo/login/" class="btn btn-warning btn-lg" style="font-weight:600;">Acessar Demonstração</a>
+        </div>
     </div>
 </header>
 

@@ -1,0 +1,26 @@
+{# Parcial para aba de configurações do Portal do Membro #}
+{% if portal_form %}
+<form method="post" class="card p-4 shadow-sm" style="max-width: 560px; border-radius: 8px;" autocomplete="off">
+    {% csrf_token %}
+    <input type="hidden" name="aba_ativa" value="portal">
+    {{ portal_form.non_field_errors }}
+    <h6 class="mb-3 text-muted fw-semibold">Recursos Devocionais</h6>
+    <div class="mb-3">
+        <label for="id_url_biblia_online" class="form-label">{{ portal_form.url_biblia_online.label }}</label>
+        {{ portal_form.url_biblia_online }}
+        <small class="form-text text-muted">{{ portal_form.url_biblia_online.help_text }}</small>
+        {{ portal_form.url_biblia_online.errors }}
+    </div>
+    <div class="mb-3">
+        <label for="id_url_harpa_crista" class="form-label">{{ portal_form.url_harpa_crista.label }}</label>
+        {{ portal_form.url_harpa_crista }}
+        <small class="form-text text-muted">{{ portal_form.url_harpa_crista.help_text }}</small>
+        {{ portal_form.url_harpa_crista.errors }}
+    </div>
+    <button type="submit" class="btn btn-vibrant-green btn-icon">
+        <i class="fas fa-save"></i> Salvar
+    </button>
+</form>
+{% else %}
+    <div class="alert alert-warning">Configuração do portal não disponível para este ministério.</div>
+{% endif %}

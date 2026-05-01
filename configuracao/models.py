@@ -51,6 +51,19 @@ class ConfiguracaoSistema(models.Model):
         verbose_name='Horário padrão da EBD',
         help_text='Horário padrão sugerido para as lições da Escola Bíblica Dominical.'
     )
+    # Recursos devocionais no portal do membro
+    url_biblia_online = models.URLField(
+        blank=True,
+        default='https://www.bibliaonline.com.br/',
+        verbose_name='URL — Bíblia Online',
+        help_text='Link externo para a Bíblia Online exibida no portal do membro.'
+    )
+    url_harpa_crista = models.URLField(
+        blank=True,
+        default='https://www.harpacrista.com.br/',
+        verbose_name='URL — Harpa Cristã',
+        help_text='Link externo para a Harpa Cristã exibida no portal do membro.'
+    )
     # Adicione outros tipos de notificação conforme necessário
     atualizado_em = models.DateTimeField(auto_now=True)
 

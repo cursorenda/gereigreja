@@ -1,5 +1,7 @@
 # 🔒 Auditoria de Permissões - Sistema Completo Gereigreja
 
+> **Aviso:** documento historico (fev/2026). Pode divergir do estado atual apos a migracao para `@page_access_required` + `PAGE_ACCESS_RULES`.
+
 > **Data:** 17/02/2026  
 > **Versão analisada:** 1.2.2  
 > **Escopo:** Todos os 11 apps do sistema

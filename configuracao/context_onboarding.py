@@ -1,4 +1,6 @@
 # context_onboarding.py
+import logging
+
 from configuracao.models_onboarding import OnboardingStatus
 from configuracao.utils_onboarding import (
     etapa_igreja_concluida,
@@ -7,9 +9,9 @@ from configuracao.utils_onboarding import (
     etapa_usuarios_concluida,
 )
 
+logger = logging.getLogger("onboarding")
+
 def onboarding_context(request):
-    import logging
-    logger = logging.getLogger("onboarding")
     mostrar_assistente = False
     onboarding_etapa = None
     ministerio_dados = None
@@ -57,14 +59,18 @@ def onboarding_context(request):
                         'cnpj': igreja.cnpj or '',
                         'data_fundacao': igreja.data_fundacao,
                     }
-        except Exception as e:
-            import sys
-            print(f"[ONBOARDING CONTEXT PROCESSOR ERROR] {e}", file=sys.stderr)
+        except Exception:
+            logger.exception("ONBOARDING CONTEXT PROCESSOR ERROR")
             mostrar_assistente = False
             onboarding_etapa = None
             ministerio_dados = None
             igreja_dados = None
-    print(f"[ONBOARDING CONTEXT] user={getattr(request.user, 'username', None)} mostrar_assistente={mostrar_assistente} onboarding_etapa={onboarding_etapa}")
+    logger.debug(
+        "ONBOARDING CONTEXT user=%s mostrar_assistente=%s onboarding_etapa=%s",
+        getattr(request.user, "username", None),
+        mostrar_assistente,
+        onboarding_etapa,
+    )
     return {
         'mostrar_assistente': mostrar_assistente,
         'onboarding_etapa': onboarding_etapa,

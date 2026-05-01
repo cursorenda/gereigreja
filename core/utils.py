@@ -1,7 +1,7 @@
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.contrib import messages
-from configuracao.models import PerfilUsuario
+from configuracao.models import PerfilUsuario, Ministerio
 from django.urls import reverse
 
 from configuracao.models import AssinaturaMinisterio
@@ -101,12 +101,16 @@ def get_ministerio_or_error(request):
     if request.user.is_superuser:
         raise PermissionDenied("Superusuário não acessa esta área diretamente.")
     
-    try:
-        perfil = request.user.perfil
-    except Exception:
-        raise PermissionDenied("Acesso negado: Perfil de usuário não encontrado.")
+    perfil = getattr(request.user, 'perfil', None)
+    ministerio = getattr(perfil, 'ministerio', None)
 
-    ministerio = perfil.ministerio
+    if not ministerio:
+        membro = getattr(request.user, 'membro_secretaria', None)
+        ministerio = getattr(getattr(membro, 'igreja', None), 'ministerio', None)
+
+    if not ministerio:
+        ministerio = Ministerio.objects.filter(administrador_principal=request.user).first()
+
     if not ministerio:
         raise Http404("Ministério não encontrada para o usuário.")
     

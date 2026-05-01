@@ -11,7 +11,7 @@ from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from contas.constants import user_has_permission_level_or_higher
+from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
 
 from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
 from .utils import rodar_auditoria_permissoes
@@ -30,7 +30,7 @@ def _get_user_ministerio(user):
 
 
 def _can_access_auditoria(user):
-    return user.is_superuser or user_has_permission_level_or_higher(user, 'ADMIN_MINISTERIO')
+    return user.is_superuser or user_has_permission_level_or_higher(user, ADMIN_MINISTERIO)
 
 
 def _scope_queryset_by_ministerio(queryset, user):

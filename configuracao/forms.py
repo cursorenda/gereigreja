@@ -38,6 +38,8 @@ class ConfiguracaoSistemaForm(forms.ModelForm):
             'ebd_periodo',
             'ebd_dia_semana',
             'ebd_horario',
+            'url_biblia_online',
+            'url_harpa_crista',
         ]
         widgets = {
             'notificar_eventos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -47,6 +49,8 @@ class ConfiguracaoSistemaForm(forms.ModelForm):
             'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
             'ebd_dia_semana': forms.Select(attrs={'class': 'form-select'}),
             'ebd_horario': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'url_biblia_online': forms.URLInput(attrs={'class': 'form-control'}),
+            'url_harpa_crista': forms.URLInput(attrs={'class': 'form-control'}),
         }
         labels = {
             'notificar_eventos': 'Enviar notificações de eventos?',
@@ -56,6 +60,36 @@ class ConfiguracaoSistemaForm(forms.ModelForm):
             'ebd_periodo': 'Período da Escola Bíblica',
             'ebd_dia_semana': 'Dia padrão da EBD',
             'ebd_horario': 'Horário padrão da EBD',
+            'url_biblia_online': 'URL — Bíblia Online',
+            'url_harpa_crista': 'URL — Harpa Cristã',
+        }
+
+
+class ConfiguracaoEBDForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracaoSistema
+        fields = [
+            'ebd_periodo',
+            'ebd_dia_semana',
+            'ebd_horario',
+        ]
+        widgets = {
+            'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
+            'ebd_dia_semana': forms.Select(attrs={'class': 'form-select'}),
+            'ebd_horario': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+        }
+
+
+class ConfiguracaoPortalForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracaoSistema
+        fields = [
+            'url_biblia_online',
+            'url_harpa_crista',
+        ]
+        widgets = {
+            'url_biblia_online': forms.URLInput(attrs={'class': 'form-control'}),
+            'url_harpa_crista': forms.URLInput(attrs={'class': 'form-control'}),
         }
 # c:\Gereigreja\configuracao\forms.py
 from django import forms

@@ -130,7 +130,7 @@ logger = logging.getLogger(__name__)
 def registrar_usuario_e_org(request):
     """ View para lidar com o autocadastro de usuário e ministério. """
     if request.user.is_authenticated:
-        return redirect('secretaria:dashboard')
+        return redirect('secretaria:index')
 
     if request.method == 'POST':
         form = RegistroForm(request.POST)
@@ -371,7 +371,7 @@ def aceitar_convite(request, token):
                     convite.save()
 
                 messages.success(request, f"Convite aceito! Você agora faz parte do ministério {convite.ministerio.nome_fantasia}.")
-                return redirect('secretaria:dashboard')
+                return redirect('secretaria:index')
             except Exception as e:
                  logger.exception(f"Erro ao aceitar convite (logado) para {convite.email_convidado}, token {token}")
                  messages.error(request, f"Ocorreu um erro ao processar o convite: {e}")
@@ -416,7 +416,7 @@ def aceitar_convite(request, token):
 
                     login(request, novo_usuario)
                     messages.success(request, f"Conta criada e convite aceito! Bem-vindo à ministério {convite.ministerio.nome_fantasia}, {primeiro_nome}.")
-                    return redirect('secretaria:dashboard')
+                    return redirect('secretaria:index')
 
                 except Exception as e:
                     logger.exception(f"Erro ao criar usuário/perfil ao aceitar convite para {convite.email_convidado}, token {token}")
@@ -642,7 +642,7 @@ def aguardando_aprovacao(request):
     # Verificar se a ministério já foi ativada, e se sim, redirecionar para o dashboard
     if ministerio_usuario.ativo:
         messages.info(request, f"Sua ministério '{ministerio_usuario.nome_fantasia}' já está ativa!")
-        return redirect('secretaria:dashboard') # Ou a página principal após ativação
+        return redirect('secretaria:index') # Ou a página principal após ativação
 
     context = {
         'ministerio': ministerio_usuario,
@@ -661,7 +661,7 @@ def aguardando_acesso(request):
     # Se usuário tem grupos, redireciona para dashboard
     if request.user.groups.exists():
         messages.info(request, "Suas permissões foram configuradas! Você já tem acesso ao sistema.")
-        return redirect('secretaria:dashboard')
+        return redirect('secretaria:index')
     
     # Busca informações do ministério e admin
     ministerio_usuario = None

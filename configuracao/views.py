@@ -270,15 +270,10 @@ from .models import ConfiguracaoSistema
 def is_admin_ministerio(user):
     return user.is_authenticated and user.groups.filter(name=ADMIN_MINISTERIO).exists()
 
-@login_required
-@user_passes_test_or_403(is_admin_ministerio)
-
-
-
-
 
 @login_required
 @verificar_assinatura_valida
+@admin_ministerio_required
 def configuracoes_sistema(request):
     # Buscar o ministério do usuário logado
     perfil = getattr(request.user, 'perfil', None)
@@ -290,6 +285,7 @@ def configuracoes_sistema(request):
     can_edit_finance = False
     notificacoes_form = None
     ebd_form = None
+    portal_form = None
     if ministerio:
         from financeiro.models import CategoriaDespesa, Fornecedor, ContaBancaria
         from financeiro.utils import has_finance_edit_permission
@@ -302,7 +298,7 @@ def configuracoes_sistema(request):
 
 
         import logging
-        from .forms import ConfiguracaoNotificacoesForm
+        from .forms import ConfiguracaoNotificacoesForm, ConfiguracaoEBDForm, ConfiguracaoPortalForm
         logger = logging.getLogger("django")
         # Notificações
         if request.method == 'POST' and request.POST.get('aba_ativa') == 'notificacoes':
@@ -321,12 +317,21 @@ def configuracoes_sistema(request):
 
         # EBD
         if request.method == 'POST' and request.POST.get('aba_ativa') == 'ebd':
-            ebd_form = ConfiguracaoSistemaForm(request.POST, instance=config)
+            ebd_form = ConfiguracaoEBDForm(request.POST, instance=config)
             if ebd_form.is_valid():
                 ebd_form.save()
                 messages.success(request, "Configuração da Escola Bíblica atualizada com sucesso!")
         else:
-            ebd_form = ConfiguracaoSistemaForm(instance=config)
+            ebd_form = ConfiguracaoEBDForm(instance=config)
+
+        # Portal do Membro
+        if request.method == 'POST' and request.POST.get('aba_ativa') == 'portal':
+            portal_form = ConfiguracaoPortalForm(request.POST, instance=config)
+            if portal_form.is_valid():
+                portal_form.save()
+                messages.success(request, "Links devocionais do portal atualizados com sucesso!")
+        else:
+            portal_form = ConfiguracaoPortalForm(instance=config)
 
     context = {
         'categorias': categorias,
@@ -336,6 +341,7 @@ def configuracoes_sistema(request):
         'can_edit_finance': can_edit_finance,
         'notificacoes_form': notificacoes_form,
         'ebd_form': ebd_form,
+        'portal_form': portal_form,
     }
     return render(request, 'configuracao/configuracoes_sistema.html', context)
 # configuracao/views.py
