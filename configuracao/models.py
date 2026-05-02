@@ -373,17 +373,19 @@ class Igreja(models.Model):
         """
         Retorna um QuerySet de todas as igrejas descendentes (subordinadas diretas e indiretas).
         """
-        descendants = Igreja.objects.none()
+        ids = set()
         if include_self:
-            descendants |= Igreja.objects.filter(pk=self.pk)
+            ids.add(self.pk)
 
         children = self.igrejas_subordinadas.all()
         
         for child in children:
-            descendants |= Igreja.objects.filter(pk=child.pk)
-            descendants |= child.get_descendants(include_self=False)
+            ids.add(child.pk)
+            # Adiciona descendentes recursivamente
+            child_descendants = child.get_descendants(include_self=False)
+            ids.update(child_descendants.values_list('pk', flat=True))
         
-        return descendants.distinct()
+        return Igreja.objects.filter(pk__in=ids).distinct()
 
     class Meta:
         verbose_name = "Igreja"

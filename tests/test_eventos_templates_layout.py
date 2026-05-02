@@ -36,7 +36,7 @@ class EventoTemplateLayoutTest(TestCase):
         self.assertIn('col-md-6', content)
         self.assertIn('col-md-3', content)
         # Check convidados block present
-        self.assertIn('Seleção de convidados', content)
+        self.assertIn('id_convidados', content)
 
     def test_editar_evento_layout(self):
         # create an event to edit
@@ -49,4 +49,4 @@ class EventoTemplateLayoutTest(TestCase):
         content = resp.content.decode('utf-8')
         self.assertIn('col-md-3', content)
         self.assertIn('col-md-6', content)
-        self.assertIn('Seleção de convidados', content)
+        self.assertIn('Escolher Participantes Convidados', content)

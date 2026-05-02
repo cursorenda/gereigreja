@@ -602,6 +602,8 @@ def cadastrar_receita(request): # noqa: E302
                 messages.error(request, f'Erro ao salvar receita: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
+        context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Cadastrar Receita'}
+        return render(request, 'financeiro/receitas/form_receita.html', context)
     else:
         initial_form_data = {} # Dicionário para passar valores iniciais
         # --- Lógica para pré-selecionar a igreja no formulário GET ---
@@ -2071,8 +2073,16 @@ def painel_lideranca_financeiro(request):
                 try:
                     igreja_descendente_selecionada = opcoes_filtro_pagina.get(pk=id_selecionado_filtro_pagina)
                     igreja_em_foco_obj = igreja_descendente_selecionada
-                    ver_apenas_entidade_foco = True # Ao selecionar uma congregação, vemos apenas ela
-                    titulo_escopo_igreja = f"Igreja: {igreja_descendente_selecionada.nome_igreja}"
+                    # Se a descendente selecionada tem sub-igrejas dentro das permitidas, mostrar rede
+                    desc_da_selecionada = igreja_descendente_selecionada.get_descendants(include_self=False).filter(
+                        pk__in=allowed_churches_base_financeiro.values_list('pk', flat=True)
+                    )
+                    if desc_da_selecionada.exists():
+                        ver_apenas_entidade_foco = False
+                        titulo_escopo_igreja = f"Rede: {igreja_descendente_selecionada.nome_igreja}"
+                    else:
+                        ver_apenas_entidade_foco = True # Folha: ver apenas ela
+                        titulo_escopo_igreja = f"Igreja: {igreja_descendente_selecionada.nome_igreja}"
                     id_selecionado_filtro_pagina = str(igreja_descendente_selecionada.pk) # Garante que o ID correto está selecionado
                 except Igreja.DoesNotExist: # Fallback: ID do filtro da página inválido
                     id_selecionado_filtro_pagina = str(request.igreja_ativa.pk) # Volta para a igreja_ativa

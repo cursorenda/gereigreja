@@ -1,4 +1,5 @@
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
+from django.http import Http404
 from django.db.models import Exists, OuterRef
 from secretaria.models import Membro, TipoPessoa, StatusPessoa, Cargo, MembroCargo
 # Endpoint AJAX para autocomplete de convidados conforme filtros
@@ -16,6 +17,19 @@ def autocomplete_convidados(request):
 		filtro = request.GET.get('filtro')
 		status = request.GET.get('status', '').split(',') if request.GET.get('status') else []
 		igreja_id = request.GET.get('igreja')  # Parâmetro explícito de igreja
+		
+		# SEGURANÇA: Validar escopo de igreja se fornecido
+		if igreja_id:
+			from core.utils import validar_acesso_igreja
+			from configuracao.models import Igreja
+			try:
+				igreja_obj = Igreja.objects.get(pk=igreja_id)
+				if not validar_acesso_igreja(request.user, igreja_obj):
+					from django.http import HttpResponseForbidden
+					return HttpResponseForbidden()
+			except Igreja.DoesNotExist:
+				from django.http import HttpResponseForbidden
+				return HttpResponseForbidden()
 		
 		# SEGURANÇA: Filtrar apenas membros da igreja ativa
 		membros = Membro.objects.select_related('tipo_pessoa', 'status_pessoa', 'igreja')
@@ -324,10 +338,21 @@ from django.http import HttpResponse
 from django.db.models.functions import Coalesce
 from django.utils.text import slugify
 # Exportação de participantes para Excel
-@page_access_required('eventos')
+@login_required
 def exportar_participantes_excel(request, pk):
 	from .models import ParticipacaoEvento, Evento
 	evento = Evento.objects.get(pk=pk)
+	
+	# SEGURANÇA: Validar escopo da igreja do evento
+	igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+	if igrejas_permitidas is None:
+		from core.utils import get_allowed_churches_for_membros
+		ministerio = getattr(request.user.perfil, 'ministerio', None) if hasattr(request.user, 'perfil') else None
+		igrejas_permitidas = get_allowed_churches_for_membros(request.user, ministerio)
+	
+	if not igrejas_permitidas.filter(pk=evento.igreja.pk).exists():
+		raise Http404()
+	
 	# Permite exportar apenas a sessão selecionada (quando aplicável)
 	sessao_id = request.GET.get('sessao')
 	participacoes = ParticipacaoEvento.objects.filter(evento=evento)
@@ -1003,9 +1028,20 @@ def lista_eventos(request):
 
 ## DUPLICIDADE REMOVIDA: manter apenas uma definição de criar_evento_profissional
 
-@page_access_required('eventos')
+@login_required
 def detalhe_evento_profissional(request, pk):
 	evento = get_object_or_404(Evento, pk=pk)
+	
+	# SEGURANÇA: Validar escopo da igreja do evento
+	igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+	if igrejas_permitidas is None:
+		from core.utils import get_allowed_churches_for_membros
+		ministerio = getattr(request.user.perfil, 'ministerio', None) if hasattr(request.user, 'perfil') else None
+		igrejas_permitidas = get_allowed_churches_for_membros(request.user, ministerio)
+	
+	if not igrejas_permitidas.filter(pk=evento.igreja.pk).exists():
+		raise Http404()
+	
 	# IDs dos tipos de pessoa para "Membro" e "Congregado"
 	from secretaria.models import TipoPessoa, StatusPessoa, Membro
 	from .models import ParticipacaoEvento

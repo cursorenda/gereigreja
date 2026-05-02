@@ -395,8 +395,8 @@ def _grupos_alteraveis_por_usuario(user):
     if user_has_permission_level_or_higher(user, PASTOR_REGIONAL):
         return _grupos_ate_nivel(PASTOR_LOCAL)
     if user_has_permission_level_or_higher(user, PASTOR_LOCAL):
-        # Regra solicitada: pastor local pode atribuir todos os grupos na propria igreja.
-        return Group.objects.all().order_by('name')
+        # Pastor local pode atribuir apenas grupos de nível local e abaixo.
+        return _grupos_ate_nivel(PASTOR_LOCAL)
     return Group.objects.none()
 
 

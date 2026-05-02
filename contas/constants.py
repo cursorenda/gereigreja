@@ -12,6 +12,10 @@ Hierarquia: Pastor Presidente → Pastor Regional → Pastor Local → Equipe Ad
 
 # Nível 1: Administrativo (Pastor Presidente)
 ADMIN_MINISTERIO = 'Admin Ministerio'
+# Alias semântico: o Pastor Presidente é representado pelo grupo Admin Ministerio.
+# O campo Membro.administrador_principal=True no Ministério identifica especificamente
+# o ocupante do cargo de presidente (papel triplo: presidente + regional + local).
+PASTOR_PRESIDENTE = ADMIN_MINISTERIO
 
 # Nível 2: Liderança Ministerial
 LIDERANCA_SECRETARIA = 'Secretaria Ministerial'

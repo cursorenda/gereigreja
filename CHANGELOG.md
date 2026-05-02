@@ -1,3 +1,34 @@
+## v1.9.1 — 02/05/2026
+🔧 **Correções de templates, links legados e consolidação de testes**
+
+### Correções de Bugs
+
+#### Templates — Erros de Sintaxe
+- **`configuracao/templates/configuracao/igrejas/form_igreja.html`** — `{% load static %}` estava antes de `{% extends %}`, causando `TemplateSyntaxError: extends must be the first tag`. Ordem corrigida.
+- **`financeiro/templates/financeiro/gerenciar_permissoes_caixa.html`** — uso de sintaxe Python `permissoes_dict[usuario.id]` inválida em template Django. Corrigido para `permissoes_dict|get_item:usuario.id` usando o filtro `get_item` já existente em `financeiro/templatetags/my_filters.py`.
+
+#### Links Legados (404)
+- **`secretaria/templates/secretaria/dashboard.html`** — botão "Ver lista" do card Pessoas apontava para `/sistema/pessoas/` (URL legada). Corrigido para `{% url 'secretaria:lista_membros' %}`.
+- **`templates/core/notificacoes_enviadas.html`** — link "Voltar" apontava para `/sistema/` (URL legada). Corrigido para `{% url 'secretaria:index' %}`.
+- **`eventos/templates/eventos/lista_eventos.html`** — link de recepção de evento apontava para `/sistema/recepcao-evento/` (URL legada). Corrigido para `{% url 'secretaria:registrar_presenca_visitante_evento' %}`.
+
+#### Limpeza do Dashboard (`secretaria/dashboard.html`)
+- Removido `<script src="chart.js">` duplicado que estava fora do `{% block content %}`.
+- Consolidados 3 blocos `<style>` separados em 1 único bloco organizado no topo do bloco de conteúdo.
+- Removida definição duplicada de `.card-ebd-fin` (estava declarada duas vezes no mesmo bloco de estilos).
+- Consolidados 2 blocos `<script>` inline (aniversariantes + countUp/tooltips) em 1 único bloco.
+- Removido `<script>` órfão e sem fechamento que estava após `{% endblock %}`.
+
+### Testes
+- **Consolidação:** Todos os arquivos de teste dispersos nos apps (`secretaria/tests/`, `financeiro/tests.py`, `eventos/tests/`, etc.) foram migrados para `tests/` centralizado, com prefixo de app no nome (ex: `tests/test_secretaria_legacy.py`).
+- **Novo teste:** `tests/test_integridade_links_sistema.py` — crawler BFS que navega até 160 páginas internas a partir das seeds do dashboard/portal e falha em qualquer resposta 404 ou 5xx.
+- **Corrigido:** `tests/test_admin_ministerio_sem_membro.py` — URL name errado (`portal` → `portal_membro`) e fixtures faltando (`Ministerio`, `PerfilUsuario`).
+- **Corrigido:** `tests/test_eventos_templates_layout.py` — strings de asserção inexistentes nos templates substituídas pelas corretas.
+- **`requirements.txt`** — adicionados `pytest==9.0.3` e `pytest-django==4.12.0`.
+- Suite completa: **130 testes, 0 falhas, 0 erros**.
+
+---
+
 ## v1.9.0 — 01/05/2026
 🎯 **Experiência do Membro Comum, Menu Unificado e Melhorias de UX**
 

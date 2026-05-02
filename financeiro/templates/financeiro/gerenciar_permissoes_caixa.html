@@ -1,4 +1,5 @@
 {% extends 'base_com_menu.html' %}
+{% load my_filters %}
 {% block title %}Permissões do Caixa: {{ caixa.nome_identificacao }}{% endblock %}
 {% block content %}
 <div class="container-fluid px-4">
@@ -16,12 +17,14 @@
       </thead>
       <tbody>
         {% for usuario in usuarios %}
+        {% with permissao=permissoes_dict|get_item:usuario.id %}
         <tr>
           <td>{{ usuario.get_full_name|default:usuario.username }}</td>
-          <td><input type="checkbox" name="user_{{ usuario.id }}_visualizar" {% if permissoes_dict[usuario.id]|default_if_none:'' and permissoes_dict[usuario.id].pode_visualizar %}checked{% endif %}></td>
-          <td><input type="checkbox" name="user_{{ usuario.id }}_transferir" {% if permissoes_dict[usuario.id]|default_if_none:'' and permissoes_dict[usuario.id].pode_transferir %}checked{% endif %}></td>
-          <td><input type="checkbox" name="user_{{ usuario.id }}_editar" {% if permissoes_dict[usuario.id]|default_if_none:'' and permissoes_dict[usuario.id].pode_editar %}checked{% endif %}></td>
+          <td><input type="checkbox" name="user_{{ usuario.id }}_visualizar" {% if permissao and permissao.pode_visualizar %}checked{% endif %}></td>
+          <td><input type="checkbox" name="user_{{ usuario.id }}_transferir" {% if permissao and permissao.pode_transferir %}checked{% endif %}></td>
+          <td><input type="checkbox" name="user_{{ usuario.id }}_editar" {% if permissao and permissao.pode_editar %}checked{% endif %}></td>
         </tr>
+        {% endwith %}
         {% endfor %}
       </tbody>
     </table>

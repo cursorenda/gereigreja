@@ -709,12 +709,16 @@ def excluir_acompanhamento_visita(request, acompanhamento_id):
 @login_required
 @page_access_required('secretaria_acompanhamentos')
 def escolher_pessoa_para_acompanhamento(request):
-    """Escolhe pessoa para registrar acompanhamento, filtrando por igrejas permitidas."""
+    """Escolhe pessoa para registrar acompanhamento, filtrando pela igreja ativa ou igrejas permitidas."""
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     nome = request.GET.get('nome', '').strip()
     tipo_pessoa_id = request.GET.get('tipo_pessoa')
-    qs = Membro.objects.select_related('tipo_pessoa').filter(igreja__in=allowed_churches)
+    # Respeita a igreja ativa do seletor global
+    if hasattr(request, 'igreja_ativa') and request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
+        qs = Membro.objects.select_related('tipo_pessoa').filter(igreja=request.igreja_ativa)
+    else:
+        qs = Membro.objects.select_related('tipo_pessoa').filter(igreja__in=allowed_churches)
     if nome:
         qs = qs.filter(nome__icontains=nome)
     if tipo_pessoa_id:

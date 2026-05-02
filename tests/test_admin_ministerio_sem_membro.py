@@ -1,6 +1,7 @@
 from django.test import TestCase, Client
 from django.contrib.auth.models import User, Group
 from django.urls import reverse
+from configuracao.models import Ministerio, Igreja, PerfilUsuario, AssinaturaMinisterio
 
 class AdminMinisterioSemMembroTest(TestCase):
     def setUp(self):
@@ -11,11 +12,14 @@ class AdminMinisterioSemMembroTest(TestCase):
         self.user = User.objects.create_user(username="testeabril", email="testeabril@gmail.com", password="123456")
         self.user.groups.add(self.admin_group)
         self.user.save()
+        # Cria ministério e perfil para que get_ministerio_or_error funcione
+        self.ministerio = Ministerio.objects.create(nome_fantasia="Min Teste", administrador_principal=self.user, ativo=True)
+        PerfilUsuario.objects.create(user=self.user, ministerio=self.ministerio)
 
     def test_admin_ministerio_acessa_portal_sem_membro(self):
         self.client.login(username="testeabril", password="123456")
         # A URL abaixo deve ser ajustada para a view que faz a checagem
-        response = self.client.get(reverse("secretaria:portal"))
+        response = self.client.get(reverse("secretaria:portal_membro"))
         # Não deve redirecionar para editar perfil
         self.assertNotIn("cadastro de membro não foi encontrado", response.content.decode().lower())
         self.assertEqual(response.status_code, 200)
