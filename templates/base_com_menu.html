@@ -175,16 +175,16 @@
           {# --- INÍCIO DO SELETOR DE IGREJA ATIVA --- #}
         {# Este formulário será inserido aqui, antes do menu do usuário à direita #}
         {% if user.is_authenticated and not user.is_superuser and user.perfil %}
-            {% get_allowed_churches_for_user_tag as allowed_churches_list %}
+            {% get_churches_tree_ordered as allowed_churches_list %}
             {# Só mostra o seletor se houver MAIS de uma igreja permitida #}
-            {% if allowed_churches_list and allowed_churches_list.count > 1 %}
+            {% if allowed_churches_list|length > 1 %}
                 <form method="POST" action="{% url 'configuracao:set_active_church' %}" class="d-flex ms-auto me-md-3 my-2 my-md-0 align-items-center" id="activeChurchForm">
                     {% csrf_token %}
                     <select name="igreja_id_selector" id="igreja_id_selector_nav" class="font-size-selector-custom igreja-selector-wide" onchange="document.getElementById('activeChurchForm').submit();" title="Selecionar igreja ativa">
                         <option value="todas" {% if not request.igreja_ativa %}selected{% endif %}>Todas Permitidas</option>
                         {% for igreja_item in allowed_churches_list %}
                             <option value="{{ igreja_item.pk }}" {% if request.igreja_ativa and request.igreja_ativa.pk == igreja_item.pk %}selected{% endif %}>
-                                {{ igreja_item.nome_igreja }}
+                                {% if igreja_item.tipo_igreja == 'regional' %}&nbsp;&nbsp;&nbsp;&nbsp;{% elif igreja_item.tipo_igreja == 'congregacao' %}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}{{ igreja_item.nome_igreja }}
                             </option>
                         {% endfor %}
                     </select>

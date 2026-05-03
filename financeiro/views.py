@@ -534,6 +534,22 @@ def lista_receitas(request): # noqa: E302
         # Se você adicionar uma opção 'todos' com value='', pode adicionar um 'elif fechado_filter == "":' aqui
         # --- FIM DA LÓGICA DO FILTRO 'fechado' ---
 
+        sort_map = {
+            'data': 'data',
+            '-data': '-data',
+            'igreja': 'igreja__nome_igreja',
+            '-igreja': '-igreja__nome_igreja',
+            'membro': 'membro__nome',
+            '-membro': '-membro__nome',
+            'categoria': 'categoria',
+            '-categoria': '-categoria',
+            'valor': 'valor',
+            '-valor': '-valor',
+        }
+        sort = request.GET.get('sort', '-data')
+        order_by = sort_map.get(sort, '-data')
+        receitas_qs = receitas_qs.order_by(order_by, '-id')
+
         categorias_choices = Receitas.CATEGORIA_CHOICES
         # --- Lógica para o dropdown de filtro de igreja no template ---
         igrejas_para_filtro_template = allowed_churches
@@ -545,6 +561,8 @@ def lista_receitas(request): # noqa: E302
 
         # Permissão de edição para o template
         can_edit = has_finance_edit_permission(request.user)
+        query_params = request.GET.copy()
+        query_params.pop('sort', None)
 
         context = {
             'receitas': receitas_qs,
@@ -559,6 +577,8 @@ def lista_receitas(request): # noqa: E302
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
             'contas_bancarias_painel': ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao'),
+            'sort_atual': sort if sort in sort_map else '-data',
+            'querystring_without_sort': query_params.urlencode(),
         }
         return render(request, 'financeiro/receitas/lista_receitas.html', context)
     except Exception as e:
@@ -741,6 +761,22 @@ def lista_despesas(request): # noqa: E302
             despesas_qs = despesas_qs.filter(fechado=False)
         # --- FIM DA LÓGICA DO FILTRO 'fechado' ---
 
+        sort_map = {
+            'data': 'data',
+            '-data': '-data',
+            'igreja': 'igreja__nome_igreja',
+            '-igreja': '-igreja__nome_igreja',
+            'descricao': 'descricao',
+            '-descricao': '-descricao',
+            'categoria': 'categoria__nome',
+            '-categoria': '-categoria__nome',
+            'valor': 'valor',
+            '-valor': '-valor',
+        }
+        sort = request.GET.get('sort', '-data')
+        order_by = sort_map.get(sort, '-data')
+        despesas_qs = despesas_qs.order_by(order_by, '-id')
+
         categorias_org = CategoriaDespesa.objects.filter(ministerio=ministerio)
         # --- Lógica para o dropdown de filtro de igreja no template ---        
         igrejas_para_filtro_template = allowed_churches
@@ -750,6 +786,8 @@ def lista_despesas(request): # noqa: E302
 
         # Permissão de edição para o template
         can_edit = has_finance_edit_permission(request.user)
+        query_params = request.GET.copy()
+        query_params.pop('sort', None)
 
         context = {
             'despesas': despesas_qs,
@@ -764,6 +802,8 @@ def lista_despesas(request): # noqa: E302
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
             'contas_bancarias_painel': ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao'),
+            'sort_atual': sort if sort in sort_map else '-data',
+            'querystring_without_sort': query_params.urlencode(),
         }
         return render(request, 'financeiro/despesas/lista_despesas.html', context)
     except Exception as e:

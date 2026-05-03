@@ -1,4 +1,4 @@
-from django.contrib import messages
+﻿from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import redirect
 from django.db.models import Count
@@ -27,12 +27,12 @@ def limpar_grupos_casa_vazios(request):
 from django.contrib.auth.decorators import login_required
 # --- BULK EDIT PESSOAS ---
 from django.shortcuts import render, redirect
-from .forms import PessoaBulkEditForm
+from secretaria.forms import PessoaBulkEditForm
 
 @login_required
 def bulk_edit_pessoas(request):
     from django.contrib import messages
-    from .models import Membro, MembroCargo
+    from secretaria.models import Membro, MembroCargo
 
     if request.method == 'POST':
         # Converter para inteiros válidos
@@ -78,7 +78,11 @@ def bulk_edit_pessoas(request):
                     membro.pais = data['pais']
                 if data['cep']:
                     membro.cep = data['cep']
-                membro.save()
+                membro.save(
+                    user=request.user,
+                    data_mudanca_tipo=data.get('data_mudanca_tipo'),
+                    data_mudanca_status=data.get('data_mudanca_status'),
+                )
                 if data['tags']:
                     membro.tags.set(data['tags'])
                 alterados += 1
@@ -224,14 +228,14 @@ from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, PASTOR_REGIONAL, SE
 from contas.models import NotaUsuario
 
 # Secretaria app forms/models
-from .forms import (
+from secretaria.forms import (
     AssociarUsuarioMembroForm, CargoForm, GerenciarOcupantesForm, MembroForm,
     MembroUserManagementForm, StatusHistoricoManualForm, TagForm
 )
-from .forms_acompanhamento import AcompanhamentoVisitaForm
-from .forms_grupocasa import GrupoCasaForm
-from .forms_presenca_visitante_evento import PresencaVisitanteEventoForm
-from .models import (
+from secretaria.forms_acompanhamento import AcompanhamentoVisitaForm
+from secretaria.forms_grupocasa import GrupoCasaForm
+from secretaria.forms_presenca_visitante_evento import PresencaVisitanteEventoForm
+from secretaria.models import (
     AcompanhamentoVisita, Cargo, GrupoCasa, Membro, MembroCargo, PresencaVisitanteEvento,
     StatusHistorico, StatusPessoa, Tag, TimelineEvent, TipoPessoa
 )
@@ -239,6 +243,97 @@ from .models import (
 # --- FIM DOS IMPORTS ---
 
 ## --- END OF IMPORTS ---
+
+# Views de dashboard (extraídas para dashboard.py)
+from secretaria.views.dashboard import (
+    index,
+    salvar_nota_usuario,
+    dashboard,
+)
+
+# AJAX utilitários (extraídos para ajax.py)
+from secretaria.views.ajax import (
+    autocomplete_nome,
+    autocomplete_nome_membro,
+)
+
+# Relatórios (extraídos para relatorios.py)
+from secretaria.views.relatorios import (
+    linha_do_tempo,
+    relatorio_reuniao_membros,
+)
+
+# Tags (extraídas para tags.py)
+from secretaria.views.tags import (
+    criar_tag,
+    editar_tag,
+    excluir_tag,
+)
+
+# Views de cargos (extraídas para cargos.py)
+from secretaria.views.cargos import (
+    gerenciar_ocupantes,
+    excluir_cargo,
+    criar_cargo,
+    editar_cargo,
+    lista_cargos,
+)
+
+# Views de grupos_casa (extraídas para grupos_casa.py)
+from secretaria.views.grupos_casa import (
+    limpar_grupos_casa_vazios,
+    lista_grupos_casa,
+    agrupar_grupos_preview,
+    agrupar_grupos_apply,
+    reagrupar_grupo_casa,
+    detalhe_grupo_casa,
+    criar_grupo_casa,
+    editar_grupo_casa,
+)
+
+# Views de visitantes (extraídas para visitantes.py)
+from secretaria.views.visitantes import (
+    lista_visitantes,
+    buscar_visitantes,
+    registrar_presenca_visitante_evento,
+    ajax_registrar_presenca_evento,
+    ajax_get_presencas_evento,
+    cadastrar_visitante,
+    criar_visitante_parcial,
+    registrar_acompanhamento_visita,
+)
+
+# Views de membros (extraídas para membros.py)
+from secretaria.views.membros import (
+    lista_membros,
+    detalhe_membro,
+    imprimir_lista_membros,
+    editar_membro,
+    criar_membro,
+    alternar_status_membro,
+    ficha_membro_impressao,
+)
+
+# Helpers de permissão, escopo e utilitários (extraídos para _helpers.py)
+from secretaria.views._helpers import (
+    _coletar_ids_grupos,
+    _grupos_por_cargo_ativo,
+    _grupos_reservados_para_cargo,
+    recalcular_grupos_efetivos_usuario,
+    get_request_scoped_churches,
+    resolve_lideranca_scope,
+    _hierarquia_grupos_permissoes,
+    _user_has_permission_level_or_higher,
+    pode_gerenciar_tags,
+    is_admin_or_pastor,
+    is_admin_or_pastor_local,
+    _nomes_grupos_permitidos_para_cargos,
+    _filtrar_cargos_por_escopo_usuario,
+    _cargo_dentro_escopo_usuario,
+    _membros_queryset_por_escopo,
+    safe_instantiate_membroform,
+    _get_navigation_context,
+)
 
 
 def _coletar_ids_grupos(grupos):
@@ -714,9 +809,13 @@ def escolher_pessoa_para_acompanhamento(request):
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     nome = request.GET.get('nome', '').strip()
     tipo_pessoa_id = request.GET.get('tipo_pessoa')
-    # Respeita a igreja ativa do seletor global
+    igreja_ativa_id = request.session.get('igreja_ativa_id')
+    # Respeita a igreja ativa do seletor global (request) e, como fallback,
+    # a igreja ativa armazenada na sessão.
     if hasattr(request, 'igreja_ativa') and request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         qs = Membro.objects.select_related('tipo_pessoa').filter(igreja=request.igreja_ativa)
+    elif igreja_ativa_id and allowed_churches.filter(pk=igreja_ativa_id).exists():
+        qs = Membro.objects.select_related('tipo_pessoa').filter(igreja_id=igreja_ativa_id)
     else:
         qs = Membro.objects.select_related('tipo_pessoa').filter(igreja__in=allowed_churches)
     if nome:
@@ -801,8 +900,17 @@ def lista_acompanhamentos_visita(request):
         - Filtra apenas acompanhamentos de igrejas permitidas para o usuário.
     """
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-    qs = AcompanhamentoVisita.objects.select_related('membro', 'responsavel', 'membro__tipo_pessoa').filter(membro__igreja__in=allowed_churches)
+    allowed_churches = getattr(request, 'igrejas_permitidas', None)
+    if allowed_churches is None:
+        allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    igrejas_filtro = get_request_scoped_churches(request, allowed_churches)
+    igreja_ativa_id = request.session.get('igreja_ativa_id')
+    if igreja_ativa_id and allowed_churches.filter(pk=igreja_ativa_id).exists():
+        igrejas_filtro = Igreja.objects.filter(pk=igreja_ativa_id)
+
+    qs = AcompanhamentoVisita.objects.select_related(
+        'membro', 'responsavel', 'membro__tipo_pessoa'
+    ).filter(membro__igreja__in=igrejas_filtro)
     tipos = TipoPessoa.objects.all().order_by('nome')
     nome = request.GET.get('nome', '').strip()
     tipo_pessoa_id = request.GET.get('tipo_pessoa')
@@ -821,7 +929,7 @@ def lista_acompanhamentos_visita(request):
         qs = qs.filter(data__gte=data_ini)
     if data_fim:
         qs = qs.filter(data__lte=data_fim)
-    if igreja_id:
+    if igreja_id and igrejas_filtro.filter(pk=igreja_id).exists():
         qs = qs.filter(membro__igreja_id=igreja_id)
     qs = qs.order_by('-data')
     context = {
@@ -925,7 +1033,7 @@ def autocomplete_nome(request):
     results = []
     if q and len(q) >= 1:
         # import here to avoid top-level import cycles
-        # from .models import Membro  # Already imported at top if needed
+        # from secretaria.models import Membro  # Already imported at top if needed
         membros = Membro.objects.filter(nome__istartswith=q).order_by('nome')[:10]
         for m in membros:
             results.append({
@@ -1130,9 +1238,9 @@ def buscar_visitantes(request):
 
     logger.debug('buscar_visitantes q=%s results=%s', termo, len(visitantes))
     return JsonResponse(visitantes, safe=False)
-from .forms_presenca_visitante_evento import PresencaVisitanteEventoForm
+from secretaria.forms_presenca_visitante_evento import PresencaVisitanteEventoForm
 from eventos.models import Evento
-from .models import PresencaVisitanteEvento
+from secretaria.models import PresencaVisitanteEvento
 from django.utils import timezone
 
 # --- VIEW: REGISTRAR PRESENÇA DE VISITANTE EM EVENTO ---
@@ -1749,7 +1857,7 @@ def safe_instantiate_membroform(*args, **kwargs):
 # --- VIEW PARA CADASTRAR VISITANTE (cria membro com tipo_pessoa=Visitante) ---
 @login_required
 def cadastrar_visitante(request):
-    # from .models import TipoPessoa  # Already imported at top if needed
+    # from secretaria.models import TipoPessoa  # Already imported at top if needed
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     igreja_inicial_para_form = None
@@ -1775,7 +1883,7 @@ def cadastrar_visitante(request):
                 visitante = form.save(commit=False)
                 visitante.tipo_pessoa = tipo_visitante
                 # Definir status_pessoa como 'Ativo' automaticamente
-                # from .models import StatusPessoa  # Already imported at top if needed
+                # from secretaria.models import StatusPessoa  # Already imported at top if needed
                 try:
                     status_ativo = StatusPessoa.objects.get(nome__iexact='Ativo')
                     visitante.status_pessoa = status_ativo
@@ -1861,7 +1969,7 @@ def criar_visitante_parcial(request):
 
         # Escolher um status padrão (preferir 'Ativo' se existir, senão o primeiro disponível)
         try:
-            # from .models import StatusPessoa  # Already imported at top if needed
+            # from secretaria.models import StatusPessoa  # Already imported at top if needed
             default_status = StatusPessoa.objects.filter(nome__iexact='Ativo').first() or StatusPessoa.objects.first()
         except Exception as exc:
             logger.warning('criar_visitante_parcial: falha ao buscar status padrão: %s', exc)
@@ -2203,8 +2311,8 @@ def linha_do_tempo(request):
     from collections import OrderedDict, defaultdict
     import json
     from itertools import zip_longest
-    from .models import TimelineEvent, StatusHistorico, StatusPessoa, TipoPessoa
-    # from .forms import TimelineFilterForm  # Removed: defined locally below
+    from secretaria.models import TimelineEvent, StatusHistorico, StatusPessoa, TipoPessoa
+    # from secretaria.forms import TimelineFilterForm  # Removed: defined locally below
     TIPO_COLORS = {
         'membro': 'bg-primary',
         'visitante': 'bg-info',
@@ -2365,7 +2473,7 @@ def linha_do_tempo(request):
         'labels': chart_labels,
         'datasets': chart_datasets,
     }
-    from .models import StatusPessoa
+    from secretaria.models import StatusPessoa
     status_pessoa_list = StatusPessoa.objects.all().order_by('nome')
     context = {
         'eventos_por_data': eventos_por_data,
@@ -2395,7 +2503,7 @@ import shutil
 # c:\Gereigreja\secretaria\views.py
 
 from django.http import Http404
-from .models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
+from secretaria.models import Membro, TipoPessoa, StatusPessoa, StatusHistorico
 
 
 
@@ -3188,8 +3296,8 @@ def agrupar_grupos_preview(request):
     """Preview das mudanças que o agrupamento faria. Mostra agrupamentos detectados por endereço."""
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-    from .models import Membro
-    from .utils import agrupar_preview_for_queryset
+    from secretaria.models import Membro
+    from secretaria.utils import agrupar_preview_for_queryset
 
     if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         people_qs = Membro.objects.filter(igreja=request.igreja_ativa)
@@ -3225,8 +3333,8 @@ def agrupar_grupos_apply(request):
     """
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-    from .models import Membro
-    from .utils import agrupar_preview_for_queryset, agrupar_apply_from_preview
+    from secretaria.models import Membro
+    from secretaria.utils import agrupar_preview_for_queryset, agrupar_apply_from_preview
 
     if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         people_qs = Membro.objects.filter(igreja=request.igreja_ativa)
@@ -3270,8 +3378,8 @@ def reagrupar_grupo_casa(request, grupo_id):
     except PermissionDenied:
         raise Http404()
 
-    from .models import Membro
-    from .utils import agrupar_preview_for_queryset, agrupar_apply_from_preview
+    from secretaria.models import Membro
+    from secretaria.utils import agrupar_preview_for_queryset, agrupar_apply_from_preview
 
     people_qs = Membro.objects.filter(grupo_casa=grupo)
     # considerar apenas com endereço mínimo
@@ -3310,7 +3418,7 @@ def detalhe_grupo_casa(request, grupo_id):
 
     if request.method == 'POST':
         # criar visita
-        from .forms_grupocasa import VisitaGrupoCasaForm
+        from secretaria.forms_grupocasa import VisitaGrupoCasaForm
         form = VisitaGrupoCasaForm(request.POST)
         if form.is_valid():
             from django.db import transaction
@@ -3338,7 +3446,7 @@ def detalhe_grupo_casa(request, grupo_id):
         else:
             messages.error(request, 'Erro ao registrar visita. Verifique os campos.')
     else:
-        from .forms_grupocasa import VisitaGrupoCasaForm
+        from secretaria.forms_grupocasa import VisitaGrupoCasaForm
         form = VisitaGrupoCasaForm()
 
     # Permissão para aplicar agrupamento localmente (reagrupar moradores)
@@ -3472,7 +3580,7 @@ def lista_membros(request): # noqa: E302
         if allowed_churches.filter(pk=igreja_id_get).exists():
             membros_queryset = membros_queryset.filter(igreja_id=igreja_id_get)
 
-    from .models import TipoPessoa, StatusPessoa, Tag
+    from secretaria.models import TipoPessoa, StatusPessoa, Tag
     tipos_pessoa = TipoPessoa.objects.all().order_by('nome')
     # Garante que o status 'Pendente' exista
     status_pendentes_qs = StatusPessoa.objects.filter(
@@ -3653,14 +3761,14 @@ def detalhe_membro(request, membro_id):
     tags = membro.tags.all()
     
     # Busca cargos ativos
-    from .models import MembroCargo
+    from secretaria.models import MembroCargo
     cargos_ativos = MembroCargo.objects.filter(
         membro=membro,
         data_fim__isnull=True
     ).select_related('cargo')
     
     # Busca histórico de status (mostra todos, não apenas 5)
-    from .models import StatusHistorico
+    from secretaria.models import StatusHistorico
     historico_status = StatusHistorico.objects.filter(membro=membro).order_by('-data_transicao')
     
     # Contexto de navegação
@@ -3744,7 +3852,7 @@ def imprimir_lista_membros(request):
         if allowed_churches.filter(pk=igreja_id_get).exists():
             membros_queryset = membros_queryset.filter(igreja_id=igreja_id_get)
 
-    from .models import TipoPessoa, StatusPessoa, Tag
+    from secretaria.models import TipoPessoa, StatusPessoa, Tag
 
     # Filtros extras - tipos, status, gênero
     tipo_id = request.GET.get('tipo')
@@ -4015,7 +4123,7 @@ def editar_membro(request, membro_id): # noqa: E302
             acompanhamentos_visita = acompanhamentos_visita.filter(data__date=filtro_data_dt)
         except ValueError:
             logger.debug('editar_membro: filtro_data inválido recebido: %s', filtro_data)
-    from .models import MembroCargo
+    from secretaria.models import MembroCargo
     cargos_historico = MembroCargo.objects.filter(membro=membro).select_related('cargo').order_by('-data_inicio')
     
     # Contexto de navegação
@@ -4657,8 +4765,8 @@ def relatorio_reuniao_membros(request):
     return render(request, 'secretaria/relatorio_reuniao_membros.html', context)
 # --- FIM NOVA VIEW ---
 
-from .models import Tag
-from .forms import TagForm
+from secretaria.models import Tag
+from secretaria.forms import TagForm
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 

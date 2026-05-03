@@ -125,6 +125,34 @@ class AcompanhamentosAutorizacaoTest(TestCase):
         self.assertIn(self.acompanhamento_A.id, ids)
         self.assertNotIn(self.acompanhamento_B.id, ids)
 
+    def test_lista_acompanhamentos_respeita_igreja_ativa(self):
+        """Com duas igrejas permitidas, deve listar apenas a igreja ativa da sessão."""
+        user_model = get_user_model()
+        user_multi = user_model.objects.create_user(
+            username='pastor_multiplas_igrejas',
+            password='pass123',
+        )
+        user_multi.groups.add(self.grupo_pastor_local)
+
+        perfil_multi = PerfilUsuario.objects.create(
+            user=user_multi,
+            ministerio=self.ministerio,
+        )
+        perfil_multi.igrejas_permitidas.add(self.igreja_A, self.igreja_B)
+
+        self.client.force_login(user_multi)
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja_A.pk
+        session.save()
+
+        response = self.client.get(reverse('secretaria:acompanhamentos_visita'))
+
+        self.assertEqual(response.status_code, 200)
+        acompanhamentos = response.context['acompanhamentos']
+        ids = list(acompanhamentos.values_list('id', flat=True))
+        self.assertIn(self.acompanhamento_A.id, ids)
+        self.assertNotIn(self.acompanhamento_B.id, ids)
+
     def test_escolher_pessoa_filtra_por_igrejas_permitidas(self):
         """Pastor Local de Igreja A não vê membros de Igreja B."""
         self.client.force_login(self.user_local_Igreja_A)

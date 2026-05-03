@@ -99,6 +99,9 @@ backup/
 *.dump
 melhorias no gereigreja.txt
 
+# Notes / working documents (local only)
+notes/
+
 # --- Project-specific files you likely don't want versioned ---
 logs/
 contexto_gereigreja.md

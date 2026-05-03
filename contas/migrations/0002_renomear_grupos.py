@@ -24,9 +24,9 @@ def renomear_grupos_forward(apps, schema_editor):
             grupo = Group.objects.get(name=nome_antigo)
             grupo.name = nome_novo
             grupo.save()
-            print(f"✓ Renomeado: '{nome_antigo}' → '{nome_novo}'")
+            print(f"[OK] Renomeado: '{nome_antigo}' -> '{nome_novo}'")
         except Group.DoesNotExist:
-            print(f"⚠ Grupo '{nome_antigo}' não encontrado, pulando...")
+            print(f"[AVISO] Grupo '{nome_antigo}' nao encontrado, pulando...")
 
 
 def renomear_grupos_reverse(apps, schema_editor):
@@ -50,9 +50,9 @@ def renomear_grupos_reverse(apps, schema_editor):
             grupo = Group.objects.get(name=nome_novo)
             grupo.name = nome_antigo
             grupo.save()
-            print(f"✓ Revertido: '{nome_novo}' → '{nome_antigo}'")
+            print(f"[OK] Revertido: '{nome_novo}' -> '{nome_antigo}'")
         except Group.DoesNotExist:
-            print(f"⚠ Grupo '{nome_novo}' não encontrado, pulando...")
+            print(f"[AVISO] Grupo '{nome_novo}' nao encontrado, pulando...")
 
 
 class Migration(migrations.Migration):

@@ -1,5 +1,6 @@
 {# Template base com menu lateral/topo #}
 {% extends 'base_com_menu.html' %}
+{% load l10n %}
 
 {% block content %}
 <div style="max-width: 1320px; margin: 0 auto; padding: 0 2vw;">
@@ -23,7 +24,7 @@
                 <select id="id_membro" class="form-select" style="min-width: 0; width: 70%; max-width: 350px;">
                     <option value="">Selecione um membro</option>
                     {% for membro in membros %}
-                        <option value="{{ membro.chave }}">{{ membro.nome }}</option>
+                        <option value="{{ membro.pk|unlocalize }}">{{ membro.nome }}</option>
                     {% endfor %}
                 </select>
                 <button type="button" class="btn btn-primary" id="btn-adicionar">Adicionar</button>
@@ -76,6 +77,8 @@
         {# Campo oculto para enviar ocupantes selecionados ao backend #}
         <input type="hidden" name="ocupantes" id="id_ocupantes_hidden">
 
+        {{ ocupantes_iniciais|json_script:"ocupantes-iniciais-json" }}
+
         {# Botões de ação do formulário #}
         <button type="submit" class="btn btn-success">Salvar Ocupantes</button>
         <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Voltar</a>
@@ -85,11 +88,11 @@
 {# Script JS para manipular a lista de ocupantes (adicionar/remover) #}
 <script>
     // Lista inicial de ocupantes vindos do backend
-    let ocupantes = {{ ocupantes_iniciais|safe }}.map(String);
+    let ocupantes = JSON.parse(document.getElementById('ocupantes-iniciais-json').textContent).map(String);
     let membros = {};
     // Mapeia os membros para uso rápido no JS
-    {% for membro in membros %}
-        membros["{{ membro.chave|stringformat:'s' }}"] = "{{ membro.nome|escapejs }}";
+    {% for membro in membros_lookup %}
+        membros["{{ membro.pk|unlocalize }}"] = "{{ membro.nome|escapejs }}";
     {% endfor %}
 
     // Renderiza a lista de ocupantes atuais na tela

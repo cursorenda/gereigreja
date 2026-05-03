@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from configuracao.models import Igreja, Ministerio, PerfilUsuario
 from contas.constants import SECRETARIO_LOCAL, TESOUREIRO
-from financeiro.models import ContaBancaria, Receitas
+from financeiro.models import CategoriaDespesa, ContaBancaria, Despesas, Receitas
 from secretaria.models import Membro, StatusPessoa, TipoPessoa
 
 
@@ -115,6 +115,38 @@ class EscopoSecretariaFinanceiroIntegracaoTest(TestCase):
             conta_bancaria=self.conta_b,
             fechado=False,
         )
+        Receitas.objects.create(
+            igreja=self.igreja_a,
+            categoria="dizimo",
+            data="2026-04-02",
+            valor=Decimal("10.00"),
+            membro=self.membro_a,
+            conta_bancaria=self.conta_a,
+            fechado=False,
+        )
+
+        self.categoria_despesa = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome="Operacional SF",
+        )
+        Despesas.objects.create(
+            igreja=self.igreja_a,
+            data="2026-04-01",
+            descricao="Conta de Luz SF",
+            valor=Decimal("80.00"),
+            categoria=self.categoria_despesa,
+            conta_bancaria=self.conta_a,
+            fechado=False,
+        )
+        Despesas.objects.create(
+            igreja=self.igreja_a,
+            data="2026-04-03",
+            descricao="Conta de Agua SF",
+            valor=Decimal("20.00"),
+            categoria=self.categoria_despesa,
+            conta_bancaria=self.conta_a,
+            fechado=False,
+        )
 
     def test_secretaria_detalhe_membro_permitido_no_escopo(self):
         self.client.force_login(self.usuario_secretaria)
@@ -193,3 +225,21 @@ class EscopoSecretariaFinanceiroIntegracaoTest(TestCase):
         self.assertEqual(response.status_code, 200)
         contas_ids_igreja = set(response.context["contas_bancarias"].values_list("igreja_id", flat=True))
         self.assertEqual(contas_ids_igreja, {self.igreja_a.pk})
+
+    def test_financeiro_lista_receitas_ordena_por_valor_asc(self):
+        self.client.force_login(self.usuario_financeiro)
+
+        response = self.client.get(reverse("financeiro:lista_receitas"), {"sort": "valor"})
+
+        self.assertEqual(response.status_code, 200)
+        valores = list(response.context["receitas"].values_list("valor", flat=True))
+        self.assertEqual(valores, sorted(valores))
+
+    def test_financeiro_lista_despesas_ordena_por_valor_desc(self):
+        self.client.force_login(self.usuario_financeiro)
+
+        response = self.client.get(reverse("financeiro:lista_despesas"), {"sort": "-valor"})
+
+        self.assertEqual(response.status_code, 200)
+        valores = list(response.context["despesas"].values_list("valor", flat=True))
+        self.assertEqual(valores, sorted(valores, reverse=True))

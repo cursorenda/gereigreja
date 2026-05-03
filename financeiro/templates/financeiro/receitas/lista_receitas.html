@@ -98,11 +98,31 @@
                 <table class="table table-striped table-bordered table-hover">
                     <thead class="table-light">
                         <tr>
-                            <th>Data</th>
-                            <th>Igreja</th>
-                            <th>Membro/Origem</th>
-                            <th>Categoria</th>
-                            <th class="text-end">Valor (R$)</th>
+                            <th>
+                                <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'data' %}-data{% else %}data{% endif %}">
+                                    Data {% if sort_atual == 'data' %}▲{% elif sort_atual == '-data' %}▼{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'igreja' %}-igreja{% else %}igreja{% endif %}">
+                                    Igreja {% if sort_atual == 'igreja' %}▲{% elif sort_atual == '-igreja' %}▼{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'membro' %}-membro{% else %}membro{% endif %}">
+                                    Membro/Origem {% if sort_atual == 'membro' %}▲{% elif sort_atual == '-membro' %}▼{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'categoria' %}-categoria{% else %}categoria{% endif %}">
+                                    Categoria {% if sort_atual == 'categoria' %}▲{% elif sort_atual == '-categoria' %}▼{% endif %}
+                                </a>
+                            </th>
+                            <th class="text-end">
+                                <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'valor' %}-valor{% else %}valor{% endif %}">
+                                    Valor (R$) {% if sort_atual == 'valor' %}▲{% elif sort_atual == '-valor' %}▼{% endif %}
+                                </a>
+                            </th>
                             <th>Status</th>
                             {% if can_edit_finance %}<th>Ações</th>{% endif %}
                         </tr>

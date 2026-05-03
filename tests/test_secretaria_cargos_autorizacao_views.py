@@ -2,10 +2,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from configuracao.models import Igreja, Ministerio, PerfilUsuario
 from contas.constants import ADMIN_MINISTERIO, PASTOR_LOCAL, PASTOR_REGIONAL
-from secretaria.models import Cargo
+from secretaria.models import Cargo, Membro, MembroCargo, StatusPessoa, TipoPessoa
 
 
 class CargoAutorizacaoViewsTest(TestCase):
@@ -65,6 +66,37 @@ class CargoAutorizacaoViewsTest(TestCase):
         self.cargo_sem_grupo = Cargo.objects.create(
             nome='Cargo Sem Grupo',
             grupo_permissao=None,
+        )
+
+        self.tipo_membro = TipoPessoa.objects.create(nome='Membro')
+        self.status_ativo = StatusPessoa.objects.create(nome='Ativo')
+        self.membro_local = Membro.objects.create(
+            nome='Membro Local Cargos',
+            igreja=self.igreja,
+            tipo_pessoa=self.tipo_membro,
+            status_pessoa=self.status_ativo,
+        )
+
+        MembroCargo.objects.create(
+            membro=self.membro_local,
+            cargo=self.cargo_local,
+            data_inicio=timezone.now().date(),
+        )
+        MembroCargo.objects.create(
+            membro=self.membro_local,
+            cargo=self.cargo_sem_grupo,
+            data_inicio=timezone.now().date(),
+        )
+
+        self.igreja_fora = Igreja.objects.create(
+            nome_igreja='Igreja Fora Escopo Cargos',
+            ministerio=self.ministerio,
+        )
+        self.membro_fora = Membro.objects.create(
+            nome='Membro Fora Escopo Cargos',
+            igreja=self.igreja_fora,
+            tipo_pessoa=self.tipo_membro,
+            status_pessoa=self.status_ativo,
         )
 
     def test_pastor_local_lista_cargos_filtra_grupos_superiores(self):
@@ -127,3 +159,48 @@ class CargoAutorizacaoViewsTest(TestCase):
         self.assertIn(self.cargo_local.nome, cargos_exibidos)
         self.assertIn(self.cargo_sem_grupo.nome, cargos_exibidos)
         self.assertNotIn(self.cargo_superior.nome, cargos_exibidos)
+
+    def test_gerenciar_ocupantes_mostra_apenas_ocupantes_no_escopo_com_nome(self):
+        MembroCargo.objects.create(
+            membro=self.membro_local,
+            cargo=self.cargo_local,
+            data_inicio=timezone.now().date(),
+        )
+        MembroCargo.objects.create(
+            membro=self.membro_fora,
+            cargo=self.cargo_local,
+            data_inicio=timezone.now().date(),
+        )
+
+        self.client.force_login(self.user_local)
+        response = self.client.get(
+            reverse('secretaria:gerenciar_ocupantes', kwargs={'cargo_id': self.cargo_local.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.membro_local.nome, response.content.decode('utf-8'))
+        self.assertNotIn(self.membro_fora.nome, response.content.decode('utf-8'))
+
+    def test_post_gerenciar_ocupantes_persiste_e_aparece_em_lista_cargos(self):
+        self.client.force_login(self.user_local)
+
+        response_post = self.client.post(
+            reverse('secretaria:gerenciar_ocupantes', kwargs={'cargo_id': self.cargo_local.id}),
+            {'ocupantes': str(self.membro_local.pk)},
+            follow=True,
+        )
+
+        self.assertEqual(response_post.status_code, 200)
+        self.assertTrue(
+            MembroCargo.objects.filter(
+                cargo=self.cargo_local,
+                membro=self.membro_local,
+                data_fim__isnull=True,
+            ).exists()
+        )
+
+        response_lista = self.client.get(reverse('secretaria:lista_cargos'))
+        self.assertEqual(response_lista.status_code, 200)
+        cargo_ctx = next(c for c in response_lista.context['cargos'] if c.id == self.cargo_local.id)
+        nomes_ocupantes = {m.nome for m in cargo_ctx.ocupantes}
+        self.assertIn(self.membro_local.nome, nomes_ocupantes)

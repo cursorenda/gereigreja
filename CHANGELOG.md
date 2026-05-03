@@ -1,3 +1,68 @@
+## v1.9.2 — 03/05/2026
+🏗️ **Modularização da Secretaria, Correções de Escopo Multi-Tenant e Melhorias de UX**
+
+### Refatoração — Arquitetura
+
+#### Modularização de `secretaria/views.py`
+- O monolito `secretaria/views.py` (4.682 linhas) foi decomposto em **9 módulos** dentro do pacote `secretaria/views/`:
+  - `_base.py` — helpers e utilitários compartilhados
+  - `membros.py` — CRUD de membros
+  - `visitantes.py` — visitantes e acompanhamentos de visita
+  - `relatorios.py` — relatórios, linha do tempo, reunião de membros
+  - `cargos.py` — gerenciamento de cargos e ocupantes
+  - `grupos_casa.py` — grupos de célula/casa
+  - `historico.py` — histórico de status e transições
+  - `agenda_secretaria.py` — agenda e eventos secretariais
+  - `_legacy.py` — funções ainda não migradas
+- `secretaria/views/__init__.py` re-exporta todas as views; `urls.py` não precisou ser alterado.
+
+### Correções de Bugs — Escopo Multi-Tenant
+
+#### `linha_do_tempo` (secretaria/views/relatorios.py)
+- `TimelineEvent` e `StatusHistorico` agora são filtrados pelos IDs de membros do escopo da igreja ativa, eliminando vazamento de dados entre igrejas.
+- Corrigido `AttributeError: 'date' object has no attribute 'utcoffset'` — parâmetros de data enviados pelo formulário (tipo `datetime.date`) agora são normalizados antes da chamada a `timezone.make_aware()`.
+
+#### `lista_acompanhamentos_visita` (secretaria/views/_legacy.py)
+- Substituído filtro amplo `allowed_churches` por `get_request_scoped_churches()` + fallback `request.session.get('igreja_ativa_id')`.
+- Visitantes de outras igrejas não aparecem mais na lista.
+
+#### `gerenciar_ocupantes` (secretaria/views/cargos.py + gerenciar_ocupantes.html)
+- **Bug de localização:** Django pt-BR formatava IDs numéricos com separador de milhar (ex: `1.118`), quebrando o lookup JavaScript. Corrigido com `|unlocalize` nos IDs do template e `json_script` para os dados passados ao JS.
+- **Bug de persistência:** POST robusto ao strip de separadores — IDs agora são parseados corretamente independente do locale.
+- Membros selecionáveis filtrados por `_membros_queryset_por_escopo(request)`.
+
+#### `lista_cargos` (secretaria/views/cargos.py)
+- Cargos são globais (sem FK para Igreja) — listagem mantida sem filtro de escopo no queryset de cargos.
+- Atributo `.ocupantes` em cada cargo agora filtrado exclusivamente pela `request.igreja_ativa`, evitando exibição de ocupantes de outros ministérios/igrejas.
+- Queryset materializado em lista antes da atribuição de `.ocupantes` para evitar reavaliação perdendo atributos dinâmicos.
+
+### Melhorias de UX
+
+#### Seletor de Igreja Ativa (base_com_menu.html)
+- Substituído `get_allowed_churches_for_user_tag` por novo template tag `get_churches_tree_ordered` (financeiro_tags).
+- O dropdown agora exibe igrejas em hierarquia visual: **Sede → Regional → Congregação**, com recuo por `&nbsp;` conforme o nível.
+- Condição de exibição alterada de `.count > 1` para `|length > 1` (compatível com lista materializada).
+
+#### Lista de Receitas e Despesas (financeiro)
+- Adicionada ordenação por coluna nas tabelas de receitas e despesas (`sort` via GET param).
+- Colunas disponíveis: data, igreja, membro/descrição, categoria, valor.
+- Ordenação padrão: `-data` (mais recente primeiro).
+- Preservação dos filtros ativos ao trocar ordenação via `querystring_without_sort`.
+
+#### Detalhe do Membro (secretaria/templates/secretaria/detalhe_membro.html)
+- Seção "Histórico de Alterações de Tipo e Status" reformulada com layout melhorado.
+
+### Correções Técnicas
+- **`contas/migrations/0002_renomear_grupos.py`** — emoji Unicode `⚠` substituído por texto ASCII `[AVISO]` para compatibilidade com codec cp1252 durante criação do banco de testes.
+
+### Testes
+- Adicionado `tests/test_secretaria_historico_tipo_status.py` — cobertura para `linha_do_tempo` com filtro de escopo e parâmetro `datetime.date`.
+- Expandido `tests/test_secretaria_acompanhamentos_autorizacao.py` — teste de isolamento de visitas por `igreja_ativa_id` em sessão.
+- Expandido `tests/test_secretaria_cargos_autorizacao_views.py` — exibição de nomes de ocupantes no escopo + persistência de ocupante visível em `lista_cargos`.
+- Suite completa: **135 testes, 0 falhas, 0 erros**.
+
+---
+
 ## v1.9.1 — 02/05/2026
 🔧 **Correções de templates, links legados e consolidação de testes**
 

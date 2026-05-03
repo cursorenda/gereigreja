@@ -92,3 +92,19 @@ class NotificacoesViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('notificacoes:lista_notificacoes'))
+
+    def test_lista_notificacoes_renderiza_botoes_de_marcacao(self):
+        Notificacao.objects.create(
+            user=self.user,
+            ministerio=self.ministerio,
+            message='n1',
+            notification_type='info',
+            is_read=False,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('notificacoes:lista_notificacoes'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Marcar Todas Lidas')
+        self.assertContains(response, 'Marcar como Lida')
