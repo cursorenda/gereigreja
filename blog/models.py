@@ -7,6 +7,12 @@ from django.urls import reverse
 class Categoria(models.Model):
     nome = models.CharField('Nome', max_length=100)
     slug = models.SlugField(unique=True, blank=True)
+    palavras_chave = models.CharField(
+        'Palavras-chave',
+        max_length=255,
+        blank=True,
+        help_text='Palavras-chave separadas por vírgula. Usadas na meta tag keywords da página de listagem desta categoria.'
+    )
 
     class Meta:
         verbose_name = 'Categoria'
@@ -51,6 +57,12 @@ class Post(models.Model):
         blank=True,
         related_name='posts',
         verbose_name='Categoria'
+    )
+    palavras_chave = models.CharField(
+        'Palavras-chave',
+        max_length=255,
+        blank=True,
+        help_text='Palavras-chave separadas por vírgula. Usadas na meta tag keywords do post.'
     )
     publicado_em = models.DateTimeField('Data de publicação', null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)

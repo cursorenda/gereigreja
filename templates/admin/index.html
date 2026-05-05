@@ -372,6 +372,16 @@ body.dashboard .dashboard-sidebar td a {
                     </th>
                     <td style="color: #6b7280; font-size: 11px;">Métricas de conversão</td>
                 </tr>
+                <tr class="model-blog">
+                    <th scope="row">
+                        <a href="{% url 'admin:blog_post_changelist' %}" style="color: #2563eb;">📝 Blog</a>
+                    </th>
+                    <td>
+                        <a href="{% url 'admin:blog_post_changelist' %}" class="changelink" style="font-size: 11px;">Gerenciar Posts</a> |
+                        <a href="{% url 'admin:blog_categoria_changelist' %}" class="changelink" style="font-size: 11px;">Categorias</a> |
+                        <a href="{% url 'blog:lista' %}" style="font-size: 11px;" target="_blank" rel="noopener">Ver Público</a>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>

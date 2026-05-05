@@ -6,6 +6,8 @@
 
 {% block canonical %}
 <link rel="canonical" href="https://gereigreja.site/blog/{{ post.slug }}/">
+{% if post.palavras_chave %}<meta name="keywords" content="{{ post.palavras_chave }}">{% endif %}
+<meta name="description" content="{{ post.resumo }}">">
 <!-- Open Graph -->
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://gereigreja.site/blog/{{ post.slug }}/">

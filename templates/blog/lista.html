@@ -5,6 +5,9 @@
 {% block canonical_path %}/blog/{% endblock %}
 
 {% block extra_css %}
+{% if categoria_ativa and categoria_ativa.palavras_chave %}
+<meta name="keywords" content="{{ categoria_ativa.palavras_chave }}">
+{% endif %}
 <style>
   /* ---- Blog: variáveis de cor (consistente com landing) ---- */
   :root {

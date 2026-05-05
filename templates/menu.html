@@ -39,6 +39,14 @@
                     <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
                     Admin
                 </a>
+                <a class="nav-link" href="{% url 'admin:blog_post_changelist' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-pen-nib"></i></div>
+                    Gerenciar Blog
+                </a>
+                <a class="nav-link" href="{% url 'blog:lista' %}" target="_blank" rel="noopener">
+                    <div class="sb-nav-link-icon"><i class="fas fa-globe"></i></div>
+                    Ver Blog Público
+                </a>
             {% elif request.user.perfil and request.user.perfil.ministerio and not request.user.perfil.ministerio.ativo %}
                 {# Usuário com ministério INATIVA - link para página de aguardando aprovação #}
                 <a class="nav-link" href="{% url 'contas:aguardando_aprovacao' %}">
