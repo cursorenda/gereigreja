@@ -87,6 +87,7 @@ INSTALLED_APPS = [
     'widget_tweaks',
     'notificacoes',
     'demo',
+    'blog',
 ]
 
 MIDDLEWARE = [

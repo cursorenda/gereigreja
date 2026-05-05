@@ -5,7 +5,7 @@ from django.views.generic import TemplateView, RedirectView # Importar TemplateV
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
-from core.sitemaps import StaticViewSitemap
+from core.sitemaps import StaticViewSitemap, BlogPostSitemap
 
 # Importar a view da landing page
 
@@ -70,9 +70,11 @@ urlpatterns = [
 
     # SEO: robots.txt e sitemap.xml
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain'), name='robots_txt'),
-    path('sitemap.xml', sitemap, {'sitemaps': {'static': StaticViewSitemap}}, name='django.contrib.sitemaps.views.sitemap'),
+    path('sitemap.xml', sitemap, {'sitemaps': {'static': StaticViewSitemap, 'blog': BlogPostSitemap}}, name='django.contrib.sitemaps.views.sitemap'),
     # Google Search Console: verificação de propriedade
     path('googlea3646ba2122ae781.html', TemplateView.as_view(template_name='googlea3646ba2122ae781.html', content_type='text/html'), name='google_search_console'),
+    # Blog público
+    path('blog/', include(('blog.urls', 'blog'), namespace='blog')),
     # O sistema interno (secretaria, etc.) agora começa com '/secretaria/'
     path('secretaria/', include(('secretaria.urls', 'secretaria'), namespace='secretaria')),
     # Aliases legados para clientes/testes que ainda usam o prefixo antigo /sistema/
