@@ -23,6 +23,17 @@ from auditoria.admin_site import auditoria_admin_site
 from secretaria import views as secretaria_views
 
 
+# Bloqueia acesso ao /admin/ para qualquer usuário demo_ (camada extra de segurança)
+_original_admin_has_permission = admin.site.__class__.has_permission
+
+def _admin_has_permission_no_demo(self, request):
+    if request.user.is_authenticated and request.user.username.startswith('demo_'):
+        return False
+    return _original_admin_has_permission(self, request)
+
+admin.site.__class__.has_permission = _admin_has_permission_no_demo
+
+
 urlpatterns = [
     # Redirecionar /admin/deploy/ para o histórico de deploys (DEVE VIR ANTES DO admin/)
     path('admin/deploy/', RedirectView.as_view(pattern_name='admin:deploy_deployhistorico_changelist', permanent=False)),

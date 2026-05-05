@@ -104,11 +104,13 @@ class Command(BaseCommand):
         # Criação de grupos e usuários demo para cada perfil
 
         # Perfis e grupos conforme as constantes do sistema
+        # Apenas demo_admin tem is_staff=True (acesso ao admin Django para suporte).
+        # Todos os outros perfis demo têm is_staff=False para não expor o /admin/.
         perfis = [
             {"nome": "Admin Ministerio", "username": "demo_admin", "email": "admin@demo.com", "is_staff": True, "is_superuser": False},
-            {"nome": "Tesoureiro", "username": "demo_tesoureiro", "email": "tesoureiro@demo.com", "is_staff": True, "is_superuser": False},
-            {"nome": "Pastor Local", "username": "demo_pastor", "email": "pastor@demo.com", "is_staff": True, "is_superuser": False},
-            {"nome": "Secretario Local", "username": "demo_secretario", "email": "secretario@demo.com", "is_staff": True, "is_superuser": False},
+            {"nome": "Tesoureiro", "username": "demo_tesoureiro", "email": "tesoureiro@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": "Pastor Local", "username": "demo_pastor", "email": "pastor@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": "Secretario Local", "username": "demo_secretario", "email": "secretario@demo.com", "is_staff": False, "is_superuser": False},
         ]
         for perfil in perfis:
             group, _ = Group.objects.get_or_create(name=perfil["nome"])
@@ -122,11 +124,10 @@ class Command(BaseCommand):
             )
             if created or not user.has_usable_password():
                 user.set_password("demo123")
-                user.save()
-            # Garante que is_superuser esteja correto mesmo para usuários existentes
-            if user.is_superuser and perfil["username"] == "demo_admin":
-                user.is_superuser = False
-                user.save()
+            # Sempre força is_staff e is_superuser corretos, mesmo para usuários já existentes
+            user.is_staff = perfil["is_staff"]
+            user.is_superuser = False
+            user.save()
             user.groups.add(group)
             # Cria ou atualiza PerfilUsuario vinculado ao ministério demo
             from configuracao.models import PerfilUsuario
