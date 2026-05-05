@@ -71,6 +71,8 @@ urlpatterns = [
     # SEO: robots.txt e sitemap.xml
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain'), name='robots_txt'),
     path('sitemap.xml', sitemap, {'sitemaps': {'static': StaticViewSitemap}}, name='django.contrib.sitemaps.views.sitemap'),
+    # Google Search Console: verificação de propriedade
+    path('googlea3646ba2122ae781.html', TemplateView.as_view(template_name='googlea3646ba2122ae781.html', content_type='text/html'), name='google_search_console'),
     # O sistema interno (secretaria, etc.) agora começa com '/secretaria/'
     path('secretaria/', include(('secretaria.urls', 'secretaria'), namespace='secretaria')),
     # Aliases legados para clientes/testes que ainda usam o prefixo antigo /sistema/
