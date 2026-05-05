@@ -21,6 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 from configuracao.models import Igreja
 from core.decorators import page_access_required, verificar_assinatura_valida
 from core.utils import get_ministerio_or_error
+from configuracao.services_assinatura import contar_pessoas_ativas, ministerio_pode_adicionar_pessoa_ativa, obter_limite_pessoas_ativas
 from eventos.models import Evento
 from secretaria.forms import MembroForm
 from secretaria.forms_acompanhamento import AcompanhamentoVisitaForm
@@ -484,6 +485,11 @@ def cadastrar_visitante(request):
                 visitante.tipo_pessoa = tipo_visitante
                 try:
                     status_ativo = StatusPessoa.objects.get(nome__iexact='Ativo')
+                    if not ministerio_pode_adicionar_pessoa_ativa(ministerio):
+                        limite = obter_limite_pessoas_ativas(ministerio)
+                        total_ativos = contar_pessoas_ativas(ministerio)
+                        messages.error(request, f'Limite de pessoas ativas do plano atingido ({total_ativos}/{limite}). Faça upgrade para cadastrar mais pessoas ativas.')
+                        return redirect('secretaria:lista_visitantes')
                     visitante.status_pessoa = status_ativo
                 except StatusPessoa.DoesNotExist:
                     messages.error(request, "Status 'Ativo' não encontrado. Cadastre o status primeiro.")
@@ -613,6 +619,12 @@ def criar_visitante_parcial(request):
             visitante = form.save(commit=False)
             visitante.tipo_pessoa = tipo_visitante
             if default_status and not visitante.status_pessoa:
+                if not ministerio_pode_adicionar_pessoa_ativa(ministerio):
+                    limite = obter_limite_pessoas_ativas(ministerio)
+                    total_ativos = contar_pessoas_ativas(ministerio)
+                    return JsonResponse({
+                        'error': f'Limite de pessoas ativas do plano atingido ({total_ativos}/{limite}). Faça upgrade para cadastrar mais pessoas ativas.'
+                    }, status=400)
                 visitante.status_pessoa = default_status
             try:
                 visitante.save(user=request.user)

@@ -29,6 +29,10 @@ def ultimos_cadastros(request):
     }
 from django.contrib import messages
 def deduplicate_assinatura_vencida(request):
+    # Não processar mensagens para usuários não autenticados (ex: página de login)
+    if not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return {'messages': []}
+    
     from django.utils.safestring import mark_safe
     msgs = []
     assinatura_vencida_seen = False

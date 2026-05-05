@@ -45,7 +45,7 @@
                 <li class="nav-item"><a class="nav-link" href="#pricing">Planos</a></li>
                 <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
-                <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}">Começar Agora</a></li>
+                <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}?origem=landing_menu">Começar Agora</a></li>
             </ul>
         </div>
     </div>
@@ -56,10 +56,10 @@
     <div class="container">
         <h1 class="display-4">Transforme a Gestão da Sua Igreja</h1>
         <p class="lead">Organize, cresça e pastoreie com mais eficiência. O Gereigreja centraliza a gestão de membros, finanças e comunicação em um único lugar, de forma simples e poderosa.</p>
-        <div class="d-flex flex-wrap gap-2 mt-3">
-            <a href="{% url 'contas:registrar' %}" class="btn btn-cta-primary btn-lg">Comece Gratuitamente</a>
+        <div class="d-flex flex-wrap gap-2 mt-3 justify-content-center">
+            <a href="{% url 'contas:registrar' %}?origem=landing_hero" class="btn btn-cta-primary btn-lg">Comece Gratuitamente</a>
             <a href="#pricing" class="btn btn-cta-secondary btn-lg">Ver Planos</a>
-            <a href="/demo/login/" class="btn btn-warning btn-lg" style="font-weight:600;">Acessar Demonstração</a>
+            <a href="{% url 'demo:demo_login' %}" class="btn btn-warning btn-lg" style="font-weight:600;">Acessar Demonstração</a>
         </div>
     </div>
 </header>
@@ -122,7 +122,7 @@
             <h2 class="section-title">Mais que um Sistema, um Parceiro no Ministério</h2>
             <div class="row align-items-center">
                 <div class="col-lg-6">
-                    <img src="{% static 'img/dashboard_preview.png' %}" alt="Dashboard do Gereigreja" class="img-fluid rounded shadow-lg">
+                    <img src="{% static 'img/dashboard_preview1.png' %}" alt="Dashboard do Gereigreja" class="img-fluid rounded shadow-lg">
                     {# Crie um print bonito do seu dashboard para colocar aqui #}
                 </div>
                 <div class="col-lg-6 mt-4 mt-lg-0">
@@ -160,50 +160,126 @@
     </section>
 
     <!-- Seção de Planos -->
-    <section id="pricing" class="section">
+    <section id="pricing" class="section pricing-section">
         <div class="container">
-            <h2 class="section-title">Planos Flexíveis para Igrejas de Todos os Tamanhos</h2>
-            
+            <h2 class="section-title">Planos para Cada Etapa do Crescimento</h2>
+            <p class="section-subtitle text-muted text-center mb-5">Comece grátis. Cresça no seu ritmo. Sem surpresas.</p>
+
+            <!-- Toggle Mensal / Anual -->
+            <div class="d-flex align-items-center justify-content-center gap-3 mb-5">
+                <span class="toggle-label fw-semibold" id="label-mensal">Mensal</span>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input pricing-switch" type="checkbox" id="toggleAnual" role="switch" style="width:3rem;height:1.5rem;cursor:pointer;">
+                </div>
+                <span class="toggle-label fw-semibold" id="label-anual">
+                    Anual
+                    <span class="badge badge-economia ms-1">2 meses grátis</span>
+                </span>
+            </div>
+
+            <!-- Cards -->
             <div class="row justify-content-center g-4">
                 {% for plano in planos %}
-                    <div class="col-lg-4">
-                        <div class="card price-card text-center h-100 {% if plano.codigo_plano == 'crescimento' %}highlight{% endif %}">
-                            <div class="card-header {% if plano.codigo_plano == 'crescimento' %}bg-primary text-white{% else %}bg-transparent{% endif %} py-3">
-                                <h4 class="my-0 fw-normal">{{ plano.get_nome_display }}</h4>
-                            </div>
-                            <div class="card-body d-flex flex-column">
-                                {% if plano.preco_mensal > 0 %}
-                                    <h3 class="card-title pricing-card-title">R${{ plano.preco_mensal|floatformat:2 }}<small class="text-muted fw-light">/mês</small></h3>
-                                {% else %}
-                                    <h3 class="card-title pricing-card-title">Grátis</h3>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card price-card h-100 {% if plano.codigo_plano == 'ministerio' %}price-card--featured{% endif %}">
+
+                        {% if plano.codigo_plano == 'ministerio' %}
+                            <div class="badge-popular">⭐ Mais Popular</div>
+                        {% endif %}
+
+                        <div class="card-body d-flex flex-column p-4">
+
+                            <!-- Ícone + Nome -->
+                            <div class="plan-icon mb-2">
+                                {% if plano.codigo_plano == 'pioneiro' %}<i class="fas fa-seedling"></i>
+                                {% elif plano.codigo_plano == 'crescimento' %}<i class="fas fa-chart-line"></i>
+                                {% elif plano.codigo_plano == 'ministerio' %}<i class="fas fa-church"></i>
+                                {% else %}<i class="fas fa-network-wired"></i>
                                 {% endif %}
-                                <p class="text-muted fw-bold">{{ plano.descricao|default:"Ideal para sua necessidade." }}</p>
-                                <ul class="list-unstyled mt-3 mb-4 text-start">
-                                    <li><i class="fas fa-check text-success me-2"></i>
-                                        Até <strong>{% if plano.limite_membros == 0 %}pessoas ilimitadas{% else %}{{ plano.limite_membros }} pessoas ativas{% endif %}</strong>
-                                    </li>
-                                    <li><i class="fas fa-check text-success me-2"></i>
-                                        Até <strong>{% if plano.limite_igrejas == 0 %}ilimitadas{% elif plano.limite_igrejas == 1 %}1 igreja{% else %}{{ plano.limite_igrejas }} igrejas{% endif %}</strong>
-                                    </li>
-                                    {% if plano.permite_modulo_comunicacao %}
-                                        <li><i class="fas fa-check text-success me-2"></i>Módulo de Comunicação</li>
-                                    {% else %}
-                                        <li><i class="fas fa-times text-muted me-2"></i>Módulo de Comunicação</li>
-                                    {% endif %}
-                                    {% if plano.suporte_prioritario %}
-                                        <li><i class="fas fa-check text-success me-2"></i>Suporte Prioritário</li>
-                                    {% else %}
-                                        <li><i class="fas fa-check text-success me-2"></i>Suporte via Tickets</li>
-                                    {% endif %}
-                                </ul>
-                                <a href="{% url 'contas:registrar' %}" class="w-100 btn btn-lg {% if plano.codigo_plano == 'crescimento' %}btn-primary{% else %}btn-outline-primary{% endif %} mt-auto">
-                                    {% if plano.preco_mensal > 0 %}Escolher Plano{% else %}Começar Gratuitamente{% endif %}
-                                </a>
                             </div>
-                        </div>
+                            <h5 class="plan-name mb-1">{{ plano.get_nome_display }}</h5>
+                            <p class="plan-tagline text-muted mb-4">
+                                {% if plano.codigo_plano == 'pioneiro' %}Para igrejas começando
+                                {% elif plano.codigo_plano == 'crescimento' %}Para igrejas em crescimento
+                                {% elif plano.codigo_plano == 'ministerio' %}Para ministérios estruturados
+                                {% else %}Para redes e ministérios maiores
+                                {% endif %}
+                            </p>
+
+                            <!-- Bloco de Preço -->
+                            <div class="price-block mb-4">
+                                {% if plano.preco_mensal == 0 %}
+                                    <span class="price-main">Grátis</span>
+                                    <span class="price-period d-block">para sempre</span>
+                                {% else %}
+                                    <!-- Preço Mensal -->
+                                    <div class="price-mensal">
+                                        {% if plano.preco_de_mensal > plano.preco_mensal %}
+                                            <span class="price-de">R${{ plano.preco_de_mensal|floatformat:"0" }}</span>
+                                        {% endif %}
+                                        <span class="price-main">R$<strong>{{ plano.preco_mensal|floatformat:"0" }}</strong></span>
+                                        <span class="price-period">/mês</span>
+                                    </div>
+                                    <!-- Preço Anual (oculto por padrão) -->
+                                    <div class="price-anual d-none">
+                                        {% if plano.preco_de_anual > plano.preco_anual %}
+                                            <span class="price-de">R${{ plano.preco_de_anual|floatformat:"0" }}</span>
+                                        {% endif %}
+                                        <span class="price-main">R$<strong>{{ plano.preco_anual|floatformat:"0" }}</strong></span>
+                                        <span class="price-period">/ano</span>
+                                        <span class="price-anual-detalhe d-block text-muted">≈ R${% widthratio plano.preco_anual 12 1 %}/mês</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Matriz de Features -->
+                            <ul class="feature-list flex-grow-1 mb-4">
+                                <li class="feat-ok">
+                                    <strong>
+                                        {% if plano.limite_membros == 0 %}Pessoas ilimitadas
+                                        {% else %}Até {{ plano.limite_membros }} pessoas ativas{% endif %}
+                                    </strong>
+                                </li>
+                                <li class="feat-ok">
+                                    {% if plano.limite_igrejas == 0 %}Congregações ilimitadas
+                                    {% elif plano.limite_igrejas == 1 %}1 congregação
+                                    {% else %}Até {{ plano.limite_igrejas }} congregações{% endif %}
+                                </li>
+                                {% for modulo in plano.get_modulos_configurados_marketing %}
+                                    {% if modulo.ativo %}
+                                    <li class="feat-ok">{{ modulo.nome }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                                {% for suporte in plano.get_suportes_configurados_marketing %}
+                                    {% if suporte.ativo %}
+                                    <li class="feat-ok {% if suporte.campo == 'suporte_prioritario' %}feat-destaque{% endif %}">{{ suporte.nome }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+
+                            <!-- CTA -->
+                            <a href="{% url 'contas:registrar' %}?origem=landing_pricing_{{ plano.codigo_plano }}"
+                               class="btn w-100 mt-auto {% if plano.codigo_plano == 'ministerio' %}btn-primary btn-lg{% elif plano.preco_mensal == 0 %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
+                                {% if plano.preco_mensal == 0 %}Começar Grátis
+                                {% elif plano.codigo_plano == 'ministerio' %}Quero este plano
+                                {% else %}Escolher {{ plano.get_nome_display }}{% endif %}
+                            </a>
+
+                        </div>{# /card-body #}
+                    </div>{# /card #}
+                </div>{# /col #}
+                {% empty %}
+                    <div class="col-12 text-center text-muted">
+                        <p>Planos em breve. <a href="{% url 'contas:registrar' %}?origem=landing_pricing_empty">Cadastre-se gratuitamente</a> enquanto isso.</p>
                     </div>
                 {% endfor %}
-            </div>
+            </div>{# /row #}
+
+            <p class="text-center text-muted mt-4" style="font-size:.9rem;">
+                <i class="fas fa-lock me-1"></i> Pagamento seguro via Stripe &nbsp;·&nbsp;
+                <i class="fas fa-times-circle me-1"></i> Cancele quando quiser &nbsp;·&nbsp;
+                <i class="fas fa-file-export me-1"></i> Seus dados são seus
+            </p>
         </div>
     </section>
 
@@ -273,7 +349,7 @@
         <div class="container">
             <h2 class="mb-4">Pronto para Levar a Gestão da Sua Igreja para o Próximo Nível?</h2>
             <p class="lead mb-4">Junte-se a centenas de igrejas que já estão otimizando seu tempo e focando no que realmente importa: as pessoas.</p>
-            <a href="{% url 'contas:registrar' %}" class="btn btn-cta-primary btn-lg">Comece a Usar Gratuitamente Agora</a>
+            <a href="{% url 'contas:registrar' %}?origem=landing_final_cta" class="btn btn-cta-primary btn-lg">Comece a Usar Gratuitamente Agora</a>
         </div>
     </section>
 </main>
@@ -290,5 +366,35 @@
         </p>
     </div>
 </footer>
+
+{% block extra_js %}
+<script>
+(function () {
+    const toggle = document.getElementById('toggleAnual');
+    const labelMensal = document.getElementById('label-mensal');
+    const labelAnual = document.getElementById('label-anual');
+    if (!toggle) return;
+
+    toggle.addEventListener('change', function () {
+        const isAnual = this.checked;
+
+        // Ativa/desativa labels
+        labelMensal.classList.toggle('toggle-label--active', !isAnual);
+        labelAnual.classList.toggle('toggle-label--active', isAnual);
+
+        // Troca preços visíveis em cada card
+        document.querySelectorAll('.price-mensal').forEach(el => {
+            el.classList.toggle('d-none', isAnual);
+        });
+        document.querySelectorAll('.price-anual').forEach(el => {
+            el.classList.toggle('d-none', !isAnual);
+        });
+    });
+
+    // Estado inicial: mensal ativo
+    labelMensal.classList.add('toggle-label--active');
+})();
+</script>
+{% endblock %}
 
 {% endblock %}                

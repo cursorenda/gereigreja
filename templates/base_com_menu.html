@@ -367,6 +367,24 @@
         <div id="layoutSidenav_content">
             <main>
                 {% include 'partials/_messages.html' %}
+                {# --- BANNER UNIFICADO DE STATUS DO PLANO --- #}
+                {% if status_plano %}
+                <div class="container-fluid px-4 mt-3">
+                    <div class="alert {% if status_plano.nivel == 'critico' %}alert-danger{% elif status_plano.nivel == 'aviso' %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center justify-content-between mb-2" role="alert">
+                        <div>
+                            <i class="{{ status_plano.icon }} me-2"></i>
+                            <strong>{{ status_plano.mensagem }}</strong>
+                            {% if status_plano.percentual %}
+                                <br/><small class="text-muted">Uso: {{ status_plano.percentual }}%</small>
+                            {% endif %}
+                        </div>
+                        <a href="{{ status_plano.cta_url }}" class="btn btn-sm {% if status_plano.nivel == 'critico' %}btn-light{% else %}btn-outline-dark{% endif %}">
+                            {{ status_plano.cta_texto }}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                {# --- FIM BANNER UNIFICADO --- #}
                 {% if transferencias_pendentes_count > 0 %}
                 <div class="container-fluid px-4 mt-3">
                     <div class="alert alert-warning d-flex align-items-center justify-content-between mb-2" role="alert">

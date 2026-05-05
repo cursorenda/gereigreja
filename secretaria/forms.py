@@ -82,6 +82,7 @@ from .models import Membro, Pessoa
 from .models import MembroCargo, TipoPessoa, StatusPessoa, StatusHistorico, Cargo
 from django.contrib.auth.models import Group
 from configuracao.models import PerfilUsuario, Igreja, Ministerio
+from configuracao.services_assinatura import contar_pessoas_ativas, ministerio_pode_adicionar_pessoa_ativa, obter_limite_pessoas_ativas
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 from .utils import is_admin_org, get_allowed_churches_for_membros
 from .models import Tag
@@ -277,6 +278,7 @@ class MembroForm(forms.ModelForm):
         allowed_churches = kwargs.pop('allowed_churches', None)
         igreja_inicial = kwargs.pop('igreja_inicial', None)
         super().__init__(*args, **kwargs)
+        self.ministerio = ministerio
         if auto_cadastro:
             self.fields.pop('igreja', None)
             self.fields.pop('tipo_pessoa', None)
@@ -391,6 +393,22 @@ class MembroForm(forms.ModelForm):
                 self.add_error('sub_status_inativo', 'Preencha o sub status quando o status for Inativo.')
             elif sub_status_inativo not in ['FALECIDO', 'MUDOU', 'TRANSFERIDO']:
                 self.add_error('sub_status_inativo', 'Escolha um sub status válido: Falecido, Mudou ou Transferido.')
+
+        status_destino_ativo = bool(
+            status_pessoa and hasattr(status_pessoa, 'nome') and status_pessoa.nome.strip().lower() == 'ativo'
+        )
+        status_atual_ativo = bool(
+            self.instance and self.instance.pk and self.instance.status_pessoa and
+            getattr(self.instance.status_pessoa, 'nome', '').strip().lower() == 'ativo'
+        )
+        if self.ministerio and status_destino_ativo and not status_atual_ativo:
+            if not ministerio_pode_adicionar_pessoa_ativa(self.ministerio):
+                limite = obter_limite_pessoas_ativas(self.ministerio)
+                total_ativos = contar_pessoas_ativas(self.ministerio)
+                self.add_error(
+                    'status_pessoa',
+                    f'Limite de pessoas ativas do plano atingido ({total_ativos}/{limite}). Faça upgrade para ativar mais pessoas.'
+                )
         return cleaned_data
 
     def save(self, commit=True):

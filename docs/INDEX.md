@@ -1,7 +1,7 @@
 
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 16/04/2026
+**Última Atualização:** 05/05/2026
 
 ---
 
@@ -76,6 +76,14 @@
 |-----------|-----------|
 | [sistema/SELETOR_IGREJA.md](sistema/SELETOR_IGREJA.md) | Funcionalidade de seleção de igreja ativa |
 | [ai/AI_CONTEXT_CHURCH_SELECTOR.md](ai/AI_CONTEXT_CHURCH_SELECTOR.md) | Contexto AI: seletor de igreja |
+
+### Assinatura e Planos (v1.9.2)
+| Documento | Público | Descrição |
+|-----------|---------|-----------|
+| [usuario/MANUAL_ASSINATURA_PLANOS.md](usuario/MANUAL_ASSINATURA_PLANOS.md) | Usuário | Como usar a página de assinatura, planos, limites, trial, cortesia |
+| [sistema/ARQUITETURA_ASSINATURA_PLANOS.md](sistema/ARQUITETURA_ASSINATURA_PLANOS.md) | Desenvolvedor | Modelos, services, view gerenciar_assinatura, integração Stripe |
+| [sistema/FLUXO_ELEGIBILIDADE_ACESSO.md](sistema/FLUXO_ELEGIBILIDADE_ACESSO.md) | Desenvolvedor/IA | **NOVO:** Fluxo completo de elegibilidade — plano pioneiro grátis × cortesia × trial × status × BETA — ordem de verificação, inconsistências e correções |
+| [ai/AI_CONTEXT_SISTEMA_COMPLETO.md](ai/AI_CONTEXT_SISTEMA_COMPLETO.md) | IA | Contexto mestre do sistema: multi-tenant, permissões, padrões, anti-padrões |
 
 ---
 

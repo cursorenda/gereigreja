@@ -9,6 +9,7 @@ from django.http import Http404
 from core.utils import get_ministerio_or_error
 # Importar AssinaturaMinisterio para o except
 from configuracao.models import AssinaturaMinisterio
+from configuracao.services_assinatura import assinatura_esta_regular, obter_assinatura_ministerio
 from django.contrib.auth.decorators import login_required # Adicionado
 from django.urls import reverse_lazy # Adicionado
 
@@ -32,17 +33,16 @@ def verificar_assinatura_valida(view_func):
             # Redireciona para login se ministério não encontrado ou inativo
             return redirect('login')
 
-        # Verifica se ministério possui assinatura ativa
-        try:
-            assinatura = ministerio.assinatura  # Acesso via related_name
-            # Mensagem de assinatura vencida está centralizada em core/utils.py
-        except AssinaturaMinisterio.DoesNotExist:
-            # Adiciona mensagem se não houver assinatura e não for elegível para plano gratuito
-            if not ministerio.verificar_elegibilidade_plano_gratuito():
-                msg_sem_assinatura = "Sua ministério não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia."
-                if not any(msg_sem_assinatura in str(m) for m in messages.get_messages(request)):
-                    messages.warning(request, msg_sem_assinatura)
-                return redirect('configuracao:gerenciar_assinatura')
+        assinatura = obter_assinatura_ministerio(ministerio)
+        if not assinatura_esta_regular(assinatura, ministerio):
+            if assinatura is None:
+                msg_assinatura = "Seu ministério não possui uma assinatura ativa. Por favor, escolha um plano ou ative sua cortesia."
+            else:
+                msg_assinatura = "Sua assinatura está irregular. Por favor, regularize sua situação ou ative sua cortesia."
+
+            if not any(msg_assinatura in str(m) for m in messages.get_messages(request)):
+                messages.warning(request, msg_assinatura)
+            return redirect('configuracao:gerenciar_assinatura')
 
         # Executa a view se tudo estiver OK
         return view_func(request, *args, **kwargs)

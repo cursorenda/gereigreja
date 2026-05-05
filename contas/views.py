@@ -117,10 +117,18 @@ def minha_view_protegida(request):
 class LandingPageView(TemplateView):
     template_name = 'contas/landing_page.html'
 
+    def get(self, request, *args, **kwargs):
+        # Registra visita à landing (1 por sessão para não inflar)
+        if not request.session.get('_funil_landing_registrado'):
+            from configuracao.services_assinatura import registrar_evento_funil
+            registrar_evento_funil('visita_landing', extra={'path': request.path})
+            request.session['_funil_landing_registrado'] = True
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Passa os planos visíveis para o template
-        context['planos'] = Plano.objects.filter(is_visible=True, ativo=True).order_by('preco_mensal')
+        from configuracao.services_assinatura import listar_planos_landing_page
+        context['planos'] = listar_planos_landing_page()
         return context
 # --- FIM DA NOVA VIEW ---
 
@@ -131,6 +139,16 @@ def registrar_usuario_e_org(request):
     """ View para lidar com o autocadastro de usuário e ministério. """
     if request.user.is_authenticated:
         return redirect('secretaria:index')
+
+    origem = request.GET.get('origem')
+
+    # Se chegou do CTA da landing, registra clique uma vez por sessão
+    if request.method == 'GET' and origem and 'landing' in origem:
+        flag_key = f'_funil_cta_{origem}'
+        if not request.session.get(flag_key):
+            from configuracao.services_assinatura import registrar_evento_funil
+            registrar_evento_funil('clique_cta', extra={'origem': origem})
+            request.session[flag_key] = True
 
     if request.method == 'POST':
         form = RegistroForm(request.POST)
@@ -207,6 +225,14 @@ def registrar_usuario_e_org(request):
                             # Atualiza a sessão para refletir os novos grupos
                             from django.contrib.auth import update_session_auth_hash
                             update_session_auth_hash(request, novo_usuario)
+                            # --- FUNIL: cadastro ---
+                            from configuracao.services_assinatura import registrar_evento_funil
+                            registrar_evento_funil(
+                                'cadastro',
+                                ministerio=nova_ministerio,
+                                plano=plano_pioneiro,
+                                extra={'email': email, 'origem': origem or ''},
+                            )
                             messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o do ministério "{nome_fantasia_org}" foram concluídos e ativados.\n\nAgora cadastre a primeira igreja do seu ministério para começar a usar o sistema.')
                             return redirect('configuracao:adicionar_igreja')
                         else:

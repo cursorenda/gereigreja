@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.utils.crypto import get_random_string
 
 from configuracao.models import Igreja, PerfilUsuario
+from configuracao.services_assinatura import contar_pessoas_ativas, ministerio_pode_adicionar_pessoa_ativa, obter_limite_pessoas_ativas
 from contas.constants import MEMBRO_COMUM, SECRETARIO_LOCAL
 from core.decorators import page_access_required, verificar_assinatura_valida
 from core.utils import get_ministerio_or_error
@@ -196,6 +197,11 @@ def detalhe_membro(request, membro_id):
     if request.method == 'POST' and pode_aprovar and membro.status_pessoa.nome == 'Pendente' and request.POST.get('aprovar_membro') == '1':
         status_ativo = StatusPessoa.objects.filter(nome__iexact='Ativo').first()
         if status_ativo:
+            if not ministerio_pode_adicionar_pessoa_ativa(ministerio):
+                limite = obter_limite_pessoas_ativas(ministerio)
+                total_ativos = contar_pessoas_ativas(ministerio)
+                messages.error(request, f'Limite de pessoas ativas do plano atingido ({total_ativos}/{limite}). Faça upgrade para aprovar mais pessoas.')
+                return redirect('secretaria:detalhe_membro', membro_id=membro.pk)
             membro.status_pessoa = status_ativo
             membro.save(user=request.user)
             messages.success(request, 'Cadastro aprovado e status alterado para Ativo.')
@@ -511,6 +517,23 @@ def criar_membro(request):  # noqa: E302
                 if not is_admin_org(request.user) and not allowed_churches.filter(pk=novo_membro.igreja_id).exists():
                     messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                 else:
+                    status_destino_nome = getattr(getattr(novo_membro, 'status_pessoa', None), 'nome', '').strip().lower()
+                    if status_destino_nome == 'ativo' and not ministerio_pode_adicionar_pessoa_ativa(ministerio):
+                        limite = obter_limite_pessoas_ativas(ministerio)
+                        total_ativos = contar_pessoas_ativas(ministerio)
+                        messages.error(
+                            request,
+                            f'Limite de pessoas ativas do plano atingido ({total_ativos}/{limite}). Faça upgrade para cadastrar mais pessoas ativas.'
+                        )
+                        return render(
+                            request,
+                            'secretaria/criar_membro.html',
+                            {
+                                'form': form,
+                                'ministerio': ministerio,
+                                'titulo_pagina': 'Cadastrar Novo Membro',
+                            },
+                        )
                     data_mudanca_tipo = form.cleaned_data.get('data_mudanca_tipo')
                     data_mudanca_status = form.cleaned_data.get('data_mudanca_status')
                     novo_membro.save(
@@ -568,6 +591,11 @@ def alternar_status_membro(request, membro_id):  # noqa: E302
                 membro.status_pessoa = status_inativo_novo
                 acao = "inativado (para relatórios)"
             else:
+                if not ministerio_pode_adicionar_pessoa_ativa(ministerio):
+                    limite = obter_limite_pessoas_ativas(ministerio)
+                    total_ativos = contar_pessoas_ativas(ministerio)
+                    messages.error(request, f'Limite de pessoas ativas do plano atingido ({total_ativos}/{limite}). Faça upgrade para ativar mais pessoas.')
+                    return redirect('secretaria:lista_membros')
                 membro.status_pessoa = status_ativo_novo
                 acao = "ativado (para relatórios)"
 

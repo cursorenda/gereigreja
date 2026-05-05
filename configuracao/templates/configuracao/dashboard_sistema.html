@@ -1,9 +1,9 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'admin/base_site.html' %}
 {% load static %}
 
-{% block title %}Dashboard do Sistema - Gereigreja{% endblock %}
+{% block title %}Dashboard do Sistema | Admin{% endblock %}
 
-{% block extra_css %}
+{% block extrahead %}{{ block.super }}
 <style>
     .dashboard-container {
         padding: 20px;
@@ -29,6 +29,40 @@
     .dashboard-header p {
         margin: 10px 0 0 0;
         opacity: 0.9;
+    }
+
+    .dashboard-header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .dashboard-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .dashboard-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.18);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 10px;
+        text-decoration: none;
+        padding: 8px 14px;
+        font-weight: 600;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .dashboard-action-btn:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
     }
     
     .metrics-grid {
@@ -179,7 +213,9 @@
 {% block content %}
 <div class="dashboard-container">
     <div class="dashboard-header">
-        <h1>🏥 Dashboard do Sistema</h1>
+        <div class="dashboard-header-top">
+            <h1>🏥 Dashboard do Sistema</h1>
+        </div>
         <p>Monitoramento em tempo real da saúde do servidor Gereigreja</p>
     </div>
     
@@ -273,9 +309,7 @@
         <div class="timestamp" id="timestamp">—</div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
     function carregarMetricas() {
         fetch('/configuracao/api/metricas-sistema/')
@@ -372,3 +406,4 @@
     setInterval(carregarMetricas, 30000);
 </script>
 {% endblock %}
+

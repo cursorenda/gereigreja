@@ -4,6 +4,18 @@ from .forms import ConfiguracaoSistemaForm
 from .models import ConfiguracaoSistema
 from contas.constants import ADMIN_MINISTERIO, user_is_admin
 from core.decorators import user_passes_test_or_403, admin_ministerio_required, verificar_assinatura_valida  # Importar decorator que lança 403 e assinatura
+from configuracao.services_assinatura import (
+    contar_pessoas_ativas,
+    dias_restantes_graca,
+    dias_restantes_trial,
+    iniciar_trial,
+    is_trial_ativo,
+    listar_planos_para_ministerio,
+    ministerio_pode_contratar_plano,
+    ministerio_pode_criar_igreja,
+    obter_limite_pessoas_ativas,
+    obter_plano_efetivo_ministerio,
+)
 
 # --- NOVA VIEW: Perfil de qualquer usuário (admin/gestor pode ver o perfil de outro usuário) ---
 def _usuario_pode_ver_perfil(viewer, target_user):
@@ -508,6 +520,12 @@ def adicionar_igreja(request):
     """ Cria uma nova igreja para a ministério do usuário. """
     ministerio = get_ministerio_or_error(request)
 
+    if request.method == 'POST' and not ministerio_pode_criar_igreja(ministerio):
+        plano = obter_plano_efetivo_ministerio(ministerio)
+        limite = plano.limite_igrejas if plano else 1
+        messages.error(request, f"Limite de igrejas do seu plano foi atingido ({limite}). Faça upgrade para adicionar mais igrejas.")
+        return redirect('configuracao:gerenciar_assinatura')
+
     if request.method == 'POST':
         form = IgrejaForm(request.POST)
         if form.is_valid():
@@ -687,6 +705,12 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
 def adicionar_igreja(request):
     ministerio = get_ministerio_or_error(request) # Usar a função auxiliar
 
+    if request.method == 'POST' and not ministerio_pode_criar_igreja(ministerio):
+        plano = obter_plano_efetivo_ministerio(ministerio)
+        limite = plano.limite_igrejas if plano else 1
+        messages.error(request, f"Limite de igrejas do seu plano foi atingido ({limite}). Faça upgrade para adicionar mais igrejas.")
+        return redirect('configuracao:gerenciar_assinatura')
+
     if request.method == 'POST':
         # Se você usar IgrejaEditForm, ele tentará pegar uma 'instance'.
         # Para criação, é melhor não passar 'instance'.
@@ -717,12 +741,74 @@ def adicionar_igreja(request):
 
 
 
+def _anotar_tipo_planos(planos, plano_efetivo, pessoas_ativas=0, igrejas_ativas=0):
+    """Retorna lista de dicts com tipo e flags de limite excedido."""
+    efetivo_ordem = plano_efetivo.ordem_liberacao if plano_efetivo else None
+    efetivo_id = plano_efetivo.id if plano_efetivo else None
+    primeiro_upgrade_encontrado = False
+    resultado = []
+    for p in planos:
+        if p.id == efetivo_id:
+            tipo = 'atual'
+        elif efetivo_ordem is not None and p.ordem_liberacao > efetivo_ordem:
+            if not primeiro_upgrade_encontrado:
+                tipo = 'recomendado'
+                primeiro_upgrade_encontrado = True
+            else:
+                tipo = 'upgrade'
+        else:
+            tipo = 'downgrade'
+        excede_pessoas = bool(p.limite_membros and p.limite_membros > 0 and pessoas_ativas > p.limite_membros)
+        excede_igrejas = bool(p.limite_igrejas and p.limite_igrejas > 0 and igrejas_ativas > p.limite_igrejas)
+        resultado.append({
+            'plano': p,
+            'tipo': tipo,
+            'excede_pessoas': excede_pessoas,
+            'excede_igrejas': excede_igrejas,
+            'excede_algum': excede_pessoas or excede_igrejas,
+        })
+    return resultado
+
+
 @login_required
 def gerenciar_assinatura(request):
-    # Obter a ministério diretamente do perfil do usuário
+    """
+    Permite ao administrador do ministério visualizar os planos disponíveis,
+    ver sua assinatura atual e escolher/alterar um plano.
+    """
     ministerio = get_ministerio_or_error(request)
     assinatura_atual = AssinaturaMinisterio.objects.filter(ministerio=ministerio).order_by('-data_inicio').first()
-    planos_disponiveis = Plano.objects.filter(ativo=True, is_visible=True)
+
+    # --- VERIFICAR EXPIRAÇÃO DE GRACE PERIOD ---
+    if assinatura_atual and assinatura_atual.status == 'pendente_pagamento' and assinatura_atual.data_fim_graca_inadimplencia:
+        if timezone.now() > assinatura_atual.data_fim_graca_inadimplencia:
+            # Grace period expirou: downgrade automático para Pioneiro
+            try:
+                plano_pioneiro = Plano.objects.get(codigo_plano='pioneiro')
+                assinatura_atual.plano = plano_pioneiro
+                assinatura_atual.status = 'gratuita'
+                assinatura_atual.tentativas_falha_pagamento = 0  # Reset contador
+                assinatura_atual.data_fim_graca_inadimplencia = None
+                assinatura_atual.save(update_fields=['plano', 'status', 'tentativas_falha_pagamento', 'data_fim_graca_inadimplencia'])
+                logger.info(f"Grace period expirado para {ministerio.nome_fantasia}. Downgrade para Pioneiro.")
+                messages.info(request, "Seu período de carência expirou. Você foi downgradeado para o plano Pioneiro. Regularize seu pagamento para continuar com o plano anterior.")
+            except Plano.DoesNotExist:
+                logger.error(f"Plano Pioneiro não encontrado ao processar expiração de grace period para {ministerio.id}.")
+
+    # --- VERIFICAR EXPIRAÇÃO DE TRIAL ---
+    if assinatura_atual and assinatura_atual.trial_ativo and assinatura_atual.data_inicio_trial:
+        dias_trial = assinatura_atual.dias_trial_totais or 14
+        data_fim_trial = assinatura_atual.data_inicio_trial + timedelta(days=dias_trial)
+        if timezone.now() >= data_fim_trial:
+            try:
+                plano_pioneiro = Plano.objects.get(codigo_plano='pioneiro')
+                assinatura_atual.plano = plano_pioneiro
+                assinatura_atual.status = 'gratuita'
+                assinatura_atual.trial_ativo = False
+                assinatura_atual.save(update_fields=['plano', 'status', 'trial_ativo'])
+                messages.info(request, "Seu trial de 14 dias terminou. Você foi movido para o plano Pioneiro.")
+            except Plano.DoesNotExist:
+                logger.error(f"Plano Pioneiro não encontrado ao processar expiração de trial para {ministerio.id}.")
 
     # Verifica se o plano gratuito está ativo e o limite foi excedido
     if assinatura_atual and assinatura_atual.status == 'gratuita' and assinatura_atual.plano and assinatura_atual.plano.preco_mensal == 0:
@@ -732,21 +818,35 @@ def gerenciar_assinatura(request):
         if assinatura_atual.plano.limite_membros and total_membros > assinatura_atual.plano.limite_membros:
             assinatura_atual.status = 'vencida'
             assinatura_atual.save()
-    """
-    Permite ao administrador do ministério visualizar os planos disponíveis,
-    ver sua assinatura atual e escolher/alterar um plano.
-    """
-    # Obter a ministério diretamente do perfil do usuário
-    ministerio = get_ministerio_or_error(request)
-    assinatura_atual = AssinaturaMinisterio.objects.filter(ministerio=ministerio).order_by('-data_inicio').first()
-    planos_disponiveis = Plano.objects.filter(ativo=True, is_visible=True)
+
+    planos_disponiveis = listar_planos_para_ministerio(ministerio)
+
+    # Fallback: se a assinatura está irregular, amplia a vitrine para facilitar
+    # a regularização (inclusive quando só 1 plano veio da allowlist).
+    status_irregular = not assinatura_atual or assinatura_atual.status not in ('ativa', 'gratuita')
+    if status_irregular and len(planos_disponiveis) <= 1:
+        planos_disponiveis = list(
+            Plano.objects.filter(ativo=True, is_visible=True).order_by('ordem_liberacao', 'preco_mensal')
+        )
 
     mostrar_opcao_cortesia = False
+    mostrar_opcao_trial = False
 
     # Consulta histórico de mensalidades e cortesias
     historico_assinatura = ministerio.historicos_assinatura.select_related('plano').order_by('-data_inicio')
 
     if request.method == 'POST':
+        # --- LÓGICA PARA ATIVAR TRIAL DE 14 DIAS ---
+        if request.POST.get('ativar_trial') == 'true':
+            if assinatura_atual and assinatura_atual.data_inicio_trial:
+                messages.warning(request, "Seu ministério já utilizou o período de trial anteriormente.")
+                return redirect('configuracao:gerenciar_assinatura')
+
+            assinatura_trial = iniciar_trial(ministerio)
+            plano_nome = assinatura_trial.plano.get_nome_display() if assinatura_trial.plano else 'atual'
+            messages.success(request, f"Trial de 14 dias ativado com sucesso no plano {plano_nome}!")
+            return redirect('configuracao:gerenciar_assinatura')
+
         # --- LÓGICA PARA ATIVAR CORTESIA ---
         if request.POST.get('ativar_cortesia') == 'true':
             # Só permite cortesia se não há cortesia válida e houve pagamento após a última cortesia
@@ -780,12 +880,28 @@ def gerenciar_assinatura(request):
         # --- FIM LÓGICA CORTESIA ---
         plano_id_selecionado = request.POST.get('plano_id')
         ciclo_pagamento_selecionado = request.POST.get('ciclo_pagamento') # 'mensal' ou 'anual'
-        stripe_coupon = request.POST.get('stripe_coupon')
+        stripe_coupon = request.POST.get('stripe_coupon', '').strip()
+        
         if not plano_id_selecionado or not ciclo_pagamento_selecionado:
             messages.error(request, "Nenhum plano foi selecionado.")
             return redirect('configuracao:gerenciar_assinatura')
+        
+        # Validar cupom se fornecido
+        if stripe_coupon:
+            from configuracao.services_assinatura import validar_codigo_promocional
+            is_valido, erro = validar_codigo_promocional(stripe_coupon)
+            if not is_valido:
+                messages.error(request, f"❌ Cupom inválido: {erro}")
+                return redirect('configuracao:gerenciar_assinatura')
         try:
             plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
+
+            # Ignora a verificação de release/allowlist quando a assinatura está irregular,
+            # pois o fallback já exibiu todos os planos visíveis para regularização.
+            assinatura_irregular = not assinatura_atual or assinatura_atual.status not in ('ativa', 'gratuita')
+            if not assinatura_irregular and not ministerio_pode_contratar_plano(ministerio, plano_escolhido):
+                messages.error(request, "Este plano ainda não está liberado para contratação no seu ministério.")
+                return redirect('configuracao:gerenciar_assinatura')
 
             # Se o plano é gratuito, verifica limite de membros antes de ativar
             if plano_escolhido.preco_mensal == 0:
@@ -831,6 +947,11 @@ def gerenciar_assinatura(request):
                     },
                 ],
                 'mode': 'subscription',
+                # Deixa o Stripe exibir automaticamente os métodos habilitados no
+                # Dashboard para a região do cliente (cartão, PIX, boleto etc.).
+                # Nota: PIX e boleto não suportam débito automático recorrente —
+                # renovações subsequentes serão cobradas apenas via cartão salvo.
+                'payment_method_types': ['card'],
                 'success_url': request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=success',
                 'cancel_url': request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=cancelled',
                 'metadata': {
@@ -838,12 +959,23 @@ def gerenciar_assinatura(request):
                     'user_id': request.user.id,
                     'plano_id': plano_escolhido.id,
                     'ciclo_pagamento': ciclo_pagamento_selecionado,
+                    'stripe_coupon': stripe_coupon or '',  # Registra cupom usado
                 }
             }
             if stripe_coupon:
                 checkout_params['discounts'] = [{ 'coupon': stripe_coupon }]
 
             checkout_session = stripe.checkout.Session.create(**checkout_params)
+
+            # --- FUNIL: checkout iniciado ---
+            from configuracao.services_assinatura import registrar_evento_funil
+            registrar_evento_funil(
+                'checkout_iniciado',
+                ministerio=ministerio,
+                plano=plano_escolhido,
+                ciclo_pagamento=ciclo_pagamento_selecionado,
+                valor=plano_escolhido.preco_anual if ciclo_pagamento_selecionado == 'anual' else plano_escolhido.preco_mensal,
+            )
 
             return redirect(checkout_session.url, code=303)
         except Plano.DoesNotExist:
@@ -857,6 +989,16 @@ def gerenciar_assinatura(request):
     # Lógica para mostrar opção de cortesia no GET
     if assinatura_atual and assinatura_atual.status == 'vencida' and not assinatura_atual.is_periodo_cortesia_valido():
         mostrar_opcao_cortesia = True
+
+    if assinatura_atual and is_trial_ativo(assinatura_atual):
+        trial_dias_restantes = dias_restantes_trial(assinatura_atual)
+    else:
+        trial_dias_restantes = None
+
+    trial_ja_utilizado = bool(assinatura_atual and assinatura_atual.data_inicio_trial)
+    if not trial_ja_utilizado:
+        if not assinatura_atual or assinatura_atual.status in ('vencida', 'cancelada', 'pendente_pagamento'):
+            mostrar_opcao_trial = True
 
     aviso_vencimento_proximo = False
     dias_para_vencer = None
@@ -877,18 +1019,165 @@ def gerenciar_assinatura(request):
                 'minutos': (tempo_restante.seconds % 3600) // 60,
             }
 
+    # Dados adicionais (plano efetivo, uso, faturas)
+    plano_efetivo = obter_plano_efetivo_ministerio(ministerio)
+    plano_assinatura = assinatura_atual.plano if assinatura_atual else None
+
+    liberacao_ativa_plano_efetivo = None
+    if plano_efetivo:
+        liberacao_ativa_plano_efetivo = (
+            ministerio.liberacoes_planos.filter(
+                plano=plano_efetivo,
+                ativo=True,
+                pode_visualizar=True,
+            )
+            .order_by('-data_atualizacao', '-id')
+            .first()
+        )
+    plano_efetivo_por_liberacao = bool(
+        liberacao_ativa_plano_efetivo and (
+            not plano_assinatura or plano_assinatura.id != plano_efetivo.id
+        )
+    )
+    liberacao_beta_ativa = ministerio.liberacoes_planos.filter(
+        ativo=True, acesso_beta=True, pode_visualizar=True
+    ).exists()
+
+    pessoas_ativas = contar_pessoas_ativas(ministerio)
+    limite_pessoas = obter_limite_pessoas_ativas(ministerio)
+    percentual_pessoas = 0
+    if limite_pessoas and limite_pessoas > 0:
+        percentual_pessoas = round((pessoas_ativas / limite_pessoas) * 100, 1)
+
+    igrejas_ativas = ministerio.igrejas.count()
+    limite_igrejas = plano_efetivo.limite_igrejas if plano_efetivo else 0
+    percentual_igrejas = 0
+    if limite_igrejas and limite_igrejas > 0:
+        percentual_igrejas = round((igrejas_ativas / limite_igrejas) * 100, 1)
+
+    grace_dias_restantes = dias_restantes_graca(assinatura_atual) if assinatura_atual else None
+
+    invoices = []
+    if ministerio.stripe_customer_id:
+        try:
+            invoices = stripe.Invoice.list(customer=ministerio.stripe_customer_id, limit=10)
+        except Exception as e:
+            logger.warning(f"Erro ao buscar faturas do Stripe para {ministerio.id}: {e}")
+
     context = {
         'ministerio': ministerio,
         'assinatura_atual': assinatura_atual,
         'planos_disponiveis': planos_disponiveis,
-        'titulo_pagina': "Gerenciar Assinatura",
+        'historico_assinatura': historico_assinatura,
+        'titulo_pagina': "Assinatura",
         'aviso_vencimento_proximo': aviso_vencimento_proximo,
         'dias_para_vencer': dias_para_vencer,
         'mostrar_opcao_cortesia': mostrar_opcao_cortesia,
+        'mostrar_opcao_trial': mostrar_opcao_trial,
+        'trial_dias_restantes': trial_dias_restantes,
         'tempo_cortesia_restante': tempo_cortesia_restante,
+        'plano_efetivo': plano_efetivo,
+        'plano_assinatura': plano_assinatura,
+        'plano_efetivo_por_liberacao': plano_efetivo_por_liberacao,
+        'liberacao_beta_ativa': liberacao_beta_ativa,
+        'pessoas_ativas': pessoas_ativas,
+        'limite_pessoas': limite_pessoas if limite_pessoas else '∞',
+        'percentual_pessoas': percentual_pessoas,
+        'igrejas_ativas': igrejas_ativas,
+        'limite_igrejas': limite_igrejas if limite_igrejas else '∞',
+        'percentual_igrejas': percentual_igrejas,
+        'grace_dias_restantes': grace_dias_restantes,
+        'invoices': invoices.data if invoices else [],
+        'plano_efetivo_ordem': plano_efetivo.ordem_liberacao if plano_efetivo else 0,
+        'plano_upgrade_recomendado_id': next(
+            (p.id for p in planos_disponiveis
+             if plano_efetivo and p.ordem_liberacao > plano_efetivo.ordem_liberacao),
+            None
+        ),
+        'planos_com_tipo': _anotar_tipo_planos(planos_disponiveis, plano_efetivo, pessoas_ativas, igrejas_ativas),
     }
-    context['historico_assinatura'] = historico_assinatura
     return render(request, 'configuracao/assinatura/gerenciar_assinatura.html', context)
+
+
+@login_required
+def minha_assinatura(request):
+    """Redireciona para a página unificada de assinatura."""
+    return redirect('configuracao:gerenciar_assinatura')
+
+
+def _minha_assinatura_legado(request):
+    """Dashboard com detalhes completos da assinatura e histórico de faturas."""
+    ministerio = get_ministerio_or_error(request)
+    assinatura_atual = AssinaturaMinisterio.objects.filter(ministerio=ministerio).order_by('-data_inicio').first()
+    plano_efetivo = obter_plano_efetivo_ministerio(ministerio)
+    plano_assinatura = assinatura_atual.plano if assinatura_atual else None
+
+    liberacao_ativa_plano_efetivo = None
+    if plano_efetivo:
+        liberacao_ativa_plano_efetivo = (
+            ministerio.liberacoes_planos.filter(
+                plano=plano_efetivo,
+                ativo=True,
+                pode_visualizar=True,
+            )
+            .order_by('-data_atualizacao', '-id')
+            .first()
+        )
+
+    plano_efetivo_por_liberacao = bool(
+        liberacao_ativa_plano_efetivo and (
+            not plano_assinatura or plano_assinatura.id != plano_efetivo.id
+        )
+    )
+
+    # Cálculo de limites e uso
+    pessoas_ativas = contar_pessoas_ativas(ministerio)
+    limite_pessoas = obter_limite_pessoas_ativas(ministerio)
+    percentual_pessoas = 0
+    if limite_pessoas and limite_pessoas > 0:
+        percentual_pessoas = round((pessoas_ativas / limite_pessoas) * 100, 1)
+
+    igrejas_ativas = ministerio.igrejas.count()
+    limite_igrejas = plano_efetivo.limite_igrejas if plano_efetivo else 0
+    percentual_igrejas = 0
+    if limite_igrejas and limite_igrejas > 0:
+        percentual_igrejas = round((igrejas_ativas / limite_igrejas) * 100, 1)
+
+    # Dias restantes de grace period
+    grace_dias_restantes = None
+    trial_dias_restantes = None
+    if assinatura_atual:
+        from configuracao.services_assinatura import dias_restantes_graca
+        grace_dias_restantes = dias_restantes_graca(assinatura_atual)
+        trial_dias_restantes = dias_restantes_trial(assinatura_atual)
+
+    # Listar faturas do Stripe (se houver customer_id)
+    invoices = []
+    if ministerio.stripe_customer_id:
+        try:
+            invoices = stripe.Invoice.list(customer=ministerio.stripe_customer_id, limit=10)
+        except Exception as e:
+            logger.warning(f"Erro ao buscar faturas do Stripe para {ministerio.id}: {e}")
+
+    context = {
+        'ministerio': ministerio,
+        'assinatura_atual': assinatura_atual,
+        'plano_efetivo': plano_efetivo,
+        'plano_assinatura': plano_assinatura,
+        'plano_efetivo_por_liberacao': plano_efetivo_por_liberacao,
+        'pessoas_ativas': pessoas_ativas,
+        'limite_pessoas': limite_pessoas if limite_pessoas else '∞',
+        'percentual_pessoas': percentual_pessoas,
+        'igrejas_ativas': igrejas_ativas,
+        'limite_igrejas': limite_igrejas if limite_igrejas else '∞',
+        'percentual_igrejas': percentual_igrejas,
+        'grace_dias_restantes': grace_dias_restantes,
+        'trial_dias_restantes': trial_dias_restantes,
+        'invoices': invoices.data if invoices else [],
+        'titulo_pagina': "Minha Assinatura",
+    }
+
+    return render(request, 'configuracao/assinatura/minha_assinatura.html', context)
 
 # Adicionar ao final de c:\Gereigreja\configuracao\views.py
 
@@ -1073,6 +1362,45 @@ def editar_meu_perfil(request):
     return render(request, 'configuracao/perfil/editar_meu_perfil.html', context) # Crie este template
 # --- FIM NOVA VIEW ---
 
+@login_required
+@admin_ministerio_required
+def abrir_billing_portal(request):
+    """
+    Cria uma sessão no Stripe Customer Portal e redireciona o cliente.
+    Permite ao administrador do ministério gerenciar cartão, faturas e cancelamento
+    diretamente na interface segura do Stripe.
+    """
+    ministerio = get_ministerio_or_error(request)
+
+    if not ministerio.stripe_customer_id:
+        messages.warning(
+            request,
+            "Seu ministério ainda não possui uma assinatura paga vinculada ao Stripe. "
+            "Assine um plano pago para acessar o portal de cobrança."
+        )
+        return redirect('configuracao:gerenciar_assinatura')
+
+    try:
+        return_url = request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura'))
+        portal_session = stripe.billing_portal.Session.create(
+            customer=ministerio.stripe_customer_id,
+            return_url=return_url,
+        )
+        return redirect(portal_session.url, code=303)
+    except stripe.error.InvalidRequestError as e:
+        logger.error(f"Stripe billing portal error para ministério {ministerio.id}: {e}")
+        messages.error(
+            request,
+            "Não foi possível abrir o portal de cobrança. "
+            "Verifique se o Customer Portal está ativado no seu painel Stripe."
+        )
+        return redirect('configuracao:gerenciar_assinatura')
+    except Exception as e:
+        logger.error(f"Erro inesperado ao abrir billing portal para ministério {ministerio.id}: {e}")
+        messages.error(request, "Ocorreu um erro ao abrir o portal de cobrança. Tente novamente.")
+        return redirect('configuracao:gerenciar_assinatura')
+
+
 @csrf_exempt
 def stripe_webhook(request):
     payload = request.body
@@ -1099,6 +1427,7 @@ def stripe_webhook(request):
         ministerio_id = metadata.get('ministerio_id')
         plano_id = metadata.get('plano_id')
         ciclo_pagamento = metadata.get('ciclo_pagamento')
+        stripe_coupon = metadata.get('stripe_coupon', '').strip()
         stripe_customer_id = session.get('customer')
         stripe_subscription_id = session.get('subscription')
 
@@ -1132,10 +1461,31 @@ def stripe_webhook(request):
                         'ciclo_pagamento': ciclo_pagamento,
                         'status': 'ativa',
                         'periodo_cortesia_ativo': False,
+                        'trial_ativo': False,
                         'id_transacao_gateway': stripe_subscription_id,
                     }
                 )
                 logger.info(f"Assinatura para a ministério '{ministerio.nome_fantasia}' foi ativada/atualizada via webhook do Stripe.")
+
+                # --- REGISTRAR USO DO CUPOM (se usado) ---
+                if stripe_coupon:
+                    try:
+                        from configuracao.models import CodigoPromocional
+                        cupom = CodigoPromocional.objects.get(codigo_stripe=stripe_coupon)
+                        cupom.registrar_uso()
+                        logger.info(f"Cupom {stripe_coupon} registrado como usado por {ministerio.nome_fantasia}")
+                    except CodigoPromocional.DoesNotExist:
+                        logger.warning(f"Cupom {stripe_coupon} não encontrado no banco (stripe webhook).")
+
+                # --- FUNIL: checkout completo ---
+                from configuracao.services_assinatura import registrar_evento_funil
+                registrar_evento_funil(
+                    'checkout_completo',
+                    ministerio=ministerio,
+                    plano=plano_escolhido,
+                    ciclo_pagamento=ciclo_pagamento,
+                    valor=assinatura.plano.preco_anual if ciclo_pagamento == 'anual' else assinatura.plano.preco_mensal,
+                )
 
         except (Ministerio.DoesNotExist, Plano.DoesNotExist) as e:
             logger.error(f"Erro no webhook do Stripe: Ministério ou Plano não encontrado. Detalhes: {e}")
@@ -1144,7 +1494,201 @@ def stripe_webhook(request):
             logger.error(f"Erro crítico ao processar webhook do Stripe: {e}")
             return HttpResponse(status=500)
 
-    # Adicione outros tipos de evento se necessário (ex: 'invoice.payment_failed')
+    elif event['type'] == 'invoice.payment_failed':
+        # Pagamento da fatura falhou — inicia grace period e notifica
+        invoice = event['data']['object']
+        stripe_customer_id = invoice.get('customer')
+        stripe_subscription_id = invoice.get('subscription')
+        if stripe_customer_id:
+            try:
+                with transaction.atomic():
+                    ministerio = Ministerio.objects.get(stripe_customer_id=stripe_customer_id)
+                    assinatura = AssinaturaMinisterio.objects.filter(ministerio=ministerio).first()
+                    if assinatura:
+                        # Incrementar contador de falhas e registrar timestamp
+                        assinatura.tentativas_falha_pagamento += 1
+                        assinatura.data_ultima_falha_pagamento = timezone.now()
+                        
+                        # Grace period: 7 dias para resolver o pagamento
+                        MAX_TENTATIVAS = 3
+                        if assinatura.tentativas_falha_pagamento == 1:
+                            # Primeira falha: inicia grace period
+                            assinatura.data_fim_graca_inadimplencia = timezone.now() + timedelta(days=7)
+                            assinatura.status = 'pendente_pagamento'
+                            assinatura.save(update_fields=['status', 'tentativas_falha_pagamento', 'data_ultima_falha_pagamento', 'data_fim_graca_inadimplencia'])
+                            
+                            # Notificar ministério
+                            from notificacoes.models import Notificacao
+                            Notificacao.objects.create(
+                                usuario=ministerio.usuario_admin,
+                                titulo='⚠️ Falha de Pagamento — 7 Dias de Carência',
+                                mensagem=f'Seu pagamento não foi processado. Você tem 7 dias para regularizar antes de perder acesso.',
+                                tipo='alerta',
+                                url=reverse('configuracao:gerenciar_assinatura'),
+                            )
+                            logger.warning(
+                                f"Primeira falha de pagamento para {ministerio.nome_fantasia}. "
+                                f"Grace period iniciado (7 dias). subscription={stripe_subscription_id}"
+                            )
+                        elif assinatura.tentativas_falha_pagamento < MAX_TENTATIVAS:
+                            # Falha seguinte durante grace period
+                            assinatura.save(update_fields=['tentativas_falha_pagamento', 'data_ultima_falha_pagamento'])
+                            logger.warning(
+                                f"Falha de pagamento #{assinatura.tentativas_falha_pagamento} para {ministerio.nome_fantasia}. "
+                                f"subscription={stripe_subscription_id}"
+                            )
+                        else:
+                            # Excedeu tentativas: bloqueia acesso
+                            assinatura.status = 'cancelada'
+                            assinatura.save(update_fields=['status', 'tentativas_falha_pagamento', 'data_ultima_falha_pagamento'])
+                            
+                            from notificacoes.models import Notificacao
+                            Notificacao.objects.create(
+                                usuario=ministerio.usuario_admin,
+                                titulo='❌ Acesso Cancelado — Inadimplência',
+                                mensagem=f'Seu acesso foi suspenso após múltiplas falhas de pagamento. Contate o suporte para regularizar.',
+                                tipo='erro',
+                                url=reverse('configuracao:gerenciar_assinatura'),
+                            )
+                            logger.error(
+                                f"Assinatura cancelada por inadimplência: {ministerio.nome_fantasia} "
+                                f"(tentativas: {assinatura.tentativas_falha_pagamento}). subscription={stripe_subscription_id}"
+                            )
+            except Ministerio.DoesNotExist:
+                logger.warning(f"invoice.payment_failed: customer {stripe_customer_id} não encontrado no banco.")
+            except Exception as e:
+                logger.error(f"Erro ao processar invoice.payment_failed: {e}")
+                return HttpResponse(status=500)
+
+    elif event['type'] == 'customer.subscription.deleted':
+        # Assinatura cancelada definitivamente no Stripe
+        subscription = event['data']['object']
+        stripe_customer_id = subscription.get('customer')
+        if stripe_customer_id:
+            try:
+                with transaction.atomic():
+                    ministerio = Ministerio.objects.get(stripe_customer_id=stripe_customer_id)
+                    assinatura = AssinaturaMinisterio.objects.filter(ministerio=ministerio).first()
+                    if assinatura:
+                        status_anterior = assinatura.status
+                        plano_anterior = assinatura.plano
+                        ciclo_anterior = assinatura.ciclo_pagamento
+                        
+                        # Downgrade automático para o plano Pioneiro (gratuito)
+                        try:
+                            plano_pioneiro = Plano.objects.get(codigo_plano='pioneiro')
+                            assinatura.plano = plano_pioneiro
+                            assinatura.status = 'gratuita'
+                            assinatura.data_fim = None
+                            assinatura.save(update_fields=['plano', 'status', 'data_fim'])
+                            logger.info(
+                                f"Ministério '{ministerio.nome_fantasia}' downgradeado automaticamente para plano Pioneiro após cancelamento de assinatura."
+                            )
+                        except Plano.DoesNotExist:
+                            # Se Pioneiro não existe, apenas marca como cancelada
+                            assinatura.status = 'cancelada'
+                            assinatura.save(update_fields=['status'])
+                            logger.error(f"Plano Pioneiro não encontrado. Assinatura marcada como cancelada sem downgrade.")
+                            return HttpResponse(status=500)
+                        from configuracao.services_assinatura import registrar_evento_funil
+                        registrar_evento_funil(
+                            'plano_cancelado',
+                            ministerio=ministerio,
+                            plano=plano_anterior,
+                            ciclo_pagamento=ciclo_anterior,
+                        )
+            except Ministerio.DoesNotExist:
+                logger.warning(f"customer.subscription.deleted: customer {stripe_customer_id} não encontrado no banco.")
+            except Exception as e:
+                logger.error(f"Erro ao processar customer.subscription.deleted: {e}")
+                return HttpResponse(status=500)
+
+    elif event['type'] == 'customer.subscription.updated':
+        # Stripe renovou ou atualizou o status da assinatura
+        subscription = event['data']['object']
+        stripe_customer_id = subscription.get('customer')
+        stripe_status = subscription.get('status')  # active, past_due, canceled, etc.
+        # Mapeia status do Stripe para status interno
+        STATUS_MAP = {
+            'active': 'ativa',
+            'past_due': 'vencida',
+            'canceled': 'cancelada',
+            'unpaid': 'vencida',
+            'trialing': 'ativa',
+        }
+        status_interno = STATUS_MAP.get(stripe_status)
+        if stripe_customer_id and status_interno:
+            try:
+                with transaction.atomic():
+                    ministerio = Ministerio.objects.get(stripe_customer_id=stripe_customer_id)
+                    assinatura = AssinaturaMinisterio.objects.filter(ministerio=ministerio).first()
+                    if assinatura:
+                        plano_anterior = assinatura.plano
+                        ciclo_anterior = assinatura.ciclo_pagamento
+
+                        # Tenta resolver plano/ciclo pelo price id atual da assinatura no Stripe
+                        novo_plano = None
+                        novo_ciclo = None
+                        itens = (subscription.get('items') or {}).get('data') or []
+                        if itens:
+                            price_obj = (itens[0] or {}).get('price') or {}
+                            stripe_price_id = price_obj.get('id')
+                            if stripe_price_id:
+                                novo_plano = Plano.objects.filter(stripe_price_id_mensal=stripe_price_id).first()
+                                if novo_plano:
+                                    novo_ciclo = 'mensal'
+                                else:
+                                    novo_plano = Plano.objects.filter(stripe_price_id_anual=stripe_price_id).first()
+                                    if novo_plano:
+                                        novo_ciclo = 'anual'
+
+                        if novo_plano:
+                            assinatura.plano = novo_plano
+                        if novo_ciclo:
+                            assinatura.ciclo_pagamento = novo_ciclo
+
+                        # Atualiza data_fim com base no período atual da assinatura
+                        current_period_end = subscription.get('current_period_end')
+                        if current_period_end:
+                            from datetime import datetime
+                            assinatura.data_fim = timezone.make_aware(
+                                datetime.fromtimestamp(current_period_end),
+                                timezone.get_current_timezone(),
+                            ) if timezone.is_naive(datetime.fromtimestamp(current_period_end)) else timezone.datetime.fromtimestamp(current_period_end, tz=timezone.utc)
+                        assinatura.status = status_interno
+                        assinatura.save(update_fields=['status', 'data_fim', 'plano', 'ciclo_pagamento'])
+
+                        from configuracao.services_assinatura import registrar_evento_funil
+                        if novo_plano and plano_anterior and novo_plano.id != plano_anterior.id:
+                            registrar_evento_funil(
+                                'upgrade',
+                                ministerio=ministerio,
+                                plano=novo_plano,
+                                ciclo_pagamento=novo_ciclo or ciclo_anterior,
+                                valor=novo_plano.preco_anual if (novo_ciclo or ciclo_anterior) == 'anual' else novo_plano.preco_mensal,
+                                extra={
+                                    'plano_anterior': plano_anterior.codigo_plano,
+                                    'plano_novo': novo_plano.codigo_plano,
+                                },
+                            )
+
+                        if status_interno == 'cancelada' and status_anterior != 'cancelada':
+                            registrar_evento_funil(
+                                'plano_cancelado',
+                                ministerio=ministerio,
+                                plano=assinatura.plano,
+                                ciclo_pagamento=assinatura.ciclo_pagamento,
+                            )
+
+                        logger.info(
+                            f"Assinatura do ministério '{ministerio.nome_fantasia}' atualizada: "
+                            f"status={status_interno} via customer.subscription.updated."
+                        )
+            except Ministerio.DoesNotExist:
+                logger.warning(f"customer.subscription.updated: customer {stripe_customer_id} não encontrado no banco.")
+            except Exception as e:
+                logger.error(f"Erro ao processar customer.subscription.updated: {e}")
+                return HttpResponse(status=500)
 
     return HttpResponse(status=200)
 

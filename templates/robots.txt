@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Allow: /politica-privacidade/
+Allow: /termos-condicoes/
+
+Disallow: /admin/
+Disallow: /admin-auditoria/
+Disallow: /secretaria/
+Disallow: /financeiro/
+Disallow: /configuracao/
+Disallow: /contas/
+Disallow: /escola_biblica/
+Disallow: /agenda/
+Disallow: /eventos/
+Disallow: /comunicacao/
+Disallow: /notificacoes/
+Disallow: /auditoria/
+Disallow: /backup/
+Disallow: /suporte/
+Disallow: /demo/
+Disallow: /api/
+
+Sitemap: https://gereigreja.site/sitemap.xml

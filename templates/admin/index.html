@@ -347,7 +347,8 @@ body.dashboard .dashboard-sidebar td a {
                         <a href="{% url 'admin:deploy_nova_versao' %}" class="addlink" style="font-size: 11px;">Nova Versão</a> | 
                         <a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink" style="font-size: 11px;">Histórico</a>
                     </td>
-                            <tr class="model-logs">
+                </tr>
+                <tr class="model-logs">
                     <th scope="row">
                         <a href="/admin/configuracao/ministerio/" style="color: #f59e0b;">🏢 Ministérios</a>
                     </th>
@@ -358,6 +359,18 @@ body.dashboard .dashboard-sidebar td a {
                         <a href="/admin/suporte/ticket/" style="color: #ef4444;">🎫 Tickets</a>
                     </th>
                     <td style="color: #6b7280; font-size: 11px;">Suporte aos clientes</td>
+                </tr>
+                <tr class="model-logs">
+                    <th scope="row">
+                        <a href="{% url 'admin:configuracao_dashboard_sistema' %}" style="color: #6366f1;">📊 Dashboard Sistema</a>
+                    </th>
+                    <td style="color: #6b7280; font-size: 11px;">Saúde do servidor</td>
+                </tr>
+                <tr class="model-logs">
+                    <th scope="row">
+                        <a href="{% url 'admin:configuracao_dashboard_funil' %}" style="color: #8b5cf6;">📈 Funil de Vendas</a>
+                    </th>
+                    <td style="color: #6b7280; font-size: 11px;">Métricas de conversão</td>
                 </tr>
             </tbody>
         </table>

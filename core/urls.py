@@ -4,6 +4,8 @@ from django.contrib.auth import views as auth_views # Importar as views de auten
 from django.views.generic import TemplateView, RedirectView # Importar TemplateView e RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.sitemaps.views import sitemap
+from core.sitemaps import StaticViewSitemap
 
 # Importar a view da landing page
 
@@ -54,6 +56,10 @@ urlpatterns = [
 
     # A URL raiz '/' agora aponta para a página de vendas.
     path('', LandingPageView.as_view(), name='landing_page'),
+
+    # SEO: robots.txt e sitemap.xml
+    path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain'), name='robots_txt'),
+    path('sitemap.xml', sitemap, {'sitemaps': {'static': StaticViewSitemap}}, name='django.contrib.sitemaps.views.sitemap'),
     # O sistema interno (secretaria, etc.) agora começa com '/secretaria/'
     path('secretaria/', include(('secretaria.urls', 'secretaria'), namespace='secretaria')),
     # Aliases legados para clientes/testes que ainda usam o prefixo antigo /sistema/

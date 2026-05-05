@@ -103,23 +103,181 @@ body {
 }
 
 /* --- Pricing Section --- */
-.price-card {
-    border: 1px solid #dee2e6;
-    border-radius: 0.5rem;
-    transition: all 0.3s ease;
+.pricing-section {
+    background-color: #f8f9fa;
 }
 
-.price-card.highlight {
+/* Toggle mensal/anual */
+.toggle-label {
+    font-size: 1rem;
+    color: #6c757d;
+    transition: color 0.2s;
+}
+.toggle-label--active {
+    color: #343a40;
+}
+.pricing-switch {
+    accent-color: #6a25ab;
+}
+.badge-economia {
+    background-color: #198754 !important;
+    font-size: .7rem;
+    font-weight: 600;
+    padding: .3em .5em;
+    vertical-align: middle;
+}
+
+/* Cards de preço */
+.price-card {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 1rem;
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+    background: #ffffff;
+    position: relative;
+    overflow: visible;
+}
+.price-card:hover {
+    box-shadow: 0 8px 32px rgba(106, 37, 171, 0.12);
+    transform: translateY(-4px);
+}
+
+/* Card destaque — Ministério */
+.price-card--featured {
     border-color: #6a25ab;
     border-width: 2px;
-    transform: scale(1.05);
-    box-shadow: 0 10px 40px rgba(106, 37, 171, 0.2);
+    box-shadow: 0 8px 40px rgba(106, 37, 171, 0.18);
+}
+.price-card--featured:hover {
+    box-shadow: 0 12px 48px rgba(106, 37, 171, 0.26);
+    transform: translateY(-6px);
+}
+
+/* Badge "Mais Popular" */
+.badge-popular {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #6a25ab, #9b59b6);
+    color: #fff;
+    font-size: .78rem;
+    font-weight: 700;
+    padding: .35em 1.1em;
+    border-radius: 2rem;
+    white-space: nowrap;
+    z-index: 1;
+    box-shadow: 0 2px 8px rgba(106,37,171,.3);
+}
+
+/* Ícone do plano */
+.plan-icon {
+    font-size: 2rem;
+    color: #6a25ab;
+}
+.price-card--featured .plan-icon {
+    color: #6a25ab;
+}
+
+/* Nome e tagline */
+.plan-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #212529;
+}
+.plan-tagline {
+    font-size: .85rem;
+}
+
+/* Bloco de preço */
+.price-block {
+    min-height: 70px;
+}
+.price-de {
+    font-size: .95rem;
+    color: #adb5bd;
+    text-decoration: line-through;
+    display: block;
+    line-height: 1.2;
+}
+.price-main {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #212529;
+    line-height: 1.1;
+}
+.price-period {
+    font-size: .85rem;
+    color: #6c757d;
+}
+.price-anual-detalhe {
+    font-size: .78rem;
+}
+
+/* Lista de features */
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.feature-list li {
+    padding: .35rem 0;
+    font-size: .9rem;
+    color: #495057;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.feature-list li:last-child {
+    border-bottom: none;
+}
+.feat-ok::before {
+    content: '✓';
+    color: #198754;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.feat-no {
+    color: #adb5bd !important;
+}
+.feat-no::before {
+    content: '✕';
+    color: #ced4da;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.feat-destaque {
+    font-weight: 600;
+    color: #6a25ab !important;
+}
+.feat-destaque::before {
+    color: #6a25ab !important;
+}
+
+/* Responsividade — no mobile remove o overflow do badge */
+@media (max-width: 575.98px) {
+    .price-card {
+        margin-top: 18px; /* espaço para o badge */
+    }
+    .price-card--featured {
+        transform: none;
+    }
+}
+@media (min-width: 576px) and (max-width: 1199.98px) {
+    .price-card {
+        margin-top: 14px;
+    }
 }
 
 /* --- FAQ Section --- */
 .accordion-button:not(.collapsed) {
     color: #ffffff;
     background-color: #6a25ab;
+}
+
+/* Mantém a seta visível sobre o fundo roxo */
+.accordion-button:not(.collapsed)::after {
+    filter: invert(1);
 }
 
 .accordion-button:focus {

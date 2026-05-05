@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django.contrib.sites',
+    'django.contrib.sitemaps',
     'whitenoise.runserver_nostatic',
     'django_extensions',
     'secretaria',
@@ -127,8 +128,9 @@ TEMPLATES = [
                 'core.context_processors.ministerio_context',
                 'core.context_processors.unread_notifications',
                 'core.context_processors.transferencias_pendentes_count',
+                'core.context_status_plano.status_plano_unificado',
                 'core.context_processors.sistema_nome',
-                'core.context_processors.ultimos_cadastros',  # <-- ADICIONE AQUI
+                'core.context_processors.ultimos_cadastros',
                 'auditoria.context_processors.modo_auditoria_flag',
                 'configuracao.context_onboarding.onboarding_context',
             ],

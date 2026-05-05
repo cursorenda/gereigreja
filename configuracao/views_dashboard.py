@@ -6,20 +6,28 @@ Mostra saúde do servidor em tempo real
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.http import HttpResponseForbidden
 from django.db import connection
+from django.db.models import Count
 from datetime import datetime, timedelta
 import psutil
 from pathlib import Path
 import os
 
-@login_required
+from configuracao.models import EventoFunil
+
 def dashboard_sistema(request):
     """Renderiza página do dashboard"""
+    if not request.user.is_superuser:
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("Acesso restrito.")
     return render(request, 'configuracao/dashboard_sistema.html')
 
 @login_required
 def api_metricas_sistema(request):
     """API que retorna métricas do sistema em JSON"""
+    if not request.user.is_superuser:
+        return HttpResponseForbidden('Voce nao tem permissao para acessar este endpoint.')
     
     metricas = {
         'timestamp': datetime.now().isoformat(),
@@ -223,3 +231,62 @@ def obter_info_servidor():
         'uptime_dias': uptime.days,
         'uptime_str': f'{uptime.days}d {uptime.seconds // 3600}h'
     }
+
+
+def dashboard_funil(request):
+    """Dashboard simples de funil de conversao para acompanhamento de marketing/vendas."""
+    if not request.user.is_superuser:
+        return HttpResponseForbidden('Voce nao tem permissao para acessar este painel.')
+
+    try:
+        dias = int(request.GET.get('dias', 30))
+    except (TypeError, ValueError):
+        dias = 30
+    if dias not in (7, 30, 90):
+        dias = 30
+
+    data_inicio = datetime.now() - timedelta(days=dias)
+    eventos = EventoFunil.objects.filter(criado_em__gte=data_inicio)
+
+    contagem = {
+        'visita_landing': eventos.filter(tipo='visita_landing').count(),
+        'clique_cta': eventos.filter(tipo='clique_cta').count(),
+        'cadastro': eventos.filter(tipo='cadastro').count(),
+        'checkout_iniciado': eventos.filter(tipo='checkout_iniciado').count(),
+        'checkout_completo': eventos.filter(tipo='checkout_completo').count(),
+    }
+
+    visitas = contagem['visita_landing']
+    cliques = contagem['clique_cta']
+    cadastros = contagem['cadastro']
+    checkouts = contagem['checkout_iniciado']
+    pagos = contagem['checkout_completo']
+
+    def _pct(base, alvo):
+        return round((alvo / base) * 100, 2) if base else 0
+
+    taxas = {
+        'visitas_para_cliques': _pct(visitas, cliques),
+        'cliques_para_cadastros': _pct(cliques, cadastros),
+        'cadastros_para_checkout': _pct(cadastros, checkouts),
+        'checkout_para_pago': _pct(checkouts, pagos),
+        'visita_para_pago': _pct(visitas, pagos),
+    }
+
+    por_plano = list(
+        eventos.filter(tipo='checkout_completo', plano__isnull=False)
+        .values('plano__nome')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+
+    ultimos_eventos = eventos.select_related('ministerio', 'plano')[:20]
+
+    context = {
+        'dias': dias,
+        'contagem': contagem,
+        'taxas': taxas,
+        'por_plano': por_plano,
+        'ultimos_eventos': ultimos_eventos,
+    }
+    return render(request, 'configuracao/dashboard_funil.html', context)

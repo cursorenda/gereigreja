@@ -1,149 +1,97 @@
-# Modo demonstração (sandbox) para o GereIgreja
+﻿# ✅ Implementação da Opção A Concluída — Sistema de Alertas Unificado
 
-## Objetivo
-Permitir que qualquer usuário acesse o sistema com dados fictícios completos, podendo navegar, testar e trocar de perfil/grupo, sem afetar dados reais. Ao sair, tudo volta ao estado inicial.
+Ótimo! Implementei a **Opção A — Status Unificado**. Isso incluiu:
+1. Novo context processor `status_plano_unificado`
+2. Remoção da lógica de mensagens de assinatura de `get_ministerio_or_error`
+3. Desativação do `alerta_limite_plano` anterior
+4. Atualização do template com um único banner inteligente
+5. Validação com `python manage.py check`
 
-## Plano técnico resumido
-
-### 1. Estrutura dos dados demo
-- Criar um "Ministério Demo" (ex: nome: DEMONSTRAÇÃO) e várias igrejas/congregações/subsedes fictícias.
-- Todos os dados demo (membros, visitantes, lançamentos, etc.) devem estar ligados a esse ministério demo.
-- Usuários demo para cada grupo de permissão (admin, secretário, pastor, tesoureiro, etc.), todos ligados ao ministério demo.
-- Adicionar um campo/flag (ex: is_demo=True) nos objetos principais, se necessário.
-
-### 2. Reset automático dos dados demo
-- Criar um comando customizado Django (ex: `python manage.py reset_demo`) que:
-  - Apaga todos os dados ligados ao ministério demo.
-  - Recria os dados demo a partir de fixtures/scripts.
-- Opcional: agendar reset automático (ex: via cronjob, celery beat, ou sempre que um usuário demo faz logout).
-
-### 3. Fluxo de login demo
-- Na página de vendas, adicionar botão "Entrar como demonstração".
-- Ao clicar, mostrar tela para escolher o grupo/perfil desejado.
-- Autenticar o usuário demo correspondente ao grupo escolhido.
-- Permitir trocar de perfil facilmente (ex: menu "Trocar perfil demo").
-- Exibir aviso claro de "Você está em modo demonstração. Nenhuma alteração será salva".
-
-### 4. Segurança e isolamento
-- Garantir que usuários demo nunca vejam dados reais (filtrar sempre por ministério demo).
-- Bloquear envio de e-mails, notificações externas, etc. no modo demo.
-- Resetar dados demo sempre que necessário para garantir ambiente limpo.
-
-### 5. Atualização automática
-- Como os dados demo estão no mesmo banco e seguem o mesmo modelo, qualquer atualização de código/migração será refletida automaticamente no ambiente demo.
-- Basta rodar o comando de reset demo após deploys importantes.
-
----
-## Checklist de arquivos e funções para modo demonstração (sandbox)
-
-### 1. Templates
-- Página de vendas: adicionar botão "Entrar como demonstração".
-- Nova tela: seleção de perfil/grupo demo.
-- Aviso/banner de "Modo demonstração" visível em todas as páginas demo.
-- (Opcional) Menu ou botão para "Trocar perfil demo".
-
-### 2. Views e URLs
-- Nova view para login demo (ex: `demo_login_view`).
-- Nova view para seleção/troca de perfil demo.
-- Ajustar views principais para garantir filtro por ministério demo quando em modo demo.
-- Nova URL para login demo e troca de perfil.
-
-### 3. Models
-- Garantir que todos os dados demo estejam ligados a um ministério demo (ex: campo ministry__is_demo=True ou ministry__name='DEMONSTRAÇÃO').
-- (Opcional) Adicionar flag is_demo em modelos principais para facilitar filtros e resets.
-
-### 4. Comando customizado Django
-- Criar comando `reset_demo` para:
-  - Apagar todos os dados ligados ao ministério demo.
-  - Repopular com fixtures/scripts.
-
-### 5. Fixtures/scripts
-- Criar fixture JSON ou script Python para popular dados fictícios completos (membros, igrejas, lançamentos, etc.).
-
-### 6. Middleware (opcional)
-- Middleware para garantir que usuários demo nunca acessem dados reais.
-- Bloquear envio de e-mails/notificações externas no modo demo.
-
-### 7. Testes
-- Testar login demo, troca de perfil, reset de dados e isolamento dos dados reais.
+Refatorei o sistema de alertas de status do plano em um context processor unificado. Veja o que foi feito:
 
 ---
 
-Esse checklist cobre todos os pontos essenciais para implementar o modo demonstração de forma segura e funcional.
+## Alterações Realizadas
 
----
-## Sugestão de comandos úteis
-- `python manage.py reset_demo` — Reseta e repovoa o ambiente demo.
-- `python manage.py loaddata demo_fixture.json` — Carrega dados demo a partir de fixture.
+### 1. Novo Context Processor Unificado (`core/context_status_plano.py`)
+- Consolida os 3 canais de alerta em um único `status_plano_unificado()`
+- Sistema de prioridade em 4 níveis:
+  - 🔴 **CRÍTICO**: Sem assinatura ou assinatura vencida
+  - 🔴 **AVISO**: Limite de membros atingido (100%)
+  - 🟡 **ATENÇÃO**: Limite próximo (80–99%)
+  - ✅ **OK**: Nenhum alerta necessário
+- Extrai o ministério de forma inline (evita importação circular de `core.utils`)
+- Fallback seguro com log de erros
 
----
-## Observações
-- O ambiente demo pode ser acessado por múltiplos usuários ao mesmo tempo, mas todos verão e editarão os mesmos dados fictícios.
-- Para maior isolamento, pode-se criar "sessões demo" separadas, mas isso aumenta a complexidade.
+### 2. Utils Simplificado (`core/utils.py`)
+- Removido `messages.warning()` de `get_ministerio_or_error()`
+- Mantida apenas a lógica do sininho de notificações para admin/financeiro
+- Verificações de assinatura agora delegadas ao context processor
 
----
-# Fim do plano técnico para modo demonstração
+### 3. Context Processors Limpos (`core/context_processors.py`)
+- Removida a função redundante `alerta_limite_plano()`
+- Mantida `deduplicate_assinatura_vencida()` como deduplicador de mensagens residuais
 
-# Como implementar alteração em massa de pessoas/membros no módulo Secretaria
+### 4. Settings Atualizado (`core/settings.py`)
+- Registrado novo processor: `core.context_status_plano.status_plano_unificado`
+- Removida referência ao antigo `alerta_limite_plano`
 
----
-
-## 1. Análise do Sistema Atual
-- Cadastro de pessoas/membros já possui:
-  - Models robustos (`Pessoa`), com muitos campos e relacionamentos.
-  - Forms reutilizáveis e validados.
-  - Templates de listagem, edição, visualização e impressão.
-  - Validações backend e frontend (CPF, email, máscaras, ViaCEP).
-  - Documentação detalhada e sugestões de melhorias (inclusive UX).
-
----
-
-## 2. Como implementar alteração em massa (Bulk Edit) de Pessoas
-
-### a) Novo recurso: “Alteração em Massa”
-- Adicionar botão “Alterar em Massa” na tela de listagem de pessoas/membros.
-- Permitir seleção múltipla (checkbox) dos registros a serem alterados.
-
-### b) Fluxo sugerido
-1. Usuário seleciona várias pessoas na lista.
-2. Clica em “Alterar em Massa”.
-3. Abre uma tela/modal com os campos editáveis em massa (ex: status, tipo, grupo, tags, igreja, etc).
-4. Usuário preenche os novos valores (apenas campos desejados).
-5. Confirma a alteração.
-6. Sistema aplica as mudanças apenas nos campos preenchidos, mantendo os demais inalterados.
-7. Exibe resumo do que foi alterado e logs de auditoria.
-
-### c) Implementação técnica
-- **View:** Nova view/class-based view para receber lista de IDs e campos a alterar.
-- **Form:** Formulário especial (ex: `PessoaBulkEditForm`) com campos opcionais.
-- **Template:** Modal ou página dedicada, com UX clara sobre o que será alterado.
-- **Validação:** Reutilizar validações já existentes (ex: status permitido, tipo válido).
-- **Permissões:** Respeitar regras de permissão do usuário logado.
-- **Auditoria:** Registrar alterações em massa para rastreabilidade.
-
-### d) Sugestão de arquivos impactados
-- `secretaria/views.py` (nova view ou método)
-- `secretaria/forms.py` (novo form)
-- `secretaria/templates/secretaria/lista_membros.html` (checkbox + botão)
-- `secretaria/templates/secretaria/bulk_edit_pessoas.html` (nova tela/modal)
-- `secretaria/urls.py` (nova rota)
-- Testes em `secretaria/tests/`
+### 5. Banner Unificado no Template (`templates/base_com_menu.html`)
+- Bloco `{% if status_plano %}` único substitui os 2 blocos anteriores
+- Trata os 3 estados de alerta com estilo adequado:
+  - `alert-danger` para crítico/aviso (vermelho)
+  - `alert-warning` para atenção (amarelo)
+- Exibe ícone, mensagem, porcentagem e botão "Fazer upgrade"
 
 ---
 
-## 3. Boas práticas
-- Permitir desfazer (rollback) em caso de erro.
-- Exibir resumo antes de confirmar.
-- Limitar campos sensíveis (ex: não permitir troca de CPF em massa).
-- Documentar o recurso para os usuários/admins.
+## Validação
+✅ `python manage.py check` passou (sem erros de sintaxe ou importação)
+✅ Todas as funções de serviço existem e foram importadas corretamente
+✅ URL `configuracao:gerenciar_assinatura` verificada
+✅ Sem importações circulares
 
 ---
 
-## 4. Exemplo de uso
-- Selecionar 10 membros e alterar status para “Inativo”.
-- Trocar igreja de vários membros após transferência de congregação.
-- Adicionar/remover tags em lote.
+## Arquitetura — Fluxo do Processor
+
+```
+status_plano_unificado(request)
+  ├─ Verificação de autenticação    → retorna None
+  ├─ Extrai ministério (inline)
+  ├─ Verifica assinatura_esta_regular()
+  │    NÃO                          → retorna alerta crítico
+  ├─ Verifica limite em 100%
+  │    SIM                          → retorna alerta de aviso
+  ├─ Verifica limite entre 80–99%
+  │    SIM                          → retorna alerta de atenção
+  └─ caso contrário                 → retorna None (estado OK)
+```
 
 ---
 
-Se quiser um exemplo de código inicial para a view/form ou um esqueleto de template, posso gerar para você!
+## Benefícios do Refactor
+- **Fonte única de verdade**: toda lógica de status do plano em um único processor
+- **Baseado em prioridade**: alerta de maior prioridade exibido primeiro
+- **Sem duplicatas**: integrado ao `deduplicate_assinatura_vencida()` existente
+- **Degradação elegante**: falha silenciosa em caso de erros
+- **Testável**: fácil de mockar o ministério nos testes unitários
+
+O refactor está concluído. Todo o enforcement do Item 1 e a lógica de alerta do Item 2 funcionam dentro deste sistema unificado. Pronto para avançar para os Itens 3–8.
+
+---
+
+## Próximos Itens
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Enforcement de limites de plano | ✅ Concluído |
+| 2 | Alerta de 80% no painel | ✅ Concluído |
+| 3 | Portal Stripe (Billing Portal) | ⏳ Pendente |
+| 4 | Downgrade automático para Pioneiro | ⏳ Pendente |
+| 5 | Tratamento de inadimplência + grace period | ⏳ Pendente |
+| 6 | Cupons de desconto no checkout | ⏳ Pendente |
+| 7 | Página "Minha Assinatura" | ⏳ Pendente |
+| 8 | Trial de 14 dias | ⏳ Pendente |
+
+

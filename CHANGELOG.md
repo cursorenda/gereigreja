@@ -1,3 +1,110 @@
+## v1.10.0 — 05/05/2026
+🚀 **Sistema de Assinaturas & Planos, Controle de Acesso por Módulo, Funil de Conversão, SEO e Suíte de Testes**
+
+### Novidades — Sistema de Assinaturas
+
+#### Modelo `AssinaturaMinisterio` expandido
+- Novos campos: `data_fim_graca_inadimplencia`, `trial_ativo`, `data_inicio_trial`, `dias_trial_totais` (padrão: 14 dias).
+- Período de cortesia (grace period) de 3 dias em caso de falha de pagamento, com contador de tentativas.
+- Status disponíveis: `ativa`, `pendente_pagamento`, `vencida`, `cancelada`, `gratuita`.
+
+#### Rollout Controlado de Planos (`configuracao/migrations/0014`)
+- Planos agora possuem `liberado_publicamente` e `contratacao_publica_liberada` para controle gradual de lançamento.
+- Modelo `LiberacaoPlanoMinisterio`: permite habilitar planos para ministérios específicos antes da liberação geral.
+
+#### Plano Rede (`configuracao/migrations/0016`)
+- Seed inicial do plano "Rede" com limites e preços configurados.
+
+#### Código Promocional (`configuracao/migrations/0020`)
+- Novo modelo `CodigoPromocional` com: código, desconto percentual, data de validade, limite de usos e contador de resgates.
+
+#### Trial (`configuracao/migrations/0021`)
+- Campos de trial direto no `AssinaturaMinisterio` para controle simplificado de períodos gratuitos.
+
+#### Controle de Módulos por Plano (`configuracao/migrations/0022–0023`)
+- Plano agora define quais módulos o ministério pode acessar: `permite_modulo_financeiro`, `permite_modulo_agenda`, `permite_modulo_eventos`, `permite_modulo_escola_biblica`, `permite_modulo_suporte_tickets`.
+
+#### `configuracao/services_assinatura.py` (novo arquivo)
+- Camada de serviço desacoplada para toda a lógica de elegibilidade e assinatura.
+- Funções principais: `obter_assinatura_ministerio()`, `calcular_elegibilidade_acesso()`, `registrar_evento_funil()`.
+- `obter_assinatura_ministerio()` usa query direta (`filter().first()`) evitando cache stale do accessor reverso `ministerio.assinatura`.
+
+#### Página "Minha Assinatura" (nova)
+- Template `configuracao/templates/configuracao/assinatura/minha_assinatura.html`.
+- Exibe plano atual, status, datas de início/fim, trial e ações disponíveis.
+
+#### Gerenciar Assinatura (atualizado)
+- `gerenciar_assinatura.html` refatorado com campos de grace period, trial e código promocional.
+
+### Novidades — Funil de Conversão
+
+#### Modelo `EventoFunil` (`configuracao/migrations/0018`)
+- Rastreamento de eventos: visualização de plano, início de contratação, conversão, cancelamento, etc.
+
+#### Dashboard Funil (`configuracao/templates/configuracao/dashboard_funil.html`)
+- Painel de análise de funil de conversão para a equipe de desenvolvimento.
+- Métricas por plano, ciclo de pagamento e período.
+
+### Novidades — Controle de Acesso por Plano
+
+#### `core/context_status_plano.py` (novo)
+- Context processor que injeta `status_plano`, `plano_atual` e flags de módulos habilitados em todos os templates do sistema.
+
+#### `core/decorators.py` (atualizado)
+- Decorator `requer_modulo_habilitado(modulo)` para proteger views de módulos não contratados.
+
+#### `contas/page_permissions.py` (atualizado)
+- Mapeamento de permissões por página integrado com flags de módulos do plano.
+
+#### `contas/signals.py` (novo)
+- Signal `post_save` em `Ministerio` para criação automática de `AssinaturaMinisterio` em novos ministérios (plano gratuito por padrão).
+
+### Melhorias — Landing Page
+
+- **Preço anual por mês**: corrigido cálculo — agora usa `{% widthratio preco_anual 12 1 %}` para divisão real, em vez de valor fixo.
+- **URL da demo**: substituída URL hardcoded `/demo/login/` por `{% url 'demo:demo_login' %}`.
+- **Botões hero centralizados**: adicionado `justify-content-center` na row dos CTAs principais.
+- **Accordion FAQ**: seta do accordion agora visível sobre fundo roxo (`filter: invert(1)` para `.accordion-button:not(.collapsed)::after`).
+- **Dashboard preview**: imagem `.bmp` substituída por `.png` otimizado (`static/img/dashboard_preview1.png`).
+
+### Novidades — SEO
+
+#### `templates/robots.txt` (novo)
+- Criado `robots.txt` servido via `TemplateView` em `/robots.txt`.
+- Libera `/`, `/politica-privacidade/`, `/termos-condicoes/`; bloqueia todas as rotas internas.
+- Referencia `https://gereigreja.site/sitemap.xml`.
+
+#### `core/sitemaps.py` (novo)
+- `StaticViewSitemap` com `django.contrib.sitemaps` cobrindo landing page (prioridade 1.0), política de privacidade e termos (0.3).
+- Endpoint `/sitemap.xml` registrado em `core/urls.py`.
+
+#### `templates/base_landing.html` (atualizado)
+- Tag `<link rel="canonical" href="https://gereigreja.site/">` adicionada (com bloco extensível `canonical_path`).
+- Hints `<link rel="preconnect">` para Google Fonts, fonts.gstatic.com, cdn.jsdelivr.net e cdnjs.cloudflare.com — melhora Core Web Vitals (LCP).
+
+#### `core/settings.py`
+- `django.contrib.sitemaps` adicionado a `INSTALLED_APPS`.
+
+### Suíte de Testes — 82 testes passando
+
+#### `configuracao/tests/test_assinatura_services.py` (novo)
+- 82 testes cobrindo todo o fluxo de elegibilidade de acesso.
+- Cenários: assinatura ativa, vencida, cancelada, gratuita, grace period, trial, sem assinatura, plano sem módulo.
+- Executado com `pytest --nomigrations --ds=core.test_settings` (SQLite em memória, sem dependência de banco externo).
+
+#### `core/tests/` (novo diretório)
+- Testes de infraestrutura e utilitários core.
+
+### Correções Técnicas
+- `configuracao/views_dashboard.py`: dashboard sistema atualizado com métricas de assinaturas.
+- `core/context_processors.py`: refatoração para inclusão de dados de plano e assinatura.
+- `core/utils.py`: utilitários de elegibilidade extraídos/consolidados.
+- `configuracao/admin.py`: admin de `AssinaturaMinisterio`, `CodigoPromocional` e `EventoFunil` registrados.
+- `templates/menu.html` e `templates/base_com_menu.html`: exibição condicional de módulos conforme plano.
+- `templates/admin/index.html`: atalhos do dashboard admin atualizados.
+
+---
+
 ## v1.9.2 — 03/05/2026
 🏗️ **Modularização da Secretaria, Correções de Escopo Multi-Tenant e Melhorias de UX**
 

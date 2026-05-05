@@ -1,6 +1,6 @@
 # configuracao/urls.py
 from . import views
-from .views_dashboard import dashboard_sistema, api_metricas_sistema
+from .views_dashboard import api_metricas_sistema
 from .views_permissions import auditoria_permissoes, comparar_usuario_grupo, exportar_relatorio_permissions
 from django.urls import path
 # Importar views de autenticação do Django
@@ -23,6 +23,11 @@ urlpatterns = [
  
     # URL para Gerenciar Assinatura
     path('assinatura/', views.gerenciar_assinatura, name='gerenciar_assinatura'),
+    path('assinatura/minha-assinatura/', views.minha_assinatura, name='minha_assinatura'),
+
+
+    # Portal do cliente Stripe (gerenciar cartão, faturas, cancelamento)
+    path('assinatura/portal/', views.abrir_billing_portal, name='billing_portal'),
 
     # --- NOVA URL PARA WEBHOOK DO STRIPE ---
     path('stripe-webhook/', views.stripe_webhook, name='stripe_webhook'),
@@ -76,8 +81,7 @@ urlpatterns = [
     #path('admin/validar-imagens/',views.validar_imagens_perfil, name='validar_imagens'),
     path('validar-imagens/', views.validar_imagens_perfil, name='validar_imagens'),
     
-    # Dashboard do Sistema
-    path('dashboard-sistema/', login_required(dashboard_sistema), name='dashboard_sistema'),
+    # Dashboard do Sistema (uso interno do admin)
     path('api/metricas-sistema/', login_required(api_metricas_sistema), name='api_metricas_sistema'),
     
     # Auditoria de Permissões

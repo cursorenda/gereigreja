@@ -1,0 +1,361 @@
+{% extends "base_com_menu.html" %}
+{% load humanize %}
+
+{% block title %}Minha Assinatura — {{ sistema_nome }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>📋 Minha Assinatura</h1>
+            <p class="text-muted">Gerenciar seu plano e visualizar detalhes de cobrança</p>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if ministerio.stripe_customer_id %}
+                <a href="{% url 'configuracao:billing_portal' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-credit-card me-2"></i>Portal de Cobrança
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- RESUMO DO PLANO ATUAL -->
+    {% if assinatura_atual %}
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card border-primary shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-star me-2"></i>Plano Atual
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <strong>
+                                {% if plano_efetivo %}
+                                    {{ plano_efetivo.get_nome_display }}
+                                {% elif assinatura_atual.plano %}
+                                    {{ assinatura_atual.plano.get_nome_display }}
+                                {% else %}
+                                    Plano não definido
+                                {% endif %}
+                            </strong>
+                            {% if plano_efetivo_por_liberacao %}
+                                <span class="badge bg-warning text-dark ms-2">
+                                    <i class="fas fa-vial me-1"></i>Plano efetivo por liberação
+                                </span>
+                            {% endif %}
+                        </p>
+                        {% if plano_efetivo_por_liberacao and plano_assinatura %}
+                            <p class="small text-muted mb-2">
+                                Plano da assinatura: <strong>{{ plano_assinatura.get_nome_display }}</strong>
+                            </p>
+                        {% endif %}
+                        <p class="text-muted mb-3">
+                            {% if plano_efetivo %}
+                                {{ plano_efetivo.descricao }}
+                            {% elif assinatura_atual.plano %}
+                                {{ assinatura_atual.plano.descricao }}
+                            {% endif %}
+                        </p>
+
+                        <!-- Status -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Status</label>
+                            <div>
+                                {% if assinatura_atual.status == 'ativa' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle me-1"></i>Ativa
+                                    </span>
+                                {% elif assinatura_atual.status == 'gratuita' %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-gift me-1"></i>Gratuita
+                                    </span>
+                                {% elif assinatura_atual.status == 'pendente_pagamento' %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-hourglass-half me-1"></i>Pendente de Pagamento
+                                    </span>
+                                {% elif assinatura_atual.status == 'vencida' %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times-circle me-1"></i>Vencida
+                                    </span>
+                                {% elif assinatura_atual.status == 'cancelada' %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-ban me-1"></i>Cancelada
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Ciclo de Pagamento -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Ciclo de Pagamento</label>
+                            <div>
+                                <strong>
+                                    {% if assinatura_atual.ciclo_pagamento == 'mensal' %}
+                                        Mensal
+                                    {% elif assinatura_atual.ciclo_pagamento == 'anual' %}
+                                        Anual
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+
+                        <!-- Data de Início -->
+                        {% if assinatura_atual.data_inicio %}
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">Data de Início</label>
+                                <div>{{ assinatura_atual.data_inicio|date:"d/m/Y" }}</div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Data de Fim / Renovação -->
+                        {% if assinatura_atual.data_fim %}
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">
+                                    {% if assinatura_atual.status == 'ativa' %}
+                                        Próxima Renovação
+                                    {% else %}
+                                        Data de Término
+                                    {% endif %}
+                                </label>
+                                <div>
+                                    <strong>{{ assinatura_atual.data_fim|date:"d/m/Y" }}</strong>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Grace Period (se ativo) -->
+                        {% if grace_dias_restantes is not None %}
+                            <div class="alert alert-warning mb-0 mt-3">
+                                <i class="fas fa-hourglass-end me-2"></i>
+                                <strong>Período de Graça:</strong> {{ grace_dias_restantes }} dia{{ grace_dias_restantes|pluralize }} restantes
+                            </div>
+                        {% endif %}
+                        {% if trial_dias_restantes is not None %}
+                            <div class="alert alert-primary mb-0 mt-3">
+                                <i class="fas fa-flask me-2"></i>
+                                <strong>Trial:</strong> {{ trial_dias_restantes }} dia{{ trial_dias_restantes|pluralize }} restantes
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIMITES E USO -->
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Uso do Plano
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Pessoas Ativas -->
+                        <div class="mb-4">
+                            <label class="form-label text-muted small">Pessoas Ativas</label>
+                            <div class="d-flex justify-content-between mb-2">
+                                <strong>{{ pessoas_ativas }}/{{ limite_pessoas }}</strong>
+                                <span class="badge bg-secondary">{{ percentual_pessoas }}%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar {% if percentual_pessoas >= 100 %}bg-danger{% elif percentual_pessoas >= 80 %}bg-warning{% else %}bg-success{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ percentual_pessoas|floatformat:0 }}%"
+                                     aria-valuenow="{{ percentual_pessoas }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Igrejas -->
+                        <div class="mb-4">
+                            <label class="form-label text-muted small">Igrejas/Unidades</label>
+                            <div class="d-flex justify-content-between mb-2">
+                                <strong>{{ igrejas_ativas }}/{{ limite_igrejas }}</strong>
+                                <span class="badge bg-secondary">{{ percentual_igrejas }}%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar {% if percentual_igrejas >= 100 %}bg-danger{% elif percentual_igrejas >= 80 %}bg-warning{% else %}bg-success{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ percentual_igrejas|floatformat:0 }}%"
+                                     aria-valuenow="{{ percentual_igrejas }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recursos -->
+                        <div class="mt-4">
+                            <label class="form-label text-muted small">Recursos Disponíveis</label>
+                            <ul class="list-unstyled">
+                                {% if plano_efetivo %}
+                                    {% for modulo in plano_efetivo.get_modulos_configurados %}
+                                <li>
+                                    <i class="fas fa-{% if modulo.ativo %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                    {{ modulo.nome }}
+                                </li>
+                                    {% endfor %}
+                                    {% for suporte in plano_efetivo.get_suportes_configurados %}
+                                <li>
+                                    <i class="fas fa-{% if suporte.ativo %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                    {{ suporte.nome }}
+                                </li>
+                                    {% endfor %}
+                                {% elif assinatura_atual.plano %}
+                                    {% for modulo in assinatura_atual.plano.get_modulos_configurados %}
+                                <li>
+                                    <i class="fas fa-{% if modulo.ativo %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                    {{ modulo.nome }}
+                                </li>
+                                    {% endfor %}
+                                    {% for suporte in assinatura_atual.plano.get_suportes_configurados %}
+                                <li>
+                                    <i class="fas fa-{% if suporte.ativo %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                    {{ suporte.nome }}
+                                </li>
+                                    {% endfor %}
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AÇÕES -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-cogs me-2"></i>Ações
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-primary me-2">
+                            <i class="fas fa-arrow-up-right-from-square me-2"></i>Alterar Plano
+                        </a>
+                        {% if ministerio.stripe_customer_id %}
+                            <a href="{% url 'configuracao:billing_portal' %}" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-credit-card me-2"></i>Gerenciar Pagamentos
+                            </a>
+                        {% endif %}
+                        {% if assinatura_atual.status == 'ativa' or assinatura_atual.status == 'gratuita' %}
+                            <a href="#" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelarAssinaturaModal">
+                                <i class="fas fa-times-circle me-2"></i>Cancelar Assinatura
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Nenhuma assinatura ativa.</strong> 
+            <a href="{% url 'configuracao:gerenciar_assinatura' %}">Escolha um plano para começar.</a>
+        </div>
+    {% endif %}
+
+    <!-- HISTÓRICO DE FATURAS -->
+    {% if invoices %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-receipt me-2"></i>Histórico de Faturas
+                        </h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices %}
+                                    <tr>
+                                        <td>{{ invoice.created|date:"d/m/Y" }}</td>
+                                        <td>
+                                            {% if invoice.invoice_number %}
+                                                Fatura #{{ invoice.invoice_number }}
+                                            {% else %}
+                                                Cobrança
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>
+                                                R$ {{ invoice.amount_paid|floatformat:2|intcomma }}
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            {% if invoice.paid %}
+                                                <span class="badge bg-success">Paga</span>
+                                            {% elif invoice.status == 'draft' %}
+                                                <span class="badge bg-secondary">Rascunho</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">{{ invoice.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if invoice.invoice_pdf %}
+                                                <a href="{{ invoice.invoice_pdf }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-download me-1"></i>PDF
+                                                </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+
+<!-- Modal de Cancelamento -->
+{% if assinatura_atual %}
+    <div class="modal fade" id="cancelarAssinaturaModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Cancelar Assinatura
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza de que deseja cancelar sua assinatura?</p>
+                    <ul>
+                        <li>Você perderá acesso aos recursos premium</li>
+                        <li>Seus dados serão preservados por 30 dias</li>
+                        <li>Você poderá reativar posteriormente</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Manter Assinatura</button>
+                    <form method="POST" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancelar_assinatura">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-times-circle me-2"></i>Cancelar Assinatura
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}

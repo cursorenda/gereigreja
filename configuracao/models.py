@@ -88,6 +88,7 @@ class HistoricoAssinatura(models.Model):
     TIPOS = [
         ('mensalidade', 'Mensalidade'),
         ('cortesia', 'Cortesia'),
+        ('trial', 'Teste Grátis'),
     ]
     STATUS = [
         ('paga', 'Paga'),
@@ -137,10 +138,13 @@ class Ministerio(models.Model):
     def verificar_elegibilidade_plano_gratuito(self):
         """
         Retorna True se o ministério está dentro dos limites do plano gratuito (busca o limite do plano pioneiro cadastrado).
+        Usa apenas membros com status 'Ativo' — mesma métrica do enforcement do plano.
         """
-        total_membros = 0
-        for igreja in self.igrejas.all():
-            total_membros += igreja.membros.count()
+        from secretaria.models import Membro
+        total_membros = Membro.objects.filter(
+            igreja__ministerio=self,
+            status_pessoa__nome__iexact='Ativo',
+        ).count()
         try:
             plano_pioneiro = Plano.objects.get(codigo_plano='pioneiro')
             limite = plano_pioneiro.limite_membros
@@ -396,38 +400,152 @@ class Igreja(models.Model):
 # --- NOVOS MODELOS PARA PLANOS E ASSINATURAS ---
 
 class Plano(models.Model):
+    MODULOS_CONFIGURAVEIS = [
+        ('permite_modulo_secretaria', 'Módulo Secretaria', 'Secretaria completa'),
+        ('permite_modulo_agenda', 'Módulo Agenda', 'Agenda inteligente'),
+        ('permite_modulo_eventos', 'Módulo Eventos', 'Gestão de eventos'),
+        ('permite_modulo_escola_biblica', 'Módulo Escola Bíblica', 'Escola bíblica'),
+        ('permite_modulo_financeiro', 'Módulo Financeiro', 'Módulo financeiro'),
+        ('permite_modulo_comunicacao', 'Módulo de Comunicação', 'Comunicação em massa'),
+    ]
+    SUPORTES_CONFIGURAVEIS = [
+        ('permite_suporte_tickets', 'Suporte via tickets', 'Suporte via tickets'),
+        ('suporte_prioritario', 'Suporte Prioritário', 'Suporte prioritário'),
+    ]
+
     NOME_PLANO_CHOICES = [
         ('pioneiro', 'Pioneiro'),
         ('crescimento', 'Crescimento'),
         ('ministerio', 'Ministério'),
+        ('rede', 'Rede'),
     ]
     nome = models.CharField(max_length=50, choices=NOME_PLANO_CHOICES, unique=True, verbose_name="Nome do Plano")
     codigo_plano = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="Identificador único para o sistema (ex: 'pioneiro', 'crescimento', 'ministerio').")    
     # Preços
     preco_mensal = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Preço Mensal (R$)")
     preco_anual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Preço Anual (R$)")
+    # Preço "de" — usado na landing para exibir o risco de preço cheio
+    preco_de_mensal = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, blank=True, verbose_name="Preço DE Mensal (R$)", help_text="Preço cheio para exibição como riscado na landing page. 0 = não exibir risco.")
+    preco_de_anual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, blank=True, verbose_name="Preço DE Anual (R$)", help_text="Preço cheio para exibição como riscado na landing page. 0 = não exibir risco.")
 
     # Limites e Features
     limite_membros = models.PositiveIntegerField(default=50, help_text="Número máximo de pessoas ativas (consideradas para relatórios). 0 para ilimitado.", verbose_name="Limite de Pessoas Ativas")
     limite_igrejas = models.PositiveIntegerField(default=1, help_text="Número máximo de igrejas/congregações. 0 para ilimitado.")
+    permite_modulo_secretaria = models.BooleanField(default=True, verbose_name="Permite Módulo Secretaria?")
+    permite_modulo_agenda = models.BooleanField(default=True, verbose_name="Permite Módulo Agenda?")
+    permite_modulo_eventos = models.BooleanField(default=True, verbose_name="Permite Módulo Eventos?")
+    permite_modulo_escola_biblica = models.BooleanField(default=True, verbose_name="Permite Módulo Escola Bíblica?")
+    permite_modulo_financeiro = models.BooleanField(default=True, verbose_name="Permite Módulo Financeiro?")
     permite_modulo_comunicacao = models.BooleanField(default=False, verbose_name="Permite Módulo de Comunicação?")
+    permite_suporte_tickets = models.BooleanField(default=True, verbose_name="Permite Suporte via Tickets?")
     suporte_prioritario = models.BooleanField(default=False, verbose_name="Suporte Prioritário?")
     
 
     descricao = models.TextField(blank=True, null=True, verbose_name="Descrição")
     ativo = models.BooleanField(default=True, verbose_name="Plano Ativo no Sistema?")
     is_visible = models.BooleanField(default=True, help_text="Marque para exibir este plano nas páginas de preço/venda.")
+    liberado_publicamente = models.BooleanField(
+        default=False,
+        verbose_name="Liberado publicamente?",
+        help_text="Controla se este plano pode aparecer para todos os usuários nos fluxos do sistema.",
+    )
+    contratacao_publica_liberada = models.BooleanField(
+        default=False,
+        verbose_name="Contratação pública liberada?",
+        help_text="Controla se este plano pode ser contratado por qualquer ministério fora da lista piloto.",
+    )
+    ordem_liberacao = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Ordem de liberação",
+        help_text="Ajuda a organizar o rollout gradual dos planos.",
+    )
+    stripe_product_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="Stripe Product ID", help_text="ID do produto no Stripe (prod_...).")
     stripe_price_id_mensal = models.CharField(max_length=100, blank=True, null=True, verbose_name="Stripe Price ID (Mensal)")
     stripe_price_id_anual = models.CharField(max_length=100, blank=True, null=True, verbose_name="Stripe Price ID (Anual)")
 
     def __str__(self):
         return self.get_nome_display() # Usa o método automático do Django
 
+    def get_modulos_configurados(self):
+        """Retorna a lista de módulos e status para renderização dinâmica nos cards."""
+        return [
+            {
+                'campo': campo,
+                'nome': nome,
+                'ativo': bool(getattr(self, campo, False)),
+            }
+            for campo, nome, _ in self.MODULOS_CONFIGURAVEIS
+        ]
+
+    def get_modulos_configurados_marketing(self):
+        """Retorna módulos com nomenclatura orientada à página de vendas."""
+        return [
+            {
+                'campo': campo,
+                'nome': nome_marketing,
+                'ativo': bool(getattr(self, campo, False)),
+            }
+            for campo, _, nome_marketing in self.MODULOS_CONFIGURAVEIS
+        ]
+
+    def get_suportes_configurados(self):
+        """Retorna suportes e status para renderização dinâmica nos cards."""
+        return [
+            {
+                'campo': campo,
+                'nome': nome,
+                'ativo': bool(getattr(self, campo, False)),
+            }
+            for campo, nome, _ in self.SUPORTES_CONFIGURAVEIS
+        ]
+
+    def get_suportes_configurados_marketing(self):
+        """Retorna suportes com nomenclatura orientada à página de vendas."""
+        return [
+            {
+                'campo': campo,
+                'nome': nome_marketing,
+                'ativo': bool(getattr(self, campo, False)),
+            }
+            for campo, _, nome_marketing in self.SUPORTES_CONFIGURAVEIS
+        ]
+
 
     class Meta:
         verbose_name = "Plano de Assinatura"
         verbose_name_plural = "Planos de Assinatura"
-        ordering = ['preco_mensal']
+        ordering = ['ordem_liberacao', 'preco_mensal']
+
+
+class LiberacaoPlanoMinisterio(models.Model):
+    ministerio = models.ForeignKey(
+        Ministerio,
+        on_delete=models.CASCADE,
+        related_name='liberacoes_planos',
+        verbose_name="Ministério",
+    )
+    plano = models.ForeignKey(
+        Plano,
+        on_delete=models.CASCADE,
+        related_name='liberacoes_ministerios',
+        verbose_name="Plano",
+    )
+    pode_visualizar = models.BooleanField(default=True, verbose_name="Pode visualizar?")
+    pode_contratar = models.BooleanField(default=True, verbose_name="Pode contratar?")
+    acesso_beta = models.BooleanField(default=True, verbose_name="Acesso beta?")
+    ativo = models.BooleanField(default=True, verbose_name="Liberação ativa?")
+    observacao = models.TextField(blank=True, null=True, verbose_name="Observação")
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.ministerio.nome_fantasia} -> {self.plano.get_nome_display()}"
+
+    class Meta:
+        verbose_name = "Liberação de Plano por Ministério"
+        verbose_name_plural = "Liberações de Planos por Ministério"
+        unique_together = ('ministerio', 'plano')
+        ordering = ['ministerio__nome_fantasia', 'plano__ordem_liberacao', 'plano__preco_mensal']
 
 
 
@@ -470,6 +588,12 @@ class AssinaturaMinisterio(models.Model):
     data_atualizacao = models.DateTimeField(auto_now=True)
     periodo_cortesia_ativo = models.BooleanField(default=False, verbose_name="Período de Cortesia Ativo?")
     data_inicio_cortesia = models.DateTimeField(null=True, blank=True, verbose_name="Início da Cortesia")
+    data_ultima_falha_pagamento = models.DateTimeField(null=True, blank=True, verbose_name="Última Falha de Pagamento")
+    tentativas_falha_pagamento = models.IntegerField(default=0, verbose_name="Tentativas Falhas de Pagamento")
+    data_fim_graca_inadimplencia = models.DateTimeField(null=True, blank=True, verbose_name="Fim do Período de Graça (Inadimplência)")
+    data_inicio_trial = models.DateTimeField(null=True, blank=True, verbose_name="Início do Período de Trial")
+    trial_ativo = models.BooleanField(default=False, verbose_name="Trial Ativo?")
+    dias_trial_totais = models.IntegerField(default=14, verbose_name="Total de Dias de Trial")
 
     def __str__(self):
         plano_nome = self.plano.get_nome_display() if self.plano else "N/D"
@@ -484,6 +608,8 @@ class AssinaturaMinisterio(models.Model):
         """Verifica se o período de cortesia está ativo e dentro da validade de 3 dias."""
         if self.periodo_cortesia_ativo and self.data_inicio_cortesia:
             data_fim_cortesia = self.data_inicio_cortesia + timedelta(days=3)
+            return timezone.now() < data_fim_cortesia
+        return False
 
 class AtualizacaoSistema(models.Model):
     titulo = models.CharField(max_length=200)
@@ -499,3 +625,119 @@ class AtualizacaoSistema(models.Model):
 
     def __str__(self):
         return f"{self.titulo} ({self.data_publicacao.strftime('%d/%m/%Y')})"
+
+
+# ---------------------------------------------------------------------------
+# MÉTRICAS DE FUNIL — rastreia os eventos-chave da jornada de conversão
+# ---------------------------------------------------------------------------
+class EventoFunil(models.Model):
+    TIPO_CHOICES = [
+        ('visita_landing', 'Visita à Landing Page'),
+        ('clique_cta', 'Clique no CTA da Landing'),
+        ('cadastro', 'Cadastro Realizado'),
+        ('primeiro_login', 'Primeiro Login'),
+        ('checkout_iniciado', 'Checkout Iniciado'),
+        ('checkout_completo', 'Checkout Completo (Pago)'),
+        ('plano_cancelado', 'Plano Cancelado'),
+        ('upgrade', 'Upgrade de Plano'),
+    ]
+
+    tipo = models.CharField(max_length=30, choices=TIPO_CHOICES, db_index=True)
+    ministerio = models.ForeignKey(
+        'Ministerio',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='eventos_funil',
+        verbose_name='Ministério',
+    )
+    plano = models.ForeignKey(
+        'Plano',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='eventos_funil',
+        verbose_name='Plano',
+    )
+    ciclo_pagamento = models.CharField(
+        max_length=10, blank=True, null=True,
+        choices=[('mensal', 'Mensal'), ('anual', 'Anual')],
+    )
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # Dados contextuais extras (user-agent resumido, origem etc.)
+    extra = models.JSONField(default=dict, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Evento de Funil'
+        verbose_name_plural = 'Eventos de Funil'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        ministerio_nome = self.ministerio.nome_fantasia if self.ministerio else '(anônimo)'
+        return f"{self.get_tipo_display()} — {ministerio_nome} ({self.criado_em:%d/%m/%Y %H:%M})"
+
+
+class CodigoPromocional(models.Model):
+    """Rastreia cupons/códigos promocionais do Stripe para uso no checkout."""
+    STATUS_CHOICES = [
+        ('ativo', 'Ativo'),
+        ('expirado', 'Expirado'),
+        ('inativo', 'Inativo'),
+    ]
+    
+    codigo_stripe = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name="ID do Cupom no Stripe",
+        help_text="Ex: promo_123abc. Deve existir na sua conta Stripe."
+    )
+    descricao = models.CharField(max_length=200, blank=True, verbose_name="Descrição Interna")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ativo', verbose_name="Status")
+    percentual_desconto = models.DecimalField(
+        max_digits=5, decimal_places=2, blank=True, null=True,
+        verbose_name="% de Desconto (informativo)"
+    )
+    data_inicio = models.DateField(verbose_name="Data de Início", default=timezone.now)
+    data_termino = models.DateField(verbose_name="Data de Término", blank=True, null=True)
+    usos_restantes = models.IntegerField(
+        blank=True, null=True,
+        verbose_name="Usos Restantes (None = ilimitado)"
+    )
+    
+    # Rastreamento
+    vezes_usado = models.IntegerField(default=0, verbose_name="Vezes Usado")
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Código Promocional"
+        verbose_name_plural = "Códigos Promocionais"
+        ordering = ['-data_inicio']
+
+    def __str__(self):
+        return f"{self.codigo_stripe} ({self.get_status_display()})"
+    
+    def is_valido(self):
+        """Verifica se o cupom é válido e ainda pode ser usado."""
+        from django.utils import timezone as tz
+        
+        if self.status != 'ativo':
+            return False
+        
+        # Verificar data de término
+        if self.data_termino and tz.now().date() > self.data_termino:
+            self.status = 'expirado'
+            self.save(update_fields=['status'])
+            return False
+        
+        # Verificar usos restantes
+        if self.usos_restantes is not None and self.usos_restantes <= 0:
+            return False
+        
+        return True
+    
+    def registrar_uso(self):
+        """Incrementa contador de usos e decrementa limite se houver."""
+        self.vezes_usado += 1
+        if self.usos_restantes is not None:
+            self.usos_restantes -= 1
+        self.save(update_fields=['vezes_usado', 'usos_restantes'])

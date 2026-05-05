@@ -14,7 +14,7 @@
 {% user_can_access request.user 'escola_biblica' as can_section_ebd %}
 {% user_can_access request.user 'financeiro' as can_section_financeiro %}
 {% user_can_access_any_tag request.user 'lideranca_secretaria' 'lideranca_financeira' as can_section_lideranca %}
-{% user_can_access_any_tag request.user 'dashboard_sistema' 'novidades_sistema' 'configuracoes_sistema' as can_section_sistema %}
+{% user_can_access_any_tag request.user 'novidades_sistema' 'configuracoes_sistema' as can_section_sistema %}
 {% user_can_access request.user 'comunicacao_massa' as can_comunicacao_massa %}
 {% user_can_access request.user 'mural_avisos' as can_mural_avisos %}
 {% user_can_access request.user 'suporte' as can_suporte %}
@@ -315,13 +315,6 @@
         {# Seção Sistema: Novidades e Configurações do Sistema #}
         {% if request.user.is_authenticated and not request.user.is_superuser and can_section_sistema %}
             <div class="sb-sidenav-menu-heading">Sistema</div>
-            {% user_can_access request.user 'dashboard_sistema' as can_dashboard_sistema %}
-            {% if can_dashboard_sistema %}
-            <a class="nav-link" href="{% url 'configuracao:dashboard_sistema' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-heartbeat"></i></div>
-                Dashboard do Sistema
-            </a>
-            {% endif %}
             {% user_can_access request.user 'novidades_sistema' as can_novidades_sistema %}
             {% if can_novidades_sistema %}
             <a class="nav-link" href="{% url 'configuracao:lista_atualizacoes_sistema' %}">
