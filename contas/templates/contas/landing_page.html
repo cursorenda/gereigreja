@@ -44,6 +44,7 @@
                 <li class="nav-item"><a class="nav-link" href="#features">Funcionalidades</a></li>
                 <li class="nav-item"><a class="nav-link" href="#pricing">Planos</a></li>
                 <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'blog:lista' %}">Blog</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
                 <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}?origem=landing_menu">Começar Agora</a></li>
             </ul>
@@ -361,6 +362,7 @@
         <p class="mb-0">
             <a href="#features">Funcionalidades</a> | 
             <a href="#pricing">Planos</a> | 
+            <a href="{% url 'blog:lista' %}">Blog</a> | 
             <a href="{% url 'politica_privacidade' %}" target="_blank">Política de Privacidade</a> | 
             <a href="{% url 'termos_condicoes' %}" target="_blank">Termos de Uso</a>
         </p>

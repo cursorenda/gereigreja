@@ -1,397 +1,446 @@
 {% extends 'base_com_menu.html' %}
+
 {% load static %}
 
+<!-- Carregar Chart.js antes do script dos gráficos -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Blocos de dados JSON para os gráficos -->
+{{ pie_labels|json_script:"pie-labels-data" }}
+{{ pie_values|json_script:"pie-values-data" }}
+{{ status_labels_json|json_script:"status-labels-data" }}
+{{ status_values_json|json_script:"status-values-data" }}
+{{ genero_labels_json|json_script:"genero-labels-data" }}
+{{ genero_values_json|json_script:"genero-values-data" }}
+{{ faixa_labels_json|json_script:"faixa-labels-data" }}
+{{ faixa_values_json|json_script:"faixa-values-data" }}
+{{ categoria_evento_labels_json|json_script:"categoria-evento-labels-data" }}
+{{ categoria_evento_values_json|json_script:"categoria-evento-values-data" }}
+{{ evolucao_meses_labels|default:'[]'|json_script:"evolucao-meses-labels" }}
+{{ evolucao_membros|default:'[]'|json_script:"evolucao-membros" }}
+{{ evolucao_congregados|default:'[]'|json_script:"evolucao-congregados" }}
+{{ evolucao_novos_convertidos|default:'[]'|json_script:"evolucao-novos-convertidos" }}
+{{ evolucao_visitantes|default:'[]'|json_script:"evolucao-visitantes" }}
+
+<script>
+// --- Gráficos Dashboard Secretaria ---
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de linha (Evolução de Pessoas)
+    const ctx = document.getElementById('evolucaoMembrosChart');
+    if (ctx) {
+        const mesesLabels = JSON.parse(document.getElementById('evolucao-meses-labels').textContent);
+        const membros = JSON.parse(document.getElementById('evolucao-membros').textContent);
+        const congregados = JSON.parse(document.getElementById('evolucao-congregados').textContent);
+        const novosConvertidos = JSON.parse(document.getElementById('evolucao-novos-convertidos').textContent);
+        const visitantes = JSON.parse(document.getElementById('evolucao-visitantes').textContent);
+        new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: mesesLabels,
+                datasets: [
+                    {
+                        label: 'Membros',
+                        data: membros,
+                        borderColor: '#4e73df',
+                        backgroundColor: 'rgba(78,115,223,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Congregados',
+                        data: congregados,
+                        borderColor: '#1cc88a',
+                        backgroundColor: 'rgba(28,200,138,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Novos Convertidos',
+                        data: novosConvertidos,
+                        borderColor: '#f953c6',
+                        backgroundColor: 'rgba(249,83,198,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Visitantes',
+                        data: visitantes,
+                        borderColor: '#f6c23e',
+                        backgroundColor: 'rgba(246,194,62,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // Gráfico de pizza (Gráfico 2 com dados dinâmicos do backend)
+    const ctx2 = document.getElementById('grafico2');
+    if (ctx2) {
+        let pieLabels = JSON.parse(document.getElementById('pie-labels-data').textContent);
+        let pieValues = JSON.parse(document.getElementById('pie-values-data').textContent);
+        if (!Array.isArray(pieLabels)) pieLabels = [];
+        if (!Array.isArray(pieValues)) pieValues = [];
+        const allZero = pieValues.length > 0 && pieValues.every(v => v === 0);
+        if (pieLabels.length === 0 || allZero) {
+            ctx2.parentNode.innerHTML = '<div style="text-align:center;padding:2em;color:#b91d73;font-weight:bold;">Sem dados para exibir o gráfico de pizza.</div>';
+        } else {
+            const baseColors = [
+                ['#4e73df', '#36b9cc'],
+                ['#1cc88a', '#20c9a6'],
+                ['#f953c6', '#b91d73'],
+                ['#f6c23e', '#fd7e14'],
+                ['#36b9cc', '#4e73df'],
+                ['#e74a3b', '#fd7e14'],
+                ['#858796', '#6f42c1'],
+                ['#fd7e14', '#f6c23e'],
+                ['#20c9a6', '#1cc88a'],
+                ['#6f42c1', '#f953c6']
+            ];
+            const ctxPie = ctx2.getContext('2d');
+            function makeGradient(c1, c2) {
+                const grad = ctxPie.createRadialGradient(100, 100, 30, 100, 100, 100);
+                grad.addColorStop(0, c1);
+                grad.addColorStop(1, c2);
+                return grad;
+            }
+            const pieColors = baseColors.slice(0, pieLabels.length).map(([c1, c2]) => makeGradient(c1, c2));
+            const pieBorderColors = baseColors.slice(0, pieLabels.length).map(([c1, c2]) => c2);
+            const dataPie = {
+                labels: pieLabels,
+                datasets: [{
+                    label: 'Distribuição',
+                    data: pieValues,
+                    backgroundColor: pieColors,
+                    borderColor: pieBorderColors,
+                    borderWidth: 2
+                }]
+            };
+            const configPie = {
+                type: 'pie',
+                data: dataPie,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 16,
+                                boxHeight: 16,
+                                borderRadius: 2,
+                                padding: 12,
+                                usePointStyle: true,
+                                pointStyle: 'rect'
+                            }
+                        },
+                        title: { display: false }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: false }
+                }
+            };
+            new Chart(ctxPie, configPie);
+        }
+    }
+
+    // Gráfico Pessoas por Status
+    const ctxStatus = document.getElementById('graficoStatus');
+    if (ctxStatus) {
+        const statusLabels = JSON.parse(document.getElementById('status-labels-data').textContent);
+        const statusValues = JSON.parse(document.getElementById('status-values-data').textContent);
+        console.log('DEBUG STATUS', statusLabels, statusValues, ctxStatus);
+        new Chart(ctxStatus.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    label: 'Total',
+                    data: statusValues,
+                    backgroundColor: '#4e73df',
+                    borderColor: '#36b9cc',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Gráfico Pessoas por Gênero
+    const ctxGenero = document.getElementById('graficoGenero');
+    if (ctxGenero) {
+        const generoLabels = JSON.parse(document.getElementById('genero-labels-data').textContent);
+        const generoValues = JSON.parse(document.getElementById('genero-values-data').textContent);
+        new Chart(ctxGenero.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: generoLabels,
+                datasets: [{
+                    label: 'Total',
+                    data: generoValues,
+                    backgroundColor: '#1cc88a',
+                    borderColor: '#20c9a6',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Gráfico Pessoas por Faixa Etária
+    const ctxFaixa = document.getElementById('graficoFaixaEtaria');
+    if (ctxFaixa) {
+        const faixaLabels = JSON.parse(document.getElementById('faixa-labels-data').textContent);
+        const faixaValues = JSON.parse(document.getElementById('faixa-values-data').textContent);
+        new Chart(ctxFaixa.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: faixaLabels,
+                datasets: [{
+                    label: 'Total',
+                    data: faixaValues,
+                    backgroundColor: '#f7971e',
+                    borderColor: '#ffd200',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Gráfico: Participação por Categoria de Evento
+    const ctxCategoria = document.getElementById('graficoCategoriaEvento');
+    if (ctxCategoria) {
+        const categoriaEventoLabels = JSON.parse(document.getElementById('categoria-evento-labels-data').textContent);
+        const categoriaEventoValues = JSON.parse(document.getElementById('categoria-evento-values-data').textContent);
+        new Chart(ctxCategoria.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: categoriaEventoLabels,
+                datasets: [{
+                    label: 'Participações',
+                    data: categoriaEventoValues,
+                    backgroundColor: [
+                        '#b224ef', '#7579ff', '#43e97b', '#38f9d7', '#fa709a', '#fee140', '#f7971e', '#ffd200', '#4e73df', '#1cc88a', '#36b9cc', '#f953c6', '#b91d73'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+
+});
+</script>
+
+{% block title %}Dashboard Secretaria{% endblock %}
+
 {% block content %}
-<style>
-    /* Animações de Entrada */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    .animate-on-load {
-        opacity: 0;
-        animation: fadeInUp 0.6s ease-out forwards;
-    }
-    
-    .banner-info-geral { animation-delay: 0.1s; }
-    .card-row-flex:nth-of-type(1) .stat-card:nth-child(1) { animation-delay: 0.2s; }
-    .card-row-flex:nth-of-type(1) .stat-card:nth-child(2) { animation-delay: 0.3s; }
-    .card-row-flex:nth-of-type(1) .stat-card:nth-child(3) { animation-delay: 0.4s; }
-    .card-row-flex:nth-of-type(1) .stat-card:nth-child(4) { animation-delay: 0.5s; }
-    .card-row-flex:nth-of-type(1) .stat-card:nth-child(5) { animation-delay: 0.6s; }
-    
-    .card-row-flex:nth-of-type(2) { animation-delay: 0.3s; }
-    .card-row-flex:nth-of-type(3) { animation-delay: 0.4s; }
-    .card-row-flex:nth-of-type(4) { animation-delay: 0.5s; }
-    .dashboard-analytics-row:nth-of-type(1) { animation-delay: 0.6s; }
-    .dashboard-analytics-row:nth-of-type(2) { animation-delay: 0.7s; }
-    
-    /* Indicadores de Tendência */
-    .trend-indicator {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.2rem 0.5rem;
-        border-radius: 12px;
-        margin-top: 0.3rem;
-    }
-    .trend-up {
-        background: rgba(76, 175, 80, 0.2);
-        color: #4caf50;
-    }
-    .trend-down {
-        background: rgba(244, 67, 54, 0.2);
-        color: #f44336;
-    }
-    .trend-neutral {
-        background: rgba(255, 255, 255, 0.25);
-        color: #ffffff;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-    
-    /* Loading Skeleton para Gráficos */
-    @keyframes skeleton-loading {
-        0% { background-position: -200px 0; }
-        100% { background-position: calc(200px + 100%) 0; }
-    }
-    
-    .chart-skeleton {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, #f0f0f0 0px, #f8f8f8 40px, #f0f0f0 80px);
-        background-size: 200px 100%;
-        animation: skeleton-loading 1.5s infinite linear;
-        border-radius: 0 0 24px 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
-    }
-    
-    .chart-skeleton-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.8rem;
-    }
-    
-    .skeleton-bars {
-        display: flex;
-        align-items: flex-end;
-        gap: 0.5rem;
-        height: 80px;
-    }
-    
-    .skeleton-bar {
-        width: 12px;
-        background: #e0e0e0;
-        border-radius: 4px;
-        animation: skeleton-pulse 1.5s ease-in-out infinite;
-    }
-    
-    .skeleton-bar:nth-child(1) { height: 40px; animation-delay: 0s; }
-    .skeleton-bar:nth-child(2) { height: 60px; animation-delay: 0.1s; }
-    .skeleton-bar:nth-child(3) { height: 35px; animation-delay: 0.2s; }
-    .skeleton-bar:nth-child(4) { height: 70px; animation-delay: 0.3s; }
-    .skeleton-bar:nth-child(5) { height: 50px; animation-delay: 0.4s; }
-    
-    @keyframes skeleton-pulse {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-    }
-    
-    .chart-loading-text {
-        color: #999;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
-    
-    canvas.chart-loaded + .chart-skeleton {
-        display: none;
-    }
-    
-    /* Consolidação CSS - Stats Grid e Cards */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 1rem;
-    }
-    
-    .stat-card {
-        background: rgba(255,255,255,0.15);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        padding: 1rem;
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .stat-icon {
-        font-size: 1.5rem;
-        opacity: 0.85;
-        cursor: help;
-    }
-    
-    .stat-badge {
-        font-size: 0.75rem;
-        padding: 0.3rem 0.6rem;
-        border-radius: 20px;
-    }
-    
-    .stat-badge-default {
-        background: rgba(255,255,255,0.25);
-    }
-    
-    .stat-badge-success {
-        background: rgba(76, 175, 80, 0.8);
-    }
-    
-    .stat-badge-info {
-        background: rgba(33, 150, 243, 0.8);
-    }
-    
-    .stat-badge-warning {
-        background: rgba(255,193,7,0.8);
-    }
-    
-    .stat-value {
-        font-size: 1.8rem;
-        font-weight: 800;
-        line-height: 1.2;
-        margin-bottom: 0.3rem;
-    }
-    
-    .stat-label {
-        font-size: 0.85rem;
-        opacity: 0.9;
-        font-weight: 500;
-    }
+<div class="container-fluid px-4" style="padding-left: 1.5rem; padding-right: 1.5rem;">
+    <!-- DEBUG: Exibir dados dos gráficos -->
+    <div style="background: #fffbe6; color: #b91d73; font-size: 0.95em; padding: 10px 18px; margin-bottom: 18px; border: 1px solid #ffe082; border-radius: 8px;">
+        <strong>DEBUG DADOS DOS GRÁFICOS:</strong><br>
+        <b>status_labels_json:</b> {{ status_labels_json }}<br>
+        <b>status_values_json:</b> {{ status_values_json }}<br>
+        <b>genero_labels_json:</b> {{ genero_labels_json }}<br>
+        <b>genero_values_json:</b> {{ genero_values_json }}<br>
+        <b>faixa_labels_json:</b> {{ faixa_labels_json }}<br>
+        <b>faixa_values_json:</b> {{ faixa_values_json }}<br>
+        <b>pie_labels:</b> {{ pie_labels }}<br>
+        <b>pie_values:</b> {{ pie_values }}<br>
+        <b>categoria_evento_labels_json:</b> {{ categoria_evento_labels_json }}<br>
+        <b>categoria_evento_values_json:</b> {{ categoria_evento_values_json }}<br>
+        <b>evolucao_meses_labels:</b> {{ evolucao_meses_labels }}<br>
+        <b>evolucao_membros:</b> {{ evolucao_membros }}<br>
+        <b>evolucao_congregados:</b> {{ evolucao_congregados }}<br>
+        <b>evolucao_novos_convertidos:</b> {{ evolucao_novos_convertidos }}<br>
+        <b>evolucao_visitantes:</b> {{ evolucao_visitantes }}<br>
+        <hr>
+        <strong>DEBUG SCRIPTS JSON NO HTML:</strong><br>
+        <b>pie-labels-data:</b> <span id="debug-pie-labels-data"></span><br>
+        <b>pie-values-data:</b> <span id="debug-pie-values-data"></span><br>
+        <b>status-labels-data:</b> <span id="debug-status-labels-data"></span><br>
+        <b>status-values-data:</b> <span id="debug-status-values-data"></span><br>
+        <b>genero-labels-data:</b> <span id="debug-genero-labels-data"></span><br>
+        <b>genero-values-data:</b> <span id="debug-genero-values-data"></span><br>
+        <b>faixa-labels-data:</b> <span id="debug-faixa-labels-data"></span><br>
+        <b>faixa-values-data:</b> <span id="debug-faixa-values-data"></span><br>
+        <b>categoria-evento-labels-data:</b> <span id="debug-categoria-evento-labels-data"></span><br>
+        <b>categoria-evento-values-data:</b> <span id="debug-categoria-evento-values-data"></span><br>
+        <b>evolucao-meses-labels:</b> <span id="debug-evolucao-meses-labels"></span><br>
+        <b>evolucao-membros:</b> <span id="debug-evolucao-membros"></span><br>
+        <b>evolucao-congregados:</b> <span id="debug-evolucao-congregados"></span><br>
+        <b>evolucao-novos-convertidos:</b> <span id="debug-evolucao-novos-convertidos"></span><br>
+        <b>evolucao-visitantes:</b> <span id="debug-evolucao-visitantes"></span><br>
+        <script>
+        // Exibir conteúdo bruto dos scripts JSON
+        const ids = [
+            'pie-labels-data','pie-values-data','status-labels-data','status-values-data',
+            'genero-labels-data','genero-values-data','faixa-labels-data','faixa-values-data',
+            'categoria-evento-labels-data','categoria-evento-values-data','evolucao-meses-labels',
+            'evolucao-membros','evolucao-congregados','evolucao-novos-convertidos','evolucao-visitantes'
+        ];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            const debugEl = document.getElementById('debug-' + id);
+            if (el && debugEl) debugEl.textContent = el.textContent;
+        });
+        </script>
+    </div>
 
-    /* Stat Card Hover States */
-    .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    }
-    #btnAniversariantes:hover {
-        background: rgba(255,193,7,1) !important;
-        transform: scale(1.05);
-    }
-    #cardAnivWrapper:hover {
-        background: rgba(255,255,255,0.2) !important;
-    }
-    @media (max-width: 768px) {
-        .stats-grid {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
-        }
-        .stat-value {
-            font-size: 1.5rem !important;
-        }
-        .stat-label {
-            font-size: 0.75rem !important;
-        }
-    }
-    @media (max-width: 576px) {
-        .stats-grid {
-            grid-template-columns: 1fr 1fr !important;
-            gap: 0.8rem !important;
-        }
-        .banner-info-geral .card-body {
-            padding: 1rem !important;
-        }
-    }
-
-    /* Layout dos Cards do Dashboard */
-    .card-row-flex {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-        justify-content: center;
-        align-items: stretch;
-        margin: 0;
-    }
-    .card-ebd-fin {
-        flex: 1 1 22%;
-        min-width: 220px;
-        max-width: 260px;
-        height: 210px;
-        border-radius: 24px !important;
-        box-shadow: 0 6px 24px rgba(0,0,0,0.10);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 1.6rem 1.3rem 1.3rem 1.3rem;
-        color: #fff;
-        margin: 0 !important;
-        background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%) !important;
-        transition: box-shadow 0.2s, transform 0.18s;
-        cursor: pointer;
-    }
-    .card-ebd-fin:hover {
-        box-shadow: 0 12px 32px rgba(0,0,0,0.18);
-        transform: translateY(-4px) scale(1.025);
-        z-index: 2;
-    }
-    .card-ebd-fin .btn {
-        transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
-    }
-    .card-ebd-fin .btn:hover, .card-ebd-fin .btn:focus {
-        background: #fff !important;
-        color: #222 !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-        transform: scale(1.08);
-    }
-    .card-ebd-fin .card-header-flex,
-    .card-ebd-fin .d-flex { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.2rem; }
-    .card-ebd-fin .card-icon { font-size: 2.2rem; opacity: 0.85; margin-bottom: 0; margin-right: 0; }
-    .card-ebd-fin .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0; margin-top: 0; text-align: left; }
-    .card-ebd-fin .card-desc { font-size: 0.95rem; font-weight: 400; margin-bottom: 0.6rem; text-align: left; }
-    .card-ebd-fin .card-badge { font-size: 1.1rem; font-weight: 600; background: rgba(255,255,255,0.18); border-radius: 8px; padding: 0.3rem 0.8rem; display: inline-block; margin-bottom: 0.2rem; color: #fff; }
-    .card-ebd-fin .card-action { margin-top: auto; text-align: left; }
-
-    /* Cores dos Cards */
-    .fin-saldo      { background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%) !important; }
-    .fin-relatorio  { background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%) !important; }
-    .fin-despesa    { background: linear-gradient(135deg, #ff4e50 0%, #f44336 100%) !important; }
-    .fin-banco      { background: linear-gradient(135deg, #e0eafc 0%, #4e73df 100%) !important; }
-    .fin-mes        { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%) !important; }
-    .fin-pendente   { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%) !important; color: #222; }
-    .fin-vencida    { background: linear-gradient(135deg, #232526 0%, #414345 100%) !important; }
-    .fin-transferencia { background: linear-gradient(135deg, #cfdef3 0%, #30cfd0 100%) !important; color: #fff; }
-
-    /* Responsivo */
-    @media (max-width: 1200px) { .card-row-flex .card-ebd-fin { flex: 1 1 45%; min-width: 220px; max-width: 48%; } }
-    @media (max-width: 900px) {
-        .card-row-flex { flex-direction: column; gap: 1.2rem; }
-        .card-row-flex .card-ebd-fin { flex: 1 1 100%; min-width: 140px; max-width: 100%; height: auto; }
-        .dashboard-analytics-row { flex-direction: column !important; gap: 1.5rem !important; }
-        .dashboard-analytics-row .card-ebd-fin { flex: 1 1 100% !important; max-width: 100% !important; }
-    }
-    @media (max-width: 600px) {
-        .container-fluid.px-4 { padding-left: 0.2rem !important; padding-right: 0.2rem !important; }
-        .card-row-flex { gap: 0.7rem; }
-        .card-ebd-fin { padding: 1rem 0.7rem 1rem 0.7rem; }
-        .card-title, .card-desc { font-size: 0.92rem !important; }
-        h1.mt-4 { font-size: 1.5rem !important; }
-        .aniversariantes-flutuante {
-            position: fixed !important;
-            top: 80px !important;
-            right: 10px !important;
-            left: 10px !important;
-            width: auto !important;
-            max-width: calc(100vw - 20px) !important;
-        }
-    }
-</style>
-
-<script id="status-labels-data" type="application/json">{{ status_labels_json|safe }}</script>
-<script id="status-values-data" type="application/json">{{ status_values_json|safe }}</script>
-<script id="genero-labels-data" type="application/json">{{ genero_labels_json|safe }}</script>
-<script id="genero-values-data" type="application/json">{{ genero_values_json|safe }}</script>
-<script id="faixa-labels-data" type="application/json">{{ faixa_labels_json|safe }}</script>
-<script id="faixa-values-data" type="application/json">{{ faixa_values_json|safe }}</script>
-<script id="pie-labels-data" type="application/json">{{ pie_labels_json|safe }}</script>
-<script id="pie-values-data" type="application/json">{{ pie_values_json|safe }}</script>
-<script id="categoria-evento-labels-data" type="application/json">{{ categoria_evento_labels_json|safe }}</script>
-<script id="categoria-evento-values-data" type="application/json">{{ categoria_evento_values_json|safe }}</script>
-<script id="evolucao-meses-labels" type="application/json">{{ evolucao_meses_labels_json|safe }}</script>
-<script id="evolucao-membros" type="application/json">{{ evolucao_membros_json|safe }}</script>
-<script id="evolucao-congregados" type="application/json">{{ evolucao_congregados_json|safe }}</script>
-<script id="evolucao-novos-convertidos" type="application/json">{{ evolucao_novos_convertidos_json|safe }}</script>
-<script id="evolucao-visitantes" type="application/json">{{ evolucao_visitantes_json|safe }}</script>
-
-
-
-    {# ===== ESCOPO NO TOPO ===== #}
-    {% include 'partials/_escopo_ativo.html' %}
-    {# ===== FIM ESCOPO NO TOPO ===== #}
-
-    <h1 class="mt-4 animate-on-load" style="animation-delay: 0s;">Dashboard Secretaria</h1>
-    <!-- Banner Informações Gerais - Redesigned -->
-    <div class="card shadow-lg mb-4 banner-info-geral animate-on-load" style="width:100%; border-radius: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; border: none; overflow: hidden;">
-        <div class="card-body p-4">
-            <div class="d-flex align-items-center mb-3">
-                <i class="fas fa-chart-line me-2" style="font-size: 1.4rem; opacity: 0.9;"></i>
-                <h5 class="mb-0" style="font-weight: 700; letter-spacing: 0.5px; font-size: 1.15rem;">Visão Geral</h5>
+    <h1 class="mt-4">Dashboard Secretaria</h1>
+    <!-- Banner Informações Gerais -->
+    <div class="card shadow-sm mb-4" style="width:100%; border-radius: 18px; background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; min-height: 90px; display: flex; align-items: center;">
+        <div class="card-body py-3 px-4" style="width:100%; display: flex; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.7rem; min-width: 220px;">
+                <i class="fas fa-info-circle fa-2x" style="opacity:0.85;"></i>
+                <span style="font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px;">Informações Gerais</span>
             </div>
-            <div class="stats-grid">
-                <!-- Stat Card 1: Pessoas Cadastradas -->
-                <div class="stat-card">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <i class="fas fa-users stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Total de pessoas cadastradas no sistema (membros, visitantes, congregados, etc.)"></i>
-                        <span class="badge stat-badge stat-badge-default">Total</span>
-                    </div>
-                    <div class="stat-value">{{ total_pessoas_igreja|default:'0' }}</div>
-                    <div class="stat-label">Pessoas Cadastradas</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 2.2rem; align-items: center; justify-content: flex-end; width: 100%; max-width: 900px;">
+                <div style="font-size: 0.95rem; min-width: 140px;">
+                    <span style="font-weight: 600;">Novos membros (30d): </span>
+                    <span style="font-weight: 700;">{{ novos_membros_30_dias }}</span>
                 </div>
-
-                <!-- Stat Card 2: Membros Ativos -->
-                <div class="stat-card">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <i class="fas fa-user-check stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Membros com status ativo na igreja"></i>
-                        <span class="badge stat-badge stat-badge-success">Ativos</span>
-                    </div>
-                    <div class="stat-value">{{ total_membros_ativos|default:'0' }}</div>
-                    <div class="stat-label">Membros Ativos</div>
+                <div style="font-size: 0.95rem; min-width: 140px;">
+                    <span style="font-weight: 600;">Aniversariantes (mês): </span>
+                    <span style="font-weight: 700;">{{ aniversariantes_mes_atual_count }}</span>
+                    <button id="btnAniversariantes" title="Próximos aniversariantes"
+                      style="background: none; border: none; padding: 0 0 0 6px; margin: 0; vertical-align: middle; cursor: pointer; display: inline-flex; align-items: center;">
+                      <i class="fas fa-birthday-cake" style="color: #fff; font-size: 1.1em; transition: color 0.2s;"></i>
+                    </button>
+                    <style>
+                    #btnAniversariantes:hover i {
+                      color: #ffe082;
+                    }
+                    </style>
                 </div>
-
-                <!-- Stat Card 3: Novos Membros -->
-                <div class="stat-card">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <i class="fas fa-user-plus stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Pessoas cadastradas nos últimos 30 dias"></i>
-                        <span class="badge stat-badge stat-badge-info">30 dias</span>
-                    </div>
-                    <div class="stat-value">{{ novos_membros_30_dias }}</div>
-                    <div class="stat-label">Novos Membros</div>
+                <div style="font-size: 0.95rem; min-width: 140px;">
+                    <span style="font-weight: 600;">Média de idade (membros): </span>
+                    <span style="font-weight: 700;">{{ media_idade_membros }} anos</span>
                 </div>
-
-                <!-- Stat Card 4: Aniversariantes -->
-                <div class="stat-card" style="cursor: pointer;" id="cardAnivWrapper">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <i class="fas fa-birthday-cake stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Aniversariantes do mês atual. Clique para ver a lista completa"></i>
-                        <button id="btnAniversariantes" title="Ver próximos aniversariantes" class="badge stat-badge stat-badge-warning" style="border: none; color: #fff; font-weight: 600; cursor: pointer; transition: background 0.2s;">
-                            Este mês
-                        </button>
-                    </div>
-                    <div class="stat-value">{{ aniversariantes_mes_atual_count }}</div>
-                    <div class="stat-label">Aniversariantes</div>
-                </div>
-
-                <!-- Stat Card 5: Média de Idade -->
-                <div class="stat-card">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <i class="fas fa-calendar-alt stat-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="Média de idade calculada entre todos os membros ativos"></i>
-                        <span class="badge stat-badge stat-badge-default">Média</span>
-                    </div>
-                    <div class="stat-value">{{ media_idade_membros }}</div>
-                    <div class="stat-label">Idade Média (anos)</div>
+                <div style="font-size: 1.08rem; min-width: 170px;">
+                    <span style="font-weight: 600;">Membros ativos: </span>
+                    <span style="font-weight: 700;">{{ total_membros_ativos|default:'NADA' }}</span>
                 </div>
             </div>
         </div>
     </div>
-
     <div class="dashboard-main-row" style="display: flex; flex-direction: column; gap: 2.5rem;">
+    <style>
+        .card-row-flex {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: center;
+            align-items: stretch;
+            margin: 0;
+        }
+        .card-ebd-fin {
+            margin: 0 !important;
+            /* padding já existe, mas garantimos que não há margin extra */
+        }
+        .card-ebd-fin {
+            flex: 1 1 22%;
+            min-width: 220px;
+            max-width: 260px;
+            height: 210px;
+            border-radius: 24px !important;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1.6rem 1.3rem 1.3rem 1.3rem;
+            color: #fff;
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%) !important;
+            transition: box-shadow 0.2s, transform 0.18s;
+            cursor: pointer;
+        }
+        .card-ebd-fin:hover {
+            box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+            transform: translateY(-4px) scale(1.025);
+            z-index: 2;
+        }
+        .card-ebd-fin .btn {
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
+        }
+        .card-ebd-fin .btn:hover, .card-ebd-fin .btn:focus {
+            background: #fff !important;
+            color: #222 !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+            transform: scale(1.08);
+        }
+        @media (max-width: 1200px) { .card-row-flex .card-ebd-fin { flex: 1 1 45%; min-width: 180px; max-width: 48%; } }
+        @media (max-width: 900px) {
+            .card-row-flex { flex-direction: column; gap: 1.2rem; }
+            .card-row-flex .card-ebd-fin { flex: 1 1 100%; min-width: 140px; max-width: 100%; height: auto; }
+        }
+        @media (max-width: 600px) {
+            .container-fluid.px-4 { padding-left: 0.2rem !important; padding-right: 0.2rem !important; }
+            .card-row-flex { gap: 0.7rem; }
+            .card-ebd-fin { padding: 1rem 0.7rem 1rem 0.7rem; }
+            .card-title, .card-desc { font-size: 0.92rem !important; }
+        }
+        .fin-saldo { background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%) !important; }
+        .fin-relatorio { background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%) !important; }
+        .fin-despesa { background: linear-gradient(135deg, #ff4e50 0%, #f44336 100%) !important; }
+        .fin-banco { background: linear-gradient(135deg, #e0eafc 0%, #4e73df 100%) !important; }
+        .fin-mes { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%) !important; }
+        .fin-pendente { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%) !important; color: #222; }
+        .fin-vencida { background: linear-gradient(135deg, #232526 0%, #414345 100%) !important; }
+        .fin-transferencia { background: linear-gradient(135deg, #cfdef3 0%, #30cfd0 100%) !important; color: #fff; }
+        .card-ebd-fin .card-header-flex, .card-ebd-fin .d-flex { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.2rem; }
+        .card-ebd-fin .card-icon { font-size: 2.2rem; opacity: 0.85; margin-bottom: 0; margin-right: 0; }
+        .card-ebd-fin .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0; margin-top: 0; text-align: left; }
+        .card-ebd-fin .card-desc { font-size: 0.95rem; font-weight: 400; margin-bottom: 0.6rem; text-align: left; }
+        .card-ebd-fin .card-badge { font-size: 1.1rem; font-weight: 600; background: rgba(255,255,255,0.18); border-radius: 8px; padding: 0.3rem 0.8rem; display: inline-block; margin-bottom: 0.2rem; color: #fff; }
+        .card-ebd-fin .card-action { margin-top: auto; text-align: left; }
+        @media (max-width: 1200px) { .card-row-flex .card-ebd-fin { flex: 1 1 45%; min-width: 220px; max-width: 48%; } }
+        @media (max-width: 900px) { .card-row-flex .card-ebd-fin { flex: 1 1 100%; min-width: 180px; max-width: 100%; } }
+    </style>
+
+
 
     <!-- Linha 1: Membros e Visitantes -->
     <!-- Linha 2: Cards de Pessoas por Status, Gênero e Faixa Etária -->
 
-    <div class="card-row-flex animate-on-load">
+    <div class="card-row-flex">
         <!-- Card Membros -->
         <div class="card-ebd-fin fin-saldo">
             <div class="d-flex align-items-center mb-2 justify-content-between">
@@ -408,7 +457,7 @@
             <div class="card-desc">Total de pessoas cadastradas</div>
             <span class="card-badge">{{ total_membros }}</span>
             <div class="card-action d-flex gap-2">
-                <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-light btn-sm">Ver lista</a>
+                <a href="/sistema/pessoas/" class="btn btn-light btn-sm">Ver lista</a>
             </div>
         </div>
         <!-- Card Visitantes -->
@@ -470,7 +519,7 @@
         </div>
     </div>
 
-    <div class="card-row-flex animate-on-load">
+    <div class="card-row-flex">
         <!-- Card Relatórios -->
         <div class="card-ebd-fin fin-mes">
             <div class="d-flex align-items-center mb-2 justify-content-between">
@@ -545,33 +594,21 @@
             <div class="card-desc">Gestão de Usuários</div>
             <span class="card-badge">{{ total_associacoes }}</span>
             <div class="card-action d-flex gap-2">
-                <!-- Botão de associação removido para centralizar o fluxo na página de usuários -->
+                <a href="{% url 'secretaria:associar_usuarios_membros' %}" class="btn btn-light btn-sm">Associar</a>
             </div>
         </div>
     </div>
 
     <!-- BLOCO DE GRÁFICOS: agora dentro do mesmo .card-row-flex -->
-    <div class="card-row-flex animate-on-load">
+    <div class="card-row-flex">
         <!-- BLOCO DE GRÁFICO DE LINHA: Evolução de Pessoas (12 meses) -->
         <div class="card-ebd-fin fin-saldo h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
             <div class="card-header-flex" style="background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
                 <span class="card-icon"><i class="fas fa-chart-line"></i></span>
                 <span class="card-title ms-2">Evolução de Pessoas (12 meses)</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
                 <canvas id="evolucaoMembrosChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
-                <div class="chart-skeleton" id="skeleton-evolucao">
-                    <div class="chart-skeleton-content">
-                        <div class="skeleton-bars">
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                        </div>
-                        <div class="chart-loading-text">Carregando gráfico...</div>
-                    </div>
-                </div>
             </div>
         </div>
         <!-- BLOCO DE GRÁFICO DE PIZZA: Distribuição de Pessoas por Tipo -->
@@ -580,46 +617,22 @@
                 <span class="card-icon"><i class="fas fa-chart-pie"></i></span>
                 <span class="card-title ms-2">Distribuição de Pessoas por Tipo</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
                 <canvas id="grafico2" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
-                <div class="chart-skeleton" id="skeleton-tipo">
-                    <div class="chart-skeleton-content">
-                        <div class="skeleton-bars">
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                        </div>
-                        <div class="chart-loading-text">Carregando gráfico...</div>
-                    </div>
-                </div>
             </div>
         </div>
     </div> <!-- fim da .card-row-flex dos gráficos principais -->
 
     <!-- LINHA DE GRÁFICOS ANALÍTICOS: Pessoas por Status, Gênero e Faixa Etária -->
-    <div class="dashboard-analytics-row animate-on-load" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0; padding-top:0;">
+    <div class="dashboard-analytics-row" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0; padding-top:0;">
         <!-- Gráfico Pessoas por Status -->
         <div class="card-ebd-fin fin-relatorio h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
             <div class="card-header-flex" style="background: linear-gradient(135deg, #36b9cc 0%, #4e73df 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
                 <span class="card-icon"><i class="fas fa-user-check"></i></span>
                 <span class="card-title ms-2">Pessoas por Status</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
-                <canvas id="statusChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
-                <div class="chart-skeleton" id="skeleton-status">
-                    <div class="chart-skeleton-content">
-                        <div class="skeleton-bars">
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                        </div>
-                        <div class="chart-loading-text">Carregando gráfico...</div>
-                    </div>
-                </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="graficoStatus" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
             </div>
         </div>
         <!-- Gráfico Pessoas por Gênero -->
@@ -628,44 +641,20 @@
                 <span class="card-icon"><i class="fas fa-venus-mars"></i></span>
                 <span class="card-title ms-2">Pessoas por Gênero</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
-                <canvas id="generoChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
-                <div class="chart-skeleton" id="skeleton-genero">
-                    <div class="chart-skeleton-content">
-                        <div class="skeleton-bars">
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                        </div>
-                        <div class="chart-loading-text">Carregando gráfico...</div>
-                    </div>
-                </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="graficoGenero" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
             </div>
         </div>
     </div>
-    <div class="dashboard-analytics-row animate-on-load" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0;">
+    <div class="dashboard-analytics-row" style="width:100%; display:flex; flex-direction:row; justify-content:center; align-items:stretch; gap:2.5rem; margin-top:0; margin-bottom:0;">
         <!-- Gráfico Participação por Categoria de Evento -->
         <div class="card-ebd-fin fin-mes h-100" style="padding:0; width:100%; max-width:520px; min-width:320px; flex: 2 1 380px; display: flex; flex-direction: column;">
             <div class="card-header-flex" style="background: linear-gradient(135deg, #b224ef 0%, #7579ff 100%) !important; border-radius: 24px 24px 0 0; padding: 0.15rem 1.1rem; color: #fff; width: 100%; box-sizing: border-box;">
                 <span class="card-icon"><i class="fas fa-layer-group"></i></span>
                 <span class="card-title ms-2">Participação por Categoria de Evento</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
-                <canvas id="categoriaEventoChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
-                <div class="chart-skeleton" id="skeleton-evento">
-                    <div class="chart-skeleton-content">
-                        <div class="skeleton-bars">
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                        </div>
-                        <div class="chart-loading-text">Carregando gráfico...</div>
-                    </div>
-                </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="graficoCategoriaEvento" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
             </div>
         </div>
         <!-- Gráfico Pessoas por Faixa Etária -->
@@ -674,25 +663,13 @@
                 <span class="card-icon"><i class="fas fa-chart-bar"></i></span>
                 <span class="card-title ms-2">Pessoas por Faixa Etária</span>
             </div>
-            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; position: relative;">
-                <canvas id="faixaEtariaChart" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
-                <div class="chart-skeleton" id="skeleton-faixa">
-                    <div class="chart-skeleton-content">
-                        <div class="skeleton-bars">
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                            <div class="skeleton-bar"></div>
-                        </div>
-                        <div class="chart-loading-text">Carregando gráfico...</div>
-                    </div>
-                </div>
+            <div class="card-body" style="background: #fff; border-radius: 0 0 24px 24px; min-height: 200px; padding: 0.1rem 0.2rem; display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box;">
+                <canvas id="graficoFaixaEtaria" height="200" style="width:100%; max-width:100%; min-height:200px; max-height:200px; display:block;"></canvas>
             </div>
         </div>
     </div>
     <!-- Micro-botão de aniversariantes -->
-    <div class="aniversariantes-flutuante" id="cardAniversariantes" style="position:fixed; top:120px; right:40px; width:320px; max-width:calc(100vw - 80px); z-index:30; display:none;">
+    <div class="aniversariantes-flutuante" id="cardAniversariantes" style="position:fixed; top:120px; right:40px; width:320px; z-index:30; display:none;">
       <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
           <span><i class="fas fa-birthday-cake me-2"></i>Próximos Aniversariantes</span>
@@ -720,84 +697,26 @@
     </div>
     <script>
       const btn = document.getElementById('btnAniversariantes');
-      const cardWrapper = document.getElementById('cardAnivWrapper');
       const card = document.getElementById('cardAniversariantes');
       const closeBtn = document.getElementById('closeAniversariantes');
-      
-      // Botão e card wrapper abrem o popup
-      const toggleCard = (e) => {
+      btn.addEventListener('click', function(e) {
         e.stopPropagation();
         card.style.display = card.style.display === 'block' ? 'none' : 'block';
-      };
-      
-      btn.addEventListener('click', toggleCard);
-      cardWrapper.addEventListener('click', toggleCard);
-      
+      });
       closeBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         card.style.display = 'none';
       });
-      
       document.addEventListener('click', function(e) {
-        if (!card.contains(e.target) && !btn.contains(e.target) && !cardWrapper.contains(e.target)) {
+        if (!card.contains(e.target) && !btn.contains(e.target)) {
           card.style.display = 'none';
         }
-      });
-
-      /* CountUp Animation */
-      function animateNumber(element, start, end, duration) {
-        if (!element) return;
-        
-        const range = end - start;
-        const increment = range / (duration / 16); // 60 FPS
-        let current = start;
-        
-        const timer = setInterval(() => {
-          current += increment;
-          if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
-            current = end;
-            clearInterval(timer);
-          }
-          element.textContent = Math.round(current);
-        }, 16);
-      }
-
-      // Executar após animações de entrada
-      window.addEventListener('load', function() {
-        // Inicializar tooltips do Bootstrap
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-          return new bootstrap.Tooltip(tooltipTriggerEl, {
-            trigger: 'hover',
-            container: 'body'
-          });
-        });
-
-        // Animar números
-        setTimeout(() => {
-          const statValues = document.querySelectorAll('.stat-value');
-          statValues.forEach((el, index) => {
-            const finalValue = parseInt(el.textContent) || 0;
-            animateNumber(el, 0, finalValue, 1200 + (index * 100));
-          });
-        }, 400); // Aguarda animação fade-in começar
-        
-        // Esconder skeletons dos gráficos após carregamento
-        // Os gráficos são renderizados via Chart.js externo
-        setTimeout(() => {
-          document.querySelectorAll('.chart-skeleton').forEach(skeleton => {
-            skeleton.style.opacity = '0';
-            skeleton.style.transition = 'opacity 0.3s ease-out';
-            setTimeout(() => { skeleton.style.display = 'none'; }, 300);
-          });
-        }, 2000); // 2 segundos para dar tempo dos gráficos renderizarem
       });
     </script>
 </div>
 
-
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'js/secretaria_dashboard_graficos.js' %}"></script>
+<!-- Chart.js já carregado acima -->
 {% endblock %}
+
+<script>
 
