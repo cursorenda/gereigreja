@@ -47,3 +47,83 @@ class Aviso(models.Model):
         ordering = ['-data_publicacao']
 
 
+class WhatsAppConfiguracao(models.Model):
+    ministerio = models.ForeignKey(
+        Ministerio,
+        on_delete=models.CASCADE,
+        related_name='whatsapp_configuracoes',
+        verbose_name='Ministerio',
+    )
+    igreja = models.OneToOneField(
+        Igreja,
+        on_delete=models.CASCADE,
+        related_name='whatsapp_configuracao',
+        verbose_name='Congregacao/Igreja',
+    )
+    ativo = models.BooleanField(default=False, verbose_name='Ativo')
+    numero_envio = models.CharField(max_length=20, verbose_name='Numero WhatsApp de envio')
+    remetente_nome = models.CharField(max_length=120, blank=True, null=True, verbose_name='Nome do remetente')
+    session_name = models.CharField(max_length=120, verbose_name='Session WAHA')
+    waha_base_url = models.URLField(default='http://localhost:3000', verbose_name='URL base WAHA')
+    waha_api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name='API Key WAHA')
+    webhook_token = models.CharField(max_length=80, blank=True, null=True, verbose_name='Token webhook')
+    auto_aniversariantes = models.BooleanField(default=True, verbose_name='Automacao aniversariantes')
+    auto_novos_membros = models.BooleanField(default=True, verbose_name='Automacao novos membros')
+    auto_contribuicoes = models.BooleanField(default=False, verbose_name='Automacao agradecimento dizimo')
+    auto_lembrete_eventos = models.BooleanField(default=False, verbose_name='Automacao lembrete eventos')
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuracao WhatsApp'
+        verbose_name_plural = 'Configuracoes WhatsApp'
+        ordering = ['igreja__nome_igreja']
+
+    def __str__(self):
+        return f"WhatsApp {self.igreja.nome_igreja}"
+
+
+class WhatsAppMensagemLog(models.Model):
+    TIPO_CHOICES = [
+        ('manual', 'Manual'),
+        ('aniversario', 'Aniversario'),
+        ('novo_membro', 'Novo membro'),
+        ('dizimo', 'Agradecimento dizimo'),
+        ('evento', 'Lembrete evento'),
+        ('webhook', 'Recebido webhook'),
+        ('outro', 'Outro'),
+    ]
+    STATUS_CHOICES = [
+        ('sucesso', 'Sucesso'),
+        ('erro', 'Erro'),
+        ('recebido', 'Recebido'),
+    ]
+
+    ministerio = models.ForeignKey(Ministerio, on_delete=models.CASCADE, related_name='whatsapp_logs')
+    igreja = models.ForeignKey(Igreja, on_delete=models.SET_NULL, null=True, blank=True, related_name='whatsapp_logs')
+    membro = models.ForeignKey('secretaria.Pessoa', on_delete=models.SET_NULL, null=True, blank=True, related_name='whatsapp_logs')
+    configuracao = models.ForeignKey(
+        WhatsAppConfiguracao,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='logs',
+    )
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='outro')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='sucesso')
+    telefone_destino = models.CharField(max_length=20)
+    chat_id = models.CharField(max_length=64, blank=True, null=True)
+    mensagem = models.TextField()
+    resposta_waha = models.JSONField(blank=True, null=True)
+    erro = models.TextField(blank=True, null=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Log WhatsApp'
+        verbose_name_plural = 'Logs WhatsApp'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.telefone_destino} ({self.get_status_display()})"
+
+

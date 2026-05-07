@@ -1,0 +1,60 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Logs WhatsApp</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-list me-1"></i> Ultimos envios</span>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">Novo envio</a>
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Status</th>
+                        <th>Igreja</th>
+                        <th>Destino</th>
+                        <th>Membro</th>
+                        <th>Mensagem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in logs %}
+                    <tr>
+                        <td>{{ item.criado_em|date:'d/m/Y H:i' }}</td>
+                        <td>{{ item.get_tipo_display }}</td>
+                        <td>
+                            {% if item.status == 'sucesso' %}
+                            <span class="badge bg-success">Sucesso</span>
+                            {% elif item.status == 'erro' %}
+                            <span class="badge bg-danger">Erro</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ item.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.igreja.nome_igreja|default:'-' }}</td>
+                        <td>{{ item.telefone_destino }}</td>
+                        <td>{{ item.membro.nome|default:'-' }}</td>
+                        <td style="max-width: 420px; white-space: normal;">{{ item.mensagem|truncatechars:140 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">Nenhum log encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

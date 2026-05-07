@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Templates de E-mail</h2>
-    <p>Aqui você pode visualizar os modelos de e-mail disponíveis para comunicação.</p>
+    <p>Aqui voce pode visualizar os modelos de e-mail e acessar os recursos de WhatsApp do modulo de comunicacao.</p>
     <ul class="list-group mb-4">
         <li class="list-group-item">
             <strong>E-mail em Massa</strong><br>
@@ -12,6 +12,12 @@
         <li class="list-group-item">
             <strong>Redefinição de Senha</strong><br>
             <a href="{% url 'comunicacao:visualizar_template_password_reset' %}" target="_blank">Visualizar Template</a>
+        </li>
+        <li class="list-group-item">
+            <strong>WhatsApp (WAHA)</strong><br>
+            <a href="{% url 'comunicacao:configurar_whatsapp' %}">Configurar WhatsApp por congregacao</a><br>
+            <a href="{% url 'comunicacao:enviar_whatsapp_massa' %}">Enviar WhatsApp em massa</a><br>
+            <a href="{% url 'comunicacao:logs_whatsapp' %}">Ver logs de WhatsApp</a>
         </li>
         <!-- Adicione outros templates conforme necessário -->
     </ul>

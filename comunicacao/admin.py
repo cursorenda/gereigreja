@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Aviso
+from .models import Aviso, WhatsAppConfiguracao, WhatsAppMensagemLog
 
 # Register your models here.
 
@@ -25,3 +25,39 @@ class AvisoAdmin(admin.ModelAdmin):
     def destino_display(self, obj):
         return ", ".join([igreja.nome_igreja for igreja in obj.igrejas_destino.all()]) or "Toda Ministério"
     destino_display.short_description = 'Destino'
+
+
+@admin.register(WhatsAppConfiguracao)
+class WhatsAppConfiguracaoAdmin(admin.ModelAdmin):
+    list_display = (
+        'igreja',
+        'ministerio',
+        'ativo',
+        'numero_envio',
+        'session_name',
+        'auto_aniversariantes',
+        'auto_novos_membros',
+    )
+    list_filter = ('ativo', 'ministerio', 'auto_aniversariantes', 'auto_novos_membros')
+    search_fields = ('igreja__nome_igreja', 'ministerio__nome_fantasia', 'numero_envio', 'session_name')
+
+
+@admin.register(WhatsAppMensagemLog)
+class WhatsAppMensagemLogAdmin(admin.ModelAdmin):
+    list_display = ('criado_em', 'tipo', 'status', 'igreja', 'telefone_destino', 'membro')
+    list_filter = ('tipo', 'status', 'ministerio', 'igreja')
+    search_fields = ('telefone_destino', 'mensagem', 'erro', 'membro__nome')
+    readonly_fields = (
+        'ministerio',
+        'igreja',
+        'membro',
+        'configuracao',
+        'tipo',
+        'status',
+        'telefone_destino',
+        'chat_id',
+        'mensagem',
+        'resposta_waha',
+        'erro',
+        'criado_em',
+    )

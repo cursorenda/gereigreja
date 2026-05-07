@@ -360,6 +360,18 @@
                         <div class="sb-nav-link-icon"><i class="fas fa-paper-plane"></i></div>
                         Enviar E-mail em Massa
                     </a>
+                    <a class="nav-link" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">
+                        <div class="sb-nav-link-icon"><i class="fab fa-whatsapp"></i></div>
+                        Enviar WhatsApp em Massa
+                    </a>
+                    <a class="nav-link" href="{% url 'comunicacao:configurar_whatsapp' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-cog"></i></div>
+                        Configurar WhatsApp
+                    </a>
+                    <a class="nav-link" href="{% url 'comunicacao:logs_whatsapp' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
+                        Logs WhatsApp
+                    </a>
                     <a class="nav-link" href="{% url 'comunicacao:templates_email' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-envelope-open-text"></i></div>
                         Templates de E-mail

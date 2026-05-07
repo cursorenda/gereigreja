@@ -1,5 +1,5 @@
 from django import forms
-from .models import Aviso
+from .models import Aviso, WhatsAppConfiguracao
 from configuracao.models import Ministerio, Igreja
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -121,3 +121,87 @@ class EmailMassaForm(forms.Form):
         # Adicione validações adicionais aqui se necessário
         # Por exemplo, se nenhum critério de seleção for marcado, avisar o usuário.
         return cleaned_data
+
+
+class WhatsAppConfiguracaoForm(forms.ModelForm):
+    class Meta:
+        model = WhatsAppConfiguracao
+        fields = [
+            'igreja',
+            'ativo',
+            'numero_envio',
+            'remetente_nome',
+            'session_name',
+            'waha_base_url',
+            'waha_api_key',
+            'webhook_token',
+            'auto_aniversariantes',
+            'auto_novos_membros',
+            'auto_contribuicoes',
+            'auto_lembrete_eventos',
+        ]
+        widgets = {
+            'igreja': forms.Select(attrs={'class': 'form-select'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'numero_envio': forms.TextInput(attrs={'class': 'form-control'}),
+            'remetente_nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'session_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'waha_base_url': forms.URLInput(attrs={'class': 'form-control'}),
+            'waha_api_key': forms.TextInput(attrs={'class': 'form-control'}),
+            'webhook_token': forms.TextInput(attrs={'class': 'form-control'}),
+            'auto_aniversariantes': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'auto_novos_membros': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'auto_contribuicoes': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'auto_lembrete_eventos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        ministerio = kwargs.pop('ministerio', None)
+        super().__init__(*args, **kwargs)
+        if ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+
+
+class WhatsAppMassaForm(forms.Form):
+    mensagem = forms.CharField(
+        label='Mensagem WhatsApp',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 6}),
+        help_text='Use variaveis: {nome}, {igreja}, {ministerio}',
+    )
+    igrejas_destino = forms.ModelMultipleChoiceField(
+        queryset=Igreja.objects.none(),
+        label='Enviar para Igrejas Especificas',
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
+    )
+    tipos_pessoa = forms.ModelMultipleChoiceField(
+        queryset=TipoPessoa.objects.none(),
+        label='Filtrar por Tipo de Pessoa',
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
+    )
+    status_pessoa = forms.ModelMultipleChoiceField(
+        queryset=StatusPessoa.objects.none(),
+        label='Filtrar por Status da Pessoa',
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
+    )
+    aniversariantes_do_mes = forms.BooleanField(
+        label='Apenas aniversariantes do mes',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+    somente_com_celular = forms.BooleanField(
+        label='Somente pessoas com celular preenchido',
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        ministerio = kwargs.pop('ministerio', None)
+        super().__init__(*args, **kwargs)
+        if ministerio:
+            self.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        self.fields['tipos_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
+        self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')

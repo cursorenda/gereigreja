@@ -1,0 +1,87 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">WhatsApp</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-cog me-1"></i>
+            Configuracao por congregacao
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {% include "partials/_form_errors.html" with form=form %}
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="{{ form.igreja.id_for_label }}">{{ form.igreja.label }}</label>
+                        {{ form.igreja }}
+                    </div>
+                    <div class="col-md-6 mb-3 d-flex align-items-end">
+                        <div class="form-check">
+                            {{ form.ativo }}
+                            <label class="form-check-label" for="{{ form.ativo.id_for_label }}">{{ form.ativo.label }}</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" for="{{ form.numero_envio.id_for_label }}">{{ form.numero_envio.label }}</label>
+                        {{ form.numero_envio }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" for="{{ form.remetente_nome.id_for_label }}">{{ form.remetente_nome.label }}</label>
+                        {{ form.remetente_nome }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" for="{{ form.session_name.id_for_label }}">{{ form.session_name.label }}</label>
+                        {{ form.session_name }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="{{ form.waha_base_url.id_for_label }}">{{ form.waha_base_url.label }}</label>
+                        {{ form.waha_base_url }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="{{ form.waha_api_key.id_for_label }}">{{ form.waha_api_key.label }}</label>
+                        {{ form.waha_api_key }}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.webhook_token.id_for_label }}">{{ form.webhook_token.label }}</label>
+                    {{ form.webhook_token }}
+                    <div class="form-text">Use este token no header X-Webhook-Token para validar recebimento do WAHA.</div>
+                </div>
+
+                <h5 class="mt-3">Automacoes</h5>
+                <div class="row">
+                    <div class="col-md-3 form-check ms-2">{{ form.auto_aniversariantes }} <label class="form-check-label" for="{{ form.auto_aniversariantes.id_for_label }}">{{ form.auto_aniversariantes.label }}</label></div>
+                    <div class="col-md-3 form-check ms-2">{{ form.auto_novos_membros }} <label class="form-check-label" for="{{ form.auto_novos_membros.id_for_label }}">{{ form.auto_novos_membros.label }}</label></div>
+                    <div class="col-md-3 form-check ms-2">{{ form.auto_contribuicoes }} <label class="form-check-label" for="{{ form.auto_contribuicoes.id_for_label }}">{{ form.auto_contribuicoes.label }}</label></div>
+                    <div class="col-md-3 form-check ms-2">{{ form.auto_lembrete_eventos }} <label class="form-check-label" for="{{ form.auto_lembrete_eventos.id_for_label }}">{{ form.auto_lembrete_eventos.label }}</label></div>
+                </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Salvar configuracao
+                </button>
+                <a href="{% url 'comunicacao:enviar_whatsapp_massa' %}" class="btn btn-outline-success ms-2">
+                    <i class="fab fa-whatsapp me-1"></i> Ir para envio em massa
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

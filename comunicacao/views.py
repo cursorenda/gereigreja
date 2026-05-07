@@ -4,6 +4,9 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from django.core.mail import send_mail, BadHeaderError
 from django.template.loader import render_to_string
@@ -12,11 +15,13 @@ from datetime import date
 
 from .models import Aviso
 from .forms import AvisoForm # Manter o AvisoForm
+from .models import WhatsAppConfiguracao, WhatsAppMensagemLog
 
 from core.utils import get_ministerio_or_error
 from configuracao.models import Igreja # Para filtrar igrejas
 from .utils import can_manage_avisos # Para contexto de template
 from core.decorators import verificar_assinatura_valida, page_access_required # Decorator de assinatura
+from .services_whatsapp import send_whatsapp_text, WhatsAppSendError
 
 # Crie suas views aqui.
 
@@ -223,7 +228,7 @@ def excluir_aviso(request, pk):
     return render(request, 'comunicacao/mural/confirmar_excluir_aviso.html', context)
 
 # --- VIEWS PARA ENVIO DE E-MAIL EM MASSA ---
-from .forms import EmailMassaForm # Importar o novo formulário
+from .forms import EmailMassaForm, WhatsAppConfiguracaoForm, WhatsAppMassaForm # Importar formularios
 from secretaria.models import Membro # Importar o modelo Membro
 
 @login_required
@@ -311,3 +316,159 @@ def enviar_email_massa(request):
         'titulo_pagina': "Enviar E-mail em Massa",
     }
     return render(request, 'comunicacao/email/form_email_massa.html', context)
+
+
+@login_required
+@verificar_assinatura_valida
+@page_access_required('comunicacao')
+def configurar_whatsapp(request):
+    ministerio = get_ministerio_or_error(request)
+    instance = None
+    if request.igreja_ativa:
+        instance = WhatsAppConfiguracao.objects.filter(igreja=request.igreja_ativa, ministerio=ministerio).first()
+
+    if request.method == 'POST':
+        form = WhatsAppConfiguracaoForm(request.POST, instance=instance, ministerio=ministerio)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.ministerio = ministerio
+            obj.save()
+            messages.success(request, 'Configuracao de WhatsApp salva com sucesso.')
+            return redirect('comunicacao:configurar_whatsapp')
+        messages.error(request, 'Corrija os erros do formulario de configuracao WhatsApp.')
+    else:
+        initial = {}
+        if request.igreja_ativa and not instance:
+            initial['igreja'] = request.igreja_ativa
+        form = WhatsAppConfiguracaoForm(instance=instance, initial=initial, ministerio=ministerio)
+
+    return render(
+        request,
+        'comunicacao/whatsapp/configuracao_whatsapp.html',
+        {
+            'form': form,
+            'ministerio': ministerio,
+            'titulo_pagina': 'Configuracao WhatsApp por Congregacao',
+        },
+    )
+
+
+@login_required
+@verificar_assinatura_valida
+@page_access_required('comunicacao')
+def enviar_whatsapp_massa(request):
+    ministerio = get_ministerio_or_error(request)
+
+    if request.method == 'POST':
+        form = WhatsAppMassaForm(request.POST, ministerio=ministerio)
+        if form.is_valid():
+            mensagem = form.cleaned_data['mensagem']
+            igrejas_destino = form.cleaned_data['igrejas_destino']
+            tipos_pessoa = form.cleaned_data['tipos_pessoa']
+            status_pessoa = form.cleaned_data['status_pessoa']
+            aniversariantes_do_mes = form.cleaned_data['aniversariantes_do_mes']
+            somente_com_celular = form.cleaned_data['somente_com_celular']
+
+            membros_qs = Membro.objects.filter(igreja__ministerio=ministerio)
+            if igrejas_destino:
+                membros_qs = membros_qs.filter(igreja__in=igrejas_destino)
+            if tipos_pessoa:
+                membros_qs = membros_qs.filter(tipo_pessoa__in=tipos_pessoa)
+            if status_pessoa:
+                membros_qs = membros_qs.filter(status_pessoa__in=status_pessoa)
+            if aniversariantes_do_mes:
+                hoje = date.today()
+                membros_qs = membros_qs.filter(nascimento__month=hoje.month)
+            if somente_com_celular:
+                membros_qs = membros_qs.exclude(celular__isnull=True).exclude(celular='')
+
+            enviados = 0
+            falhas = 0
+            for membro in membros_qs.select_related('igreja'):
+                config = WhatsAppConfiguracao.objects.filter(
+                    ministerio=ministerio,
+                    igreja=membro.igreja,
+                    ativo=True,
+                ).first()
+                if not config:
+                    falhas += 1
+                    continue
+                texto = (
+                    mensagem.replace('{nome}', membro.nome or '')
+                    .replace('{igreja}', membro.igreja.nome_igreja if membro.igreja else '')
+                    .replace('{ministerio}', ministerio.nome_fantasia)
+                )
+                try:
+                    send_whatsapp_text(
+                        config,
+                        membro.celular,
+                        texto,
+                        tipo='manual',
+                        ministerio=ministerio,
+                        igreja=membro.igreja,
+                        membro=membro,
+                    )
+                    enviados += 1
+                except WhatsAppSendError:
+                    falhas += 1
+
+            if enviados:
+                messages.success(request, f'WhatsApp enviado para {enviados} pessoa(s).')
+            if falhas:
+                messages.warning(request, f'{falhas} envio(s) falharam ou nao tinham configuracao ativa.')
+            return redirect('comunicacao:enviar_whatsapp_massa')
+        messages.error(request, 'Corrija os erros do formulario de envio WhatsApp.')
+    else:
+        form = WhatsAppMassaForm(ministerio=ministerio)
+
+    return render(
+        request,
+        'comunicacao/whatsapp/form_whatsapp_massa.html',
+        {
+            'form': form,
+            'ministerio': ministerio,
+            'titulo_pagina': 'Enviar WhatsApp em Massa',
+        },
+    )
+
+
+@login_required
+@verificar_assinatura_valida
+@page_access_required('comunicacao')
+def logs_whatsapp(request):
+    ministerio = get_ministerio_or_error(request)
+    logs = WhatsAppMensagemLog.objects.filter(ministerio=ministerio).select_related('igreja', 'membro')[:200]
+    return render(
+        request,
+        'comunicacao/whatsapp/logs_whatsapp.html',
+        {
+            'logs': logs,
+            'ministerio': ministerio,
+            'titulo_pagina': 'Logs de WhatsApp',
+        },
+    )
+
+
+@csrf_exempt
+@require_POST
+def waha_webhook(request):
+    token = request.headers.get('X-Webhook-Token') or request.GET.get('token')
+    payload = request.body.decode('utf-8', errors='ignore')
+
+    configuracao = None
+    if token:
+        configuracao = WhatsAppConfiguracao.objects.filter(webhook_token=token, ativo=True).first()
+    if not configuracao:
+        return HttpResponseForbidden('Webhook token invalido')
+
+    WhatsAppMensagemLog.objects.create(
+        ministerio=configuracao.ministerio,
+        igreja=configuracao.igreja,
+        configuracao=configuracao,
+        tipo='webhook',
+        status='recebido',
+        telefone_destino='entrada',
+        mensagem=payload[:3000],
+        resposta_waha={'headers': dict(request.headers)},
+    )
+    return JsonResponse({'ok': True})

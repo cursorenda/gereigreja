@@ -1,0 +1,64 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">WhatsApp em Massa</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fab fa-whatsapp me-1"></i>
+            Compor mensagem
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {% include "partials/_form_errors.html" with form=form %}
+
+                <div class="mb-3">
+                    <label class="form-label" for="{{ form.mensagem.id_for_label }}">{{ form.mensagem.label }}</label>
+                    {{ form.mensagem }}
+                    {% if form.mensagem.help_text %}<div class="form-text">{{ form.mensagem.help_text }}</div>{% endif %}
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" for="{{ form.igrejas_destino.id_for_label }}">{{ form.igrejas_destino.label }}</label>
+                        {{ form.igrejas_destino }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" for="{{ form.tipos_pessoa.id_for_label }}">{{ form.tipos_pessoa.label }}</label>
+                        {{ form.tipos_pessoa }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label" for="{{ form.status_pessoa.id_for_label }}">{{ form.status_pessoa.label }}</label>
+                        {{ form.status_pessoa }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 form-check ms-2 mb-3">
+                        {{ form.aniversariantes_do_mes }}
+                        <label class="form-check-label" for="{{ form.aniversariantes_do_mes.id_for_label }}">{{ form.aniversariantes_do_mes.label }}</label>
+                    </div>
+                    <div class="col-md-5 form-check ms-2 mb-3">
+                        {{ form.somente_com_celular }}
+                        <label class="form-check-label" for="{{ form.somente_com_celular.id_for_label }}">{{ form.somente_com_celular.label }}</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success">
+                    <i class="fab fa-whatsapp me-1"></i> Enviar WhatsApp
+                </button>
+                <a href="{% url 'comunicacao:logs_whatsapp' %}" class="btn btn-outline-secondary ms-2">Ver logs</a>
+                <a href="{% url 'comunicacao:configurar_whatsapp' %}" class="btn btn-outline-primary ms-2">Configurar WAHA</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

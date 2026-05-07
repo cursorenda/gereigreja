@@ -18,4 +18,10 @@ urlpatterns = [
     path('templates-email/email-massa/', views.visualizar_template_email_massa, name='visualizar_template_email_massa'),
     path('templates-email/password-reset/', views.visualizar_template_password_reset, name='visualizar_template_password_reset'),
 
+    # WhatsApp (WAHA)
+    path('whatsapp/configuracao/', views.configurar_whatsapp, name='configurar_whatsapp'),
+    path('whatsapp/massa/', views.enviar_whatsapp_massa, name='enviar_whatsapp_massa'),
+    path('whatsapp/logs/', views.logs_whatsapp, name='logs_whatsapp'),
+    path('whatsapp/webhook/', views.waha_webhook, name='waha_webhook'),
+
 ]
