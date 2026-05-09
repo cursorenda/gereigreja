@@ -297,6 +297,12 @@ DEFAULT_FROM_EMAIL = 'Gereigreja <nao-responda@gereigreja.site>'
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 ADMINS = [('sr. Júlio ', 'juliobsouza24@gmail.com')]
 SITE_ID = 2
+
+# --- WAHA (WhatsApp HTTP API) ---
+# Hospedado pela equipe tecnica. Nao exposto ao admin do ministerio.
+WAHA_BASE_URL = os.environ.get('WAHA_BASE_URL', 'http://localhost:3000')
+WAHA_API_KEY = os.environ.get('WAHA_API_KEY', '')
+
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')

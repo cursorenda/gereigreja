@@ -21,7 +21,12 @@ urlpatterns = [
     # WhatsApp (WAHA)
     path('whatsapp/configuracao/', views.configurar_whatsapp, name='configurar_whatsapp'),
     path('whatsapp/massa/', views.enviar_whatsapp_massa, name='enviar_whatsapp_massa'),
+    path('whatsapp/massa/preview/', views.preview_whatsapp_destinatarios, name='preview_whatsapp_destinatarios'),
+    path('whatsapp/massa/editar-celulares/', views.editar_celulares_whatsapp_massa, name='editar_celulares_whatsapp_massa'),
+    path('whatsapp/massa/test-health/', views.test_waha_health, name='test_waha_health'),
     path('whatsapp/logs/', views.logs_whatsapp, name='logs_whatsapp'),
     path('whatsapp/webhook/', views.waha_webhook, name='waha_webhook'),
+        path('whatsapp/configuracao-global/', views.configurar_whatsapp_global, name='configurar_whatsapp_global'),
+        path('whatsapp/qr/<int:pk>/', views.qr_code_whatsapp, name='qr_code_whatsapp'),
 
 ]

@@ -1,3 +1,44 @@
+## v1.10.1 — 09/05/2026
+🚀 **WhatsApp Edição em Massa de Celulares com Filtros Avançados**
+
+### Novidades — WhatsApp Bulk Celular Edit
+
+#### Feature: Edição em Massa de Celulares
+- Nova rota `/comunicacao/whatsapp/massa/editar-celulares/` para atualizar celulares de múltiplas pessoas
+- Reutiliza filtros avançados do envio WhatsApp (tipos de pessoa, status, aniversariantes)
+- Novo checkbox: "Mostrar apenas pessoas sem celular preenchido" para focar em gaps
+
+#### Máscara de Celular
+- Aplicação automática de máscara `(##) #####-####` nos inputs
+- Validação: máximo 15 dígitos por número
+- Suporte a formatação brasileira com auto-prefixo 55
+
+#### Persistência e Feedback
+- Backend detecta mudanças reais (comparação antes/depois)
+- Salva apenas campos alterados com `update_fields=['celular']`
+- Feedback simplificado: "Celular atualizado para X pessoa(s)." ou "Nenhum celular foi atualizado."
+- Mensagens de diagnóstico removidas da UI (mantidas em logs para troubleshooting)
+
+#### Correções de Bugs Críticos
+- **Locale-Formatted POST Keys**: Agora trata chaves como `celular_1.112` (locale) corretamente, extraindo apenas dígitos antes de converter para int
+  - Regex: `re.sub(r'\D', '', key_suffix)` garante compatibilidade com diferentes locales
+- **Form Attribute Rendering**: Removido texto literal que aparecia na tela, atributo `form="bulk-celulares-form"` agora corretamente posicionado no HTML
+
+#### Documentação
+- Novo arquivo [docs/WHATSAPP_BULK_CELULAR_EDIT.md](docs/WHATSAPP_BULK_CELULAR_EDIT.md) com visão geral, fluxo, implementação técnica e casos de teste
+- Documentação técnica de filtros, validação e performance
+
+#### Performance e UX
+- Scroll fixo na tabela (max-height: 65vh) para melhor usabilidade
+- Filtragem client-side instantânea (sem reload)
+- Suporte a até 45+ pessoas por vez
+
+### Correções Técnicas
+- Locale awareness em form serialization para suportar múltiplas regiões
+- Tratamento seguro de PKs em POST data com locale decimal separators
+
+---
+
 ## v1.10.0 — 05/05/2026
 🚀 **Sistema de Assinaturas & Planos, Controle de Acesso por Módulo, Funil de Conversão, SEO e Suíte de Testes**
 

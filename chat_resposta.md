@@ -1,13 +1,48 @@
-﻿# ✅ Implementação da Opção A Concluída — Sistema de Alertas Unificado
+﻿# WAHA: Railway vs Render — O que é hospedado e para quem
 
-Ótimo! Implementei a **Opção A — Status Unificado**. Isso incluiu:
-1. Novo context processor `status_plano_unificado`
-2. Remoção da lógica de mensagens de assinatura de `get_ministerio_or_error`
-3. Desativação do `alerta_limite_plano` anterior
-4. Atualização do template com um único banner inteligente
-5. Validação com `python manage.py check`
+## O que é hospedado
 
-Refatorei o sistema de alertas de status do plano em um context processor unificado. Veja o que foi feito:
+**WAHA** (WhatsApp HTTP API) é um **servidor separado** — uma aplicação Docker que roda independente do Gereigreja. Ele é quem se conecta ao WhatsApp (como um cliente WhatsApp Web) e expõe uma API REST. O Gereigreja chama essa API para enviar mensagens.
+
+```
+Gereigreja (Render) ──HTTP──► WAHA Server (Railway/Render/VPS) ──► WhatsApp
+```
+
+---
+
+## Railway vs Render para hospedar o WAHA
+
+| | **Railway** | **Render** |
+|---|---|---|
+| **Deploy Docker** | 1 clique com template pronto | Precisa configurar manualmente |
+| **Custo** | ~$5/mês (uso real) | Free tier tem sleep após inatividade |
+| **Sleep em inatividade** | Não (plano pago) | Sim (free tier) — WAHA cai após 15min |
+| **Facilidade** | Muito fácil, template oficial WAHA disponível | Mais trabalhoso |
+| **Indicação** | ✅ Recomendado para WAHA | Só se já pagar plano pago |
+
+**Problema crítico do Render free:** O WAHA "dorme" após inatividade. Quando o Gereigreja tentar enviar mensagem de madrugada (cron job), o WAHA pode estar offline.
+
+---
+
+## Perspectiva: Desenvolvedor vs Admin do Ministério
+
+**Desenvolvedor (você):**
+- Faz o deploy do WAHA no Railway uma vez
+- Configura a variável de ambiente `WAHA_API_KEY` lá
+- Pega a URL pública gerada (ex: `https://waha-xyz.up.railway.app`)
+- Isso é feito **uma única vez** por ministério
+
+**Admin do Ministério (usuário não-técnico):**
+- Recebe a URL e a API Key do desenvolvedor
+- Entra em `/comunicacao/whatsapp/configuracao-global/` e cola os dois dados
+- Clica em "Salvar" — pronto
+- Depois, cada congregação só precisa escanear um QR code
+
+---
+
+## Conclusão prática
+
+O mais simples seria **remover a opção Render** do passo a passo e deixar **só Railway** como recomendação, com o botão de 1 clique. O admin do ministério não precisa escolher — o desenvolvedor já fez isso por ele.
 
 ---
 
@@ -351,4 +386,50 @@ def send_whatsapp_message(phone, text, congregacao=None):
 
 Se quiser, posso gerar um exemplo de código completo para um dos casos acima (ex: envio automático para aniversariantes ou painel de configuração). Qual deseja priorizar?
 
+
+
+---
+
+## Variáveis de Ambiente para o Render Cron Job (07/05/2026)
+
+### Nome do Cron Job
+O nome **gereigreja** pode ficar assim — não afeta o funcionamento.
+
+---
+
+### Variáveis OBRIGATÓRIAS (copiar do Web Service → Environment para o Cron Job)
+
+| Variável | Observação |
+|---|---|
+| `DJANGO_SECRET_KEY` | Chave secreta do Django |
+| `DJANGO_DEBUG` | Coloque **False** (fixo no Cron) |
+| `DB_NAME` | Nome do banco PostgreSQL |
+| `DB_USER` | Usuário do banco |
+| `DB_PASSWORD` | Senha do banco |
+| `DB_HOST` | Host do banco |
+| `DB_PORT` | Porta do banco (geralmente 5432) |
+| `CLOUDINARY_CLOUD_NAME` | Obrigatório — Django não inicia sem ele |
+| `CLOUDINARY_API_KEY` | Obrigatório |
+| `CLOUDINARY_API_SECRET` | Obrigatório |
+| `gereigreja_email_password` | Senha SMTP Brevo |
+
+### Variáveis OPCIONAIS
+| Variável | Observação |
+|---|---|
+| `STRIPE_PUBLISHABLE_KEY` | Só se o Cron usar pagamentos |
+| `STRIPE_SECRET_KEY` | Idem |
+| `STRIPE_WEBHOOK_SECRET` | Idem |
+
+---
+
+### WAHA — não precisa de variável de ambiente
+A URL do WAHA, API Key e token ficam salvos no **banco de dados**, na tela:
+**Comunicação → Configurar WhatsApp por congregação**
+
+---
+
+### Resumo crítico
+- **Não usar** `DATABASE_URL` — o projeto usa as 5 variáveis separadas (`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`)
+- As mais críticas: 5 de banco + 3 do Cloudinary — sem elas o Django não inicia
+- `DJANGO_DEBUG` = `False` obrigatório em produção
 

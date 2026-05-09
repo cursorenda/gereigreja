@@ -1,5 +1,5 @@
 from django import forms
-from .models import Aviso, WhatsAppConfiguracao
+from .models import Aviso, WhatsAppConfiguracao, WhatsAppConfiguracaoGlobal
 from configuracao.models import Ministerio, Igreja
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -116,12 +116,6 @@ class EmailMassaForm(forms.Form):
             self.fields['tipos_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
             self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
 
-    def clean(self):
-        cleaned_data = super().clean()
-        # Adicione validações adicionais aqui se necessário
-        # Por exemplo, se nenhum critério de seleção for marcado, avisar o usuário.
-        return cleaned_data
-
 
 class WhatsAppConfiguracaoForm(forms.ModelForm):
     class Meta:
@@ -168,12 +162,6 @@ class WhatsAppMassaForm(forms.Form):
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 6}),
         help_text='Use variaveis: {nome}, {igreja}, {ministerio}',
     )
-    igrejas_destino = forms.ModelMultipleChoiceField(
-        queryset=Igreja.objects.none(),
-        label='Enviar para Igrejas Especificas',
-        required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-select'}),
-    )
     tipos_pessoa = forms.ModelMultipleChoiceField(
         queryset=TipoPessoa.objects.none(),
         label='Filtrar por Tipo de Pessoa',
@@ -201,7 +189,53 @@ class WhatsAppMassaForm(forms.Form):
     def __init__(self, *args, **kwargs):
         ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
-        if ministerio:
-            self.fields['igrejas_destino'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
         self.fields['tipos_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
         self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
+
+class WhatsAppConfiguracaoGlobalForm(forms.ModelForm):
+    """Form simplificado: o admin do ministerio so ativa/desativa.
+    URL e API Key sao gerenciadas pela equipe tecnica via variaveis de ambiente.
+    """
+    class Meta:
+        model = WhatsAppConfiguracaoGlobal
+        fields = ['ativo']
+        widgets = {
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'ativo': 'Ativar WhatsApp para todas as congregacoes do ministerio',
+        }
+        help_texts = {
+            'ativo': 'Quando ativo, cada congregacao pode se conectar escaneando um QR code.',
+        }
+
+
+class WhatsAppConfiguracaoSimplificadaForm(forms.ModelForm):
+    class Meta:
+        model = WhatsAppConfiguracao
+        fields = [
+            'ativo',
+            'numero_envio',
+            'remetente_nome',
+            'auto_aniversariantes',
+            'auto_novos_membros',
+            'auto_contribuicoes',
+            'auto_lembrete_eventos',
+        ]
+        widgets = {
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'numero_envio': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: 11999887766'}),
+            'remetente_nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Igreja Sede'}),
+            'auto_aniversariantes': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'auto_novos_membros': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'auto_contribuicoes': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'auto_lembrete_eventos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'numero_envio': 'Numero do WhatsApp desta congregacao (somente digitos, com DDD).',
+            'remetente_nome': 'Nome que aparecera nas mensagens automaticas.',
+        }
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop('ministerio', None)
+        super().__init__(*args, **kwargs)

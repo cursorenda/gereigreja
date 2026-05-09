@@ -16,6 +16,11 @@
             Compor mensagem
         </div>
         <div class="card-body">
+            {% if request.igreja_ativa %}
+            <div class="alert alert-info py-2">
+                <i class="fas fa-church me-2"></i> Envio para: <strong>{{ request.igreja_ativa.nome_igreja }}</strong>
+            </div>
+            {% endif %}
             <form method="post">
                 {% csrf_token %}
                 {% include "partials/_form_errors.html" with form=form %}
@@ -27,15 +32,11 @@
                 </div>
 
                 <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label" for="{{ form.igrejas_destino.id_for_label }}">{{ form.igrejas_destino.label }}</label>
-                        {{ form.igrejas_destino }}
-                    </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label class="form-label" for="{{ form.tipos_pessoa.id_for_label }}">{{ form.tipos_pessoa.label }}</label>
                         {{ form.tipos_pessoa }}
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label class="form-label" for="{{ form.status_pessoa.id_for_label }}">{{ form.status_pessoa.label }}</label>
                         {{ form.status_pessoa }}
                     </div>
@@ -52,13 +53,341 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-success">
-                    <i class="fab fa-whatsapp me-1"></i> Enviar WhatsApp
-                </button>
-                <a href="{% url 'comunicacao:logs_whatsapp' %}" class="btn btn-outline-secondary ms-2">Ver logs</a>
-                <a href="{% url 'comunicacao:configurar_whatsapp' %}" class="btn btn-outline-primary ms-2">Configurar WAHA</a>
+                <div class="card border mt-3 mb-3" id="preview-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Previa dos destinatarios</span>
+                        <div>
+                            <a href="{% url 'comunicacao:editar_celulares_whatsapp_massa' %}" class="btn btn-sm btn-outline-primary" id="btn-bulk-celular">Editar celulares em massa</a>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-select-all">Selecionar habilitados</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-selection">Limpar selecao</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-preview-refresh">Atualizar previa</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="preview-loading" class="text-muted d-none">Carregando previa...</div>
+                        <div id="preview-summary" class="mb-2 text-muted">Selecione os filtros para ver quem recebera a mensagem.</div>
+                        <div id="preview-selected" class="mb-2 text-primary"></div>
+                        <div id="preview-warning" class="small text-warning mb-2"></div>
+                        <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                            <table class="table table-sm align-middle mb-0" id="preview-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 70px;">Enviar</th>
+                                        <th>Nome</th>
+                                        <th>Igreja</th>
+                                        <th>Celular</th>
+                                        <th>Status para envio</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="preview-body">
+                                    <tr><td colspan="5" class="text-muted">Nenhum destinatario em previa.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fab fa-whatsapp me-1"></i> Enviar WhatsApp
+                    </button>
+                    <button type="button" class="btn btn-outline-info" id="btn-test-waha">
+                        <i class="fas fa-heartbeat me-1"></i> Testar servidor WAHA
+                    </button>
+                    <a href="{% url 'comunicacao:logs_whatsapp' %}" class="btn btn-outline-secondary">Ver logs</a>
+                    <a href="{% url 'comunicacao:configurar_whatsapp' %}" class="btn btn-outline-primary">Configurar WAHA</a>
+                </div>
+                <div id="test-waha-result" class="mt-2 d-none"></div>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const form = document.querySelector('form[method="post"]');
+    if (!form) return;
+
+    const previewUrl = "{% url 'comunicacao:preview_whatsapp_destinatarios' %}";
+    const loadingEl = document.getElementById('preview-loading');
+    const summaryEl = document.getElementById('preview-summary');
+    const selectedEl = document.getElementById('preview-selected');
+    const warningEl = document.getElementById('preview-warning');
+    const bodyEl = document.getElementById('preview-body');
+    const refreshBtn = document.getElementById('btn-preview-refresh');
+    const selectAllBtn = document.getElementById('btn-select-all');
+    const clearSelectionBtn = document.getElementById('btn-clear-selection');
+    const bulkCelularBtn = document.getElementById('btn-bulk-celular');
+
+    let debounceTimer = null;
+    const selectedIds = new Set();
+
+    function setLoading(isLoading) {
+        if (!loadingEl) return;
+        loadingEl.classList.toggle('d-none', !isLoading);
+    }
+
+    function buildQueryString() {
+        const params = new URLSearchParams();
+        
+        // Mensagem
+        const mensagem = document.querySelector('[name="mensagem"]');
+        if (mensagem && mensagem.value) {
+            params.append('mensagem', mensagem.value);
+        }
+        
+        // Selects múltiplos
+        const tiposPessoa = document.querySelector('[name="tipos_pessoa"]');
+        if (tiposPessoa) {
+            Array.from(tiposPessoa.selectedOptions).forEach(opt => {
+                if (opt.value) params.append('tipos_pessoa', opt.value);
+            });
+        }
+        
+        const statusPessoa = document.querySelector('[name="status_pessoa"]');
+        if (statusPessoa) {
+            Array.from(statusPessoa.selectedOptions).forEach(opt => {
+                if (opt.value) params.append('status_pessoa', opt.value);
+            });
+        }
+        
+        // Checkboxes
+        const aniversariantes = document.querySelector('[name="aniversariantes_do_mes"]');
+        if (aniversariantes && aniversariantes.checked) {
+            params.append('aniversariantes_do_mes', 'on');
+        }
+        
+        const somenteCelular = document.querySelector('[name="somente_com_celular"]');
+        if (somenteCelular && somenteCelular.checked) {
+            params.append('somente_com_celular', 'on');
+        }
+        
+        return params.toString();
+    }
+
+    function updateBulkCelularLink() {
+        if (!bulkCelularBtn) return;
+        const baseHref = "{% url 'comunicacao:editar_celulares_whatsapp_massa' %}";
+        const params = new URLSearchParams(buildQueryString());
+        params.delete('somente_com_celular');
+        const qs = params.toString();
+        bulkCelularBtn.href = qs ? `${baseHref}?${qs}` : baseHref;
+    }
+
+    function updateSelectedText() {
+        if (!selectedEl) return;
+        selectedEl.textContent = `${selectedIds.size} destinatario(s) selecionado(s) para envio.`;
+    }
+
+    function renderRows(pessoas) {
+        if (!bodyEl) return;
+        if (!pessoas || !pessoas.length) {
+            bodyEl.innerHTML = '<tr><td colspan="5" class="text-muted">Nenhum destinatario encontrado com os filtros atuais.</td></tr>';
+            selectedIds.clear();
+            updateSelectedText();
+            return;
+        }
+
+        bodyEl.innerHTML = '';
+        const idsVisiveis = new Set();
+
+        pessoas.forEach((pessoa) => {
+            const tr = document.createElement('tr');
+            idsVisiveis.add(Number(pessoa.id));
+
+            const tdSelecionar = document.createElement('td');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input preview-select';
+            checkbox.name = 'destinatarios_ids';
+            checkbox.value = String(pessoa.id);
+            checkbox.disabled = !pessoa.habilitado;
+            checkbox.checked = pessoa.habilitado && selectedIds.has(Number(pessoa.id));
+            tdSelecionar.appendChild(checkbox);
+            tr.appendChild(tdSelecionar);
+
+            const tdNome = document.createElement('td');
+            tdNome.textContent = pessoa.nome || '-';
+            tr.appendChild(tdNome);
+
+            const tdIgreja = document.createElement('td');
+            tdIgreja.textContent = pessoa.igreja || '-';
+            tr.appendChild(tdIgreja);
+
+            const tdCelular = document.createElement('td');
+            tdCelular.textContent = pessoa.celular || '-';
+            tr.appendChild(tdCelular);
+
+            const tdStatus = document.createElement('td');
+            if (pessoa.habilitado) {
+                tdStatus.innerHTML = '<span class="badge bg-success">Habilitado para receber msg</span>';
+            } else if (!pessoa.tem_celular) {
+                tdStatus.innerHTML = '<span class="badge bg-secondary">Sem celular</span>';
+            } else {
+                tdStatus.innerHTML = '<span class="badge bg-warning text-dark">Sem configuracao WA</span>';
+            }
+            tr.appendChild(tdStatus);
+
+            bodyEl.appendChild(tr);
+        });
+
+        Array.from(selectedIds).forEach((id) => {
+            if (!idsVisiveis.has(id)) {
+                selectedIds.delete(id);
+            }
+        });
+        updateSelectedText();
+    }
+
+    function atualizarPrevia() {
+        setLoading(true);
+        warningEl.textContent = '';
+
+        fetch(`${previewUrl}?${buildQueryString()}`, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(async (response) => {
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const mensagem = payload && payload.error
+                        ? `Falha ao carregar previa: ${payload.error}`
+                        : (payload && payload.errors ? 'Filtros invalidos para calcular a previa.' : 'Falha ao carregar previa.');
+                    throw new Error(mensagem);
+                }
+                return payload;
+            })
+            .then((data) => {
+                if (!data.ok) {
+                    summaryEl.textContent = 'Nao foi possivel calcular a previa com os filtros atuais.';
+                    renderRows([]);
+                    return;
+                }
+
+                summaryEl.textContent = `Aptos para envio: ${data.total_aptos} de ${data.total_filtrados} pessoa(s) filtrada(s).`;
+                renderRows(data.pessoas || []);
+
+                const excedeuLimite = data.total_aptos > (data.limite_nomes || 100);
+                const avisos = [];
+                if (data.sem_config_total) {
+                    avisos.push(`${data.sem_config_total} sem configuracao WhatsApp ativa na igreja.`);
+                }
+                if (data.sem_celular_total) {
+                    avisos.push(`${data.sem_celular_total} sem celular preenchido.`);
+                }
+                if (excedeuLimite) {
+                    avisos.push(`Mostrando somente os primeiros ${data.limite_nomes} nomes.`);
+                }
+                warningEl.textContent = avisos.join(' ');
+            })
+            .catch((error) => {
+                summaryEl.textContent = error.message || 'Erro ao carregar previa dos destinatarios.';
+                renderRows([]);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }
+
+    function schedulePreview() {
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
+        updateBulkCelularLink();
+        debounceTimer = setTimeout(atualizarPrevia, 300);
+    }
+
+    form.querySelectorAll('select, input[type="checkbox"]').forEach((field) => {
+        field.addEventListener('change', schedulePreview);
+    });
+
+    form.querySelectorAll('textarea').forEach((field) => {
+        field.addEventListener('input', schedulePreview);
+    });
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', atualizarPrevia);
+    }
+
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+            bodyEl.querySelectorAll('input.preview-select:not(:disabled)').forEach((el) => {
+                el.checked = true;
+                selectedIds.add(Number(el.value));
+            });
+            updateSelectedText();
+        });
+    }
+
+    if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+            selectedIds.clear();
+            bodyEl.querySelectorAll('input.preview-select').forEach((el) => {
+                el.checked = false;
+            });
+            updateSelectedText();
+        });
+    }
+
+    bodyEl.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || !target.classList.contains('preview-select')) {
+            return;
+        }
+        const id = Number(target.value);
+        if (!id) return;
+
+        if (target.checked) {
+            selectedIds.add(id);
+        } else {
+            selectedIds.delete(id);
+        }
+        updateSelectedText();
+    });
+
+    form.addEventListener('submit', () => {
+        bodyEl.querySelectorAll('input.preview-select').forEach((el) => {
+            if (el.checked) {
+                selectedIds.add(Number(el.value));
+            }
+        });
+    });
+
+    const testBtn = document.getElementById('btn-test-waha');
+    const resultEl = document.getElementById('test-waha-result');
+
+    if (testBtn) {
+        testBtn.addEventListener('click', () => {
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Testando...';
+            resultEl.classList.add('d-none');
+
+            fetch("{% url 'comunicacao:test_waha_health' %}", {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.ok) {
+                        resultEl.innerHTML = `<div class="alert alert-success py-2"><i class="fas fa-check-circle me-1"></i> ${data.mensagem}</div>`;
+                    } else {
+                        resultEl.innerHTML = `<div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle me-1"></i> ${data.error}</div>`;
+                    }
+                    resultEl.classList.remove('d-none');
+                })
+                .catch((error) => {
+                    resultEl.innerHTML = `<div class="alert alert-danger py-2"><i class="fas fa-times-circle me-1"></i> Erro ao testar WAHA: ${error.message}</div>`;
+                    resultEl.classList.remove('d-none');
+                })
+                .finally(() => {
+                    testBtn.disabled = false;
+                    testBtn.innerHTML = '<i class="fas fa-heartbeat me-1"></i> Testar servidor WAHA';
+                });
+        });
+    }
+
+    updateBulkCelularLink();
+    atualizarPrevia();
+})();
+</script>
 {% endblock %}

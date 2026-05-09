@@ -60,21 +60,22 @@ python manage.py configurar_permissoes_grupos
 Para detalhes sobre cada grupo, permissões específicas e guias de uso, consulte:
 - **[docs/GRUPOS_PERMISSOES.md](docs/GRUPOS_PERMISSOES.md)** - Documentação completa do sistema de permissões
 
-## 🆕 Melhorias Recentes (v1.8.78 — 21/04/2026)
+## 🆕 Melhorias Recentes (v1.10.1 — 09/05/2026)
 
-- **Alteração em Massa de Pessoas (Bulk Edit):**
-  - Corrigido bug de logout inesperado ao salvar alteração em massa.
-  - Submit do modal agora aciona sempre o formulário correto, evitando conflitos com o form de logout.
-  - Seleção de tags e campos harmonizada com cadastro/edição individual.
-- **Mensagens Globais:**
-  - Removido bloco de mensagens duplicado na lista de membros; apenas o global permanece.
-- **Middleware/Contexto:**
-  - Middleware ajustado para não exigir seleção de igreja para usuários de igreja única.
-  - Selector de igreja oculto para esses usuários, evitando POSTs desnecessários.
-- **UX:**
-  - Ajustes em botões, modais e feedback visual para maior clareza e robustez.
+- **WhatsApp Edição em Massa de Celulares:**
+  - Nova página `/comunicacao/whatsapp/massa/editar-celulares/` com filtros avançados
+  - Checkbox para mostrar apenas pessoas sem celular preenchido
+  - Máscara automática `(##) #####-####` e validação de 15 dígitos
+  - Correção crítica: suporte a locale-aware form serialization (POST keys com dots)
+  - Feedback simplificado na UI (logs em background apenas)
+- **Documentação Expandida:**
+  - Novo guia [docs/WHATSAPP_BULK_CELULAR_EDIT.md](docs/WHATSAPP_BULK_CELULAR_EDIT.md) com implementação técnica e casos de teste
+  - Novo guia de deploy [docs/DEPLOY_RELEASE_v1.10.1.md](docs/DEPLOY_RELEASE_v1.10.1.md)
+- **Versionamento:**
+   - CHANGELOG.md como fonte oficial da versão exibida no sistema
+   - Changelog sincronizado com releases
 
-Veja detalhes completos no [CHANGELOG.md](CHANGELOG.md) e na documentação de permissões/grupos.
+Veja detalhes completos no [CHANGELOG.md](CHANGELOG.md), [docs/WHATSAPP_BULK_CELULAR_EDIT.md](docs/WHATSAPP_BULK_CELULAR_EDIT.md) e na documentação de permissões/grupos.
 
 ##🛠️ Tecnologias
 

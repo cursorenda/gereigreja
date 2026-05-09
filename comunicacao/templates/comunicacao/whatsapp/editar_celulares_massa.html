@@ -1,0 +1,137 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:enviar_whatsapp_massa' %}">WhatsApp em Massa</a></li>
+        <li class="breadcrumb-item active">Editar Celulares</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-address-book me-1"></i> Celulares dos filtrados</span>
+            <a href="{% url 'comunicacao:enviar_whatsapp_massa' %}" class="btn btn-sm btn-outline-secondary">Voltar para envio</a>
+        </div>
+        <div class="card-body">
+            {% if igreja_ativa %}
+            <div class="alert alert-info py-2">
+                <i class="fas fa-church me-2"></i> Congregacao ativa: <strong>{{ igreja_ativa.nome_igreja }}</strong>
+            </div>
+            {% endif %}
+
+            <p class="text-muted mb-3">Resultado filtrado: <strong>{{ membros|length }}</strong> pessoa(s).</p>
+
+            <form method="post" id="bulk-celulares-form" autocomplete="off" action="{% url 'comunicacao:editar_celulares_whatsapp_massa' %}">
+                {% csrf_token %}
+
+                {% for tipo_id in filtros.tipos_pessoa_ids %}
+                <input type="hidden" name="tipos_pessoa" value="{{ tipo_id }}">
+                {% endfor %}
+                {% for status_id in filtros.status_pessoa_ids %}
+                <input type="hidden" name="status_pessoa" value="{{ status_id }}">
+                {% endfor %}
+                {% if filtros.aniversariantes_do_mes %}
+                <input type="hidden" name="aniversariantes_do_mes" value="on">
+                {% endif %}
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="checkbox-sem-celular"
+                        >
+                        <label class="form-check-label" for="checkbox-sem-celular">
+                            Mostrar apenas pessoas sem celular preenchido
+                        </label>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 65vh; overflow-y: auto;">
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                            <tr>
+                                <th style="width: 70px;">#</th>
+                                <th>Nome</th>
+                                <th style="width: 240px;">Celular</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for membro in membros %}
+                            <tr class="js-membro-row" data-has-celular="{% if membro.celular %}true{% else %}false{% endif %}">
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ membro.nome|default:'Sem nome' }}</td>
+                                <td>
+                                    <input
+                                        type="text"
+                                        class="form-control form-control-sm js-celular-massa"
+                                        name="celular_{{ membro.pk }}"
+                                        form="bulk-celulares-form"
+                                        value="{{ membro.celular|default:'' }}"
+                                        data-original="{{ membro.celular|default:'' }}"
+                                        placeholder="Ex: 33999998888"
+                                        maxlength="20"
+                                        inputmode="tel"
+                                        autocomplete="off"
+                                    >
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-muted">Nenhuma pessoa encontrada com os filtros atuais.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-success" form="bulk-celulares-form">
+                        <i class="fas fa-save me-1"></i> Salvar celulares em massa
+                    </button>
+                    <a href="{% url 'comunicacao:enviar_whatsapp_massa' %}{% if querystring %}?{{ querystring }}{% endif %}" class="btn btn-outline-secondary">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'secretaria/form_masks.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = document.querySelectorAll('.js-celular-massa');
+    inputs.forEach(function(input) {
+        if (typeof aplicarMascara === 'function') {
+            aplicarMascara(input, '(##) #####-####');
+        }
+    });
+
+    // Filter checkbox functionality
+    const checkboxSemCelular = document.getElementById('checkbox-sem-celular');
+    const linhas = document.querySelectorAll('.js-membro-row');
+
+    function aplicarFiltro() {
+        const mostrarApenaSemCelular = checkboxSemCelular.checked;
+        linhas.forEach(function(linha) {
+            const temCelular = linha.dataset.hasCelular === 'true';
+            if (mostrarApenaSemCelular) {
+                linha.style.display = temCelular ? 'none' : '';
+            } else {
+                linha.style.display = '';
+            }
+        });
+    }
+
+    checkboxSemCelular.addEventListener('change', aplicarFiltro);
+});
+</script>
+{% endblock %}

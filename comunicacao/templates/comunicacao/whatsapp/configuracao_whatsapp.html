@@ -4,84 +4,188 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina }}</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">WhatsApp</li>
-    </ol>
+	<h1 class="mt-4">{{ titulo_pagina }}</h1>
+	<ol class="breadcrumb mb-4">
+		<li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+		<li class="breadcrumb-item active">WhatsApp</li>
+	</ol>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-cog me-1"></i>
-            Configuracao por congregacao
-        </div>
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
-                {% include "partials/_form_errors.html" with form=form %}
+	{% if not config_global or not config_global.ativo %}
+	<div class="alert alert-warning" role="alert">
+		<i class="fas fa-exclamation-triangle me-1"></i>
+		<strong>Servidor WAHA nao configurado.</strong>
+		O admin do ministerio precisa primeiro configurar o servidor em
+		<a href="{% url 'comunicacao:configurar_whatsapp_global' %}" class="alert-link">Configuracao Global do WhatsApp</a>.
+	</div>
+	{% endif %}
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" for="{{ form.igreja.id_for_label }}">{{ form.igreja.label }}</label>
-                        {{ form.igreja }}
-                    </div>
-                    <div class="col-md-6 mb-3 d-flex align-items-end">
-                        <div class="form-check">
-                            {{ form.ativo }}
-                            <label class="form-check-label" for="{{ form.ativo.id_for_label }}">{{ form.ativo.label }}</label>
-                        </div>
-                    </div>
-                </div>
+	<div class="row">
+		<div class="col-lg-6">
+			<div class="card mb-4">
+				<div class="card-header">
+					<i class="fas fa-church me-1"></i>
+					Dados da Congregacao
+				</div>
+				<div class="card-body">
+					<form method="post">
+						{% csrf_token %}
+						{% include "partials/_form_errors.html" with form=form %}
 
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label" for="{{ form.numero_envio.id_for_label }}">{{ form.numero_envio.label }}</label>
-                        {{ form.numero_envio }}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label" for="{{ form.remetente_nome.id_for_label }}">{{ form.remetente_nome.label }}</label>
-                        {{ form.remetente_nome }}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label" for="{{ form.session_name.id_for_label }}">{{ form.session_name.label }}</label>
-                        {{ form.session_name }}
-                    </div>
-                </div>
+						<div class="mb-3">
+							<label class="form-label">Congregacao ativa</label>
+							<input type="text" class="form-control" value="{{ igreja_ativa.nome_igreja }}" readonly>
+							<div class="form-text">A congregacao vem do seletor global no topo da tela.</div>
+						</div>
+						<div class="mb-3">
+							<label class="form-label" for="{{ form.numero_envio.id_for_label }}">{{ form.numero_envio.label }}</label>
+							{{ form.numero_envio }}
+							{% if form.numero_envio.help_text %}<div class="form-text">{{ form.numero_envio.help_text }}</div>{% endif %}
+						</div>
+						<div class="mb-3">
+							<label class="form-label" for="{{ form.remetente_nome.id_for_label }}">{{ form.remetente_nome.label }}</label>
+							{{ form.remetente_nome }}
+							{% if form.remetente_nome.help_text %}<div class="form-text">{{ form.remetente_nome.help_text }}</div>{% endif %}
+						</div>
+						<div class="mb-3 form-check">
+							{{ form.ativo }}
+							<label class="form-check-label" for="{{ form.ativo.id_for_label }}">{{ form.ativo.label }}</label>
+						</div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" for="{{ form.waha_base_url.id_for_label }}">{{ form.waha_base_url.label }}</label>
-                        {{ form.waha_base_url }}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label" for="{{ form.waha_api_key.id_for_label }}">{{ form.waha_api_key.label }}</label>
-                        {{ form.waha_api_key }}
-                    </div>
-                </div>
+						<h6 class="mt-3 mb-2">Automacoes ativas</h6>
+						<div class="row g-2">
+							<div class="col-6 form-check ms-2">
+								{{ form.auto_aniversariantes }}
+								<label class="form-check-label" for="{{ form.auto_aniversariantes.id_for_label }}">{{ form.auto_aniversariantes.label }}</label>
+							</div>
+							<div class="col-6 form-check ms-2">
+								{{ form.auto_novos_membros }}
+								<label class="form-check-label" for="{{ form.auto_novos_membros.id_for_label }}">{{ form.auto_novos_membros.label }}</label>
+							</div>
+							<div class="col-6 form-check ms-2">
+								{{ form.auto_contribuicoes }}
+								<label class="form-check-label" for="{{ form.auto_contribuicoes.id_for_label }}">{{ form.auto_contribuicoes.label }}</label>
+							</div>
+							<div class="col-6 form-check ms-2">
+								{{ form.auto_lembrete_eventos }}
+								<label class="form-check-label" for="{{ form.auto_lembrete_eventos.id_for_label }}">{{ form.auto_lembrete_eventos.label }}</label>
+							</div>
+						</div>
 
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.webhook_token.id_for_label }}">{{ form.webhook_token.label }}</label>
-                    {{ form.webhook_token }}
-                    <div class="form-text">Use este token no header X-Webhook-Token para validar recebimento do WAHA.</div>
-                </div>
+						<hr>
+						<button type="submit" class="btn btn-primary">
+							<i class="fas fa-save me-1"></i> Salvar
+						</button>
+						<a href="{% url 'comunicacao:configurar_whatsapp_global' %}" class="btn btn-outline-secondary ms-2">
+							<i class="fas fa-server me-1"></i> Config. Global
+						</a>
+					</form>
+				</div>
+			</div>
+		</div>
 
-                <h5 class="mt-3">Automacoes</h5>
-                <div class="row">
-                    <div class="col-md-3 form-check ms-2">{{ form.auto_aniversariantes }} <label class="form-check-label" for="{{ form.auto_aniversariantes.id_for_label }}">{{ form.auto_aniversariantes.label }}</label></div>
-                    <div class="col-md-3 form-check ms-2">{{ form.auto_novos_membros }} <label class="form-check-label" for="{{ form.auto_novos_membros.id_for_label }}">{{ form.auto_novos_membros.label }}</label></div>
-                    <div class="col-md-3 form-check ms-2">{{ form.auto_contribuicoes }} <label class="form-check-label" for="{{ form.auto_contribuicoes.id_for_label }}">{{ form.auto_contribuicoes.label }}</label></div>
-                    <div class="col-md-3 form-check ms-2">{{ form.auto_lembrete_eventos }} <label class="form-check-label" for="{{ form.auto_lembrete_eventos.id_for_label }}">{{ form.auto_lembrete_eventos.label }}</label></div>
-                </div>
+		<div class="col-lg-6">
+			<div class="card mb-4">
+				<div class="card-header">
+					<i class="fab fa-whatsapp me-1"></i>
+					Conectar WhatsApp
+				</div>
+				<div class="card-body text-center">
+					{% if not config %}
+					<p class="text-muted">Salve a configuracao acima primeiro para poder escanear o QR code.</p>
+					{% else %}
+					<div id="status-badge" class="mb-3">
+						{% if status_sessao == 'WORKING' %}
+						<span class="badge bg-success fs-6"><i class="fas fa-check-circle me-1"></i> Conectado</span>
+						{% elif status_sessao == 'SCAN_QR_CODE' %}
+						<span class="badge bg-warning text-dark fs-6"><i class="fas fa-qrcode me-1"></i> Aguardando scan</span>
+						{% elif status_sessao %}
+						<span class="badge bg-secondary fs-6">{{ status_sessao }}</span>
+						{% else %}
+						<span class="badge bg-secondary fs-6">Desconhecido</span>
+						{% endif %}
+					</div>
+					<div id="qr-container" class="mb-3">
+						<p class="text-muted small" id="qr-hint">Clique em "Gerar QR Code" e escaneie em ate 20 segundos. O QR expira rapido e sera atualizado automaticamente.</p>
+						<img id="qr-image" src="" alt="QR Code WhatsApp" class="img-fluid rounded d-none" style="max-width:320px; image-rendering: pixelated;">
+					</div>
+					<button type="button" class="btn btn-success" onclick="carregarQR(true)">
+						<i class="fas fa-qrcode me-1"></i> Gerar / Atualizar QR Code
+					</button>
+					<div id="qr-loading" class="mt-2 d-none">
+						<div class="spinner-border spinner-border-sm text-success" role="status"></div>
+						<span class="ms-1 small">Aguardando servidor WAHA...</span>
+					</div>
+					<p class="text-muted small mt-3">
+						Abra o WhatsApp &rarr; Dispositivos Conectados &rarr; Conectar novo dispositivo e escaneie o QR acima.
+					</p>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
 
-                <hr>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-1"></i> Salvar configuracao
-                </button>
-                <a href="{% url 'comunicacao:enviar_whatsapp_massa' %}" class="btn btn-outline-success ms-2">
-                    <i class="fab fa-whatsapp me-1"></i> Ir para envio em massa
-                </a>
-            </form>
-        </div>
-    </div>
+	<div class="mt-2">
+		<a href="{% url 'comunicacao:enviar_whatsapp_massa' %}" class="btn btn-outline-success">
+			<i class="fab fa-whatsapp me-1"></i> Envio em Massa
+		</a>
+		<a href="{% url 'comunicacao:logs_whatsapp' %}" class="btn btn-outline-secondary ms-2">
+			<i class="fas fa-list me-1"></i> Logs
+		</a>
+	</div>
 </div>
+
+{% if config %}
+<script>
+let qrAutoTimer = null;
+
+function carregarQR(manual = false) {
+	const loading = document.getElementById('qr-loading');
+	const img = document.getElementById('qr-image');
+	const hint = document.getElementById('qr-hint');
+	const statusBadge = document.getElementById('status-badge');
+	loading.classList.remove('d-none');
+	if (manual) {
+		img.classList.add('d-none');
+	}
+	fetch("{% url 'comunicacao:qr_code_whatsapp' config.pk %}")
+		.then(r => r.json())
+		.then(data => {
+			loading.classList.add('d-none');
+			if (hint) hint.classList.remove('d-none');
+			if (data.qr) {
+				img.src = data.qr;
+				img.classList.remove('d-none');
+				if (hint) hint.textContent = 'QR atualizado. Escaneie agora (expira rapido).';
+			}
+			if (data.status === 'WORKING') {
+				statusBadge.innerHTML = '<span class="badge bg-success fs-6"><i class="fas fa-check-circle me-1"></i> Conectado</span>';
+				img.classList.add('d-none');
+				if (hint) hint.textContent = 'Dispositivo conectado com sucesso.';
+				if (qrAutoTimer) {
+					clearInterval(qrAutoTimer);
+					qrAutoTimer = null;
+				}
+			} else if (data.status) {
+				statusBadge.innerHTML = '<span class="badge bg-warning text-dark fs-6"><i class="fas fa-qrcode me-1"></i> ' + data.status + '</span>';
+				if (['SCAN_QR_CODE', 'STARTING', 'UNKNOWN'].includes(data.status) && !qrAutoTimer) {
+					qrAutoTimer = setInterval(() => carregarQR(false), 15000);
+				}
+			}
+		})
+		.catch(() => {
+			loading.classList.add('d-none');
+			statusBadge.innerHTML = '<span class="badge bg-danger fs-6">Erro ao conectar com o servidor WAHA</span>';
+			if (hint) {
+				hint.classList.remove('d-none');
+				hint.textContent = 'Falha temporaria. Clique novamente em Gerar / Atualizar QR Code.';
+			}
+		});
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+	carregarQR(false);
+});
+</script>
+{% endif %}
 {% endblock %}
+
