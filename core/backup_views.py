@@ -6,11 +6,13 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.core.management import call_command
 from deploy.models import BackupHistorico
+from django.core.files.storage import default_storage
 
 import subprocess
 import os
 import datetime
 import io
+import sys
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -42,6 +44,53 @@ def _registrar_backup(request, filename, filepath, tipo):
     except Exception:
         pass
 
+
+def _executar_backup_json(filepath):
+    """Executa dumpdata em subprocesso com opções seguras para evitar recursão."""
+    command = [
+        sys.executable,
+        'manage.py',
+        'dumpdata',
+        '--exclude=contenttypes',
+        '--exclude=auth.permission',
+        '--exclude=sessions.session',
+        '--exclude=admin.logentry',
+        '--indent=2',
+        '--output',
+        filepath,
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=os.path.dirname(os.path.dirname(__file__)),
+        capture_output=True,
+        text=True,
+        timeout=300,
+        encoding='utf-8',
+        errors='replace',
+    )
+    if result.returncode != 0:
+        erro = result.stderr.strip() or result.stdout.strip() or 'Erro desconhecido ao executar dumpdata'
+        raise RuntimeError(erro)
+
+
+def _adicionar_storage_ao_zip(zipf, storage, path=''):
+    """Adiciona arquivos do storage Django ao zip de forma recursiva."""
+    total_arquivos = 0
+    diretorios, arquivos = storage.listdir(path)
+
+    for nome_arquivo in arquivos:
+        storage_path = f'{path}/{nome_arquivo}' if path else nome_arquivo
+        with storage.open(storage_path, 'rb') as arquivo_origem:
+            zipf.writestr(storage_path, arquivo_origem.read())
+        total_arquivos += 1
+
+    for nome_diretorio in diretorios:
+        diretorio_path = f'{path}/{nome_diretorio}' if path else nome_diretorio
+        total_arquivos += _adicionar_storage_ao_zip(zipf, storage, diretorio_path)
+
+    return total_arquivos
+
 # View para backup JSON (funciona em qualquer ambiente)
 @staff_member_required
 def backup_json(request):
@@ -52,10 +101,9 @@ def backup_json(request):
         
         # Criar diretório se não existir
         os.makedirs('backup', exist_ok=True)
-        
-        # Usar dumpdata para criar backup
-        with open(filepath, 'w', encoding='utf-8') as f:
-            call_command('dumpdata', '--indent', '2', '--natural-foreign', '--natural-primary', stdout=f)
+
+        # Usar dumpdata em subprocesso com exclusões seguras
+        _executar_backup_json(filepath)
 
         _registrar_backup(request, filename, filepath, 'json')
         
@@ -176,22 +224,26 @@ def backup_arquivos(request):
         
         # Criar diretório se não existir
         os.makedirs('backup', exist_ok=True)
-        
-        # Verificar se existe pasta media
-        media_root = settings.MEDIA_ROOT
-        if not os.path.exists(media_root):
-            return HttpResponse('Pasta media não encontrada. Não há arquivos para fazer backup.', status=404)
-        
-        # Criar arquivo ZIP com todos os arquivos da pasta media
-        with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for root, dirs, files in os.walk(media_root):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, os.path.dirname(media_root))
-                    zipf.write(file_path, arcname)
+
+        # Criar ZIP a partir do backend de storage configurado (local ou remoto)
+        try:
+            with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                total_arquivos = _adicionar_storage_ao_zip(zipf, default_storage)
+        except NotImplementedError:
+            return HttpResponse(
+                'O storage atual não suporta listagem de arquivos para gerar ZIP automático. '
+                'No ambiente atual, os arquivos estão em storage remoto e exigem rotina específica de exportação.',
+                status=400,
+            )
+
+        if total_arquivos == 0:
+            return HttpResponse(
+                'Nenhum arquivo foi encontrado no storage configurado para gerar o ZIP de backup.',
+                status=404,
+            )
         
         # Verificar se o arquivo foi criado
-        if not os.path.exists(filepath):
+        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
             return HttpResponse('Erro ao criar arquivo de backup.', status=500)
 
         _registrar_backup(request, filename, filepath, 'zip')
