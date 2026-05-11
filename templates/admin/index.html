@@ -951,7 +951,13 @@ Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
 
 // Carregar métricas
 fetch('/admin/api/metricas-produto/')
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            console.error('Erro HTTP:', response.status, response.statusText);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         console.log('Métricas carregadas:', data);
         

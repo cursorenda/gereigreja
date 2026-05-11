@@ -11,9 +11,95 @@ from datetime import datetime, timedelta
 from notificacoes.models import Notificacao, NotificacaoEnviada
 
 
+def _calcular_saude_admin(tickets_data, acessos_data, membros_data, financeiro_data, sistema_data):
+    """Consolida um score simples de saude operacional do admin (0-100)."""
+    score = 100
+    checks = []
+
+    backup_ok = bool(sistema_data.get('backup_ok'))
+    checks.append({
+        'item': 'Backup recente',
+        'ok': backup_ok,
+        'detalhe': 'OK' if backup_ok else 'Atrasado'
+    })
+    if not backup_ok:
+        score -= 30
+
+    tickets_pendentes = int(tickets_data.get('pendentes', 0) or 0)
+    tickets_ok = tickets_pendentes <= 10
+    checks.append({
+        'item': 'Fila de tickets',
+        'ok': tickets_ok,
+        'detalhe': f'{tickets_pendentes} pendentes'
+    })
+    if tickets_pendentes > 20:
+        score -= 20
+    elif tickets_pendentes > 10:
+        score -= 10
+
+    bugs = int(tickets_data.get('bugs', 0) or 0)
+    bugs_ok = bugs == 0
+    checks.append({
+        'item': 'Bugs abertos',
+        'ok': bugs_ok,
+        'detalhe': f'{bugs} bug(s)'
+    })
+    if bugs > 0:
+        score -= 10
+
+    retencao = float(acessos_data.get('taxa_retencao', 0) or 0)
+    retencao_ok = retencao >= 70
+    checks.append({
+        'item': 'Retencao de usuarios (30d)',
+        'ok': retencao_ok,
+        'detalhe': f'{retencao}%'
+    })
+    if retencao < 50:
+        score -= 20
+    elif retencao < 70:
+        score -= 10
+
+    taxa_foto = float(membros_data.get('taxa_foto', 0) or 0)
+    foto_ok = taxa_foto >= 50
+    checks.append({
+        'item': 'Qualidade cadastro (foto)',
+        'ok': foto_ok,
+        'detalhe': f'{taxa_foto}%'
+    })
+    if taxa_foto < 50:
+        score -= 10
+
+    taxa_comprovante = float(financeiro_data.get('taxa_comprovante', 0) or 0)
+    comprovante_ok = taxa_comprovante >= 50
+    checks.append({
+        'item': 'Qualidade financeiro (comprovante)',
+        'ok': comprovante_ok,
+        'detalhe': f'{taxa_comprovante}%'
+    })
+    if taxa_comprovante < 50:
+        score -= 10
+
+    score = max(0, min(100, score))
+    if score >= 80:
+        status = 'ok'
+    elif score >= 60:
+        status = 'alerta'
+    else:
+        status = 'critico'
+
+    return {
+        'score': score,
+        'status': status,
+        'checks': checks,
+    }
+
+
 @staff_member_required
 def metricas_produto(request):
     """API JSON com métricas de produto e uso do sistema"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[admin_metrics] Iniciando fetch de métricas para usuário: {request.user}")
     
     # Imports dentro da função para evitar circular imports
     from secretaria.models import Pessoa
@@ -348,6 +434,17 @@ def metricas_produto(request):
         'storage_gb': storage_usado
     }
     
+    admin_hub_data = _calcular_saude_admin(
+        tickets_data=tickets_data,
+        acessos_data=acessos_data,
+        membros_data=membros_data,
+        financeiro_data=financeiro_data,
+        sistema_data=sistema_data,
+    )
+
+    # Log antes de retornar
+    logger.info(f"[admin_metrics] Retornando dados: membros={membros_data.get('total')}, tickets={tickets_data.get('total')}, usuarios={acessos_data.get('total_usuarios')}")
+
     return JsonResponse({
         'membros': membros_data,
         'eventos': eventos_data,
@@ -358,5 +455,6 @@ def metricas_produto(request):
         'crescimento': crescimento_membros,
         'ministerios': ministerios_data,
         'sistema': sistema_data,
+        'admin_hub': admin_hub_data,
         'timestamp': timezone.now().isoformat()
     })
