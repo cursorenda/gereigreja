@@ -388,36 +388,51 @@ def metricas_produto(request):
     # ===== STATUS DO SISTEMA (BACKUP & HEALTH) =====
     try:
         from django.conf import settings
-        
-        # Verificar último backup na pasta backup/ (todos os tipos: json, dump, sql, zip)
-        base_dir = settings.BASE_DIR
-        backup_dir = base_dir / 'backup'
-        backup_files = []
-        for ext in ('*.json', '*.dump', '*.sql', '*.zip'):
-            backup_files.extend(glob.glob(str(backup_dir / ext)))
-        # Remove arquivos de log e não-backup
-        backup_files = [f for f in backup_files if os.path.basename(f).startswith('backup')]
-        
-        if backup_files:
-            ultimo_backup = max(backup_files, key=os.path.getmtime)
-            ultimo_backup_data = datetime.fromtimestamp(os.path.getmtime(ultimo_backup))
-            dias_desde_backup = (hoje - timezone.make_aware(ultimo_backup_data)).days
+        from deploy.models import BackupHistorico
+
+        # Fonte de verdade: ultimo backup persistido no banco
+        ultimo_backup_db = BackupHistorico.objects.order_by('-criado_em').first()
+        if ultimo_backup_db:
+            ultimo_backup_data = ultimo_backup_db.criado_em
+            dias_desde_backup = (hoje - ultimo_backup_data).days
             backup_ok = dias_desde_backup <= 1
         else:
-            # Fallback: checar backup_log.txt para detectar backups feitos em produção
-            backup_log = base_dir / 'backup' / 'backup_log.txt'
-            if not backup_log.exists():
-                backup_log = base_dir / 'backup_log.txt'
-            if backup_log.exists():
-                linhas = backup_log.read_text(encoding='utf-8', errors='ignore').strip().splitlines()
-                ultima_linha = next((l for l in reversed(linhas) if l.strip()), None)
-                if ultima_linha:
-                    try:
-                        ts_str = ultima_linha.split(' ')[0]  # formato: 20260511_105227
-                        ultimo_backup_data = datetime.strptime(ts_str, '%Y%m%d_%H%M%S')
-                        dias_desde_backup = (hoje - timezone.make_aware(ultimo_backup_data)).days
-                        backup_ok = dias_desde_backup <= 1
-                    except Exception:
+            # Fallback por arquivo para ambientes legados
+            # Verificar último backup na pasta backup/ (todos os tipos: json, dump, sql, zip)
+            base_dir = settings.BASE_DIR
+            backup_dir = base_dir / 'backup'
+            backup_files = []
+            for ext in ('*.json', '*.dump', '*.sql', '*.zip'):
+                backup_files.extend(glob.glob(str(backup_dir / ext)))
+            # Remove arquivos de log e não-backup
+            backup_files = [f for f in backup_files if os.path.basename(f).startswith('backup')]
+            
+            if backup_files:
+                ultimo_backup = max(backup_files, key=os.path.getmtime)
+                ultimo_backup_data = datetime.fromtimestamp(os.path.getmtime(ultimo_backup))
+                ultimo_backup_data = timezone.make_aware(ultimo_backup_data)
+                dias_desde_backup = (hoje - ultimo_backup_data).days
+                backup_ok = dias_desde_backup <= 1
+            else:
+                # Fallback: checar backup_log.txt
+                backup_log = base_dir / 'backup' / 'backup_log.txt'
+                if not backup_log.exists():
+                    backup_log = base_dir / 'backup_log.txt'
+                if backup_log.exists():
+                    linhas = backup_log.read_text(encoding='utf-8', errors='ignore').strip().splitlines()
+                    ultima_linha = next((l for l in reversed(linhas) if l.strip()), None)
+                    if ultima_linha:
+                        try:
+                            ts_str = ultima_linha.split(' ')[0]  # formato: 20260511_105227
+                            ultimo_backup_data = datetime.strptime(ts_str, '%Y%m%d_%H%M%S')
+                            ultimo_backup_data = timezone.make_aware(ultimo_backup_data)
+                            dias_desde_backup = (hoje - ultimo_backup_data).days
+                            backup_ok = dias_desde_backup <= 1
+                        except Exception:
+                            ultimo_backup_data = None
+                            dias_desde_backup = 999
+                            backup_ok = False
+                    else:
                         ultimo_backup_data = None
                         dias_desde_backup = 999
                         backup_ok = False
@@ -425,10 +440,6 @@ def metricas_produto(request):
                     ultimo_backup_data = None
                     dias_desde_backup = 999
                     backup_ok = False
-            else:
-                ultimo_backup_data = None
-                dias_desde_backup = 999
-                backup_ok = False
         
         # Verificar erros recentes (últimas 24h) - simulado
         # Em produção, você pode integrar com sistema de logs

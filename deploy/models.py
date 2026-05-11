@@ -39,3 +39,28 @@ class DeployHistorico(models.Model):
     
     def __str__(self):
         return f"{self.versao} - {self.data_deploy.strftime('%d/%m/%Y %H:%M')}"
+
+
+class BackupHistorico(models.Model):
+    """Historico de backups gerados no sistema (persistente no banco)."""
+
+    TIPO_CHOICES = [
+        ('json', 'JSON (dumpdata)'),
+        ('dump', 'Custom (.dump)'),
+        ('sql', 'SQL (.sql)'),
+        ('zip', 'Arquivos (.zip)'),
+    ]
+
+    arquivo = models.CharField(max_length=255, verbose_name='Arquivo')
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, verbose_name='Tipo')
+    tamanho_bytes = models.BigIntegerField(default=0, verbose_name='Tamanho (bytes)')
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Usuario')
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Data do Backup')
+
+    class Meta:
+        verbose_name = 'Backup'
+        verbose_name_plural = 'Historico de Backups'
+        ordering = ['-criado_em']
+
+    def __str__(self):
+        return f"{self.arquivo} - {self.criado_em.strftime('%d/%m/%Y %H:%M')}"

@@ -5,6 +5,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.core.management import call_command
+from deploy.models import BackupHistorico
 
 import subprocess
 import os
@@ -15,6 +16,31 @@ try:
     load_dotenv()
 except ImportError:
     pass
+
+
+def _registrar_backup(request, filename, filepath, tipo):
+    """Registra backup em log de arquivo e no banco de dados."""
+    # Log em arquivo (compatibilidade com rotina existente)
+    try:
+        os.makedirs('backup', exist_ok=True)
+        log_path = os.path.join('backup', 'backup_log.txt')
+        ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        with open(log_path, 'a', encoding='utf-8') as lf:
+            lf.write(f"{ts} - Backup criado: {filename}\n")
+    except Exception:
+        pass
+
+    # Persistencia no banco (fonte de verdade para producao)
+    try:
+        tamanho_bytes = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+        BackupHistorico.objects.create(
+            arquivo=filename,
+            tipo=tipo,
+            tamanho_bytes=tamanho_bytes,
+            usuario=request.user if request.user.is_authenticated else None,
+        )
+    except Exception:
+        pass
 
 # View para backup JSON (funciona em qualquer ambiente)
 @staff_member_required
@@ -30,17 +56,8 @@ def backup_json(request):
         # Usar dumpdata para criar backup
         with open(filepath, 'w', encoding='utf-8') as f:
             call_command('dumpdata', '--indent', '2', '--natural-foreign', '--natural-primary', stdout=f)
-        
-        # Registrar no backup_log.txt
-        try:
-            log_dir = os.path.join('backup')
-            os.makedirs(log_dir, exist_ok=True)
-            log_path = os.path.join(log_dir, 'backup_log.txt')
-            ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            with open(log_path, 'a', encoding='utf-8') as lf:
-                lf.write(f"{ts} - Backup criado: {filename}\n")
-        except Exception:
-            pass
+
+        _registrar_backup(request, filename, filepath, 'json')
         
         # Retornar arquivo para download
         response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
@@ -92,6 +109,7 @@ def backup_custom(request):
         env['PGPASSWORD'] = os.environ.get('PGPASSWORD', '')
         
         subprocess.run(cmd, check=True, env=env)
+        _registrar_backup(request, filename, filepath, 'dump')
         response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
         return response
     except Exception as e:
@@ -139,6 +157,7 @@ def backup_sql(request):
         env['PGPASSWORD'] = os.environ.get('PGPASSWORD', '')
         
         subprocess.run(cmd, check=True, env=env)
+        _registrar_backup(request, filename, filepath, 'sql')
         response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
         return response
     except Exception as e:
@@ -174,15 +193,8 @@ def backup_arquivos(request):
         # Verificar se o arquivo foi criado
         if not os.path.exists(filepath):
             return HttpResponse('Erro ao criar arquivo de backup.', status=500)
-        
-        # Registrar no backup_log.txt
-        try:
-            log_path = os.path.join('backup', 'backup_log.txt')
-            ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            with open(log_path, 'a', encoding='utf-8') as lf:
-                lf.write(f"{ts} - Backup criado: {filename}\n")
-        except Exception:
-            pass
+
+        _registrar_backup(request, filename, filepath, 'zip')
         
         # Retornar arquivo para download
         response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)

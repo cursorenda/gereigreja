@@ -9,12 +9,14 @@ from django.http import JsonResponse
 from django.http import HttpResponseForbidden
 from django.db import connection
 from django.db.models import Count
+from django.utils import timezone
 from datetime import datetime, timedelta
 import psutil
 from pathlib import Path
 import os
 
 from configuracao.models import EventoFunil
+from deploy.models import BackupHistorico
 
 def dashboard_sistema(request):
     """Renderiza página do dashboard"""
@@ -119,6 +121,37 @@ def verificar_disco():
 
 def verificar_backups():
     """Verifica existência de backups recentes"""
+    ultimo_backup_db = BackupHistorico.objects.order_by('-criado_em').first()
+    if ultimo_backup_db:
+        data_backup = ultimo_backup_db.criado_em
+        if timezone.is_naive(data_backup):
+            data_backup = timezone.make_aware(data_backup)
+
+        dias = (timezone.now() - data_backup).days
+        total_backups = BackupHistorico.objects.count()
+
+        if dias == 0:
+            status = 'ok'
+            mensagem = 'Backup hoje'
+        elif dias <= 3:
+            status = 'ok'
+            mensagem = f'Último backup há {dias} dia(s)'
+        elif dias <= 7:
+            status = 'warning'
+            mensagem = f'Último backup há {dias} dias'
+        else:
+            status = 'error'
+            mensagem = f'Último backup há {dias} dias!'
+
+        return {
+            'ok': status != 'error',
+            'status': status,
+            'mensagem': mensagem,
+            'ultimo': timezone.localtime(data_backup).strftime('%d/%m/%Y %H:%M'),
+            'dias': dias,
+            'total': total_backups
+        }
+
     backup_dir = Path('backup')
     
     if not backup_dir.exists():

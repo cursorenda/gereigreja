@@ -9,11 +9,13 @@ from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse, HttpResponse
 from django.db import connection
+from django.utils import timezone
 from datetime import datetime, timedelta
 import psutil
 from pathlib import Path
 import os
 import subprocess
+from deploy.models import BackupHistorico
 
 
 @staff_member_required
@@ -191,6 +193,25 @@ def obter_logs_recentes():
 
 def obter_info_backups():
     """Obtém informações sobre backups"""
+    ultimo_backup_db = BackupHistorico.objects.order_by('-criado_em').first()
+    if ultimo_backup_db:
+        data_ultimo = ultimo_backup_db.criado_em
+        if timezone.is_naive(data_ultimo):
+            data_ultimo = timezone.make_aware(data_ultimo)
+
+        total_backups = BackupHistorico.objects.count()
+
+        return {
+            'total': total_backups,
+            'ultimo': {
+                'data': timezone.localtime(data_ultimo).strftime('%d/%m/%Y %H:%M'),
+                'dias_atras': (timezone.now() - data_ultimo).days,
+                'arquivo': ultimo_backup_db.arquivo,
+                'tamanho': f"{(ultimo_backup_db.tamanho_bytes or 0) / (1024*1024):.1f} MB"
+            },
+            'tamanho_total': f"{(sum(BackupHistorico.objects.values_list('tamanho_bytes', flat=True)) or 0) / (1024 * 1024):.1f} MB"
+        }
+
     backup_dir = Path('backup')
     
     if not backup_dir.exists():
