@@ -348,17 +348,9 @@
 
 ### Novidades e Melhorias
 - **Novo app `notificacoes`:**
-  - Todo o sistema de notificações foi extraído do app comunicação e agora está centralizado em um app próprio, facilitando manutenção e evolução.
-  - URLs, views, templates e permissões revisados e organizados.
-  - Página de lista de notificações revisada, com filtros por lidas/não lidas e ações em lote.
-- **Correções de bugs e robustez:**
   - Corrigidos erros de template e fechamento de blocos.
   - Garantido funcionamento dos filtros, marcação individual e em lote de notificações.
-  - Ajustes em permissões e testes para garantir acesso correto.
-
-### Recomendações
 - Testar as páginas de notificações: lista, marcar como lida, marcar todas como lidas.
-- Verificar permissões de acesso conforme perfil do usuário.
 
 ---
 
