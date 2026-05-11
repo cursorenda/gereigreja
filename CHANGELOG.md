@@ -1,3 +1,18 @@
+## v1.11.1 — 11/05/2026
+🐛 **Correção: Métricas do Admin Dashboard & Cache**
+
+### Correções
+- **Dashboard Admin**: métricas passam a carregar corretamente em produção após limpeza de cache
+- **API Métricas**: tratamento de erro HTTP melhorado na chamada do endpoint `/admin/api/metricas-produto/`
+- **Diagnóstico**: logging adicionado para facilitar investigação de divergências entre local e servidor
+- **Front-end**: validação explícita do status HTTP antes de processar o JSON da resposta
+
+### Técnico
+- `templates/admin/index.html`: fetch com validação de `response.ok` e mensagem de erro mais clara
+- `configuracao/admin_metrics.py`: logging de entrada e saída removido após diagnóstico
+
+---
+
 ## v1.11.0 — 11/05/2026
 🔧 **Modularização e Mixins do Admin Django — Arquitetura, Testes e Documentação**
 
