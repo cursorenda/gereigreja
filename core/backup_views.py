@@ -46,23 +46,23 @@ def _registrar_backup(request, filename, filepath, tipo):
 
 
 def _executar_backup_json(filepath):
-    """Executa dumpdata em subprocesso com opções seguras para evitar recursão."""
+    """Executa dumpdata em subprocesso com sys.setrecursionlimit aumentado para evitar recursão."""
+    env = os.environ.copy()
+    env['PYTHONIOENCODING'] = 'utf-8'
+    env['PYTHONUTF8'] = '1'
+
+    # Usa wrapper Python que aumenta sys.setrecursionlimit(10000) antes de executar dumpdata
+    # Isso contorna "maximum recursion depth exceeded" com ciclos de FK
     command = [
         sys.executable,
-        'manage.py',
-        'dumpdata',
-        '--exclude=contenttypes',
-        '--exclude=auth.permission',
-        '--exclude=sessions.session',
-        '--exclude=admin.logentry',
-        '--indent=2',
-        '--output',
+        'tools/backup_json_runner.py',
         filepath,
     ]
 
     result = subprocess.run(
         command,
         cwd=os.path.dirname(os.path.dirname(__file__)),
+        env=env,
         capture_output=True,
         text=True,
         timeout=300,
