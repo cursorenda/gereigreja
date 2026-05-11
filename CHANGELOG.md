@@ -1,3 +1,50 @@
+## v1.11.0 — 11/05/2026
+🔧 **Modularização e Mixins do Admin Django — Arquitetura, Testes e Documentação**
+
+### Novidades — Admin Mixins & Modularização
+
+#### `core/admin_mixins.py` — 11 Mixins Reutilizáveis
+- **`ReadOnlyAdminMixin`** — bloqueia adicionar, editar e excluir (somente leitura)
+- **`NoAddDeleteMixin`** — permite edição mas bloqueia criação e exclusão
+- **`SuperuserOnlyMixin`** — acesso restrito a superusuários em todas as ações
+- **`TimestampReadOnlyMixin`** — torna campos `criado_em`/`atualizado_em` somente leitura
+- **`MinisterioFilteredMixin`** — filtra queryset pelo ministério do usuário logado
+- **`IgrejaFilteredMixin`** — filtra queryset pela igreja ativa do usuário
+- **`DateHierarchyMixin`** — aplica `date_hierarchy = 'criado_em'` como padrão
+- **`DataInicioHierarchyMixin`** / **`DataTransicaoHierarchyMixin`** / **`DataHierarchyMixin`** — variações por campo de data
+- **`AuditoriaTimestampMixin`** / **`TenantFilteredAuditMixin`** — combinações para módulo de auditoria
+
+#### Modularização dos Admins (17 apps)
+- Arquivos admin divididos em módulos focados por responsabilidade
+- Padrão hub: `admin.py` re-exporta dos submódulos (`admin_membros.py`, `admin_cargos.py`, etc.)
+- Apps cobertos: `agenda`, `auditoria`, `comunicacao`, `configuracao`, `contas`, `deploy`,
+  `escola_biblica`, `eventos`, `financeiro`, `notificacoes`, `secretaria`, `suporte`
+- Novos arquivos: `comunicacao/admin_avisos.py`, `comunicacao/admin_whatsapp.py`,
+  `configuracao/admin_ministerio.py`, `configuracao/admin_planos.py`, `configuracao/admin_sistema.py`,
+  `contas/admin_contas.py`, `escola_biblica/admin_alunos.py`, `escola_biblica/admin_aulas.py`,
+  `escola_biblica/admin_estrutura.py`, `financeiro/admin_catalogo.py`, `financeiro/admin_contas.py`,
+  `financeiro/admin_movimentacao.py`, `secretaria/admin_cargos.py`, `secretaria/admin_grupos.py`,
+  `secretaria/admin_membros.py`
+
+#### Correções
+- **`contas/constants.py`**: adicionado `get_user_permission_level(user)` — helper centralizado de nível de permissão (retorna 0 para superusuário/admin, 1–7 para grupos, None se sem grupo)
+- **`contas/admin_contas.py`**: proteção de exclusão para grupos centralizados (`GRUPOS_TODOS`)
+- **`auditoria/admin.py`**: corrigido `date_hierarchy` para `data_hora` / `login_data_hora`
+- **`core/test_settings.py`**: agora re-exporta de `settings_test` para unificar configurações de teste e eliminar erros "table already exists"
+- **`tests/test_permissoes_hierarquia_avancado.py`**: corrigido uso de `HIERARQUIA_GRUPOS` como dict (não lista)
+
+### Documentação
+- **`docs/sistema/ADMIN_MIXINS.md`** — referência completa dos 11 mixins: descrição, exemplos de código, tabela de combinações por app
+- **`docs/sistema/ARQUITETURA_ADMIN.md`** — padrão hub, dois sites admin, templates customizados, convenções
+- **`docs/INDEX.md`** — atualizado com links para os novos documentos
+
+### Testes
+- **`tests/test_admin_mixins.py`** — 39 testes unitários cobrindo todos os 11 mixins
+- **`tests/test_admin_permissions.py`** — 57 testes de acesso, registro de modelos, proteção de exclusão e imports
+- Suíte completa: **116 testes passando, 0 falhas**
+
+---
+
 ## v1.10.1 — 09/05/2026
 🚀 **WhatsApp Edição em Massa de Celulares com Filtros Avançados**
 
