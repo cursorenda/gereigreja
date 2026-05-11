@@ -1,37 +1,45 @@
 {# Painel de Últimos Cadastros do Sistema #}
-{% load static %}
-<link rel="stylesheet" href="{% static 'css/admin_dashboard_panel.css' %}">
-<div class="dashboard-ultimos-cadastros">
-  <div class="dashboard-ultimos-cadastros-grid">
-    <div class="dashboard-ultimos-cadastros-col">
-      <h2>Últimos 5 Ministérios</h2>
-      <ul>
-        {% for m in ultimos_ministerios %}
-          <li>{{ m.nome_fantasia }} <span style="font-size:0.93em; color:#667eea; opacity:0.7; font-weight:400;">(ID: {{ m.id }})</span></li>
-        {% empty %}
-          <li>Nenhum ministério cadastrado.</li>
-        {% endfor %}
-      </ul>
-    </div>
-    <div class="dashboard-ultimos-cadastros-col">
-      <h2>Últimas 5 Igrejas</h2>
-      <ul>
-        {% for i in ultimas_igrejas %}
-          <li>{{ i.nome_igreja }} <span style="font-size:0.93em; color:#667eea; opacity:0.7; font-weight:400;">(ID: {{ i.id }})</span></li>
-        {% empty %}
-          <li>Nenhuma igreja cadastrada.</li>
-        {% endfor %}
-      </ul>
-    </div>
-    <div class="dashboard-ultimos-cadastros-col">
-      <h2>Últimos 5 Membros</h2>
-      <ul>
-        {% for m in ultimos_membros %}
-          <li>{{ m.nome }} <span style="font-size:0.93em; color:#667eea; opacity:0.7; font-weight:400;">(ID: {{ m.id }})</span></li>
-        {% empty %}
-          <li>Nenhum membro cadastrado.</li>
-        {% endfor %}
-      </ul>
-    </div>
+<div class="section-title">🧩 Cadastros Recentes</div>
+<div class="recent-entity-grid">
+  <div class="metric-card recent-entity-card">
+    <div class="recent-entity-title">Últimos 5 Ministérios</div>
+    <ul class="recent-entity-list">
+      {% for m in ultimos_ministerios %}
+        <li>
+          <span class="recent-entity-name">{{ m.nome_fantasia }}</span>
+          <span class="recent-entity-id">ID: {{ m.id }}</span>
+        </li>
+      {% empty %}
+        <li class="recent-empty">Nenhum ministério cadastrado.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="metric-card recent-entity-card">
+    <div class="recent-entity-title">Últimas 5 Igrejas</div>
+    <ul class="recent-entity-list">
+      {% for i in ultimas_igrejas %}
+        <li>
+          <span class="recent-entity-name">{{ i.nome_igreja }}</span>
+          <span class="recent-entity-id">ID: {{ i.id }}</span>
+        </li>
+      {% empty %}
+        <li class="recent-empty">Nenhuma igreja cadastrada.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="metric-card recent-entity-card">
+    <div class="recent-entity-title">Últimos 5 Membros</div>
+    <ul class="recent-entity-list">
+      {% for m in ultimos_membros %}
+        <li>
+          <span class="recent-entity-name">{{ m.nome }}</span>
+          <span class="recent-entity-id">ID: {{ m.id }}</span>
+        </li>
+      {% empty %}
+        <li class="recent-empty">Nenhum membro cadastrado.</li>
+      {% endfor %}
+    </ul>
   </div>
 </div>

@@ -198,6 +198,93 @@ body.dashboard .dashboard-sidebar td a {
     opacity: 0.95;
 }
 
+.dashboard-headline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.dashboard-headline-meta {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.dashboard-refresh-btn {
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-size: 12px;
+    border-radius: 999px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.dashboard-refresh-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.ops-strip {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+@media (min-width: 900px) {
+    .ops-strip {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.ops-card {
+    background: rgba(10, 15, 30, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.ops-card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.88;
+}
+
+.ops-card-value {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 2px 0;
+}
+
+.ops-card-sublabel {
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+.ops-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 14px 0;
+}
+
+.ops-actions a {
+    color: #fff;
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.09);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.ops-actions a:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 /* Quality bars - Mobile First */
 .quality-bars {
     display: grid;
@@ -242,6 +329,160 @@ body.dashboard .dashboard-sidebar td a {
 .quality-item span {
     font-size: 13px;
     font-weight: 600;
+}
+
+.admin-health-card {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 18px;
+}
+
+.admin-health-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.admin-health-score {
+    font-size: 30px;
+    font-weight: 700;
+}
+
+.admin-health-badge {
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.admin-health-badge.ok {
+    background: rgba(34, 197, 94, 0.25);
+    color: #dcfce7;
+}
+
+.admin-health-badge.alerta {
+    background: rgba(251, 146, 60, 0.25);
+    color: #ffedd5;
+}
+
+.admin-health-badge.critico {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fee2e2;
+}
+
+.admin-health-list {
+    list-style: none;
+    margin: 12px 0 0 0;
+    padding: 0;
+}
+
+.admin-health-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+    font-size: 12px;
+}
+
+.admin-health-list li:last-child {
+    border-bottom: 0;
+}
+
+.recent-entity-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+@media (min-width: 900px) {
+    .recent-entity-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.recent-entity-card {
+    text-align: left;
+    padding: 14px 14px 12px;
+}
+
+.recent-entity-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    opacity: 0.9;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    padding-bottom: 6px;
+}
+
+.recent-entity-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.recent-entity-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 1.3;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 6px;
+}
+
+.recent-entity-list li:last-child {
+    margin-bottom: 0;
+}
+
+.recent-entity-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 78%;
+}
+
+.recent-entity-id {
+    font-size: 11px;
+    opacity: 0.82;
+    white-space: nowrap;
+}
+
+.recent-empty {
+    opacity: 0.85;
+    justify-content: flex-start !important;
+}
+
+.insights-panel {
+    margin-top: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.insights-panel summary {
+    cursor: pointer;
+    padding: 11px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.insights-body {
+    padding: 8px 12px 14px;
 }
 
 /* Charts - Mobile First */
@@ -464,11 +705,58 @@ body.dashboard .dashboard-sidebar td a {
 <div id="content-main">
     <div class="metrics-dashboard">
         <h2>📊 Visão Geral do Sistema</h2>
+        <div class="dashboard-headline">
+            <span class="dashboard-headline-meta" id="metricas-atualizadas-em">Atualizado: --</span>
+            <button type="button" class="dashboard-refresh-btn" onclick="window.location.reload()">Atualizar painel</button>
+        </div>
+
+        <div class="ops-strip">
+            <div class="ops-card" id="ops-tickets-card">
+                <div class="ops-card-label">Fila de suporte</div>
+                <div class="ops-card-value" id="ops-tickets-value">--</div>
+                <div class="ops-card-sublabel"><span id="ops-bugs-value">--</span> bugs reportados</div>
+            </div>
+            <div class="ops-card" id="ops-backup-card">
+                <div class="ops-card-label">Backup operacional</div>
+                <div class="ops-card-value" id="ops-backup-value">--</div>
+                <div class="ops-card-sublabel">Storage <span id="ops-storage-value">--</span> GB</div>
+            </div>
+            <div class="ops-card" id="ops-retencao-card">
+                <div class="ops-card-label">Retenção (30 dias)</div>
+                <div class="ops-card-value" id="ops-retencao-value">--</div>
+                <div class="ops-card-sublabel"><span id="ops-ativos7-value">--</span> usuários ativos em 7 dias</div>
+            </div>
+            <div class="ops-card" id="ops-risco-card">
+                <div class="ops-card-label">Risco de churn</div>
+                <div class="ops-card-value" id="ops-risco-value">--</div>
+                <div class="ops-card-sublabel">ministérios sem acesso em 30d</div>
+            </div>
+        </div>
+
+        <div class="ops-actions">
+            <a href="{% url 'admin:suporte_ticket_changelist' %}">🎫 Ir para Tickets</a>
+            <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">🚀 Histórico de Deploy</a>
+            <a href="{% url 'admin_dashboard_desenvolvedor' %}">⚙️ Dashboard Dev</a>
+            <a href="{% url 'admin_painel_pytest' %}">🧪 Painel de Testes</a>
+        </div>
+
         {% include "admin/custom_dashboard_panel.html" with ultimos_ministerios=ultimos_ministerios ultimas_igrejas=ultimas_igrejas ultimos_membros=ultimos_membros %}
         <div class="loading" id="loading">
             <i class="fas fa-spinner fa-spin"></i> Carregando métricas...
         </div>
         <div id="metrics-content" style="display: none;">
+            <div class="section-title">🩺 Saude do Admin</div>
+            <div class="admin-health-card">
+                <div class="admin-health-top">
+                    <div>
+                        <div class="metric-label">Score operacional</div>
+                        <div class="admin-health-score" id="admin-health-score">--</div>
+                    </div>
+                    <span class="admin-health-badge" id="admin-health-status">--</span>
+                </div>
+                <ul class="admin-health-list" id="admin-health-checks"></ul>
+            </div>
+
             <!-- Cards Principais -->
             <div class="metrics-grid">
                 <div class="metric-card">
@@ -532,6 +820,9 @@ body.dashboard .dashboard-sidebar td a {
                 </div>
             </div>
             
+            <details class="insights-panel" open>
+                <summary>📈 Qualidade, Distribuição e Engajamento</summary>
+                <div class="insights-body">
             <!-- Qualidade dos Dados -->
             <div class="section-title">📈 Qualidade & Uso das Features</div>
             <div class="quality-bars">
@@ -595,9 +886,13 @@ body.dashboard .dashboard-sidebar td a {
                     <span id="count-grandes">0</span>
                 </div>
             </div>
+                </div>
+            </details>
             
             <!-- Gráficos -->
-            <div class="section-title">📊 Análises Temporais</div>
+            <details class="insights-panel">
+                <summary>📊 Análises Temporais (tendência e engagement)</summary>
+                <div class="insights-body">
             <div class="charts-row">
                 <div class="chart-container">
                     <h3>Crescimento (6 meses)</h3>
@@ -609,6 +904,8 @@ body.dashboard .dashboard-sidebar td a {
                     <canvas id="chartEngagement"></canvas>
                 </div>
             </div>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -661,6 +958,52 @@ fetch('/admin/api/metricas-produto/')
         // Ocultar loading
         document.getElementById('loading').style.display = 'none';
         document.getElementById('metrics-content').style.display = 'block';
+
+        const atualizacao = new Date(data.timestamp);
+        document.getElementById('metricas-atualizadas-em').textContent = 'Atualizado: ' + atualizacao.toLocaleString('pt-BR');
+
+        // ===== SAUDE DO ADMIN =====
+        document.getElementById('admin-health-score').textContent = data.admin_hub.score;
+
+        const statusEl = document.getElementById('admin-health-status');
+        statusEl.className = 'admin-health-badge ' + data.admin_hub.status;
+        statusEl.textContent = data.admin_hub.status;
+
+        const checksEl = document.getElementById('admin-health-checks');
+        checksEl.innerHTML = '';
+        data.admin_hub.checks.forEach((check) => {
+            const li = document.createElement('li');
+            li.innerHTML = '<span>' + (check.ok ? '✅ ' : '⚠️ ') + check.item + '</span><span>' + check.detalhe + '</span>';
+            checksEl.appendChild(li);
+        });
+
+        // ===== COCKPIT OPERACIONAL =====
+        document.getElementById('ops-tickets-value').textContent = data.tickets.pendentes;
+        document.getElementById('ops-bugs-value').textContent = data.tickets.bugs;
+
+        const diasBackupOps = data.sistema.dias_desde_backup;
+        document.getElementById('ops-backup-value').textContent = diasBackupOps === 999 ? 'Nunca' :
+            diasBackupOps === 0 ? 'Hoje' :
+            diasBackupOps === 1 ? 'Ontem' :
+            diasBackupOps + 'd';
+        document.getElementById('ops-storage-value').textContent = data.sistema.storage_gb;
+
+        document.getElementById('ops-retencao-value').textContent = data.acessos.taxa_retencao + '%';
+        document.getElementById('ops-ativos7-value').textContent = data.acessos.usuarios_7d;
+        document.getElementById('ops-risco-value').textContent = data.ministerios.sem_acesso_30d;
+
+        if (data.tickets.pendentes > 10 || data.tickets.bugs > 0) {
+            document.getElementById('ops-tickets-card').style.borderColor = 'rgba(239, 68, 68, 0.55)';
+        }
+        if (!data.sistema.backup_ok) {
+            document.getElementById('ops-backup-card').style.borderColor = 'rgba(239, 68, 68, 0.55)';
+        }
+        if (data.acessos.taxa_retencao < 70) {
+            document.getElementById('ops-retencao-card').style.borderColor = 'rgba(251, 146, 60, 0.55)';
+        }
+        if (data.ministerios.sem_acesso_30d > 0) {
+            document.getElementById('ops-risco-card').style.borderColor = 'rgba(251, 146, 60, 0.55)';
+        }
         
         // ===== CARDS PRINCIPAIS =====
         document.getElementById('membros-total').textContent = data.membros.total;
