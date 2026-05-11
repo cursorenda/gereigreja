@@ -130,7 +130,10 @@ def verificar_backups():
             'dias': None
         }
     
-    backups = list(backup_dir.glob('backup_*.dump'))
+    # Incluir todos os tipos de backup suportados
+    backups = []
+    for ext in ('*.json', '*.dump', '*.sql', '*.zip'):
+        backups.extend(p for p in backup_dir.glob(ext) if p.name.startswith('backup'))
     
     if not backups:
         return {

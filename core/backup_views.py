@@ -31,6 +31,17 @@ def backup_json(request):
         with open(filepath, 'w', encoding='utf-8') as f:
             call_command('dumpdata', '--indent', '2', '--natural-foreign', '--natural-primary', stdout=f)
         
+        # Registrar no backup_log.txt
+        try:
+            log_dir = os.path.join('backup')
+            os.makedirs(log_dir, exist_ok=True)
+            log_path = os.path.join(log_dir, 'backup_log.txt')
+            ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            with open(log_path, 'a', encoding='utf-8') as lf:
+                lf.write(f"{ts} - Backup criado: {filename}\n")
+        except Exception:
+            pass
+        
         # Retornar arquivo para download
         response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
         return response
@@ -163,6 +174,15 @@ def backup_arquivos(request):
         # Verificar se o arquivo foi criado
         if not os.path.exists(filepath):
             return HttpResponse('Erro ao criar arquivo de backup.', status=500)
+        
+        # Registrar no backup_log.txt
+        try:
+            log_path = os.path.join('backup', 'backup_log.txt')
+            ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            with open(log_path, 'a', encoding='utf-8') as lf:
+                lf.write(f"{ts} - Backup criado: {filename}\n")
+        except Exception:
+            pass
         
         # Retornar arquivo para download
         response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=filename)
