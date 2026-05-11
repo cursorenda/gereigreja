@@ -155,6 +155,7 @@ DATABASES = {
         'HOST': os.environ.get('DB_HOST'),
         'PORT': os.environ.get('DB_PORT'),
         'CONN_MAX_AGE': 0,
+        'DISABLE_SERVER_SIDE_CURSORS': True,
         'CONN_HEALTH_CHECKS': False,  # Não verifica BD no startup
         'OPTIONS': {
             'connect_timeout': 5,  # Timeout rápido (5s em vez de padrão 60s+)

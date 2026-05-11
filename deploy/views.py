@@ -631,16 +631,19 @@ def fazer_backup_pre_deploy(versao):
     
     try:
         # Fazer backup usando dumpdata (todos os dados exceto sessões e logs temporários)
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+        env['PYTHONUTF8'] = '1'
+
         with open(backup_path, 'w', encoding='utf-8') as f:
             subprocess.run([
-                'python', 'manage.py', 'dumpdata',
-                '--natural-foreign',
-                '--natural-primary',
+                sys.executable, 'manage.py', 'dumpdata',
                 '--exclude=contenttypes',
                 '--exclude=auth.permission',
                 '--exclude=sessions.session',
+                '--exclude=admin.logentry',
                 '--indent=2'
-            ], stdout=f, cwd=settings.BASE_DIR, check=True, timeout=300)
+            ], stdout=f, cwd=settings.BASE_DIR, check=True, timeout=300, env=env)
         
         # Obter tamanho do arquivo
         tamanho = os.path.getsize(backup_path)
