@@ -390,12 +390,17 @@ def metricas_produto(request):
         from django.conf import settings
         from deploy.models import BackupHistorico
 
+        backup_fonte = 'indisponivel'
+        backup_referencia = None
+
         # Fonte de verdade: ultimo backup persistido no banco
         ultimo_backup_db = BackupHistorico.objects.order_by('-criado_em').first()
         if ultimo_backup_db:
             ultimo_backup_data = ultimo_backup_db.criado_em
             dias_desde_backup = (hoje - ultimo_backup_data).days
             backup_ok = dias_desde_backup <= 1
+            backup_fonte = 'banco'
+            backup_referencia = ultimo_backup_db.arquivo
         else:
             # Fallback por arquivo para ambientes legados
             # Verificar último backup na pasta backup/ (todos os tipos: json, dump, sql, zip)
@@ -413,6 +418,8 @@ def metricas_produto(request):
                 ultimo_backup_data = timezone.make_aware(ultimo_backup_data)
                 dias_desde_backup = (hoje - ultimo_backup_data).days
                 backup_ok = dias_desde_backup <= 1
+                backup_fonte = 'arquivo'
+                backup_referencia = os.path.basename(ultimo_backup)
             else:
                 # Fallback: checar backup_log.txt
                 backup_log = base_dir / 'backup' / 'backup_log.txt'
@@ -428,6 +435,8 @@ def metricas_produto(request):
                             ultimo_backup_data = timezone.make_aware(ultimo_backup_data)
                             dias_desde_backup = (hoje - ultimo_backup_data).days
                             backup_ok = dias_desde_backup <= 1
+                            backup_fonte = 'log'
+                            backup_referencia = backup_log.name
                         except Exception:
                             ultimo_backup_data = None
                             dias_desde_backup = 999
@@ -460,11 +469,15 @@ def metricas_produto(request):
         backup_ok = False
         erros_24h = 0
         storage_usado = 0
+        backup_fonte = 'erro'
+        backup_referencia = None
     
     sistema_data = {
         'ultimo_backup': ultimo_backup_data.isoformat() if ultimo_backup_data else None,
         'dias_desde_backup': dias_desde_backup,
         'backup_ok': backup_ok,
+        'backup_fonte': backup_fonte,
+        'backup_referencia': backup_referencia,
         'erros_24h': erros_24h,
         'storage_gb': storage_usado
     }

@@ -720,6 +720,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="ops-card-label">Backup operacional</div>
                 <div class="ops-card-value" id="ops-backup-value">--</div>
                 <div class="ops-card-sublabel">Storage <span id="ops-storage-value">--</span> GB</div>
+                <div class="ops-card-sublabel">Fonte: <span id="ops-backup-source">--</span></div>
             </div>
             <div class="ops-card" id="ops-retencao-card">
                 <div class="ops-card-label">Retenção (30 dias)</div>
@@ -810,6 +811,7 @@ body.dashboard .dashboard-sidebar td a {
                     <div class="metric-value" id="backup-dias">--</div>
                     <div class="metric-label">Último Backup</div>
                     <div class="metric-sublabel"><span id="storage-usado">--</span> GB storage</div>
+                    <div class="metric-sublabel">Fonte: <span id="backup-source-label">--</span></div>
                 </div>
                 
                 <div class="metric-card">
@@ -993,6 +995,12 @@ fetch('/admin/api/metricas-produto/')
             diasBackupOps === 1 ? 'Ontem' :
             diasBackupOps + 'd';
         document.getElementById('ops-storage-value').textContent = data.sistema.storage_gb;
+        const backupFonte = data.sistema.backup_fonte || 'indisponivel';
+        const backupFonteLabel = backupFonte === 'banco' ? 'Banco' :
+            backupFonte === 'arquivo' ? 'Arquivo' :
+            backupFonte === 'log' ? 'Log' :
+            backupFonte === 'erro' ? 'Erro' : 'Indisponível';
+        document.getElementById('ops-backup-source').textContent = backupFonteLabel;
 
         document.getElementById('ops-retencao-value').textContent = data.acessos.taxa_retencao + '%';
         document.getElementById('ops-ativos7-value').textContent = data.acessos.usuarios_7d;
@@ -1052,6 +1060,7 @@ fetch('/admin/api/metricas-produto/')
             diasBackup === 1 ? 'Ontem' : 
             diasBackup + 'd atrás';
         document.getElementById('storage-usado').textContent = data.sistema.storage_gb;
+        document.getElementById('backup-source-label').textContent = backupFonteLabel;
         
         // Alerta se backup antigo
         if (!data.sistema.backup_ok) {
