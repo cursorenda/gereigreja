@@ -1,5 +1,5 @@
 {% extends "admin/index.html" %}
-{% load i18n %}
+{% load i18n log %}
 
 {% block content_title %}{% endblock %}
 
@@ -31,6 +31,11 @@ body.dashboard #content-related {
     position: static;
 }
 
+/* Remove painel lateral direito (filtros/ações recentes) */
+body.dashboard #content-related {
+    display: none !important;
+}
+
 /* Tabelas na sidebar */
 body.dashboard .dashboard-sidebar table {
     width: 100%;
@@ -49,7 +54,7 @@ body.dashboard .dashboard-sidebar td a {
     white-space: nowrap;
 }
 
-/* ===== DESKTOP: 3 COLUNAS ===== */
+/* ===== DESKTOP: 2 COLUNAS ===== */
 @media (min-width: 1200px) {
     body.dashboard #container {
         padding: 20px !important;
@@ -57,7 +62,7 @@ body.dashboard .dashboard-sidebar td a {
     
     body.dashboard #content {
         display: grid !important;
-        grid-template-columns: 286px 1fr 317px !important;
+        grid-template-columns: 286px minmax(0, 1fr) !important;
         gap: 30px !important;
     }
     
@@ -79,40 +84,25 @@ body.dashboard .dashboard-sidebar td a {
         padding: 0 !important;
         margin-bottom: 0;
     }
-    
-    /* Coluna 3: Content Related - Ações Recentes */
-    body.dashboard #content-related {
-        grid-column: 3 !important;
-        position: sticky;
-        top: 20px;
-        align-self: start;
-        margin: 0 !important;
-        padding: 0 !important;
-        margin-bottom: 0;
-        max-width: 317px;
-    }
 }
 
 /* Ajuste para telas médias (tablet) */
 @media (min-width: 768px) and (max-width: 1199px) {
     body.dashboard #content {
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
+        grid-template-columns: 286px minmax(0, 1fr) !important;
         gap: 20px !important;
     }
     
     body.dashboard .dashboard-sidebar {
         grid-column: 1 !important;
+        position: sticky;
+        top: 20px;
+        align-self: start;
     }
     
     body.dashboard #content-main {
-        grid-column: 1 / -1 !important;
-        order: 2;
-    }
-    
-    body.dashboard #content-related {
         grid-column: 2 !important;
-        order: 3;
     }
 }
 
@@ -308,118 +298,166 @@ body.dashboard .dashboard-sidebar td a {
 {% block content %}
 <!-- COLUNA 1: Menus do Django Admin -->
 <div class="dashboard-sidebar">
-    <!-- ===== FERRAMENTAS DO SISTEMA ===== -->
-    <div class="app-secretaria module">
+
+    <!-- ===== OPERAÇÃO DIÁRIA ===== -->
+    <div class="app-operacao module">
         <table>
             <caption>
-                <a href="#" class="section" title="Ferramentas do Sistema">Ferramentas do Sistema</a>
+                <a href="#" class="section" title="Operação Diária">🔧 Operação Diária</a>
             </caption>
             <tbody>
-                <tr class="model-convite">
+                <tr class="model-ministerio">
                     <th scope="row">
-                        <a href="/backup/json/">💾 Backup Banco (JSON)</a>
-                    </th>
-                    <td style="color: #28a745; font-size: 11px;">✅ Funciona em produção</td>
-                </tr>
-                <tr class="model-convite">
-                    <th scope="row">
-                        <a href="/backup/arquivos/">📦 Backup Arquivos (ZIP)</a>
-                    </th>
-                    <td style="color: #28a745; font-size: 11px;">✅ Funciona em produção</td>
-                </tr>
-                <tr class="model-convite">
-                    <th scope="row">
-                        <a href="/backup/custom/">Backup Banco (Custom)</a>
-                    </th>
-                    <td style="color: #dc3545; font-size: 11px;">⚠️ Apenas local</td>
-                </tr>
-                <tr class="model-convite">
-                    <th scope="row">
-                        <a href="/backup/sql/">Backup Banco (SQL)</a>
-                    </th>
-                    <td style="color: #dc3545; font-size: 11px;">⚠️ Apenas local</td>
-                </tr>
-                <tr class="model-deployhistorico">
-                    <th scope="row">
-                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">Deploy e Versionamento</a>
-                    </th>
-                    <td>
-                        <a href="{% url 'admin:deploy_nova_versao' %}" class="addlink" style="font-size: 11px;">Nova Versão</a> | 
-                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink" style="font-size: 11px;">Histórico</a>
-                    </td>
-                </tr>
-                <tr class="model-logs">
-                    <th scope="row">
-                        <a href="/admin/configuracao/ministerio/" style="color: #f59e0b;">🏢 Ministérios</a>
+                        <a href="{% url 'admin:configuracao_ministerio_changelist' %}" style="color: #f59e0b;">🏢 Ministérios</a>
                     </th>
                     <td style="color: #6b7280; font-size: 11px;">Gerenciar clientes</td>
                 </tr>
-                <tr class="model-tickets">
+                <tr class="model-ticket">
                     <th scope="row">
-                        <a href="/admin/suporte/ticket/" style="color: #ef4444;">🎫 Tickets</a>
+                        <a href="{% url 'admin:suporte_ticket_changelist' %}" style="color: #ef4444;">🎫 Tickets</a>
                     </th>
                     <td style="color: #6b7280; font-size: 11px;">Suporte aos clientes</td>
                 </tr>
-                <tr class="model-logs">
+                <tr class="model-assinatura">
+                    <th scope="row">
+                        <a href="{% url 'admin:configuracao_assinaturaministerio_changelist' %}">💳 Assinaturas</a>
+                    </th>
+                    <td style="color: #6b7280; font-size: 11px;">Planos ativos</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===== MONITORAMENTO ===== -->
+    <div class="app-monitoramento module">
+        <table>
+            <caption>
+                <a href="#" class="section" title="Monitoramento">📊 Monitoramento</a>
+            </caption>
+            <tbody>
+                <tr class="model-dashboard">
                     <th scope="row">
                         <a href="{% url 'admin:configuracao_dashboard_sistema' %}" style="color: #6366f1;">📊 Dashboard Sistema</a>
                     </th>
                     <td style="color: #6b7280; font-size: 11px;">Saúde do servidor</td>
                 </tr>
-                <tr class="model-logs">
+                <tr class="model-funil">
                     <th scope="row">
                         <a href="{% url 'admin:configuracao_dashboard_funil' %}" style="color: #8b5cf6;">📈 Funil de Vendas</a>
                     </th>
                     <td style="color: #6b7280; font-size: 11px;">Métricas de conversão</td>
+                </tr>
+                <tr class="model-metricas">
+                    <th scope="row">
+                        <a href="{% url 'admin_metricas_produto' %}" style="color: #10b981;">📉 API de Métricas</a>
+                    </th>
+                    <td style="color: #6b7280; font-size: 11px;">Dados do painel</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===== ENGENHARIA ===== -->
+    <div class="app-engenharia module">
+        <table>
+            <caption>
+                <a href="#" class="section" title="Engenharia">⚙️ Engenharia</a>
+            </caption>
+            <tbody>
+                <tr class="model-deployhistorico">
+                    <th scope="row">
+                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">🚀 Deploy</a>
+                    </th>
+                    <td>
+                        <a href="{% url 'admin:deploy_nova_versao' %}" class="addlink" style="font-size: 11px;">Nova</a>
+                        |
+                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink" style="font-size: 11px;">Histórico</a>
+                    </td>
+                </tr>
+                <tr class="model-backup-json">
+                    <th scope="row">
+                        <a href="{% url 'backup_json' %}">💾 Backup JSON</a>
+                    </th>
+                    <td style="color: #28a745; font-size: 11px;">✅ Produção</td>
+                </tr>
+                <tr class="model-backup-zip">
+                    <th scope="row">
+                        <a href="{% url 'backup_arquivos' %}">📦 Backup ZIP</a>
+                    </th>
+                    <td style="color: #28a745; font-size: 11px;">✅ Produção</td>
+                </tr>
+                <tr class="model-backup-custom">
+                    <th scope="row">
+                        <a href="{% url 'backup_custom' %}">Backup Custom</a>
+                    </th>
+                    <td style="color: #dc3545; font-size: 11px;">⚠️ Local</td>
+                </tr>
+                <tr class="model-backup-sql">
+                    <th scope="row">
+                        <a href="{% url 'backup_sql' %}">Backup SQL</a>
+                    </th>
+                    <td style="color: #dc3545; font-size: 11px;">⚠️ Local</td>
                 </tr>
                 <tr class="model-blog">
                     <th scope="row">
                         <a href="{% url 'admin:blog_post_changelist' %}" style="color: #2563eb;">📝 Blog</a>
                     </th>
                     <td>
-                        <a href="{% url 'admin:blog_post_changelist' %}" class="changelink" style="font-size: 11px;">Gerenciar Posts</a> |
-                        <a href="{% url 'admin:blog_categoria_changelist' %}" class="changelink" style="font-size: 11px;">Categorias</a> |
-                        <a href="{% url 'blog:lista' %}" style="font-size: 11px;" target="_blank" rel="noopener">Ver Público</a>
+                        <a href="{% url 'admin:blog_categoria_changelist' %}" class="changelink" style="font-size: 11px;">Categorias</a>
+                        |
+                        <a href="{% url 'blog:lista' %}" style="font-size: 11px;" target="_blank" rel="noopener">Público</a>
                     </td>
+                </tr>
+                <tr class="model-auditoria">
+                    <th scope="row">
+                        <a href="/admin-auditoria/" style="color: #6b7280;">🔍 Auditoria</a>
+                    </th>
+                    <td style="color: #6b7280; font-size: 11px;">Logs de acesso</td>
                 </tr>
             </tbody>
         </table>
     </div>
-    
-    {% if app_list %}
-        {% for app in app_list %}
-            <div class="app-{{ app.app_label }} module">
-                <table>
-                    <caption>
-                        <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
-                    </caption>
-                    {% for model in app.models %}
-                        <tr class="model-{{ model.object_name|lower }}">
-                            {% if model.admin_url %}
-                                <th scope="row"><a href="{{ model.admin_url }}"{% if model.add_url %} class="changelink"{% endif %}>{{ model.name }}</a></th>
-                            {% else %}
-                                <th scope="row">{{ model.name }}</th>
-                            {% endif %}
 
-                            {% if model.add_url %}
-                                <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
-                            {% else %}
-                                <td>&nbsp;</td>
-                            {% endif %}
+    <!-- ===== MODELOS DO SISTEMA (recolhível) ===== -->
+    <details style="margin-top: 12px;">
+        <summary style="cursor: pointer; padding: 6px 8px; font-size: 12px; font-weight: 600; color: #6b7280; list-style: none; display: flex; align-items: center; gap: 6px;">
+            ▶ Todos os Modelos
+        </summary>
+        {% if app_list %}
+            {% for app in app_list %}
+                <div class="app-{{ app.app_label }} module">
+                    <table>
+                        <caption>
+                            <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+                        </caption>
+                        {% for model in app.models %}
+                            <tr class="model-{{ model.object_name|lower }}">
+                                {% if model.admin_url %}
+                                    <th scope="row"><a href="{{ model.admin_url }}"{% if model.add_url %} class="changelink"{% endif %}>{{ model.name }}</a></th>
+                                {% else %}
+                                    <th scope="row">{{ model.name }}</th>
+                                {% endif %}
 
-                            {% if model.admin_url and show_changelinks %}
-                                <td><a href="{{ model.admin_url }}" class="changelink">{% translate 'Change' %}</a></td>
-                            {% else %}
-                                <td>&nbsp;</td>
-                            {% endif %}
-                        </tr>
-                    {% endfor %}
-                </table>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p>{% translate "You don't have permission to view or edit anything." %}</p>
-    {% endif %}
+                                {% if model.add_url %}
+                                    <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                                {% else %}
+                                    <td>&nbsp;</td>
+                                {% endif %}
+
+                                {% if model.admin_url and show_changelinks %}
+                                    <td><a href="{{ model.admin_url }}" class="changelink">{% translate 'Change' %}</a></td>
+                                {% else %}
+                                    <td>&nbsp;</td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>{% translate "You don't have permission to view or edit anything." %}</p>
+        {% endif %}
+    </details>
 </div>
 
 <!-- COLUNA 2: Métricas -->
@@ -573,8 +611,38 @@ body.dashboard .dashboard-sidebar td a {
             </div>
         </div>
     </div>
+
+    <details class="module" style="margin-top: 18px;" open>
+        <summary style="cursor: pointer; padding: 10px 12px; font-weight: 600;">Últimas alterações do sistema</summary>
+        <div style="padding: 12px;">
+            {% get_admin_log 12 as admin_log for_user user %}
+            {% if not admin_log %}
+                <p>Nenhuma alteração recente encontrada.</p>
+            {% else %}
+                <ul class="actionlist" style="margin: 0; padding: 0 0 0 18px;">
+                    {% for entry in admin_log %}
+                        <li>
+                            {% if entry.is_addition %}
+                                [Adição]
+                            {% elif entry.is_change %}
+                                [Edição]
+                            {% elif entry.is_deletion %}
+                                [Exclusão]
+                            {% endif %}
+                            {{ entry.object_repr }}
+                            {% if entry.content_type %}
+                                ({{ entry.content_type.name|capfirst }})
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    </details>
 </div>
 {% endblock %}
+
+{% block sidebar %}{% endblock %}
 
 {% block extrahead %}
 {{ block.super }}

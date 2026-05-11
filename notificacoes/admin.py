@@ -1,5 +1,10 @@
+"""Admin para notificacoes."""
 from django.contrib import admin
+
+from core.admin_mixins import DateHierarchyMixin
+
 from .models import Notificacao, NotificacaoEnviada
+
 
 @admin.register(Notificacao)
 class NotificacaoAdmin(admin.ModelAdmin):
@@ -14,8 +19,8 @@ class NotificacaoAdmin(admin.ModelAdmin):
 	)
 
 @admin.register(NotificacaoEnviada)
-class NotificacaoEnviadaAdmin(admin.ModelAdmin):
+class NotificacaoEnviadaAdmin(DateHierarchyMixin, admin.ModelAdmin):
 	list_display = ('tipo', 'titulo', 'destinatario', 'data_envio')
 	list_filter = ('tipo', 'data_envio')
 	search_fields = ('titulo', 'mensagem', 'destinatario')
-	date_hierarchy = 'data_envio'
+	date_hierarchy = 'data_envio'  # Override mixin default

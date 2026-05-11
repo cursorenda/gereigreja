@@ -1,5 +1,10 @@
+"""Admin para modelo de suporte (tickets)."""
 from django.contrib import admin
-from .models import Ticket, RespostaTicket
+
+from core.admin_mixins import DateHierarchyMixin
+
+from .models import RespostaTicket, Ticket
+
 
 class RespostaTicketInline(admin.TabularInline):
     """
@@ -16,7 +21,7 @@ class RespostaTicketInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(Ticket)
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(DateHierarchyMixin, admin.ModelAdmin):
     """
     Configuração do Admin para o modelo Ticket.
     """
@@ -25,6 +30,7 @@ class TicketAdmin(admin.ModelAdmin):
     search_fields = ('assunto', 'mensagem', 'user__username', 'ministerio__nome_fantasia')
     list_editable = ('status',) # Permite editar o status diretamente na lista!
     readonly_fields = ('user', 'ministerio', 'data_criacao', 'data_atualizacao')
+    date_hierarchy = 'data_criacao'  # Override mixin default
     
     fieldsets = (
         ('Informações do Ticket', {

@@ -1,13 +1,13 @@
 
 from django.contrib import admin
+from core.admin_mixins import DataInicioHierarchyMixin
 from .models import Evento, ParticipacaoEvento
 
 @admin.register(Evento)
-class EventoAdmin(admin.ModelAdmin):
+class EventoAdmin(DataInicioHierarchyMixin, admin.ModelAdmin):
 	list_display = ("titulo", "data_inicio", "data_fim", "igreja", "criado_por")
 	search_fields = ("titulo", "descricao", "local")
 	list_filter = ("igreja", "data_inicio")
-	date_hierarchy = "data_inicio"
 	ordering = ("-data_inicio",)
 
 @admin.register(ParticipacaoEvento)

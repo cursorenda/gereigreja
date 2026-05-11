@@ -1,0 +1,93 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+/* Lista do admin: filtros no topo (toggle) em vez de lateral direita */
+body.change-list #changelist {
+    display: block !important;
+}
+
+body.change-list #changelist-filter {
+    position: static !important;
+    float: none !important;
+    width: 100% !important;
+    margin: 0 0 14px 0 !important;
+    box-sizing: border-box;
+    border: 1px solid #d7d7d7;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px 12px;
+}
+
+body.change-list.filters-hidden #changelist-filter {
+    display: none !important;
+}
+
+body.change-list #toggle-filters-btn {
+    margin: 0 0 12px 0;
+    border: 1px solid #0b6bcb;
+    background: #0b6bcb;
+    color: #fff;
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+body.change-list #toggle-filters-btn:hover {
+    background: #0959a8;
+}
+
+body.change-list #changelist-form {
+    margin-right: 0 !important;
+    width: 100% !important;
+}
+
+body.change-list #changelist .results,
+body.change-list #changelist .paginator {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!document.body.classList.contains('change-list')) {
+        return;
+    }
+
+    var filterPanel = document.getElementById('changelist-filter');
+    var changelistForm = document.getElementById('changelist-form');
+    if (!filterPanel || !changelistForm) {
+        return;
+    }
+
+    var storageKey = 'admin_filters_hidden';
+    var shouldHide = localStorage.getItem(storageKey);
+    if (shouldHide === null) {
+        shouldHide = '1';
+    }
+    if (shouldHide === '1') {
+        document.body.classList.add('filters-hidden');
+    }
+
+    var toggleButton = document.createElement('button');
+    toggleButton.id = 'toggle-filters-btn';
+    toggleButton.type = 'button';
+    toggleButton.textContent = document.body.classList.contains('filters-hidden') ? 'Mostrar filtros' : 'Ocultar filtros';
+
+    changelistForm.parentNode.insertBefore(toggleButton, changelistForm);
+    changelistForm.parentNode.insertBefore(filterPanel, changelistForm);
+
+    toggleButton.addEventListener('click', function () {
+        var isHidden = document.body.classList.toggle('filters-hidden');
+        localStorage.setItem(storageKey, isHidden ? '1' : '0');
+        toggleButton.textContent = isHidden ? 'Mostrar filtros' : 'Ocultar filtros';
+    });
+});
+</script>
+{% endblock %}

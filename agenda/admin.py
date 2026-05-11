@@ -1,8 +1,13 @@
+"""Admin para agenda de eventos."""
 from django.contrib import admin
+
+from core.admin_mixins import DataInicioHierarchyMixin
+
 from .models import AgendaEvento
 
+
 @admin.register(AgendaEvento)
-class AgendaEventoAdmin(admin.ModelAdmin):
+class AgendaEventoAdmin(DataInicioHierarchyMixin, admin.ModelAdmin):
 	list_display = (
 		'titulo', 'tipo', 'data_inicio', 'data_fim', 'recorrente', 'frequencia', 'responsavel',
 	)
@@ -10,8 +15,6 @@ class AgendaEventoAdmin(admin.ModelAdmin):
 		'tipo', 'recorrente', 'frequencia', 'data_inicio', 'responsavel',
 	)
 	search_fields = ('titulo', 'descricao', 'local')
-	date_hierarchy = 'data_inicio'
-	ordering = ('-data_inicio',)
 	fieldsets = (
 		(None, {
 			'fields': ('titulo', 'descricao', 'tipo', 'local', 'responsavel')

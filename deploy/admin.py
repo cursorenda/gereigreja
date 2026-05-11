@@ -1,8 +1,12 @@
+"""Admin para deploy historico."""
 from django.contrib import admin
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.contrib import messages
 from django.http import JsonResponse
+
+from core.admin_mixins import DateHierarchyMixin
+
 from .models import DeployHistorico
 from .views import (
     executar_deploy, 
@@ -18,12 +22,13 @@ import subprocess
 
 
 @admin.register(DeployHistorico)
-class DeployHistoricoAdmin(admin.ModelAdmin):
+class DeployHistoricoAdmin(DateHierarchyMixin, admin.ModelAdmin):
     list_display = ['versao', 'tipo_versao', 'usuario', 'data_deploy', 'status', 'tag_criada']
     list_filter = ['status', 'tipo_versao', 'data_deploy']
     search_fields = ['versao', 'descricao', 'commit_hash']
     readonly_fields = ['versao', 'usuario', 'data_deploy', 'status', 'log_execucao', 
                        'erro_detalhes', 'commit_hash', 'tag_criada', 'arquivos_modificados']
+    date_hierarchy = 'data_deploy'  # Override mixin default
     
     fieldsets = (
         ('Informações da Versão', {

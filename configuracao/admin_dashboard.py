@@ -258,24 +258,3 @@ def obter_scripts_disponiveis():
         },
     ]
 
-
-class DashboardDesenvolvedorAdminSite(admin.AdminSite):
-    """Custom Admin Site com dashboard do desenvolvedor"""
-    
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path('dashboard-dev/', self.admin_view(dashboard_desenvolvedor), name='dashboard_desenvolvedor'),
-            path('executar-comando/', self.admin_view(executar_comando), name='executar_comando'),
-        ]
-        return custom_urls + urls
-    
-    def index(self, request, extra_context=None):
-        """Override da página inicial do admin"""
-        extra_context = extra_context or {}
-        
-        # Adicionar link para dashboard do desenvolvedor na página inicial
-        if request.user.is_superuser:
-            extra_context['mostrar_dashboard_dev'] = True
-        
-        return super().index(request, extra_context)
