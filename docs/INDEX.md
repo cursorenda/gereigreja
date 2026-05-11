@@ -1,7 +1,7 @@
 
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 05/05/2026
+**Última Atualização:** 11/05/2026
 
 ---
 
@@ -31,6 +31,8 @@
 | Documento | Descrição |
 |-----------|-----------|
 | [templates/ARQUITETURA_TEMPLATES.md](templates/ARQUITETURA_TEMPLATES.md) | Estrutura de templates do sistema |
+| [sistema/ARQUITETURA_ADMIN.md](sistema/ARQUITETURA_ADMIN.md) | **NOVO:** Arquitetura do admin Django (modularização, admin sites, convenções) |
+| [sistema/ADMIN_MIXINS.md](sistema/ADMIN_MIXINS.md) | **NOVO:** Referência dos admin mixins reutilizáveis (`core/admin_mixins.py`) |
 | [sistema/DECORATORS_SEGURANCA.md](sistema/DECORATORS_SEGURANCA.md) | Decorators de segurança e autenticação |
 | [sistema/IMPLEMENTACAO_DECORATOR_DASHBOARD.md](sistema/IMPLEMENTACAO_DECORATOR_DASHBOARD.md) | Implementação de decorators no dashboard |
 | [sistema/ANALISE_DECORATORS_SISTEMA.md](sistema/ANALISE_DECORATORS_SISTEMA.md) | Análise completa dos decorators |
