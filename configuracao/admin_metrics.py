@@ -97,9 +97,6 @@ def _calcular_saude_admin(tickets_data, acessos_data, membros_data, financeiro_d
 @staff_member_required
 def metricas_produto(request):
     """API JSON com métricas de produto e uso do sistema"""
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"[admin_metrics] Iniciando fetch de métricas para usuário: {request.user}")
     
     # Imports dentro da função para evitar circular imports
     from secretaria.models import Pessoa
@@ -441,9 +438,6 @@ def metricas_produto(request):
         financeiro_data=financeiro_data,
         sistema_data=sistema_data,
     )
-
-    # Log antes de retornar
-    logger.info(f"[admin_metrics] Retornando dados: membros={membros_data.get('total')}, tickets={tickets_data.get('total')}, usuarios={acessos_data.get('total_usuarios')}")
 
     return JsonResponse({
         'membros': membros_data,

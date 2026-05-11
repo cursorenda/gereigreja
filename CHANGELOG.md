@@ -1,15 +1,17 @@
 ## v1.11.1 — 11/05/2026
-🐛 **Correção: Métricas do Admin Dashboard & Cache**
+🐛 **Correção de Métricas do Admin Dashboard**
+
+Release de correção para estabilizar o carregamento das métricas no painel administrativo em produção.
 
 ### Correções
-- **Dashboard Admin**: métricas passam a carregar corretamente em produção após limpeza de cache
-- **API Métricas**: tratamento de erro HTTP melhorado na chamada do endpoint `/admin/api/metricas-produto/`
-- **Diagnóstico**: logging adicionado para facilitar investigação de divergências entre local e servidor
-- **Front-end**: validação explícita do status HTTP antes de processar o JSON da resposta
+- **Dashboard Admin**: métricas voltaram a carregar corretamente em produção após limpeza de cache
+- **API Métricas**: validação de resposta HTTP reforçada no endpoint `/admin/api/metricas-produto/`
+- **Diagnóstico**: logging temporário utilizado para identificar divergências entre local e servidor
+- **Front-end**: processamento do JSON agora depende de `response.ok`
 
 ### Técnico
-- `templates/admin/index.html`: fetch com validação de `response.ok` e mensagem de erro mais clara
-- `configuracao/admin_metrics.py`: logging de entrada e saída removido após diagnóstico
+- `templates/admin/index.html`: fetch com validação explícita de status HTTP
+- `configuracao/admin_metrics.py`: logging de diagnóstico removido após a correção
 
 ---
 
@@ -363,9 +365,17 @@
 
 ### Novidades e Melhorias
 - **Novo app `notificacoes`:**
+  - Todo o sistema de notificações foi extraído do app comunicação e agora está centralizado em um app próprio, facilitando manutenção e evolução.
+  - URLs, views, templates e permissões revisados e organizados.
+  - Página de lista de notificações revisada, com filtros por lidas/não lidas e ações em lote.
+- **Correções de bugs e robustez:**
   - Corrigidos erros de template e fechamento de blocos.
   - Garantido funcionamento dos filtros, marcação individual e em lote de notificações.
+  - Ajustes em permissões e testes para garantir acesso correto.
+
+### Recomendações
 - Testar as páginas de notificações: lista, marcar como lida, marcar todas como lidas.
+- Verificar permissões de acesso conforme perfil do usuário.
 
 ---
 
