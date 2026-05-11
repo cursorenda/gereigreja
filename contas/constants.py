@@ -147,6 +147,33 @@ def user_tem_qualquer_grupo(user, lista_grupos):
     return user.groups.filter(name__in=lista_grupos).exists()
 
 
+def get_user_permission_level(user):
+    """
+    Retorna o nível hierárquico de maior privilégio do usuário.
+
+    Regras:
+    - Superusuário -> nível 0
+    - Admin principal do ministério -> nível 0
+    - Usuário com grupos -> menor nível numérico entre os grupos válidos
+    - Sem grupos válidos/autenticação -> None
+    """
+    if not getattr(user, 'is_authenticated', False):
+        return None
+
+    if user.is_superuser or _is_admin_ministerio_principal(user):
+        return 0
+
+    if user.groups.filter(name=ADMIN_MINISTERIO).exists():
+        return 0
+
+    levels = [
+        HIERARQUIA_GRUPOS.get(group_name)
+        for group_name in user.groups.values_list('name', flat=True)
+        if HIERARQUIA_GRUPOS.get(group_name) is not None
+    ]
+    return min(levels) if levels else None
+
+
 def user_has_permission_level_or_higher(user, required_group):
     """Retorna True se o usuário tiver grupo com nível hierárquico <= ao exigido."""
     if not user.is_authenticated:
@@ -156,17 +183,10 @@ def user_has_permission_level_or_higher(user, required_group):
     if required_level is None:
         return False
 
-    if _is_admin_ministerio_principal(user):
-        admin_level = HIERARQUIA_GRUPOS[ADMIN_MINISTERIO]
-        if admin_level <= required_level:
-            return True
-
-    user_groups = user.groups.values_list('name', flat=True)
-    for group_name in user_groups:
-        user_level = HIERARQUIA_GRUPOS.get(group_name)
-        if user_level is not None and user_level <= required_level:
-            return True
-    return False
+    user_level = get_user_permission_level(user)
+    if user_level is None:
+        return False
+    return user_level <= required_level
 
 
 # ===================================

@@ -89,7 +89,7 @@ def test_usuario_multiplos_grupos_prevalece_maior_privilegio(criar_grupos, usuar
     
     # Deve ter nível de Tesoureiro (mais alto)
     nivel = get_user_permission_level(user)
-    nivel_tesoureiro = HIERARQUIA_GRUPOS.index(TESOUREIRO)
+    nivel_tesoureiro = HIERARQUIA_GRUPOS[TESOUREIRO]
     
     assert nivel == nivel_tesoureiro, f"Esperado nível {nivel_tesoureiro}, obteve {nivel}"
     
@@ -312,8 +312,8 @@ def test_multiplos_grupos_mesmo_nivel(criar_grupos, usuario_limpo):
     user.groups.add(criar_grupos[SUPERINTENDENTE_EBD])
     
     # Ambos estão no mesmo nível
-    nivel_tesoureiro = HIERARQUIA_GRUPOS.index(TESOUREIRO)
-    nivel_superintendente = HIERARQUIA_GRUPOS.index(SUPERINTENDENTE_EBD)
+    nivel_tesoureiro = HIERARQUIA_GRUPOS[TESOUREIRO]
+    nivel_superintendente = HIERARQUIA_GRUPOS[SUPERINTENDENTE_EBD]
     
     # Deve ter o menor índice (maior privilégio entre os dois)
     nivel_user = get_user_permission_level(user)
@@ -488,8 +488,8 @@ def test_cenario_real_completo(criar_grupos):
     # Verifica hierarquia
     assert get_user_permission_level(dev) == 0, "Dev tem nível 0"
     assert get_user_permission_level(admin) == 0, "Admin tem nível 0"
-    assert get_user_permission_level(pastor) == HIERARQUIA_GRUPOS.index(PASTOR_LOCAL)
-    assert get_user_permission_level(membro) == HIERARQUIA_GRUPOS.index(MEMBRO_COMUM)
+    assert get_user_permission_level(pastor) == HIERARQUIA_GRUPOS[PASTOR_LOCAL]
+    assert get_user_permission_level(membro) == HIERARQUIA_GRUPOS[MEMBRO_COMUM]
     
     # Dev e Admin podem tudo
     assert user_has_permission_level_or_higher(dev, MEMBRO_COMUM)
