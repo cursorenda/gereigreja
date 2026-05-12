@@ -93,7 +93,9 @@ venv.bak/
 
 
 # Backup files
-backup/
+/backup/
+!/templates/backup/
+!/templates/backup/*.html
 *.bak
 *~
 *.dump
