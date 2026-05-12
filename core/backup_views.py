@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from django.http import HttpResponse, FileResponse, JsonResponse
+from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -15,6 +16,9 @@ import os
 import datetime
 import io
 import sys
+import json
+import threading
+import zipfile
 from django.utils import timezone
 try:
     from dotenv import load_dotenv
@@ -346,8 +350,202 @@ def backup_arquivos(request):
     except Exception as e:
         return HttpResponse(f'Erro ao gerar backup de arquivos: {e}', status=500)
 
+
+# Dashboard central de backups
+@staff_member_required
+def backup_central(request):
+    """Página central com todos os backups, histórico e barra de progresso."""
+    try:
+        backups = BackupHistorico.objects.all().order_by('-criado_em')[:50]
+        
+        # Se for requisição AJAX, retornar JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            backups_list = []
+            for backup in backups:
+                backups_list.append({
+                    'id': backup.id,
+                    'arquivo': backup.arquivo,
+                    'tipo': backup.tipo,
+                    'tamanho_bytes': backup.tamanho_bytes,
+                    'criado_em': backup.criado_em.isoformat(),
+                })
+            return JsonResponse({
+                'backups': backups_list,
+                'total_backups': BackupHistorico.objects.count(),
+            })
+        
+        # Caso contrário, retornar template HTML
+        context = {
+            'backups': backups,
+            'total_backups': BackupHistorico.objects.count(),
+        }
+        return render(request, 'backup/backup_central.html', context)
+    except Exception as e:
+        return HttpResponse(f'Erro ao listar backups: {e}', status=500)
+
+
+@staff_member_required
+def backup_status(request):
+    """API endpoint que retorna status de progresso do backup em andamento."""
+    try:
+        status_file = os.path.join('backup', '.backup_progress.json')
+        
+        if os.path.exists(status_file):
+            with open(status_file, 'r', encoding='utf-8') as f:
+                status_data = json.load(f)
+            return JsonResponse(status_data)
+        else:
+            return JsonResponse({'em_progresso': False, 'percentual': 0})
+    except Exception as e:
+        return JsonResponse({'erro': str(e)}, status=500)
+
+
+def _registrar_progresso(percentual, mensagem='', tamanho_atual=0, tamanho_total=0):
+    """Salva status de progresso em arquivo para AJAX consultar."""
+    try:
+        os.makedirs('backup', exist_ok=True)
+        status_file = os.path.join('backup', '.backup_progress.json')
+        
+        data = {
+            'em_progresso': True,
+            'percentual': percentual,
+            'mensagem': mensagem,
+            'tamanho_atual': tamanho_atual,
+            'tamanho_total': tamanho_total,
+            'timestamp': timezone.now().isoformat(),
+        }
+        
+        with open(status_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def _limpar_progresso():
+    """Remove arquivo de progresso ao finalizar backup."""
+    try:
+        status_file = os.path.join('backup', '.backup_progress.json')
+        if os.path.exists(status_file):
+            os.remove(status_file)
+    except Exception:
+        pass
+
+
+@staff_member_required
+def iniciar_backup(request, tipo):
+    """Inicia backup do tipo especificado em thread separada."""
+    if request.method != 'POST':
+        return JsonResponse({'erro': 'Método não permitido'}, status=405)
+    
+    tipo_valido = tipo in ['json', 'zip', 'pg_dump']
+    if not tipo_valido:
+        return JsonResponse({'erro': 'Tipo de backup inválido'}, status=400)
+    
+    def executar_backup_thread():
+        try:
+            if tipo == 'json':
+                filename = f"backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                filepath = os.path.join('backup', filename)
+                _registrar_progresso(10, 'Iniciando geração de dados JSON...')
+                _executar_backup_json(filepath)
+                _registrar_progresso(90, 'Finalizando...')
+                _registrar_backup(request, filename, filepath, 'json')
+            
+            elif tipo == 'zip':
+                filename = f"backup_arquivos_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+                filepath = os.path.join('backup', filename)
+                _registrar_progresso(10, 'Iniciando compactação de arquivos...')
+                
+                import zipfile
+                os.makedirs('backup', exist_ok=True)
+                with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    _adicionar_storage_ao_zip(zipf, default_storage)
+                
+                _registrar_progresso(90, 'Finalizando...')
+                _registrar_backup(request, filename, filepath, 'zip')
+            
+            elif tipo == 'pg_dump':
+                filename = f"backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.dump"
+                filepath = os.path.join('backup', filename)
+                _registrar_progresso(10, 'Iniciando pg_dump...')
+                
+                cmd = [
+                    'pg_dump',
+                    '-h', os.environ.get('DB_HOST', 'aws-0-us-east-2.pooler.supabase.com'),
+                    '-U', os.environ.get('DB_USER', 'postgres.vxzntgknvejluffgttpg'),
+                    '-d', os.environ.get('DB_NAME', 'postgres'),
+                    '-F', 'c', '-b', '-v',
+                    '-f', filepath
+                ]
+                env = os.environ.copy()
+                env['PGPASSWORD'] = os.environ.get('PGPASSWORD', '')
+                
+                subprocess.run(cmd, check=True, env=env)
+                _registrar_progresso(90, 'Finalizando...')
+                _registrar_backup(request, filename, filepath, 'dump')
+        
+        except Exception as e:
+            _registrar_progresso(0, f'Erro: {str(e)[:100]}')
+        
+        finally:
+            _limpar_progresso()
+    
+    # Iniciar em thread separada
+    thread = threading.Thread(target=executar_backup_thread, daemon=True)
+    thread.start()
+    
+    return JsonResponse({'sucesso': True, 'mensagem': f'Backup {tipo} iniciado'})
+
+
+@staff_member_required
+def deletar_backup(request, backup_id):
+    """Deleta um backup e seu arquivo associado."""
+    if request.method != 'DELETE':
+        return JsonResponse({'erro': 'Método não permitido'}, status=405)
+    
+    try:
+        backup = BackupHistorico.objects.get(id=backup_id)
+        filepath = os.path.join('backup', backup.arquivo)
+        
+        # Deletar arquivo físico
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        
+        # Deletar registro do banco
+        backup.delete()
+        
+        return JsonResponse({'sucesso': True, 'mensagem': 'Backup deletado'})
+    except BackupHistorico.DoesNotExist:
+        return JsonResponse({'erro': 'Backup não encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'erro': str(e)}, status=500)
+
+
+@staff_member_required
+def download_backup(request, backup_id):
+    """Download de um arquivo de backup."""
+    try:
+        backup = BackupHistorico.objects.get(id=backup_id)
+        filepath = os.path.join('backup', backup.arquivo)
+        
+        if not os.path.exists(filepath):
+            return HttpResponse('Arquivo não encontrado', status=404)
+        
+        response = FileResponse(open(filepath, 'rb'), as_attachment=True, filename=backup.arquivo)
+        return response
+    except BackupHistorico.DoesNotExist:
+        return HttpResponse('Backup não encontrado', status=404)
+    except Exception as e:
+        return HttpResponse(f'Erro: {e}', status=500)
+
+
 # URLs para as views de backup
 backup_urls = [
+    path('backup/', backup_central, name='backup_central'),
+    path('backup/status/', backup_status, name='backup_status'),
+    path('backup/iniciar/<str:tipo>/', iniciar_backup, name='iniciar_backup'),
+    path('backup/deletar/<int:backup_id>/', deletar_backup, name='deletar_backup'),
+    path('backup/download/<int:backup_id>/', download_backup, name='download_backup'),
     path('backup/json/', backup_json, name='backup_json'),
     path('backup/arquivos/', backup_arquivos, name='backup_arquivos'),
     path('backup/custom/', backup_custom, name='backup_custom'),
