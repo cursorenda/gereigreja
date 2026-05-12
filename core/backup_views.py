@@ -5,6 +5,8 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.core.management import call_command
+from django.core import serializers
+from django.apps import apps
 from deploy.models import BackupHistorico
 from django.core.files.storage import default_storage
 
@@ -13,6 +15,7 @@ import os
 import datetime
 import io
 import sys
+from django.utils import timezone
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -20,8 +23,49 @@ except ImportError:
     pass
 
 
+def _rotacao_backups(dias_retencao=30):
+    """Remove backups mais antigos que dias_retencao dias (padrão: 30 dias)."""
+    try:
+        limite_data = timezone.now() - datetime.timedelta(days=dias_retencao)
+        backups_antigos = BackupHistorico.objects.filter(criado_em__lt=limite_data)
+        
+        deletados = 0
+        for backup in backups_antigos:
+            # Tentar deletar arquivo físico
+            try:
+                filepath = os.path.join('backup', backup.arquivo)
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception:
+                pass
+            
+            # Registrar em log
+            try:
+                os.makedirs('backup', exist_ok=True)
+                log_path = os.path.join('backup', 'backup_log.txt')
+                ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                with open(log_path, 'a', encoding='utf-8') as lf:
+                    lf.write(f"{ts} - Backup rotacionado (deletado): {backup.arquivo}\n")
+            except Exception:
+                pass
+            
+            # Deletar do banco
+            backup.delete()
+            deletados += 1
+        
+        if deletados > 0:
+            try:
+                log_path = os.path.join('backup', 'backup_log.txt')
+                with open(log_path, 'a', encoding='utf-8') as lf:
+                    lf.write(f"--- Total deletado por rotação: {deletados} backup(s)\n")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def _registrar_backup(request, filename, filepath, tipo):
-    """Registra backup em log de arquivo e no banco de dados."""
+    """Registra backup em log de arquivo e no banco de dados. Executa rotação de backups antigos."""
     # Log em arquivo (compatibilidade com rotina existente)
     try:
         os.makedirs('backup', exist_ok=True)
@@ -43,35 +87,82 @@ def _registrar_backup(request, filename, filepath, tipo):
         )
     except Exception:
         pass
+    
+    # Executar rotação de backups antigos (a cada novo backup)
+    _rotacao_backups(dias_retencao=30)
 
 
 def _executar_backup_json(filepath):
-    """Executa dumpdata em subprocesso com sys.setrecursionlimit aumentado para evitar recursão."""
-    env = os.environ.copy()
-    env['PYTHONIOENCODING'] = 'utf-8'
-    env['PYTHONUTF8'] = '1'
+    """Gera backup JSON válido de forma incremental, ignorando modelos com falha."""
+    excluded_app_labels = {
+        'contenttypes',
+        'admin',
+        'sessions',
+    }
+    excluded_model_labels = {
+        'auth.permission',
+        'admin.logentry',
+        'sessions.session',
+        'contenttypes.contenttype',
+    }
 
-    # Usa wrapper Python que aumenta sys.setrecursionlimit(10000) antes de executar dumpdata
-    # Isso contorna "maximum recursion depth exceeded" com ciclos de FK
-    command = [
-        sys.executable,
-        'tools/backup_json_runner.py',
-        filepath,
-    ]
+    models_to_dump = []
+    for model in apps.get_models():
+        meta = model._meta
+        app_label = meta.app_label
+        model_label = f'{app_label}.{meta.model_name}'
 
-    result = subprocess.run(
-        command,
-        cwd=os.path.dirname(os.path.dirname(__file__)),
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=300,
-        encoding='utf-8',
-        errors='replace',
-    )
-    if result.returncode != 0:
-        erro = result.stderr.strip() or result.stdout.strip() or 'Erro desconhecido ao executar dumpdata'
-        raise RuntimeError(erro)
+        if app_label in excluded_app_labels:
+            continue
+        if model_label in excluded_model_labels:
+            continue
+        if meta.proxy or not meta.managed:
+            continue
+
+        models_to_dump.append(model)
+
+    serialized_any = False
+    errors = []
+
+    with open(filepath, 'w', encoding='utf-8') as out:
+        out.write('[\n')
+
+        for model in models_to_dump:
+            model_label = f'{model._meta.app_label}.{model._meta.model_name}'
+            try:
+                queryset = model._default_manager.all().iterator(chunk_size=200)
+
+                for obj in queryset:
+                    payload = serializers.serialize('json', [obj], ensure_ascii=False)
+                    item = payload[1:-1].strip()
+                    if not item:
+                        continue
+
+                    if serialized_any:
+                        out.write(',\n')
+
+                    out.write(item)
+                    serialized_any = True
+            except Exception as exc:
+                errors.append(f'{model_label}: {exc}')
+
+        out.write('\n]\n')
+
+    if not serialized_any:
+        detail = '; '.join(errors[:5]) if errors else 'nenhum registro encontrado'
+        raise RuntimeError(f'Falha ao gerar backup JSON: {detail}')
+
+    if errors:
+        try:
+            os.makedirs('backup', exist_ok=True)
+            log_path = os.path.join('backup', 'backup_log.txt')
+            ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            with open(log_path, 'a', encoding='utf-8') as lf:
+                lf.write(f"{ts} - Backup JSON com modelos ignorados: {len(errors)}\n")
+                for err in errors[:20]:
+                    lf.write(f"  - {err}\n")
+        except Exception:
+            pass
 
 
 def _adicionar_storage_ao_zip(zipf, storage, path=''):
