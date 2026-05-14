@@ -1,0 +1,61 @@
+<div class="cert-batismo cert-batismo-classico">
+    <div class="cert-batismo-inner">
+        <div class="cert-batismo-title">Certificado de Batismo</div>
+        <div class="cert-batismo-divider">✦ ✦ ✦</div>
+
+        <p class="cert-batismo-body">
+            Certificamos que <strong>{{ dados.nome_batizando|default:'__________________________________________' }}</strong>,
+            nascido(a) em
+            <strong>
+                {% if dados.data_nascimento %}
+                    {{ dados.data_nascimento|date:'d/m/Y' }}
+                {% else %}
+                    ___/___/____
+                {% endif %}
+            </strong>,
+            filho(a) de
+            <strong>{{ dados.nome_pai|default:'________________________' }}</strong>
+            e
+            <strong>{{ dados.nome_mae|default:'________________________' }}</strong>,
+            foi batizado(a) em nome do Pai, do Filho e do Espírito Santo,
+            conforme a ordenança do Senhor Jesus Cristo.
+        </p>
+
+        <div class="cert-batismo-date-line">
+            Batismo em
+            <strong>
+                {% if dados.data_batismo %}
+                    {{ dados.data_batismo|date:'d/m/Y' }}
+                {% else %}
+                    ___/___/____
+                {% endif %}
+            </strong>
+        </div>
+
+        <p class="cert-batismo-verse">
+            "Portanto ide, fazei discípulos de todas as nações, batizando-os em nome do Pai,
+            e do Filho, e do Espírito Santo." (Mateus 28:19)
+        </p>
+
+        <div class="cert-batismo-signatures">
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ pastor_nome|default:'Pastor Local' }}</div>
+                <div class="sig-role">Pastor</div>
+            </div>
+
+            <div class="cert-logo-center">
+                {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Logo da igreja" class="cert-logo-img">
+                {% else %}
+                    <div class="cert-logo-fallback">{{ nome_igreja|default:'Igreja local' }}</div>
+                {% endif %}
+            </div>
+
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-name">Secretário(a)</div>
+            </div>
+        </div>
+    </div>
+</div>

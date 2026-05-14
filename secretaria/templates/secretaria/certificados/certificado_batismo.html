@@ -1,0 +1,320 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Certificado de Batismo{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/certificados/certificado_batismo_base.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_batismo_classico.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_batismo_elegante.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_batismo_solene.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_batismo_caligrafico.css' %}" rel="stylesheet" />
+<style>
+@media print {
+    @page {
+        size: 29.7cm 21cm !important;
+        margin: 0 !important;
+    }
+
+    html,
+    body,
+    body.font-size-normal,
+    body.font-size-medium,
+    body.font-size-large,
+    body.font-size-xlarge {
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 16px !important;
+        line-height: normal !important;
+        background: #fff !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    .print-certificado-area,
+    .print-certificado-area * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .print-certificado-area {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        z-index: 2147483647 !important;
+        transform: none !important;
+        zoom: 1 !important;
+    }
+
+    .print-certificado-area > * {
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+        zoom: 1 !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <h1 class="mt-2">Certificados</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Certificado de Batismo</li>
+    </ol>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Pré-visualização</strong>
+                    <button class="btn btn-outline-primary btn-sm" onclick="printCertificadoImagem()" type="button">
+                        <i class="fas fa-print me-1"></i> Imprimir
+                    </button>
+                </div>
+                <div class="card-body bg-light">
+                    <div class="preview-canvas print-certificado-area">
+                        {% if modelo_selecionado == 'caligrafico_unissex' %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_batismo_caligrafico.html' %}
+                        {% elif modelo_selecionado == 'elegante_unissex' %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_batismo_elegante.html' %}
+                        {% elif modelo_selecionado == 'solene_unissex' %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_batismo_solene.html' %}
+                        {% else %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_batismo_classico.html' %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <strong>Dados do certificado</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="vstack gap-3" id="cert-form">
+                        {% csrf_token %}
+                        <div class="d-none">{{ form.modelo }}</div>
+                        <div>
+                            <label class="form-label" for="id_nome_batizando">Nome do batizando</label>
+                            {{ form.nome_batizando }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_nome_pai">Nome do pai</label>
+                            {{ form.nome_pai }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_nome_mae">Nome da mãe</label>
+                            {{ form.nome_mae }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_data_nascimento">Data de nascimento</label>
+                            {{ form.data_nascimento }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_data_batismo">Data do batismo</label>
+                            {{ form.data_batismo }}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-vibrant-blue flex-grow-1">
+                                <i class="fas fa-eye me-1"></i> Atualizar prévia
+                            </button>
+                            <a href="{% url 'secretaria:certificado_batismo' %}" class="btn btn-outline-secondary">
+                                Limpar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3 mb-0">
+                A logo e o nome do pastor são preenchidos automaticamente com os dados da igreja ativa do usuário.
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Modelos disponíveis</strong>
+            <small class="text-muted">Role lateralmente para ver todos</small>
+        </div>
+        <div class="card-body pt-3">
+            <div class="model-strip" id="model-strip">
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'classico_unissex' %}is-active{% endif %}" data-modelo="classico_unissex" title="Modelo Clássico (Unissex)">
+                    <div class="thumb-canvas thumb-batismo-classico">
+                        <div class="thumb-batismo-title">Batismo</div>
+                        <div class="thumb-batismo-line"></div>
+                        <div class="thumb-batismo-text"></div>
+                        <div class="thumb-batismo-text short"></div>
+                        <div class="thumb-batismo-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo Clássico (Unissex)</div>
+                </button>
+
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'elegante_unissex' %}is-active{% endif %}" data-modelo="elegante_unissex" title="Modelo Elegante (Unissex)">
+                    <div class="thumb-canvas thumb-batismo-elegante">
+                        <div class="thumb-batismo-title">Batismo</div>
+                        <div class="thumb-batismo-line"></div>
+                        <div class="thumb-batismo-text"></div>
+                        <div class="thumb-batismo-text short"></div>
+                        <div class="thumb-batismo-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo Elegante (Unissex)</div>
+                </button>
+
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'solene_unissex' %}is-active{% endif %}" data-modelo="solene_unissex" title="Modelo Solene (Unissex)">
+                    <div class="thumb-canvas thumb-batismo-solene">
+                        <div class="thumb-batismo-title">Batismo</div>
+                        <div class="thumb-batismo-line"></div>
+                        <div class="thumb-batismo-text"></div>
+                        <div class="thumb-batismo-text short"></div>
+                        <div class="thumb-batismo-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo Solene (Unissex)</div>
+                </button>
+
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'caligrafico_unissex' %}is-active{% endif %}" data-modelo="caligrafico_unissex" title="Modelo Caligráfico (Unissex)">
+                    <div class="thumb-canvas thumb-batismo-caligrafico">
+                        <div class="thumb-batismo-title thumb-batismo-title-script">Batismo</div>
+                        <div class="thumb-batismo-line"></div>
+                        <div class="thumb-batismo-text"></div>
+                        <div class="thumb-batismo-text short"></div>
+                        <div class="thumb-batismo-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo Caligráfico (Unissex)</div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+        function _loadHtml2Canvas() {
+                return new Promise((resolve, reject) => {
+                        if (window.html2canvas) {
+                                resolve(window.html2canvas);
+                                return;
+                        }
+
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                        script.async = true;
+                        script.onload = () => resolve(window.html2canvas);
+                        script.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+                        document.head.appendChild(script);
+                });
+        }
+
+        async function printCertificadoImagem() {
+                const target = document.querySelector('.print-certificado-area > *');
+                if (!target) {
+                        window.print();
+                        return;
+                }
+
+                try {
+                        const html2canvasLib = await _loadHtml2Canvas();
+                        const canvas = await html2canvasLib(target, {
+                                backgroundColor: '#ffffff',
+                                scale: 2,
+                                useCORS: true,
+                                logging: false,
+                                windowWidth: document.documentElement.scrollWidth,
+                                windowHeight: document.documentElement.scrollHeight
+                        });
+
+                        const dataUrl = canvas.toDataURL('image/png');
+                        const printWindow = window.open('', '_blank', 'width=1400,height=900');
+                        if (!printWindow) {
+                                window.print();
+                                return;
+                        }
+
+                        printWindow.document.open();
+                        printWindow.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <title>Impressão de Certificado</title>
+    <style>
+        @page { size: 29.7cm 21cm; margin: 0; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 29.7cm;
+            height: 21cm;
+            background: #fff;
+            overflow: hidden;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        .sheet {
+            width: 29.7cm;
+            height: 21cm;
+            display: block;
+        }
+        img {
+            width: 29.7cm;
+            height: 21cm;
+            object-fit: fill;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet"><img src="${dataUrl}" alt="Certificado" /></div>
+</body>
+</html>`);
+                        printWindow.document.close();
+
+                        printWindow.onload = () => {
+                                setTimeout(() => {
+                                        printWindow.focus();
+                                        printWindow.print();
+                                }, 150);
+                        };
+                } catch (error) {
+                        window.print();
+                }
+        }
+
+            (function () {
+                const modelSelect = document.getElementById('id_modelo');
+                const form = document.getElementById('cert-form');
+                const buttons = document.querySelectorAll('.model-thumb');
+
+                if (!modelSelect || !form || !buttons.length) {
+                    return;
+                }
+
+                buttons.forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const modelo = btn.getAttribute('data-modelo');
+                        if (!modelo) return;
+                        modelSelect.value = modelo;
+                        form.submit();
+                    });
+                });
+            })();
+</script>
+{% endblock %}

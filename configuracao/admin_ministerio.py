@@ -2,8 +2,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
+from django.templatetags.static import static
+from django.utils.html import format_html
+from django.urls import path, reverse
 
-from .models import ConfiguracaoSistema, Igreja, Ministerio, PerfilUsuario
+from .models import ConfiguracaoSistema, Igreja, Ministerio, PerfilUsuario, ModeloCartaRecomendacao
 
 
 @admin.register(ConfiguracaoSistema)
@@ -27,12 +33,160 @@ class ConfiguracaoSistemaAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(ModeloCartaRecomendacao)
+class ModeloCartaRecomendacaoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'codigo', 'escopo', 'tipo', 'ministerio', 'ativo', 'ordem')
+    list_filter = ('tipo', 'ativo', 'ministerio')
+    search_fields = ('nome', 'codigo', 'template_include', 'ministerio__nome_fantasia')
+    ordering = ('ordem', 'nome')
+    readonly_fields = ('preview_template_include',)
+    fieldsets = (
+        (None, {
+            'description': (
+                'Regras: modelo Padrao deve ficar sem ministerio. '
+                'Modelo Exclusivo deve ter ministerio dono definido.'
+            ),
+            'fields': ('nome', 'codigo', 'template_include', 'tipo', 'ministerio', 'ativo', 'ordem')
+        }),
+        ('Previa', {
+            'fields': ('preview_template_include',),
+        }),
+    )
+
+    @admin.display(description='Escopo')
+    def escopo(self, obj):
+        if obj.tipo == ModeloCartaRecomendacao.TIPO_PADRAO:
+            return 'Global'
+        if obj.ministerio_id:
+            return f'Exclusivo de {obj.ministerio.nome_fantasia}'
+        return 'Exclusivo (sem ministerio)'
+
+    @admin.display(description='Previa do Template Include')
+    def preview_template_include(self, obj):
+        if not obj:
+            return 'Salve o modelo para habilitar a previa.'
+
+        if not obj.template_include:
+            return 'Informe o caminho em Template include para gerar a previa.'
+
+        dados_exemplo = {
+            'destino': 'Assembleia de Deus - Cidade Exemplo',
+            'nome_irmao': 'Joao da Silva',
+            'congregacao': 'Congregacao Central',
+            'sub_sede': 'Sub-sede Exemplo',
+            'data_emissao': None,
+        }
+
+        contexto_previa = {
+            'dados': dados_exemplo,
+            'nome_igreja': 'Igreja Exemplo',
+            'cnpj_igreja': '00.000.000/0001-00',
+            'email_igreja': 'contato@exemplo.org',
+            'logo_url_1': '',
+            'logo_url_2': '',
+            'pastor_nome': 'Pr. Nome Exemplo',
+            'congregacao_nome': 'Congregacao Central',
+            'ministerio_nome': obj.ministerio.nome_fantasia if obj.ministerio_id else 'Ministerio Exemplo',
+            'ministerio_email': 'secretaria@ministerio.org',
+            'ministerio_telefone': '(00) 00000-0000',
+            'ministerio_cnpj': '00.000.000/0001-00',
+            'ministerio_endereco': 'Rua Exemplo, 100, Centro, Cidade - UF, 00000-000',
+        }
+
+        try:
+            html_carta = render_to_string(obj.template_include, contexto_previa)
+        except Exception as exc:
+            return format_html('<span style="color:#b42318;font-weight:600;">Erro ao renderizar prévia: {}</span>', exc)
+
+        css_url = static('css/documentos/carta_recomendacao.css')
+        preview_url = reverse(
+            f'admin:{self.model._meta.app_label}_{self.model._meta.model_name}_preview',
+            args=[obj.pk],
+        )
+        return format_html(
+            '<div style="border:1px solid #d0d5dd;border-radius:10px;overflow:auto;max-height:540px;background:#fff;padding:10px;">'
+            '<style>@import url("{}"); .carta-preview-wrap{{max-width:460px;margin:0 auto;}}</style>'
+            '<div class="carta-preview-wrap">{}</div>'
+            '</div>'
+            '<div style="margin-top:10px;">'
+            '<a href="{}" target="_blank" style="display:inline-block;padding:8px 12px;border-radius:8px;'
+            'text-decoration:none;background:#0d6efd;color:#fff;font-weight:600;">Abrir previa em nova aba</a>'
+            '</div>',
+            css_url,
+            html_carta,
+            preview_url,
+        )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:object_id>/preview/',
+                self.admin_site.admin_view(self.preview_em_tela_cheia),
+                name=f'{self.model._meta.app_label}_{self.model._meta.model_name}_preview',
+            ),
+        ]
+        return custom_urls + urls
+
+    def preview_em_tela_cheia(self, request, object_id):
+        obj = get_object_or_404(ModeloCartaRecomendacao, pk=object_id)
+
+        dados_exemplo = {
+            'destino': 'Assembleia de Deus - Cidade Exemplo',
+            'nome_irmao': 'Joao da Silva',
+            'congregacao': 'Congregacao Central',
+            'sub_sede': 'Sub-sede Exemplo',
+            'data_emissao': None,
+        }
+
+        contexto_previa = {
+            'dados': dados_exemplo,
+            'nome_igreja': 'Igreja Exemplo',
+            'cnpj_igreja': '00.000.000/0001-00',
+            'email_igreja': 'contato@exemplo.org',
+            'logo_url_1': '',
+            'logo_url_2': '',
+            'pastor_nome': 'Pr. Nome Exemplo',
+            'congregacao_nome': 'Congregacao Central',
+            'ministerio_nome': obj.ministerio.nome_fantasia if obj.ministerio_id else 'Ministerio Exemplo',
+            'ministerio_email': 'secretaria@ministerio.org',
+            'ministerio_telefone': '(00) 00000-0000',
+            'ministerio_cnpj': '00.000.000/0001-00',
+            'ministerio_endereco': 'Rua Exemplo, 100, Centro, Cidade - UF, 00000-000',
+        }
+
+        try:
+            html_carta = render_to_string(obj.template_include, contexto_previa)
+        except Exception as exc:
+            return HttpResponse(
+                f'<h2>Erro ao renderizar template</h2><pre>{exc}</pre>',
+                status=400,
+            )
+
+        css_url = static('css/documentos/carta_recomendacao.css')
+        page = f'''
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Previa - {obj.nome}</title>
+  <style>@import url("{css_url}"); body {{ margin: 0; padding: 18px; background: #f4f6fb; }}</style>
+</head>
+<body>
+  <div class="carta-preview-wrap">{html_carta}</div>
+</body>
+</html>
+'''
+        return HttpResponse(page)
+
+
 @admin.register(Ministerio)
 class MinisterioAdmin(admin.ModelAdmin):
     list_display = (
         'nome_fantasia',
         'razao_social',
         'cnpj',
+        'modelo_carta_recomendacao',
         'ativo',
         'administrador_principal',
         'ultimo_login_admin',
@@ -45,7 +199,7 @@ class MinisterioAdmin(admin.ModelAdmin):
             'fields': ('nome_fantasia', 'razao_social', 'administrador_principal', 'ativo')
         }),
         ('Documentos e Contato', {
-            'fields': ('cnpj', 'telefone', 'email'),
+            'fields': ('cnpj', 'telefone', 'email', 'modelo_carta_recomendacao'),
             'classes': ('collapse',)
         }),
         ('Endereço', {

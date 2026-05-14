@@ -94,11 +94,12 @@ class ConfiguracaoPortalForm(forms.ModelForm):
 # c:\Gereigreja\configuracao\forms.py
 from django import forms
 from .models import ESTADO_CHOICES 
-from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio
+from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ModeloCartaRecomendacao
 
 from django.contrib.auth.models import User # Modelo de usuário padrão
 from financeiro.models import ContaBancaria # Importar ContaBancaria
 from django.db import transaction # Para garantir atomicidade no registro
+from django.db.models import Q
 from django.contrib.auth.models import User # Mantido
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
@@ -236,6 +237,12 @@ class IgrejaForm(forms.ModelForm):
 # --- FORMULÁRIO PARA EDITAR DADOS DA MINISTÉRIO (PELO ADMIN DA ORG) ---
 class MinisterioEditForm(forms.ModelForm):
     """ Formulário para o Admin do Minist. editar dados da própria ministério """
+    modelo_carta_recomendacao = forms.ChoiceField(
+        required=False,
+        label='Modelo da Carta de Recomendacao',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+
     # Sobrescrever o campo estado para garantir o widget correto se necessário
     # Embora o modelo já tenha choices, definir explicitamente aqui é seguro
     estado = forms.ChoiceField(
@@ -247,7 +254,7 @@ class MinisterioEditForm(forms.ModelForm):
 
     class Meta:
         model = Ministerio
-        fields = ['logo', 'nome_fantasia', 'razao_social', 'cnpj', 'telefone', 'email', 'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado']
+        fields = ['logo', 'nome_fantasia', 'razao_social', 'cnpj', 'telefone', 'email', 'modelo_carta_recomendacao', 'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado']
         widgets = {
             'nome_fantasia': forms.TextInput(attrs={'class': 'form-control'}),
             'razao_social': forms.TextInput(attrs={'class': 'form-control'}),
@@ -262,6 +269,28 @@ class MinisterioEditForm(forms.ModelForm):
             'cidade': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'logo': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm', 'id': 'id_logo'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        ministerio = self.instance if getattr(self, 'instance', None) and self.instance.pk else None
+
+        filtros_base = {'ativo': True}
+        modelos_qs = ModeloCartaRecomendacao.objects.filter(**filtros_base).filter(
+            Q(tipo=ModeloCartaRecomendacao.TIPO_PADRAO) |
+            Q(tipo=ModeloCartaRecomendacao.TIPO_EXCLUSIVO, ministerio=ministerio)
+        ).order_by('ordem', 'nome')
+
+        choices = [(m.codigo, m.nome) for m in modelos_qs]
+        if not choices:
+            choices = [('padrao', 'Padrao do sistema')]
+
+        valor_atual = getattr(self.instance, 'modelo_carta_recomendacao', '') or 'padrao'
+        if valor_atual and valor_atual not in {codigo for codigo, _ in choices}:
+            choices.insert(0, (valor_atual, f'{valor_atual} (nao disponivel)'))
+
+        self.fields['modelo_carta_recomendacao'].choices = choices
+        self.initial.setdefault('modelo_carta_recomendacao', valor_atual)
 
 # Nota: A classe IgrejaEditForm abaixo parece ser uma duplicação de IgrejaForm.
 # Se a intenção é ter um formulário de edição com lógica diferente, certifique-se

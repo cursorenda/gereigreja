@@ -1,8 +1,8 @@
 # 📖 Manual do Usuário - Gereigreja
 
 **Data de Criação:** 12/03/2026  
-**Última Atualização:** 01/05/2026  
-**Versão do Sistema:** v1.9.0
+**Última Atualização:** 13/05/2026  
+**Versão do Sistema:** v1.12.0
 **Status:** Versão publicada em produção
 
 ---
@@ -113,7 +113,52 @@ Todos os usuários autenticados com ministério ativo vêem a sessão **Minha Co
 
 ---
 
-## 🛠️ 9. Dúvidas Frequentes (FAQ)
+## 🆕 9. Novidades da Secretaria (v1.12.0)
+
+### 9.1. Menu de Documentos reorganizado
+O menu da Secretaria foi reorganizado para facilitar o uso no dia a dia.
+
+Agora você encontra em Secretaria -> Documentos:
+- Certificados
+- Carta de Recomendação
+- Reunião de Membros
+
+Benefício prático:
+- Menos cliques para chegar nos documentos mais usados.
+
+### 9.2. Certificados com melhor prévia e impressão
+Os certificados de Apresentação e Batismo foram melhorados para manter a aparência da prévia também na impressão.
+
+O que mudou:
+- Prévia mais estável visualmente
+- Impressão com maior fidelidade ao modelo exibido na tela
+- No Batismo, seleção de diferentes modelos visuais
+
+Benefício prático:
+- Menos necessidade de ajustes manuais antes de imprimir.
+
+### 9.3. Nova Carta de Recomendação
+Foi adicionada uma nova tela para gerar Carta de Recomendação.
+
+Como acessar:
+1. Menu lateral -> Secretaria -> Documentos -> Carta de Recomendação
+2. Preencha os dados do formulário
+3. Confira a prévia
+4. Clique em imprimir
+
+Benefício prático:
+- Emissão padronizada com layout pronto para uso.
+
+### 9.4. Modelo de carta por ministério
+Cada ministério pode usar seu modelo permitido de carta, conforme configuração administrativa.
+
+Para o usuário final, isso significa:
+- A carta abre automaticamente no modelo correto da sua organização
+- Mais consistência visual entre os documentos oficiais
+
+---
+
+## 🛠️ 10. Dúvidas Frequentes (FAQ)
 
 - **Não consigo acessar:** Verifique se digitou o e-mail correto e se sua conta está ativa.
 - **Erro ao salvar cadastro:** Confira se todos os campos obrigatórios estão preenchidos corretamente.
@@ -123,9 +168,9 @@ Todos os usuários autenticados com ministério ativo vêem a sessão **Minha Co
 
 ---
 
-## 🆘 10. Suporte
+## 🆘 11. Suporte
 
-- Consulte a documentação completa em [docs/](../docs/INDEX.md)
+- Consulte a documentação completa em [INDEX](../INDEX.md)
 - Fale com o responsável da sua igreja ou envie e-mail para o suporte indicado no rodapé do sistema.
 
 ---

@@ -1,7 +1,7 @@
 
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 11/05/2026
+**Última Atualização:** 13/05/2026
 
 ---
 
@@ -86,6 +86,11 @@
 | [sistema/ARQUITETURA_ASSINATURA_PLANOS.md](sistema/ARQUITETURA_ASSINATURA_PLANOS.md) | Desenvolvedor | Modelos, services, view gerenciar_assinatura, integração Stripe |
 | [sistema/FLUXO_ELEGIBILIDADE_ACESSO.md](sistema/FLUXO_ELEGIBILIDADE_ACESSO.md) | Desenvolvedor/IA | **NOVO:** Fluxo completo de elegibilidade — plano pioneiro grátis × cortesia × trial × status × BETA — ordem de verificação, inconsistências e correções |
 | [ai/AI_CONTEXT_SISTEMA_COMPLETO.md](ai/AI_CONTEXT_SISTEMA_COMPLETO.md) | IA | Contexto mestre do sistema: multi-tenant, permissões, padrões, anti-padrões |
+
+### Secretaria - Documentos e Certificados (v1.12.0)
+| Documento | Público | Descrição |
+|-----------|---------|-----------|
+| [sistema/ATUALIZACAO_v1.12.0.md](sistema/ATUALIZACAO_v1.12.0.md) | Desenvolvedor/Operação | Reorganização de menu, evolução de certificados, novo módulo de carta de recomendação e governança de templates por ministério |
 
 ---
 
@@ -181,6 +186,15 @@ Gereigreja/
 ---
 
 ## 🆕 Documentações Recentes (Março 2026)
+
+### 13/05/2026 - Secretaria: Documentos, Certificados e Carta
+- **Arquivo:** [sistema/ATUALIZACAO_v1.12.0.md](sistema/ATUALIZACAO_v1.12.0.md)
+- **Conteúdo:**
+   - reorganização do menu da secretaria com foco em documentos
+   - evolução de certificados (apresentação e batismo) com impressão fiel por html2canvas
+   - novo módulo de carta de recomendação (A5)
+   - governança multi-ministério para modelos padrão/exclusivos
+   - melhorias de admin para prévia embutida e prévia em nova aba
 
 ### 12/04/2026 - Consolidação do ciclo v1.8.x
 - **Arquivo:** [MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md)

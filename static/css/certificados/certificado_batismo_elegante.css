@@ -1,0 +1,43 @@
+.cert-batismo-elegante {
+    background: linear-gradient(145deg, #fffaf4 0%, #fffef9 100%);
+    border: 2px solid #c9a883;
+    box-shadow: inset 0 0 0 1px #fff, 0 8px 24px #8f6d3d26;
+}
+
+.cert-batismo-elegante .cert-batismo-inner {
+    border-color: #ceb18f;
+}
+
+.cert-batismo-elegante .cert-batismo-inner::before {
+    background: repeating-linear-gradient(45deg, #ffffff00 0, #ffffff00 18px, #f7ebdb 18px, #f7ebdb 20px);
+    opacity: 0.5;
+}
+
+.cert-batismo-elegante .cert-batismo-title {
+    color: #8b5e3d;
+}
+
+.cert-batismo-elegante .cert-batismo-divider {
+    color: #a57b50;
+}
+
+.cert-batismo-elegante .cert-batismo-body {
+    color: #3f3329;
+}
+
+.cert-batismo-elegante .cert-batismo-date-line,
+.cert-batismo-elegante .cert-batismo-verse {
+    color: #5b4a39;
+}
+
+.cert-batismo-elegante .sig-line {
+    border-top-color: #bea183;
+}
+
+.cert-batismo-elegante .sig-name {
+    color: #8b5e3d;
+}
+
+.cert-batismo-elegante .sig-role {
+    color: #8a7257;
+}

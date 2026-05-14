@@ -14,6 +14,8 @@
 #   tags.py         — criar, editar, excluir tag
 #   ajax.py         — autocomplete, salvar nota, ajax presença/buscas
 #   relatorios.py   — linha do tempo, relatório reunião, imprimir lista
+#   certificado_apresentacao.py — emissão de certificado de apresentação
+#   certificado_batismo.py — emissão de certificado de batismo
 
 # Tudo que ainda não foi extraído permanece disponível via _legacy
 from ._legacy import *  # noqa: F401, F403
@@ -56,4 +58,13 @@ from .relatorios import (  # noqa: F401
 )
 from .tags import (  # noqa: F401
     criar_tag, editar_tag, excluir_tag,
+)
+from .certificado_apresentacao import (  # noqa: F401
+    certificado_apresentacao,
+)
+from .certificado_batismo import (  # noqa: F401
+    certificado_batismo,
+)
+from .carta_recomendacao import (  # noqa: F401
+    carta_recomendacao,
 )

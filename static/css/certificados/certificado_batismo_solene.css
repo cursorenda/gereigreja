@@ -1,0 +1,43 @@
+.cert-batismo-solene {
+    background: linear-gradient(145deg, #eef3fa 0%, #f8fbff 100%);
+    border: 2px solid #6c829f;
+    box-shadow: inset 0 0 0 1px #ffffff, 0 8px 24px #2438502e;
+}
+
+.cert-batismo-solene .cert-batismo-inner {
+    border-color: #8095b2;
+}
+
+.cert-batismo-solene .cert-batismo-inner::before {
+    background: repeating-linear-gradient(45deg, #ffffff00 0, #ffffff00 18px, #e2eaf5 18px, #e2eaf5 20px);
+    opacity: 0.45;
+}
+
+.cert-batismo-solene .cert-batismo-title {
+    color: #2a4365;
+}
+
+.cert-batismo-solene .cert-batismo-divider {
+    color: #465f83;
+}
+
+.cert-batismo-solene .cert-batismo-body {
+    color: #243142;
+}
+
+.cert-batismo-solene .cert-batismo-date-line,
+.cert-batismo-solene .cert-batismo-verse {
+    color: #324760;
+}
+
+.cert-batismo-solene .sig-line {
+    border-top-color: #7f93ad;
+}
+
+.cert-batismo-solene .sig-name {
+    color: #2a4365;
+}
+
+.cert-batismo-solene .sig-role {
+    color: #566b86;
+}

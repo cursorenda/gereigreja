@@ -1,0 +1,363 @@
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;600&display=swap');
+
+#id_modelo,
+#id_nome_crianca,
+#id_nome_pai,
+#id_nome_mae,
+#id_data_nascimento {
+    width: 100%;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+}
+
+.preview-canvas {
+    max-width: 90%;
+    margin: 0 auto;
+}
+
+.preview-canvas > * {
+    width: 100%;
+    aspect-ratio: 297 / 210;
+}
+
+.main-preview-model1 .certificado {
+    min-height: 540px;
+}
+
+.main-preview-model2 .certificate-container {
+    border-width: 14px;
+}
+
+.main-preview-model2 .inner-border {
+    padding: 16px;
+}
+
+.main-preview-model2 .footer {
+    margin-top: 14px;
+}
+
+.model-strip {
+    display: flex;
+    gap: 0.9rem;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+}
+
+.model-strip::-webkit-scrollbar {
+    height: 8px;
+}
+
+.model-strip::-webkit-scrollbar-thumb {
+    background: #d7d7d7;
+    border-radius: 999px;
+}
+
+.model-thumb {
+    border: 1px solid #d9d9e0;
+    border-radius: 12px;
+    background: #fff;
+    min-width: 220px;
+    padding: 0.55rem;
+    text-align: left;
+    transition: all 0.18s ease;
+    flex: 0 0 auto;
+}
+
+.model-thumb:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px #00000012;
+}
+
+.model-thumb.is-active {
+    border-color: #ff63b0;
+    box-shadow: 0 0 0 2px #ffd2e8;
+}
+
+.thumb-canvas {
+    height: 125px;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e8e8ef;
+}
+
+.thumb-label {
+    font-size: 0.84rem;
+    color: #4f4f58;
+    margin-top: 0.4rem;
+    font-weight: 600;
+}
+
+.thumb-modern {
+    background: linear-gradient(145deg, #fff8fb 0%, #fffef8 100%);
+}
+
+.thumb-modern-title {
+    text-align: center;
+    color: #ff4fa4;
+    font-family: 'Great Vibes', cursive;
+    font-size: 1.55rem;
+    margin-top: 8px;
+}
+
+.thumb-modern-line {
+    width: 60%;
+    height: 2px;
+    background: #dfb684;
+    margin: 2px auto 10px;
+}
+
+.thumb-modern-text,
+.thumb-modern-foot {
+    height: 6px;
+    border-radius: 999px;
+    background: #dfdfeb;
+    margin: 8px 14px;
+}
+
+.thumb-modern-text.short {
+    width: 72%;
+}
+
+.thumb-modern-foot {
+    width: 45%;
+    margin-top: 22px;
+}
+
+.thumb-floral {
+    background: #fffafa;
+    border: 5px double #ff4d6d;
+}
+
+.thumb-floral::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(#ffb3c1 0.6px, transparent 0.6px);
+    background-size: 12px 12px;
+    opacity: 0.6;
+}
+
+.thumb-floral-chip,
+.thumb-floral-crown,
+.thumb-floral-title,
+.thumb-floral-text,
+.thumb-floral-foot {
+    position: relative;
+    z-index: 1;
+}
+
+.thumb-floral-chip {
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    font-size: 1rem;
+}
+
+.thumb-floral-crown {
+    position: absolute;
+    right: 8px;
+    top: 6px;
+    font-size: 1rem;
+}
+
+.thumb-floral-title {
+    text-align: center;
+    color: #ff4d6d;
+    font-family: 'Great Vibes', cursive;
+    font-size: 1.45rem;
+    margin-top: 8px;
+}
+
+.thumb-floral-text,
+.thumb-floral-foot {
+    height: 6px;
+    border-radius: 999px;
+    background: #efc5d4;
+    margin: 8px 14px;
+}
+
+.thumb-floral-text.short {
+    width: 68%;
+}
+
+.thumb-floral-foot {
+    width: 40%;
+    margin-top: 18px;
+}
+
+.thumb-modern-blue {
+    background: linear-gradient(145deg, #f0f8ff 0%, #fffbf8 100%);
+}
+
+.thumb-modern-blue .thumb-modern-title {
+    color: #4a90e2;
+}
+
+.thumb-floral-blue {
+    background: #f0f8ff;
+    border: 5px double #4a90e2;
+}
+
+.thumb-floral-blue::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(#a8d5ff 0.6px, transparent 0.6px);
+    background-size: 12px 12px;
+    opacity: 0.6;
+}
+
+.thumb-floral-blue .thumb-floral-title {
+    color: #4a90e2;
+}
+
+@media (max-width: 992px) {
+    .preview-canvas {
+        max-width: 100%;
+    }
+
+    .cert-model1 .cert-title {
+        font-size: 2.1rem;
+    }
+
+    .cert-model1 .cert-subtitle {
+        font-size: 1.04rem;
+        max-width: 100%;
+    }
+
+    .cert-model1 .cert-signatures {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .cert-model1 .cert-logo-center {
+        order: -1;
+    }
+
+    .cert-model2-page .certificate-container {
+        border-width: 12px;
+    }
+
+    .cert-model2-page .inner-border {
+        padding: 14px;
+    }
+
+    .cert-model2-page .footer {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .cert-model2-page .signature-box,
+    .cert-model2-page .church-info {
+        width: 100%;
+    }
+
+    .cert-model2-page .line-name,
+    .cert-model2-page .line-parents {
+        min-width: 180px;
+    }
+
+    .model-thumb {
+        min-width: 190px;
+    }
+}
+
+@media print {
+    @page {
+        size: 29.7cm 21cm;
+        margin: 0;
+    }
+
+    html,
+    body {
+        width: 29.7cm !important;
+        height: 21cm !important;
+        font-size: 16px !important;
+        line-height: normal !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    .font-size-normal,
+    .font-size-medium,
+    .font-size-large,
+    .font-size-xlarge {
+        font-size: 16px !important;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    .print-certificado-area,
+    .print-certificado-area * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .print-certificado-area {
+        font-size: 16px !important;
+        line-height: normal !important;
+    }
+
+    .print-certificado-area {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 29.7cm !important;
+        max-width: 29.7cm !important;
+        min-width: 29.7cm !important;
+        height: 21cm !important;
+        min-height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: hidden !important;
+        z-index: 9999 !important;
+        transform: none !important;
+    }
+
+    .print-certificado-area > * {
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        aspect-ratio: auto !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        transform: none !important;
+    }
+
+    .print-certificado-area .cert-model1.certificado-wrap,
+    .print-certificado-area .cert-model1-azul.certificado-wrap,
+    .print-certificado-area .cert-model2-page,
+    .print-certificado-area .cert-model2-page-azul {
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .print-certificado-area .certificado,
+    .print-certificado-area .certificate-container,
+    .print-certificado-area .inner-border {
+        width: 100% !important;
+        height: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .print-certificado-area .cert-model1 .cert-title,
+    .print-certificado-area .cert-model1-azul .cert-title {
+        font-family: 'Great Vibes', cursive !important;
+        font-weight: 400 !important;
+    }
+}

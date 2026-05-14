@@ -1,0 +1,60 @@
+<div class="cert-model2-page-azul main-preview-model2-azul">
+    <div class="certificate-container">
+        <div class="inner-border">
+            <div class="doll">👦</div>
+            <div class="crown">👑</div>
+
+            <div class="title">Certificado de Apresentação</div>
+
+            <div class="main-text">
+                Certificamos que <span class="line line-name user-input">{{ dados.nome_crianca|default:' ' }}</span>,<br>
+                nascido(a) no dia
+                <span class="line line-day user-input">{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'d' }}{% endif %}</span>
+                /
+                <span class="line line-day user-input">{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'m' }}{% endif %}</span>
+                /
+                <span class="line line-year user-input">{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'Y' }}{% endif %}</span>
+                filha amada e esperada de<br>
+                <span class="line line-parents user-input">{{ dados.nome_pai|default:' ' }}</span>
+                &
+                <span class="line line-parents user-input">{{ dados.nome_mae|default:' ' }}</span><br>
+                foi apresentada ao Senhor Jesus conforme as Sagradas<br>
+                escrituras em Lucas 2:22
+            </div>
+
+            <div class="cert-date-2">
+                <span class="line line-day">{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'d' }}{% else %}{{ data_hoje|date:'d' }}{% endif %}</span>
+                /
+                <span class="line line-day">{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'m' }}{% else %}{{ data_hoje|date:'m' }}{% endif %}</span>
+                /
+                <span class="line line-day">{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'Y' }}{% else %}{{ data_hoje|date:'Y' }}{% endif %}</span>
+            </div>
+
+            <div class="verse">
+                "Jesus, porém, disse: Deixai as crianças e não as impeçais de virem a mim,
+                porque de tais é o reino dos céus."
+            </div>
+
+            <div class="footer">
+                <div class="signature-box">
+                    <div class="heart-icon">💙</div>
+                    <div class="signature-line"></div>
+                    <div class="label">{{ pastor_nome|default:'Pastor Local' }}<br>Pastor Local</div>
+                </div>
+
+                <div class="church-info">
+                    {% if logo_url %}
+                        <img src="{{ logo_url }}" alt="Logo da igreja" class="church-logo" />
+                    {% endif %}
+                    <div class="church-name">{{ nome_igreja|default:'Igreja local' }}</div>
+                </div>
+
+                <div class="signature-box">
+                    <div class="heart-icon">💙</div>
+                    <div class="signature-line"></div>
+                    <div class="label">Assinatura dos pais</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

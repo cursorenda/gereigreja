@@ -1,0 +1,230 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Carta de Recomendacao{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/documentos/carta_recomendacao.css' %}" rel="stylesheet" />
+<style>
+@media print {
+    @page {
+        size: 148mm 210mm !important;
+        margin: 0 !important;
+    }
+
+    html,
+    body,
+    body.font-size-normal,
+    body.font-size-medium,
+    body.font-size-large,
+    body.font-size-xlarge {
+        width: 148mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 16px !important;
+        line-height: normal !important;
+        background: #fff !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    .print-carta-area,
+    .print-carta-area * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .print-carta-area {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 148mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        z-index: 2147483647 !important;
+        transform: none !important;
+        zoom: 1 !important;
+    }
+
+    .print-carta-area > * {
+        width: 148mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+        zoom: 1 !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <h1 class="mt-2">Documentos</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Carta de Recomendacao</li>
+    </ol>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Pre-visualizacao</strong>
+                    <button class="btn btn-outline-primary btn-sm" onclick="printCartaImagem()" type="button">
+                        <i class="fas fa-print me-1"></i> Imprimir
+                    </button>
+                </div>
+                <div class="card-body bg-light">
+                    <div class="carta-preview-wrap print-carta-area">
+                        {% include template_carta_recomendacao %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <strong>Dados da carta</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="vstack gap-3" id="carta-form">
+                        {% csrf_token %}
+                        <div>
+                            <label class="form-label" for="id_destino">Destino</label>
+                            {{ form.destino }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_nome_irmao">Nome do(a) irmao(a)</label>
+                            {{ form.nome_irmao }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_congregacao">Congregacao</label>
+                            {{ form.congregacao }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_sub_sede">Sub-sede</label>
+                            {{ form.sub_sede }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_data_emissao">Data da carta</label>
+                            {{ form.data_emissao }}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-vibrant-blue flex-grow-1">
+                                <i class="fas fa-eye me-1"></i> Atualizar previa
+                            </button>
+                            <a href="{% url 'secretaria:carta_recomendacao' %}" class="btn btn-outline-secondary">
+                                Limpar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function _loadHtml2Canvas() {
+        return new Promise((resolve, reject) => {
+            if (window.html2canvas) {
+                resolve(window.html2canvas);
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+            script.async = true;
+            script.onload = () => resolve(window.html2canvas);
+            script.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function printCartaImagem() {
+        const target = document.querySelector('.print-carta-area > *');
+        if (!target) {
+            window.print();
+            return;
+        }
+
+        try {
+            const html2canvasLib = await _loadHtml2Canvas();
+            const canvas = await html2canvasLib(target, {
+                backgroundColor: '#f0f7ff',
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight
+            });
+
+            const dataUrl = canvas.toDataURL('image/png');
+            const printWindow = window.open('', '_blank', 'width=900,height=1200');
+            if (!printWindow) {
+                window.print();
+                return;
+            }
+
+            printWindow.document.open();
+            printWindow.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Impressao Carta de Recomendacao</title>
+  <style>
+    @page { size: 148mm 210mm; margin: 0; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 148mm;
+      height: 210mm;
+      background: #f0f7ff;
+      overflow: hidden;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color-adjust: exact;
+    }
+    .sheet {
+      width: 148mm;
+      height: 210mm;
+      display: block;
+    }
+    img {
+      width: 148mm;
+      height: 210mm;
+      object-fit: fill;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet"><img src="${dataUrl}" alt="Carta de Recomendacao" /></div>
+</body>
+</html>`);
+            printWindow.document.close();
+
+            printWindow.onload = () => {
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 150);
+            };
+        } catch (error) {
+            window.print();
+        }
+    }
+</script>
+{% endblock %}

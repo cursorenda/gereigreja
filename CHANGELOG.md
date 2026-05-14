@@ -1,3 +1,56 @@
+## v1.12.0 — 13/05/2026
+📄 **Documentos, Certificados e Governança de Modelos por Ministério**
+
+### Secretaria — Menu e Navegação
+- Reorganização do menu da Secretaria com foco em documentos:
+  - Pessoas
+  - Documentos
+    - Certificados
+      - Certificado de Batismo
+      - Certificado de Apresentação
+    - Reunião de Membros
+    - Carta de Recomendação
+
+### Certificados — Apresentação e Batismo
+- Evolução do módulo de Apresentação com variantes de modelo e impressão robusta.
+- Novo módulo de Batismo com múltiplos modelos (clássico, elegante, solene, caligráfico).
+- Barra de seleção de modelos com miniaturas e troca por clique.
+- Ajustes de conteúdo e assinatura (Secretário(a), tipografia e composição do versículo).
+- Padronização da impressão usando estratégia por imagem (html2canvas) para fidelidade visual.
+
+### Carta de Recomendação — Novo Módulo
+- Nova rota de emissão em `secretaria/documentos/carta-recomendacao/`.
+- Tela com formulário lateral, prévia e impressão A5.
+- Modelo padrão para ministérios não organizados com:
+  - dados principais do ministério no topo (nome, CNPJ, e-mail, telefone, endereço)
+  - bloco de assinatura do pastor com nome da congregação.
+- Modelo "Vales Clássico" separado em template dedicado.
+
+### Governança Multi-Ministério (Segurança)
+- Novo cadastro técnico de modelos de carta (padrão/exclusivo) no banco.
+- Configuração do Ministério para escolher o modelo de carta por código.
+- Filtro de opções para o admin ministério:
+  - apenas modelos padrão
+  - e exclusivos do próprio ministério.
+- Validações de integridade:
+  - exclusivo exige ministério
+  - padrão não aceita vínculo com ministério.
+- Blindagem no backend da emissão:
+  - impede uso de modelo exclusivo de outros ministérios
+  - fallback automático para modelo padrão permitido.
+
+### Admin do Desenvolvedor
+- Admin dedicado para modelos de carta com filtros, ordenação e regras de preenchimento.
+- Coluna "Escopo" na listagem (Global / Exclusivo de [Ministério]).
+- Prévia visual embutida por `template_include` com dados de exemplo.
+- Botão "Abrir prévia em nova aba" para revisão em tela ampliada.
+
+### Migrações
+- Inclusão de campo de modelo de carta no Ministério.
+- Criação da entidade de modelos de carta com seed inicial.
+
+---
+
 ## v1.11.1 — 11/05/2026
 🐛 **Correção de Métricas do Admin Dashboard**
 

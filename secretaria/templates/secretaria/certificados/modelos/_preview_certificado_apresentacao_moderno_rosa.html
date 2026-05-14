@@ -1,0 +1,62 @@
+<div class="certificado-wrap cert-model1 main-preview-model1">
+    <div class="certificado">
+        <div class="cert-watermark"></div>
+        <div class="cert-top">
+            <div class="cert-title">Certificado de Apresentação</div>
+            <div class="cert-divider">✦ ✦ ✦</div>
+            <p class="cert-subtitle">
+                Certificamos que
+                <strong>{{ dados.nome_crianca|default:'__________________________________________' }}</strong>,
+                nascido(a) em
+                <strong>
+                    {% if dados.data_nascimento %}
+                        {{ dados.data_nascimento|date:'d/m/Y' }}
+                    {% else %}
+                        ___/___/____
+                    {% endif %}
+                </strong>,
+                filho(a) amado(a) e esperado(a) de
+                <strong>{{ dados.nome_pai|default:'________________________' }}</strong>
+                e
+                <strong>{{ dados.nome_mae|default:'________________________' }}</strong>,
+                foi apresentado(a) ao Senhor Jesus conforme as Sagradas Escrituras em Lucas 2:22.
+            </p>
+        </div>
+
+        <div class="cert-date-line">
+            <span>{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'d' }}{% else %}{{ data_hoje|date:'d' }}{% endif %}</span>
+            <span>de</span>
+            <span>{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'F' }}{% else %}{{ data_hoje|date:'F' }}{% endif %}</span>
+            <span>de</span>
+            <span>{% if dados.data_nascimento %}{{ dados.data_nascimento|date:'Y' }}{% else %}{{ data_hoje|date:'Y' }}{% endif %}</span>
+        </div>
+
+        <p class="cert-verse">
+            "Jesus, porém, disse: Deixai os pequeninos, não os impeçais de virem a mim,
+            porque dos tais é o reino dos céus."
+        </p>
+
+        <div class="cert-ribbon">Pequenos no cuidado do Senhor</div>
+
+        <div class="cert-signatures">
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ pastor_nome|default:'Pastor Local' }}</div>
+                <div class="sig-role">Pastor</div>
+            </div>
+
+            <div class="cert-logo-center">
+                {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Logo da igreja" class="cert-logo-img">
+                {% else %}
+                    <div class="cert-logo-fallback">{{ nome_igreja|default:'Igreja local' }}</div>
+                {% endif %}
+            </div>
+
+            <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-name">Assinatura dos pais</div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,366 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Certificado de Apresentação{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/certificados/certificado_apresentacao_base.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_apresentacao_moderno_rosa.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_apresentacao_moderno_azul.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_apresentacao_floral_rosa.css' %}" rel="stylesheet" />
+<link href="{% static 'css/certificados/certificado_apresentacao_floral_azul.css' %}" rel="stylesheet" />
+<style>
+@media print {
+    @page {
+        size: 29.7cm 21cm !important;
+        margin: 0 !important;
+    }
+
+    html,
+    body,
+    body.font-size-normal,
+    body.font-size-medium,
+    body.font-size-large,
+    body.font-size-xlarge {
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 16px !important;
+        line-height: normal !important;
+        background: #fff !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    .print-certificado-area,
+    .print-certificado-area * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .print-certificado-area {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        z-index: 2147483647 !important;
+        transform: none !important;
+        zoom: 1 !important;
+    }
+
+    .print-certificado-area > * {
+        width: 29.7cm !important;
+        height: 21cm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+        zoom: 1 !important;
+    }
+
+    .print-certificado-area .cert-model1 .cert-title,
+    .print-certificado-area .cert-model1-azul .cert-title {
+        font-family: 'Great Vibes', cursive !important;
+        font-size: 48px !important;
+        line-height: 1 !important;
+    }
+
+    .print-certificado-area .cert-model1 .cert-subtitle,
+    .print-certificado-area .cert-model1-azul .cert-subtitle {
+        font-size: 22px !important;
+        line-height: 1.4 !important;
+    }
+
+    .print-certificado-area .cert-model1 .cert-date-line,
+    .print-certificado-area .cert-model1-azul .cert-date-line,
+    .print-certificado-area .cert-model1 .cert-verse,
+    .print-certificado-area .cert-model1-azul .cert-verse {
+        font-size: 16px !important;
+    }
+
+    .print-certificado-area .cert-model1 .sig-name,
+    .print-certificado-area .cert-model1-azul .sig-name {
+        font-size: 16px !important;
+    }
+
+    .print-certificado-area .cert-model1 .sig-role,
+    .print-certificado-area .cert-model1-azul .sig-role {
+        font-size: 14px !important;
+    }
+
+    .print-certificado-area .cert-model2-page .title,
+    .print-certificado-area .cert-model2-page-azul .title {
+        font-family: 'Great Vibes', cursive !important;
+        font-size: 48px !important;
+        line-height: 1 !important;
+    }
+
+    .print-certificado-area .cert-model2-page .main-text,
+    .print-certificado-area .cert-model2-page-azul .main-text {
+        font-size: 18px !important;
+        line-height: 1.3 !important;
+    }
+
+    .print-certificado-area .cert-model2-page .cert-date-2,
+    .print-certificado-area .cert-model2-page-azul .cert-date-2 {
+        font-size: 16px !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+    <h1 class="mt-2">Certificados</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Certificado de Apresentação</li>
+    </ol>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Pré-visualização</strong>
+                    <button class="btn btn-outline-primary btn-sm" onclick="printCertificadoImagem()" type="button">
+                        <i class="fas fa-print me-1"></i> Imprimir
+                    </button>
+                </div>
+                <div class="card-body bg-light">
+                    <div class="preview-canvas print-certificado-area">
+                        {% if modelo_selecionado == 'floral_rosa' %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_apresentacao_floral_rosa.html' %}
+                        {% elif modelo_selecionado == 'floral_azul' %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_apresentacao_floral_azul.html' %}
+                        {% elif modelo_selecionado == 'moderno_azul' %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_apresentacao_moderno_azul.html' %}
+                        {% else %}
+                            {% include 'secretaria/certificados/modelos/_preview_certificado_apresentacao_moderno_rosa.html' %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <strong>Dados do certificado</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="vstack gap-3" id="cert-form">
+                        {% csrf_token %}
+                        <div class="d-none">{{ form.modelo }}</div>
+                        <div>
+                            <label class="form-label" for="id_nome_crianca">Nome da criança</label>
+                            {{ form.nome_crianca }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_nome_pai">Nome do pai</label>
+                            {{ form.nome_pai }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_nome_mae">Nome da mãe</label>
+                            {{ form.nome_mae }}
+                        </div>
+                        <div>
+                            <label class="form-label" for="id_data_nascimento">Data de nascimento</label>
+                            {{ form.data_nascimento }}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-vibrant-blue flex-grow-1">
+                                <i class="fas fa-eye me-1"></i> Atualizar prévia
+                            </button>
+                            <a href="{% url 'secretaria:certificado_apresentacao' %}" class="btn btn-outline-secondary">
+                                Limpar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3 mb-0">
+                A logo e o nome do pastor são preenchidos automaticamente com os dados da igreja ativa do usuário.
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Modelos disponíveis</strong>
+            <small class="text-muted">Role lateralmente para ver todos</small>
+        </div>
+        <div class="card-body pt-3">
+            <div class="model-strip" id="model-strip">
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'moderno_rosa' %}is-active{% endif %}" data-modelo="moderno_rosa" title="Modelo 1 - Moderno Rosa">
+                    <div class="thumb-canvas thumb-modern">
+                        <div class="thumb-modern-title">Certificado</div>
+                        <div class="thumb-modern-line"></div>
+                        <div class="thumb-modern-text"></div>
+                        <div class="thumb-modern-text short"></div>
+                        <div class="thumb-modern-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo 1 - Moderno (Rosa)</div>
+                </button>
+
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'moderno_azul' %}is-active{% endif %}" data-modelo="moderno_azul" title="Modelo 1 - Moderno Azul">
+                    <div class="thumb-canvas thumb-modern-blue">
+                        <div class="thumb-modern-title">Certificado</div>
+                        <div class="thumb-modern-line"></div>
+                        <div class="thumb-modern-text"></div>
+                        <div class="thumb-modern-text short"></div>
+                        <div class="thumb-modern-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo 1 - Moderno (Azul)</div>
+                </button>
+
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'floral_rosa' %}is-active{% endif %}" data-modelo="floral_rosa" title="Modelo 2 - Floral Rosa">
+                    <div class="thumb-canvas thumb-floral">
+                        <div class="thumb-floral-chip">👧</div>
+                        <div class="thumb-floral-crown">👑</div>
+                        <div class="thumb-floral-title">Certificado</div>
+                        <div class="thumb-floral-text"></div>
+                        <div class="thumb-floral-text short"></div>
+                        <div class="thumb-floral-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo 2 - Floral (Rosa)</div>
+                </button>
+
+                <button type="button" class="model-thumb {% if modelo_selecionado == 'floral_azul' %}is-active{% endif %}" data-modelo="floral_azul" title="Modelo 2 - Floral Azul">
+                    <div class="thumb-canvas thumb-floral-blue">
+                        <div class="thumb-floral-chip">👦</div>
+                        <div class="thumb-floral-crown">👑</div>
+                        <div class="thumb-floral-title">Certificado</div>
+                        <div class="thumb-floral-text"></div>
+                        <div class="thumb-floral-text short"></div>
+                        <div class="thumb-floral-foot"></div>
+                    </div>
+                    <div class="thumb-label">Modelo 2 - Floral (Azul)</div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function _loadHtml2Canvas() {
+        return new Promise((resolve, reject) => {
+            if (window.html2canvas) {
+                resolve(window.html2canvas);
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+            script.async = true;
+            script.onload = () => resolve(window.html2canvas);
+            script.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function printCertificadoImagem() {
+        const target = document.querySelector('.print-certificado-area > *');
+        if (!target) {
+            window.print();
+            return;
+        }
+
+        try {
+            const html2canvasLib = await _loadHtml2Canvas();
+            const canvas = await html2canvasLib(target, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight
+            });
+
+            const dataUrl = canvas.toDataURL('image/png');
+            const printWindow = window.open('', '_blank', 'width=1400,height=900');
+            if (!printWindow) {
+                window.print();
+                return;
+            }
+
+            printWindow.document.open();
+            printWindow.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Impressão de Certificado</title>
+  <style>
+    @page { size: 29.7cm 21cm; margin: 0; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 29.7cm;
+      height: 21cm;
+      background: #fff;
+      overflow: hidden;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color-adjust: exact;
+    }
+    .sheet {
+      width: 29.7cm;
+      height: 21cm;
+      display: block;
+    }
+    img {
+      width: 29.7cm;
+      height: 21cm;
+      object-fit: fill;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet"><img src="${dataUrl}" alt="Certificado" /></div>
+</body>
+</html>`);
+            printWindow.document.close();
+
+            printWindow.onload = () => {
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 150);
+            };
+        } catch (error) {
+            window.print();
+        }
+    }
+
+    (function () {
+        const modelSelect = document.getElementById('id_modelo');
+        const form = document.getElementById('cert-form');
+        const buttons = document.querySelectorAll('.model-thumb');
+
+        if (!modelSelect || !form || !buttons.length) {
+            return;
+        }
+
+        buttons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const modelo = btn.getAttribute('data-modelo');
+                if (!modelo) return;
+                modelSelect.value = modelo;
+                form.submit();
+            });
+        });
+    })();
+</script>
+{% endblock %}

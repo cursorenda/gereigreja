@@ -1,0 +1,131 @@
+.cert-batismo {
+    padding: 10px;
+    height: 100%;
+    box-sizing: border-box;
+    background: linear-gradient(145deg, #f8fbff 0%, #fffdf8 100%);
+    border: 2px solid #a9bfd8;
+    border-radius: 16px;
+    box-shadow: inset 0 0 0 1px #ffffff, 0 8px 24px #4f6b8a29;
+}
+
+.cert-batismo-inner {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #a5b8cc;
+    border-radius: 12px;
+    padding: 1.8rem 1.7rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.cert-batismo-inner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(45deg, #ffffff00 0, #ffffff00 16px, #eef4fb 16px, #eef4fb 18px);
+    opacity: 0.45;
+}
+
+.cert-batismo-title,
+.cert-batismo-divider,
+.cert-batismo-body,
+.cert-batismo-date-line,
+.cert-batismo-verse,
+.cert-batismo-signatures {
+    position: relative;
+    z-index: 1;
+}
+
+.cert-batismo-title {
+    text-align: center;
+    color: #2f567f;
+    font-size: 2.3rem;
+    font-weight: 700;
+    font-family: 'Playfair Display', Georgia, serif;
+    line-height: 1;
+    margin-bottom: 0.35rem;
+}
+
+.cert-batismo-divider {
+    text-align: center;
+    color: #8c6f49;
+    letter-spacing: 0.4em;
+    margin-bottom: 0.8rem;
+    font-size: 0.76rem;
+}
+
+.cert-batismo-body {
+    text-align: center;
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: #2f2f2f;
+    max-width: 90%;
+    margin: 0 auto 0.9rem;
+}
+
+.cert-batismo-date-line {
+    text-align: right;
+    color: #404a58;
+    font-size: 0.9rem;
+    margin-bottom: 0.9rem;
+}
+
+.cert-batismo-verse {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.82rem;
+    margin: 0 auto 1rem;
+    color: #384252;
+    max-width: 86%;
+}
+
+.cert-batismo-signatures {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: end;
+}
+
+.cert-batismo .sig-line {
+    border-top: 1px solid #9aa8b8;
+    margin-bottom: 6px;
+}
+
+.cert-batismo .sig-name {
+    text-align: center;
+    color: #2f567f;
+    font-weight: 600;
+    font-size: 0.84rem;
+}
+
+.cert-batismo .sig-role {
+    text-align: center;
+    color: #6b7786;
+    font-size: 0.76rem;
+}
+
+.cert-batismo .cert-logo-center {
+    text-align: center;
+    min-width: 132px;
+}
+
+.cert-batismo .cert-logo-img {
+    max-height: 56px;
+    max-width: 120px;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 8px #0000001f);
+}
+
+.cert-batismo .cert-logo-fallback {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #4a5f7f;
+    padding: 8px 10px;
+    border: 1px dashed #9db2c8;
+    border-radius: 10px;
+    background: #f4f8fd;
+}

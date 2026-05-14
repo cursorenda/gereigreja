@@ -1,0 +1,209 @@
+.cert-model1-azul.certificado-wrap {
+    padding: 10px;
+    height: 100%;
+    box-sizing: border-box;
+    background: radial-gradient(circle at 20% 30%, #e8f0ff 0, #e8f0ff00 48%), radial-gradient(circle at 80% 70%, #f0f8ff 0, #f0f8ff00 48%), linear-gradient(140deg, #f5f9ff 0%, #fffbf8 100%);
+    border: 2px solid #7fb3ff;
+    border-radius: 16px;
+    box-shadow: inset 0 0 0 1px #ffffff, 0 8px 24px #4a90e23d;
+}
+
+.cert-model1-azul .certificado {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #5fa3e6;
+    outline: 8px solid #fff;
+    box-shadow: inset 0 0 0 2px #c0e0ff;
+    border-radius: 12px;
+    padding: 1.55rem 1.45rem;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.cert-model1-azul .certificado::before,
+.cert-model1-azul .certificado::after {
+    content: '';
+    position: absolute;
+    width: 160px;
+    height: 160px;
+    border: 2px solid #8ec5f0;
+    border-radius: 50%;
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.cert-model1-azul .certificado::before {
+    top: -90px;
+    right: -70px;
+}
+
+.cert-model1-azul .certificado::after {
+    bottom: -95px;
+    left: -70px;
+}
+
+.cert-model1-azul .cert-watermark {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(45deg, #ffffff00 0, #ffffff00 16px, #e8f0ff 16px, #e8f0ff 18px);
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.cert-model1-azul .cert-top,
+.cert-model1-azul .cert-date-line,
+.cert-model1-azul .cert-verse,
+.cert-model1-azul .cert-ribbon,
+.cert-model1-azul .cert-signatures {
+    position: relative;
+    z-index: 1;
+}
+
+.cert-model1-azul .cert-title {
+    text-align: center;
+    color: #4a90e2;
+    font-size: 2.05rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+    font-family: 'Brush Script MT', 'Segoe Script', cursive;
+    text-shadow: 0 2px 0 #a8d5ff;
+}
+
+.cert-model1-azul .cert-divider {
+    text-align: center;
+    color: #5a8cbf;
+    letter-spacing: 0.4em;
+    margin-bottom: 0.7rem;
+    font-size: 0.72rem;
+}
+
+.cert-model1-azul .cert-subtitle {
+    text-align: center;
+    font-size: 0.98rem;
+    color: #2f2f2f;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    max-width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.cert-model1-azul .cert-date-line {
+    text-align: right;
+    color: #555;
+    margin-bottom: 1rem;
+    font-size: 0.88rem;
+}
+
+.cert-model1-azul .cert-date-line span {
+    border-bottom: 1px solid #c8c8c8;
+    min-width: 34px;
+    display: inline-block;
+    text-align: center;
+    margin: 0 2px;
+}
+
+.cert-model1-azul .cert-verse {
+    text-align: center;
+    font-style: italic;
+    font-size: 0.88rem;
+    margin: 0 auto 0.8rem;
+    color: #363636;
+    max-width: 84%;
+}
+
+.cert-model1-azul .cert-ribbon {
+    margin: 0 auto 1rem;
+    width: fit-content;
+    background: linear-gradient(120deg, #4a90e2 0%, #6ba5ed 100%);
+    color: #fff;
+    font-size: 0.66rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.28rem 0.75rem;
+    border-radius: 999px;
+    box-shadow: 0 6px 16px #4a90e269;
+}
+
+.cert-model1-azul .cert-signatures {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: end;
+}
+
+.cert-model1-azul .sig-line {
+    border-top: 1px solid #7fb3ff;
+    margin-bottom: 6px;
+}
+
+.cert-model1-azul .sig-name {
+    text-align: center;
+    color: #3d7cd9;
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+
+.cert-model1-azul .sig-role {
+    text-align: center;
+    color: #6b7684;
+    font-size: 0.76rem;
+}
+
+.cert-model1-azul .cert-logo-center {
+    text-align: center;
+    min-width: 132px;
+}
+
+.cert-model1-azul .cert-logo-img {
+    max-height: 56px;
+    max-width: 120px;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 8px #0000001f);
+}
+
+.cert-model1-azul .cert-logo-fallback {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #4a5f7f;
+    padding: 8px 10px;
+    border: 1px dashed #9fc8e0;
+    border-radius: 10px;
+    background: #f0f8ff;
+}
+
+@media print {
+    .print-certificado-area .cert-model1-azul .cert-title {
+        font-size: 33px !important;
+        line-height: 1 !important;
+    }
+
+    .print-certificado-area .cert-model1-azul .cert-subtitle {
+        font-size: 16px !important;
+        line-height: 1.5 !important;
+    }
+
+    .print-certificado-area .cert-model1-azul .cert-date-line,
+    .print-certificado-area .cert-model1-azul .cert-verse {
+        font-size: 14px !important;
+    }
+
+    .print-certificado-area .cert-model1-azul .cert-ribbon {
+        font-size: 11px !important;
+    }
+
+    .print-certificado-area .cert-model1-azul .sig-name {
+        font-size: 13px !important;
+    }
+
+    .print-certificado-area .cert-model1-azul .sig-role,
+    .print-certificado-area .cert-model1-azul .cert-logo-fallback {
+        font-size: 12px !important;
+    }
+}

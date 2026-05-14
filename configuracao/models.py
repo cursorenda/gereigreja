@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 # Importa o modelo de onboarding para registro no app
 from .models_onboarding import OnboardingStatus
 # --- Configurações Globais do Sistema (Notificações, etc) ---
@@ -133,6 +134,60 @@ ESTADO_CHOICES = [
 # --- FIM ESTADO_CHOICES ---
 
 
+class ModeloCartaRecomendacao(models.Model):
+    TIPO_PADRAO = 'padrao'
+    TIPO_EXCLUSIVO = 'exclusivo'
+    TIPO_CHOICES = [
+        (TIPO_PADRAO, 'Padrao'),
+        (TIPO_EXCLUSIVO, 'Exclusivo'),
+    ]
+
+    codigo = models.CharField(
+        max_length=60,
+        unique=True,
+        verbose_name='Codigo tecnico',
+        help_text='Identificador unico do modelo (ex: padrao, vales_classico).'
+    )
+    nome = models.CharField(max_length=120, verbose_name='Nome do modelo')
+    template_include = models.CharField(
+        max_length=255,
+        verbose_name='Template include',
+        help_text='Caminho do include Django (ex: secretaria/documentos/modelos/_carta_recomendacao_padrao.html).'
+    )
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default=TIPO_PADRAO)
+    ministerio = models.ForeignKey(
+        'Ministerio',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='modelos_carta_exclusivos',
+        verbose_name='Ministerio dono (quando exclusivo)'
+    )
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    ordem = models.PositiveIntegerField(default=100, verbose_name='Ordem')
+
+    class Meta:
+        verbose_name = 'Modelo de Carta de Recomendacao'
+        verbose_name_plural = 'Modelos de Carta de Recomendacao'
+        ordering = ['ordem', 'nome']
+
+    def __str__(self):
+        return f"{self.nome} ({self.codigo})"
+
+    def clean(self):
+        super().clean()
+
+        if self.tipo == self.TIPO_EXCLUSIVO and not self.ministerio_id:
+            raise ValidationError({
+                'ministerio': 'Modelos exclusivos devem estar vinculados a um ministerio.'
+            })
+
+        if self.tipo == self.TIPO_PADRAO and self.ministerio_id:
+            raise ValidationError({
+                'ministerio': 'Modelos padrao nao podem estar vinculados a um ministerio especifico.'
+            })
+
+
 # --- Modelo para o Ministério ---
 class Ministerio(models.Model):
     def verificar_elegibilidade_plano_gratuito(self):
@@ -201,6 +256,13 @@ class Ministerio(models.Model):
         null=True,
         blank=True,
         verbose_name="Logo do Ministério"
+    )
+    modelo_carta_recomendacao = models.CharField(
+        max_length=40,
+        default='padrao',
+        blank=True,
+        verbose_name='Modelo da Carta de Recomendacao',
+        help_text='Codigo do modelo selecionado para carta de recomendacao.'
     )
 
     # --- CAMPO PARA INTEGRAÇÃO COM GATEWAY DE PAGAMENTO ---

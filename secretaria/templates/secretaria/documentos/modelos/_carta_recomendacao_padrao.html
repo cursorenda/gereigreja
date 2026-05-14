@@ -1,0 +1,72 @@
+<div class="folha-a5 carta-modelo-padrao">
+    <div class="header-top">
+        <div class="logo-box">
+            {% if logo_url_1 %}
+            <img src="{{ logo_url_1 }}" class="logo-img" alt="Logo" />
+            {% else %}
+            <div class="logo-fallback">LOGO</div>
+            {% endif %}
+        </div>
+        <div class="titulo-principal">Carta de Recomendacao</div>
+        <div class="logo-box"></div>
+    </div>
+
+    <div class="info-row info-row-padrao info-ministerio-cols">
+        <div class="ministerio-col">
+            <b>{{ ministerio_nome|default:'MINISTERIO'|upper }}</b><br>
+            {% if ministerio_cnpj %}CNPJ: {{ ministerio_cnpj }}<br>{% endif %}
+            {% if ministerio_email %}{{ ministerio_email }}<br>{% endif %}
+            {% if ministerio_telefone %}Tel: {{ ministerio_telefone }}{% endif %}
+        </div>
+        <div class="ministerio-col ministerio-col-endereco">
+            <b>Endereco Principal</b><br>
+            {{ ministerio_endereco|default:'Endereco nao informado' }}
+        </div>
+    </div>
+
+    <div class="main-layout main-layout-padrao">
+        <div class="texto-corpo texto-corpo-padrao">
+            Destino: <span class="linha-preenchimento w-82">{{ dados.destino|default:'' }}</span><br>
+            Amados, recomendamos o(a) irmao(a):<br>
+            <span class="linha-preenchimento w-100">{{ dados.nome_irmao|default:'' }}</span><br>
+            portador(a) desta, que em visita a essa localidade, deseja congregar convosco.<br>
+            Congregacao: <span class="linha-preenchimento w-45">{{ dados.congregacao|default:congregacao_nome }}</span>
+            Data: <span class="linha-preenchimento w-16">{% if dados.data_emissao %}{{ dados.data_emissao|date:'d/m/Y' }}{% else %}{% now 'd/m/Y' %}{% endif %}</span><br>
+            Sub-Sede: <span class="linha-preenchimento w-72">{{ dados.sub_sede|default:'' }}</span>
+            <p class="nota-documento">Documento valido por 30 dias, sem rasuras.</p>
+
+            <div class="area-assinatura-emitente">
+                <span class="assinatura-linha"></span><br>
+                <b class="assinatura-titulo">Assinatura do Obreiro Emitente</b><br>
+                <small class="assinatura-cargos">( ) Pastor   ( ) Evangelista   ( ) Presbitero   ( ) Diacono   ( ) Cooperador</small>
+            </div>
+
+            <div class="area-assinatura-pastor">
+                <span class="assinatura-linha"></span><br>
+                <b class="assinatura-titulo">{{ pastor_nome|default:'Pastor Local' }}</b><br>
+                <small class="assinatura-cargos">Pastor da Congregacao {{ congregacao_nome|default:'Local' }}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-container">
+        <div class="box-visita">
+            <span class="titulo-visita">Recebemos a Visita em:</span>
+            <div class="campo-linha data-linha"></div>
+            <span class="legenda-campo">Data da Visita</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Local Visitado</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Assinatura do Obreiro</span>
+        </div>
+        <div class="box-visita">
+            <span class="titulo-visita">Recebemos a Visita em:</span>
+            <div class="campo-linha data-linha"></div>
+            <span class="legenda-campo">Data da Visita</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Local Visitado</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Assinatura do Obreiro</span>
+        </div>
+    </div>
+</div>

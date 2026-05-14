@@ -105,6 +105,54 @@
                 Pessoas
             </a>
             {% endif %}
+            {% user_can_access request.user 'secretaria_relatorios' as can_secretaria_relatorios %}
+            {% if can_dashboard_secretaria or can_secretaria_relatorios %}
+            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseDocumentosSecretaria" aria-expanded="false" aria-controls="collapseDocumentosSecretaria">
+                <div class="sb-nav-link-icon"><i class="fas fa-folder-open"></i></div>
+                Documentos
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+            </a>
+            <div class="collapse" id="collapseDocumentosSecretaria" aria-labelledby="headingDocumentosSecretaria" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    {% if can_dashboard_secretaria %}
+                    {% comment %}Funcionalidade em desenvolvimento: manter oculto no deploy por enquanto.{% endcomment %}
+                    {% comment %}
+                    <a class="nav-link" href="{% url 'secretaria:carta_recomendacao' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-file-signature"></i></div>
+                        Carta de Recomendação
+                    </a>
+                    {% endcomment %}
+                    {% endif %}
+
+                    {% if can_dashboard_secretaria %}
+                    <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseCertificadosSecretaria" aria-expanded="false" aria-controls="collapseCertificadosSecretaria">
+                        <div class="sb-nav-link-icon"><i class="fas fa-certificate"></i></div>
+                        Certificados
+                        <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                    </a>
+                    <div class="collapse" id="collapseCertificadosSecretaria" aria-labelledby="headingCertificadosSecretaria">
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link" href="{% url 'secretaria:certificado_batismo' %}">
+                                <div class="sb-nav-link-icon"><i class="fas fa-water"></i></div>
+                                Certificado de Batismo
+                            </a>
+                            <a class="nav-link" href="{% url 'secretaria:certificado_apresentacao' %}">
+                                <div class="sb-nav-link-icon"><i class="fas fa-baby"></i></div>
+                                Certificado de Apresentação
+                            </a>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                    {% if can_secretaria_relatorios %}
+                    <a class="nav-link" href="{% url 'secretaria:relatorio_reuniao_membros' %}" target="_blank">
+                        <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
+                        Reunião de Membros
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+            {% endif %}
             {% if can_dashboard_secretaria %}
             <a class="nav-link d-flex align-items-center justify-content-between" href="{% url 'secretaria:lista_transferencias' %}">
                 <span>
@@ -146,7 +194,6 @@
             {% endif %}
             <!-- Item de menu 'associar usuário' removido -->
                 <!-- Ícone e nome do item 'Associar Usuários' removidos -->
-            {% user_can_access request.user 'secretaria_relatorios' as can_secretaria_relatorios %}
             {% if can_secretaria_relatorios %}
             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseRelatoriosSecretaria" aria-expanded="false" aria-controls="collapseRelatoriosSecretaria">
                 <div class="sb-nav-link-icon"><i class="fas fa-file-alt"></i></div>
@@ -159,10 +206,6 @@
                         <div class="sb-nav-link-icon"><i class="fas fa-stream"></i></div>
                         Linha do Tempo
                     </a>
-                        <a class="nav-link" href="{% url 'secretaria:relatorio_reuniao_membros' %}" target="_blank">
-                            <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
-                            Reunião de Membros
-                        </a>
                 </nav>
             </div>
             {% endif %}

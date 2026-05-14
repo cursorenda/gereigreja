@@ -1,0 +1,81 @@
+<div class="folha-a5 carta-modelo-vales">
+    <div class="header-top">
+        <div class="logo-box">
+            {% if logo_url_1 %}
+            <img src="{{ logo_url_1 }}" class="logo-img" alt="Logo 1" />
+            {% else %}
+            <div class="logo-fallback">AD</div>
+            {% endif %}
+        </div>
+        <div class="titulo-principal">Carta de Recomendacao</div>
+        <div class="logo-box">
+            {% if logo_url_2 %}
+            <img src="{{ logo_url_2 }}" class="logo-img" alt="Logo 2" />
+            {% else %}
+            <div class="logo-fallback">MDV</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="info-row">
+        <div>
+            <b>TEMPLO SEDE:</b><br>
+            Rua Goias, 145 - B. de Lourdes<br>
+            CEP: 35032160<br>
+            {{ email_igreja|default:'madevales2022@gmail.com' }}
+        </div>
+        <div class="info-direita">
+            IGREJA<br>
+            <span class="fonte-maior">{{ nome_igreja|default:'ASSEMBLEIA DE DEUS'|upper }}</span><br>
+            Ministerio dos Vales<br>
+            <span class="cnpj-line">{% if cnpj_igreja %}CNPJ: {{ cnpj_igreja }}{% endif %}</span>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="texto-corpo">
+            Destino: <span class="linha-preenchimento w-82">{{ dados.destino|default:'' }}</span><br>
+            Amados; recomendamos o(a) irmao(a)<br>
+            <span class="linha-preenchimento w-100">{{ dados.nome_irmao|default:'' }}</span><br>
+            portador(a) desta, que em visita a essa localidade, deseja congregar convosco.<br>
+            Congregacao: <span class="linha-preenchimento w-45">{{ dados.congregacao|default:'' }}</span>
+            Data: <span class="linha-preenchimento w-16">{% if dados.data_emissao %}{{ dados.data_emissao|date:'d/m/Y' }}{% else %}{% now 'd/m/Y' %}{% endif %}</span><br>
+            Sub-Sede: <span class="linha-preenchimento w-72">{{ dados.sub_sede|default:'' }}</span>
+            <p class="nota-documento">Documento valido por 30 dias, sem rasuras.</p>
+
+            <div class="area-assinatura-emitente">
+                <span class="assinatura-linha"></span><br>
+                <b class="assinatura-titulo">Assinatura do Obreiro Emitente</b><br>
+                <small class="assinatura-cargos">( ) Pastor   ( ) Evangelista   ( ) Presbitero   ( ) Diacono   ( ) Cooperador</small>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <b>Sub-Sedes de<br>Gov. Valadares<br>e Regiao</b>
+            <div class="lista-cidades">
+                ALPERCATA<br>CAPITAO ANDRADE<br>CARAPINA<br>ENG: CALDAS<br>ESPIGAO<br>FRANCISCO BADARO<br>FREI INOCENCIO<br>GOIAS<br>IPE<br>ITAIPE-CAROCA<br>ITAMBACURI<br>JAMPRUCA<br>JARDIM DO TREVO<br>MARILAC<br>NOVA FLORESTA<br>PARQUE IBITURUNA<br>PEDRA CORRIDA<br>PERIQUITO<br>PIRACICABA<br>PONTAL<br>REC DOS SONHOS<br>SANTA HELENA<br>SAO CRISTOVAO<br>SAO G. PIEDADE<br>SAO JOSE SAFIRA<br>SAO PEDRO<br>SAO VITOR<br>SARDOA<br>TARUMIRIM<br>TUMIRITINGA<br>TURMALINA<br>VIRGOLANDIA
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-container">
+        <div class="box-visita">
+            <span class="titulo-visita">Recebemos a Visita em:</span>
+            <div class="campo-linha data-linha"></div>
+            <span class="legenda-campo">Data da Visita</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Local Visitado</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Assinatura do Obreiro</span>
+        </div>
+        <div class="box-visita">
+            <span class="titulo-visita">Recebemos a Visita em:</span>
+            <div class="campo-linha data-linha"></div>
+            <span class="legenda-campo">Data da Visita</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Local Visitado</span>
+            <div class="campo-linha"></div>
+            <span class="legenda-campo">Assinatura do Obreiro</span>
+        </div>
+    </div>
+</div>
