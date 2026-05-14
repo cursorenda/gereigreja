@@ -2,327 +2,10 @@
 
 {% load static %}
 
-<!-- Carregar Chart.js antes do script dos gráficos -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- Blocos de dados JSON para os gráficos -->
-{{ pie_labels|json_script:"pie-labels-data" }}
-{{ pie_values|json_script:"pie-values-data" }}
-{{ status_labels_json|json_script:"status-labels-data" }}
-{{ status_values_json|json_script:"status-values-data" }}
-{{ genero_labels_json|json_script:"genero-labels-data" }}
-{{ genero_values_json|json_script:"genero-values-data" }}
-{{ faixa_labels_json|json_script:"faixa-labels-data" }}
-{{ faixa_values_json|json_script:"faixa-values-data" }}
-{{ categoria_evento_labels_json|json_script:"categoria-evento-labels-data" }}
-{{ categoria_evento_values_json|json_script:"categoria-evento-values-data" }}
-{{ evolucao_meses_labels|default:'[]'|json_script:"evolucao-meses-labels" }}
-{{ evolucao_membros|default:'[]'|json_script:"evolucao-membros" }}
-{{ evolucao_congregados|default:'[]'|json_script:"evolucao-congregados" }}
-{{ evolucao_novos_convertidos|default:'[]'|json_script:"evolucao-novos-convertidos" }}
-{{ evolucao_visitantes|default:'[]'|json_script:"evolucao-visitantes" }}
-
-<script>
-// --- Gráficos Dashboard Secretaria ---
-document.addEventListener('DOMContentLoaded', function() {
-    // Gráfico de linha (Evolução de Pessoas)
-    const ctx = document.getElementById('evolucaoMembrosChart');
-    if (ctx) {
-        const mesesLabels = JSON.parse(document.getElementById('evolucao-meses-labels').textContent);
-        const membros = JSON.parse(document.getElementById('evolucao-membros').textContent);
-        const congregados = JSON.parse(document.getElementById('evolucao-congregados').textContent);
-        const novosConvertidos = JSON.parse(document.getElementById('evolucao-novos-convertidos').textContent);
-        const visitantes = JSON.parse(document.getElementById('evolucao-visitantes').textContent);
-        new Chart(ctx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: mesesLabels,
-                datasets: [
-                    {
-                        label: 'Membros',
-                        data: membros,
-                        borderColor: '#4e73df',
-                        backgroundColor: 'rgba(78,115,223,0.12)',
-                        fill: true,
-                        tension: 0.3
-                    },
-                    {
-                        label: 'Congregados',
-                        data: congregados,
-                        borderColor: '#1cc88a',
-                        backgroundColor: 'rgba(28,200,138,0.12)',
-                        fill: true,
-                        tension: 0.3
-                    },
-                    {
-                        label: 'Novos Convertidos',
-                        data: novosConvertidos,
-                        borderColor: '#f953c6',
-                        backgroundColor: 'rgba(249,83,198,0.12)',
-                        fill: true,
-                        tension: 0.3
-                    },
-                    {
-                        label: 'Visitantes',
-                        data: visitantes,
-                        borderColor: '#f6c23e',
-                        backgroundColor: 'rgba(246,194,62,0.12)',
-                        fill: true,
-                        tension: 0.3
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'bottom' },
-                    title: { display: false }
-                },
-                scales: {
-                    y: { beginAtZero: true }
-                }
-            }
-        });
-    }
-
-    // Gráfico de pizza (Gráfico 2 com dados dinâmicos do backend)
-    const ctx2 = document.getElementById('grafico2');
-    if (ctx2) {
-        let pieLabels = JSON.parse(document.getElementById('pie-labels-data').textContent);
-        let pieValues = JSON.parse(document.getElementById('pie-values-data').textContent);
-        if (!Array.isArray(pieLabels)) pieLabels = [];
-        if (!Array.isArray(pieValues)) pieValues = [];
-        const allZero = pieValues.length > 0 && pieValues.every(v => v === 0);
-        if (pieLabels.length === 0 || allZero) {
-            ctx2.parentNode.innerHTML = '<div style="text-align:center;padding:2em;color:#b91d73;font-weight:bold;">Sem dados para exibir o gráfico de pizza.</div>';
-        } else {
-            const baseColors = [
-                ['#4e73df', '#36b9cc'],
-                ['#1cc88a', '#20c9a6'],
-                ['#f953c6', '#b91d73'],
-                ['#f6c23e', '#fd7e14'],
-                ['#36b9cc', '#4e73df'],
-                ['#e74a3b', '#fd7e14'],
-                ['#858796', '#6f42c1'],
-                ['#fd7e14', '#f6c23e'],
-                ['#20c9a6', '#1cc88a'],
-                ['#6f42c1', '#f953c6']
-            ];
-            const ctxPie = ctx2.getContext('2d');
-            function makeGradient(c1, c2) {
-                const grad = ctxPie.createRadialGradient(100, 100, 30, 100, 100, 100);
-                grad.addColorStop(0, c1);
-                grad.addColorStop(1, c2);
-                return grad;
-            }
-            const pieColors = baseColors.slice(0, pieLabels.length).map(([c1, c2]) => makeGradient(c1, c2));
-            const pieBorderColors = baseColors.slice(0, pieLabels.length).map(([c1, c2]) => c2);
-            const dataPie = {
-                labels: pieLabels,
-                datasets: [{
-                    label: 'Distribuição',
-                    data: pieValues,
-                    backgroundColor: pieColors,
-                    borderColor: pieBorderColors,
-                    borderWidth: 2
-                }]
-            };
-            const configPie = {
-                type: 'pie',
-                data: dataPie,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 16,
-                                boxHeight: 16,
-                                borderRadius: 2,
-                                padding: 12,
-                                usePointStyle: true,
-                                pointStyle: 'rect'
-                            }
-                        },
-                        title: { display: false }
-                    }
-                },
-                scales: {
-                    y: { beginAtZero: false }
-                }
-            };
-            new Chart(ctxPie, configPie);
-        }
-    }
-
-    // Gráfico Pessoas por Status
-    const ctxStatus = document.getElementById('graficoStatus');
-    if (ctxStatus) {
-        const statusLabels = JSON.parse(document.getElementById('status-labels-data').textContent);
-        const statusValues = JSON.parse(document.getElementById('status-values-data').textContent);
-        console.log('DEBUG STATUS', statusLabels, statusValues, ctxStatus);
-        new Chart(ctxStatus.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: statusLabels,
-                datasets: [{
-                    label: 'Total',
-                    data: statusValues,
-                    backgroundColor: '#4e73df',
-                    borderColor: '#36b9cc',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-
-    // Gráfico Pessoas por Gênero
-    const ctxGenero = document.getElementById('graficoGenero');
-    if (ctxGenero) {
-        const generoLabels = JSON.parse(document.getElementById('genero-labels-data').textContent);
-        const generoValues = JSON.parse(document.getElementById('genero-values-data').textContent);
-        new Chart(ctxGenero.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: generoLabels,
-                datasets: [{
-                    label: 'Total',
-                    data: generoValues,
-                    backgroundColor: '#1cc88a',
-                    borderColor: '#20c9a6',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-
-    // Gráfico Pessoas por Faixa Etária
-    const ctxFaixa = document.getElementById('graficoFaixaEtaria');
-    if (ctxFaixa) {
-        const faixaLabels = JSON.parse(document.getElementById('faixa-labels-data').textContent);
-        const faixaValues = JSON.parse(document.getElementById('faixa-values-data').textContent);
-        new Chart(ctxFaixa.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: faixaLabels,
-                datasets: [{
-                    label: 'Total',
-                    data: faixaValues,
-                    backgroundColor: '#f7971e',
-                    borderColor: '#ffd200',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-
-    // Gráfico: Participação por Categoria de Evento
-    const ctxCategoria = document.getElementById('graficoCategoriaEvento');
-    if (ctxCategoria) {
-        const categoriaEventoLabels = JSON.parse(document.getElementById('categoria-evento-labels-data').textContent);
-        const categoriaEventoValues = JSON.parse(document.getElementById('categoria-evento-values-data').textContent);
-        new Chart(ctxCategoria.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: categoriaEventoLabels,
-                datasets: [{
-                    label: 'Participações',
-                    data: categoriaEventoValues,
-                    backgroundColor: [
-                        '#b224ef', '#7579ff', '#43e97b', '#38f9d7', '#fa709a', '#fee140', '#f7971e', '#ffd200', '#4e73df', '#1cc88a', '#36b9cc', '#f953c6', '#b91d73'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { stepSize: 1 }
-                    }
-                }
-            }
-        });
-    }
-
-});
-</script>
-
 {% block title %}Dashboard Secretaria{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4" style="padding-left: 1.5rem; padding-right: 1.5rem;">
-    <!-- DEBUG: Exibir dados dos gráficos -->
-    <div style="background: #fffbe6; color: #b91d73; font-size: 0.95em; padding: 10px 18px; margin-bottom: 18px; border: 1px solid #ffe082; border-radius: 8px;">
-        <strong>DEBUG DADOS DOS GRÁFICOS:</strong><br>
-        <b>status_labels_json:</b> {{ status_labels_json }}<br>
-        <b>status_values_json:</b> {{ status_values_json }}<br>
-        <b>genero_labels_json:</b> {{ genero_labels_json }}<br>
-        <b>genero_values_json:</b> {{ genero_values_json }}<br>
-        <b>faixa_labels_json:</b> {{ faixa_labels_json }}<br>
-        <b>faixa_values_json:</b> {{ faixa_values_json }}<br>
-        <b>pie_labels:</b> {{ pie_labels }}<br>
-        <b>pie_values:</b> {{ pie_values }}<br>
-        <b>categoria_evento_labels_json:</b> {{ categoria_evento_labels_json }}<br>
-        <b>categoria_evento_values_json:</b> {{ categoria_evento_values_json }}<br>
-        <b>evolucao_meses_labels:</b> {{ evolucao_meses_labels }}<br>
-        <b>evolucao_membros:</b> {{ evolucao_membros }}<br>
-        <b>evolucao_congregados:</b> {{ evolucao_congregados }}<br>
-        <b>evolucao_novos_convertidos:</b> {{ evolucao_novos_convertidos }}<br>
-        <b>evolucao_visitantes:</b> {{ evolucao_visitantes }}<br>
-        <hr>
-        <strong>DEBUG SCRIPTS JSON NO HTML:</strong><br>
-        <b>pie-labels-data:</b> <span id="debug-pie-labels-data"></span><br>
-        <b>pie-values-data:</b> <span id="debug-pie-values-data"></span><br>
-        <b>status-labels-data:</b> <span id="debug-status-labels-data"></span><br>
-        <b>status-values-data:</b> <span id="debug-status-values-data"></span><br>
-        <b>genero-labels-data:</b> <span id="debug-genero-labels-data"></span><br>
-        <b>genero-values-data:</b> <span id="debug-genero-values-data"></span><br>
-        <b>faixa-labels-data:</b> <span id="debug-faixa-labels-data"></span><br>
-        <b>faixa-values-data:</b> <span id="debug-faixa-values-data"></span><br>
-        <b>categoria-evento-labels-data:</b> <span id="debug-categoria-evento-labels-data"></span><br>
-        <b>categoria-evento-values-data:</b> <span id="debug-categoria-evento-values-data"></span><br>
-        <b>evolucao-meses-labels:</b> <span id="debug-evolucao-meses-labels"></span><br>
-        <b>evolucao-membros:</b> <span id="debug-evolucao-membros"></span><br>
-        <b>evolucao-congregados:</b> <span id="debug-evolucao-congregados"></span><br>
-        <b>evolucao-novos-convertidos:</b> <span id="debug-evolucao-novos-convertidos"></span><br>
-        <b>evolucao-visitantes:</b> <span id="debug-evolucao-visitantes"></span><br>
-        <script>
-        // Exibir conteúdo bruto dos scripts JSON
-        const ids = [
-            'pie-labels-data','pie-values-data','status-labels-data','status-values-data',
-            'genero-labels-data','genero-values-data','faixa-labels-data','faixa-values-data',
-            'categoria-evento-labels-data','categoria-evento-values-data','evolucao-meses-labels',
-            'evolucao-membros','evolucao-congregados','evolucao-novos-convertidos','evolucao-visitantes'
-        ];
-        ids.forEach(id => {
-            const el = document.getElementById(id);
-            const debugEl = document.getElementById('debug-' + id);
-            if (el && debugEl) debugEl.textContent = el.textContent;
-        });
-        </script>
-    </div>
-
     <h1 class="mt-4">Dashboard Secretaria</h1>
     <!-- Banner Informações Gerais -->
     <div class="card shadow-sm mb-4" style="width:100%; border-radius: 18px; background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; min-height: 90px; display: flex; align-items: center;">
@@ -720,8 +403,275 @@ document.addEventListener('DOMContentLoaded', function() {
     </script>
 </div>
 
-<!-- Chart.js já carregado acima -->
 {% endblock %}
 
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+{{ pie_labels_json|default:'[]'|json_script:"pie-labels-data" }}
+{{ pie_values_json|default:'[]'|json_script:"pie-values-data" }}
+{{ status_labels_json|default:'[]'|json_script:"status-labels-data" }}
+{{ status_values_json|default:'[]'|json_script:"status-values-data" }}
+{{ genero_labels_json|default:'[]'|json_script:"genero-labels-data" }}
+{{ genero_values_json|default:'[]'|json_script:"genero-values-data" }}
+{{ faixa_labels_json|default:'[]'|json_script:"faixa-labels-data" }}
+{{ faixa_values_json|default:'[]'|json_script:"faixa-values-data" }}
+{{ categoria_evento_labels_json|default:'[]'|json_script:"categoria-evento-labels-data" }}
+{{ categoria_evento_values_json|default:'[]'|json_script:"categoria-evento-values-data" }}
+{{ evolucao_meses_labels_json|default:'[]'|json_script:"evolucao-meses-labels" }}
+{{ evolucao_membros_json|default:'[]'|json_script:"evolucao-membros" }}
+{{ evolucao_congregados_json|default:'[]'|json_script:"evolucao-congregados" }}
+{{ evolucao_novos_convertidos_json|default:'[]'|json_script:"evolucao-novos-convertidos" }}
+{{ evolucao_visitantes_json|default:'[]'|json_script:"evolucao-visitantes" }}
+
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    function readJsonScript(id, fallback) {
+        const el = document.getElementById(id);
+        if (!el) return fallback;
+        try {
+            let parsed = JSON.parse(el.textContent);
+            if (typeof parsed === 'string') {
+                try {
+                    parsed = JSON.parse(parsed);
+                } catch (innerError) {
+                    // Keep parsed as-is when it is a simple string.
+                }
+            }
+            return parsed;
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    const mesesLabels = readJsonScript('evolucao-meses-labels', []);
+    const membros = readJsonScript('evolucao-membros', []);
+    const congregados = readJsonScript('evolucao-congregados', []);
+    const novosConvertidos = readJsonScript('evolucao-novos-convertidos', []);
+    const visitantes = readJsonScript('evolucao-visitantes', []);
+
+    const ctx = document.getElementById('evolucaoMembrosChart');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: mesesLabels,
+                datasets: [
+                    {
+                        label: 'Membros',
+                        data: membros,
+                        borderColor: '#4e73df',
+                        backgroundColor: 'rgba(78,115,223,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Congregados',
+                        data: congregados,
+                        borderColor: '#1cc88a',
+                        backgroundColor: 'rgba(28,200,138,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Novos Convertidos',
+                        data: novosConvertidos,
+                        borderColor: '#f953c6',
+                        backgroundColor: 'rgba(249,83,198,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Visitantes',
+                        data: visitantes,
+                        borderColor: '#f6c23e',
+                        backgroundColor: 'rgba(246,194,62,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    const ctx2 = document.getElementById('grafico2');
+    if (ctx2) {
+        const pieLabels = readJsonScript('pie-labels-data', []);
+        const pieValues = readJsonScript('pie-values-data', []);
+
+        if (!Array.isArray(pieLabels) || !Array.isArray(pieValues) || pieLabels.length === 0) {
+            ctx2.parentNode.innerHTML = '<div style="text-align:center;padding:2em;color:#b91d73;font-weight:bold;">Sem dados para exibir o gráfico de pizza.</div>';
+        } else {
+            const baseColors = [
+                ['#4e73df', '#36b9cc'],
+                ['#1cc88a', '#20c9a6'],
+                ['#f953c6', '#b91d73'],
+                ['#f6c23e', '#fd7e14'],
+                ['#36b9cc', '#4e73df'],
+                ['#e74a3b', '#fd7e14'],
+                ['#858796', '#6f42c1'],
+                ['#fd7e14', '#f6c23e'],
+                ['#20c9a6', '#1cc88a'],
+                ['#6f42c1', '#f953c6']
+            ];
+            const ctxPie = ctx2.getContext('2d');
+            function makeGradient(c1, c2) {
+                const grad = ctxPie.createRadialGradient(100, 100, 30, 100, 100, 100);
+                grad.addColorStop(0, c1);
+                grad.addColorStop(1, c2);
+                return grad;
+            }
+            const pieColors = baseColors.slice(0, pieLabels.length).map(([c1, c2]) => makeGradient(c1, c2));
+            const pieBorderColors = baseColors.slice(0, pieLabels.length).map(([c1, c2]) => c2);
+
+            new Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: pieLabels,
+                    datasets: [{
+                        label: 'Distribuicao',
+                        data: pieValues,
+                        backgroundColor: pieColors,
+                        borderColor: pieBorderColors,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 16,
+                                boxHeight: 16,
+                                borderRadius: 2,
+                                padding: 12,
+                                usePointStyle: true,
+                                pointStyle: 'rect'
+                            }
+                        },
+                        title: { display: false }
+                    }
+                }
+            });
+        }
+    }
+
+    const statusLabels = readJsonScript('status-labels-data', []);
+    const statusValues = readJsonScript('status-values-data', []);
+    const ctxStatus = document.getElementById('graficoStatus');
+    if (ctxStatus) {
+        new Chart(ctxStatus.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    label: 'Total',
+                    data: statusValues,
+                    backgroundColor: '#4e73df',
+                    borderColor: '#36b9cc',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    const generoLabels = readJsonScript('genero-labels-data', []);
+    const generoValues = readJsonScript('genero-values-data', []);
+    const ctxGenero = document.getElementById('graficoGenero');
+    if (ctxGenero) {
+        new Chart(ctxGenero.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: generoLabels,
+                datasets: [{
+                    label: 'Total',
+                    data: generoValues,
+                    backgroundColor: '#1cc88a',
+                    borderColor: '#20c9a6',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    const faixaLabels = readJsonScript('faixa-labels-data', []);
+    const faixaValues = readJsonScript('faixa-values-data', []);
+    const ctxFaixa = document.getElementById('graficoFaixaEtaria');
+    if (ctxFaixa) {
+        new Chart(ctxFaixa.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: faixaLabels,
+                datasets: [{
+                    label: 'Total',
+                    data: faixaValues,
+                    backgroundColor: '#f7971e',
+                    borderColor: '#ffd200',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    const categoriaEventoLabels = readJsonScript('categoria-evento-labels-data', []);
+    const categoriaEventoValues = readJsonScript('categoria-evento-values-data', []);
+    const ctxCategoria = document.getElementById('graficoCategoriaEvento');
+    if (ctxCategoria) {
+        new Chart(ctxCategoria.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: categoriaEventoLabels,
+                datasets: [{
+                    label: 'Participacoes',
+                    data: categoriaEventoValues,
+                    backgroundColor: [
+                        '#b224ef', '#7579ff', '#43e97b', '#38f9d7', '#fa709a', '#fee140', '#f7971e', '#ffd200', '#4e73df', '#1cc88a', '#36b9cc', '#f953c6', '#b91d73'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
 
