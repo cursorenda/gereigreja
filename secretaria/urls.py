@@ -89,5 +89,7 @@ urlpatterns = [
 
     # Transferência de membros entre igrejas do mesmo ministério
     path('', include('secretaria.transferencia_urls')),
+    # URLs de equipe EBD / colaboradores
+    path('', include('secretaria.urls_colaboradores')),
 
 ]
