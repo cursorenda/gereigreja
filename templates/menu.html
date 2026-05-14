@@ -91,14 +91,39 @@
 
             {% if is_admin_ministerio %}
             <div class="sb-sidenav-menu-heading">Meu Ministério</div>
-            <a class="nav-link" href="{% url 'configuracao:detalhes_ministerio' %}">
+            <a class="nav-link collapsed {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseMeuMinisterio" aria-expanded="{% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseMeuMinisterio">
                 <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
-                Dados do Ministério
+                Gestão Ministerial
+                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
-            <a class="nav-link" href="{% url 'configuracao:configuracoes_ministerio' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-sliders-h"></i></div>
-                Configurações do Ministério
-            </a>
+            <div class="collapse {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path %}show{% endif %}" id="collapseMeuMinisterio" aria-labelledby="headingMeuMinisterio" data-bs-parent="#sidenavAccordion">
+                <nav class="sb-sidenav-menu-nested nav">
+                    <a class="nav-link {% if '/configuracao/meu-ministerio/' in request.path and '/configuracao/meu-ministerio/configuracoes/' not in request.path %}active{% endif %}" href="{% url 'configuracao:detalhes_ministerio' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-building"></i></div>
+                        Dados do Ministério
+                    </a>
+                    <a class="nav-link {% if '/configuracao/igrejas/' in request.path %}active{% endif %}" href="{% url 'configuracao:lista_igrejas' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-church"></i></div>
+                        Igrejas e Estrutura
+                    </a>
+                    <a class="nav-link {% if '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}active{% endif %}" href="{% url 'contas:lista_usuarios' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
+                        Usuários e Permissões
+                    </a>
+                    <a class="nav-link {% if '/configuracao/assinatura/' in request.path %}active{% endif %}" href="{% url 'configuracao:gerenciar_assinatura' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-id-card"></i></div>
+                        Assinatura e Plano
+                    </a>
+                    <a class="nav-link {% if '/configuracao/meu-ministerio/configuracoes/' in request.path or '/configuracao/configuracoes/' in request.path %}active{% endif %}" href="{% url 'configuracao:configuracoes_ministerio' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-sliders-h"></i></div>
+                        Configurações do Ministério
+                    </a>
+                </nav>
+            </div>
+            {% endif %}
+
+            {% if is_admin_ministerio and can_section_secretaria %}
+            <div class="sb-sidenav-menu-heading">Operação</div>
             {% endif %}
             {% if can_section_secretaria %}
             <div class="sb-sidenav-menu-heading">Secretaria</div>
@@ -116,12 +141,12 @@
             {% endif %}
             {% user_can_access request.user 'secretaria_relatorios' as can_secretaria_relatorios %}
             {% if can_dashboard_secretaria or can_secretaria_relatorios %}
-            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseDocumentosSecretaria" aria-expanded="false" aria-controls="collapseDocumentosSecretaria">
+            <a class="nav-link collapsed {% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseDocumentosSecretaria" aria-expanded="{% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseDocumentosSecretaria">
                 <div class="sb-nav-link-icon"><i class="fas fa-folder-open"></i></div>
                 Documentos
                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
-            <div class="collapse" id="collapseDocumentosSecretaria" aria-labelledby="headingDocumentosSecretaria" data-bs-parent="#sidenavAccordion">
+            <div class="collapse {% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path %}show{% endif %}" id="collapseDocumentosSecretaria" aria-labelledby="headingDocumentosSecretaria" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
                     {% if can_dashboard_secretaria %}
                     {% comment %}Funcionalidade em desenvolvimento: manter oculto no deploy por enquanto.{% endcomment %}
@@ -134,18 +159,18 @@
                     {% endif %}
 
                     {% if can_dashboard_secretaria %}
-                    <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseCertificadosSecretaria" aria-expanded="false" aria-controls="collapseCertificadosSecretaria">
+                    <a class="nav-link collapsed {% if 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseCertificadosSecretaria" aria-expanded="{% if 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseCertificadosSecretaria">
                         <div class="sb-nav-link-icon"><i class="fas fa-certificate"></i></div>
                         Certificados
                         <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                     </a>
-                    <div class="collapse" id="collapseCertificadosSecretaria" aria-labelledby="headingCertificadosSecretaria">
+                    <div class="collapse {% if 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path %}show{% endif %}" id="collapseCertificadosSecretaria" aria-labelledby="headingCertificadosSecretaria">
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="{% url 'secretaria:certificado_batismo' %}">
+                            <a class="nav-link {% if 'certificado-batismo' in request.path %}active{% endif %}" href="{% url 'secretaria:certificado_batismo' %}">
                                 <div class="sb-nav-link-icon"><i class="fas fa-water"></i></div>
                                 Certificado de Batismo
                             </a>
-                            <a class="nav-link" href="{% url 'secretaria:certificado_apresentacao' %}">
+                            <a class="nav-link {% if 'certificado-apresentacao' in request.path %}active{% endif %}" href="{% url 'secretaria:certificado_apresentacao' %}">
                                 <div class="sb-nav-link-icon"><i class="fas fa-baby"></i></div>
                                 Certificado de Apresentação
                             </a>
@@ -154,7 +179,7 @@
                     {% endif %}
 
                     {% if can_secretaria_relatorios %}
-                    <a class="nav-link" href="{% url 'secretaria:relatorio_reuniao_membros' %}" target="_blank">
+                    <a class="nav-link {% if 'reuniao-membros' in request.path %}active{% endif %}" href="{% url 'secretaria:relatorio_reuniao_membros' %}" target="_blank">
                         <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
                         Reunião de Membros
                     </a>
@@ -204,14 +229,14 @@
             <!-- Item de menu 'associar usuário' removido -->
                 <!-- Ícone e nome do item 'Associar Usuários' removidos -->
             {% if can_secretaria_relatorios %}
-            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseRelatoriosSecretaria" aria-expanded="false" aria-controls="collapseRelatoriosSecretaria">
+            <a class="nav-link collapsed {% if 'linha-do-tempo' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseRelatoriosSecretaria" aria-expanded="{% if 'linha-do-tempo' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseRelatoriosSecretaria">
                 <div class="sb-nav-link-icon"><i class="fas fa-file-alt"></i></div>
                 Relatórios
                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
-            <div class="collapse" id="collapseRelatoriosSecretaria" aria-labelledby="headingRelatoriosSecretaria" data-bs-parent="#sidenavAccordion">
+            <div class="collapse {% if 'linha-do-tempo' in request.path %}show{% endif %}" id="collapseRelatoriosSecretaria" aria-labelledby="headingRelatoriosSecretaria" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
-                    <a class="nav-link" href="{% url 'secretaria:linha_do_tempo' %}">
+                    <a class="nav-link {% if 'linha-do-tempo' in request.path %}active{% endif %}" href="{% url 'secretaria:linha_do_tempo' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-stream"></i></div>
                         Linha do Tempo
                     </a>
@@ -342,21 +367,21 @@
                     {% if ministerio|igrejas_ativas_count > 1 %}
                 {% if can_section_lideranca %}
                 <div class="sb-sidenav-menu-heading">Liderança</div>
-                <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLiderancaPaineis" aria-expanded="false" aria-controls="collapseLiderancaPaineis">
+                <a class="nav-link collapsed {% if 'painel-lideranca' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLiderancaPaineis" aria-expanded="{% if 'painel-lideranca' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseLiderancaPaineis">
                     <div class="sb-nav-link-icon"><i class="fas fa-user-tie"></i></div>
                     Painéis de Liderança
                     <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                 </a>
-                <div class="collapse" id="collapseLiderancaPaineis" aria-labelledby="headingLiderancaPaineis" data-bs-parent="#sidenavAccordion">
+                <div class="collapse {% if 'painel-lideranca' in request.path %}show{% endif %}" id="collapseLiderancaPaineis" aria-labelledby="headingLiderancaPaineis" data-bs-parent="#sidenavAccordion">
                     <nav class="sb-sidenav-menu-nested nav">
                         {% if can_see_lideranca_secretaria %}
-                            <a class="nav-link" href="{% url 'secretaria:painel_lideranca_secretaria' %}">
+                            <a class="nav-link {% if 'painel-lideranca-secretaria' in request.path %}active{% endif %}" href="{% url 'secretaria:painel_lideranca_secretaria' %}">
                                 <div class="sb-nav-link-icon"><i class="fas fa-users-cog"></i></div>
                                 Secretaria
                             </a>
                         {% endif %}
                         {% if can_see_lideranca_financeira %}
-                            <a class="nav-link" href="{% url 'financeiro:painel_lideranca_financeiro' %}">
+                            <a class="nav-link {% if 'painel-lideranca-financeiro' in request.path %}active{% endif %}" href="{% url 'financeiro:painel_lideranca_financeiro' %}">
                                 <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
                                 Financeira
                             </a>
@@ -392,37 +417,37 @@
             {# --- NOVO LINK PARA MURAL DE AVISOS --- #}
             {% if can_comunicacao_massa %}
             <div class="sb-sidenav-menu-heading">Comunicação</div>
-            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseComunicacao" aria-expanded="false" aria-controls="collapseComunicacao">
+            <a class="nav-link collapsed {% if '/comunicacao/' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseComunicacao" aria-expanded="{% if '/comunicacao/' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseComunicacao">
                 <div class="sb-nav-link-icon"><i class="fas fa-comments"></i></div>
                 Comunicação
                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
-            <div class="collapse" id="collapseComunicacao" aria-labelledby="headingComunicacao" data-bs-parent="#sidenavAccordion">
+            <div class="collapse {% if '/comunicacao/' in request.path %}show{% endif %}" id="collapseComunicacao" aria-labelledby="headingComunicacao" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
                     {% if can_comunicacao_massa %}
-                    <a class="nav-link" href="{% url 'comunicacao:enviar_email_massa' %}">
+                    <a class="nav-link {% if 'enviar-email' in request.path %}active{% endif %}" href="{% url 'comunicacao:enviar_email_massa' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-paper-plane"></i></div>
                         Enviar E-mail em Massa
                     </a>
-                    <a class="nav-link" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">
+                    <a class="nav-link {% if 'enviar-whatsapp' in request.path %}active{% endif %}" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">
                         <div class="sb-nav-link-icon"><i class="fab fa-whatsapp"></i></div>
                         Enviar WhatsApp em Massa
                     </a>
-                    <a class="nav-link" href="{% url 'comunicacao:configurar_whatsapp' %}">
+                    <a class="nav-link {% if 'configurar-whatsapp' in request.path %}active{% endif %}" href="{% url 'comunicacao:configurar_whatsapp' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-cog"></i></div>
                         Configurar WhatsApp
                     </a>
-                    <a class="nav-link" href="{% url 'comunicacao:logs_whatsapp' %}">
+                    <a class="nav-link {% if 'logs-whatsapp' in request.path %}active{% endif %}" href="{% url 'comunicacao:logs_whatsapp' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
                         Logs WhatsApp
                     </a>
-                    <a class="nav-link" href="{% url 'comunicacao:templates_email' %}">
+                    <a class="nav-link {% if 'templates-email' in request.path %}active{% endif %}" href="{% url 'comunicacao:templates_email' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-envelope-open-text"></i></div>
                         Templates de E-mail
                     </a>
                     {% endif %}
                     {% if can_mural_avisos %}
-                    <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
+                    <a class="nav-link {% if 'avisos' in request.path %}active{% endif %}" href="{% url 'comunicacao:lista_avisos' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                         Mural de Avisos
                     </a>
