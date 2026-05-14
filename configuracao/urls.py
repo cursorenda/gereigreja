@@ -20,6 +20,7 @@ urlpatterns = [
     path('', views.configuracao_view, name='configuracao'), # Aponta para a view refatorada
     path('meu-ministerio/', views.detalhes_ministerio, name='detalhes_ministerio'),
     path('meu-ministerio/editar/', views.editar_ministerio, name='editar_ministerio'),
+    path('meu-ministerio/configuracoes/', views.configuracoes_ministerio, name='configuracoes_ministerio'),
  
     # URL para Gerenciar Assinatura
     path('assinatura/', views.gerenciar_assinatura, name='gerenciar_assinatura'),
@@ -45,7 +46,7 @@ urlpatterns = [
     path('igrejas/<int:igreja_id>/editar-config/', views.editar_igreja_config, name='editar_igreja_config'), # Nova URL
     path('igrejas/<int:igreja_id>/excluir/', views.excluir_igreja, name='excluir_igreja'),    
     path('definir-igreja-ativa/', views.set_active_church, name='set_active_church'), # Nova URL
-    path('configuracoes/', views.configuracoes_sistema, name='configuracoes_sistema'),
+    path('configuracoes/', views.configuracoes_sistema_legacy_redirect, name='configuracoes_sistema'),
 
 
     

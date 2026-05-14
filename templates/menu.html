@@ -18,6 +18,7 @@
 {% user_can_access request.user 'comunicacao_massa' as can_comunicacao_massa %}
 {% user_can_access request.user 'mural_avisos' as can_mural_avisos %}
 {% user_can_access request.user 'suporte' as can_suporte %}
+{% user_is_admin_ministerio request.user as is_admin_ministerio %}
 
 <div class="sb-sidenav-menu">
     <div class="nav">
@@ -88,17 +89,25 @@
         {# Menu Completo - Exibido apenas se o usuário tiver uma ministério ATIVA #}
     {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
 
-
-
+            {% if is_admin_ministerio %}
+            <div class="sb-sidenav-menu-heading">Meu Ministério</div>
+            <a class="nav-link" href="{% url 'configuracao:detalhes_ministerio' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
+                Dados do Ministério
+            </a>
+            <a class="nav-link" href="{% url 'configuracao:configuracoes_ministerio' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-sliders-h"></i></div>
+                Configurações do Ministério
+            </a>
+            {% endif %}
+            {% if can_section_secretaria %}
+            <div class="sb-sidenav-menu-heading">Secretaria</div>
             {% if can_dashboard_secretaria %}
             <a class="nav-link" href="{% url 'secretaria:dashboard' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 Dashboard
             </a>
             {% endif %}
-
-            {% if can_section_secretaria %}
-            <div class="sb-sidenav-menu-heading">Secretaria</div>
             {% if can_dashboard_secretaria %}
             <a class="nav-link" href="{% url 'secretaria:lista_pessoas' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
@@ -373,15 +382,7 @@
                 Novidades do Sistema
             </a>
             {% endif %}
-            {% user_can_access request.user 'configuracoes_sistema' as can_configuracoes_sistema %}
-            {% if can_configuracoes_sistema %}
-            <a class="nav-link" href="{% url 'configuracao:configuracoes_sistema' %}">
-                <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
-                Configurações do Sistema
-            </a>
-            {% endif %}
             {# Link para Auditoria de Permissões (apenas Admin Ministerio) #}
-            {% user_is_admin_ministerio request.user as is_admin_ministerio %}
             {% if is_admin_ministerio %}
             <a class="nav-link" href="{% url 'configuracao:auditoria_permissoes' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-shield-alt"></i></div>

@@ -286,7 +286,7 @@ def is_admin_ministerio(user):
 @login_required
 @verificar_assinatura_valida
 @admin_ministerio_required
-def configuracoes_sistema(request):
+def configuracoes_ministerio(request):
     # Buscar o ministério do usuário logado
     perfil = getattr(request.user, 'perfil', None)
     ministerio = getattr(perfil, 'ministerio', None)
@@ -356,6 +356,14 @@ def configuracoes_sistema(request):
         'portal_form': portal_form,
     }
     return render(request, 'configuracao/configuracoes_sistema.html', context)
+
+
+@login_required
+@verificar_assinatura_valida
+@admin_ministerio_required
+def configuracoes_sistema_legacy_redirect(request):
+    messages.info(request, 'As configurações foram movidas para Meu Ministério > Configurações do Ministério.')
+    return redirect('configuracao:configuracoes_ministerio')
 # configuracao/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import models

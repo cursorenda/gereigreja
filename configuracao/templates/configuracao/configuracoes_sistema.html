@@ -1,10 +1,15 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
 
-{% block title %}Configurações do Sistema{% endblock %}
+{% block title %}Configurações do Ministério{% endblock %}
 
 {% block content %}
-    <h1 class="mt-4">Configurações do Sistema</h1>
+    <h1 class="mt-4">Configurações do Ministério</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'configuracao:detalhes_ministerio' %}">Meu Ministério</a></li>
+        <li class="breadcrumb-item active">Configurações do Ministério</li>
+    </ol>
     <div class="alert alert-info mt-3" role="alert">
         <strong>Atenção:</strong> Estas configurações afetam <b>todas as igrejas do ministério</b>, não apenas a igreja selecionada no topo do sistema.
     </div>
