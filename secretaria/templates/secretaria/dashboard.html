@@ -594,7 +594,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="card-desc">Gestão de Usuários</div>
             <span class="card-badge">{{ total_associacoes }}</span>
             <div class="card-action d-flex gap-2">
-                <a href="{% url 'secretaria:associar_usuarios_membros' %}" class="btn btn-light btn-sm">Associar</a>
+                {% url 'secretaria:associar_usuarios_membros' as url_associar_usuarios_membros %}
+                {% if url_associar_usuarios_membros %}
+                <a href="{{ url_associar_usuarios_membros }}" class="btn btn-light btn-sm">Associar</a>
+                {% else %}
+                <button type="button" class="btn btn-light btn-sm" disabled title="Funcionalidade temporariamente indisponível">Associar</button>
+                {% endif %}
             </div>
         </div>
     </div>
