@@ -41,7 +41,7 @@
               <a href="{% url 'secretaria:detalhe_membro' membro_id=transferencia.membro_id %}" class="btn btn-outline-primary btn-sm mb-1">Ver membro</a>
               {% if transferencia.status == 'aguardando' %}
                 {% if transferencia.igreja_destino_id in igrejas_permitidas_ids %}
-                  <a href="{% url 'secretaria:aprovar_transferencia' transferencia.id %}" class="btn btn-success btn-sm mb-1">Aprovar</a>
+                  <a href="{% url 'secretaria:aprovar_transferencia' transferencia.id %}" class="btn btn-primary btn-sm mb-1">Aprovar</a>
                   <a href="{% url 'secretaria:recusar_transferencia' transferencia.id %}" class="btn btn-outline-danger btn-sm mb-1">Recusar</a>
                 {% endif %}
                 {% if transferencia.usuario_solicitante_id == request.user.id or transferencia.igreja_origem_id in igrejas_permitidas_ids %}

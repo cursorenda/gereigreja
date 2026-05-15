@@ -4,7 +4,7 @@
     {% if perms.secretaria.change_membro %}
         {% if membro_id %}
             <div class="my-3">
-                <a href="{% url 'secretaria:adicionar_historico_status_manual' membro_id=membro_id %}" class="btn btn-sm btn-success">
+                <a href="{% url 'secretaria:adicionar_historico_status_manual' membro_id=membro_id %}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus me-1"></i> Adicionar Entrada Manual/Retroativa
                 </a>
             </div>

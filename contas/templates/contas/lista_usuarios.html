@@ -33,8 +33,8 @@
             </select>
         </div>
         <div class="col-lg-2 col-6 d-flex align-items-center gap-2">
-            <button class="btn btn-vibrant-blue" type="submit"><i class="fas fa-search"></i> Buscar</button>
-            <a href="?" class="btn btn-vibrant ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i> Limpar</a>
+            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Buscar</button>
+            <a href="?" class="btn btn-outline-secondary ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i> Limpar</a>
         </div>
     </form>
     {# --- CARD USUÁRIOS EXISTENTES --- #}
@@ -42,7 +42,7 @@
         <div class="card-header">
             <i class="fas fa-users me-1"></i>
             Usuários da Ministério: {{ ministerio.nome_fantasia }} ({{ usuarios.count }})
-            <a href="{% url 'contas:enviar_convite' %}" class="btn btn-success btn-sm float-end">
+            <a href="{% url 'contas:enviar_convite' %}" class="btn btn-primary btn-sm float-end">
                 <i class="fas fa-user-plus me-1"></i> Convidar Novo Usuário
             </a>
         </div>
@@ -68,9 +68,9 @@
                                 <td>{{ usuario_item.email }}</td>
                                 <td>
                                     {% if usuario_item.is_active %}
-                                        <span class="badge bg-success">Ativo</span>
+                                        <span class="badge bg-primary">Ativo</span>
                                     {% else %}
-                                        <span class="badge bg-danger">Inativo</span>
+                                        <span class="badge bg-secondary">Inativo</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -83,7 +83,7 @@
                                 {# --- EXIBIR GRUPOS --- #}
                                 <td>
                                     {% for group in usuario_item.groups.all %}
-                                        <span class="badge bg-info me-1">{{ group.name }}</span>
+                                        <span class="badge bg-primary me-1">{{ group.name }}</span>
                                     {% empty %}
                                         <span class="text-muted fst-italic">Nenhum</span>
                                     {% endfor %}
@@ -155,11 +155,11 @@
                                             {% csrf_token %}
                                             {# Botão muda de cor e texto dependendo do status atual #}
                                             {% if usuario_item.is_active %}
-                                                <button type="submit" class="btn btn-warning btn-sm" title="Desativar Usuário">
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="Desativar Usuário">
                                                     <i class="fas fa-user-slash"></i> Desativar
                                                 </button>
                                             {% else %}
-                                                 <button type="submit" class="btn btn-success btn-sm" title="Ativar Usuário">
+                                                 <button type="submit" class="btn btn-primary btn-sm" title="Ativar Usuário">
                                                     <i class="fas fa-user-check"></i> Ativar
                                                 </button>
                                             {% endif %}
@@ -219,7 +219,7 @@
                                     {# Botão funcional para reenviar convite #}
                                     <form action="{% url 'contas:reenviar_convite' convite.pk %}" method="post" class="d-inline-block ms-1" onsubmit="return confirm('Deseja reenviar o convite para {{ convite.email_convidado }}?');">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-info btn-sm" title="Reenviar Convite">
+                                        <button type="submit" class="btn btn-primary btn-sm" title="Reenviar Convite">
                                             <i class="fas fa-redo"></i> Reenviar
                                         </button>
                                     </form>

@@ -1,8 +1,8 @@
 {% extends 'base_com_menu.html' %}
 <div class="row g-2 mb-3">
   <div class="col-12">
-    <div class="card mb-2 p-2 bg-light border-info">
-      <div class="fw-bold mb-1">Indicadores de participação por tipo de pessoa (ativos):</div>
+    <div class="card mb-2 p-2 bg-light" style="border-left: 4px solid #0d8281;">
+      <div class="fw-bold mb-1" style="color: #0d8281;">Indicadores de participação por tipo de pessoa (ativos):</div>
       <div class="text-muted mb-2" style="font-size: 0.95em;">
         Os indicadores abaixo mostram a presença de membros e congregados ativos em relação ao total esperado e também a composição dos presentes.
       </div>
@@ -29,7 +29,7 @@
       <div class="d-flex align-items-center">
         <span class="me-2">{{ evento.titulo }}</span>
         {% if sessoes and sessoes|length > 1 and sessao %}
-          <span class="badge bg-info text-dark">Sessão {{ sessao.numero }} — {{ sessao.data_inicio|date:'d/m/Y' }}</span>
+          <span class="badge" style="background-color: #0d8281; color: #fff;">Sessão {{ sessao.numero }} — {{ sessao.data_inicio|date:'d/m/Y' }}</span>
         {% endif %}
       </div>
     </div>
@@ -80,8 +80,8 @@
           <!-- Indicadores avançados de participação -->
           <div class="row g-2 mb-3">
             <div class="col-12">
-              <div class="card mb-2 p-2 bg-light border-info">
-                <div class="fw-bold mb-1">Indicadores de participação por tipo de pessoa (ativos):</div>
+              <div class="card mb-2 p-2 bg-light" style="border-left: 4px solid #0d8281;">
+                <div class="fw-bold mb-1" style="color: #0d8281;">Indicadores de participação por tipo de pessoa (ativos):</div>
                 <div class="text-muted mb-2" style="font-size: 0.95em;">
                   Os indicadores abaixo mostram a presença de membros e congregados ativos em relação ao total esperado e também a composição dos presentes.
                 </div>
@@ -97,16 +97,16 @@
           <!-- Cards de totais -->
           <div class="row g-2 mb-3">
             <div class="col-md-3 col-6">
-              <div class="card text-center border-success mb-2"><div class="card-body p-2"><div class="fw-bold">Esperados</div><div class="fs-5">{{ estatisticas.total_esperados }}</div></div></div>
+              <div class="card text-center mb-2" style="border-left: 4px solid #0d8281;"><div class="card-body p-2"><div class="fw-bold" style="color: #0d8281;">Esperados</div><div class="fs-5">{{ estatisticas.total_esperados }}</div></div></div>
             </div>
             <div class="col-md-3 col-6">
-              <div class="card text-center border-primary mb-2"><div class="card-body p-2"><div class="fw-bold">Presentes</div><div class="fs-5">{{ estatisticas.total_presentes }}</div><div class="small">({{ estatisticas.percentual_presenca|floatformat:1 }}%)</div></div></div>
+              <div class="card text-center mb-2" style="border-left: 4px solid #0d8281;"><div class="card-body p-2"><div class="fw-bold" style="color: #0d8281;">Presentes</div><div class="fs-5">{{ estatisticas.total_presentes }}</div><div class="small">({{ estatisticas.percentual_presenca|floatformat:1 }}%)</div></div></div>
             </div>
             <div class="col-md-3 col-6">
-              <div class="card text-center border-danger mb-2"><div class="card-body p-2"><div class="fw-bold">Ausentes</div><div class="fs-5">{{ estatisticas.total_ausentes }}</div><div class="small">({{ estatisticas.percentual_ausencia|floatformat:1 }}%)</div></div></div>
+              <div class="card text-center mb-2" style="border-left: 4px solid #dc3545;"><div class="card-body p-2"><div class="fw-bold" style="color: #dc3545;">Ausentes</div><div class="fs-5">{{ estatisticas.total_ausentes }}</div><div class="small">({{ estatisticas.percentual_ausencia|floatformat:1 }}%)</div></div></div>
             </div>
             <div class="col-md-3 col-6">
-              <div class="card text-center border-warning mb-2"><div class="card-body p-2"><div class="fw-bold">Justificados</div><div class="fs-5">{{ estatisticas.total_justificados }}</div><div class="small">({{ estatisticas.percentual_justificados|floatformat:1 }}%)</div></div></div>
+              <div class="card text-center mb-2" style="border-left: 4px solid #ffc107;"><div class="card-body p-2"><div class="fw-bold" style="color: #ff9800;">Justificados</div><div class="fs-5">{{ estatisticas.total_justificados }}</div><div class="small">({{ estatisticas.percentual_justificados|floatformat:1 }}%)</div></div></div>
             </div>
           </div>
           <div class="row g-2 mb-3">
@@ -219,7 +219,7 @@
                   </tbody>
                 </table>
               </div>
-              <button type="submit" class="btn btn-info">Exportar</button>
+              <button type="submit" class="btn btn-primary">Exportar</button>
             </form>
           </div>
         </div>
@@ -243,9 +243,9 @@
         </div>
       </div>
       {% endif %}
-  <a href="{% url 'eventos:marcar_presenca' evento.pk %}" class="btn btn-success">Marcar Presença</a>
-  <a href="{% url 'eventos:exportar_participantes_excel' evento.pk %}" class="btn btn-info">Exportar para Excel</a>
-  <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-warning">Editar</a>
+  <a href="{% url 'eventos:marcar_presenca' evento.pk %}" class="btn btn-primary">Marcar Presença</a>
+  <a href="{% url 'eventos:exportar_participantes_excel' evento.pk %}" class="btn btn-primary">Exportar para Excel</a>
+  <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-primary">Editar</a>
   <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger">Excluir</a>
   <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-secondary">Voltar</a>
       </div>

@@ -16,14 +16,14 @@
 		<!-- Turmas -->
 		<div class="col-12 col-md-6 col-lg-3">
 			<a href="{% url 'escola_biblica:turma_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #4f8cff 0%, #6ed6ff 100%); color: #fff; border-radius: 18px;">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 					<div class="card-body d-flex flex-column justify-content-between">
 						<div>
 							<i class="fas fa-chalkboard-teacher fa-3x mb-2"></i>
 							<h4 class="fw-bold">Turmas e Chamadas</h4>
 							<p class="mb-1">Gerencie turmas e faça chamadas de presença das classes.</p>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">{{ turmas|length }} turmas</span></div>
+						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ turmas|length }} turmas</span></div>
 					</div>
 				</div>
 			</a>
@@ -31,14 +31,14 @@
 		<!-- Classes -->
 		<div class="col-12 col-md-6 col-lg-3">
 			<a href="{% url 'escola_biblica:classe_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%); color: #fff; border-radius: 18px;">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 					<div class="card-body d-flex flex-column justify-content-between">
 						<div>
 							<i class="fas fa-users fa-3x mb-2"></i>
 							<h4 class="fw-bold">Classes</h4>
 							<p class="mb-1">Grupos temáticos/faixa etária.</p>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">{{ classes|length }} classes</span></div>
+						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ classes|length }} classes</span></div>
 					</div>
 				</div>
 			</a>
@@ -46,14 +46,14 @@
 		<!-- Alunos -->
 		<div class="col-12 col-md-6 col-lg-3">
 			<a href="{% url 'escola_biblica:aluno_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #fff; border-radius: 18px;">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 					<div class="card-body d-flex flex-column justify-content-between">
 						<div>
 							<i class="fas fa-user-graduate fa-3x mb-2"></i>
 							<h4 class="fw-bold">Alunos</h4>
 							<p class="mb-1">Visualize e gerencie os alunos.</p>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">{{ alunos|length }} alunos</span></div>
+						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ alunos|length }} alunos</span></div>
 					</div>
 				</div>
 			</a>
@@ -61,14 +61,14 @@
 		<!-- Lições -->
 		<div class="col-12 col-md-6 col-lg-3">
 			<a href="{% url 'escola_biblica:licao_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #fff; border-radius: 18px;">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 					<div class="card-body d-flex flex-column justify-content-between">
 						<div>
 							<i class="fas fa-book-open fa-3x mb-2"></i>
 							<h4 class="fw-bold">Lições</h4>
 							<p class="mb-1">Acompanhe e gere lições/aulas.</p>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">{{ licoes|length }} lições</span></div>
+						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ licoes|length }} lições</span></div>
 					</div>
 				</div>
 			</a>
@@ -76,14 +76,14 @@
 		<!-- Frequência -->
 		<div class="col-12 col-md-6 col-lg-3">
 			<a href="{% url 'escola_biblica:frequencia_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: #fff; border-radius: 18px;">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 					<div class="card-body d-flex flex-column justify-content-between">
 						<div>
 							<i class="fas fa-clipboard-check fa-3x mb-2"></i>
 							<h4 class="fw-bold">Frequência</h4>
 							<p class="mb-1">Registre e acompanhe presença.</p>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">{{ freq_geral }}% média</span></div>
+						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ freq_geral }}% média</span></div>
 					</div>
 				</div>
 			</a>
@@ -91,14 +91,14 @@
 		<!-- Avaliações -->
 		<div class="col-12 col-md-6 col-lg-3">
 			<a href="{% url 'escola_biblica:avaliacao_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: #fff; border-radius: 18px;">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 					<div class="card-body d-flex flex-column justify-content-between">
 						<div>
 							<i class="fas fa-star fa-3x mb-2"></i>
 							<h4 class="fw-bold">Avaliações</h4>
 							<p class="mb-1">Notas e participação dos alunos.</p>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">Ver avaliações</span></div>
+						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">Ver avaliações</span></div>
 					</div>
 				</div>
 			</a>
@@ -106,14 +106,14 @@
 		<!-- Ofertas -->
 		<div class="col-12 col-md-6 col-lg-3">
 			<a href="{% url 'escola_biblica:oferta_classe_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #f953c6 0%, #b91d73 100%); color: #fff; border-radius: 18px;">
+				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 					<div class="card-body d-flex flex-column justify-content-between">
 						<div>
 							<i class="fas fa-hand-holding-usd fa-3x mb-2"></i>
 							<h4 class="fw-bold">Ofertas</h4>
 							<p class="mb-1">Controle de ofertas por classe.</p>
 						</div>
-						<div class="mt-2"><span class="badge bg-light text-dark">R$ {{ total_oferta|floatformat:2 }}</span></div>
+						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">R$ {{ total_oferta|floatformat:2 }}</span></div>
 					</div>
 				</div>
 			</a>
@@ -121,7 +121,7 @@
 		<!-- Relatórios -->
 		<!-- Relatórios (NOVO PADRÃO) -->
 		<div class="col-12 col-md-6 col-lg-3">
-			<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%); color: #fff; border-radius: 18px;">
+			<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
 				<div class="card-body d-flex flex-column justify-content-between">
 					<div>
 						<div class="mb-2">
@@ -135,10 +135,10 @@
 						</div>
 					</div>
 					<div class="d-grid gap-2 mt-3">
-						<a href="{% url 'escola_biblica:cargos_ebd_list' %}" class="btn btn-light fw-bold mb-2 py-2" style="border-radius: 10px; background: linear-gradient(90deg, #8e0545 0%, #b91d73 100%); color: #fff; border: none; font-size:1.05em;">
+						<a href="{% url 'escola_biblica:cargos_ebd_list' %}" class="btn btn-light fw-bold mb-2 py-2" style="border-radius: 10px; background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border: none; font-size:1.05em;">
 							<i class="fas fa-users me-1"></i> Cargos e Funções da EBD
 						</a>
-						<a href="{% url 'escola_biblica:relatorio_ebd_dia' %}" class="btn btn-light fw-bold py-2" style="border-radius: 10px; background: linear-gradient(90deg, #b91d73 0%, #ee9ca7 100%); color: #fff; border: none; font-size:1.05em;">
+						<a href="{% url 'escola_biblica:relatorio_ebd_dia' %}" class="btn btn-light fw-bold py-2" style="border-radius: 10px; background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border: none; font-size:1.05em;">
 							<i class="fas fa-calendar-day me-1"></i> Relatório Geral do Dia
 						</a>
 					</div>
@@ -192,8 +192,8 @@
 				datasets: [{
 					label: 'Alunos Ativos',
 					data: alunosEvolucaoData,
-					borderColor: '#007bff',
-					backgroundColor: 'rgba(0,123,255,0.1)',
+					borderColor: '#0d8281',
+					backgroundColor: 'rgba(13,130,129,0.15)',
 					fill: true,
 					tension: 0.3
 				}]
@@ -215,7 +215,7 @@
 				labels: faixasLabels,
 				datasets: [{
 					data: faixasCounts,
-					backgroundColor: ['#007bff','#28a745','#ffc107','#dc3545','#6c757d','#17a2b8']
+					backgroundColor: ['#0d8281','#0a6665','#2aa5a4','#4db7b6','#86cecd','#b7e4e3']
 				}]
 			},
 			options: {

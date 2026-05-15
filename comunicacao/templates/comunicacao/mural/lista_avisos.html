@@ -32,7 +32,7 @@
                     <input type="text" class="form-control form-control-sm" id="searchQueryAvisos" placeholder="Buscar por título..." name="q" value="{{ query|default:'' }}">
                 </div>
                 <div class="col-auto">
-                    <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
+                    <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
                     {% if query %}
                         <a href="{% url 'comunicacao:lista_avisos' %}" class="btn btn-outline-secondary btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
                     {% endif %}

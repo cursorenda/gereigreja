@@ -4,9 +4,44 @@
 {% block title %}Login - Gereigreja{% endblock %}
 
 {% block content %}
+<style>
+    .login-page .card-header {
+        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
+        color: #ffffff;
+        border-bottom: 0;
+    }
+
+    .login-page .card-header h3 {
+        color: #ffffff !important;
+    }
+
+    .login-page .card {
+        border-radius: 14px;
+    }
+
+    .login-page .btn-primary {
+        background-color: #0d8281;
+        border-color: #0d8281;
+    }
+
+    .login-page .btn-primary:hover,
+    .login-page .btn-primary:focus {
+        background-color: #0a6665;
+        border-color: #0a6665;
+    }
+
+    .login-page a {
+        color: #0d8281;
+    }
+
+    .login-page a:hover {
+        color: #0a6665;
+    }
+</style>
+
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-lg-5">
+        <div class="col-lg-5 login-page">
             <div class="card shadow-lg border-0 rounded-lg mt-5">
                 <div class="card-header">
                     <h3 class="text-center font-weight-light my-4">Login</h3>
@@ -22,8 +57,6 @@
                         {% endfor %}
                     {% endif %}
                     {# --- FIM DO BLOCO --- #}
-
-                    <form method="post">
 
                     {% if form.errors %}
                         <div class="alert alert-danger" role="alert">

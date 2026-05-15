@@ -7,7 +7,7 @@
     <li class="breadcrumb-item active">Linha do Tempo</li>
 {% endblock %}
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
     <div class="d-flex align-items-center">
         <i class="fas fa-filter me-2"></i>
         <span style="font-size:1.1rem; font-weight:600;">Filtros da Linha do Tempo</span>
@@ -53,8 +53,8 @@
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-vibrant-blue btn-sm" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                        <a href="{{ request.path }}" class="btn btn-vibrant btn-sm" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                        <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                        <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var limparBtn = document.querySelector('a[title="Limpar Busca"]');

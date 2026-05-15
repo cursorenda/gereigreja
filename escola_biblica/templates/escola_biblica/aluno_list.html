@@ -11,14 +11,14 @@
 {% endblock %}
 {% block conteudo_principal %}
 <div class="card shadow-lg rounded-lg" style="border: none;">
-    <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
+    <div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff;">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
                 <i class="fas fa-user-graduate me-2"></i>
                 <span style="font-size:1.1rem; font-weight:600;">Alunos</span>
                 <span class="ms-2 text-light" style="font-weight:400;">({{ total_alunos }})</span>
             </div>
-            <a href="{% url 'escola_biblica:aluno_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Adicionar</a>
+            <a href="{% url 'escola_biblica:aluno_create' %}" class="btn btn-light" style="height:40px; min-width:120px; font-weight:600; border-radius:8px; color:#0a6665;">Adicionar</a>
         </div>
     </div>
     <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
@@ -26,7 +26,7 @@
             <div class="col-lg-1 col-md-2 col-6">
                 <select name="ano" class="form-select form-select-sm" style="height:40px;" {% if historico %}disabled{% endif %}>
                     {% for ano_item in anos_letivos %}
-                        <option value="{{ ano_item.ano }}" {% if ano_filtro == ano_item.ano %}selected{% endif %}>{{ ano_item.ano }}</option>
+                        <option value="{{ ano_item.ano }}" {% if ano_filtro == ano_item.ano %}selected{% endif %}>{{ ano_item.ano|floatformat:0 }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -62,21 +62,21 @@
                 </div>
             </div>
             <div class="col-lg-5 col-md-12 col-12 d-flex align-items-center gap-2 flex-wrap flex-lg-nowrap">
-                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:90px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                <button class="btn btn-primary" type="submit" style="height:40px; min-width:90px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
                 {% if request.GET.nome or request.GET.turma or request.GET.ativo or request.GET.historico or request.GET.ano or request.GET.vinculo %}
-                    <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca" style="height:40px; min-width:80px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                    <a href="{{ request.path }}" class="btn btn-outline-secondary ms-1" title="Limpar Busca" style="height:40px; min-width:80px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 {% endif %}
             </div>
         </form>
         {% if usuario_pode_vincular and vinculo_filtro == 'sem_vinculo' and total_alunos %}
         <div class="mb-3 d-flex justify-content-end gap-2 flex-wrap">
-            <a href="{% url 'escola_biblica:aluno_vinculo_secretaria_lote' %}{% if querystring %}?{{ querystring }}{% endif %}" class="btn btn-vibrant-blue btn-sm" style="height:36px; font-weight:600; border-radius:8px;">
+            <a href="{% url 'escola_biblica:aluno_vinculo_secretaria_lote' %}{% if querystring %}?{{ querystring }}{% endif %}" class="btn btn-primary btn-sm" style="height:36px; font-weight:600; border-radius:8px;">
                 <i class="fas fa-pen-to-square me-1"></i> Vinculação manual em massa
             </a>
             <form method="post" action="{% if querystring %}?{{ querystring }}{% endif %}">
                 {% csrf_token %}
                 <input type="hidden" name="acao" value="tentar_vinculo_lote">
-                <button type="submit" class="btn btn-vibrant-green btn-sm" style="height:36px; font-weight:600; border-radius:8px;">
+                <button type="submit" class="btn btn-primary btn-sm" style="height:36px; font-weight:600; border-radius:8px;">
                     <i class="fas fa-link me-1"></i> Tentar vínculo automático (lote)
                 </button>
             </form>
@@ -108,11 +108,11 @@
                         </td>
                         <td>{{ aluno.ativo|yesno:'Sim,Não' }}</td>
                         <td>
-                            <a href="{% url 'escola_biblica:aluno_detail' aluno.id %}" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Ver Perfil"><i class="fas fa-user me-1"></i> Perfil</a>
+                            <a href="{% url 'escola_biblica:aluno_detail' aluno.id %}" class="btn btn-primary btn-sm d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Ver Perfil"><i class="fas fa-user me-1"></i> Perfil</a>
                             {% if usuario_pode_vincular %}
-                            <a href="{% url 'escola_biblica:aluno_vinculo_secretaria' aluno.id %}" class="btn btn-vibrant-green btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:120px; height:36px; font-weight:600; border-radius:8px;" title="Gerenciar vínculo com Secretaria"><i class="fas fa-link me-1"></i> Vínculo</a>
+                            <a href="{% url 'escola_biblica:aluno_vinculo_secretaria' aluno.id %}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center ms-1" style="min-width:120px; height:36px; font-weight:600; border-radius:8px;" title="Gerenciar vínculo com Secretaria"><i class="fas fa-link me-1"></i> Vínculo</a>
                             {% endif %}
-                            <a href="{% url 'escola_biblica:transferir_aluno' aluno.id %}" class="btn btn-vibrant-orange btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:110px; height:36px; font-weight:600; border-radius:8px;" title="Transferir Aluno"><i class="fas fa-random me-1"></i> Transferir</a>
+                            <a href="{% url 'escola_biblica:transferir_aluno' aluno.id %}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center ms-1" style="min-width:110px; height:36px; font-weight:600; border-radius:8px;" title="Transferir Aluno"><i class="fas fa-random me-1"></i> Transferir</a>
                         </td>
                     </tr>
                     {% endfor %}

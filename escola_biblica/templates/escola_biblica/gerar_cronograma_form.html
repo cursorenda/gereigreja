@@ -23,7 +23,7 @@
         </div>
         <div class="card-body pt-4 bg-white" style="border-radius:0 0 12px 12px;">
             <div class="mb-3 d-flex justify-content-end">
-                <a href="{% url 'escola_biblica:gerar_cronograma_wizard' %}" class="btn btn-vibrant-green" style="font-weight:600; border-radius:8px;">
+                <a href="{% url 'escola_biblica:gerar_cronograma_wizard' %}" class="btn btn-primary" style="font-weight:600; border-radius:8px;">
                     <i class="fas fa-magic me-1"></i> Novo Wizard de Geração
                 </a>
             </div>
@@ -43,9 +43,9 @@
                     <input type="text" name="tema" class="form-control form-control-sm" style="max-width:140px;" placeholder="Tema" value="{{ request.GET.tema|default:'' }}" data-bs-toggle="tooltip" title="Filtrar por tema">
                 </div>
                 <div class="col-lg-6 col-12 d-flex align-items-center gap-2 justify-content-end">
-                    <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                    <button type="button" class="btn btn-vibrant-green ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;" data-bs-toggle="modal" data-bs-target="#modalGerarAulas"><i class="fas fa-bolt"></i><span style="margin-left: 0.4em;">Gerar</span></button>
-                    <a href="?" class="btn btn-vibrant ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                    <button class="btn btn-primary" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                    <button type="button" class="btn btn-primary ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;" data-bs-toggle="modal" data-bs-target="#modalGerarAulas"><i class="fas fa-bolt"></i><span style="margin-left: 0.4em;">Gerar</span></button>
+                    <a href="?" class="btn btn-outline-secondary ms-2" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 </div>
             </form>
             <div class="table-responsive mt-2">
@@ -67,8 +67,8 @@
                             <td>{{ licao.professor }}</td>
                             <td>{{ licao.status }}</td>
                             <td>
-                                <a href="{% url 'escola_biblica:licao_edit' licao.pk %}" class="btn btn-vibrant-green btn-sm" title="Editar"><i class="fas fa-edit"></i></a>
-                                <a href="{% url 'escola_biblica:licao_delete' licao.pk %}" class="btn btn-vibrant-danger btn-sm ms-1" title="Excluir"><i class="fas fa-trash"></i></a>
+                                <a href="{% url 'escola_biblica:licao_edit' licao.pk %}" class="btn btn-primary btn-sm" title="Editar"><i class="fas fa-edit"></i></a>
+                                <a href="{% url 'escola_biblica:licao_delete' licao.pk %}" class="btn btn-danger btn-sm ms-1" title="Excluir"><i class="fas fa-trash"></i></a>
                             </td>
                         </tr>
                         {% empty %}
@@ -169,8 +169,8 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-vibrant-green"><i class="fas fa-bolt me-1"></i> Gerar</button>
-          <button type="button" class="btn btn-vibrant" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Cancelar</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-bolt me-1"></i> Gerar</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Cancelar</button>
         </div>
       </form>
     </div>

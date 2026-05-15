@@ -1,5 +1,10 @@
 {% extends 'admin/base_site.html' %}
-{% load i18n %}
+{% load i18n static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/admin_auditoria.css' %}">
+{% endblock %}
 
 {% block breadcrumbs %}
 <div class="breadcrumbs">
@@ -9,23 +14,23 @@
 
 {% block content %}
 <div id="content-main">
-    <div class="module" style="max-width: 980px; padding: 12px 14px;">
-        <h2 style="margin-top: 0;">Central de Auditoria</h2>
-        <p style="margin: 0 0 18px 0;">Acesso rapido as operacoes e consultas, sem depender de menus secundarios.</p>
+    <div class="module auditoria-wrapper">
+        <h2 class="auditoria-title">Central de Auditoria</h2>
+        <p class="auditoria-subtitle">Acesso rapido as operacoes e consultas, sem depender de menus secundarios.</p>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 14px;">
-            <div class="module" style="margin: 0; padding: 10px 12px;">
-                <h3 style="margin: 0 0 8px 0;">Operacoes</h3>
-                <p style="margin: 0 0 10px 0;">Acoes de execucao e navegacao principal.</p>
-                <p style="margin: 0 0 8px 0;"><a class="button" href="/auditoria/painel/">Abrir painel de auditoria</a></p>
-                <p style="margin: 0 0 8px 0;"><a class="button" href="/auditoria/auditar/">Executar auditoria de permissoes</a></p>
-                <p style="margin: 0;"><a href="/admin/">Voltar para admin principal</a></p>
+        <div class="auditoria-grid">
+            <div class="module auditoria-card">
+                <h3 class="auditoria-card-title">Operacoes</h3>
+                <p class="auditoria-card-text">Acoes de execucao e navegacao principal.</p>
+                <p class="auditoria-action"><a class="button" href="/auditoria/painel/">Abrir painel de auditoria</a></p>
+                <p class="auditoria-action"><a class="button" href="/auditoria/auditar/">Executar auditoria de permissoes</a></p>
+                <p class="auditoria-action-last"><a href="/admin/">Voltar para admin principal</a></p>
             </div>
 
-            <div class="module" style="margin: 0; padding: 10px 12px;">
-                <h3 style="margin: 0 0 8px 0;">Consultas</h3>
-                <p style="margin: 0 0 10px 0;">Acompanhe eventos e riscos de seguranca.</p>
-                <ul style="margin: 0; padding-left: 18px;">
+            <div class="module auditoria-card">
+                <h3 class="auditoria-card-title">Consultas</h3>
+                <p class="auditoria-card-text">Acompanhe eventos e riscos de seguranca.</p>
+                <ul class="auditoria-list">
                     <li><a href="/auditoria/logs/alteracoes/">Logs de alteracoes</a></li>
                     <li><a href="/auditoria/logs/acessos-negados/">Logs de acessos negados</a></li>
                     <li><a href="/auditoria/sessoes-ativas/">Sessoes ativas</a></li>
@@ -34,7 +39,7 @@
             </div>
         </div>
 
-        <p style="margin: 0; color: #666; font-size: 12px;">Este painel foi simplificado para evitar duplicidade visual com menus laterais do tema admin.</p>
+        <p class="auditoria-note">Este painel foi simplificado para evitar duplicidade visual com menus laterais do tema admin.</p>
     </div>
 </div>
 {% endblock %}

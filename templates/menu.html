@@ -57,7 +57,7 @@
             {% else %}
                 {# Usuário com ministério ATIVA (ou sem perfil/org, que será tratado pela view) #}
                 {% if can_dashboard_secretaria %}
-                <a class="nav-link" href="{% url 'secretaria:index' %}">
+                <a class="nav-link {% if request.path == '/secretaria/' %}active{% endif %}" href="{% url 'secretaria:index' %}">
                     <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
                     Home
                 </a>
@@ -68,16 +68,16 @@
             {# --- Minha Conta: visível para TODOS os usuários autenticados com ministério ativa --- #}
             {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
             <div class="sb-sidenav-menu-heading">Minha Conta</div>
-            <a class="nav-link" href="{% url 'secretaria:portal_membro' %}">
+            <a class="nav-link {% if 'portal-membro' in request.path %}active{% endif %}" href="{% url 'secretaria:portal_membro' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-th-large"></i></div>
                 Meu Portal
             </a>
-            <a class="nav-link" href="{% url 'configuracao:meu_perfil' %}">
+            <a class="nav-link {% if '/configuracao/perfil/' in request.path %}active{% endif %}" href="{% url 'configuracao:meu_perfil' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
                 Meu Perfil
             </a>
             {% if can_mural_avisos and not can_comunicacao_massa %}
-            <a class="nav-link" href="{% url 'comunicacao:lista_avisos' %}">
+            <a class="nav-link {% if 'avisos' in request.path %}active{% endif %}" href="{% url 'comunicacao:lista_avisos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
                 Mural de Avisos
             </a>
@@ -91,12 +91,12 @@
 
             {% if is_admin_ministerio %}
             <div class="sb-sidenav-menu-heading">Meu Ministério</div>
-            <a class="nav-link collapsed {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseMeuMinisterio" aria-expanded="{% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseMeuMinisterio">
+            <a class="nav-link collapsed {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseMeuMinisterio" aria-expanded="{% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseMeuMinisterio">
                 <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
                 Gestão Ministerial
                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
-            <div class="collapse {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path %}show{% endif %}" id="collapseMeuMinisterio" aria-labelledby="headingMeuMinisterio" data-bs-parent="#sidenavAccordion">
+            <div class="collapse {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}show{% endif %}" id="collapseMeuMinisterio" aria-labelledby="headingMeuMinisterio" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
                     <a class="nav-link {% if '/configuracao/meu-ministerio/' in request.path and '/configuracao/meu-ministerio/configuracoes/' not in request.path %}active{% endif %}" href="{% url 'configuracao:detalhes_ministerio' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-building"></i></div>
@@ -128,13 +128,13 @@
             {% if can_section_secretaria %}
             <div class="sb-sidenav-menu-heading">Secretaria</div>
             {% if can_dashboard_secretaria %}
-            <a class="nav-link" href="{% url 'secretaria:dashboard' %}">
+            <a class="nav-link {% if request.path == '/secretaria/dashboard/' %}active{% endif %}" href="{% url 'secretaria:dashboard' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
                 Dashboard
             </a>
             {% endif %}
             {% if can_dashboard_secretaria %}
-            <a class="nav-link" href="{% url 'secretaria:lista_pessoas' %}">
+            <a class="nav-link {% if '/secretaria/pessoas/' in request.path %}active{% endif %}" href="{% url 'secretaria:lista_pessoas' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
                 Pessoas
             </a>
@@ -188,7 +188,7 @@
             </div>
             {% endif %}
             {% if can_dashboard_secretaria %}
-            <a class="nav-link d-flex align-items-center justify-content-between" href="{% url 'secretaria:lista_transferencias' %}">
+            <a class="nav-link d-flex align-items-center justify-content-between {% if '/secretaria/transferencias/' in request.path %}active{% endif %}" href="{% url 'secretaria:lista_transferencias' %}">
                 <span>
                     <span class="sb-nav-link-icon"><i class="fas fa-exchange-alt"></i></span>
                     Transferências
@@ -200,28 +200,28 @@
             {% endif %}
             {% user_can_access request.user 'secretaria_cargos' as can_secretaria_cargos %}
             {% if can_secretaria_cargos %}
-            <a class="nav-link" href="{% url 'secretaria:lista_cargos' %}">
+            <a class="nav-link {% if '/secretaria/cargos/' in request.path %}active{% endif %}" href="{% url 'secretaria:lista_cargos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-id-badge"></i></div>
                 Cargos
             </a>
             {% endif %}
             {% user_can_access request.user 'secretaria_grupos_casa' as can_secretaria_grupos %}
             {% if can_secretaria_grupos %}
-            <a class="nav-link" href="{% url 'secretaria:lista_grupos_casa' %}">
+            <a class="nav-link {% if '/secretaria/grupos-casa/' in request.path %}active{% endif %}" href="{% url 'secretaria:lista_grupos_casa' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-house-user"></i></div>
                 Grupos / Casas
             </a>
             {% endif %}
             {% user_can_access request.user 'secretaria_acompanhamentos' as can_secretaria_acompanhamentos %}
             {% if can_secretaria_acompanhamentos %}
-            <a class="nav-link" href="{% url 'secretaria:acompanhamentos_visita' %}">
+            <a class="nav-link {% if 'acompanhamentos' in request.path %}active{% endif %}" href="{% url 'secretaria:acompanhamentos_visita' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
                 Visitas Individuais
             </a>
             {% endif %}
             {% user_can_access request.user 'secretaria_tags' as can_secretaria_tags %}
             {% if can_secretaria_tags %}
-            <a class="nav-link" href="{% url 'secretaria:criar_tag' %}">
+            <a class="nav-link {% if '/secretaria/tags/' in request.path %}active{% endif %}" href="{% url 'secretaria:criar_tag' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-tags"></i></div>
                 Gerenciar Tags
             </a>
@@ -249,11 +249,11 @@
 
             {% if can_section_recepcao %}
             <div class="sb-sidenav-menu-heading">Recepção</div>
-            <a class="nav-link" href="{% url 'secretaria:lista_visitantes' %}">
+            <a class="nav-link {% if '/secretaria/visitantes/' in request.path and 'presenca' not in request.path %}active{% endif %}" href="{% url 'secretaria:lista_visitantes' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
                 Lista de Visitantes
             </a>
-            <a class="nav-link" href="{% url 'secretaria:registrar_presenca_visitante_evento' %}">
+            <a class="nav-link {% if 'registrar-presenca-visitante-evento' in request.path or 'presenca-visitante' in request.path %}active{% endif %}" href="{% url 'secretaria:registrar_presenca_visitante_evento' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-clipboard-check"></i></div>
                 Registro de Visitantes
             </a>
@@ -262,7 +262,7 @@
             <div class="sb-sidenav-menu-heading">Agenda & Eventos</div>
             {% user_can_access request.user 'agenda' as can_agenda %}
             {% if can_agenda %}
-            <a class="nav-link" href="{% url 'agenda:agenda' %}">
+            <a class="nav-link {% if '/agenda/' in request.path %}active{% endif %}" href="{% url 'agenda:agenda' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-calendar-week"></i></div>
                 Agenda
             </a>
@@ -270,7 +270,7 @@
 
             {% user_can_access request.user 'eventos' as can_eventos %}
             {% if can_eventos %}
-            <a class="nav-link" href="{% url 'eventos:lista_eventos' %}">
+            <a class="nav-link {% if '/eventos/' in request.path %}active{% endif %}" href="{% url 'eventos:lista_eventos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
                 Eventos
             </a>
@@ -282,7 +282,7 @@
             <!-- BLOCO ESCOLA DOMINICAL -->
             {% if can_section_ebd %}
             <div class="sb-sidenav-menu-heading">ESCOLA DOMINICAL</div>
-            <a class="nav-link" href="{% url 'escola_biblica:dashboard' %}">
+            <a class="nav-link {% if '/escola-biblica/' in request.path %}active{% endif %}" href="{% url 'escola_biblica:dashboard' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                 Escola Dominical
             </a>
@@ -291,7 +291,7 @@
 
             {% if can_section_financeiro %}
             <div class="sb-sidenav-menu-heading">Financeiro</div>
-            <a class="nav-link" href="{% url 'financeiro:painel_financeiro' %}">
+            <a class="nav-link {% if '/financeiro/' in request.path %}active{% endif %}" href="{% url 'financeiro:painel_financeiro' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-landmark"></i></div>
                 Painel Financeiro
             </a>
@@ -402,14 +402,14 @@
             <div class="sb-sidenav-menu-heading">Sistema</div>
             {% user_can_access request.user 'novidades_sistema' as can_novidades_sistema %}
             {% if can_novidades_sistema %}
-            <a class="nav-link" href="{% url 'configuracao:lista_atualizacoes_sistema' %}">
+            <a class="nav-link {% if '/configuracao/novidades/' in request.path %}active{% endif %}" href="{% url 'configuracao:lista_atualizacoes_sistema' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
                 Novidades do Sistema
             </a>
             {% endif %}
             {# Link para Auditoria de Permissões (apenas Admin Ministerio) #}
             {% if is_admin_ministerio %}
-            <a class="nav-link" href="{% url 'configuracao:auditoria_permissoes' %}">
+            <a class="nav-link {% if '/configuracao/auditoria-permissoes/' in request.path %}active{% endif %}" href="{% url 'configuracao:auditoria_permissoes' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-shield-alt"></i></div>
                 Auditoria de Permissões
             </a>
@@ -457,7 +457,7 @@
             {% endif %}
             {# --- NOVO LINK PARA SUPORTE --- #}
             {% if can_suporte %}
-            <a class="nav-link" href="{% url 'suporte:lista_tickets' %}">
+            <a class="nav-link {% if '/suporte/' in request.path %}active{% endif %}" href="{% url 'suporte:lista_tickets' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-life-ring"></i></div>
                 Suporte
             </a>

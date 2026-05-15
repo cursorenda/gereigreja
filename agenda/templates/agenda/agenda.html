@@ -14,7 +14,7 @@
 {% endblock %}
 
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3" style="background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
     <div class="d-flex align-items-center">
         <i class="fas fa-calendar-alt me-2"></i>
         <span style="font-size:1.1rem; font-weight:600;">Agenda de Eventos</span>
@@ -46,37 +46,37 @@
             </div>
             <div class="col-6 col-md-2">
                 <div class="card-tipo-evento shadow-sm" data-tipo="reuniao">
-                    <i class="fas fa-users text-success"></i>
+                    <i class="fas fa-users text-primary"></i>
                     <span class="tipo-nome">Reunião</span>
-                    <span class="badge bg-success tipo-contador">0</span>
+                    <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
             <div class="col-6 col-md-2">
                 <div class="card-tipo-evento shadow-sm" data-tipo="festa">
-                    <i class="fas fa-cake-candles text-warning"></i>
+                    <i class="fas fa-cake-candles text-primary"></i>
                     <span class="tipo-nome">Festa</span>
-                    <span class="badge bg-warning text-dark tipo-contador">0</span>
+                    <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
             <div class="col-6 col-md-2">
                 <div class="card-tipo-evento shadow-sm" data-tipo="feriado">
-                    <i class="fas fa-umbrella-beach text-danger"></i>
+                    <i class="fas fa-umbrella-beach text-primary"></i>
                     <span class="tipo-nome">Feriado</span>
-                    <span class="badge bg-danger tipo-contador">0</span>
+                    <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
             <div class="col-6 col-md-2">
                 <div class="card-tipo-evento shadow-sm" data-tipo="estudo">
-                    <i class="fas fa-book" style="color: #6f42c1;"></i>
+                    <i class="fas fa-book text-primary"></i>
                     <span class="tipo-nome">Estudo</span>
-                    <span class="badge tipo-contador" style="background: #6f42c1; color: #fff;">0</span>
+                    <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
             <div class="col-6 col-md-2">
                 <div class="card-tipo-evento shadow-sm" data-tipo="outro">
-                    <i class="fas fa-calendar text-secondary"></i>
+                    <i class="fas fa-calendar text-primary"></i>
                     <span class="tipo-nome">Outro</span>
-                    <span class="badge bg-secondary tipo-contador">0</span>
+                    <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
         </div>
@@ -104,23 +104,23 @@
                     <input type="text" id="filtro_busca" name="busca" class="form-control" placeholder="Digite para buscar...">
                 </div>
                 <div class="col-md-4 d-flex gap-2 justify-content-end">
-                    <button type="submit" class="btn btn-vibrant-orange shadow">
+                    <button type="submit" class="btn btn-primary shadow">
                         <i class="fas fa-search me-1"></i>Buscar
                     </button>
-                    <button type="button" class="btn btn-success shadow" id="exportar-ics">
+                    <button type="button" class="btn btn-primary shadow" id="exportar-ics">
                         <i class="fas fa-download me-1"></i>Exportar
                     </button>
-                    <button type="button" class="btn btn-warning shadow" id="btn-importar-feriados" title="Importar feriados brasileiros">
+                    <button type="button" class="btn btn-primary shadow" id="btn-importar-feriados" title="Importar feriados brasileiros">
                         <i class="fas fa-calendar-plus me-1"></i>Feriados
                     </button>
-                    <button type="button" class="btn btn-vibrant-blue shadow" id="limpar-filtros">
+                    <button type="button" class="btn btn-outline-primary shadow" id="limpar-filtros">
                         <i class="fas fa-eraser me-1"></i>Limpar
                     </button>
-                    <button type="button" class="btn btn-outline-info shadow-sm" id="btn-toggle-view" title="Alternar visualização">
+                    <button type="button" class="btn btn-outline-primary shadow-sm" id="btn-toggle-view" title="Alternar visualização">
                         <i class="fas fa-list me-1"></i>
                         <span id="view-mode-text">Lista</span>
                     </button>
-                    <button type="button" class="btn btn-outline-secondary shadow-sm" id="toggle-participantes" title="Mostrar/Ocultar contagem de participantes">
+                    <button type="button" class="btn btn-outline-primary shadow-sm" id="toggle-participantes" title="Mostrar/Ocultar contagem de participantes">
                         <i class="fas fa-users me-1"></i>
                         <span id="toggle-participantes-text">Ocultar</span>
                     </button>
@@ -186,12 +186,12 @@
             
             // Tipos de evento com suas configurações
             const tiposConfig = {
-                'Culto': { icon: 'fa-cross', color: '#007bff', key: 'culto' },
-                'Reunião': { icon: 'fa-users', color: '#28a745', key: 'reuniao' },
-                'Festa': { icon: 'fa-cake-candles', color: '#ffc107', key: 'festa' },
-                'Feriado': { icon: 'fa-umbrella-beach', color: '#dc3545', key: 'feriado' },
-                'Estudo': { icon: 'fa-book', color: '#6f42c1', key: 'estudo' },
-                'Outro': { icon: 'fa-calendar', color: '#6c757d', key: 'outro' }
+                'Culto': { icon: 'fa-cross', color: '#0d8281', key: 'culto' },
+                'Reunião': { icon: 'fa-users', color: '#0f766e', key: 'reuniao' },
+                'Festa': { icon: 'fa-cake-candles', color: '#2aa5a4', key: 'festa' },
+                'Feriado': { icon: 'fa-umbrella-beach', color: '#155e75', key: 'feriado' },
+                'Estudo': { icon: 'fa-book', color: '#0a6665', key: 'estudo' },
+                'Outro': { icon: 'fa-calendar', color: '#64748b', key: 'outro' }
             };
             
             // Função para mostrar/esconder loading
@@ -650,13 +650,13 @@
                 if (mostrarParticipantes) {
                     document.body.classList.remove('ocultar-participantes');
                     toggleParticipantesText.textContent = 'Ocultar';
-                    toggleParticipantesBtn.classList.remove('btn-outline-secondary');
-                    toggleParticipantesBtn.classList.add('btn-secondary');
+                    toggleParticipantesBtn.classList.remove('btn-outline-primary');
+                    toggleParticipantesBtn.classList.add('btn-primary');
                 } else {
                     document.body.classList.add('ocultar-participantes');
                     toggleParticipantesText.textContent = 'Mostrar';
-                    toggleParticipantesBtn.classList.remove('btn-secondary');
-                    toggleParticipantesBtn.classList.add('btn-outline-secondary');
+                    toggleParticipantesBtn.classList.remove('btn-primary');
+                    toggleParticipantesBtn.classList.add('btn-outline-primary');
                 }
             }
             
@@ -682,15 +682,15 @@
                     calendarContainer.style.display = 'none';
                     listaContainer.style.display = 'block';
                     btnToggleView.innerHTML = '<i class="fas fa-calendar me-1"></i><span id="view-mode-text">Calendário</span>';
-                    btnToggleView.classList.remove('btn-outline-info');
-                    btnToggleView.classList.add('btn-info');
+                    btnToggleView.classList.remove('btn-outline-primary');
+                    btnToggleView.classList.add('btn-primary');
                     atualizarLista();
                 } else {
                     calendarContainer.style.display = 'block';
                     listaContainer.style.display = 'none';
                     btnToggleView.innerHTML = '<i class="fas fa-list me-1"></i><span id="view-mode-text">Lista</span>';
-                    btnToggleView.classList.remove('btn-info');
-                    btnToggleView.classList.add('btn-outline-info');
+                    btnToggleView.classList.remove('btn-primary');
+                    btnToggleView.classList.add('btn-outline-primary');
                 }
             }
             
@@ -829,7 +829,7 @@
                     html += `
                         <div class="col-12">
                             <div class="info-item">
-                                <i class="fas fa-map-marker-alt text-danger"></i>
+                                <i class="fas fa-map-marker-alt text-primary"></i>
                                 <div>
                                     <small class="text-muted">Local</small>
                                     <div>${props.local}</div>
@@ -843,7 +843,7 @@
                     html += `
                         <div class="col-12">
                             <div class="info-item">
-                                <i class="fas fa-align-left text-info"></i>
+                                <i class="fas fa-align-left text-primary"></i>
                                 <div>
                                     <small class="text-muted">Descrição</small>
                                     <div>${props.descricao}</div>
@@ -857,7 +857,7 @@
                     html += `
                         <div class="col-12">
                             <div class="info-item">
-                                <i class="fas fa-users text-success"></i>
+                                <i class="fas fa-users text-primary"></i>
                                 <div>
                                     <small class="text-muted">Participantes Esperados</small>
                                     <div>${props.participantes}</div>
@@ -1010,7 +1010,7 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i>Cancelar
                     </button>
-                    <button type="button" class="btn btn-warning" id="btn-confirmar-importacao">
+                    <button type="button" class="btn btn-primary" id="btn-confirmar-importacao">
                         <i class="fas fa-download me-1"></i>Importar Feriados
                     </button>
                 </div>

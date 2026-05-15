@@ -21,7 +21,7 @@
         <div class="col-lg-8">
             <!-- Card: Dados do Usuário -->
             <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header" style="background-color: #0d8281; color: white;">
                     <i class="fas fa-user me-2"></i>Dados da Conta
                 </div>
                 <div class="card-body">
@@ -43,7 +43,7 @@
                                 <td class="fw-bold">Status da Conta:</td>
                                 <td>
                                     {% if dados_usuario.is_active %}
-                                        <span class="badge bg-success">Ativa</span>
+                                        <span class="badge" style="background-color: #0d8281;">Ativa</span>
                                     {% else %}
                                         <span class="badge bg-danger">Inativa</span>
                                     {% endif %}
@@ -71,7 +71,7 @@
             <!-- Card: Dados do Ministério -->
             {% if ministerio %}
             <div class="card mb-4">
-                <div class="card-header bg-success text-white">
+                <div class="card-header" style="background-color: #0d8281; color: white;">
                     <i class="fas fa-church me-2"></i>Dados do Ministério
                 </div>
                 <div class="card-body">
@@ -86,7 +86,7 @@
                                 <td>
                                     {% if grupos %}
                                         {% for grupo in grupos %}
-                                            <span class="badge bg-secondary me-1">{{ grupo }}</span>
+                                            <span class="badge" style="background-color: #0d8281;" class="me-1">{{ grupo }}</span>
                                         {% endfor %}
                                     {% else %}
                                         <span class="text-muted">Nenhum papel atribuído</span>
@@ -98,7 +98,7 @@
                                 <td class="fw-bold">Igrejas Permitidas:</td>
                                 <td>
                                     {% for igreja in perfil.igrejas_permitidas.all %}
-                                        <span class="badge bg-info me-1">{{ igreja.nome_igreja }}</span>
+                                        <span class="badge me-1" style="background-color: #0d8281;">{{ igreja.nome_igreja }}</span>
                                     {% endfor %}
                                 </td>
                             </tr>
@@ -112,9 +112,9 @@
             <!-- Card: Dados como Membro -->
             {% if membro %}
             <div class="card mb-4">
-                <div class="card-header bg-warning text-dark">
+                <div class="card-header" style="background-color: #0d8281; color: white;">
                     <i class="fas fa-id-card me-2"></i>Dados de Cadastro de Pessoa
-                    <button class="btn btn-sm btn-outline-dark float-end" type="button" id="toggleSensitive">
+                    <button class="btn btn-sm btn-light float-end" type="button" id="toggleSensitive">
                         <i class="fas fa-eye" id="eyeIcon"></i> <span id="toggleText">Mostrar</span>
                     </button>
                 </div>
@@ -168,7 +168,7 @@
                         </tbody>
                     </table>
                     <div class="mt-3">
-                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-sm btn-primary">
+                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-sm" style="background-color: #0d8281; color: white; border-color: #0d8281;">
                             <i class="fas fa-edit me-1"></i>Corrigir Dados
                         </a>
                     </div>
@@ -179,7 +179,7 @@
             <!-- Card: Histórico de Consentimentos -->
             {% if consentimentos %}
             <div class="card mb-4">
-                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #0d8281; color: white;">
                     <span><i class="fas fa-file-signature me-2"></i>Histórico de Consentimentos</span>
                     <a href="{% url 'contas:historico_consentimentos' %}" class="btn btn-sm btn-light">
                         <i class="fas fa-list me-1"></i>Ver Todos
@@ -194,10 +194,10 @@
                         </p>
                         <ul class="mb-2">
                             {% if consentimento.aceite_termos %}
-                            <li><i class="fas fa-check-circle text-success me-1"></i>Termos de Uso (v{{ consentimento.versao_termos }})</li>
+                            <li><i class="fas fa-check-circle me-1" style="color: #0d8281;"></i>Termos de Uso (v{{ consentimento.versao_termos }})</li>
                             {% endif %}
                             {% if consentimento.aceite_privacidade %}
-                            <li><i class="fas fa-check-circle text-success me-1"></i>Política de Privacidade (v{{ consentimento.versao_privacidade }})</li>
+                            <li><i class="fas fa-check-circle me-1" style="color: #0d8281;"></i>Política de Privacidade (v{{ consentimento.versao_privacidade }})</li>
                             {% endif %}
                         </ul>
                         <p class="mb-0 small text-muted">
@@ -212,7 +212,7 @@
 
             <!-- Card: Atividades no Sistema -->
             <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">
+                <div class="card-header" style="background-color: #0d8281; color: white;">
                     <i class="fas fa-history me-2"></i>Atividades no Sistema
                 </div>
                 <div class="card-body">
@@ -239,13 +239,13 @@
         <!-- Coluna Lateral - Ações -->
         <div class="col-lg-4">
             <!-- Card: Ações Rápidas -->
-            <div class="card mb-4 border-primary">
-                <div class="card-header bg-primary text-white">
+            <div class="card mb-4" style="border-color: #0d8281;">
+                <div class="card-header" style="background-color: #0d8281; color: white;">
                     <i class="fas fa-cog me-2"></i>Ações LGPD
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{% url 'contas:editar_meu_perfil' %}" class="btn btn-outline-success">
+                        <a href="{% url 'contas:editar_meu_perfil' %}" class="btn btn-outline-primary">
                             <i class="fas fa-user-edit me-2"></i>Editar Meu Perfil
                         </a>
                         <a href="{% url 'contas:exportar_dados_json' %}" class="btn btn-outline-primary">
@@ -254,7 +254,7 @@
                         <a href="{% url 'contas:exportar_dados_pdf' %}" class="btn btn-outline-primary">
                             <i class="fas fa-file-pdf me-2"></i>Exportar Dados (PDF)
                         </a>
-                        <a href="{% url 'contas:password_change' %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'contas:password_change' %}" class="btn btn-outline-primary">
                             <i class="fas fa-key me-2"></i>Alterar Senha
                         </a>
                         <!-- TODO CRÍTICO LGPD: Implementar exclusão/anonimização de conta
@@ -287,7 +287,7 @@
                         <li>Gerar relatórios internos</li>
                         <li>Comunicação da igreja</li>
                     </ul>
-                    <a href="{% url 'politica_privacidade' %}" class="btn btn-sm btn-outline-primary w-100" target="_blank">
+                    <a href="{% url 'politica_privacidade' %}" class="btn btn-sm btn-outline-primary w-100" target="_blank" style="color: #0d8281; border-color: #0d8281;">
                         <i class="fas fa-external-link-alt me-1"></i>Política Completa
                     </a>
                 </div>

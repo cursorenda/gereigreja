@@ -13,7 +13,7 @@
 			</div>
 			{% if can_edit_finance %}
 			<div class="col-auto ms-auto">
-				<a href="{% url 'financeiro:criar_fornecedor' %}" class="btn btn-success"><i class="fas fa-plus"></i> Adicionar Fornecedor</a>
+				<a href="{% url 'financeiro:criar_fornecedor' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar Fornecedor</a>
 			</div>
 			{% endif %}
 		</div>
@@ -34,7 +34,7 @@
 		</div>
 		<div class="col-auto">
 			<button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Filtrar</button>
-			<a href="{% url 'financeiro:lista_fornecedores' %}" class="btn btn-outline-warning ms-2" title="Limpar Filtros"><i class="fas fa-times"></i></a>
+			<a href="{% url 'financeiro:lista_fornecedores' %}" class="btn btn-outline-secondary ms-2" title="Limpar Filtros"><i class="fas fa-times"></i></a>
 		</div>
 	</form>
 
@@ -61,9 +61,9 @@
 						<td>{{ fornecedor.email|default:"-" }}</td>
 						<td>
 							{% if fornecedor.ativo %}
-								<span class="badge bg-success">Ativo</span>
+								<span class="badge bg-primary">Ativo</span>
 							{% else %}
-								<span class="badge bg-danger">Inativo</span>
+								<span class="badge bg-secondary">Inativo</span>
 							{% endif %}
 						</td>
 						{% if can_edit_finance %}
@@ -73,7 +73,7 @@
 							</a>
 							<form action="{% url 'financeiro:alternar_status_fornecedor' fornecedor.pk %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja {% if fornecedor.ativo %}desativar{% else %}ativar{% endif %} este fornecedor?');">
 								{% csrf_token %}
-								<button type="submit" class="btn btn-sm {% if fornecedor.ativo %}btn-warning{% else %}btn-success{% endif %}" title="{{ fornecedor.ativo|yesno:"Desativar,Ativar" }}">
+								<button type="submit" class="btn btn-sm {% if fornecedor.ativo %}btn-outline-secondary{% else %}btn-primary{% endif %}" title="{{ fornecedor.ativo|yesno:"Desativar,Ativar" }}">
 									{% if fornecedor.ativo %}
 										<i class="fas fa-toggle-off"></i>
 									{% else %}

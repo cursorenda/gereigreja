@@ -7,7 +7,7 @@
     <li class="breadcrumb-item active">Lista de Visitantes</li>
 {% endblock %}
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
     <div class="d-flex align-items-center">
         <i class="fas fa-users me-2"></i>
         <span style="font-size:1.1rem; font-weight:600;">Visitantes ({{ visitantes.count }})</span>
@@ -37,10 +37,10 @@
                             </select>
                         </div>
                         <div class="col-lg-3 col-6 d-flex align-items-center gap-3">
-                            <button type="submit" class="btn btn-vibrant-blue btn-icon">
+                            <button type="submit" class="btn btn-primary btn-icon">
                                 <i class="fas fa-filter"></i> Filtrar
                             </button>
-                            <a href="{% url 'secretaria:cadastrar_visitante' %}" class="btn btn-vibrant-green btn-icon">
+                            <a href="{% url 'secretaria:cadastrar_visitante' %}" class="btn btn-primary btn-icon">
                                 <i class="fas fa-user-plus"></i> Novo Visitante
                             </a>
                         </div>
@@ -75,12 +75,12 @@
                                     <td>{{ visitante.igreja.nome_fantasia }}</td>
                                 {% endif %}
                                 <td class="text-center">
-                                    <a href="{% url 'secretaria:editar_membro' visitante.pk %}" class="btn btn-vibrant-blue btn-icon me-1" title="Editar {{ visitante.nome }}">
+                                    <a href="{% url 'secretaria:editar_membro' visitante.pk %}" class="btn btn-primary btn-icon me-1" title="Editar {{ visitante.nome }}">
                                         <i class="fas fa-edit"></i>
                                         <span style="margin-left: 0.4em;">Editar</span>
                                     </a>
                                     {# Botão de acompanhamento removido em 14/11/2025 #}
-                                    <a href="#" class="btn btn-vibrant-danger btn-icon" title="Excluir" onclick="if(confirm('Confirma a exclusão deste visitante?')){ window.location.href='{% url 'secretaria:excluir_tag' visitante.pk %}'; } return false;">
+                                    <a href="#" class="btn btn-danger btn-icon" title="Excluir" onclick="if(confirm('Confirma a exclusão deste visitante?')){ window.location.href='{% url 'secretaria:excluir_tag' visitante.pk %}'; } return false;">
                                         <i class="fas fa-trash"></i>
                                         <span style="margin-left: 0.4em;">Excluir</span>
                                     </a>

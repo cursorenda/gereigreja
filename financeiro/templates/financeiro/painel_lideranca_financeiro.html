@@ -73,7 +73,7 @@
         {# Cards de Resumo Consolidado #}
         <div class="row">
             <div class="col-xl-4 col-md-6">
-                <div class="card bg-success text-white shadow mb-4">
+                <div class="card text-white shadow mb-4" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);">
                     <div class="card-body d-flex justify-content-between align-items-center">
                         <div>
                             <div class="text-xs font-weight-bold text-uppercase mb-1">Total Receitas ({{ titulo_filtro_periodo }})</div>
@@ -95,13 +95,13 @@
                 </div>
             </div>
             <div class="col-xl-4 col-md-6">
-                <div class="card {% if saldo_geral_lideranca >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %} shadow mb-4">
+                <div class="card text-white shadow mb-4" style="background: linear-gradient(135deg, {% if saldo_geral_lideranca >= 0 %}#0d8281 0%, #0a6665{% else %}#b45309 0%, #92400e{% endif %} 100%);">
                     <div class="card-body d-flex justify-content-between align-items-center">
                         <div>
                             <div class="text-xs font-weight-bold text-uppercase mb-1">Saldo Consolidado ({{ titulo_filtro_periodo }})</div>
                             <div class="h5 mb-0 font-weight-bold">R$ {{ saldo_geral_lideranca|floatformat:2|intcomma }}</div>
                         </div>
-                        <i class="fas fa-balance-scale fa-2x {% if saldo_geral_lideranca >= 0 %}text-gray-300{% else %}text-gray-500{% endif %}"></i>
+                        <i class="fas fa-balance-scale fa-2x text-white opacity-75"></i>
                     </div>
                 </div>
             </div>

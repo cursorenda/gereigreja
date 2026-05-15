@@ -415,10 +415,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
 
                 <!-- Preview Dinâmico -->
-                <div class="alert alert-success border-success" id="previewCriterios">
+                <div class="alert mb-0" id="previewCriterios" style="border-left: 4px solid #0d8281; background-color: rgba(13, 130, 129, 0.08);">
                   <div class="d-flex align-items-center">
                     <div class="me-3">
-                      <i class="fas fa-users fa-2x text-success"></i>
+                      <i class="fas fa-users fa-2x" style="color: #0d8281;"></i>
                     </div>
                     <div class="flex-grow-1">
                       <h6 class="mb-1">
@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         Selecione os critérios acima para ver a prévia
                       </small>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-success" onclick="atualizarPreviewCriterios()">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="atualizarPreviewCriterios()">
                       <i class="fas fa-sync-alt me-1"></i>Atualizar
                     </button>
                   </div>
@@ -437,8 +437,8 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
 
             <!-- Ajustes Manuais -->
-            <div class="card border-warning shadow-sm mt-3">
-              <div class="card-header bg-warning text-dark">
+            <div class="card border-primary shadow-sm mt-3">
+              <div class="card-header" style="background-color: #0d8281; color: #fff;">
                 <i class="fas fa-user-edit me-2"></i>Ajustes Manuais (Exceções)
                 <span class="badge bg-dark ms-2">Opcional</span>
               </div>
@@ -450,7 +450,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <button type="button" class="btn btn-success w-100" onclick="abrirModalAdicionar()">
+                    <button type="button" class="btn btn-primary w-100" onclick="abrirModalAdicionar()">
                       <i class="fas fa-user-plus me-2"></i>Adicionar Pessoa Manualmente
                     </button>
                     <small class="form-text text-muted d-block mt-2">
@@ -475,17 +475,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
 
                 <!-- Preview Final -->
-                <div class="alert alert-info border-info mt-3" id="previewFinal">
-                  <h6 class="mb-2">
+                <div class="alert mb-0 mt-3" id="previewFinal" style="border-left: 4px solid #0d8281; background-color: rgba(13, 130, 129, 0.08);">
+                  <h6 class="mb-2" style="color: #0d8281;">
                     <i class="fas fa-calculator me-2"></i>Total de Participantes Esperados:
                   </h6>
                   <div class="d-flex gap-3">
                     <div>
-                      <span class="badge bg-success me-1" id="badgeCriterios">--</span>
+                      <span class="badge" style="background-color: #0d8281; color: #fff;" id="badgeCriterios">--</span>
                       <small>Por critério</small>
                     </div>
                     <div>
-                      <span class="badge bg-success me-1" id="badgeAdicionados">0</span>
+                      <span class="badge" style="background-color: #0d8281; color: #fff;" id="badgeAdicionados">0</span>
                       <small>Adicionados</small>
                     </div>
                     <div>
@@ -493,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       <small>Removidos</small>
                     </div>
                     <div class="ms-auto">
-                      <strong class="text-primary fs-5" id="totalFinal">-- pessoas</strong>
+                      <strong class="fs-5" style="color: #0d8281;" id="totalFinal">-- pessoas</strong>
                     </div>
                   </div>
                 </div>
@@ -699,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <!-- Barra de Botões Sticky -->
         <div id="barraAcoes" class="bg-white border-top shadow-sm" style="position: sticky; bottom: 0; left: 0; right: 0; z-index: 1000; padding: 15px 0; margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px;">
-          <button type="submit" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:120px; height:40px; font-weight:600; border-radius:8px;" title="Salvar evento">
+          <button type="submit" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center" style="min-width:120px; height:40px; font-weight:600; border-radius:8px;" title="Salvar evento">
             <i class="fas fa-save me-1"></i> Salvar
           </button>
           <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-cancel btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Cancelar e voltar">
@@ -787,7 +787,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   <div class="card h-100 border-info hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('oracao')" data-bs-dismiss="modal">
                     <div class="card-body">
                       <h5 class="card-title">
-                        <i class="fas fa-hands text-info me-2"></i>
+                        <i class="fas fa-hands text-primary me-2"></i>
                         Culto de Oração
                       </h5>
                       <p class="card-text small text-muted">
@@ -1485,7 +1485,7 @@ document.addEventListener('DOMContentLoaded', function() {
             Selecionados: <strong id="contadorAdicionar">0</strong>
           </span>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-success" onclick="confirmarAdicao()">
+          <button type="button" class="btn btn-primary" onclick="confirmarAdicao()">
             <i class="fas fa-check me-2"></i>Adicionar Selecionados
           </button>
         </div>

@@ -96,7 +96,7 @@
                             {% elif assinatura_atual.plano %}{{ assinatura_atual.plano.get_nome_display }}
                             {% else %}Plano não definido{% endif %}
                             {% if plano_efetivo_por_liberacao %}
-                            <span class="badge bg-warning text-dark ms-2 fs-6">
+                            <span class="badge bg-primary text-white ms-2 fs-6">
                                 <i class="fas fa-vial me-1"></i>Efetivo por liberação
                             </span>
                             {% endif %}
@@ -207,7 +207,7 @@
                             <span class="fw-semibold small">{{ pessoas_ativas }}/{{ limite_pessoas }}</span>
                         </div>
                         <div class="progress" style="height: 10px;">
-                            <div class="progress-bar {% if percentual_pessoas >= 100 %}bg-danger{% elif percentual_pessoas >= 80 %}bg-warning{% else %}bg-success{% endif %}"
+                            <div class="progress-bar bg-primary"
                                  role="progressbar"
                                  style="width: {% if percentual_pessoas > 100 %}100{% else %}{{ percentual_pessoas|floatformat:0 }}{% endif %}%"
                                  aria-valuenow="{{ percentual_pessoas }}" aria-valuemin="0" aria-valuemax="100">
@@ -223,7 +223,7 @@
                             <span class="fw-semibold small">{{ igrejas_ativas }}/{{ limite_igrejas }}</span>
                         </div>
                         <div class="progress" style="height: 10px;">
-                            <div class="progress-bar {% if percentual_igrejas >= 100 %}bg-danger{% elif percentual_igrejas >= 80 %}bg-warning{% else %}bg-success{% endif %}"
+                            <div class="progress-bar bg-primary"
                                  role="progressbar"
                                  style="width: {% if percentual_igrejas > 100 %}100{% else %}{{ percentual_igrejas|floatformat:0 }}{% endif %}%"
                                  aria-valuenow="{{ percentual_igrejas }}" aria-valuemin="0" aria-valuemax="100">
@@ -248,7 +248,7 @@
                                         {% if plano_efetivo %}
                                             {{ plano_efetivo.get_nome_display }}
                                             {% if plano_efetivo_por_liberacao %}
-                                                <span class="badge bg-warning text-dark ms-1">Efetivo por liberação</span>
+                                                <span class="badge bg-primary text-white ms-1">Efetivo por liberação</span>
                                             {% endif %}
                                         {% elif assinatura_atual and assinatura_atual.plano %}
                                             {{ assinatura_atual.plano.get_nome_display }}
@@ -315,8 +315,8 @@
     {% endif %}
 
     {% if mostrar_opcao_cortesia %}
-    <div class="card mb-3 border-warning shadow-sm">
-        <div class="card-header bg-warning text-dark">
+    <div class="card mb-3 border-primary shadow-sm">
+        <div class="card-header bg-primary text-white">
             <i class="fas fa-gift me-2"></i><strong>Período de Cortesia disponível</strong>
         </div>
         <div class="card-body">
@@ -324,7 +324,7 @@
             <form method="POST" class="d-inline">
                 {% csrf_token %}
                 <input type="hidden" name="ativar_cortesia" value="true">
-                <button type="submit" class="btn btn-warning">
+                <button type="submit" class="btn btn-primary">
                     <i class="fas fa-check-circle me-2"></i>Ativar 3 dias de cortesia
                 </button>
             </form>
@@ -454,11 +454,11 @@
                                             {% endif %}
                                             {% if item.plano.preco_mensal == 0 %}
                                                 {% if item.excede_algum %}
-                                                <button type="button" class="btn btn-success" disabled>
+                                                <button type="button" class="btn btn-primary" disabled>
                                                     <i class="fas fa-lock me-1"></i>Assinar Gratuito
                                                 </button>
                                                 {% else %}
-                                                <button type="submit" name="ciclo_pagamento" value="mensal" class="btn btn-success">Assinar Gratuito</button>
+                                                <button type="submit" name="ciclo_pagamento" value="mensal" class="btn btn-primary">Assinar Gratuito</button>
                                                 {% endif %}
                                             {% endif %}
                                             {% if item.plano.preco_mensal > 0 %}

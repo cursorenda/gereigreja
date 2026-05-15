@@ -5,20 +5,20 @@
 {% block content %}
 
 <div class="container-fluid px-0 pt-2 pb-1">
-  <h3 class="fw-bold text-primary mb-2" style="letter-spacing:1px; padding-left:2rem;">
+  <h3 class="fw-bold text-primary mb-2 departamento-title">
     {% block nome_departamento %}{% endblock %}
   </h3>
 </div>
 <div class="container-fluid px-0 pt-2 pb-1">
-  <nav aria-label="breadcrumb" class="mb-3 mt-2" style="padding-left:2rem;">
+  <nav aria-label="breadcrumb" class="mb-3 mt-2 departamento-breadcrumb">
     <ol class="breadcrumb">
       {% block breadcrumb_items %}{% endblock %}
     </ol>
   </nav>
 </div>
 {% block card_header_gradiente %}{% endblock %}
-<div class="card mb-4 shadow-sm" style="border-radius:12px; min-height:56px;">
-  <div style="padding:0;">
+<div class="card mb-4 shadow-sm sistema-card">
+  <div class="sistema-card-body-clean">
     {% block card_principal %}
       {% block conteudo_principal %}{% endblock %}
     {% endblock %}

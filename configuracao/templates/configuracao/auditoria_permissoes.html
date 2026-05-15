@@ -50,7 +50,7 @@
             <p class="text-muted">
                 Visualize e gerencie a estrutura de segurança do sistema
                 {% if stats.ministerio %}
-                <span class="badge bg-info">{{ stats.ministerio }}</span>
+                <span class="badge" style="background-color: #0d8281;">{{ stats.ministerio }}</span>
                 {% endif %}
             </p>
         </div>
@@ -164,7 +164,7 @@
                     <div class="mb-3">
                         <small class="text-muted d-block mb-1">Usado em Decorators:</small>
                         {% for decorator in grupo.decorators %}
-                        <span class="badge bg-info permission-badge">{{ decorator }}</span>
+                        <span class="badge permission-badge" style="background-color: #0d8281;">{{ decorator }}</span>
                         {% endfor %}
                     </div>
                     {% endif %}
@@ -253,7 +253,7 @@
                 <button type="button" class="btn btn-primary" onclick="sincronizarGrupos()">
                     <i class="fas fa-sync"></i> Sincronizar Grupos
                 </button>
-                <button type="button" class="btn btn-info" onclick="verificarSaude()">
+                <button type="button" class="btn btn-primary" onclick="verificarSaude()">
                     <i class="fas fa-stethoscope"></i> Verificar Saúde
                 </button>
             </div>

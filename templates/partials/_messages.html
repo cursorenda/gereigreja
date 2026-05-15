@@ -26,13 +26,13 @@
                     {% if 'assinatura do' in msg and 'vencida' in msg %}
                         <div class="alert alert-{{ message.tags }} alert-assinatura-vencida alert-dismissible fade show mb-0 w-100" role="alert" style="margin-bottom:0;">
                             {{ message.message|safe }}
-                            <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="ms-2 btn btn-sm btn-warning" style="vertical-align:middle;">Renovar assinatura</a>
+                            <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="ms-2 btn btn-sm btn-primary" style="vertical-align:middle;">Renovar assinatura</a>
                             {% if mostrar_opcao_cortesia is defined %}
                                 {% if mostrar_opcao_cortesia %}
                                     <form method="post" action="{% url 'configuracao:gerenciar_assinatura' %}" style="display:inline;">
                                         {% csrf_token %}
                                         <input type="hidden" name="ativar_cortesia" value="true">
-                                        <button type="submit" class="ms-2 btn btn-sm btn-success" style="vertical-align:middle;">Usar cortesia de 3 dias</button>
+                                        <button type="submit" class="ms-2 btn btn-sm btn-primary" style="vertical-align:middle;">Usar cortesia de 3 dias</button>
                                     </form>
                                 {% else %}
                                     <button class="ms-2 btn btn-sm btn-secondary" style="vertical-align:middle;" disabled>Cortesia já utilizada</button>

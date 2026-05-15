@@ -1,3 +1,31 @@
+## v1.12.1 — 15/05/2026
+🎨 **Padronização Visual Global (Turquesa) + Higienização de Interface**
+
+### Objetivo
+- Consolidar identidade visual unica em toda a aplicacao, reduzindo variacoes de cores e estilos entre modulos.
+
+### Front-end (Templates)
+- Padronizacao de botoes de acao principal para `btn btn-primary` em telas de Secretaria, Financeiro, Escola Biblica, Comunicacao e Contas.
+- Substituicao de botoes de edicao em `btn-warning` por `btn-outline-primary` quando aplicavel.
+- Ajuste de cabecalhos de cards para gradiente turquesa (`#0d8281 -> #0a6665`) em telas publicas e internas.
+- Uniformizacao de links e destaques para a paleta oficial, mantendo texto base escuro (`#1E293B`).
+- Correcoes em elementos dinamicos via JavaScript que ainda geravam classes de botao antigas.
+
+### Paginas de Autenticacao
+- Revisao completa das telas de registro e fluxo de senha (reset/change):
+  - cabeçalhos turquesa
+  - titulo em branco sobre fundo de marca
+  - botoes e links alinhados ao design system.
+
+### Build/Deploy
+- Atualizacao de estaticos executada com `collectstatic --noinput` sem erros de build.
+
+### Documentacao
+- `docs/identidade_visual.md`: adicionada `templates/base_publico.html` como base que carrega o design system.
+- `docs/INDEX.md`: data de atualizacao e referencia de data do changelog corrigidas.
+
+---
+
 ## v1.12.0 — 13/05/2026
 📄 **Documentos, Certificados e Governança de Modelos por Ministério**
 

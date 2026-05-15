@@ -11,7 +11,7 @@
 {% endblock %}
 {% block conteudo_principal %}
 <div class="card shadow-lg rounded-lg" style="border: none;">
-    <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
+    <div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff;">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
                 <i class="fas fa-hand-holding-usd me-2"></i>
@@ -22,11 +22,11 @@
     </div>
     <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
         <div class="d-flex justify-content-end mb-3">
-            <a href="{% url 'escola_biblica:oferta_classe_create' %}" class="btn btn-vibrant-green" style="height:36px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Oferta</span></a>
+            <a href="{% url 'escola_biblica:oferta_classe_create' %}" class="btn btn-primary" style="height:36px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Oferta</span></a>
         </div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped align-middle mb-0">
-                <thead class="table-primary">
+                <thead class="table-light">
                     <tr>
                         <th>Turma</th>
                         <th>Classe</th>
@@ -45,8 +45,8 @@
                         <td>{{ oferta.valor|floatformat:2 }}</td>
                         <td>{{ oferta.observacao|default:'-' }}</td>
                         <td>
-                            <a href="{% url 'escola_biblica:oferta_classe_edit' oferta.pk %}" class="btn btn-vibrant-green btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Oferta"><i class="fas fa-edit me-1"></i> Editar</a>
-                            <a href="{% url 'escola_biblica:oferta_classe_delete' oferta.pk %}" class="btn btn-vibrant-danger btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Oferta"><i class="fas fa-trash me-1"></i> Excluir</a>
+                            <a href="{% url 'escola_biblica:oferta_classe_edit' oferta.pk %}" class="btn btn-primary btn-sm d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Oferta"><i class="fas fa-edit me-1"></i> Editar</a>
+                            <a href="{% url 'escola_biblica:oferta_classe_delete' oferta.pk %}" class="btn btn-danger btn-sm d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Oferta"><i class="fas fa-trash me-1"></i> Excluir</a>
                         </td>
                     </tr>
                     {% empty %}

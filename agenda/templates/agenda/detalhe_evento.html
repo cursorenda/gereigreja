@@ -44,7 +44,7 @@
                 {% endif %}
             </dl>
             <div class="d-flex flex-column flex-md-row gap-2 mt-3">
-                <a href="{% url 'agenda:editar_evento' evento.pk %}" class="btn btn-warning btn-sm w-100 w-md-auto mb-2 mb-md-0" aria-label="Editar evento"><i class="fas fa-edit"></i> Editar</a>
+                <a href="{% url 'agenda:editar_evento' evento.pk %}" class="btn btn-outline-primary btn-sm w-100 w-md-auto mb-2 mb-md-0" aria-label="Editar evento"><i class="fas fa-edit"></i> Editar</a>
                 <a href="{% url 'agenda:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm w-100 w-md-auto mb-2 mb-md-0" aria-label="Excluir evento"><i class="fas fa-trash"></i> Excluir</a>
                 <a href="{% url 'agenda:agenda' %}" class="btn btn-secondary btn-sm w-100 w-md-auto" aria-label="Voltar para agenda">Voltar</a>
             </div>

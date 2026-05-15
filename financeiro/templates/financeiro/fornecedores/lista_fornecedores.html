@@ -41,7 +41,7 @@
                 </div>
                 {% if can_edit_finance %}
                  <div class="col-auto ms-auto"> {# Botão Adicionar à direita #}
-                     <a href="{% url 'financeiro:criar_fornecedor' %}" class="btn btn-success"><i class="fas fa-plus"></i> Adicionar Fornecedor</a>
+                     <a href="{% url 'financeiro:criar_fornecedor' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar Fornecedor</a>
                 </div>
                 {% endif %}
             </form>
@@ -83,7 +83,7 @@
                                 {# Formulário para alternar status #}
                                 <form action="{% url 'financeiro:alternar_status_fornecedor' fornecedor.pk %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja {{ fornecedor.ativo|yesno:"desativar,ativar" }} este fornecedor?');">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm {% if fornecedor.ativo %}btn-warning{% else %}btn-success{% endif %}" title="{{ fornecedor.ativo|yesno:"Desativar,Ativar" }}">
+                                    <button type="submit" class="btn btn-sm {% if fornecedor.ativo %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}" title="{{ fornecedor.ativo|yesno:"Desativar,Ativar" }}">
                                         {% if fornecedor.ativo %}
                                             <i class="fas fa-toggle-off"></i>
                                         {% else %}

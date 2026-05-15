@@ -16,7 +16,7 @@
     {% endif %}
     {# Adicione outros filtros aqui, se necessário #}
     <div class="col-auto">
-    <button class="btn btn-info btn-sm" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+    <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
         {% if request.GET.q or request.GET.igreja %}
             <a href="{{ request.path }}" class="btn btn-cancel btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
         {% endif %}

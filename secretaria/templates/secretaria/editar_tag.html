@@ -17,7 +17,7 @@
                 {% csrf_token %}
                 {{ form.as_p }}
                 <div class="mt-3">
-                    <button type="submit" class="btn btn-success">Salvar Alterações</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                     <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-secondary ms-2">Cancelar</a>
                 </div>
             </form>

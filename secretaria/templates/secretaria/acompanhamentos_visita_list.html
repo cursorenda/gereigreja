@@ -7,13 +7,13 @@
     <li class="breadcrumb-item active">Acompanhamentos de Visita</li>
 {% endblock %}
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
     <div class="d-flex align-items-center justify-content-between">
         <div>
             <i class="fas fa-user-check me-1"></i>
             Acompanhamentos de Visita ({{ acompanhamentos|length }})
         </div>
-        <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-vibrant-blue d-flex align-items-center gap-2" id="btn-novo-acompanhamento">
+        <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-primary d-flex align-items-center gap-2" id="btn-novo-acompanhamento">
             <i class="fas fa-plus"></i>
             <span>Registrar novo acompanhamento</span>
         </a>
@@ -59,7 +59,7 @@
             <input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}">
         </div>
         <div class="col-md-1 d-flex align-items-end">
-            <button type="submit" class="btn btn-vibrant-blue w-100"><i class="fas fa-filter me-1"></i> Filtrar</button>
+            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i> Filtrar</button>
         </div>
     </form>
     <div class="table-responsive">
@@ -83,7 +83,7 @@
                     <td>
                         {{ a.membro.nome }}
                         {% if a.membro and a.membro.id %}
-                            <a href="{% url 'secretaria:registrar_acompanhamento_visita' a.membro.id %}" class="btn btn-vibrant-blue btn-sm ms-2" title="Registrar acompanhamento">
+                            <a href="{% url 'secretaria:registrar_acompanhamento_visita' a.membro.id %}" class="btn btn-primary btn-sm ms-2" title="Registrar acompanhamento">
                                 <i class="fas fa-plus"></i>
                             </a>
                         {% endif %}
@@ -95,10 +95,10 @@
                     <td>{{ a.observacao }}</td>
                     <td>
                         <!-- Visualizar -->
-                        <a href="{% url 'secretaria:ver_acompanhamento_visita' a.id %}" class="btn btn-vibrant-blue btn-icon btn-sm me-1" title="Visualizar">
+                        <a href="{% url 'secretaria:ver_acompanhamento_visita' a.id %}" class="btn btn-primary btn-icon btn-sm me-1" title="Visualizar">
                             <i class="fas fa-eye"></i><span style="margin-left: 0.4em;">Ver</span>
                         </a>
-                        <a href="{% url 'secretaria:editar_acompanhamento_visita' a.id %}" class="btn btn-warning btn-icon btn-sm me-1" title="Editar">
+                        <a href="{% url 'secretaria:editar_acompanhamento_visita' a.id %}" class="btn btn-outline-primary btn-icon btn-sm me-1" title="Editar">
                             <i class="fas fa-edit"></i><span style="margin-left: 0.4em;">Editar</span>
                         </a>
                         <a href="{% url 'secretaria:excluir_acompanhamento_visita' a.id %}" class="btn btn-danger btn-icon btn-sm" title="Excluir">

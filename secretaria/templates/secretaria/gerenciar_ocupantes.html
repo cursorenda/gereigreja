@@ -80,7 +80,7 @@
         {{ ocupantes_iniciais|json_script:"ocupantes-iniciais-json" }}
 
         {# Botões de ação do formulário #}
-        <button type="submit" class="btn btn-success">Salvar Ocupantes</button>
+        <button type="submit" class="btn btn-primary">Salvar Ocupantes</button>
         <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-secondary">Voltar</a>
     </form>
 </div>
@@ -106,7 +106,7 @@
             // Botão para finalizar vínculo
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn btn-warning btn-sm';
+            btn.className = 'btn btn-outline-secondary btn-sm';
             btn.textContent = 'Finalizar vínculo';
             btn.title = 'Finaliza o vínculo deste membro com o cargo (mantém no histórico)';
             btn.onclick = function() {

@@ -9,7 +9,7 @@
   <li class="breadcrumb-item active">Lista de Eventos</li>
 {% endblock %}
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3" style="background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
   <div class="d-flex align-items-center">
     <i class="fas fa-calendar-alt me-2"></i>
     <span style="font-size:1.1rem; font-weight:600;">Eventos</span>
@@ -19,12 +19,12 @@
 
 {% block conteudo_principal %}
   <!-- Banner explicativo sobre registro de presença -->
-  <div class="alert alert-info shadow-sm d-flex align-items-center p-3 mb-4" role="alert" style="border-left: 6px solid #0d6efd; background: linear-gradient(90deg, #e3f2fd 60%, #f8fafc 100%);">
-    <i class="fas fa-info-circle fa-2x text-primary me-3"></i>
+  <div class="alert shadow-sm d-flex align-items-center p-3 mb-4" role="alert" style="border-left: 6px solid #0d8281; background: rgba(13, 130, 129, 0.08);">
+    <i class="fas fa-info-circle fa-2x" style="color: #0d8281;" me-3"></i>
     <div>
-      <strong>Como registrar presença:</strong><br>
+      <strong style="color: #0d8281;">Como registrar presença:</strong><br>
       <span class="fw-normal">Use <b>Registrar presença</b> para vincular visitantes a um evento específico.<br>
-      Para registro geral e rápido de visitantes, acesse <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}" class="fw-bold text-primary">Recepção de Evento</a>.</span>
+      Para registro geral e rápido de visitantes, acesse <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}" class="fw-bold" style="color: #0d8281;">Recepção de Evento</a>.</span>
     </div>
   </div>
   <div style="height:16px;"></div>
@@ -64,8 +64,8 @@
           <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim|default:data_fim }}">
         </div>
         <div class="col-md-2 d-flex align-items-end gap-2">
-          <button type="submit" class="btn btn-vibrant-orange shadow" style="height:40px; min-width:110px; font-weight:600;"><i class="fas fa-search"></i> Buscar</button>
-          <a href="{% url 'eventos:criar_evento' %}" class="btn btn-vibrant-blue btn-sm shadow" style="height:40px; min-width:120px; font-weight:600;"><i class="fas fa-plus"></i> Novo Evento</a>
+          <button type="submit" class="btn btn-primary shadow" style="height:40px; min-width:110px; font-weight:600;"><i class="fas fa-search"></i> Buscar</button>
+          <a href="{% url 'eventos:criar_evento' %}" class="btn btn-primary btn-sm shadow" style="height:40px; min-width:120px; font-weight:600;"><i class="fas fa-plus"></i> Novo Evento</a>
         </div>
       </form>
       <table class="table table-striped">
@@ -106,9 +106,9 @@
             </td>
             <td>{{ evento.criado_por }}</td>
             <td>
-              <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-vibrant-orange btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Editar evento"><i class="fas fa-edit me-1"></i> Editar</a>
-              <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-vibrant-red btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Excluir evento"><i class="fas fa-trash me-1"></i> Excluir</a>
-              <button type="button" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center registrar-presenca-btn" style="min-width:140px; height:40px; font-weight:600; border-radius:8px;" data-evento="{{ evento.pk }}" title="Registrar presença neste evento">
+              <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Editar evento"><i class="fas fa-edit me-1"></i> Editar</a>
+              <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Excluir evento"><i class="fas fa-trash me-1"></i> Excluir</a>
+              <button type="button" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center registrar-presenca-btn" style="min-width:140px; height:40px; font-weight:600; border-radius:8px;" data-evento="{{ evento.pk }}" title="Registrar presença neste evento">
                 <i class="fas fa-user-check me-1"></i> Registrar Presença
               </button>
             </td>

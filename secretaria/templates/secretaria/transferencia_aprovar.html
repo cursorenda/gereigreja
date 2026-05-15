@@ -21,7 +21,7 @@
       <form method="post">
         {% csrf_token %}
         <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-success">Confirmar aprovação</button>
+          <button type="submit" class="btn btn-primary">Confirmar aprovação</button>
           <a href="{% url 'secretaria:lista_transferencias' %}" class="btn btn-outline-secondary">Cancelar</a>
         </div>
       </form>

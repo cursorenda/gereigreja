@@ -244,7 +244,7 @@
 
                             <form id="formSincronizar" method="post" action="{% url 'contas:sincronizar_dados_membro' %}">
                                 {% csrf_token %}
-                                <button type="button" class="btn btn-warning btn-sm w-100" data-bs-toggle="modal" data-bs-target="#modalConfirmarSincronizacao">
+                                <button type="button" class="btn btn-outline-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#modalConfirmarSincronizacao">
                                     <i class="fas fa-sync-alt me-2"></i>Sincronizar Dados com Membro
                                 </button>
                             </form>
@@ -264,8 +264,8 @@
                     </div>
                     {% else %}
                     <!-- Sem Membro Vinculado -->
-                    <div class="card border-secondary">
-                        <div class="card-header bg-secondary text-white">
+                    <div class="card border-0">
+                        <div class="card-header text-white" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);">
                             <h6 class="mb-0">
                                 <i class="fas fa-user-slash me-2"></i>Cadastro de Membro
                             </h6>
@@ -293,7 +293,7 @@
                                 <a href="{% url 'contas:password_change' %}" class="btn btn-sm btn-outline-secondary">
                                     <i class="fas fa-key me-1"></i>Alterar Senha
                                 </a>
-                                <a href="{% url 'contas:historico_consentimentos' %}" class="btn btn-sm btn-outline-info">
+                                <a href="{% url 'contas:historico_consentimentos' %}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-history me-1"></i>Histórico Consentimentos
                                 </a>
                             </div>
@@ -310,7 +310,7 @@
 <div class="modal fade" id="modalConfirmarSincronizacao" tabindex="-1" aria-labelledby="modalConfirmarSincronizacaoLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);">
                 <h5 class="modal-title" id="modalConfirmarSincronizacaoLabel">
                     <i class="fas fa-sync-alt me-2"></i>Confirmar Sincronização de Dados
                 </h5>
@@ -384,7 +384,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-1"></i>Cancelar
                 </button>
-                <button type="button" class="btn btn-warning" onclick="document.getElementById('formSincronizar').submit();">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('formSincronizar').submit();">
                     <i class="fas fa-check me-1"></i>Confirmar Sincronização
                 </button>
             </div>

@@ -11,14 +11,14 @@
 {% endblock %}
 {% block conteudo_principal %}
 <div class="card shadow-lg rounded-lg" style="border: none;">
-    <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
+    <div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff;">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
                 <i class="fas fa-layer-group me-2"></i>
                 <span style="font-size:1.1rem; font-weight:600;">Classes</span>
                 <span class="ms-2 text-light" style="font-weight:400;">({{ classes.count }})</span>
             </div>
-            <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Classe</a>
+            <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-light" style="height:40px; min-width:120px; font-weight:600; border-radius:8px; color:#0a6665;">Nova Classe</a>
         </div>
     </div>
     <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
@@ -34,10 +34,10 @@
                 <input type="text" name="descricao" class="form-control form-control-sm" placeholder="Descrição" value="{{ request.GET.descricao|default:'' }}">
             </div>
             <div class="col-lg-3 col-12 d-flex align-items-center gap-2">
-                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
-                <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Classe</span></a>
+                <button class="btn btn-primary" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                <a href="{% url 'escola_biblica:classe_create' %}" class="btn btn-primary" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Nova Classe</span></a>
                 {% if request.GET.nome or request.GET.faixa_etaria or request.GET.descricao %}
-                    <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                    <a href="{{ request.path }}" class="btn btn-outline-secondary ms-1" title="Limpar Busca" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 {% endif %}
             </div>
         </form>
@@ -58,8 +58,8 @@
                         <td>{{ classe.faixa_etaria }}</td>
                         <td>{{ classe.descricao }}</td>
                         <td>
-                            <a href="{% url 'escola_biblica:classe_edit' classe.pk %}" class="btn btn-vibrant-green btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Classe"><i class="fas fa-edit me-1"></i> Editar</a>
-                            <a href="{% url 'escola_biblica:classe_delete' classe.pk %}" class="btn btn-vibrant-danger btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Classe"><i class="fas fa-trash me-1"></i> Excluir</a>
+                            <a href="{% url 'escola_biblica:classe_edit' classe.pk %}" class="btn btn-primary btn-sm d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Classe"><i class="fas fa-edit me-1"></i> Editar</a>
+                            <a href="{% url 'escola_biblica:classe_delete' classe.pk %}" class="btn btn-danger btn-sm d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Classe"><i class="fas fa-trash me-1"></i> Excluir</a>
                         </td>
                     </tr>
                     {% endfor %}

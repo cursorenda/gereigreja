@@ -68,7 +68,7 @@
                 </div>
                 {% if can_edit_finance %}
                  <div class="col-auto ms-auto"> {# Botão Adicionar à direita #}
-                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="btn btn-success btn-sm"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar Conta/Parcela</span></a>
+                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar Conta/Parcela</span></a>
                 </div>
                 {% endif %}
             </form>
@@ -120,7 +120,7 @@
                             <td class="text-center">
                                 {# Botão Pagar só aparece se Pendente ou Vencida #}
                                 {% if conta.status == 'PEN' or conta.status == 'VEN' %}
-                                <a href="{% url 'financeiro:registrar_pagamento_conta_pagar' conta.pk %}" class="btn btn-success btn-sm me-1" title="Registrar Pagamento">
+                                <a href="{% url 'financeiro:registrar_pagamento_conta_pagar' conta.pk %}" class="btn btn-primary btn-sm me-1" title="Registrar Pagamento">
                                     <i class="fas fa-dollar-sign"></i> Pagar
                                 </a>
                                 {% endif %}
@@ -133,7 +133,7 @@
                                 {% endif %}
                             
                                 {# Botão Detalhes sempre aparece #}
-                                <a href="{% url 'financeiro:detalhe_conta_pagar' conta.pk %}" class="btn btn-info btn-sm me-1" title="Ver Detalhes">
+                                <a href="{% url 'financeiro:detalhe_conta_pagar' conta.pk %}" class="btn btn-primary btn-sm me-1" title="Ver Detalhes">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             

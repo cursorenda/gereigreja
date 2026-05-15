@@ -9,7 +9,7 @@
     <li class="breadcrumb-item active">Lista de Pessoas</li>
 {% endblock %}
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:0 !important; padding-left:2rem;">
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:0 !important; padding-left:2rem;">
     <div class="d-flex align-items-center">
         <i class="fas fa-users me-1"></i>
         <span style="font-size:1.1rem; font-weight:600;">Pessoas</span>
@@ -96,24 +96,24 @@
             </select>
         </div>
         <div class="col-lg-5 col-12 d-flex align-items-center gap-2 flex-wrap justify-content-start">
-            <button class="btn btn-vibrant-blue d-flex align-items-center" type="submit" style="height:38px; font-size:1em; border-radius:8px;">
+            <button class="btn btn-primary d-flex align-items-center" type="submit" style="height:38px; font-size:1em; border-radius:8px;">
                 <i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span>
             </button>
-            <a href="?pendentes=1" class="btn btn-warning d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Mostrar apenas cadastros pendentes">
+            <a href="?pendentes=1" class="btn btn-outline-primary d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Mostrar apenas cadastros pendentes">
                 <i class="fas fa-user-clock"></i><span style="margin-left: 0.4em;">Pendentes</span>
             </a>
             {% if request.GET.q or request.GET.tipo or request.GET.status or request.GET.genero %}
-                <a href="{{ request.path }}" class="btn btn-vibrant d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                <a href="{{ request.path }}" class="btn btn-outline-secondary d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Limpar Busca"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
             {% endif %}
             {% if can_edit_membros %}
-                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-vibrant-adicionar d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;">
+                <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-primary d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;">
                     <i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar</span>
                 </a>
                 <a href="{% url 'secretaria:importar_pessoas' %}" class="btn btn-outline-success d-flex align-items-center" style="height:38px; font-size:1em; border-radius:8px;" title="Importar pessoas em massa">
                     <i class="fas fa-file-excel"></i><span style="margin-left: 0.4em;">Importar Excel</span>
                 </a>
             {% endif %}
-            <a href="{% url 'secretaria:imprimir_lista_membros' %}?{{ request.GET.urlencode }}" class="btn btn-vibrant-imprimir d-flex align-items-center" target="_blank" style="height:38px; font-size:1em; border-radius:8px;" title="Imprimir lista com filtros aplicados">
+            <a href="{% url 'secretaria:imprimir_lista_membros' %}?{{ request.GET.urlencode }}" class="btn btn-primary d-flex align-items-center" target="_blank" style="height:38px; font-size:1em; border-radius:8px;" title="Imprimir lista com filtros aplicados">
                 <i class="fas fa-print"></i><span style="margin-left: 0.4em;">Imprimir Lista</span>
             </a>
         </div>
@@ -222,7 +222,7 @@
                     {% endif %}
                     {% if can_edit_membros %}
                     <td class="text-center">
-                        <a href="{% url 'secretaria:detalhe_membro' membro_id=membro.chave %}" class="btn btn-vibrant-visualizar btn-icon me-1" title="Visualizar {{ membro.nome }}">
+                        <a href="{% url 'secretaria:detalhe_membro' membro_id=membro.chave %}" class="btn btn-primary btn-icon me-1" title="Visualizar {{ membro.nome }}">
                             <i class="fas fa-eye"></i>
                             <span style="margin-left: 0.4em;">Visualizar</span>
                         </a>
@@ -232,18 +232,18 @@
                             <span style="margin-left: 0.4em;">Perfil</span>
                         </a>
                         {% endif %}
-                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-vibrant-editar btn-icon me-1" title="Editar {{ membro.nome }}">
+                        <a href="{% url 'secretaria:editar_membro' membro_id=membro.chave %}" class="btn btn-primary btn-icon me-1" title="Editar {{ membro.nome }}">
                             <i class="fas fa-edit"></i>
                             <span style="margin-left: 0.4em;">Editar</span>
                         </a>
-                        <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-vibrant-imprimir btn-icon me-1" title="Ver Ficha para Impressão" target="_blank">
+                        <a href="{% url 'secretaria:ficha_membro_impressao' membro_id=membro.chave %}" class="btn btn-primary btn-icon me-1" title="Ver Ficha para Impressão" target="_blank">
                             <i class="fas fa-print"></i>
                             <span style="margin-left: 0.4em;">Imprimir</span>
                         </a>
                         {% if can_manage_transferencias %}
-                        <a href="{% url 'secretaria:solicitar_transferencia' %}?membro_id={{ membro.pk|stringformat:'d' }}" class="btn btn-warning btn-icon me-1" title="Solicitar transferência de {{ membro.nome }}">
+                        <a href="{% url 'secretaria:solicitar_transferencia' %}?membro_id={{ membro.pk|stringformat:'d' }}" class="btn btn-outline-primary btn-icon me-1" title="Solicitar transferência de {{ membro.nome }}">
                             <i class="fas fa-random"></i>
-                            <span style="margin-left: 0.4em;">Transferir</span>
+                            <span style="margin-left: 0.4em;\">Transferir</span>
                         </a>
                         {% endif %}
                     </td>

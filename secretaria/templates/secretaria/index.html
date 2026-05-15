@@ -89,19 +89,19 @@
                     <a href="{% url 'secretaria:dashboard' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
                         <i class="fas fa-tachometer-alt me-1"></i> Dashboard
                     </a>
-                    <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
+                    <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
                         <i class="fas fa-users me-1"></i> Listar Pessoas
                     </a>
-                    <a href="{% url 'secretaria:relatorio_reuniao_membros' %}" target="_blank" class="btn btn-outline-info btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
+                    <a href="{% url 'secretaria:relatorio_reuniao_membros' %}" target="_blank" class="btn btn-outline-primary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
                         <i class="fas fa-file-alt me-1"></i> Relatório Reunião de Membros
                     </a>
-                    <a href="{% url 'agenda:agenda' %}" class="btn btn-outline-success btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
+                    <a href="{% url 'agenda:agenda' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
                         <i class="fas fa-calendar-alt me-1"></i> Agenda
                     </a>
-                    <a href="{% url 'financeiro:lista_contas_bancarias' %}" class="btn btn-outline-warning btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
+                    <a href="{% url 'financeiro:lista_contas_bancarias' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
                         <i class="fas fa-university me-1"></i> Bancos
                     </a>
-                    <a href="{% url 'suporte:lista_tickets' %}" class="btn btn-outline-dark btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
+                    <a href="{% url 'suporte:lista_tickets' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; padding:0 1.4em; border-width:2px;">
                         <i class="fas fa-question-circle me-1"></i> Ajuda / FAQ
                     </a>
                 </div>
@@ -112,7 +112,7 @@
                             type="text" 
                             name="search" 
                             class="form-control search-global-input shadow-sm" 
-                            placeholder="🔍 Buscar pessoas, funcionalidades..." 
+                            placeholder="Buscar pessoas, funcionalidades..." 
                             autocomplete="off"
                             style="height:44px; font-size:1.08em; border-width:2px;">
                         <button type="submit" class="btn btn-primary btn-sm d-flex align-items-center shadow-sm" style="height:44px; font-size:1.08em; min-width:90px;">Buscar</button>
@@ -125,18 +125,18 @@
     <!-- Bloco de link de auto-cadastro restaurado -->
     {% if pode_ver_link and link_cadastro %}
     <div class="mb-3 w-100">
-        <div class="card border-warning" style="border-radius: 10px; background: #fff;">
+        <div class="card border-primary" style="border-radius: 10px; background: #fff;">
             <div class="card-body d-flex align-items-center justify-content-between gap-3 p-2 flex-wrap" style="min-height: 40px;">
-                <span class="text-warning fw-bold me-2" style="font-size: 1.05em;"><i class="fas fa-link me-1"></i> Link de Auto-Cadastro:</span>
-                <input type="text" class="form-control mx-2" value="{{ request.scheme }}://{{ request.get_host }}{{ link_cadastro }}" readonly onclick="this.select();" style="max-width: 420px; min-width: 220px; border-radius: 8px; font-size:1em; box-shadow: 0 1px 4px #ffe08233;">
+                <span class="text-primary fw-bold me-2" style="font-size: 1.05em;"><i class="fas fa-link me-1"></i> Link de Auto-Cadastro:</span>
+                <input type="text" class="form-control mx-2" value="{{ request.scheme }}://{{ request.get_host }}{{ link_cadastro }}" readonly onclick="this.select();" style="max-width: 420px; min-width: 220px; border-radius: 8px; font-size:1em; box-shadow: 0 1px 4px rgba(13,130,129,0.2);">
                 <span class="ms-2" style="cursor: pointer;" title="Copie e envie para novos membros/congregados/visitantes.">
                     <i class="fas fa-question-circle text-muted" style="font-size: 1.2em;"></i>
                 </span>
                 <div class="d-flex align-items-center ms-2 gap-2">
-                    <button class="btn btn-warning d-flex align-items-center" style="border-radius: 8px; font-size: 1em; font-weight: 500; min-width: 120px;">
+                    <button class="btn btn-primary d-flex align-items-center" style="border-radius: 8px; font-size: 1em; font-weight: 500; min-width: 120px;">
                         <i class="fas fa-user-clock me-1"></i> Pendentes: {{ pendentes_count|default:'0' }}
                     </button>
-                    <a href="{% url 'secretaria:lista_pessoas' %}?pendentes=1" class="btn btn-warning" style="border-radius: 8px; font-size: 1em; font-weight: 500; min-width: 110px;">Ver Pendentes</a>
+                    <a href="{% url 'secretaria:lista_pessoas' %}?pendentes=1" class="btn btn-primary" style="border-radius: 8px; font-size: 1em; font-weight: 500; min-width: 110px;">Ver Pendentes</a>
                 </div>
             </div>
         </div>
@@ -147,7 +147,7 @@
     {% if total_pessoas_igreja == 0 and not request.igreja_ativa %}
     <div class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-info shadow-sm" style="border-left: 5px solid #0d6efd; border-radius: 12px;">
+            <div class="alert alert-info shadow-sm" style="border-left: 5px solid #0d8281; border-radius: 12px;">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-info-circle fa-3x text-primary me-3"></i>
                     <div>
@@ -181,10 +181,10 @@
                             pessoas cadastradas. Comece adicionando as primeiras pessoas (membros, congregados, visitantes, etc.) 
                             para visualizar métricas e relatórios.
                         </p>
-                        <a href="{% url 'secretaria:pre_cadastro' %}" class="btn btn-warning btn-sm me-2">
+                        <a href="{% url 'secretaria:pre_cadastro' %}" class="btn btn-primary btn-sm me-2">
                             <i class="fas fa-user-plus"></i> Cadastrar Primeira Pessoa
                         </a>
-                        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-warning btn-sm">
+                        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-list"></i> Ver Lista de Pessoas
                         </a>
                     </div>
@@ -198,13 +198,13 @@
     <div class="row mb-4 g-4 align-items-stretch">
         <!-- Card Bem-vindo -->
         <div class="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
-            <div class="card h-100 shadow-sm border-primary w-100" style="background: linear-gradient(90deg, #e3f0ff 0%, #f8f9fa 100%); border-radius: 18px;">
+            <div class="card h-100 shadow-sm border-primary w-100" style="background: linear-gradient(90deg, #e6fbfb 0%, #f6fdfd 100%); border-radius: 18px;">
                 <div class="card-body d-flex flex-row align-items-center justify-content-start" style="gap: 1.2rem;">
                     <div class="d-flex flex-column align-items-center justify-content-center" style="min-width:90px;">
                         {% if usuario_foto_url %}
-                            <img src="{{ usuario_foto_url }}" alt="Foto de {{ user.get_full_name }}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #0d6efd;">
+                            <img src="{{ usuario_foto_url }}" alt="Foto de {{ user.get_full_name }}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #0d8281;">
                         {% else %}
-                            <div style="width:80px; height:80px; border-radius:50%; background:#0d6efd; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; border:3px solid #0d6efd; font-size:2em;">
+                            <div style="width:80px; height:80px; border-radius:50%; background:#0d8281; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; border:3px solid #0d8281; font-size:2em;">
                                 {{ user.get_full_name|first|upper }}
                             </div>
                         {% endif %}
@@ -212,9 +212,9 @@
                     <div class="flex-grow-1">
                         <div class="d-flex flex-column" style="gap:0.2em;">
                             <span style="font-size:1.08em; color:#222; font-weight:500;">Bem-vindo(a)</span>
-                            <span style="font-size:1.22em; font-weight:700; color:#0d6efd; line-height:1.1; margin-bottom:2px;">{{ user.get_full_name|default:user.username }}</span>
+                            <span style="font-size:1.22em; font-weight:700; color:#0d8281; line-height:1.1; margin-bottom:2px;">{{ user.get_full_name|default:user.username }}</span>
                             {% if user.groups.first %}
-                                <span style="font-size:1em; color:#1987fb; font-weight:500; margin-bottom:2px; display:inline-block;">{{ user.groups.first.name }}</span>
+                                <span style="font-size:1em; color:#0a6665; font-weight:500; margin-bottom:2px; display:inline-block;">{{ user.groups.first.name }}</span>
                             {% endif %}
                         </div>
                         <div class="mt-2 mb-1 text-muted" style="font-size:0.98em;">Gerenciando: <strong>{{ ministerio.nome_fantasia }}</strong></div>
@@ -231,7 +231,7 @@
         </div>
         <!-- Card Aniversariantes -->
         <div class="col-12 col-md-6 col-lg-4 d-flex align-items-stretch">
-            <div class="card h-100 border-info shadow-sm w-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; overflow: hidden; border-radius: 18px;">
+            <div class="card h-100 border-info shadow-sm w-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); position: relative; overflow: hidden; border-radius: 18px;">
                 <div id="carouselAniversariantes" class="carousel slide" data-bs-ride="carousel" data-bs-interval="4000">
                     <!-- Indicadores -->
                     <div class="carousel-indicators" style="margin-bottom: 0.5rem;">
@@ -314,9 +314,9 @@
         </div>
         <!-- Card Notas Pessoais -->
         <div class="col-12 col-md-12 col-lg-4 d-flex align-items-stretch">
-            <div class="card h-100 shadow-sm w-100" style="background: linear-gradient(180deg, #ffd54f 0%, #fff9c4 8%, #fffbea 100%); border-radius: 18px; border: 1px solid #f9a825; position: relative;">
+            <div class="card h-100 shadow-sm w-100" style="background: linear-gradient(180deg, #e6fbfb 0%, #f2fcfc 8%, #f8fdfd 100%); border-radius: 18px; border: 1px solid #6ccfce; position: relative;">
                 <!-- Header do Bloco de Notas -->
-                <div class="card-header d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #f9a825 0%, #fbc02d 100%); border-radius: 18px 18px 0 0; padding: 0.7rem 1rem; border-bottom: 2px solid #f57f17;">
+                <div class="card-header d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); border-radius: 18px 18px 0 0; padding: 0.7rem 1rem; border-bottom: 2px solid #0a6665;">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fas fa-sticky-note" style="font-size: 1.3rem; color: #fff;"></i>
                         <h6 class="mb-0 fw-bold" style="color: #fff; font-size: 1rem;">Minhas Anotações</h6>
@@ -353,7 +353,7 @@
                 </div>
                 
                 <!-- Footer com info de atualização -->
-                <div class="card-footer text-center" style="background: rgba(249, 168, 37, 0.1); border-top: 1px solid #f9a825; border-radius: 0 0 18px 18px; padding: 0.5rem;">
+                <div class="card-footer text-center" style="background: rgba(13, 130, 129, 0.08); border-top: 1px solid #6ccfce; border-radius: 0 0 18px 18px; padding: 0.5rem;">
                     <small class="text-muted" id="ultimaAtualizacao">
                         {% if nota_usuario.atualizado_em %}
                             Última atualização: {{ nota_usuario.atualizado_em|date:'d/m/Y H:i' }}
@@ -395,9 +395,9 @@
                 </div>
                 <!-- Card: Pendências de cadastro -->
                 <div class="col">
-                    <div class="card h-100 border-warning shadow-sm text-center">
+                    <div class="card h-100 border-primary shadow-sm text-center">
                         <div class="card-body">
-                            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                            <i class="fas fa-exclamation-triangle fa-2x text-primary mb-2"></i>
                             <h6 class="card-title">Pendências Cadastro</h6>
                             <h3 class="fw-bold">{{ total_pendencias_cadastro }}</h3>
                         </div>
@@ -405,9 +405,9 @@
                 </div>
                 <!-- Card: Contas vencidas -->
                 <div class="col">
-                    <div class="card h-100 border-danger shadow-sm text-center">
+                    <div class="card h-100 border-primary shadow-sm text-center">
                         <div class="card-body">
-                            <i class="fas fa-file-invoice-dollar fa-2x text-danger mb-2"></i>
+                            <i class="fas fa-file-invoice-dollar fa-2x text-primary mb-2"></i>
                             <h6 class="card-title">Contas Vencidas</h6>
                             <h3 class="fw-bold">{{ total_contas_vencidas }}</h3>
                             <div class="small">R$ {{ valor_total_contas_vencidas|floatformat:2 }}</div>
@@ -436,9 +436,9 @@
             {% if user.is_superuser %}
                 <div class="col-auto">
                     <a href="{% url 'secretaria:backup_page' %}" class="text-decoration-none">
-                        <div class="card h-100 shadow-sm border-warning">
+                        <div class="card h-100 shadow-sm border-primary">
                             <div class="card-body text-center">
-                                <i class="fas fa-database fa-3x text-warning mb-3"></i>
+                                <i class="fas fa-database fa-3x text-primary mb-3"></i>
                                 <h5 class="card-title">Gerenciar Backups</h5>
                                 <p class="card-text">Fazer backup do banco de dados e arquivos.</p>
                             </div>
@@ -461,9 +461,9 @@
                         <h6 class="mb-2" style="font-size:1.05rem; font-weight:500; color:#2a3a4a; letter-spacing:0.01em;"><i class="fas fa-history me-2 text-primary" style="font-size:0.95em;"></i>Atividades Recentes</h6>
                         <div style="flex: 1 1 auto; max-height: 260px; overflow-y: auto;">
                             {% for atividade in atividades_recentes %}
-                                <div class="d-flex align-items-start mb-2" style="border-left:2px solid #1976d2; padding-left:0.7em; background:transparent; min-height:38px;">
+                                <div class="d-flex align-items-start mb-2" style="border-left:2px solid #0d8281; padding-left:0.7em; background:transparent; min-height:38px;">
                                     <div style="flex:1;">
-                                        <span class="atividade-pessoa" style="font-size:0.97em; font-weight:500; color:#1976d2;">{{ atividade.membro.nome }}</span>
+                                        <span class="atividade-pessoa" style="font-size:0.97em; font-weight:500; color:#0d8281;">{{ atividade.membro.nome }}</span>
                                         <span class="mx-1" style="color:#888;">•</span>
                                         <span style="font-size:0.97em; color:#444;">{{ atividade.get_tipo_evento_display }}</span>
                                         {% if atividade.descricao %}
@@ -497,14 +497,14 @@
                             {% for evento in proximos_eventos %}
                             <div class="d-flex align-items-center mb-2">
                                 <div class="d-flex flex-column align-items-center justify-content-center" style="min-width:48px;">
-                                    <div style="background:#e3f0ff; border-radius:8px; border:2px solid #1987fb; width:44px; height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                                        <span style="font-size:1.1em; font-weight:700; color:#1987fb; line-height:1;">{{ evento.dia_semana }}</span>
-                                        <span style="font-size:0.95em; color:#1987fb; line-height:1; text-transform:uppercase;">{{ evento.dia }}</span>
+                                    <div style="background:#e6fbfb; border-radius:8px; border:2px solid #0d8281; width:44px; height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                                        <span style="font-size:1.1em; font-weight:700; color:#0d8281; line-height:1;">{{ evento.dia_semana }}</span>
+                                        <span style="font-size:0.95em; color:#0d8281; line-height:1; text-transform:uppercase;">{{ evento.dia }}</span>
                                     </div>
                                 </div>
                                 <div class="ms-2 flex-grow-1">
                                     <div style="font-size:1.05em; font-weight:500; color:#222;">{{ evento.titulo }}</div>
-                                    <div style="font-size:0.97em; color:#1987fb;">{{ evento.linha_info }}</div>
+                                    <div style="font-size:0.97em; color:#0a6665;">{{ evento.linha_info }}</div>
                                 </div>
                             </div>
                             {% empty %}
@@ -541,8 +541,8 @@
                     datasets: [{
                         label: 'Pessoas Ativas',
                         data: evolucaoMembros,
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(13, 130, 129, 1)',
+                        backgroundColor: 'rgba(13, 130, 129, 0.2)',
                         fill: true,
                         tension: 0.3
                     }]

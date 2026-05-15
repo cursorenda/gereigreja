@@ -135,7 +135,7 @@
                 <input type="hidden" name="data_fim" value="{{ data_fim|date:'Y-m-d' }}">
                 <input type="hidden" name="observacoes" value="{{ observacoes }}">
 
-                <button type="submit" class="btn btn-success btn-lg">
+                <button type="submit" class="btn btn-primary btn-lg">
                     <i class="fas fa-check-circle me-1"></i> Confirmar e Fechar Caixa Definitivamente
                 </button>
                 <a href="{% url 'financeiro:criar_fechamento_caixa' %}" class="btn btn-secondary">Cancelar</a>

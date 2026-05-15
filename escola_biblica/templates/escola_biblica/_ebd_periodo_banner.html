@@ -1,21 +1,21 @@
 {# Banner de destaque do período/trimestre atual da EBD com barra de progresso de aulas #}
 {% if ebd_periodo_atual and ebd_aulas_total %}
-<div class="alert alert-primary d-flex align-items-center justify-content-between mb-4" style="border-radius: 10px;">
+<div class="alert d-flex align-items-center justify-content-between mb-4" style="border-radius: 10px; background: rgba(13, 130, 129, 0.08); border-left: 4px solid #0d8281;">
   <div>
     <strong>{{ ebd_periodo_atual.tipo|title }} Atual:</strong> {{ ebd_periodo_atual.get_tipo_display }} {{ ebd_periodo_atual.numero }} ({{ ebd_periodo_atual.data_inicio|date:'d/m/Y' }} - {{ ebd_periodo_atual.data_fim|date:'d/m/Y' }})
-    <span class="badge bg-success ms-2">Aberto</span>
+    <span class="badge ms-2" style="background-color: #0d8281; color: #fff;">Aberto</span>
   </div>
   <div style="flex:1; min-width:320px; margin-left:32px;">
     <div class="progress position-relative" style="height: 12px; background:#e9ecef; border-radius:8px;">
       <div class="progress-bar d-flex align-items-center justify-content-center" role="progressbar"
-        style="width: {{ ebd_percentual|default:'0' }}%; font-weight:600; font-size:0.95rem; background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); border-radius:8px; min-width:40px;"
+        style="width: {{ ebd_percentual|default:'0' }}%; font-weight:600; font-size:0.95rem; background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); border-radius:8px; min-width:40px;"
         aria-valuenow="{{ ebd_aulas_realizadas|default:'0' }}" aria-valuemin="0" aria-valuemax="{{ ebd_aulas_total|default:'1' }}">
         {% if ebd_percentual|default:0 > 20 %}
         Aula {{ ebd_aulas_realizadas|default:'0' }} de {{ ebd_aulas_total|default:'0' }} — {{ ebd_percentual|default:'0' }}% concluído
         {% endif %}
       </div>
       {% if ebd_percentual|default:0 <= 20 %}
-      <span class="position-absolute top-50 start-50 translate-middle text-dark fw-bold" style="font-size:0.95rem;">Aula {{ ebd_aulas_realizadas|default:'0' }} de {{ ebd_aulas_total|default:'0' }} — {{ ebd_percentual|default:'0' }}% concluído</span>
+      <span class="position-absolute top-50 start-50 translate-middle fw-bold" style="font-size:0.95rem; color:#0a6665;">Aula {{ ebd_aulas_realizadas|default:'0' }} de {{ ebd_aulas_total|default:'0' }} — {{ ebd_percentual|default:'0' }}% concluído</span>
       {% endif %}
     </div>
   </div>

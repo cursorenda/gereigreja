@@ -139,7 +139,7 @@
                     {% if can_edit_finance and fechamento.status == 'fechado' %}
                         <form action="{% url 'financeiro:reabrir_fechamento_caixa' fechamento.pk %}" method="post" class="d-inline-block ms-2" onsubmit="return confirm('Tem certeza que deseja reabrir este caixa? As transações associadas voltarão a ficar abertas e este registro de fechamento será excluído.');">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-warning">
+                            <button type="submit" class="btn btn-outline-secondary">
                                 <i class="fas fa-undo"></i> Reabrir Caixa
                             </button>
                         </form>

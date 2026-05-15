@@ -1,14 +1,15 @@
 {% extends 'base_com_sistema.html' %}
+{% load l10n %}
 {# Banner de sugestão de cópia de turmas/classes/alunos do ano anterior #}
 {% if sugerir_copiar %}
-<div class="alert alert-info d-flex justify-content-between align-items-center" style="border-radius: 10px;">
+<div class="alert d-flex justify-content-between align-items-center" style="border-radius: 10px; background: rgba(13, 130, 129, 0.08); border-left: 4px solid #0d8281;">
     <div>
-        Deseja copiar as turmas, classes e alunos do ano anterior ({{ ano_letivo_selecionado.ano|add:'-1' }}) para {{ ano_letivo_selecionado.ano }}?
+        Deseja copiar as turmas, classes e alunos do ano anterior ({{ ano_letivo_selecionado.ano|add:'-1'|unlocalize }}) para {{ ano_letivo_selecionado.ano|unlocalize }}?
     </div>
     <form method="post" action="{% url 'escola_biblica:copiar_turmas_ano_anterior' %}" style="margin:0;">
         {% csrf_token %}
-        <input type="hidden" name="ano_destino" value="{{ ano_letivo_selecionado.ano }}">
-        <button type="submit" class="btn btn-vibrant-blue ms-3">Copiar turmas/classes/alunos</button>
+        <input type="hidden" name="ano_destino" value="{{ ano_letivo_selecionado.ano|unlocalize }}">
+        <button type="submit" class="btn btn-primary ms-3">Copiar turmas/classes/alunos</button>
     </form>
 </div>
 {% endif %}
@@ -27,16 +28,16 @@
 {# Banner de orientação para novo período #}
 {# Banner: se não houver períodos para o ano selecionado, sugere abrir novo período #}
 {% if mostrar_banner_abrir_periodo %}
-<div class="alert alert-warning d-flex justify-content-between align-items-center" style="border-radius: 10px;">
+<div class="alert d-flex justify-content-between align-items-center" style="border-radius: 10px; background: rgba(13, 130, 129, 0.08); border-left: 4px solid #0d8281;">
     <div>
-        Nenhum período {{ tipo_periodo }} cadastrado para o ano {{ ano_letivo_selecionado.ano }}.
+        Nenhum período {{ tipo_periodo }} cadastrado para o ano {{ ano_letivo_selecionado.ano|unlocalize }}.
         <strong>Deseja abrir o novo período?</strong>
     </div>
     <form method="post" action="{% url 'escola_biblica:abrir_novo_periodo' %}" style="margin:0;">
         {% csrf_token %}
-        <input type="hidden" name="ano_letivo" value="{{ ano_letivo_selecionado.ano }}">
+        <input type="hidden" name="ano_letivo" value="{{ ano_letivo_selecionado.ano|unlocalize }}">
         <input type="hidden" name="tipo_periodo" value="{{ tipo_periodo }}">
-        <button type="submit" class="btn btn-vibrant-green ms-3">Abrir novo período</button>
+        <button type="submit" class="btn btn-primary ms-3">Abrir novo período</button>
     </form>
 </div>
 {% endif %}
@@ -45,14 +46,14 @@
 
 <div class="container-fluid px-0">
     <div class="card shadow-lg rounded-lg w-100" style="border: none;">
-    <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
+    <div class="card-header py-3" style="background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff;">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
                 <i class="fas fa-chalkboard-teacher me-2"></i>
                 <span style="font-size:1.1rem; font-weight:600;">Turmas</span>
                 <span class="ms-2 text-light" style="font-weight:400;">({{ turmas.count }})</span>
             </div>
-            <a href="{% url 'escola_biblica:turma_create' %}" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Turma</a>
+            <a href="{% url 'escola_biblica:turma_create' %}" class="btn btn-primary" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Turma</a>
         </div>
     </div>
     <div class="card-body pt-3 bg-white w-100" style="border-radius:0 0 12px 12px;">
@@ -61,7 +62,7 @@
                 <select name="ano_letivo" id="ano_letivo_filtro" class="form-select form-select-sm" style="max-width:100px;" aria-label="Ano">
                     <option value="" disabled hidden{% if not ano_letivo_selecionado %} selected{% endif %}>Ano</option>
                     {% for ano in anos_letivos %}
-                        <option value="{{ ano.ano|floatformat:0 }}" {% if ano.ano == ano_letivo_selecionado.ano %}selected{% endif %}>{{ ano.ano|floatformat:0 }}</option>
+                        <option value="{{ ano.ano|unlocalize }}" {% if ano.ano == ano_letivo_selecionado.ano %}selected{% endif %}>{{ ano.ano|unlocalize }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -82,9 +83,9 @@
                 <input type="text" name="classe" class="form-control form-control-sm" placeholder="Classe" value="{{ request.GET.classe|default:'' }}">
             </div>
             <div class="col-lg-2 col-12 d-flex align-items-center gap-2">
-                <button class="btn btn-vibrant-blue" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
+                <button class="btn btn-primary" type="submit" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span></button>
                 {% if request.GET.nome or request.GET.classe or request.GET.ano_letivo or request.GET.periodo %}
-                    <a href="{{ request.path }}" class="btn btn-vibrant ms-1" title="Limpar Busca" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                    <a href="{{ request.path }}" class="btn btn-outline-primary ms-1" title="Limpar Busca" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 {% endif %}
             </div>
         </form>
@@ -118,16 +119,15 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'escola_biblica:chamada_presenca' turma.id %}" class="btn btn-vibrant-blue btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Chamada de Presença"><i class="fas fa-clipboard-check me-1"></i> Chamada</a>
-                            <a href="{% url 'escola_biblica:turma_edit' turma.id %}" class="btn btn-vibrant-green btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Turma"><i class="fas fa-edit me-1"></i> Editar</a>
-                            <a href="{% url 'escola_biblica:turma_delete' turma.id %}" class="btn btn-vibrant-danger btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Turma"><i class="fas fa-trash me-1"></i> Excluir</a>
+                            <a href="{% url 'escola_biblica:chamada_presenca' turma.id %}" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Chamada de Presença"><i class="fas fa-clipboard-check me-1"></i> Chamada</a>
+                            <a href="{% url 'escola_biblica:turma_edit' turma.id %}" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Editar Turma"><i class="fas fa-edit me-1"></i> Editar</a>
+                            <a href="{% url 'escola_biblica:turma_delete' turma.id %}" class="btn btn-danger btn-sm shadow d-inline-flex align-items-center ms-1" style="min-width:90px; height:36px; font-weight:600; border-radius:8px;" title="Excluir Turma"><i class="fas fa-trash me-1"></i> Excluir</a>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-            </table>
             {% if turmas.has_other_pages %}
             <nav aria-label="Navegação de páginas">
                 <ul class="pagination justify-content-center">

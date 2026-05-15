@@ -11,7 +11,7 @@
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-7"> {# Ajuste a largura conforme preferir #}
             <div class="card shadow-sm">
-                <div class="card-header bg-success text-white">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);">
                     <h4 class="mb-0">{{ titulo_pagina }}</h4>
                 </div>
                 <div class="card-body">
@@ -117,7 +117,7 @@
 
                         <div class="mt-4 d-flex justify-content-end">
                             <a href="{% url 'configuracao:meu_perfil' %}" class="btn btn-secondary me-2">Cancelar</a>
-                            <button type="submit" class="btn btn-success">Salvar Alterações</button>
+                            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                         </div>
                     </form>
                 </div>

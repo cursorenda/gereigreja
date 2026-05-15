@@ -37,6 +37,7 @@
     <link href="{% static 'css/fontes.css' %}" rel="stylesheet" />
     <link href="{% static 'css/acessibilidade.css' %}" rel="stylesheet" />
     <link href="{% static 'css/menus.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/design_system.css' %}" rel="stylesheet" />
     {# Bloco para CSS extra das páginas filhas #}
     {% block extra_css %}{% endblock %}
     {# CSS de botões vibrantes DEVE vir por último para sobrescrever Bootstrap #}
@@ -59,12 +60,12 @@
 
 
     {% if request.user.is_authenticated and request.user.username|slice:":5" == "demo_" %}
-    <div id="demo-banner" style="background:#ffc107;color:#212529;text-align:center;padding:6px 16px;font-weight:700;font-size:0.93em;position:fixed;top:0;left:0;width:100%;z-index:2000;border-bottom:2px solid #e0a800;">
+    <div id="demo-banner" class="demo-banner">
         🧪 <strong>MODO DEMONSTRAÇÃO</strong> — Dados fictícios. Explore à vontade.
         &nbsp;|&nbsp;
-        <button type="button" data-bs-toggle="modal" data-bs-target="#modalTrocarPerfil" style="background:none;border:none;padding:0;color:#212529;text-decoration:underline;font-weight:700;font-size:inherit;cursor:pointer;">Trocar perfil</button>
+        <button type="button" data-bs-toggle="modal" data-bs-target="#modalTrocarPerfil" class="demo-banner-action">Trocar perfil</button>
         &nbsp;|&nbsp;
-        <a href="{% url 'demo:demo_reset' %}" style="color:#212529;text-decoration:underline;">Resetar dados</a>
+        <a href="{% url 'demo:demo_reset' %}" class="demo-banner-link">Resetar dados</a>
     </div>
 
     <!-- Modal Trocar Perfil Demo -->
@@ -92,7 +93,7 @@
                     </div>
                     <div class="modal-footer border-0">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-warning fw-bold">Trocar perfil</button>
+                        <button type="submit" class="btn btn-primary fw-bold">Trocar perfil</button>
                     </div>
                 </form>
             </div>
@@ -132,44 +133,13 @@
 
         <!-- Seletor de tamanho de fonte/tela (Acessibilidade) -->
         <form class="d-flex align-items-center ms-2" id="fontSizeSelectorForm" autocomplete="off" aria-label="Ajuste de tamanho de fonte">
-            <span class="me-1" style="font-size:1.1em; color:#bbb; line-height:1;">A</span>
+            <span class="me-1 font-size-label">A</span>
             <select id="fontSizeSelector" class="font-size-selector-custom" title="Ajustar tamanho da fonte">
                 <option value="font-size-xlarge">Extra Grande</option>
                 <option value="font-size-large">Grande</option>
                 <option value="font-size-medium">Médio</option>
                 <option value="font-size-normal">Normal</option>
             </select>
-</style>
-<style>
-/* Seletor de tamanho de fonte discreto */
-.font-size-selector-custom {
-    width: 110px;
-    min-width: 0;
-    font-size: 0.95em;
-    padding: 2px 8px 2px 6px;
-    border-radius: 6px;
-    border: 1px solid #bbb;
-    background: #23272b;
-    color: #f8f9fa;
-    height: 28px;
-    line-height: 1.1;
-    box-shadow: none;
-    transition: border-color 0.2s;
-}
-.font-size-selector-custom:focus {
-    border-color: #888;
-    outline: none;
-    box-shadow: 0 0 0 1px #888;
-}
-@media (max-width: 600px) {
-    .font-size-selector-custom {
-        width: 90px;
-        font-size: 0.92em;
-        padding: 1px 4px 1px 4px;
-        height: 24px;
-    }
-}
-</style>
         </form>
 
           {# --- INÍCIO DO SELETOR DE IGREJA ATIVA --- #}
@@ -201,9 +171,9 @@
             {# --- INÍCIO: Ícone de Notificações --- #}
             <li class="nav-item dropdown">
                 <a class="nav-link d-flex align-items-center position-relative" href="{% url 'notificacoes:lista_notificacoes' %}" role="button" aria-expanded="false" title="Notificações">
-                    <i class="fas fa-bell" style="font-size: 24px; color: #ffc107;"></i>
+                    <i class="fas fa-bell notify-bell-icon"></i>
                     {% if unread_notifications_count > 0 %}
-                        <span class="badge bg-danger rounded-pill position-absolute" style="top: 2px; right: -8px; font-size: 10px;">
+                        <span class="badge bg-danger rounded-pill position-absolute notify-count-badge">
                             {{ unread_notifications_count }}
                         </span>
                     {% endif %}    
@@ -216,16 +186,15 @@
                 <a class="nav-link dropdown-toggle d-flex align-items-center" id="navbarDropdownUser" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                     {% if request.user.perfil.foto_perfil %}
                         <img src="{{ request.user.perfil.foto_perfil.url }}" 
-                             class="rounded-circle" 
-                             style="width: 45px; height: 45px; object-fit: cover; margin-right: 10px; border: 2px solid #fff;"
+                             class="rounded-circle user-avatar-img" 
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
                         <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle" 
-                             style="display: none; width: 45px; height: 45px; font-size: 22px; margin-right: 10px; border: 2px solid #fff;">
+                             class="user-avatar-fallback user-avatar-fallback-hidden">
                             <i class="fas fa-user"></i>
                         </div>
                     {% else %}
                         <div class="d-inline-flex align-items-center justify-content-center bg-secondary text-white rounded-circle" 
-                             style="width: 45px; height: 45px; font-size: 22px; margin-right: 10px; border: 2px solid #fff;">
+                             class="user-avatar-fallback">
                             <i class="fas fa-user"></i>
                         </div>
                     {% endif %}
@@ -305,7 +274,7 @@
                     <li><hr class="dropdown-divider" /></li>
                     <li>
                         {# Formulário de Logout #}
-                        <form id="logout-form-header" method="post" action="{% url 'logout' %}" style="display: inline;">
+                        <form id="logout-form-header" method="post" action="{% url 'logout' %}" class="logout-inline-form">
                             {% csrf_token %}
                             <button type="submit" class="dropdown-item">
                                 <i class="fas fa-sign-out-alt fa-fw me-1 text-muted"></i>Sair
@@ -353,9 +322,9 @@
             <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
                 <div class="text-center py-3">
                     {% if ministerio and ministerio.logo %}
-                        <div style="display:flex; justify-content:center; align-items:center; min-height:0; padding:8px 0;">
-                            <div style="background:#fff; border-radius:22px; box-shadow:0 2px 12px rgba(13,110,253,0.13); padding:6px 10px; border:2px solid #eee; display:inline-block; transition:box-shadow 0.2s;">
-                                <img src="{{ ministerio.logo.url }}" alt="Logo {{ ministerio.nome_fantasia|default:'' }}" style="max-height:90px; max-width:160px; display:block; margin:auto;">
+                        <div class="ministerio-logo-wrap">
+                            <div class="ministerio-logo-card">
+                                <img src="{{ ministerio.logo.url }}" alt="Logo {{ ministerio.nome_fantasia|default:'' }}" class="ministerio-logo-img">
                             </div>
                         </div>
                     {% endif %}
@@ -400,75 +369,32 @@
                     </div>
                 </div>
                 {% endif %}
-                <div style="margin-bottom: 100px;">
+                <div class="content-bottom-space">
                     {% block content %}
                     {% endblock %}
                 </div>
             </main>
-            <footer class="py-4 bg-light mt-auto w-100" style="width:100%;">
-                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center small w-100" style="text-align: center; gap: 1.5rem;">
+            <footer class="py-4 bg-light mt-auto w-100 app-footer">
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center small w-100 app-footer-row">
                     {% get_versao_gereigreja as versao_sistema %}
-                    <div class="text-muted mb-1 mb-md-0" style="margin-right: 1.5rem;">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %} &nbsp;|&nbsp; Versão {{ versao_sistema }}</div>
-                    <div style="margin-left: 1.5rem;">
-                        <a href="{% url 'politica_privacidade' %}" style="margin-right: 0.75rem;">Política de Privacidade</a>
-                        <span style="margin: 0 0.5rem;">&middot;</span>
-                        <a href="{% url 'termos_condicoes' %}" style="margin-left: 0.75rem;">Termos &amp; Condições</a>
-                        <span style="margin: 0 0.5rem;">&middot;</span>
+                    <div class="text-muted mb-1 mb-md-0 app-footer-copy">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %} &nbsp;|&nbsp; Versão {{ versao_sistema }}</div>
+                    <div class="app-footer-links">
+                        <a href="{% url 'politica_privacidade' %}" class="footer-link-right">Política de Privacidade</a>
+                        <span class="footer-separator">&middot;</span>
+                        <a href="{% url 'termos_condicoes' %}" class="footer-link-left">Termos &amp; Condições</a>
+                        <span class="footer-separator">&middot;</span>
                     </div>
-                    <div class="mt-2 mt-md-0" style="margin-left: 1.5rem;">
-                        <a href="https://www.youtube.com/channel/UCkBCvncTSBDTl068G8tlkQw" target="_blank" rel="noopener" title="YouTube Gereigreja" style="margin: 0 0.5rem; color: #c4302b;"><i class="fab fa-youtube fa-lg"></i></a>
-                        <a href="https://www.facebook.com/profile.php?id=61585667130827&locale=pt_BR" target="_blank" rel="noopener" title="Facebook Gereigreja" style="margin: 0 0.5rem; color: #3b5998;"><i class="fab fa-facebook fa-lg"></i></a>
-                        <a href="https://www.instagram.com/gereigreja/" target="_blank" rel="noopener" title="Instagram Gereigreja" style="margin: 0 0.5rem; color: #e1306c;"><i class="fab fa-instagram fa-lg"></i></a>
-                        <a href="/suporte/" target="_blank" rel="noopener" title="Suporte Gereigreja" style="margin: 0 0.5rem; color: #4e73df;"><i class="fas fa-headset fa-lg"></i> Suporte</a>
+                    <div class="mt-2 mt-md-0 app-footer-social">
+                        <a href="https://www.youtube.com/channel/UCkBCvncTSBDTl068G8tlkQw" target="_blank" rel="noopener" title="YouTube Gereigreja" class="social-link social-youtube"><i class="fab fa-youtube fa-lg"></i></a>
+                        <a href="https://www.facebook.com/profile.php?id=61585667130827&locale=pt_BR" target="_blank" rel="noopener" title="Facebook Gereigreja" class="social-link social-facebook"><i class="fab fa-facebook fa-lg"></i></a>
+                        <a href="https://www.instagram.com/gereigreja/" target="_blank" rel="noopener" title="Instagram Gereigreja" class="social-link social-instagram"><i class="fab fa-instagram fa-lg"></i></a>
+                        <a href="/suporte/" target="_blank" rel="noopener" title="Suporte Gereigreja" class="social-link social-suporte"><i class="fas fa-headset fa-lg"></i> Suporte</a>
                     </div>
                 </div>
             </footer>
         </div>
     </div>
 
-    <style>
-    /* Garante que o botão de menu (hamburger) fique sempre visível e destacado no mobile */
-    #sidebarToggle {
-        color: #fff !important;
-        background: transparent;
-        border: none;
-        font-size: 1.4rem;
-        z-index: 1051;
-        display: inline-block;
-        position: relative;
-        padding: 0.2rem 0.4rem;
-    }
-    @media (max-width: 991.98px) {
-        .navbar-brand.ps-3 {
-            font-size: 1rem;
-            padding-left: 0.5rem !important;
-            max-width: 50vw;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #activeChurchForm {
-            min-width: 0 !important;
-            max-width: 40vw !important;
-        }
-        #igreja_id_selector_nav {
-            min-width: 0 !important;
-            max-width: 100% !important;
-            font-size: 0.85rem;
-        }
-    }
-    @media (min-width: 992px) {
-        #sidebarToggle {
-            display: none !important;
-        }
-    }
-    /* Largura especial para o seletor de igreja global */
-    .igreja-selector-wide {
-        width: 220px !important;
-        min-width: 120px;
-        max-width: 320px;
-    }
-    </style>
     {# --- JAVASCRIPT --- #}
     <!-- jQuery deve vir primeiro -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

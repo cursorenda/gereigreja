@@ -51,7 +51,7 @@
                     </div>
                 </div>
                 <div class="d-flex justify-content-end">
-                    <button type="submit" name="wizard_next" value="1" class="btn btn-vibrant-green">Próximo &rarr;</button>
+                    <button type="submit" name="wizard_next" value="1" class="btn btn-primary">Próximo &rarr;</button>
                 </div>
             </form>
             {% endif %}
@@ -93,8 +93,8 @@
                     <textarea name="observacoes" id="id_observacoes" class="form-control" rows="2">{{ observacoes|default:'' }}</textarea>
                 </div>
                 <div class="d-flex justify-content-between">
-                    <button type="submit" name="wizard_back" value="2" class="btn btn-vibrant">&larr; Voltar</button>
-                    <button type="submit" name="wizard_next" value="2" class="btn btn-vibrant-green">Próximo &rarr;</button>
+                    <button type="submit" name="wizard_back" value="2" class="btn btn-outline-secondary">&larr; Voltar</button>
+                    <button type="submit" name="wizard_next" value="2" class="btn btn-primary">Próximo &rarr;</button>
                 </div>
             </form>
             {% endif %}
@@ -140,8 +140,8 @@
                     </table>
                 </div>
                 <div class="d-flex justify-content-between">
-                    <button type="submit" name="wizard_back" value="3" class="btn btn-vibrant">&larr; Voltar</button>
-                    <button type="submit" name="wizard_confirm" value="3" class="btn btn-vibrant-green">Confirmar e Gerar</button>
+                    <button type="submit" name="wizard_back" value="3" class="btn btn-outline-secondary">&larr; Voltar</button>
+                    <button type="submit" name="wizard_confirm" value="3" class="btn btn-primary">Confirmar e Gerar</button>
                 </div>
             </form>
             {% endif %}
@@ -158,8 +158,8 @@
                 Você será redirecionado para a lista de lições em instantes...
             </div>
             <div class="d-flex justify-content-end">
-                <a href="{% url 'escola_biblica:gerar_cronograma' %}" class="btn btn-vibrant">Nova Geração</a>
-                <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-vibrant-green ms-2">Ver Lições</a>
+                <a href="{% url 'escola_biblica:gerar_cronograma' %}" class="btn btn-outline-secondary">Nova Geração</a>
+                <a href="{% url 'escola_biblica:licao_list' %}" class="btn btn-primary ms-2">Ver Lições</a>
             </div>
             {% endif %}
         </div>

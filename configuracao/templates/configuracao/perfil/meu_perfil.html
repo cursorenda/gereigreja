@@ -89,17 +89,17 @@
                     {% if aba_ativa|default:'resumo' == 'resumo' %}
                         <!-- Hierarquia de Vínculo: Pessoa → Usuário → Cadastro(s) EBD -->
                         <h5 class="fw-bold mb-3 d-flex align-items-center">
-                            <i class="fas fa-sitemap me-2" style="color: #0d6efd;"></i>
+                            <i class="fas fa-sitemap me-2" style="color: #0d8281;"></i>
                             Hierarquia de Vínculo no Sistema
                         </h5>
                         
                         <div class="row g-3 mb-4">
                             <!-- Nível 1: Pessoa (Membro da Secretaria) -->
                             <div class="col-lg-4 col-md-6">
-                                <div class="border-start border-5" style="border-color: #dc3545 !important; padding: 0;">
+                                <div class="border-start border-5" style="border-color: #0d8281 !important; padding: 0;">
                                     <div class="section-card h-100">
                                         <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px;">
+                                            <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px; background-color: #0d8281 !important;">
                                                 <i class="fas fa-id-card"></i>
                                             </div>
                                             <h6 class="fw-bold mb-0 ms-2">PESSOA</h6>
@@ -124,16 +124,16 @@
                             <div class="col-lg-4 col-md-6 d-flex justify-content-center align-items-center">
                                 <div class="text-center">
                                     <p class="mb-2 small text-muted">Vinculado como</p>
-                                    <i class="fas fa-arrow-down" style="font-size: 28px; color: #0d6efd;"></i>
+                                    <i class="fas fa-arrow-down" style="font-size: 28px; color: #0d8281;"></i>
                                 </div>
                             </div>
 
                             <!-- Nível 2: Usuário (User do Sistema) -->
                             <div class="col-lg-4 col-md-6">
-                                <div class="border-start border-5" style="border-color: #0d6efd !important; padding: 0;">
+                                <div class="border-start border-5" style="border-color: #0d8281 !important; padding: 0;">
                                     <div class="section-card h-100">
                                         <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px;">
+                                            <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px; background-color: #0d8281 !important;">
                                                 <i class="fas fa-user-shield"></i>
                                             </div>
                                             <h6 class="fw-bold mb-0 ms-2">USUÁRIO</h6>
@@ -149,16 +149,16 @@
                             <div class="col-lg-4 col-md-6 d-flex justify-content-center align-items-center">
                                 <div class="text-center">
                                     <p class="mb-2 small text-muted">Enrolado em</p>
-                                    <i class="fas fa-arrow-down" style="font-size: 28px; color: #0d6efd;"></i>
+                                    <i class="fas fa-arrow-down" style="font-size: 28px; color: #0d8281;"></i>
                                 </div>
                             </div>
 
                             <!-- Nível 3: Cadastro(s) EBD -->
                             <div class="col-lg-4 col-md-6">
-                                <div class="border-start border-5" style="border-color: #28a745 !important; padding: 0;">
+                                <div class="border-start border-5" style="border-color: #0d8281 !important; padding: 0;">
                                     <div class="section-card h-100">
                                         <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px;">
+                                            <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 20px; background-color: #0d8281 !important;">
                                                 <i class="fas fa-book"></i>
                                             </div>
                                             <h6 class="fw-bold mb-0 ms-2">CADASTRO(S) EBD</h6>
@@ -273,14 +273,14 @@
                                     {% if cargos_ativos %}
                                         <div class="d-flex flex-wrap gap-2 mb-3">
                                             {% for mc in cargos_ativos %}
-                                                <span class="badge bg-info text-dark px-3 py-2">{{ mc.cargo.nome }}</span>
+                                                <span class="badge px-3 py-2" style="background-color: #0d8281; color: white;">{{ mc.cargo.nome }}</span>
                                             {% endfor %}
                                         </div>
                                     {% else %}
                                         <p class="text-muted">Nenhum cargo ativo.</p>
                                     {% endif %}
                                     {% if request.user.is_superuser or request.user|tem_permissao_hierarquica:'Admin Ministerio' or request.user|tem_permissao_hierarquica:'Pastor Regional' %}
-                                        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-info btn-sm"><i class="fas fa-crown me-1"></i> Gerenciar Assinatura</a>
+                                        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-primary btn-sm"><i class="fas fa-crown me-1"></i> Gerenciar Assinatura</a>
                                     {% endif %}
                                 </div>
                             </div>
@@ -607,7 +607,7 @@
     }
 
     .profile-header {
-        background: linear-gradient(135deg, #0d6efd 0%, #0b3d91 100%);
+        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
     }
 
     .profile-tabs {
@@ -622,7 +622,7 @@
     }
 
     .profile-tabs .nav-link.active {
-        background: #0d6efd;
+        background: #0d8281;
         color: #fff;
     }
 
@@ -660,18 +660,18 @@
     }
 
     .accent-blue {
-        border-color: rgba(13, 110, 253, .2);
-        background: linear-gradient(180deg, rgba(13, 110, 253, .08) 0%, #ffffff 100%);
+        border-color: rgba(13, 130, 129, .2);
+        background: linear-gradient(180deg, rgba(13, 130, 129, .08) 0%, #ffffff 100%);
     }
 
     .accent-green {
-        border-color: rgba(25, 135, 84, .2);
-        background: linear-gradient(180deg, rgba(25, 135, 84, .08) 0%, #ffffff 100%);
+        border-color: rgba(13, 130, 129, .2);
+        background: linear-gradient(180deg, rgba(13, 130, 129, .08) 0%, #ffffff 100%);
     }
 
     .accent-amber {
-        border-color: rgba(255, 193, 7, .3);
-        background: linear-gradient(180deg, rgba(255, 193, 7, .14) 0%, #ffffff 100%);
+        border-color: rgba(13, 130, 129, .2);
+        background: linear-gradient(180deg, rgba(13, 130, 129, .08) 0%, #ffffff 100%);
     }
 
     .history-list {

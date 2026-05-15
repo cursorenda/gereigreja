@@ -7,7 +7,7 @@
     <li class="breadcrumb-item active">Registro de Visitantes</li>
 {% endblock %}
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
     <div class="d-flex align-items-center">
         <i class="fas fa-users me-2"></i>
         <span style="font-size:1.1rem; font-weight:600;">Visitantes do Evento</span>
@@ -86,7 +86,7 @@
     </script>
         </div>
             <div class="col-lg-4 col-12 d-flex align-items-center gap-2">
-                <button type="submit" class="btn btn-vibrant-blue btn-sm shadow border rounded" style="width:120px;min-width:100px;max-width:140px;" title="Buscar eventos" aria-label="Buscar eventos">
+                <button type="submit" class="btn btn-primary btn-sm shadow border rounded" style="width:120px;min-width:100px;max-width:140px;" title="Buscar eventos" aria-label="Buscar eventos">
                     <i class="fas fa-search"></i><span style="margin-left: 0.4em;">Buscar</span>
                 </button>
                 <button id="btn-atualizar-eventos" type="button" class="btn btn-vibrant-orange btn-sm shadow border rounded" style="width:120px;min-width:100px;max-width:140px;height:38px;min-height:38px;max-height:38px;" title="Atualizar lista de eventos" aria-label="Atualizar lista de eventos">
@@ -107,7 +107,7 @@
                             {% endif %}
                         </div>
                         <div class="ms-3">
-                            <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}?evento={{ evento.id }}&filtro_eventos={{ filtro_eventos|urlencode }}&ultimos_n={{ ultimos_n|default:3 }}" class="btn btn-vibrant-blue btn-sm js-abrir-evento d-flex align-items-center gap-1" data-evento="{{ evento.id }}" role="button" title="Abrir evento {{ evento.titulo|escape }}" aria-label="Abrir evento {{ evento.titulo|escape }}" data-loading-text="<span class='spinner-border spinner-border-sm' role='status' aria-hidden='true'></span> Abrindo..."><i class="fas fa-folder-open"></i><span>Abrir</span></a>
+                            <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}?evento={{ evento.id }}&filtro_eventos={{ filtro_eventos|urlencode }}&ultimos_n={{ ultimos_n|default:3 }}" class="btn btn-primary btn-sm js-abrir-evento d-flex align-items-center gap-1" data-evento="{{ evento.id }}" role="button" title="Abrir evento {{ evento.titulo|escape }}" aria-label="Abrir evento {{ evento.titulo|escape }}" data-loading-text="<span class='spinner-border spinner-border-sm' role='status' aria-hidden='true'></span> Abrindo..."><i class="fas fa-folder-open"></i><span>Abrir</span></a>
                         </div>
                     </div>
                 {% endfor %}
@@ -151,7 +151,7 @@
                         <div class="input-group">
                                 <input type="text" id="busca-membro" class="form-control" placeholder="Digite nome ou apelido" autocomplete="off" aria-label="Buscar pessoa">
                                 <div class="btn-group ms-2" role="group" aria-label="Ações de busca">
-                                    <button type="button" id="btn-abrir-criar-visitante" class="btn btn-success" aria-label="Cadastrar novo visitante" title="Cadastrar novo visitante">Cadastrar</button>
+                                    <button type="button" id="btn-abrir-criar-visitante" class="btn btn-primary" aria-label="Cadastrar novo visitante" title="Cadastrar novo visitante">Cadastrar</button>
                                 </div>
                             </div>
                         <ul id="sugestoes-membro" class="list-group" style="position:absolute; top:100%; left:0; right:0; z-index:2200; max-height:220px; overflow-y:auto; display:none;"></ul>
@@ -182,7 +182,7 @@
                     <input type="hidden" name="evento" id="evento-hidden" value="{{ evento_selecionado.id }}">
                 </div>
                 <div class="col-md-3 col-12 d-grid">
-                    <button type="submit" class="btn btn-success">Registrar Presença</button>
+                    <button type="submit" class="btn btn-primary">Registrar Presença</button>
                 </div>
             {# Modal componentizado: inclui partial compartilhado com Lista de Eventos #}
             {% include 'secretaria/partials/_modal_criar_visitante_presenca.html' %}
@@ -497,7 +497,7 @@
                                                     var li2 = document.createElement('li');
                                                     li2.className = 'list-group-item';
                                                     var a = document.createElement('button');
-                                                    a.className = 'btn btn-sm btn-success';
+                                                    a.className = 'btn btn-sm btn-primary';
                                                     a.type = 'button';
                                                     a.textContent = 'Cadastrar visitante';
                                                     a.addEventListener('pointerdown', function(e) {
@@ -525,7 +525,7 @@
                             var li2 = document.createElement('li');
                             li2.className = 'list-group-item';
                             var a = document.createElement('button');
-                            a.className = 'btn btn-sm btn-success';
+                            a.className = 'btn btn-sm btn-primary';
                             a.type = 'button';
                             a.textContent = 'Cadastrar visitante';
                             a.addEventListener('pointerdown', function(e) {

@@ -37,11 +37,11 @@
                 <div class="col-auto">
                     <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Buscar</button>
                      {% if current_q %}
-                        <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-outline-warning ms-1" title="Limpar Busca"><i class="fas fa-times"></i></a>
+                        <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-outline-secondary ms-1" title="Limpar Busca"><i class="fas fa-times"></i></a>
                      {% endif %}
                 </div>
                  <div class="col-auto ms-auto">
-                     <a href="{% url 'configuracao:adicionar_igreja' %}" class="btn btn-success"><i class="fas fa-plus"></i> Adicionar Igreja</a>
+                     <a href="{% url 'configuracao:adicionar_igreja' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar Igreja</a>
                 </div>
             </form>
 

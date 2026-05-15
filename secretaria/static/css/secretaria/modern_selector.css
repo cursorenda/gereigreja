@@ -11,9 +11,9 @@
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 #navegacao-pessoa-select:focus {
-    border-color: #2563eb;
+    border-color: var(--gi-color-brand-700);
     outline: none;
-    box-shadow: 0 0 0 2px #2563eb33;
+    box-shadow: 0 0 0 2px rgba(13, 130, 129, 0.2);
 }
 #navegacao-pessoa-select option {
     padding: 0.5rem;
@@ -28,9 +28,9 @@
     transition: background 0.2s, color 0.2s;
 }
 .btn-outline-primary:hover {
-    background: #2563eb;
+    background: var(--gi-color-brand-700);
     color: #fff;
-    border-color: #2563eb;
+    border-color: var(--gi-color-brand-700);
 }
 .btn-outline-secondary:disabled {
     opacity: 0.5;

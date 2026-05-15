@@ -1,7 +1,7 @@
 
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 13/05/2026
+**Última Atualização:** 15/05/2026
 
 ---
 
@@ -11,7 +11,7 @@
 | Documento | Descrição | Última Atualização |
 |-----------|-----------|-------------------|
 | [../README.md](../README.md) | README principal do projeto | — |
-| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 16/04/2026 |
+| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 15/05/2026 |
 
 ---
 

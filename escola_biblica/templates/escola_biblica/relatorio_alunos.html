@@ -10,14 +10,14 @@
 {% endblock %}
 {% block conteudo_principal %}
 <div class="card shadow-lg rounded-lg" style="border: none;">
-  <div class="card-header py-3" style="background: linear-gradient(90deg, #4e73df 0%, #1cc88a 100%); color: #fff;">
+  <div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff;">
     <div class="d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center">
         <i class="fas fa-user-graduate me-2"></i>
         <span style="font-size:1.1rem; font-weight:600;">Alunos</span>
         <span class="ms-2 text-light" style="font-weight:400;">({{ alunos|length }})</span>
       </div>
-      <a href="?" class="btn btn-vibrant-green" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Turma</a>
+      <a href="?" class="btn btn-light fw-bold" style="height:40px; min-width:120px; border-radius:8px; color:#0a6665;">Nova Turma</a>
     </div>
   </div>
   <div class="card-body pt-3 bg-white" style="border-radius:0 0 12px 12px;">
@@ -49,13 +49,13 @@
         <input type="date" name="fim" class="form-control" value="{{ request.GET.fim }}">
       </div>
       <div class="col-md-2 d-flex">
-        <a href="?" class="btn btn-vibrant-yellow btn-lg fw-bold me-2">Limpar</a>
-        <button type="submit" form="filtro-form" class="btn btn-vibrant-blue btn-lg fw-bold">Filtrar</button>
+        <a href="?" class="btn btn-outline-secondary btn-lg fw-bold me-2">Limpar</a>
+        <button type="submit" form="filtro-form" class="btn btn-primary btn-lg fw-bold">Filtrar</button>
       </div>
     </form>
     <div class="table-responsive">
       <table class="table table-bordered table-striped align-middle mb-0">
-        <thead class="table-primary">
+        <thead class="table-light">
           <tr>
             <th>Cadastro</th>
             <th>Turma de Referência</th>

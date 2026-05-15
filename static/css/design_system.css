@@ -1,0 +1,514 @@
+/* Design System v1 - base de identidade visual do Gereigreja */
+:root {
+  /* Marca (paleta turquesa oficial) */
+  --gi-color-brand-900: #0a6665;
+  --gi-color-brand-700: #0d8281;
+  --gi-color-brand-600: #0d8281;
+  --gi-color-brand-500: #2aa5a4;
+  --gi-color-brand-soft: #dff4f3;
+
+  /* Superficie e texto (neutros) */
+  --gi-color-bg: #f1f5f9;
+  --gi-color-surface: #ffffff;
+  --gi-color-surface-soft: #f8fafc;
+  --gi-color-border: #d7e2e8;
+  --gi-color-text: #1e293b;
+  --gi-color-text-muted: #64748b;
+
+  /* Feedback semantico */
+  --gi-color-success: #10b981;
+  --gi-color-warning: #d97706;
+  --gi-color-danger: #ef4444;
+  --gi-color-info: #0ea5e9;
+
+  /* Tipografia */
+  --gi-font-sans: "Inter", "Segoe UI", "Noto Sans", Arial, sans-serif;
+  --gi-font-mono: "Cascadia Mono", "Fira Code", Consolas, monospace;
+  --gi-font-size-base: 0.95rem;
+  --gi-line-height-base: 1.5;
+
+  /* Forma e espaco */
+  --gi-radius-sm: 0.375rem;
+  --gi-radius-md: 0.5rem;
+  --gi-radius-lg: 0.75rem;
+  --gi-shadow-sm: 0 2px 8px rgba(10, 102, 101, 0.08);
+  --gi-shadow-md: 0 6px 18px rgba(10, 102, 101, 0.14);
+  --gi-focus-ring: rgba(13, 130, 129, 0.2);
+
+  /* Cor de destaque nativa dos controles do browser/SO */
+  accent-color: #0d8281;
+
+  /* Mapeamento para Bootstrap (padronizacao gradual) */
+  --bs-primary: var(--gi-color-brand-600);
+  --bs-secondary: #64748b;
+  --bs-success: var(--gi-color-success);
+  --bs-warning: var(--gi-color-warning);
+  --bs-danger: var(--gi-color-danger);
+  --bs-info: var(--gi-color-info);
+  --bs-body-bg: var(--gi-color-bg);
+  --bs-body-color: var(--gi-color-text);
+  --bs-border-color: var(--gi-color-border);
+  --bs-body-font-family: var(--gi-font-sans);
+  --bs-link-color: var(--gi-color-brand-700);
+  --bs-link-hover-color: var(--gi-color-brand-900);
+  --bs-emphasis-color: var(--gi-color-text);
+  --bs-heading-color: var(--gi-color-text);
+  --bs-nav-link-color: var(--gi-color-brand-700);
+  --bs-nav-link-hover-color: var(--gi-color-brand-900);
+  --bs-nav-tabs-link-active-color: var(--gi-color-text);
+  --bs-nav-tabs-link-active-bg: var(--gi-color-brand-soft);
+  --bs-nav-tabs-link-active-border-color: var(--gi-color-border) var(--gi-color-border) transparent;
+}
+
+body {
+  font-family: var(--gi-font-sans);
+  font-size: var(--gi-font-size-base);
+  line-height: var(--gi-line-height-base);
+  color: var(--gi-color-text);
+  background: var(--gi-color-bg);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--gi-color-text);
+  font-weight: 600;
+}
+
+p,
+li,
+td,
+th,
+label,
+.form-label {
+  color: var(--gi-color-text);
+}
+
+a {
+  color: var(--gi-color-brand-700);
+}
+
+a:hover,
+a:focus {
+  color: var(--gi-color-brand-900);
+}
+
+.card {
+  border: 1px solid var(--gi-color-border);
+  border-radius: var(--gi-radius-md);
+  box-shadow: var(--gi-shadow-sm);
+}
+
+.btn {
+  border-radius: var(--gi-radius-sm);
+  font-weight: 600;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--gi-color-brand-600);
+  --bs-btn-border-color: var(--gi-color-brand-600);
+  --bs-btn-hover-bg: var(--gi-color-brand-900);
+  --bs-btn-hover-border-color: var(--gi-color-brand-900);
+  --bs-btn-active-bg: var(--gi-color-brand-900);
+  --bs-btn-active-border-color: var(--gi-color-brand-900);
+  --bs-btn-disabled-bg: var(--gi-color-brand-600);
+  --bs-btn-disabled-border-color: var(--gi-color-brand-600);
+  background-color: var(--gi-color-brand-600);
+  border-color: var(--gi-color-brand-600);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--gi-color-brand-900);
+  border-color: var(--gi-color-brand-900);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--gi-color-brand-700);
+  --bs-btn-border-color: var(--gi-color-brand-700);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--gi-color-brand-700);
+  --bs-btn-hover-border-color: var(--gi-color-brand-700);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--gi-color-brand-700);
+  --bs-btn-active-border-color: var(--gi-color-brand-700);
+  --bs-btn-disabled-color: var(--gi-color-brand-700);
+  --bs-btn-disabled-border-color: var(--gi-color-brand-700);
+  color: var(--gi-color-brand-700);
+  border-color: var(--gi-color-brand-700);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+  color: #fff;
+  background-color: var(--gi-color-brand-700);
+  border-color: var(--gi-color-brand-700);
+}
+
+.btn-info {
+  --bs-btn-bg: var(--gi-color-brand-600);
+  --bs-btn-border-color: var(--gi-color-brand-600);
+  --bs-btn-hover-bg: var(--gi-color-brand-900);
+  --bs-btn-hover-border-color: var(--gi-color-brand-900);
+  --bs-btn-active-bg: var(--gi-color-brand-900);
+  --bs-btn-active-border-color: var(--gi-color-brand-900);
+  --bs-btn-disabled-bg: var(--gi-color-brand-600);
+  --bs-btn-disabled-border-color: var(--gi-color-brand-600);
+  color: #fff;
+  background-color: var(--gi-color-brand-600);
+  border-color: var(--gi-color-brand-600);
+}
+
+.btn-info:hover,
+.btn-info:focus {
+  color: #fff;
+  background-color: var(--gi-color-brand-900);
+  border-color: var(--gi-color-brand-900);
+}
+
+.text-primary {
+  color: var(--gi-color-brand-700) !important;
+}
+
+.border-primary {
+  border-color: var(--gi-color-brand-700) !important;
+}
+
+.bg-primary {
+  background-color: var(--gi-color-brand-700) !important;
+}
+
+.text-info {
+  color: var(--gi-color-brand-700) !important;
+}
+
+.form-control,
+.form-select {
+  border-color: var(--gi-color-border);
+  border-radius: var(--gi-radius-sm);
+  accent-color: var(--gi-color-brand-700);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--gi-color-brand-500);
+  box-shadow: 0 0 0 0.2rem var(--gi-focus-ring);
+}
+
+.search-global-input {
+  padding-left: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d8281' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 0.9rem 0.9rem;
+  background-position: 0.65rem center;
+}
+
+.search-global-input::placeholder {
+  color: var(--gi-color-text-muted);
+}
+
+.table {
+  --bs-table-striped-bg: var(--gi-color-surface-soft);
+}
+
+.table-light,
+.table-primary {
+  color: var(--gi-color-brand-900);
+}
+
+.table-light th,
+.table-light td,
+.table-primary th,
+.table-primary td {
+  color: var(--gi-color-brand-900);
+}
+
+/* Paginacao (harmonizada com paleta turquesa) */
+.page-link {
+  color: var(--gi-color-brand-700);
+  border-color: var(--gi-color-border);
+  background-color: var(--gi-color-surface);
+}
+
+.page-link:hover,
+.page-link:focus {
+  color: #fff;
+  background-color: var(--gi-color-brand-700);
+  border-color: var(--gi-color-brand-700);
+}
+
+.page-item.active .page-link {
+  background-color: var(--gi-color-brand-700);
+  border-color: var(--gi-color-brand-700);
+}
+
+.page-item.disabled .page-link {
+  color: var(--gi-color-text-muted);
+  background-color: var(--gi-color-surface-soft);
+  border-color: var(--gi-color-border);
+}
+
+/* Classes utilitarias para migracao progressiva de templates */
+.gi-surface {
+  background: var(--gi-color-surface);
+}
+
+.gi-muted {
+  color: var(--gi-color-text-muted);
+}
+
+.gi-border {
+  border: 1px solid var(--gi-color-border);
+}
+
+.gi-shadow {
+  box-shadow: var(--gi-shadow-sm);
+}
+
+/* Base layout helpers (migracao de estilos inline) */
+.demo-banner {
+  background: #ffc107;
+  color: #212529;
+  text-align: center;
+  padding: 6px 16px;
+  font-weight: 700;
+  font-size: 0.93em;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2000;
+  border-bottom: 2px solid #e0a800;
+}
+
+.demo-banner-action {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #212529;
+  text-decoration: underline;
+  font-weight: 700;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.demo-banner-link {
+  color: #212529;
+  text-decoration: underline;
+}
+
+.font-size-label {
+  font-size: 1.1em;
+  color: #bbb;
+  line-height: 1;
+}
+
+.font-size-selector-custom {
+  width: 110px;
+  min-width: 0;
+  font-size: 0.95em;
+  padding: 2px 8px 2px 6px;
+  border-radius: 6px;
+  border: 1px solid #bbb;
+  background: #23272b;
+  color: #f8f9fa;
+  height: 28px;
+  line-height: 1.1;
+  box-shadow: none;
+  transition: border-color 0.2s;
+}
+
+.font-size-selector-custom:focus {
+  border-color: #888;
+  outline: none;
+  box-shadow: 0 0 0 1px #888;
+}
+
+.notify-bell-icon {
+  font-size: 24px;
+  color: #ffc107;
+}
+
+.notify-count-badge {
+  top: 2px;
+  right: -8px;
+  font-size: 10px;
+}
+
+.user-avatar-img {
+  width: 45px;
+  height: 45px;
+  object-fit: cover;
+  margin-right: 10px;
+  border: 2px solid #fff;
+}
+
+.user-avatar-fallback {
+  width: 45px;
+  height: 45px;
+  font-size: 22px;
+  margin-right: 10px;
+  border: 2px solid #fff;
+}
+
+.user-avatar-fallback-hidden {
+  display: none;
+}
+
+.logout-inline-form {
+  display: inline;
+}
+
+.ministerio-logo-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+  padding: 8px 0;
+}
+
+.ministerio-logo-card {
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 2px 12px rgba(13, 130, 129, 0.13);
+  padding: 6px 10px;
+  border: 2px solid #eee;
+  display: inline-block;
+  transition: box-shadow 0.2s;
+}
+
+.ministerio-logo-img {
+  max-height: 90px;
+  max-width: 160px;
+  display: block;
+  margin: auto;
+}
+
+.content-bottom-space {
+  margin-bottom: 100px;
+}
+
+.app-footer {
+  width: 100%;
+}
+
+.app-footer-row {
+  text-align: center;
+  gap: 1.5rem;
+}
+
+.app-footer-copy {
+  margin-right: 1.5rem;
+}
+
+.app-footer-links {
+  margin-left: 1.5rem;
+}
+
+.footer-link-right {
+  margin-right: 0.75rem;
+}
+
+.footer-link-left {
+  margin-left: 0.75rem;
+}
+
+.footer-separator {
+  margin: 0 0.5rem;
+}
+
+.app-footer-social {
+  margin-left: 1.5rem;
+}
+
+.social-link {
+  margin: 0 0.5rem;
+}
+
+.social-youtube {
+  color: #c4302b;
+}
+
+.social-facebook {
+  color: #3b5998;
+}
+
+.social-instagram {
+  color: #e1306c;
+}
+
+.social-suporte {
+  color: #4e73df;
+}
+
+/* Base sistema layout */
+.departamento-title {
+  letter-spacing: 1px;
+  padding-left: 2rem;
+}
+
+.departamento-breadcrumb {
+  padding-left: 2rem;
+}
+
+.sistema-card {
+  border-radius: 12px;
+  min-height: 56px;
+}
+
+.sistema-card-body-clean {
+  padding: 0;
+}
+
+.igreja-selector-wide {
+  width: 220px !important;
+  min-width: 120px;
+  max-width: 320px;
+}
+
+@media (max-width: 600px) {
+  .font-size-selector-custom {
+    width: 90px;
+    font-size: 0.92em;
+    padding: 1px 4px;
+    height: 24px;
+  }
+}
+
+/* Mobile menu toggle and topbar adjustments */
+#sidebarToggle {
+  color: #fff !important;
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  z-index: 1051;
+  display: inline-block;
+  position: relative;
+  padding: 0.2rem 0.4rem;
+}
+
+@media (max-width: 991.98px) {
+  .navbar-brand.ps-3 {
+    font-size: 1rem;
+    padding-left: 0.5rem !important;
+    max-width: 50vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #activeChurchForm {
+    min-width: 0 !important;
+    max-width: 40vw !important;
+  }
+
+  #igreja_id_selector_nav {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    font-size: 0.85rem;
+  }
+}
+
+@media (min-width: 992px) {
+  #sidebarToggle {
+    display: none !important;
+  }
+}

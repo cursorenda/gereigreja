@@ -58,10 +58,10 @@
 }
 
 .card-tipo-evento.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
     color: #fff;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3) !important;
+    box-shadow: 0 8px 20px rgba(13, 130, 129, 0.28) !important;
 }
 
 .card-tipo-evento.active .tipo-nome,
@@ -95,27 +95,27 @@
 
 /* Cores específicas por tipo */
 .card-tipo-evento[data-tipo="culto"]::before {
-    background: #007bff;
+    background: #0d8281;
 }
 
 .card-tipo-evento[data-tipo="reuniao"]::before {
-    background: #28a745;
+    background: #0f766e;
 }
 
 .card-tipo-evento[data-tipo="festa"]::before {
-    background: #ffc107;
+    background: #2aa5a4;
 }
 
 .card-tipo-evento[data-tipo="feriado"]::before {
-    background: #dc3545;
+    background: #155e75;
 }
 
 .card-tipo-evento[data-tipo="estudo"]::before {
-    background: #6f42c1;
+    background: #155e75;
 }
 
 .card-tipo-evento[data-tipo="outro"]::before {
-    background: #6c757d;
+    background: #64748b;
 }
 
 /* Badge de Participantes nos Eventos */
@@ -163,7 +163,7 @@ body.ocultar-participantes .badge-participantes {
 /* ========== FILTROS DE BUSCA ========== */
 .filtros-container {
     padding: 1.25rem;
-    background: #f8f9fa;
+    background: #f4fbfb;
     border-radius: 10px;
     margin-bottom: 1.5rem;
     transition: box-shadow 0.3s ease;
@@ -193,8 +193,8 @@ body.ocultar-participantes .badge-participantes {
 
 .filtros-container .form-control:focus,
 .filtros-container .form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    border-color: #2aa5a4;
+    box-shadow: 0 0 0 0.2rem rgba(13, 130, 129, 0.16);
     transform: translateY(-1px);
 }
 
@@ -232,12 +232,47 @@ body.ocultar-participantes .badge-participantes {
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
 }
 
+/* Tema dos controles nativos do FullCalendar */
+.fc .fc-toolbar-title {
+    color: #0a6665;
+    font-weight: 700;
+}
+
+.fc .fc-button-primary {
+    background-color: #0d8281 !important;
+    border-color: #0d8281 !important;
+    color: #fff !important;
+    box-shadow: none !important;
+}
+
+.fc .fc-button-primary:hover {
+    background-color: #0a6665 !important;
+    border-color: #0a6665 !important;
+}
+
+.fc .fc-button-primary:focus,
+.fc .fc-button-primary:not(:disabled).fc-button-active:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13, 130, 129, 0.25) !important;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    background-color: #0a6665 !important;
+    border-color: #0a6665 !important;
+}
+
+.fc .fc-button-primary:disabled {
+    background-color: #8bcfce !important;
+    border-color: #8bcfce !important;
+    color: #f8ffff !important;
+}
+
 /* Destaque para o dia atual */
 .fc-day-today {
-    background: #e3f2fd !important;
-    border: 2px solid #1976d2 !important;
+    background: #e8f8f8 !important;
+    border: 2px solid #0d8281 !important;
     border-radius: 6px;
-    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.15);
+    box-shadow: 0 0 0 3px rgba(13, 130, 129, 0.18);
 }
 
 /* ========== ANIMAÇÕES ========== */
@@ -303,7 +338,7 @@ body.ocultar-participantes .badge-participantes {
 }
 
 .hover-card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
     color: white;
     padding: 12px 16px;
     border-radius: 12px 12px 0 0;
@@ -341,7 +376,7 @@ body.ocultar-participantes .badge-participantes {
 }
 
 .modal-header.bg-gradient-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
     color: #fff;
     padding: 1.5rem;
     border: none;
@@ -388,7 +423,7 @@ body.ocultar-participantes .badge-participantes {
 
 .info-item:hover {
     background: #e9ecef;
-    border-left-color: #667eea;
+    border-left-color: #0d8281;
 }
 
 .info-item i {
@@ -430,7 +465,7 @@ body.ocultar-participantes .badge-participantes {
     right: 32px;
     width: 64px;
     height: 64px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -440,12 +475,12 @@ body.ocultar-participantes .badge-participantes {
     z-index: 1000;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-decoration: none;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(13, 130, 129, 0.35);
 }
 
 .btn-fab:hover {
     transform: scale(1.12) rotate(90deg);
-    box-shadow: 0 8px 28px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 8px 28px rgba(13, 130, 129, 0.46);
     color: #fff;
 }
 
@@ -477,7 +512,7 @@ body.ocultar-participantes .badge-participantes {
 #loading-overlay p {
     margin-top: 1rem;
     font-size: 1.1rem;
-    color: #667eea;
+    color: #0d8281;
     font-weight: 600;
 }
 
@@ -494,7 +529,7 @@ body.ocultar-participantes .badge-participantes {
 
 .alert-sem-eventos i {
     font-size: 4rem;
-    color: #667eea;
+    color: #0d8281;
     margin-bottom: 1rem;
     opacity: 0.6;
 }
@@ -702,7 +737,7 @@ body.ocultar-participantes .badge-participantes {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: rgba(220, 53, 69, 0.95);
+    background: rgba(21, 94, 117, 0.95);
     border: 2px solid #fff;
     color: #fff;
     font-size: 24px;
@@ -712,7 +747,7 @@ body.ocultar-participantes .badge-participantes {
 }
 
 .btn-fechar-fullscreen:hover {
-    background: rgba(200, 35, 51, 1);
+    background: rgba(15, 118, 110, 1);
     transform: scale(1.1) rotate(90deg);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
@@ -806,36 +841,36 @@ body.ocultar-participantes .badge-participantes {
 
 /* Eventos da semana atual - borda destacada */
 .fc-event.evento-semana-atual {
-    border-left: 4px solid #ffc107 !important;
-    box-shadow: 0 2px 6px rgba(255, 193, 7, 0.3);
+    border-left: 4px solid #0e7490 !important;
+    box-shadow: 0 2px 6px rgba(14, 116, 144, 0.3);
 }
 
 .evento-lista-item.evento-semana-atual {
-    border-left: 4px solid #ffc107;
-    background: rgba(255, 193, 7, 0.05);
+    border-left: 4px solid #0e7490;
+    background: rgba(14, 116, 144, 0.08);
 }
 
 /* Evento de hoje - destaque especial */
 .fc-event.evento-hoje {
-    border-left: 4px solid #28a745 !important;
-    background: linear-gradient(135deg, rgba(40, 167, 69, 0.15) 0%, rgba(40, 167, 69, 0.05) 100%) !important;
-    box-shadow: 0 3px 10px rgba(40, 167, 69, 0.4);
+    border-left: 4px solid #0d8281 !important;
+    background: linear-gradient(135deg, rgba(13, 130, 129, 0.15) 0%, rgba(13, 130, 129, 0.05) 100%) !important;
+    box-shadow: 0 3px 10px rgba(13, 130, 129, 0.4);
     font-weight: 600;
     animation: pulso-sutil 2s ease-in-out infinite;
 }
 
 .evento-lista-item.evento-hoje {
-    border-left: 4px solid #28a745;
-    background: linear-gradient(90deg, rgba(40, 167, 69, 0.12) 0%, rgba(40, 167, 69, 0.02) 100%);
+    border-left: 4px solid #0d8281;
+    background: linear-gradient(90deg, rgba(13, 130, 129, 0.12) 0%, rgba(13, 130, 129, 0.02) 100%);
     font-weight: 600;
 }
 
 /* Animação sutil de pulso para o evento de hoje */
 @keyframes pulso-sutil {
     0%, 100% {
-        box-shadow: 0 3px 10px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 3px 10px rgba(13, 130, 129, 0.4);
     }
     50% {
-        box-shadow: 0 4px 14px rgba(40, 167, 69, 0.6);
+        box-shadow: 0 4px 14px rgba(13, 130, 129, 0.6);
     }
 }

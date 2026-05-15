@@ -1,534 +1,11 @@
 {% extends "admin/index.html" %}
-{% load i18n log %}
+{% load i18n log static %}
 
 {% block content_title %}{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
-<style>
-/* ===== LAYOUT RESPONSIVO (MOBILE-FIRST) ===== */
-
-/* Layout base: Mobile (coluna única) */
-body.dashboard #container {
-    max-width: 100% !important;
-    width: 100% !important;
-    padding: 20px !important;
-}
-
-body.dashboard #content {
-    display: block !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-}
-
-body.dashboard .dashboard-sidebar,
-body.dashboard #content-main,
-body.dashboard #content-related {
-    width: 100%;
-    margin-bottom: 20px;
-    position: static;
-}
-
-/* Remove painel lateral direito (filtros/ações recentes) */
-body.dashboard #content-related {
-    display: none !important;
-}
-
-/* Tabelas na sidebar */
-body.dashboard .dashboard-sidebar table {
-    width: 100%;
-    table-layout: auto;
-}
-
-body.dashboard .dashboard-sidebar th,
-body.dashboard .dashboard-sidebar td {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-body.dashboard .dashboard-sidebar th a,
-body.dashboard .dashboard-sidebar td a {
-    white-space: nowrap;
-}
-
-/* ===== DESKTOP: 2 COLUNAS ===== */
-@media (min-width: 1200px) {
-    body.dashboard #container {
-        padding: 20px !important;
-    }
-    
-    body.dashboard #content {
-        display: grid !important;
-        grid-template-columns: 286px minmax(0, 1fr) !important;
-        gap: 30px !important;
-    }
-    
-    /* Coluna 1: Sidebar - Menus */
-    body.dashboard .dashboard-sidebar {
-        grid-column: 1 !important;
-        position: sticky;
-        top: 20px;
-        align-self: start;
-        padding-top: 20px;
-        margin-bottom: 0;
-        max-width: 286px;
-    }
-    
-    /* Coluna 2: Content Main - Métricas */
-    body.dashboard #content-main {
-        grid-column: 2 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        margin-bottom: 0;
-    }
-}
-
-/* Ajuste para telas médias (tablet) */
-@media (min-width: 768px) and (max-width: 1199px) {
-    body.dashboard #content {
-        display: grid !important;
-        grid-template-columns: 286px minmax(0, 1fr) !important;
-        gap: 20px !important;
-    }
-    
-    body.dashboard .dashboard-sidebar {
-        grid-column: 1 !important;
-        position: sticky;
-        top: 20px;
-        align-self: start;
-    }
-    
-    body.dashboard #content-main {
-        grid-column: 2 !important;
-    }
-}
-
-/* ===== DASHBOARD DE MÉTRICAS ===== */
-.metrics-dashboard {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 25px;
-    color: white;
-    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
-    width: 100%;
-    box-sizing: border-box;
-}
-
-@media (min-width: 768px) {
-    .metrics-dashboard {
-        padding: 25px;
-    }
-}
-
-.metrics-dashboard h2 {
-    margin: 0 0 20px 0;
-    font-size: 20px;
-    font-weight: 600;
-}
-
-/* Grid de métricas - Mobile First */
-.metrics-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 15px;
-    margin-bottom: 25px;
-}
-
-@media (min-width: 480px) {
-    .metrics-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (min-width: 992px) {
-    .metrics-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-.metric-card {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    border-radius: 10px;
-    padding: 18px;
-    text-align: center;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.metric-card:hover {
-    transform: translateY(-3px);
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-}
-
-.metric-icon {
-    font-size: 32px;
-    display: block;
-    margin-bottom: 8px;
-}
-
-.metric-value {
-    font-size: 28px;
-    font-weight: 700;
-    margin: 8px 0 5px 0;
-}
-
-.metric-label {
-    font-size: 12px;
-    opacity: 0.9;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.metric-sublabel {
-    font-size: 10px;
-    opacity: 0.7;
-    margin-top: 4px;
-}
-
-.section-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin: 25px 0 12px 0;
-    opacity: 0.95;
-}
-
-.dashboard-headline {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
-.dashboard-headline-meta {
-    font-size: 12px;
-    opacity: 0.9;
-}
-
-.dashboard-refresh-btn {
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    background: rgba(255, 255, 255, 0.14);
-    color: #fff;
-    font-size: 12px;
-    border-radius: 999px;
-    padding: 5px 10px;
-    cursor: pointer;
-}
-
-.dashboard-refresh-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
-}
-
-.ops-strip {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-@media (min-width: 900px) {
-    .ops-strip {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-.ops-card {
-    background: rgba(10, 15, 30, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
-    padding: 12px;
-}
-
-.ops-card-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    opacity: 0.88;
-}
-
-.ops-card-value {
-    font-size: 24px;
-    font-weight: 700;
-    margin: 2px 0;
-}
-
-.ops-card-sublabel {
-    font-size: 12px;
-    opacity: 0.85;
-}
-
-.ops-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 0 0 14px 0;
-}
-
-.ops-actions a {
-    color: #fff;
-    text-decoration: none;
-    border: 1px solid rgba(255, 255, 255, 0.28);
-    background: rgba(255, 255, 255, 0.09);
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-size: 12px;
-}
-
-.ops-actions a:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* Quality bars - Mobile First */
-.quality-bars {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-top: 15px;
-}
-
-@media (min-width: 576px) {
-    .quality-bars {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-.quality-item {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 10px;
-}
-
-.quality-item label {
-    font-size: 11px;
-    display: block;
-    margin-bottom: 5px;
-    opacity: 0.9;
-}
-
-.progress-bar {
-    height: 5px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-bottom: 5px;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
-    transition: width 0.5s ease;
-}
-
-.quality-item span {
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.admin-health-card {
-    background: rgba(255, 255, 255, 0.14);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 18px;
-}
-
-.admin-health-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.admin-health-score {
-    font-size: 30px;
-    font-weight: 700;
-}
-
-.admin-health-badge {
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.admin-health-badge.ok {
-    background: rgba(34, 197, 94, 0.25);
-    color: #dcfce7;
-}
-
-.admin-health-badge.alerta {
-    background: rgba(251, 146, 60, 0.25);
-    color: #ffedd5;
-}
-
-.admin-health-badge.critico {
-    background: rgba(239, 68, 68, 0.25);
-    color: #fee2e2;
-}
-
-.admin-health-list {
-    list-style: none;
-    margin: 12px 0 0 0;
-    padding: 0;
-}
-
-.admin-health-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
-    font-size: 12px;
-}
-
-.admin-health-list li:last-child {
-    border-bottom: 0;
-}
-
-.recent-entity-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 18px;
-}
-
-@media (min-width: 900px) {
-    .recent-entity-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-.recent-entity-card {
-    text-align: left;
-    padding: 14px 14px 12px;
-}
-
-.recent-entity-title {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    opacity: 0.9;
-    margin-bottom: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-    padding-bottom: 6px;
-}
-
-.recent-entity-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.recent-entity-list li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 13px;
-    line-height: 1.3;
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    margin-bottom: 6px;
-}
-
-.recent-entity-list li:last-child {
-    margin-bottom: 0;
-}
-
-.recent-entity-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 78%;
-}
-
-.recent-entity-id {
-    font-size: 11px;
-    opacity: 0.82;
-    white-space: nowrap;
-}
-
-.recent-empty {
-    opacity: 0.85;
-    justify-content: flex-start !important;
-}
-
-.insights-panel {
-    margin-top: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.08);
-    overflow: hidden;
-}
-
-.insights-panel summary {
-    cursor: pointer;
-    padding: 11px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.insights-body {
-    padding: 8px 12px 14px;
-}
-
-/* Charts - Mobile First */
-.charts-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 15px;
-    margin-top: 20px;
-}
-
-@media (min-width: 768px) {
-    .charts-row {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-.chart-container {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    padding: 15px;
-    backdrop-filter: blur(10px);
-    height: 250px;
-    max-height: 250px;
-    position: relative;
-    overflow: hidden;
-}
-
-.chart-container canvas {
-    max-height: 200px !important;
-    width: 100% !important;
-}
-
-.chart-container h3 {
-    margin: 0 0 12px 0;
-    font-size: 13px;
-    opacity: 0.9;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.loading {
-    text-align: center;
-    padding: 15px;
-    opacity: 0.7;
-}
-</style>
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}
 
@@ -549,21 +26,21 @@ body.dashboard .dashboard-sidebar td a {
             <tbody>
                 <tr class="model-ministerio">
                     <th scope="row">
-                        <a href="{% url 'admin:configuracao_ministerio_changelist' %}" style="color: #f59e0b;">🏢 Ministérios</a>
+                        <a href="{% url 'admin:configuracao_ministerio_changelist' %}" class="admin-link-ministerios">🏢 Ministérios</a>
                     </th>
-                    <td style="color: #6b7280; font-size: 11px;">Gerenciar clientes</td>
+                    <td class="admin-cell-meta">Gerenciar clientes</td>
                 </tr>
                 <tr class="model-ticket">
                     <th scope="row">
-                        <a href="{% url 'admin:suporte_ticket_changelist' %}" style="color: #ef4444;">🎫 Tickets</a>
+                        <a href="{% url 'admin:suporte_ticket_changelist' %}" class="admin-link-tickets">🎫 Tickets</a>
                     </th>
-                    <td style="color: #6b7280; font-size: 11px;">Suporte aos clientes</td>
+                    <td class="admin-cell-meta">Suporte aos clientes</td>
                 </tr>
                 <tr class="model-assinatura">
                     <th scope="row">
                         <a href="{% url 'admin:configuracao_assinaturaministerio_changelist' %}">💳 Assinaturas</a>
                     </th>
-                    <td style="color: #6b7280; font-size: 11px;">Planos ativos</td>
+                    <td class="admin-cell-meta">Planos ativos</td>
                 </tr>
             </tbody>
         </table>
@@ -578,21 +55,21 @@ body.dashboard .dashboard-sidebar td a {
             <tbody>
                 <tr class="model-dashboard">
                     <th scope="row">
-                        <a href="{% url 'admin:configuracao_dashboard_sistema' %}" style="color: #6366f1;">📊 Dashboard Sistema</a>
+                        <a href="{% url 'admin:configuracao_dashboard_sistema' %}" class="admin-link-dashboard">📊 Dashboard Sistema</a>
                     </th>
-                    <td style="color: #6b7280; font-size: 11px;">Saúde do servidor</td>
+                    <td class="admin-cell-meta">Saúde do servidor</td>
                 </tr>
                 <tr class="model-funil">
                     <th scope="row">
-                        <a href="{% url 'admin:configuracao_dashboard_funil' %}" style="color: #8b5cf6;">📈 Funil de Vendas</a>
+                        <a href="{% url 'admin:configuracao_dashboard_funil' %}" class="admin-link-funil">📈 Funil de Vendas</a>
                     </th>
-                    <td style="color: #6b7280; font-size: 11px;">Métricas de conversão</td>
+                    <td class="admin-cell-meta">Métricas de conversão</td>
                 </tr>
                 <tr class="model-metricas">
                     <th scope="row">
-                        <a href="{% url 'admin_metricas_produto' %}" style="color: #10b981;">📉 API de Métricas</a>
+                        <a href="{% url 'admin_metricas_produto' %}" class="admin-link-metricas">📉 API de Métricas</a>
                     </th>
-                    <td style="color: #6b7280; font-size: 11px;">Dados do painel</td>
+                    <td class="admin-cell-meta">Dados do painel</td>
                 </tr>
             </tbody>
         </table>
@@ -610,58 +87,58 @@ body.dashboard .dashboard-sidebar td a {
                         <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">🚀 Deploy</a>
                     </th>
                     <td>
-                        <a href="{% url 'admin:deploy_nova_versao' %}" class="addlink" style="font-size: 11px;">Nova</a>
+                        <a href="{% url 'admin:deploy_nova_versao' %}" class="addlink admin-link-xs">Nova</a>
                         |
-                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink" style="font-size: 11px;">Histórico</a>
+                        <a href="{% url 'admin:deploy_deployhistorico_changelist' %}" class="changelink admin-link-xs">Histórico</a>
                     </td>
                 </tr>
                 <tr class="model-backup-json">
                     <th scope="row">
                         <a href="{% url 'backup_json' %}">💾 Backup JSON</a>
                     </th>
-                    <td style="color: #28a745; font-size: 11px;">✅ Produção</td>
+                    <td class="admin-cell-success">✅ Produção</td>
                 </tr>
                 <tr class="model-backup-zip">
                     <th scope="row">
                         <a href="{% url 'backup_arquivos' %}">📦 Backup ZIP</a>
                     </th>
-                    <td style="color: #b45309; font-size: 11px;">⚠️ Conforme storage</td>
+                    <td class="admin-cell-warning">⚠️ Conforme storage</td>
                 </tr>
                 <tr class="model-backup-custom">
                     <th scope="row">
                         <a href="{% url 'backup_custom' %}">Backup Custom</a>
                     </th>
-                    <td style="color: #dc3545; font-size: 11px;">⚠️ Local</td>
+                    <td class="admin-cell-danger">⚠️ Local</td>
                 </tr>
                 <tr class="model-backup-sql">
                     <th scope="row">
                         <a href="{% url 'backup_sql' %}">Backup SQL</a>
                     </th>
-                    <td style="color: #dc3545; font-size: 11px;">⚠️ Local</td>
+                    <td class="admin-cell-danger">⚠️ Local</td>
                 </tr>
                 <tr class="model-blog">
                     <th scope="row">
-                        <a href="{% url 'admin:blog_post_changelist' %}" style="color: #2563eb;">📝 Blog</a>
+                        <a href="{% url 'admin:blog_post_changelist' %}" class="admin-link-blog">📝 Blog</a>
                     </th>
                     <td>
-                        <a href="{% url 'admin:blog_categoria_changelist' %}" class="changelink" style="font-size: 11px;">Categorias</a>
+                        <a href="{% url 'admin:blog_categoria_changelist' %}" class="changelink admin-link-xs">Categorias</a>
                         |
-                        <a href="{% url 'blog:lista' %}" style="font-size: 11px;" target="_blank" rel="noopener">Público</a>
+                        <a href="{% url 'blog:lista' %}" class="admin-link-xs" target="_blank" rel="noopener">Público</a>
                     </td>
                 </tr>
                 <tr class="model-auditoria">
                     <th scope="row">
-                        <a href="/admin-auditoria/" style="color: #6b7280;">🔍 Auditoria</a>
+                        <a href="/admin-auditoria/" class="admin-link-auditoria">🔍 Auditoria</a>
                     </th>
-                    <td style="color: #6b7280; font-size: 11px;">Logs de acesso</td>
+                    <td class="admin-cell-meta">Logs de acesso</td>
                 </tr>
             </tbody>
         </table>
     </div>
 
     <!-- ===== MODELOS DO SISTEMA (recolhível) ===== -->
-    <details style="margin-top: 12px;">
-        <summary style="cursor: pointer; padding: 6px 8px; font-size: 12px; font-weight: 600; color: #6b7280; list-style: none; display: flex; align-items: center; gap: 6px;">
+    <details class="admin-models-details">
+        <summary class="admin-models-summary">
             ▶ Todos os Modelos
         </summary>
         {% if app_list %}
@@ -746,7 +223,7 @@ body.dashboard .dashboard-sidebar td a {
         <div class="loading" id="loading">
             <i class="fas fa-spinner fa-spin"></i> Carregando métricas...
         </div>
-        <div id="metrics-content" style="display: none;">
+        <div id="metrics-content" class="metrics-content-hidden">
             <div class="section-title">🩺 Saude do Admin</div>
             <div class="admin-health-card">
                 <div class="admin-health-top">
@@ -832,7 +309,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="quality-item">
                     <label>Membros com Foto</label>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="bar-foto" style="width: 0%"></div>
+                        <div class="progress-fill progress-fill-zero" id="bar-foto"></div>
                     </div>
                     <span id="percent-foto">0%</span>
                 </div>
@@ -840,7 +317,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="quality-item">
                     <label>Membros com Telefone</label>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="bar-telefone" style="width: 0%"></div>
+                        <div class="progress-fill progress-fill-zero" id="bar-telefone"></div>
                     </div>
                     <span id="percent-telefone">0%</span>
                 </div>
@@ -848,7 +325,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="quality-item">
                     <label>Lançamentos c/ Comprovante</label>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="bar-comprovante" style="width: 0%"></div>
+                        <div class="progress-fill progress-fill-zero" id="bar-comprovante"></div>
                     </div>
                     <span id="percent-comprovante">0%</span>
                 </div>
@@ -856,7 +333,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="quality-item">
                     <label>Taxa de Retenção (30d)</label>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="bar-retencao" style="width: 0%"></div>
+                        <div class="progress-fill progress-fill-zero" id="bar-retencao"></div>
                     </div>
                     <span id="percent-retencao">0%</span>
                 </div>
@@ -868,7 +345,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="quality-item">
                     <label>Pequenos (&lt;50 membros)</label>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="bar-pequenos" style="width: 0%; background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);"></div>
+                        <div class="progress-fill progress-fill-zero progress-fill-pequenos" id="bar-pequenos"></div>
                     </div>
                     <span id="count-pequenos">0</span>
                 </div>
@@ -876,7 +353,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="quality-item">
                     <label>Médios (50-200)</label>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="bar-medios" style="width: 0%; background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);"></div>
+                        <div class="progress-fill progress-fill-zero progress-fill-medios" id="bar-medios"></div>
                     </div>
                     <span id="count-medios">0</span>
                 </div>
@@ -884,7 +361,7 @@ body.dashboard .dashboard-sidebar td a {
                 <div class="quality-item">
                     <label>Grandes (&gt;200)</label>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="bar-grandes" style="width: 0%; background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);"></div>
+                        <div class="progress-fill progress-fill-zero progress-fill-grandes" id="bar-grandes"></div>
                     </div>
                     <span id="count-grandes">0</span>
                 </div>
@@ -912,14 +389,14 @@ body.dashboard .dashboard-sidebar td a {
         </div>
     </div>
 
-    <details class="module" style="margin-top: 18px;" open>
-        <summary style="cursor: pointer; padding: 10px 12px; font-weight: 600;">Últimas alterações do sistema</summary>
-        <div style="padding: 12px;">
+    <details class="module admin-updates-details" open>
+        <summary class="admin-updates-summary">Últimas alterações do sistema</summary>
+        <div class="admin-updates-body">
             {% get_admin_log 12 as admin_log for_user user %}
             {% if not admin_log %}
                 <p>Nenhuma alteração recente encontrada.</p>
             {% else %}
-                <ul class="actionlist" style="margin: 0; padding: 0 0 0 18px;">
+                <ul class="actionlist admin-actionlist-compact">
                     {% for entry in admin_log %}
                         <li>
                             {% if entry.is_addition %}

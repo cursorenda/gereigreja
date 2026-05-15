@@ -1,11 +1,44 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/secretaria/tab_fix.css' %}">
-<link rel="stylesheet" href="{% static 'css/secretaria/modern_selector.css' %}">
 {% load humanize %} {# Essencial para formatar valores monetários #}
 {% load secretaria_extras %}
-<div style="background: yellow; color: black; font-weight: bold; padding: 8px;">TESTE-UNICO-DEBUG-2026</div>
 {% block title %}Editar Pessoa: {{ form.instance.nome|default:"Pessoa" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/secretaria/tab_fix.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/modern_selector.css' %}">
+<style>
+/* Mantém apenas UM bloco de ocultação das abas inativas, limpo e definitivo */
+.tab-pane:not(.show) {
+    display: none !important;
+}
+
+/* Harmoniza abas e breadcrumb com a paleta turquesa */
+#membroTab .nav-link {
+    color: var(--gi-color-brand-700);
+}
+
+#membroTab .nav-link:hover,
+#membroTab .nav-link:focus {
+    color: var(--gi-color-brand-900);
+}
+
+#membroTab .nav-link.active {
+    color: var(--gi-color-brand-900);
+    background-color: var(--gi-color-brand-soft);
+    border-color: var(--gi-color-border) var(--gi-color-border) transparent;
+}
+
+.breadcrumb .breadcrumb-item a {
+    color: var(--gi-color-brand-700);
+}
+
+.breadcrumb .breadcrumb-item a:hover,
+.breadcrumb .breadcrumb-item a:focus {
+    color: var(--gi-color-brand-900);
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4" style="max-width: 1440px; margin: 0 auto;">
@@ -48,7 +81,7 @@
                     {% endif %}
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span class="badge bg-info" style="font-size: 0.85rem; font-weight: normal;"><i class="fas fa-calendar-plus me-1"></i> Cadastrado em: {{ form.instance.criado_em|date:'d/m/Y H:i' }}</span>
+                    <span class="badge bg-primary" style="font-size: 0.85rem; font-weight: normal;"><i class="fas fa-calendar-plus me-1"></i> Cadastrado em: {{ form.instance.criado_em|date:'d/m/Y H:i' }}</span>
                     {% if form.instance.atualizado_em %}
                         <span class="badge bg-secondary" style="font-size: 0.85rem; font-weight: normal;"><i class="fas fa-clock me-1"></i> Última atualização: {{ form.instance.atualizado_em|date:'d/m/Y H:i' }}</span>
                     {% endif %}
@@ -125,11 +158,3 @@
         </div>
     </div>
 {% endblock %}
-{# Se necessário, adicione outros scripts externos aqui, sempre com defer #}
-{# Evite scripts inline, centralize toda lógica JS nos arquivos externos #}
-<style>
-/* Mantém apenas UM bloco de ocultação das abas inativas, limpo e definitivo */
-.tab-pane:not(.show) {
-    display: none !important;
-}
-</style>
