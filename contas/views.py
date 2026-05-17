@@ -128,7 +128,9 @@ class LandingPageView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from configuracao.services_assinatura import listar_planos_landing_page
+        from blog.models import Post
         context['planos'] = listar_planos_landing_page()
+        context['recent_posts'] = Post.objects.filter(publicado=True).order_by('-publicado_em')[:3]
         return context
 # --- FIM DA NOVA VIEW ---
 

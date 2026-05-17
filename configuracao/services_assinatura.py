@@ -8,6 +8,20 @@ logger = logging.getLogger(__name__)
 STATUS_ASSINATURA_REGULAR = {'ativa', 'gratuita'}
 
 
+def _ministerio_eh_demo(ministerio: Optional[Ministerio]) -> bool:
+    """Identifica o ministério de demonstração para liberar limites de teste."""
+    if not ministerio:
+        return False
+
+    nome = (getattr(ministerio, 'nome_fantasia', '') or '').strip().lower()
+    if nome == 'demonstração' or nome == 'demonstracao':
+        return True
+
+    administrador = getattr(ministerio, 'administrador_principal', None)
+    username = getattr(administrador, 'username', '') or ''
+    return username.startswith('admin_demo')
+
+
 # ---------------------------------------------------------------------------
 # HELPER DE FUNIL
 # ---------------------------------------------------------------------------
@@ -336,6 +350,9 @@ def listar_planos_para_ministerio(ministerio: Optional[Ministerio]):
 
 def contar_pessoas_ativas(ministerio: Ministerio) -> int:
     """Conta pessoas ativas do ministério para enforcement do plano."""
+    if _ministerio_eh_demo(ministerio):
+        return 0
+
     from secretaria.models import Membro
 
     return Membro.objects.filter(
@@ -346,6 +363,9 @@ def contar_pessoas_ativas(ministerio: Ministerio) -> int:
 
 def obter_limite_pessoas_ativas(ministerio: Ministerio) -> Optional[int]:
     """Retorna o limite de pessoas ativas do plano efetivo; None significa sem limite conhecido."""
+    if _ministerio_eh_demo(ministerio):
+        return 0
+
     plano = obter_plano_efetivo_ministerio(ministerio)
     if not plano:
         return None
@@ -354,6 +374,9 @@ def obter_limite_pessoas_ativas(ministerio: Ministerio) -> Optional[int]:
 
 def ministerio_pode_adicionar_pessoa_ativa(ministerio: Ministerio, quantidade: int = 1) -> bool:
     """Valida se o ministério ainda pode ativar mais pessoas conforme o plano."""
+    if _ministerio_eh_demo(ministerio):
+        return True
+
     assinatura = obter_assinatura_ministerio(ministerio)
     if not assinatura_esta_regular(assinatura, ministerio):
         return False

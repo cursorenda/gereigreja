@@ -1,3 +1,42 @@
+## v1.12.2 — 17/05/2026
+🔒 **Segurança Multi-Igreja, Estabilidade do Modo Demo e SEO Público**
+
+### Segurança e Isolamento de Dados
+- **Financeiro / Transferências**:
+  - formulário de transferência ajustado para trabalhar com `request.igreja_ativa`.
+  - remoção do seletor redundante de igreja na tela de nova transferência.
+  - validação backend para impedir transferência entre caixas de igrejas diferentes.
+  - histórico/listagens de transferências filtrados pela igreja ativa.
+- Correções de escopo para reduzir risco de exposição de dados entre congregações.
+
+### Menu, Permissões e Experiência de Liderança
+- Reorganização do menu lateral com liderança dentro de **Gestão Ministerial**.
+- Novos rótulos orientados a contexto:
+  - **Painéis Ministeriais**
+  - **Secretaria Ministerial**
+  - **Financeiro Ministerial**
+- Ajustes de visibilidade por perfil/grupo para reduzir ruído de navegação.
+
+### Modo Demonstração (Demo)
+- Ampliação da grade de perfis disponíveis para troca rápida.
+- Correção de redirecionamentos pós-login/troca de perfil para painéis corretos.
+- Robustez adicional no login demo:
+  - recuperação automática quando usuário demo está ausente.
+  - melhorias de fluxo com CSRF/cache no modo demo.
+- Ajustes de UX com orientação de **Resetar dados** quando necessário.
+- Regras de assinatura/plano adaptadas para ambiente demo (sem bloqueios indevidos).
+
+### SEO e Indexação
+- Páginas públicas de **Política de Privacidade** e **Termos e Condições** migradas para layout público (`base_landing`) com canonical dedicado.
+- `robots.txt` atualizado para permitir rastreio explícito de `/contas/registrar/`.
+- `sitemap.xml` expandido com rota pública de cadastro (`contas:registrar`).
+- Landing page passou a exibir conteúdos recentes do blog para fortalecer malha de links internos e descoberta por crawler.
+
+### Operação e Deploy
+- Revisão técnica de URLs públicas do sitemap e preparação de release para publicação.
+
+---
+
 ## v1.12.1 — 15/05/2026
 🎨 **Padronização Visual Global (Turquesa) + Higienização de Interface**
 

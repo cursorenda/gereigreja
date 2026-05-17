@@ -45,11 +45,11 @@ from django.contrib.auth.decorators import login_required, user_passes_test # Im
 from django.utils.timezone import now # Importar now
 
 # Importar modelos corretos
-from .models import Receitas, Despesas, ContaBancaria, FechamentoCaixa, ContaPagar, CategoriaDespesa, Fornecedor
+from .models import Receitas, Despesas, ContaBancaria, FechamentoCaixa, ContaPagar, CategoriaDespesa, Fornecedor, TransferenciaCaixa
 # Importar forms corretos
 from .forms import (
     ReceitaForm, DespesaForm, CategoriaDespesaForm, FechamentoCaixaForm, ContaBancariaForm,
-    FornecedorForm, ContaPagarForm, RegistrarPagamentoContaPagarForm # Adicionar novos forms
+    FornecedorForm, ContaPagarForm, RegistrarPagamentoContaPagarForm, TransferenciaCaixaForm # Adicionar novos forms
 )
 # from django.contrib.auth.decorators import login_required # Removido, já importado acima
 from configuracao.models import PerfilUsuario, Ministerio, Igreja
@@ -2313,7 +2313,7 @@ from .forms import TransferenciaCaixaForm
 @page_access_required('financeiro')
 def transferencia_caixa_create(request):
     if request.method == 'POST':
-        form = TransferenciaCaixaForm(request.POST)
+        form = TransferenciaCaixaForm(request.POST, request=request)
         if form.is_valid():
             transferencia = form.save(commit=False)
             transferencia.usuario = request.user
@@ -2321,13 +2321,24 @@ def transferencia_caixa_create(request):
             messages.success(request, 'Transferência realizada com sucesso.')
             return redirect('financeiro:nova_transferencia_caixa')
     else:
-        form = TransferenciaCaixaForm()
+        form = TransferenciaCaixaForm(request=request)
 
-    # Histórico de transferências (todas)
-    transferencias = TransferenciaCaixa.objects.select_related('caixa_origem', 'caixa_destino', 'usuario').order_by('-data')[:50]
+    # Histórico de transferências apenas da igreja ativa.
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    if not igreja_ativa:
+        igreja_ativa_id = request.session.get('igreja_ativa_id')
+        if igreja_ativa_id:
+            igreja_ativa = Igreja.objects.filter(pk=igreja_ativa_id).first()
+
+    if igreja_ativa:
+        transferencias = TransferenciaCaixa.objects.filter(
+            caixa_origem__igreja=igreja_ativa,
+            caixa_destino__igreja=igreja_ativa
+        ).select_related('caixa_origem', 'caixa_destino', 'usuario').order_by('-data')[:50]
+    else:
+        transferencias = TransferenciaCaixa.objects.none()
 
     # Auditoria (ações principais)
-    # Exemplo: logs fictícios, substitua por integração real se necessário
     auditoria = [
         {'acao': 'Transferência criada', 'usuario': t.usuario.get_full_name() if t.usuario else 'N/A', 'data': t.data, 'detalhes': f'{t.valor} de {t.caixa_origem} para {t.caixa_destino}'}
         for t in transferencias
@@ -2340,3 +2351,36 @@ def transferencia_caixa_create(request):
     })
 
 
+@login_required
+@page_access_required('financeiro')
+def api_caixas_por_igreja(request, igreja_id):
+    """API endpoint para retornar caixas de uma Igreja (para filtro dinâmico no JavaScript)"""
+    from django.http import JsonResponse
+    from django.core.exceptions import PermissionDenied
+    
+    try:
+        igreja = Igreja.objects.get(pk=igreja_id)
+    except Igreja.DoesNotExist:
+        return JsonResponse({'error': 'Igreja não encontrada'}, status=404)
+    
+    # Verificar permissão - usuário pode acessar caixas dessa Igreja?
+    perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
+    ministerio = getattr(perfil, 'ministerio', None) if perfil else None
+    
+    if ministerio:
+        if igreja.ministerio != ministerio:
+            raise PermissionDenied("Você não tem permissão para acessar caixas dessa Igreja")
+    else:
+        raise PermissionDenied("Usuário sem ministério associado")
+    
+    # Retornar caixas da Igreja, ordenadas por nome
+    caixas = ContaBancaria.objects.filter(
+        igreja=igreja
+    ).values('id', 'nome_identificacao').order_by('nome_identificacao')
+    
+    caixas_json = [
+        {'id': c['id'], 'nome': c['nome_identificacao']}
+        for c in caixas
+    ]
+    
+    return JsonResponse(caixas_json, safe=False)

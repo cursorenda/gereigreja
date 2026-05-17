@@ -31,16 +31,64 @@ class CategoriaDespesaForm(forms.ModelForm):
         }
 
 class TransferenciaCaixaForm(forms.ModelForm):
+    """Formulário para transferências entre caixas da MESMA Igreja"""
+
     class Meta:
         model = TransferenciaCaixa
         fields = ['caixa_origem', 'caixa_destino', 'valor', 'observacao']
+        widgets = {
+            'caixa_origem': forms.Select(attrs={'class': 'form-select'}),
+            'caixa_destino': forms.Select(attrs={'class': 'form-select'}),
+            'valor': forms.NumberInput(attrs={'class': 'form-control', 'min': '0.01', 'step': '0.01'}),
+            'observacao': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
 
     def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        # Compatibilidade com chamadas antigas
+        kwargs.pop('ministerio', None)
+        kwargs.pop('user', None)
+        kwargs.pop('allowed_churches', None)
         super().__init__(*args, **kwargs)
-        self.fields['caixa_origem'].queryset = ContaBancaria.objects.all()
-        self.fields['caixa_destino'].queryset = ContaBancaria.objects.all()
-        self.fields['valor'].widget.attrs.update({'class': 'form-control', 'min': '0.01', 'step': '0.01'})
-        self.fields['observacao'].widget.attrs.update({'class': 'form-control'})
+
+        igreja_ativa = None
+        if request and getattr(request, 'igreja_ativa', None):
+            igreja_ativa = request.igreja_ativa
+        elif request:
+            igreja_ativa_id = request.session.get('igreja_ativa_id')
+            if igreja_ativa_id:
+                igreja_ativa = Igreja.objects.filter(pk=igreja_ativa_id).first()
+        
+        # Configurar labels
+        self.fields['caixa_origem'].label = "Caixa de Origem"
+        self.fields['caixa_destino'].label = "Caixa de Destino"
+        self.fields['caixa_origem'].empty_label = "Selecione a caixa de origem"
+        self.fields['caixa_destino'].empty_label = "Selecione a caixa de destino"
+        self.fields['valor'].label = "Valor a Transferir"
+        self.fields['observacao'].label = "Observação (Opcional)"
+        self.fields['observacao'].required = False
+
+        if igreja_ativa:
+            caixas_queryset = ContaBancaria.objects.filter(igreja=igreja_ativa).order_by('nome_identificacao')
+        elif self.instance and self.instance.pk and self.instance.caixa_origem:
+            caixas_queryset = ContaBancaria.objects.filter(igreja=self.instance.caixa_origem.igreja).order_by('nome_identificacao')
+        else:
+            caixas_queryset = ContaBancaria.objects.none()
+
+        self.fields['caixa_origem'].queryset = caixas_queryset
+        self.fields['caixa_destino'].queryset = caixas_queryset
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        caixa_origem = cleaned_data.get('caixa_origem')
+        caixa_destino = cleaned_data.get('caixa_destino')
+
+        # Validar que origem e destino pertencem à mesma Igreja
+        if caixa_origem and caixa_destino:
+            if caixa_origem.igreja != caixa_destino.igreja:
+                raise forms.ValidationError('As caixas de origem e destino devem pertencer à mesma Igreja.')
+
+        return cleaned_data
 
 class ContaBancariaForm(forms.ModelForm):
     """ Formulário para Conta Bancária (ligada à Igreja) """

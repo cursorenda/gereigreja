@@ -1766,37 +1766,51 @@ def licao_list(request):
     from .models import PeriodoEBD, AnoLetivo
     from django.utils import timezone
     hoje = timezone.now().date()
-    # Buscar todos os períodos
-    periodos = PeriodoEBD.objects.select_related('ano_letivo').order_by('-ano_letivo__ano', '-numero')
+    
+    # Buscar lições com escopo correto
+    licoes_scope = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__membros__igreja')
+    
+    # Buscar períodos que têm lições no escopo do usuário (evitar vazamento de dados)
+    periodos_ids = licoes_scope.values_list('data__year', flat=True).distinct()
+    periodos = PeriodoEBD.objects.select_related('ano_letivo').filter(
+        data_inicio__year__in=periodos_ids
+    ).order_by('-ano_letivo__ano', '-numero')
+    
     # Identificar período atual
     periodo_atual = periodos.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first()
+    
     # Filtro por GET
     periodo_id = request.GET.get('periodo')
     if periodo_id:
         periodo_selecionado = periodos.filter(id=periodo_id).first()
     else:
         periodo_selecionado = periodo_atual
-    licoes = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__membros__igreja')
+    
+    licoes = licoes_scope
     if periodo_selecionado:
         licoes = licoes.filter(data__gte=periodo_selecionado.data_inicio, data__lte=periodo_selecionado.data_fim)
-    # Buscar turmas para o filtro
+    
+    # Buscar turmas para o filtro (apenas do escopo do usuário)
     from .models import Turma
     turma_nomes = filtrar_queryset_ebd(Turma.objects.all(), request, 'membros__igreja').values_list('nome', flat=True).distinct().order_by('nome')
     turma_nome = request.GET.get('turma')
     if turma_nome:
         licoes = licoes.filter(turma__nome=turma_nome)
 
-    # Filtro de professor
+    # Filtro de professor (apenas do escopo do usuário)
     from secretaria.models import Membro, MembroCargo
+    igrejas_escopo = get_ebd_scope_churches(request)
     membros_professor_ids = MembroCargo.objects.filter(
         cargo__is_ebd=True,
         cargo__nome__icontains='professor',
-        data_fim__isnull=True
+        data_fim__isnull=True,
+        membro__igreja__in=igrejas_escopo
     ).values_list('membro_id', flat=True)
-    professores = Membro.objects.filter(chave__in=membros_professor_ids, igreja__in=get_ebd_scope_churches(request)).order_by('nome')
+    professores = Membro.objects.filter(chave__in=membros_professor_ids, igreja__in=igrejas_escopo).order_by('nome')
     professor_id = request.GET.get('professor')
     if professor_id:
         licoes = licoes.filter(professor_id=professor_id)
+    
     return render(request, 'escola_biblica/licao_list.html', {
         'licoes': licoes,
         'periodos': periodos,
@@ -1805,13 +1819,6 @@ def licao_list(request):
         'turma_nome': turma_nome,
         'professores': professores,
         'professor_id': professor_id,
-    })
-    return render(request, 'escola_biblica/licao_list.html', {
-        'licoes': licoes,
-        'periodos': periodos,
-        'periodo_selecionado': periodo_selecionado,
-        'turma_nomes': turma_nomes,
-        'turma_nome': turma_nome,
     })
 
 @page_access_required('escola_biblica_professor')

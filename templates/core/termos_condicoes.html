@@ -1,13 +1,14 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_landing.html' %}
 {% load static %}
 
 {% block title %}Termos e Condições - Gereigreja{% endblock %}
+{% block canonical_path %}/termos-condicoes/{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
     <h1 class="mt-4">Termos e Condições de Uso</h1>
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'landing_page' %}">Início</a></li>
         <li class="breadcrumb-item active">Termos e Condições</li>
     </ol>
 

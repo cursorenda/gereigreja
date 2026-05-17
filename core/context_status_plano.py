@@ -25,6 +25,10 @@ def status_plano_unificado(request):
     if request.user.is_superuser:
         return {'status_plano': None}
 
+    username = getattr(request.user, 'username', '') or ''
+    if username.startswith('demo_') or username == 'admin_demo':
+        return {'status_plano': None}
+
     try:
         from configuracao.models import LiberacaoPlanoMinisterio, Ministerio
         from configuracao.services_assinatura import (

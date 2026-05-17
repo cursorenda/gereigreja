@@ -20,10 +20,57 @@
     <div class="tab-pane fade show active" id="form" role="tabpanel" aria-labelledby="form-tab">
       <div class="card mb-4">
         <div class="card-body">
-          <form method="post">
+          <form method="post" id="form-transferencia">
             {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-primary">Realizar Transferência</button>
+            <div class="alert alert-info" role="alert">
+              Transferências apenas entre caixas da congregação selecionada no topo do sistema.
+            </div>
+            
+            <!-- Caixa de Origem -->
+            <div class="mb-3">
+              <label for="{{ form.caixa_origem.id_for_label }}" class="form-label">{{ form.caixa_origem.label }} <span class="text-danger">*</span></label>
+              {{ form.caixa_origem }}
+              {% if form.caixa_origem.errors %}
+                <div class="alert alert-danger mt-2">{{ form.caixa_origem.errors }}</div>
+              {% endif %}
+            </div>
+            
+            <!-- Caixa de Destino -->
+            <div class="mb-3">
+              <label for="{{ form.caixa_destino.id_for_label }}" class="form-label">{{ form.caixa_destino.label }} <span class="text-danger">*</span></label>
+              {{ form.caixa_destino }}
+              {% if form.caixa_destino.errors %}
+                <div class="alert alert-danger mt-2">{{ form.caixa_destino.errors }}</div>
+              {% endif %}
+            </div>
+            
+            <!-- Valor -->
+            <div class="mb-3">
+              <label for="{{ form.valor.id_for_label }}" class="form-label">{{ form.valor.label }} <span class="text-danger">*</span></label>
+              {{ form.valor }}
+              {% if form.valor.errors %}
+                <div class="alert alert-danger mt-2">{{ form.valor.errors }}</div>
+              {% endif %}
+            </div>
+            
+            <!-- Observação -->
+            <div class="mb-3">
+              <label for="{{ form.observacao.id_for_label }}" class="form-label">{{ form.observacao.label }}</label>
+              {{ form.observacao }}
+              {% if form.observacao.errors %}
+                <div class="alert alert-danger mt-2">{{ form.observacao.errors }}</div>
+              {% endif %}
+            </div>
+            
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+            
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-arrow-left-right"></i> Realizar Transferência
+            </button>
           </form>
         </div>
       </div>

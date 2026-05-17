@@ -1,7 +1,8 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_landing.html' %}
 {% load static %}
 
 {% block title %}Política de Privacidade - Gereigreja{% endblock %}
+{% block canonical_path %}/politica-privacidade/{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -11,7 +12,7 @@
     </div>
     
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'landing_page' %}">Início</a></li>
         <li class="breadcrumb-item active">Política de Privacidade</li>
     </ol>
 

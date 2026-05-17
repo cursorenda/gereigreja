@@ -80,13 +80,24 @@
                     {% csrf_token %}
                     <div class="modal-body">
                         <p class="text-muted small mb-3">Selecione o perfil que deseja explorar. O sistema carregará com as permissões deste perfil.</p>
+                        <div class="alert alert-info small py-2" role="alert">
+                            Se algum perfil demo falhar, use <strong>Resetar dados</strong> na barra amarela.
+                        </div>
                         <div class="mb-3">
                             <label for="modalPerfilSelect" class="form-label fw-semibold">Perfil</label>
                             <select name="perfil" id="modalPerfilSelect" class="form-select" required>
                                 <option value="admin">Administrador</option>
+                                <option value="pastor regional">Pastor Regional</option>
+                                <option value="pastor local">Pastor Local</option>
+                                <option value="secretaria ministerial">Secretaria Ministerial</option>
+                                <option value="financeiro ministerial">Financeiro Ministerial</option>
+                                <option value="secretario local">Secretario Local</option>
                                 <option value="tesoureiro">Tesoureiro</option>
-                                <option value="pastor">Pastor</option>
-                                <option value="secretario">Secretário</option>
+                                <option value="superintendente ebd">Superintendente EBD</option>
+                                <option value="professor ebd">Professor EBD</option>
+                                <option value="recepcao">Equipe de Recepcao</option>
+                                <option value="eventos">Equipe de Eventos</option>
+                                <option value="midia">Equipe de Midia</option>
                                 <option value="membro">Membro</option>
                             </select>
                         </div>

@@ -10,6 +10,7 @@ class StaticViewSitemap(Sitemap):
     _pages = [
         ('landing_page', 1.0, 'weekly'),
         ('blog:lista', 0.8, 'daily'),
+        ('contas:registrar', 0.7, 'weekly'),
         ('politica_privacidade', 0.3, 'monthly'),
         ('termos_condicoes', 0.3, 'monthly'),
     ]

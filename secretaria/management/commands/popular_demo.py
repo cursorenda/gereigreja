@@ -4,6 +4,21 @@ from configuracao.models import Ministerio, Igreja
 from secretaria.models import Pessoa, TipoPessoa, StatusPessoa
 from financeiro.models import Despesas, Receitas
 from django.utils import timezone
+from contas.constants import (
+    ADMIN_MINISTERIO,
+    LIDERANCA_SECRETARIA,
+    LIDERANCA_FINANCEIRA,
+    PASTOR_REGIONAL,
+    PASTOR_LOCAL,
+    SECRETARIO_LOCAL,
+    TESOUREIRO,
+    SUPERINTENDENTE_EBD,
+    PROFESSOR_EBD,
+    EQUIPE_RECEPCAO,
+    EQUIPE_EVENTOS,
+    EQUIPE_MIDIA,
+    MEMBRO_COMUM,
+)
 
 class Command(BaseCommand):
     help = 'Popula o banco com dados de demonstração (modo demo)'
@@ -107,10 +122,18 @@ class Command(BaseCommand):
         # Apenas demo_admin tem is_staff=True (acesso ao admin Django para suporte).
         # Todos os outros perfis demo têm is_staff=False para não expor o /admin/.
         perfis = [
-            {"nome": "Admin Ministerio", "username": "demo_admin", "email": "admin@demo.com", "is_staff": True, "is_superuser": False},
-            {"nome": "Tesoureiro", "username": "demo_tesoureiro", "email": "tesoureiro@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": "Pastor Local", "username": "demo_pastor", "email": "pastor@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": "Secretario Local", "username": "demo_secretario", "email": "secretario@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": ADMIN_MINISTERIO, "username": "demo_admin", "email": "admin@demo.com", "is_staff": True, "is_superuser": False},
+            {"nome": PASTOR_REGIONAL, "username": "demo_pastor_regional", "email": "pastor.regional@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": PASTOR_LOCAL, "username": "demo_pastor_local", "email": "pastor.local@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": LIDERANCA_SECRETARIA, "username": "demo_lideranca_secretaria", "email": "secretaria.ministerial@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": LIDERANCA_FINANCEIRA, "username": "demo_lideranca_financeira", "email": "financeiro.ministerial@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": SECRETARIO_LOCAL, "username": "demo_secretario_local", "email": "secretario.local@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": TESOUREIRO, "username": "demo_tesoureiro", "email": "tesoureiro@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": SUPERINTENDENTE_EBD, "username": "demo_superintendente_ebd", "email": "superintendente.ebd@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": PROFESSOR_EBD, "username": "demo_professor_ebd", "email": "professor.ebd@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": EQUIPE_RECEPCAO, "username": "demo_recepcao", "email": "recepcao@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": EQUIPE_EVENTOS, "username": "demo_eventos", "email": "eventos@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": EQUIPE_MIDIA, "username": "demo_midia", "email": "midia@demo.com", "is_staff": False, "is_superuser": False},
         ]
         for perfil in perfis:
             group, _ = Group.objects.get_or_create(name=perfil["nome"])
@@ -142,7 +165,7 @@ class Command(BaseCommand):
             perfil_obj.igrejas_permitidas.set(todas_igrejas)
 
         # Usuário demo do tipo membro comum (não staff, não superuser)
-        membro_group, _ = Group.objects.get_or_create(name="Membro Comum")
+        membro_group, _ = Group.objects.get_or_create(name=MEMBRO_COMUM)
         user_membro, created = User.objects.get_or_create(
             username="demo_membro",
             defaults={
@@ -165,6 +188,28 @@ class Command(BaseCommand):
             perfil_membro.ministerio = ministerio
             perfil_membro.save()
         perfil_membro.igrejas_permitidas.set(todas_igrejas)
+
+        # Adiciona o perfil pastor genérico como alias do Pastor Local para compatibilidade com demos antigas
+        alias_pastor, _ = User.objects.get_or_create(
+            username="demo_pastor",
+            defaults={
+                "email": "pastor@demo.com",
+                "is_staff": False,
+                "is_superuser": False,
+            }
+        )
+        if created or not alias_pastor.has_usable_password():
+            alias_pastor.set_password("demo123")
+        alias_pastor.is_staff = False
+        alias_pastor.is_superuser = False
+        alias_pastor.save()
+        grupo_pastor_local, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
+        alias_pastor.groups.add(grupo_pastor_local)
+        perfil_alias_pastor, _ = PerfilUsuario.objects.get_or_create(user=alias_pastor, defaults={"ministerio": ministerio})
+        if perfil_alias_pastor.ministerio != ministerio:
+            perfil_alias_pastor.ministerio = ministerio
+            perfil_alias_pastor.save()
+        perfil_alias_pastor.igrejas_permitidas.set(todas_igrejas)
 
         # Vincula o usuário demo_membro a um dos membros criados
         membro_pessoa = Pessoa.objects.filter(email__icontains="@demo.com").first()

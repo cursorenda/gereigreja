@@ -3,8 +3,53 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.contrib import messages
+from django.core.management import call_command
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt
 import unicodedata
+from contas.constants import ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, LIDERANCA_SECRETARIA, user_tem_grupo
 from contas.page_permissions import user_can_access_page
+
+
+DEMO_PROFILE_OPTIONS = [
+    {'nome': 'Administrador', 'label': 'Administrador', 'aliases': ['admin', 'administrador'], 'username': 'demo_admin'},
+    {'nome': 'Pastor Regional', 'label': 'Pastor Regional', 'aliases': ['pastor regional', 'pastorregional', 'regional'], 'username': 'demo_pastor_regional'},
+    {'nome': 'Pastor Local', 'label': 'Pastor Local', 'aliases': ['pastor local', 'pastorlocal', 'pastor'], 'username': 'demo_pastor_local'},
+    {'nome': 'Secretaria Ministerial', 'label': 'Secretaria Ministerial', 'aliases': ['secretaria ministerial', 'lideranca secretaria', 'secretaria'], 'username': 'demo_lideranca_secretaria'},
+    {'nome': 'Financeiro Ministerial', 'label': 'Financeiro Ministerial', 'aliases': ['financeiro ministerial', 'tesouraria ministerial', 'lideranca financeira', 'financeiro'], 'username': 'demo_lideranca_financeira'},
+    {'nome': 'Secretário Local', 'label': 'Secretário Local', 'aliases': ['secretario local', 'secretariolocal'], 'username': 'demo_secretario_local'},
+    {'nome': 'Tesoureiro', 'label': 'Tesoureiro', 'aliases': ['tesoureiro'], 'username': 'demo_tesoureiro'},
+    {'nome': 'Superintendente EBD', 'label': 'Superintendente EBD', 'aliases': ['superintendente ebd', 'superintendente'], 'username': 'demo_superintendente_ebd'},
+    {'nome': 'Professor EBD', 'label': 'Professor EBD', 'aliases': ['professor ebd', 'professor'], 'username': 'demo_professor_ebd'},
+    {'nome': 'Equipe de Recepção', 'label': 'Equipe de Recepção', 'aliases': ['recepcao', 'equipe recepcao', 'equipe de recepcao'], 'username': 'demo_recepcao'},
+    {'nome': 'Equipe de Eventos', 'label': 'Equipe de Eventos', 'aliases': ['eventos', 'equipe eventos', 'equipe de eventos'], 'username': 'demo_eventos'},
+    {'nome': 'Equipe de Mídia', 'label': 'Equipe de Mídia', 'aliases': ['midia', 'equipe midia', 'equipe de midia'], 'username': 'demo_midia'},
+    {'nome': 'Membro', 'label': 'Membro', 'aliases': ['membro'], 'username': 'demo_membro'},
+]
+
+
+def _demo_profile_choices():
+    return [
+        {'nome': item['nome'], 'label': item['label']}
+        for item in DEMO_PROFILE_OPTIONS
+    ]
+
+
+def _authenticate_demo_user(request, username):
+    """Autentica usuário demo; se não existir, tenta repopular dados demo uma vez."""
+    user = authenticate(request, username=username, password='demo123')
+    if user is not None:
+        return user
+
+    if username and username.startswith('demo_'):
+        try:
+            call_command('popular_demo')
+        except Exception:
+            return None
+        return authenticate(request, username=username, password='demo123')
+
+    return None
 
 
 def _resolve_demo_username(perfil_raw):
@@ -12,24 +57,36 @@ def _resolve_demo_username(perfil_raw):
     perfil = (perfil_raw or '').strip().lower()
     perfil = unicodedata.normalize('NFKD', perfil).encode('ascii', 'ignore').decode('ascii')
 
-    perfil_to_username = {
-        'admin': 'demo_admin',
-        'administrador': 'demo_admin',
-        'tesoureiro': 'demo_tesoureiro',
-        'pastor': 'demo_pastor',
-        'secretario': 'demo_secretario',
-        'membro': 'demo_membro',
-    }
-    return perfil_to_username.get(perfil)
+    for item in DEMO_PROFILE_OPTIONS:
+        normalized_name = unicodedata.normalize('NFKD', item['nome'].lower()).encode('ascii', 'ignore').decode('ascii')
+        normalized_username = unicodedata.normalize('NFKD', item['username'].lower()).encode('ascii', 'ignore').decode('ascii')
+        if perfil == normalized_name or perfil == normalized_username:
+            return item['username']
+        for alias in item.get('aliases', []):
+            normalized_alias = unicodedata.normalize('NFKD', alias.lower()).encode('ascii', 'ignore').decode('ascii')
+            if perfil == normalized_alias:
+                return item['username']
+    return None
 
 
 def _demo_redirect_home(user):
     """Define landing page por permissão para evitar acesso negado no modo demo."""
+    # Perfis de liderança ministerial devem abrir seus respectivos painéis.
+    if user_tem_grupo(user, LIDERANCA_FINANCEIRA) and not user_tem_grupo(user, ADMIN_MINISTERIO):
+        return redirect('financeiro:painel_lideranca_financeiro')
+
+    if user_tem_grupo(user, LIDERANCA_SECRETARIA) and not user_tem_grupo(user, ADMIN_MINISTERIO):
+        return redirect('secretaria:painel_lideranca_secretaria')
+
     if user_can_access_page(user, 'dashboard_secretaria'):
         return redirect('secretaria:dashboard')
+
     return redirect('secretaria:portal_membro')
 
 # View para login demo: seleção de perfil e login automático
+@never_cache
+@ensure_csrf_cookie
+@csrf_exempt
 def demo_login_view(request):
     if request.method == 'POST':
         perfil = request.POST.get('perfil')
@@ -37,21 +94,15 @@ def demo_login_view(request):
         if not username:
             messages.error(request, 'Perfil demo inválido.')
             return redirect('demo:demo_login')
-        user = authenticate(request, username=username, password='demo123')
+        user = _authenticate_demo_user(request, username)
         if user is not None:
             login(request, user)
             messages.success(request, 'Você entrou no modo demonstração. Explore o sistema à vontade!')
             return _demo_redirect_home(user)
         else:
-            messages.error(request, 'Usuário demo não encontrado.')
+            messages.error(request, 'Usuário demo não encontrado. Tente "Resetar dados" e repita.')
     return render(request, 'demo/demo_login.html', {
-        'perfis': [
-            {'nome': 'Admin', 'label': 'Administrador'},
-            {'nome': 'Tesoureiro', 'label': 'Tesoureiro'},
-            {'nome': 'Pastor', 'label': 'Pastor'},
-            {'nome': 'Secretário', 'label': 'Secretário'},
-            {'nome': 'Membro', 'label': 'Membro'},
-        ]
+        'perfis': _demo_profile_choices()
     })
 
 # View para dashboard demo — redireciona para o dashboard real do sistema
@@ -59,6 +110,9 @@ def demo_dashboard_view(request):
     return _demo_redirect_home(request.user)
 
 # View para trocar de perfil demo
+@never_cache
+@ensure_csrf_cookie
+@csrf_exempt
 def demo_trocar_perfil_view(request):
     if not request.user.username.startswith('demo_'):
         return redirect('demo:demo_login')
@@ -68,21 +122,15 @@ def demo_trocar_perfil_view(request):
         if not username:
             messages.error(request, 'Perfil demo inválido.')
             return redirect('demo:demo_trocar_perfil')
-        user = authenticate(request, username=username, password='demo123')
+        user = _authenticate_demo_user(request, username)
         if user is not None:
             login(request, user)
             messages.success(request, f'Perfil alterado para {perfil}!')
             return _demo_redirect_home(user)
         else:
-            messages.error(request, 'Usuário demo não encontrado.')
+            messages.error(request, 'Usuário demo não encontrado. Tente "Resetar dados" e repita.')
     return render(request, 'demo/demo_trocar_perfil.html', {
-        'perfis': [
-            {'nome': 'Admin', 'label': 'Administrador'},
-            {'nome': 'Tesoureiro', 'label': 'Tesoureiro'},
-            {'nome': 'Pastor', 'label': 'Pastor'},
-            {'nome': 'Secretário', 'label': 'Secretário'},
-            {'nome': 'Membro', 'label': 'Membro'},
-        ]
+        'perfis': _demo_profile_choices()
     })
 
 # View para resetar dados demo (apenas admin demo)

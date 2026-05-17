@@ -15,6 +15,7 @@ urlpatterns = [
 
     # Transferências entre Caixas
     path('transferencias/nova/', views.transferencia_caixa_create, name='nova_transferencia_caixa'),
+    path('api/caixas-por-igreja/<int:igreja_id>/', views.api_caixas_por_igreja, name='api_caixas_por_igreja'),
 
     # Receitas
     path('receitas/', views.lista_receitas, name='lista_receitas'),

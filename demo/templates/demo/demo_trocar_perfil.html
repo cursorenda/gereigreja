@@ -13,6 +13,9 @@
                     <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
                     {% endfor %}
                     {% endif %}
+                    <div class="alert alert-info small" role="alert">
+                        Se algum perfil demo falhar, clique em <strong>Resetar dados</strong> no topo e tente novamente.
+                    </div>
                     <p class="text-muted small mb-3">Selecione o perfil que deseja explorar. O sistema carregará com as permissões deste perfil.</p>
                     <form method="post">
                         {% csrf_token %}

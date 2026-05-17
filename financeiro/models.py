@@ -31,6 +31,9 @@ class TransferenciaCaixa(models.Model):
     def clean(self):
         if self.caixa_origem == self.caixa_destino:
             raise ValidationError('Caixa de origem e destino devem ser diferentes.')
+        # ✅ VALIDAÇÃO CRÍTICA: Origem e destino devem ser da MESMA Igreja
+        if self.caixa_origem.igreja != self.caixa_destino.igreja:
+            raise ValidationError('Ambas as caixas devem pertencer à mesma Igreja. Transferências entre igrejas não são permitidas.')
         if self.valor <= 0:
             raise ValidationError('O valor da transferência deve ser maior que zero.')
         if self.caixa_origem.saldo_atual < self.valor:
