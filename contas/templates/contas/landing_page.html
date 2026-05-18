@@ -31,9 +31,9 @@
 </script>
 
 <!-- Navbar Simples -->
-<nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="#">
+        <a class="navbar-brand fw-bold" href="{% url 'landing_page' %}">
             <i class="fas fa-church me-2 text-primary"></i>Gereigreja
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -41,9 +41,9 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
-                <li class="nav-item"><a class="nav-link" href="#features">Funcionalidades</a></li>
-                <li class="nav-item"><a class="nav-link" href="#pricing">Planos</a></li>
-                <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'funcionalidades_page' %}">Funcionalidades</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'planos_page' %}">Planos</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'faq_page' %}">FAQ</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'blog:lista' %}">Blog</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
                 <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}?origem=landing_menu">Começar Agora</a></li>
@@ -59,8 +59,8 @@
         <p class="lead">Organize, cresça e pastoreie com mais eficiência. O Gereigreja centraliza a gestão de membros, finanças e comunicação em um único lugar, de forma simples e poderosa.</p>
         <div class="d-flex flex-wrap gap-2 mt-3 justify-content-center">
             <a href="{% url 'contas:registrar' %}?origem=landing_hero" class="btn btn-cta-primary btn-lg">Comece Gratuitamente</a>
-            <a href="#pricing" class="btn btn-cta-secondary btn-lg">Ver Planos</a>
-            <a href="{% url 'demo:demo_login' %}" class="btn btn-warning btn-lg" style="font-weight:600;">Acessar Demonstração</a>
+            <a href="{% url 'planos_page' %}" class="btn btn-cta-secondary btn-lg">Ver Planos</a>
+            <a href="{% url 'demo:demo_login' %}" class="btn btn-outline-primary btn-lg fw-semibold">Acessar Demonstração</a>
         </div>
     </div>
 </header>
@@ -128,28 +128,28 @@
                 </div>
                 <div class="col-lg-6 mt-4 mt-lg-0">
                     <div class="d-flex mb-3">
-                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <i class="fas fa-check-circle fa-2x text-primary me-3 mt-1"></i>
                         <div>
                             <h5>Otimize seu Tempo</h5>
                             <p>Reduza horas de trabalho manual com automação de tarefas administrativas e financeiras.</p>
                         </div>
                     </div>
                     <div class="d-flex mb-3">
-                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <i class="fas fa-check-circle fa-2x text-primary me-3 mt-1"></i>
                         <div>
                             <h5>Pastoreie com Informação</h5>
                             <p>Conheça sua membresia a fundo com dados sobre frequência, engajamento e necessidades.</p>
                         </div>
                     </div>
                     <div class="d-flex mb-3">
-                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <i class="fas fa-check-circle fa-2x text-primary me-3 mt-1"></i>
                         <div>
                             <h5>Aumente a Transparência</h5>
                             <p>Gere relatórios financeiros claros e precisos, fortalecendo a confiança e a governança da sua igreja.</p>
                         </div>
                     </div>
                      <div class="d-flex">
-                        <i class="fas fa-check-circle fa-2x text-success me-3 mt-1"></i>
+                        <i class="fas fa-check-circle fa-2x text-primary me-3 mt-1"></i>
                         <div>
                             <h5>Acesse de Qualquer Lugar</h5>
                             <p>Sendo um sistema 100% online, você pode gerenciar sua igreja do computador, tablet ou celular.</p>
@@ -167,7 +167,7 @@
             <p class="section-subtitle text-muted text-center mb-5">Comece grátis. Cresça no seu ritmo. Sem surpresas.</p>
 
             <!-- Toggle Mensal / Anual -->
-            <div class="d-flex align-items-center justify-content-center gap-3 mb-5">
+            <div class="d-flex align-items-center justify-content-center gap-3 mb-5 pricing-toggle-wrap">
                 <span class="toggle-label fw-semibold" id="label-mensal">Mensal</span>
                 <div class="form-check form-switch m-0">
                     <input class="form-check-input pricing-switch" type="checkbox" id="toggleAnual" role="switch" style="width:3rem;height:1.5rem;cursor:pointer;">
@@ -366,7 +366,7 @@
                         {% endif %}
                         <div class="card-body d-flex flex-column">
                             {% if post.categoria %}
-                            <span class="badge bg-light text-dark mb-2 align-self-start">{{ post.categoria.nome }}</span>
+                            <span class="badge text-bg-primary mb-2 align-self-start">{{ post.categoria.nome }}</span>
                             {% endif %}
                             <h3 class="h5">
                                 <a href="{% url 'blog:detalhe' post.slug %}" class="text-decoration-none">{{ post.titulo }}</a>
@@ -378,7 +378,7 @@
                 </div>
                 {% empty %}
                 <div class="col-12">
-                    <div class="alert alert-light border mb-0">Novos conteudos serao publicados em breve no blog.</div>
+                    <div class="alert alert-info mb-0">Novos conteudos serao publicados em breve no blog.</div>
                 </div>
                 {% endfor %}
             </div>
@@ -395,19 +395,7 @@
     </section>
 </main>
 
-<!-- Rodapé -->
-<footer class="footer">
-    <div class="container text-center">
-        <p class="mb-2">&copy; {% now "Y" %} Gereigreja. Todos os direitos reservados.</p>
-        <p class="mb-0">
-            <a href="#features">Funcionalidades</a> | 
-            <a href="#pricing">Planos</a> | 
-            <a href="{% url 'blog:lista' %}">Blog</a> | 
-            <a href="{% url 'politica_privacidade' %}" target="_blank">Política de Privacidade</a> | 
-            <a href="{% url 'termos_condicoes' %}" target="_blank">Termos de Uso</a>
-        </p>
-    </div>
-</footer>
+{% include 'includes/public_footer.html' %}
 
 {% block extra_js %}
 <script>

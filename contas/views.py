@@ -114,6 +114,17 @@ def minha_view_protegida(request):
     # ... resto da view ...
 
 # --- NOVA VIEW PARA A LANDING PAGE ---
+class PublicMarketingBaseView(TemplateView):
+    """Base para páginas públicas de marketing com interlinking para o blog."""
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from blog.models import Post
+
+        context['recent_posts'] = Post.objects.filter(publicado=True).order_by('-publicado_em')[:3]
+        return context
+
+
 class LandingPageView(TemplateView):
     template_name = 'contas/landing_page.html'
 
@@ -128,9 +139,82 @@ class LandingPageView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from configuracao.services_assinatura import listar_planos_landing_page
-        from blog.models import Post
         context['planos'] = listar_planos_landing_page()
+        from blog.models import Post
         context['recent_posts'] = Post.objects.filter(publicado=True).order_by('-publicado_em')[:3]
+        return context
+
+
+class FuncionalidadesPageView(PublicMarketingBaseView):
+    template_name = 'contas/public_funcionalidades.html'
+
+
+class PlanosPageView(PublicMarketingBaseView):
+    template_name = 'contas/public_planos.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from configuracao.services_assinatura import listar_planos_landing_page
+
+        context['planos'] = listar_planos_landing_page()
+        return context
+
+
+class FaqPageView(PublicMarketingBaseView):
+    template_name = 'contas/public_faq.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['faq_items'] = [
+            {
+                'question': 'O Gereigreja atende igrejas pequenas e grandes?',
+                'answer': 'Sim. Ha planos para diferentes fases, desde igrejas em inicio ate ministerios com varias congregacoes e equipes maiores.'
+            },
+            {
+                'question': 'Posso testar antes de contratar?',
+                'answer': 'Sim. Voce pode comecar gratuitamente e acessar a demonstracao para validar os principais fluxos de secretaria, financeiro e comunicacao.'
+            },
+            {
+                'question': 'Em quanto tempo consigo implantar o sistema?',
+                'answer': 'A implantacao inicial pode comecar no mesmo dia com cadastro, configuracoes basicas e importacao de membros. O ritmo depende do volume de dados da igreja.'
+            },
+            {
+                'question': 'Consigo migrar dados de planilhas para o Gereigreja?',
+                'answer': 'Sim. E possivel organizar os dados em planilhas padrao para migracao de membros e informacoes essenciais, reduzindo retrabalho manual.'
+            },
+            {
+                'question': 'Como funciona o suporte tecnico?',
+                'answer': 'O suporte pode ser acionado pelo proprio sistema. Planos pagos contam com canais prioritarios para acelerar atendimento e resolucao.'
+            },
+            {
+                'question': 'Existe controle de permissao por perfil?',
+                'answer': 'Sim. O sistema aplica permissoes por perfil e hierarquia, com escopo por igreja ativa para proteger dados e operacoes sensiveis.'
+            },
+            {
+                'question': 'O sistema e seguro para dados da igreja?',
+                'answer': 'Sim. O Gereigreja adota boas praticas de seguranca, controle de acesso, registros de operacao e comunicacao protegida para resguardar informacoes.'
+            },
+            {
+                'question': 'O Gereigreja esta adequado a LGPD?',
+                'answer': 'O sistema oferece recursos para apoiar governanca de dados, historico de consentimentos e rotinas administrativas alinhadas a privacidade.'
+            },
+            {
+                'question': 'Posso usar com mais de uma congregacao?',
+                'answer': 'Sim. Ha recursos para gestao multi-igreja, com separacao por unidade e visao consolidada para lideranca quando necessario.'
+            },
+            {
+                'question': 'Quais modulos estao disponiveis no sistema?',
+                'answer': 'Os principais modulos incluem secretaria, financeiro, agenda, comunicacao, configuracoes e suporte, variando conforme o plano escolhido.'
+            },
+            {
+                'question': 'Consigo acompanhar dizimos, ofertas e despesas?',
+                'answer': 'Sim. O modulo financeiro permite registrar entradas e saidas, acompanhar caixa, gerar relatorios e melhorar transparencia da prestacao de contas.'
+            },
+            {
+                'question': 'Posso cancelar quando quiser?',
+                'answer': 'Sim. O cancelamento pode ser solicitado conforme as regras do plano, e a igreja pode organizar seus dados para transicao quando necessario.'
+            },
+        ]
         return context
 # --- FIM DA NOVA VIEW ---
 

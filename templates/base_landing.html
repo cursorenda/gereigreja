@@ -8,22 +8,22 @@
     
     <!-- SEO Meta Tags -->
     <title>{% block title %}Gereigreja - O Sistema Completo para Gestão de Igrejas{% endblock %}</title>
-    <meta name="description" content="Transforme a gestão da sua igreja com o Gereigreja. Controle financeiro, gerenciamento de pessoas, comunicação e muito mais. Comece gratuitamente!">
-    <meta name="keywords" content="sistema para igrejas, software para igreja, gestão de igrejas, gerenciamento de pessoas, controle financeiro de igreja, dízimos e ofertas, sistema eclesiástico">
+    <meta name="description" content="{% block meta_description %}Transforme a gestão da sua igreja com o Gereigreja. Controle financeiro, gerenciamento de pessoas, comunicação e muito mais. Comece gratuitamente!{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}sistema para igrejas, software para igreja, gestão de igrejas, gerenciamento de pessoas, controle financeiro de igreja, dízimos e ofertas, sistema eclesiástico{% endblock %}">
     <meta name="author" content="Gereigreja">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://gereigreja.site/">
-    <meta property="og:title" content="Gereigreja - O Sistema Completo para Gestão de Igrejas">
-    <meta property="og:description" content="Organize, cresça e pastoreie com mais eficiência. Gereigreja centraliza a gestão de pessoas, finanças e comunicação da sua igreja.">
+    <meta property="og:url" content="{% block og_url %}https://gereigreja.site/{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}Gereigreja - O Sistema Completo para Gestão de Igrejas{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Organize, cresça e pastoreie com mais eficiência. Gereigreja centraliza a gestão de pessoas, finanças e comunicação da sua igreja.{% endblock %}">
     <meta property="og:image" content="{% static 'img/gereigreja_og_image.png' %}"> {# Crie uma imagem de 1200x630px para compartilhar #}
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://gereigreja.site/">
-    <meta property="twitter:title" content="Gereigreja - O Sistema Completo para Gestão de Igrejas">
-    <meta property="twitter:description" content="Organize, cresça e pastoreie com mais eficiência. Gereigreja centraliza a gestão de pessoas, finanças e comunicação da sua igreja.">
+    <meta property="twitter:url" content="{% block twitter_url %}https://gereigreja.site/{% endblock %}">
+    <meta property="twitter:title" content="{% block twitter_title %}Gereigreja - O Sistema Completo para Gestão de Igrejas{% endblock %}">
+    <meta property="twitter:description" content="{% block twitter_description %}Organize, cresça e pastoreie com mais eficiência. Gereigreja centraliza a gestão de pessoas, finanças e comunicação da sua igreja.{% endblock %}">
     <meta property="twitter:image" content="{% static 'img/gereigreja_og_image.png' %}">
 
     <!-- Favicon -->

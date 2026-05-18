@@ -1,0 +1,87 @@
+{% extends 'base_landing.html' %}
+{% load static %}
+
+{% block title %}Planos do Gereigreja | Sistema para Igrejas{% endblock %}
+{% block canonical_path %}/planos/{% endblock %}
+{% block meta_description %}Compare os planos do Gereigreja para igrejas pequenas, em crescimento e multi-congregacoes. Escolha o plano ideal e começe gratis.{% endblock %}
+{% block meta_keywords %}planos sistema para igreja, preco sistema para igreja, software igreja mensal, sistema igreja gratis{% endblock %}
+{% block og_url %}https://gereigreja.site/planos/{% endblock %}
+{% block og_title %}Planos Gereigreja para cada fase da igreja{% endblock %}
+{% block og_description %}Veja preco, limites e recursos para escolher o melhor plano para sua realidade ministerial.{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'landing_page' %}"><i class="fas fa-church me-2 text-primary"></i>Gereigreja</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavPlanos">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavPlanos">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="{% url 'funcionalidades_page' %}">Funcionalidades</a></li>
+                <li class="nav-item"><a class="nav-link active" href="{% url 'planos_page' %}">Planos</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'faq_page' %}">FAQ</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'blog:lista' %}">Blog</a></li>
+                <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}?origem=planos_topo">Comecar agora</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<header class="header py-5">
+    <div class="container text-center">
+        <h1 class="display-5">Planos para cada fase da sua igreja</h1>
+        <p class="lead">Comece sem barreiras e evolua com seguranca conforme sua operacao e sua estrutura crescem.</p>
+    </div>
+</header>
+
+<main>
+    <section class="section">
+        <div class="container">
+            <div class="row justify-content-center g-4">
+                {% for plano in planos %}
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <article class="card h-100 shadow-sm border-0 {% if plano.codigo_plano == 'ministerio' %}border border-primary{% endif %}">
+                        <div class="card-body d-flex flex-column">
+                            <h2 class="h5 mb-1">{{ plano.get_nome_display }}</h2>
+                            <p class="text-muted small mb-3">
+                                {% if plano.preco_mensal == 0 %}
+                                Gratuito para iniciar
+                                {% else %}
+                                Plano pago com recursos ampliados
+                                {% endif %}
+                            </p>
+                            <p class="mb-3">
+                                {% if plano.preco_mensal == 0 %}
+                                <span class="h4">Gratis</span>
+                                {% else %}
+                                <span class="h4">R$ {{ plano.preco_mensal|floatformat:"0" }}</span><span class="text-muted">/mes</span>
+                                {% endif %}
+                            </p>
+                            <ul class="small text-muted mb-4">
+                                <li>{% if plano.limite_membros == 0 %}Pessoas ilimitadas{% else %}Ate {{ plano.limite_membros }} pessoas ativas{% endif %}</li>
+                                <li>{% if plano.limite_igrejas == 0 %}Congregacoes ilimitadas{% elif plano.limite_igrejas == 1 %}1 congregacao{% else %}Ate {{ plano.limite_igrejas }} congregacoes{% endif %}</li>
+                            </ul>
+                            <a href="{% url 'contas:registrar' %}?origem=planos_card_{{ plano.codigo_plano }}" class="btn btn-primary mt-auto">Escolher plano</a>
+                        </div>
+                    </article>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="section bg-white">
+        <div class="container">
+            <h2 class="section-title">Compare antes de decidir</h2>
+            <div class="row g-3">
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'funcionalidades_page' %}">Ver funcionalidades</a></div>
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'faq_page' %}">Ler FAQ</a></div>
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'demo:demo_login' %}">Testar demonstracao</a></div>
+            </div>
+        </div>
+    </section>
+</main>
+
+{% include 'includes/public_footer.html' %}
+{% endblock %}

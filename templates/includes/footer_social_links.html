@@ -1,0 +1,8 @@
+<div class="{{ wrapper_class|default:'footer-social d-flex justify-content-center align-items-center gap-3 mb-2' }}">
+  <a href="https://www.instagram.com/gereigreja" class="social-link social-instagram" target="_blank" rel="noopener" aria-label="Instagram do Gereigreja"><i class="fab fa-instagram {{ icon_size_class|default:'' }}"></i></a>
+  <a href="https://www.facebook.com/gereigreja" class="social-link social-facebook" target="_blank" rel="noopener" aria-label="Facebook do Gereigreja"><i class="fab fa-facebook-f {{ icon_size_class|default:'' }}"></i></a>
+  <a href="https://www.youtube.com/@gereigreja" class="social-link social-youtube" target="_blank" rel="noopener" aria-label="YouTube do Gereigreja"><i class="fab fa-youtube {{ icon_size_class|default:'' }}"></i></a>
+  {% if show_support|default:False %}
+  <a href="/suporte/" target="_blank" rel="noopener" title="Suporte Gereigreja" class="social-link social-suporte"><i class="fas fa-headset {{ icon_size_class|default:'' }}"></i>{% if support_text %} {{ support_text }}{% endif %}</a>
+  {% endif %}
+</div>

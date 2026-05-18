@@ -9,6 +9,9 @@ class StaticViewSitemap(Sitemap):
     # (name, priority, changefreq)
     _pages = [
         ('landing_page', 1.0, 'weekly'),
+        ('funcionalidades_page', 0.9, 'weekly'),
+        ('planos_page', 0.9, 'weekly'),
+        ('faq_page', 0.8, 'weekly'),
         ('blog:lista', 0.8, 'daily'),
         ('contas:registrar', 0.7, 'weekly'),
         ('politica_privacidade', 0.3, 'monthly'),

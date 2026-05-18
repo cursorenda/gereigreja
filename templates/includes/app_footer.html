@@ -1,0 +1,38 @@
+<!-- Rodape interno da area autenticada com menu -->
+{% load versao %}
+<footer class="app-footer mt-auto w-100">
+  <div class="container-fluid px-4">
+    {% get_versao_gereigreja as versao_sistema %}
+    <!-- Linha principal: copyright + versão + redes (desktop) -->
+    <div class="row align-items-center justify-content-between">
+      <div class="col-auto">
+        <div class="app-footer-info">
+          <div class="app-footer-copyright">
+            &copy; <strong>{{ request.ministerio.nome_fantasia|default:"Gereigreja" }}</strong> {% now "Y" %}
+          </div>
+          <div class="app-footer-version" title="Versão do sistema">
+            <i class="fas fa-code-branch"></i>v{{ versao_sistema }}
+          </div>
+        </div>
+      </div>
+      <!-- Redes sociais no topo/direita em desktop -->
+      <div class="col-auto d-none d-md-block">
+        {% include 'includes/footer_social_links.html' with wrapper_class='app-footer-social-inline' icon_size_class='' show_support=True support_text='' %}
+      </div>
+    </div>
+    <!-- Linha secundária: links legais -->
+    <div class="row">
+      <div class="col-12">
+        <div class="app-footer-links">
+          <a href="{% url 'politica_privacidade' %}">Política de Privacidade</a>
+          <span class="footer-separator">•</span>
+          <a href="{% url 'termos_condicoes' %}">Termos &amp; Condições</a>
+        </div>
+      </div>
+      <!-- Redes sociais mobile (abaixo dos links) -->
+      <div class="col-12 d-md-none">
+        {% include 'includes/footer_social_links.html' with wrapper_class='app-footer-social-mobile' icon_size_class='' show_support=True support_text='' %}
+      </div>
+    </div>
+  </div>
+</footer>

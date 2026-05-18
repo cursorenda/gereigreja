@@ -2,6 +2,9 @@ from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 from django.urls import reverse
+from django.utils.html import linebreaks
+from django.utils.safestring import mark_safe
+import re
 
 
 class Categoria(models.Model):
@@ -86,3 +89,17 @@ class Post(models.Model):
 
     def get_absolute_url(self):
         return reverse('blog:detalhe', kwargs={'slug': self.slug})
+
+    @property
+    def conteudo_renderizado(self):
+        """Renderiza texto simples com parágrafos e preserva posts em HTML."""
+        conteudo = (self.conteudo or '').strip()
+        if not conteudo:
+            return ''
+
+        # Se ja houver tags estruturais, respeita o HTML enviado no admin.
+        if re.search(r'</?(p|h[1-6]|ul|ol|li|blockquote|table|div|section|article|figure|pre|code)\b', conteudo, re.IGNORECASE):
+            return mark_safe(conteudo)
+
+        # Para texto puro, converte quebras em parágrafos e <br>.
+        return mark_safe(linebreaks(conteudo, autoescape=True))

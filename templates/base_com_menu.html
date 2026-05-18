@@ -385,24 +385,7 @@
                     {% endblock %}
                 </div>
             </main>
-            <footer class="py-4 bg-light mt-auto w-100 app-footer">
-                <div class="d-flex flex-column flex-md-row align-items-center justify-content-center small w-100 app-footer-row">
-                    {% get_versao_gereigreja as versao_sistema %}
-                    <div class="text-muted mb-1 mb-md-0 app-footer-copy">Copyright &copy; {{ request.ministerio.nome_fantasia|default:"Gereigreja" }} {% now "Y" %} &nbsp;|&nbsp; Versão {{ versao_sistema }}</div>
-                    <div class="app-footer-links">
-                        <a href="{% url 'politica_privacidade' %}" class="footer-link-right">Política de Privacidade</a>
-                        <span class="footer-separator">&middot;</span>
-                        <a href="{% url 'termos_condicoes' %}" class="footer-link-left">Termos &amp; Condições</a>
-                        <span class="footer-separator">&middot;</span>
-                    </div>
-                    <div class="mt-2 mt-md-0 app-footer-social">
-                        <a href="https://www.youtube.com/channel/UCkBCvncTSBDTl068G8tlkQw" target="_blank" rel="noopener" title="YouTube Gereigreja" class="social-link social-youtube"><i class="fab fa-youtube fa-lg"></i></a>
-                        <a href="https://www.facebook.com/profile.php?id=61585667130827&locale=pt_BR" target="_blank" rel="noopener" title="Facebook Gereigreja" class="social-link social-facebook"><i class="fab fa-facebook fa-lg"></i></a>
-                        <a href="https://www.instagram.com/gereigreja/" target="_blank" rel="noopener" title="Instagram Gereigreja" class="social-link social-instagram"><i class="fab fa-instagram fa-lg"></i></a>
-                        <a href="/suporte/" target="_blank" rel="noopener" title="Suporte Gereigreja" class="social-link social-suporte"><i class="fas fa-headset fa-lg"></i> Suporte</a>
-                    </div>
-                </div>
-            </footer>
+            {% include 'includes/app_footer.html' %}
         </div>
     </div>
 

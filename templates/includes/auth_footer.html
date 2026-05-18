@@ -1,0 +1,15 @@
+<!-- Rodape de autenticacao padronizado -->
+<footer class="py-4 bg-light mt-auto">
+  <div class="container-fluid px-4">
+    <div class="d-flex align-items-center justify-content-between small">
+      {% load versao %}
+      {% get_versao_gereigreja as versao_sistema %}
+      <div class="text-muted">Copyright &copy; Gereigreja {% now "Y" %} | Versao {{ versao_sistema }}</div>
+      <div>
+        <a href="{% url 'politica_privacidade' %}">Politica de Privacidade</a>
+        &middot;
+        <a href="{% url 'termos_condicoes' %}">Termos &amp; Condicoes</a>
+      </div>
+    </div>
+  </div>
+</footer>

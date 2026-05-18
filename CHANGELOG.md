@@ -1,3 +1,37 @@
+## v1.12.3 — 17/05/2026
+🧭 **Padronização de Rodapés, Páginas Legais e Ajustes Finais de SEO**
+
+### Rodapés e Identidade Visual
+- Centralização dos rodapés em includes reutilizáveis por contexto:
+  - público/marketing
+  - autenticação
+  - área interna autenticada com menu
+- Remoção do WhatsApp dos links sociais até haver número oficial da empresa.
+- Ajuste visual do rodapé interno com melhor hierarquia, bordas, badge de versão e ícones mais visíveis.
+- Unificação das cores das redes sociais para a paleta turquesa do Gereigreja, com cores nativas apenas no hover.
+
+### Páginas Legais
+- Política de Privacidade e Termos e Condições migrados para layout mais moderno, consistente com a landing page.
+- Inclusão de sumário lateral navegável nas páginas legais para melhorar usabilidade e leitura.
+- Atualização de ancoragens e estilos específicos para documentos institucionais.
+
+### SEO e Sitemap
+- Revisão das páginas públicas incluídas no `sitemap.xml`.
+- Confirmação de cobertura das rotas públicas principais:
+  - landing page
+  - funcionalidades
+  - planos
+  - FAQ
+  - blog
+  - cadastro
+  - política de privacidade
+  - termos e condições
+
+### Operação
+- Validação local do sitemap e da renderização das páginas públicas após as alterações.
+
+---
+
 ## v1.12.2 — 17/05/2026
 🔒 **Segurança Multi-Igreja, Estabilidade do Modo Demo e SEO Público**
 

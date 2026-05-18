@@ -5,55 +5,80 @@
 {% block canonical_path %}/termos-condicoes/{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Termos e Condições de Uso</h1>
-    <ol class="breadcrumb mb-4">
+<section class="legal-page py-5">
+<div class="container legal-container">
+    <div class="legal-hero d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <h1 class="legal-title mb-0"><i class="fas fa-file-contract me-2"></i>Termos e Condições de Uso</h1>
+        <span class="legal-version-badge">Atualizado em {% now "d/m/Y" %}</span>
+    </div>
+
+    <ol class="breadcrumb legal-breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'landing_page' %}">Início</a></li>
         <li class="breadcrumb-item active">Termos e Condições</li>
     </ol>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <p>Última atualização: {% now "d/m/Y" %}</p>
+    <div class="row g-4 align-items-start mb-4">
+        <aside class="col-lg-3 d-none d-lg-block">
+            <nav class="legal-toc" aria-label="Sumário dos termos">
+                <p class="legal-toc-title mb-2"><i class="fas fa-list-ul me-2"></i>Sumário</p>
+                <a href="#sec-intro" class="legal-toc-link">Introdução</a>
+                <a href="#sec-licenca" class="legal-toc-link">1. Licença de Uso</a>
+                <a href="#sec-uso" class="legal-toc-link">2. Uso Aceitável</a>
+                <a href="#sec-conteudo" class="legal-toc-link">3. Conteúdo do Usuário</a>
+                <a href="#sec-responsabilidade" class="legal-toc-link">4. Isenção de Responsabilidade</a>
+            </nav>
+        </aside>
 
-            <p>Bem-vindo(a) ao Gereigreja! Estes termos e condições descrevem as regras e regulamentos para o uso do website Gereigreja, localizado em gereigreja.site.</p>
+        <div class="col-lg-9">
+            <div class="card legal-card">
+                <div class="card-body legal-card-body">
+                    <div id="sec-intro" class="alert legal-highlight">
+                        <i class="fas fa-gavel me-2"></i>
+                        Estes termos definem as regras de uso da plataforma Gereigreja e devem ser lidos antes da utilização do sistema.
+                    </div>
 
-            <p>Ao acessar este site, presumimos que você aceita estes termos e condições. Não continue a usar Gereigreja se você não concordar em aceitar todos os termos e condições declarados nesta página.</p>
+                    <p>Bem-vindo(a) ao Gereigreja! Estes termos e condições descrevem as regras e regulamentos para o uso do website Gereigreja, localizado em gereigreja.site.</p>
 
-            <h2>1. Licença de Uso</h2>
-            <p>Salvo indicação em contrário, Gereigreja e/ou seus licenciadores detêm os direitos de propriedade intelectual para todo o material em Gereigreja. Todos os direitos de propriedade intelectual são reservados. Você pode acessar isso de Gereigreja para seu uso pessoal, sujeito às restrições definidas nestes termos e condições.</p>
-            <p>Você não deve:</p>
-            <ul>
-                <li>Republicar material de Gereigreja;</li>
-                <li>Vender, alugar ou sublicenciar material de Gereigreja;</li>
-                <li>Reproduzir, duplicar ou copiar material de Gereigreja;</li>
-                <li>Redistribuir conteúdo de Gereigreja.</li>
-            </ul>
+                    <p>Ao acessar este site, presumimos que você aceita estes termos e condições. Não continue a usar Gereigreja se você não concordar em aceitar todos os termos e condições declarados nesta página.</p>
 
-            <h2>2. Uso Aceitável</h2>
-            <p>Você concorda em usar o Gereigreja apenas para fins lícitos e de uma forma que não infrinja os direitos de, restrinja ou iniba o uso e o desfrute do site por qualquer terceiro. Comportamento proibido inclui assediar ou causar angústia ou inconveniência a qualquer pessoa, transmitir conteúdo obsceno ou ofensivo ou interromper o fluxo normal de diálogo dentro do Gereigreja.</p>
+                    <h2 id="sec-licenca">1. Licença de Uso</h2>
+                    <p>Salvo indicação em contrário, Gereigreja e/ou seus licenciadores detêm os direitos de propriedade intelectual para todo o material em Gereigreja. Todos os direitos de propriedade intelectual são reservados. Você pode acessar isso de Gereigreja para seu uso pessoal, sujeito às restrições definidas nestes termos e condições.</p>
+                    <p>Você não deve:</p>
+                    <ul>
+                        <li>Republicar material de Gereigreja;</li>
+                        <li>Vender, alugar ou sublicenciar material de Gereigreja;</li>
+                        <li>Reproduzir, duplicar ou copiar material de Gereigreja;</li>
+                        <li>Redistribuir conteúdo de Gereigreja.</li>
+                    </ul>
 
-            <h2>3. Conteúdo do Usuário</h2>
-            <p>Partes deste site oferecem uma oportunidade para os usuários postarem e trocarem opiniões e informações. Gereigreja não filtra, edita, publica ou revisa comentários antes de sua presença no site. Os comentários refletem as opiniões da pessoa que os publica e não as opiniões de Gereigreja, seus agentes e/ou afiliados.</p>
-            <p>Você garante e representa que:</p>
-            <ul>
-                <li>Você tem o direito de postar os comentários em nosso site e tem todas as licenças e consentimentos necessários para fazê-lo;</li>
-                <li>Os comentários não invadem nenhum direito de propriedade intelectual, incluindo, sem limitação, direitos autorais, patentes ou marcas registradas de terceiros;</li>
-                <li>Os comentários não contêm nenhum material difamatório, calunioso, ofensivo, indecente ou de outra forma ilegal que seja uma invasão de privacidade;</li>
-                <li>Os comentários não serão usados para solicitar ou promover negócios ou costumes ou apresentar atividades comerciais ou atividades ilegais.</li>
-            </ul>
+                    <h2 id="sec-uso">2. Uso Aceitável</h2>
+                    <p>Você concorda em usar o Gereigreja apenas para fins lícitos e de uma forma que não infrinja os direitos de, restrinja ou iniba o uso e o desfrute do site por qualquer terceiro. Comportamento proibido inclui assediar ou causar angústia ou inconveniência a qualquer pessoa, transmitir conteúdo obsceno ou ofensivo ou interromper o fluxo normal de diálogo dentro do Gereigreja.</p>
 
-            <h2>4. Isenção de Responsabilidade</h2>
-            <p>Na extensão máxima permitida pela lei aplicável, excluímos todas as representações, garantias e condições relacionadas ao nosso site e ao uso deste site. Nada nesta isenção de responsabilidade irá:</p>
-            <ul>
-                <li>Limitar ou excluir nossa ou sua responsabilidade por morte ou lesão pessoal;</li>
-                <li>Limitar ou excluir nossa ou sua responsabilidade por fraude ou deturpação fraudulenta;</li>
-                <li>Limitar qualquer uma de nossas ou suas responsabilidades de qualquer forma que não seja permitida pela lei aplicável; ou</li>
-                <li>Excluir qualquer uma de nossas ou suas responsabilidades que não possam ser excluídas sob a lei aplicável.</li>
-            </ul>
+                    <h2 id="sec-conteudo">3. Conteúdo do Usuário</h2>
+                    <p>Partes deste site oferecem uma oportunidade para os usuários postarem e trocarem opiniões e informações. Gereigreja não filtra, edita, publica ou revisa comentários antes de sua presença no site. Os comentários refletem as opiniões da pessoa que os publica e não as opiniões de Gereigreja, seus agentes e/ou afiliados.</p>
+                    <p>Você garante e representa que:</p>
+                    <ul>
+                        <li>Você tem o direito de postar os comentários em nosso site e tem todas as licenças e consentimentos necessários para fazê-lo;</li>
+                        <li>Os comentários não invadem nenhum direito de propriedade intelectual, incluindo, sem limitação, direitos autorais, patentes ou marcas registradas de terceiros;</li>
+                        <li>Os comentários não contêm nenhum material difamatório, calunioso, ofensivo, indecente ou de outra forma ilegal que seja uma invasão de privacidade;</li>
+                        <li>Os comentários não serão usados para solicitar ou promover negócios ou costumes ou apresentar atividades comerciais ou atividades ilegais.</li>
+                    </ul>
 
-            <p class="mt-5 text-muted text-center">Este é um modelo de termos e condições e deve ser revisado e adaptado por um profissional jurídico.</p>
+                    <h2 id="sec-responsabilidade">4. Isenção de Responsabilidade</h2>
+                    <p>Na extensão máxima permitida pela lei aplicável, excluímos todas as representações, garantias e condições relacionadas ao nosso site e ao uso deste site. Nada nesta isenção de responsabilidade irá:</p>
+                    <ul>
+                        <li>Limitar ou excluir nossa ou sua responsabilidade por morte ou lesão pessoal;</li>
+                        <li>Limitar ou excluir nossa ou sua responsabilidade por fraude ou deturpação fraudulenta;</li>
+                        <li>Limitar qualquer uma de nossas ou suas responsabilidades de qualquer forma que não seja permitida pela lei aplicável; ou</li>
+                        <li>Excluir qualquer uma de nossas ou suas responsabilidades que não possam ser excluídas sob a lei aplicável.</li>
+                    </ul>
+
+                    <p class="mt-5 text-muted text-center">Este é um modelo de termos e condições e deve ser revisado e adaptado por um profissional jurídico.</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+</section>
+{% include 'includes/public_footer.html' %}
 {% endblock %}

@@ -9,7 +9,7 @@ from core.sitemaps import StaticViewSitemap, BlogPostSitemap
 
 # Importar a view da landing page
 
-from contas.views import LandingPageView
+from contas.views import LandingPageView, FuncionalidadesPageView, PlanosPageView, FaqPageView
 
 from core.views import notificacoes_enviadas_view
 from core.backup_views import backup_urls
@@ -67,6 +67,9 @@ urlpatterns = [
 
     # A URL raiz '/' agora aponta para a página de vendas.
     path('', LandingPageView.as_view(), name='landing_page'),
+    path('funcionalidades/', FuncionalidadesPageView.as_view(), name='funcionalidades_page'),
+    path('planos/', PlanosPageView.as_view(), name='planos_page'),
+    path('faq/', FaqPageView.as_view(), name='faq_page'),
 
     # SEO: robots.txt e sitemap.xml
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain'), name='robots_txt'),

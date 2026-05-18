@@ -11,14 +11,14 @@
 <style>
   /* ---- Blog: variáveis de cor (consistente com landing) ---- */
   :root {
-    --purple-dark: #45076d;
-    --purple:      #6a25ab;
-    --yellow:      #ffc107;
+    --purple-dark: var(--gi-color-brand-900);
+    --purple:      var(--gi-color-brand-700);
+    --yellow:      var(--gi-color-brand-500);
   }
 
   /* Hero do blog */
   .blog-hero {
-    background: linear-gradient(135deg, rgba(69,7,109,0.92), rgba(106,37,171,0.92));
+    background: linear-gradient(135deg, rgba(10,102,101,0.92), rgba(13,130,129,0.92));
     padding: 72px 0 52px;
     color: #fff;
   }
@@ -48,13 +48,13 @@
     border: none;
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 4px 18px rgba(69,7,109,.08);
+    box-shadow: 0 4px 18px rgba(10,102,101,.08);
     transition: transform .25s, box-shadow .25s;
     height: 100%;
   }
   .post-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(69,7,109,.15);
+    box-shadow: 0 10px 30px rgba(10,102,101,.15);
   }
   .post-card .post-card-media {
     position: relative;
@@ -63,7 +63,7 @@
     min-height: 180px;
     max-height: 220px;
     overflow: hidden;
-    background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
+    background: linear-gradient(135deg, var(--gi-color-brand-soft), #cfecea);
   }
   .post-card .card-img-top {
     position: absolute;
@@ -100,7 +100,7 @@
   .post-card .card-title {
     font-weight: 700;
     font-size: 1.05rem;
-    color: #1a1a2e;
+    color: var(--gi-color-text);
     line-height: 1.4;
   }
   .post-card .card-text {
@@ -187,11 +187,11 @@
 {% endif %}
 
 <!-- Posts -->
-<section class="py-5" style="background:#f8f9fa; min-height:60vh;">
+<section class="py-5" style="background:var(--gi-color-surface-soft); min-height:60vh;">
   <div class="container">
 
     {% if categoria_ativa %}
-    <h2 class="mb-4" style="font-weight:700; color:#343a40;">
+    <h2 class="mb-4" style="font-weight:700; color:var(--gi-color-text);">
       <i class="fas fa-tag me-2" style="color:var(--purple)"></i>{{ categoria_ativa.nome }}
     </h2>
     {% endif %}
@@ -245,7 +245,7 @@
     <!-- Estado vazio -->
     <div class="empty-state">
       <i class="fas fa-pencil-alt d-block mb-3"></i>
-      <h4 style="color:#6c757d;">Nenhum artigo publicado ainda.</h4>
+      <h4 style="color:var(--gi-color-text-muted);">Nenhum artigo publicado ainda.</h4>
       <p class="text-muted">Em breve novos conteúdos para ajudar na gestão da sua igreja.</p>
       <a href="{% url 'landing_page' %}" class="btn btn-outline-secondary mt-2">
         <i class="fas fa-home me-1"></i>Voltar ao início
@@ -256,12 +256,6 @@
   </div>
 </section>
 
-<!-- Footer mínimo -->
-<footer class="py-4 text-center" style="background:#1a1a2e; color:#adb5bd; font-size:.85rem;">
-  <div class="container">
-    <p class="mb-1">&copy; {% now "Y" %} Gereigreja — Todos os direitos reservados.</p>
-    <a href="{% url 'landing_page' %}" style="color:#6a25ab;">Voltar ao site principal</a>
-  </div>
-</footer>
+{% include 'includes/public_footer.html' %}
 
 {% endblock %}

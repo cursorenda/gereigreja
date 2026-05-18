@@ -1,0 +1,15 @@
+<!-- Rodape publico padronizado -->
+<footer class="footer">
+  <div class="container text-center">
+    <p class="mb-2">&copy; {% now "Y" %} Gereigreja. Todos os direitos reservados.</p>
+    {% include 'includes/footer_social_links.html' %}
+    <p class="mb-0">
+      <a href="{% url 'funcionalidades_page' %}">Funcionalidades</a> |
+      <a href="{% url 'planos_page' %}">Planos</a> |
+      <a href="{% url 'faq_page' %}">FAQ</a> |
+      <a href="{% url 'blog:lista' %}">Blog</a> |
+      <a href="{% url 'politica_privacidade' %}" target="_blank">Politica de Privacidade</a> |
+      <a href="{% url 'termos_condicoes' %}" target="_blank">Termos de Uso</a>
+    </p>
+  </div>
+</footer>

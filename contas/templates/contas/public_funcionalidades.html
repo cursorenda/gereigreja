@@ -1,0 +1,121 @@
+{% extends 'base_landing.html' %}
+{% load static %}
+
+{% block title %}Funcionalidades do Gereigreja | Sistema para Igrejas{% endblock %}
+{% block canonical_path %}/funcionalidades/{% endblock %}
+{% block meta_description %}Conheca as funcionalidades do Gereigreja para secretaria, financeiro, comunicacao, eventos e gestao multi-igreja. Ganhe eficiencia na rotina ministerial.{% endblock %}
+{% block meta_keywords %}funcionalidades sistema para igrejas, secretaria igreja, financeiro igreja, comunicacao igreja, gestao multi igreja{% endblock %}
+{% block og_url %}https://gereigreja.site/funcionalidades/{% endblock %}
+{% block og_title %}Funcionalidades do Gereigreja para Gestao de Igrejas{% endblock %}
+{% block og_description %}Veja como organizar membros, financas, comunicacao e operacao da igreja em um unico sistema.{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'landing_page' %}"><i class="fas fa-church me-2 text-primary"></i>Gereigreja</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavPublic">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavPublic">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link active" href="{% url 'funcionalidades_page' %}">Funcionalidades</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'planos_page' %}">Planos</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'faq_page' %}">FAQ</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'blog:lista' %}">Blog</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+                <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}?origem=funcionalidades_topo">Comecar agora</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<header class="header py-5">
+    <div class="container text-center">
+        <h1 class="display-5">Funcionalidades para uma gestao de igreja completa</h1>
+        <p class="lead">Da secretaria ao financeiro, o Gereigreja centraliza processos, reduz retrabalho e melhora a tomada de decisao da lideranca.</p>
+        <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+            <a href="{% url 'contas:registrar' %}?origem=funcionalidades_hero" class="btn btn-cta-primary btn-lg">Criar conta gratis</a>
+            <a href="{% url 'planos_page' %}" class="btn btn-cta-secondary btn-lg">Ver planos</a>
+        </div>
+    </div>
+</header>
+
+<main>
+    <section class="section">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 p-4 shadow-sm border-0">
+                        <h2 class="h5">Secretaria inteligente</h2>
+                        <p class="mb-0">Cadastros completos, historico de membros, transferencias e acompanhamento pastoral em um fluxo unico.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 p-4 shadow-sm border-0">
+                        <h2 class="h5">Financeiro transparente</h2>
+                        <p class="mb-0">Dizimos, ofertas, despesas e caixas com regras de escopo por igreja para governanca e seguranca.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 p-4 shadow-sm border-0">
+                        <h2 class="h5">Comunicacao integrada</h2>
+                        <p class="mb-0">Mural de avisos, campanhas e comunicados com segmentacao para manter a membresia informada.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 p-4 shadow-sm border-0">
+                        <h2 class="h5">Eventos e agenda</h2>
+                        <p class="mb-0">Organize programacoes, participacao e presencas com mais previsibilidade de rotina e resultados.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 p-4 shadow-sm border-0">
+                        <h2 class="h5">Gestao multi-igreja</h2>
+                        <p class="mb-0">Estruture sede, regionais e congregacoes com filtros hierarquicos e controle de permissoes.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 p-4 shadow-sm border-0">
+                        <h2 class="h5">Painel para lideranca</h2>
+                        <p class="mb-0">Indicadores claros para secretaria e financeiro, apoiando decisoes com dados atualizados.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section bg-white">
+        <div class="container">
+            <h2 class="section-title">Links importantes para sua jornada</h2>
+            <div class="row g-3">
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'planos_page' %}">Comparar planos</a></div>
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'faq_page' %}">Perguntas frequentes</a></div>
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'blog:lista' %}">Conteudos do blog</a></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="section-title mb-0">Artigos relacionados</h2>
+                <a href="{% url 'blog:lista' %}" class="text-decoration-none">Ver todos</a>
+            </div>
+            <div class="row g-4">
+                {% for post in recent_posts %}
+                <div class="col-md-4">
+                    <article class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h3 class="h6"><a class="text-decoration-none" href="{% url 'blog:detalhe' post.slug %}">{{ post.titulo }}</a></h3>
+                            <p class="text-muted small mb-0">{{ post.resumo|truncatechars:120 }}</p>
+                        </div>
+                    </article>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</main>
+
+{% include 'includes/public_footer.html' %}
+{% endblock %}

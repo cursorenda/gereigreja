@@ -1,0 +1,81 @@
+{% extends 'base_landing.html' %}
+{% load static %}
+
+{% block title %}FAQ Gereigreja | Dúvidas sobre Sistema para Igrejas{% endblock %}
+{% block canonical_path %}/faq/{% endblock %}
+{% block meta_description %}Tire suas duvidas sobre o Gereigreja: implantacao, planos, seguranca, suporte e uso para igrejas com uma ou varias congregacoes.{% endblock %}
+{% block meta_keywords %}faq sistema para igrejas, duvidas gereigreja, suporte software igreja, implantacao sistema igreja{% endblock %}
+{% block og_url %}https://gereigreja.site/faq/{% endblock %}
+{% block og_title %}FAQ Gereigreja - Perguntas frequentes{% endblock %}
+{% block og_description %}Respostas objetivas para avaliar o Gereigreja com seguranca antes de contratar.{% endblock %}
+
+{% block content %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+        {% for item in faq_items %}
+        {
+            "@type": "Question",
+            "name": "{{ item.question|escapejs }}",
+            "acceptedAnswer": {"@type": "Answer", "text": "{{ item.answer|escapejs }}"}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+  ]
+}
+</script>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'landing_page' %}"><i class="fas fa-church me-2 text-primary"></i>Gereigreja</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavFaq">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavFaq">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="{% url 'funcionalidades_page' %}">Funcionalidades</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'planos_page' %}">Planos</a></li>
+                <li class="nav-item"><a class="nav-link active" href="{% url 'faq_page' %}">FAQ</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'blog:lista' %}">Blog</a></li>
+                <li class="nav-item ms-lg-2"><a class="btn btn-primary btn-sm" href="{% url 'contas:registrar' %}?origem=faq_topo">Comecar agora</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<header class="header py-5">
+    <div class="container text-center">
+        <h1 class="display-5">Perguntas frequentes sobre o Gereigreja</h1>
+        <p class="lead">Respostas diretas para decidir com clareza se o sistema atende sua realidade ministerial.</p>
+    </div>
+</header>
+
+<main>
+    <section class="section">
+        <div class="container">
+            <div class="accordion" id="faqPublica">
+                {% for item in faq_items %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="f{{ forloop.counter }}"><button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#c{{ forloop.counter }}">{{ item.question }}</button></h2>
+                    <div id="c{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#faqPublica"><div class="accordion-body">{{ item.answer }}</div></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="section bg-white">
+        <div class="container">
+            <h2 class="section-title">Proximos passos</h2>
+            <div class="row g-3">
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'funcionalidades_page' %}">Conhecer funcionalidades</a></div>
+                <div class="col-md-4"><a class="btn btn-outline-primary w-100" href="{% url 'planos_page' %}">Comparar planos</a></div>
+                <div class="col-md-4"><a class="btn btn-primary w-100" href="{% url 'contas:registrar' %}?origem=faq_final">Criar conta gratis</a></div>
+            </div>
+        </div>
+    </section>
+</main>
+
+{% include 'includes/public_footer.html' %}
+{% endblock %}
