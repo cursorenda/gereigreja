@@ -1,5 +1,5 @@
 {% extends 'base_landing.html' %}
-{% load static %}
+{% load static sistema_imagens_tags %}
 
 {% block title %}Blog — Gereigreja{% endblock %}
 {% block canonical_path %}/blog/{% endblock %}
@@ -131,10 +131,22 @@
     padding: 14px 0;
   }
   .blog-navbar .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
     font-weight: 700;
     font-size: 1.25rem;
     color: var(--purple);
     text-decoration: none;
+  }
+  .blog-navbar .brand-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(10, 102, 101, .18);
+    padding: 2px;
   }
   .blog-navbar .nav-link-home {
     font-size: .9rem;
@@ -152,7 +164,8 @@
 <nav class="blog-navbar">
   <div class="container d-flex align-items-center justify-content-between">
     <a href="{% url 'blog:lista' %}" class="brand">
-      <i class="fas fa-church me-2"></i>Gereigreja Blog
+      <img src="{% sistema_imagem_url 'logo' 'original' 'img/logo1.png' %}" alt="Logo Gereigreja" class="brand-logo">
+      <span>Gereigreja Blog</span>
     </a>
     <a href="{% url 'landing_page' %}" class="nav-link-home">
       <i class="fas fa-arrow-left me-1"></i>Voltar ao site

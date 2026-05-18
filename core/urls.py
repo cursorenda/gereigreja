@@ -15,7 +15,7 @@ from core.views import notificacoes_enviadas_view
 from core.backup_views import backup_urls
 from core.views_painel_permissoes import painel_permissoes_view
 from core.views_teste_permissao import view_livre, view_admin_ministerio
-from painel_testes.admin import painel_pytest_view
+from painel_desenvolvedor.admin import painel_pytest_view
 from configuracao.admin_dashboard import dashboard_desenvolvedor, executar_comando
 from configuracao.admin_metrics import metricas_produto
 from django.contrib.admin.views.decorators import staff_member_required
@@ -45,7 +45,9 @@ urlpatterns = [
     # Painel de testes de permissoes/hierarquias
     path('admin/painel-permissoes/', staff_member_required(painel_permissoes_view), name='admin_painel_permissoes'),
     # Painel de testes unitários (pytest)
-    path('admin/painel-testes/pytest/', admin.site.admin_view(painel_pytest_view), name='admin_painel_pytest'),
+    path('admin/painel-desenvolvedor/pytest/', admin.site.admin_view(painel_pytest_view), name='admin_painel_pytest'),
+    # Galeria de imagens do sistema (admin desenvolvedor)
+    path('admin/painel-desenvolvedor/', include('painel_desenvolvedor.urls')),
     path('admin-auditoria/', auditoria_admin_site.urls),
     # Rotas de teste de permissao
     path('teste-permissao/livre/', view_livre, name='teste_permissao_livre'),

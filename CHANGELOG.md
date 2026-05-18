@@ -1,3 +1,23 @@
+## v1.12.4 — 18/05/2026
+🖼️ **Logo Dinâmica no Blog, Marca na Landing e Ajustes de Painel do Desenvolvedor**
+
+### Blog Público
+- Navbar do blog (`lista` e `detalhe`) atualizada para usar **logo dinâmica** via galeria do sistema.
+- Substituição do ícone fixo por carregamento com fallback, mantendo consistência visual com a landing.
+
+### Landing Page
+- Marca no topo ajustada para exibir **logo + nome Gereigreja** (não apenas o ícone/imagem), reduzindo sensação de vazio no header.
+- Melhorias de estilo para o bloco de marca (`landing-brand`) com alinhamento responsivo.
+
+### Painel do Desenvolvedor
+- Renomeação de referência do app `painel_testes` para `painel_desenvolvedor` em configurações e rotas principais.
+- Rotas administrativas do painel técnico reorganizadas sob o prefixo de `painel-desenvolvedor`.
+
+### Documentação Operacional
+- Atualização de respostas/documentação rápida para refletir o estado atual do projeto.
+
+---
+
 ## v1.12.3 — 17/05/2026
 🧭 **Padronização de Rodapés, Páginas Legais e Ajustes Finais de SEO**
 
@@ -1027,7 +1047,7 @@ Release de correção para estabilizar o carregamento das métricas no painel ad
 🧪 **Lote 15: painel pytest no admin**
 
 ### Principais mudanças
-- ✅ App `painel_testes` para execução e visibilidade de testes no admin
+- ✅ App `painel_desenvolvedor` para execução e visibilidade de testes no admin
 
 ---
 

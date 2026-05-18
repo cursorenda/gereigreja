@@ -1,5 +1,29 @@
 {% extends 'base_landing.html' %}
 {% load static %}
+{% load sistema_imagens_tags %}
+
+{% block extra_css %}
+<style>
+    .landing-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        color: var(--gi-color-brand-900);
+    }
+    .landing-brand-logo {
+        height: 36px;
+        width: auto;
+        max-width: 220px;
+        object-fit: contain;
+    }
+    .landing-brand-text {
+        font-weight: 700;
+        color: var(--gi-color-brand-700);
+        line-height: 1;
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 
@@ -33,8 +57,18 @@
 <!-- Navbar Simples -->
 <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="{% url 'landing_page' %}">
-            <i class="fas fa-church me-2 text-primary"></i>Gereigreja
+        <a class="navbar-brand fw-bold landing-brand" href="{% url 'landing_page' %}">
+            {% if landing_logo_sistema and landing_logo_sistema.imagem %}
+                <img
+                    src="{{ landing_logo_sistema.imagem.url }}"
+                    alt="Gereigreja"
+                    class="landing-brand-logo"
+                >
+                <span class="landing-brand-text">Gereigreja</span>
+            {% else %}
+                <i class="fas fa-church text-primary"></i>
+                <span class="landing-brand-text">Gereigreja</span>
+            {% endif %}
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -123,7 +157,9 @@
             <h2 class="section-title">Mais que um Sistema, um Parceiro no Ministério</h2>
             <div class="row align-items-center">
                 <div class="col-lg-6">
-                    <img src="{% static 'img/dashboard_preview1.png' %}" alt="Dashboard do Gereigreja" class="img-fluid rounded shadow-lg">
+                    <div class="rounded shadow-lg overflow-hidden bg-light" style="height: clamp(220px, 40vw, 420px);">
+                        <img src="{% sistema_imagem_url 'dashboard_preview' 'grande' 'img/dashboard_preview1.png' %}" alt="Dashboard do Gereigreja" class="w-100 h-100" style="object-fit: contain;">
+                    </div>
                     {# Crie um print bonito do seu dashboard para colocar aqui #}
                 </div>
                 <div class="col-lg-6 mt-4 mt-lg-0">
