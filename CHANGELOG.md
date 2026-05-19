@@ -1,3 +1,26 @@
+## v1.12.7 — 19/05/2026
+🧑 **Padronização de Avatar com 3 Níveis de Fallback**
+
+### Interfaces Atualizadas
+- Dropdown do usuário em `base_com_menu.html`
+- Perfil pessoal em `configuracao/templates/configuracao/perfil/meu_perfil.html`
+- Avatares de tickets em `suporte/templates/suporte/detalhe_ticket.html`
+- Card bem-vindo da secretaria em `secretaria/templates/secretaria/index.html`
+
+### Mudança
+Implementação da cadeia de fallback de avatar em todas as páginas:
+1. **Foto real** do usuário (se disponível e carrega)
+2. **Avatar padrão** do sistema (via galeria `SistemaImagem`)
+3. **Iniciais** do usuário (último fallback visual)
+
+### Impacto
+- Consistência visual em todas as páginas com avatares de usuários
+- UX melhorada quando foto não carrega ou usuário não tem foto configurada
+- Sem breaking changes na API ou banco de dados
+- Mantém estilo Bootstrap e responsividade existentes
+
+---
+
 ## v1.12.6 — 18/05/2026
 🖼️ **Hotfix de Assets da Galeria (logos padrão e OG)**
 
