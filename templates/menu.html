@@ -43,6 +43,15 @@
                     <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
                     Admin
                 </a>
+                <div class="sb-sidenav-menu-heading">Painel Desenvolvedor</div>
+                <a class="nav-link" href="{% url 'admin_dashboard_desenvolvedor' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
+                    Dashboard Dev
+                </a>
+                <a class="nav-link" href="{% url 'painel_desenvolvedor:galeria_imagens' %}">
+                    <div class="sb-nav-link-icon"><i class="fas fa-image"></i></div>
+                    Galeria de Logos
+                </a>
                 <a class="nav-link" href="{% url 'admin:blog_post_changelist' %}">
                     <div class="sb-nav-link-icon"><i class="fas fa-pen-nib"></i></div>
                     Gerenciar Blog

@@ -3,6 +3,7 @@ Arquivo totalmente comentado para análise estrutural.-->
 <div class="container-fluid">
 
 {% load static %}
+{% load sistema_imagens_tags %}
 {% load widget_tweaks %}
 <link rel="stylesheet" href="{% static 'css/secretaria/secretaria_pessoa.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria/input_foto_colado.css' %}">
@@ -13,7 +14,7 @@ Arquivo totalmente comentado para análise estrutural.-->
         {% if form.instance.pk and form.instance.foto %}
             <img src="{{ form.instance.foto.url }}" alt="Foto Atual de {{ form.instance.nome }}" class="img-fluid rounded-circle" style="width: 110px; height: 110px; object-fit: cover; margin-bottom:0;">
         {% else %}
-            <img src="{% static 'img/default_avatar.png' %}" alt="Sem Foto" class="img-fluid rounded-circle" style="width: 110px; height: 110px; object-fit: cover; margin-bottom:0;">
+            <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Sem Foto" class="img-fluid rounded-circle" style="width: 110px; height: 110px; object-fit: cover; margin-bottom:0;">
         {% endif %}
         <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
         {{ form.foto|add_class:'input-foto-colado input-foto-compact form-control-sm'|attr:'style=width:110px;height:28px;font-size:0.9em;padding:2px 4px;margin-top:0;margin-bottom:0;' }}

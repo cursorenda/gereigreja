@@ -1,4 +1,5 @@
 {% load static %}
+{% load sistema_imagens_tags %}
 {% load secretaria_extras %}
 <div id="visitante-form-container">
     <!-- Garantir que o form exista com o id esperado pelo cliente e fornecer atributos auxiliares -->
@@ -21,7 +22,7 @@
 
         <div class="row mb-2 align-items-center">
             <div class="col-md-3 text-center">
-                <img src="{% static 'img/default_avatar.png' %}" alt="Foto do Visitante" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;" id="fotoPreviewModal">
+                <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Foto do Visitante" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;" id="fotoPreviewModal">
                 <div class="mb-2">
                     <label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
                     {{ form.foto|add_class:'form-control form-control-sm' }}

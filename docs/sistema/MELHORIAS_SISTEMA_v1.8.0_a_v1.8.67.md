@@ -75,7 +75,7 @@ Entregas principais:
 - sistema de solicitação de permissões e painéis hierárquicos;
 - ajustes idempotentes de migrations em contas;
 - padronização de pytest com settings_test;
-- app painel_testes com execução de pytest via admin;
+- app painel_desenvolvedor com execução de pytest via admin;
 - promoção de assets/admin panel e testes de cargos.
 
 Impacto técnico:

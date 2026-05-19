@@ -6,6 +6,7 @@
 {# - Não inclui blocos internos, variáveis de sessão, nem onboarding    #}
 {# ===================================================================== #}
 {% load static %}
+{% load sistema_imagens_tags %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -15,7 +16,7 @@
     <meta name="description" content="Sistema de secretaria da Igreja" />
     <meta name="author" content="Seu Nome ou Nome da Igreja" />
     <title>{% block title %}Gereigreja{% endblock %}</title>
-    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+    <link rel="icon" href="{% sistema_imagem_url 'favicon' 'original' 'favicon.ico' %}" type="image/x-icon">
     <link href="{% static 'css/styles.css' %}" rel="stylesheet" />
     <link href="{% static 'css/design_system.css' %}" rel="stylesheet" />
     {% block extra_css %}{% endblock %}

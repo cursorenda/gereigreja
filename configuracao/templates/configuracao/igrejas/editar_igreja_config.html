@@ -212,27 +212,21 @@
                         <label for="{{ form.logo1.id_for_label }}" class="form-label">{{ form.logo1.label }}</label>
                         {{ form.logo1 }} {# Este é o campo de input para o novo logo #}
                         {% if form.logo1.errors %}<div class="invalid-feedback d-block">{{ form.logo1.errors|join:", " }}</div>{% endif %}
-                        
-                        {% if igreja.logo1 %}
-                            <div class="mt-2">
-                                <small>Logo 1 Atual:</small><br>
-                                <img src="{{ igreja.logo1.url }}" alt="Logo 1 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
-                                {# <p class="mt-1 mb-0"><small><a href="{{ igreja.logo1.url }}" target="_blank">{{ igreja.logo1.name|cut:"logos/" }}</a></small></p> #}
-                            </div>
-                        {% endif %}
+
+                        <div class="mt-2">
+                            <small>Logo 1 Atual:</small><br>
+                            <img src="{{ igreja.logo1_url }}" alt="Logo 1 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
+                        </div>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="{{ form.logo2.id_for_label }}" class="form-label">{{ form.logo2.label }}</label>
                         {{ form.logo2 }} {# Este é o campo de input para o novo logo #}
                         {% if form.logo2.errors %}<div class="invalid-feedback d-block">{{ form.logo2.errors|join:", " }}</div>{% endif %}
-                        
-                        {% if igreja.logo2 %}
-                            <div class="mt-2">
-                                <small>Logo 2 Atual:</small><br>
-                                <img src="{{ igreja.logo2.url }}" alt="Logo 2 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
-                                {# <p class="mt-1 mb-0"><small><a href="{{ igreja.logo2.url }}" target="_blank">{{ igreja.logo2.name|cut:"logos/" }}</a></small></p> #}
-                            </div>
-                        {% endif %}
+
+                        <div class="mt-2">
+                            <small>Logo 2 Atual:</small><br>
+                            <img src="{{ igreja.logo2_url }}" alt="Logo 2 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
+                        </div>
                     </div>
                 </div>
 

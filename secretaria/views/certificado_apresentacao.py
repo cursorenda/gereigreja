@@ -75,9 +75,11 @@ def certificado_apresentacao(request):
         pastor_nome = (igreja.pastor_local or '').strip()
         nome_igreja = igreja.nome_igreja or ''
         if getattr(igreja, 'logo1', None):
-            logo_url = igreja.logo1.url
+            logo_url = igreja.logo1_url
         elif getattr(igreja, 'logo2', None):
-            logo_url = igreja.logo2.url
+            logo_url = igreja.logo2_url
+        else:
+            logo_url = igreja.logo1_url
 
     context = {
         'form': form,

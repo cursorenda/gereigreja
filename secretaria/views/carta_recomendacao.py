@@ -99,10 +99,8 @@ def carta_recomendacao(request):
         nome_igreja = (getattr(igreja, 'nome_igreja', '') or '').strip()
         cnpj_igreja = (getattr(igreja, 'cnpj', '') or '').strip()
         email_igreja = (getattr(igreja, 'email', '') or '').strip()
-        if getattr(igreja, 'logo1', None):
-            logo_url_1 = igreja.logo1.url
-        if getattr(igreja, 'logo2', None):
-            logo_url_2 = igreja.logo2.url
+        logo_url_1 = igreja.logo1_url
+        logo_url_2 = igreja.logo2_url
 
     if not logo_url_2:
         logo_url_2 = logo_url_1

@@ -1,4 +1,5 @@
 {% load static %}
+{% load sistema_imagens_tags %}
 <link rel="stylesheet" href="{% static 'css/secretaria/secretaria_pessoa.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria/input_foto_colado.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria/input_foto_compact.css' %}">
@@ -12,7 +13,7 @@
 				{% if form.instance.pk and form.instance.foto %}
 					<img src="{{ form.instance.foto.url }}" alt="Foto Atual de {{ form.instance.nome }}" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;">
 				{% else %}
-					<img src="{% static 'img/default_avatar.png' %}" alt="Sem Foto" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;">
+					<img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Sem Foto" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;">
 				{% endif %}
 				<label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
 				{{ form.foto|add_class:'input-foto-colado input-foto-compact form-control-sm'|attr:'style=width:120px;height:28px;font-size:0.9em;padding:2px 4px;margin-top:0;margin-bottom:0;' }}

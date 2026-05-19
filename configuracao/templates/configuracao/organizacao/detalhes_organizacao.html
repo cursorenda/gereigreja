@@ -20,12 +20,10 @@
         </div>
         <div class="card-body">
             
-            {% if ministerio.logo %}
-                <div class="mb-3 text-center">
-                    <img src="{{ ministerio.logo.url }}" alt="Logo de {{ ministerio.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
-                </div>
-                <hr>
-            {% endif %}
+            <div class="mb-3 text-center">
+                <img src="{{ ministerio.logo_url }}" alt="Logo de {{ ministerio.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
+            </div>
+            <hr>
 
             <dl class="row">
                 <dt class="col-sm-3">Nome Fantasia:</dt>

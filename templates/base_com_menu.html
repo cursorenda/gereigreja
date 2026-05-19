@@ -8,6 +8,7 @@
 {# ===================================================================== #}
 <!DOCTYPE html>
 {% load static %}
+{% load sistema_imagens_tags %}
 {% load financeiro_tags %}
 {% load grupo_tags %}
 {% load permissoes_hierarquia %}
@@ -23,7 +24,7 @@
     <meta name="description" content="Sistema de secretaria da Igreja" />
     <meta name="author" content="Seu Nome ou Nome da Igreja" />
     <title>{% block title %}Gerenciamento Igreja{% endblock %}</title>
-    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+    <link rel="icon" href="{% sistema_imagem_url 'favicon' 'original' 'favicon.ico' %}" type="image/x-icon">
 
     {# --- CSS --- #}
     <link href="{% static 'css/onboarding.css' %}" rel="stylesheet" />
@@ -332,10 +333,10 @@
         <div id="layoutSidenav_nav" class="d-none d-lg-block">
             <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
                 <div class="text-center py-3">
-                    {% if ministerio and ministerio.logo %}
+                    {% if ministerio %}
                         <div class="ministerio-logo-wrap">
                             <div class="ministerio-logo-card">
-                                <img src="{{ ministerio.logo.url }}" alt="Logo {{ ministerio.nome_fantasia|default:'' }}" class="ministerio-logo-img">
+                                <img src="{{ ministerio.logo_url }}" alt="Logo {{ ministerio.nome_fantasia|default:'' }}" class="ministerio-logo-img">
                             </div>
                         </div>
                     {% endif %}

@@ -84,6 +84,37 @@ import os   # Para manipulação de caminhos
 from datetime import timedelta # Para calcular data_fim da assinatura
 from django.apps import apps # Para import tardio e evitar circularidade
 
+
+def _default_avatar_url() -> str:
+    """URL absoluta (relativa ao host) do avatar padrão estático do sistema."""
+    return f"{settings.STATIC_URL}img/default_avatar.png"
+
+
+def _default_ministerio_url() -> str:
+    """URL da imagem padrão de Ministério."""
+    return f"{settings.STATIC_URL}img/default_ministerio.png"
+
+
+def _default_igreja_url() -> str:
+    """URL da imagem padrão de Igreja."""
+    return f"{settings.STATIC_URL}img/default_igreja.png"
+
+
+def _get_galeria_imagem_ativa_url(tipo: str, fallback_url: str) -> str:
+    """Busca a imagem ativa da galeria por tipo e cai para static se não existir."""
+    try:
+        SistemaImagem = apps.get_model('painel_desenvolvedor', 'SistemaImagem')
+        imagem = SistemaImagem.objects.filter(
+            tipo=tipo,
+            variacao='original',
+            ativo=True,
+        ).order_by('-data_upload').first()
+        if imagem and imagem.imagem:
+            return imagem.imagem.url
+    except Exception:
+        pass
+    return fallback_url
+
 # Histórico de mensalidades e cortesias
 class HistoricoAssinatura(models.Model):
     TIPOS = [
@@ -275,6 +306,19 @@ class Ministerio(models.Model):
     def __str__(self):
         return self.nome_fantasia
 
+    @property
+    def logo_url(self) -> str:
+        """Retorna a URL da logo do ministério com fallback padrão."""
+        try:
+            if self.logo:
+                return self.logo.url
+        except Exception:
+            pass
+        return _get_galeria_imagem_ativa_url(
+            'padrao_ministerio',
+            _default_ministerio_url(),
+        )
+
 
     class Meta:
         verbose_name = "Ministério"
@@ -434,6 +478,32 @@ class Igreja(models.Model):
     def __str__(self):
         min_nome = self.ministerio.nome_fantasia if self.ministerio else "Sem Ministério"
         return f"{self.nome_igreja} ({self.get_tipo_igreja_display()}) - [{min_nome}]"
+
+    @property
+    def logo1_url(self) -> str:
+        """Retorna a URL do logo1 da igreja com fallback padrão."""
+        try:
+            if self.logo1:
+                return self.logo1.url
+        except Exception:
+            pass
+        return _get_galeria_imagem_ativa_url(
+            'padrao_igreja',
+            _default_igreja_url(),
+        )
+
+    @property
+    def logo2_url(self) -> str:
+        """Retorna a URL do logo2 da igreja com fallback padrão."""
+        try:
+            if self.logo2:
+                return self.logo2.url
+        except Exception:
+            pass
+        return _get_galeria_imagem_ativa_url(
+            'padrao_igreja',
+            _default_igreja_url(),
+        )
 
     def get_descendants(self, include_self=False):
         """

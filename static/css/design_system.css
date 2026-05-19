@@ -376,8 +376,9 @@ a:focus {
 }
 
 .ministerio-logo-img {
-  max-height: 90px;
-  max-width: 160px;
+  height: 90px;
+  width: 160px;
+  object-fit: contain;
   display: block;
   margin: auto;
 }

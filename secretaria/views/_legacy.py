@@ -4735,16 +4735,9 @@ def relatorio_reuniao_membros(request):
     data_reuniao = timezone.now().strftime('%d de %B de %Y')
 
 
-    # URLs dos logos (preferencialmente logo1 da igreja e logo do ministério)
-    if hasattr(igreja, 'logo1') and igreja.logo1:
-        logo_igreja_url = igreja.logo1.url
-    else:
-        logo_igreja_url = '/static/favicon.ico'
-
-    if hasattr(ministerio, 'logo') and ministerio.logo:
-        logo_ministerio_url = ministerio.logo.url
-    else:
-        logo_ministerio_url = '/static/favicon.ico'
+    # URLs dos logos com fallback padrão do sistema
+    logo_igreja_url = igreja.logo1_url
+    logo_ministerio_url = ministerio.logo_url
 
     context = {
         'membros': membros,

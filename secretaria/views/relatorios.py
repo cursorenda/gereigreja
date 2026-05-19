@@ -246,16 +246,8 @@ def relatorio_reuniao_membros(request):
     pastor_regional = getattr(igreja, 'pastor_regional', '')
     data_reuniao = timezone.now().strftime('%d de %B de %Y')
 
-    logo_igreja_url = (
-        igreja.logo1.url
-        if hasattr(igreja, 'logo1') and igreja.logo1
-        else '/static/favicon.ico'
-    )
-    logo_ministerio_url = (
-        ministerio.logo.url
-        if hasattr(ministerio, 'logo') and ministerio.logo
-        else '/static/favicon.ico'
-    )
+    logo_igreja_url = igreja.logo1_url
+    logo_ministerio_url = ministerio.logo_url
 
     context = {
         'membros': membros,
