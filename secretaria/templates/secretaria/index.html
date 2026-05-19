@@ -1,5 +1,5 @@
 {% extends 'base_com_menu.html' %}
-{% load static %}
+{% load static sistema_imagens_tags %}
 
 {% block title %}Bem-vindo(a) - {{ ministerio.nome }}{% endblock %}
 
@@ -201,13 +201,20 @@
             <div class="card h-100 shadow-sm border-primary w-100" style="background: linear-gradient(90deg, #e6fbfb 0%, #f6fdfd 100%); border-radius: 18px;">
                 <div class="card-body d-flex flex-row align-items-center justify-content-start" style="gap: 1.2rem;">
                     <div class="d-flex flex-column align-items-center justify-content-center" style="min-width:90px;">
+                        {% with user_initial=user.get_full_name|default:user.username|slice:":1"|upper %}
                         {% if usuario_foto_url %}
-                            <img src="{{ usuario_foto_url }}" alt="Foto de {{ user.get_full_name }}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #0d8281;">
+                            <img src="{{ usuario_foto_url }}" alt="Foto de {{ user.get_full_name }}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #0d8281;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Avatar padrão" style="display:none; width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #0d8281;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="align-items-center justify-content-center" style="display:none; width:80px; height:80px; border-radius:50%; background:#0d8281; color:#fff; border:3px solid #0d8281; font-size:2em; font-weight:700;">
+                                {{ user_initial }}
+                            </div>
                         {% else %}
-                            <div style="width:80px; height:80px; border-radius:50%; background:#0d8281; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; border:3px solid #0d8281; font-size:2em;">
-                                {{ user.get_full_name|first|upper }}
+                            <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Avatar padrão" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #0d8281;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="align-items-center justify-content-center" style="display:none; width:80px; height:80px; border-radius:50%; background:#0d8281; color:#fff; border:3px solid #0d8281; font-size:2em; font-weight:700;">
+                                {{ user_initial }}
                             </div>
                         {% endif %}
+                        {% endwith %}
                     </div>
                     <div class="flex-grow-1">
                         <div class="d-flex flex-column" style="gap:0.2em;">

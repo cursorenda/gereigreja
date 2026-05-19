@@ -196,20 +196,31 @@
             {# --- INÍCIO: Dropdown do Usuário LOGADO --- #}
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle d-flex align-items-center" id="navbarDropdownUser" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    {% with user_initial=request.user.get_full_name|default:user.username|slice:":1"|upper %}
                     {% if request.user.perfil.foto_perfil %}
                         <img src="{{ request.user.perfil.foto_perfil.url }}" 
                              class="rounded-circle user-avatar-img" 
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
-                        <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle" 
-                             class="user-avatar-fallback user-avatar-fallback-hidden">
-                            <i class="fas fa-user"></i>
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                        <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                            class="rounded-circle user-avatar-img"
+                            style="display:none;"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+                            alt="Avatar padrão">
+                        <div class="user-avatar-fallback user-avatar-fallback-hidden align-items-center justify-content-center bg-secondary text-white rounded-circle"
+                            style="display:none;">
+                           {{ user_initial }}
                         </div>
                     {% else %}
-                        <div class="d-inline-flex align-items-center justify-content-center bg-secondary text-white rounded-circle" 
-                             class="user-avatar-fallback">
-                            <i class="fas fa-user"></i>
+                        <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                            class="rounded-circle user-avatar-img"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+                            alt="Avatar padrão">
+                        <div class="user-avatar-fallback align-items-center justify-content-center bg-secondary text-white rounded-circle"
+                            style="display:none;">
+                           {{ user_initial }}
                         </div>
                     {% endif %}
+                    {% endwith %}
 
                    <span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span>
                 </a>

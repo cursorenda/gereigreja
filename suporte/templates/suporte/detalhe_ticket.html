@@ -1,5 +1,5 @@
 {% extends 'base_com_menu.html' %}
-{% load static %}
+{% load static sistema_imagens_tags %}
 
 {% block title %}{{ titulo_pagina }}{% endblock %}
 
@@ -26,6 +26,7 @@
 
                     {# Mensagem Original do Usuário #}
                     <div class="d-flex flex-row justify-content-start mb-4">
+                        {% with initial_ticket=ticket.user.get_full_name|default:ticket.user.username|slice:":1"|upper %}
                         {% if ticket.user.perfil and ticket.user.perfil.foto_perfil %}
                             <img src="{{ ticket.user.perfil.foto_perfil.url }}" 
                                  alt="avatar" 
@@ -33,14 +34,27 @@
                                  width="60" height="60" 
                                  style="object-fit: cover;"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 30px;">
-                                <i class="fas fa-user"></i>
+                            <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                                 alt="avatar padrão"
+                                 class="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
+                                 width="60" height="60"
+                                 style="display:none; object-fit: cover;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 24px;">
+                                {{ initial_ticket }}
                             </div>
                         {% else %}
-                            <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="width: 60px; height: 60px; font-size: 30px;">
-                                <i class="fas fa-user"></i>
+                            <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                                 alt="avatar padrão"
+                                 class="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
+                                 width="60" height="60"
+                                 style="object-fit: cover;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display:none; width: 60px; height: 60px; font-size: 24px;">
+                                {{ initial_ticket }}
                             </div>
                         {% endif %}
+                        {% endwith %}
                         <div class="card w-100">
                             <div class="card-header d-flex justify-content-between p-2">
                                 <p class="fw-bold mb-0">{{ ticket.user.get_full_name|default:ticket.user.username }} (Mensagem Original)</p>
@@ -66,6 +80,7 @@
                                         <p class="mb-0">{{ resposta.mensagem|linebreaksbr }}</p>
                                     </div>
                                 </div>
+                                {% with initial_autor=resposta.autor.get_full_name|default:resposta.autor.username|slice:":1"|upper %}
                                 {% if resposta.autor.perfil and resposta.autor.perfil.foto_perfil %}
                                     <img src="{{ resposta.autor.perfil.foto_perfil.url }}" 
                                          alt="avatar" 
@@ -73,18 +88,32 @@
                                          width="60" height="60" 
                                          style="object-fit: cover;"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle ms-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 30px;">
-                                        <i class="fas fa-user"></i>
+                                    <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                                         alt="avatar padrão"
+                                         class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong"
+                                         width="60" height="60"
+                                         style="display:none; object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle ms-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 24px;">
+                                        {{ initial_autor }}
                                     </div>
                                 {% else %}
-                                    <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle ms-3 shadow-1-strong" style="width: 60px; height: 60px; font-size: 30px;">
-                                        <i class="fas fa-user"></i>
+                                    <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                                         alt="avatar padrão"
+                                         class="rounded-circle d-flex align-self-start ms-3 shadow-1-strong"
+                                         width="60" height="60"
+                                         style="object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle ms-3 shadow-1-strong" style="display:none; width: 60px; height: 60px; font-size: 24px;">
+                                        {{ initial_autor }}
                                     </div>
                                 {% endif %}
+                                {% endwith %}
                             </div>
                         {% else %}
                             {# Resposta do Suporte (alinhada à esquerda) #}
                             <div class="d-flex flex-row justify-content-start mb-4">
+                                {% with initial_autor=resposta.autor.get_full_name|default:resposta.autor.username|slice:":1"|upper %}
                                 {% if resposta.autor.perfil and resposta.autor.perfil.foto_perfil %}
                                     <img src="{{ resposta.autor.perfil.foto_perfil.url }}" 
                                          alt="avatar" 
@@ -92,14 +121,27 @@
                                          width="60" height="60" 
                                          style="object-fit: cover;"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 30px;">
-                                        <i class="fas fa-user"></i>
+                                    <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                                         alt="avatar padrão"
+                                         class="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
+                                         width="60" height="60"
+                                         style="display:none; object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display: none; width: 60px; height: 60px; font-size: 24px;">
+                                        {{ initial_autor }}
                                     </div>
                                 {% else %}
-                                    <div class="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="width: 60px; height: 60px; font-size: 30px;">
-                                        <i class="fas fa-user"></i>
+                                    <img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}"
+                                         alt="avatar padrão"
+                                         class="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
+                                         width="60" height="60"
+                                         style="object-fit: cover;"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="align-items-center justify-content-center bg-secondary text-white rounded-circle me-3 shadow-1-strong" style="display:none; width: 60px; height: 60px; font-size: 24px;">
+                                        {{ initial_autor }}
                                     </div>
                                 {% endif %}
+                                {% endwith %}
                                 <div class="card w-100">
                                     <div class="card-header d-flex justify-content-between p-2">
                                         <p class="fw-bold mb-0">{{ resposta.autor.get_full_name|default:resposta.autor.username }} (Suporte)</p>
