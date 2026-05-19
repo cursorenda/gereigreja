@@ -1,3 +1,18 @@
+## v1.12.6 — 18/05/2026
+🖼️ **Hotfix de Assets da Galeria (logos padrão e OG)**
+
+### Correção de Publicação
+- Envio dos arquivos estáticos que faltavam no repositório para suporte à galeria e fallbacks visuais:
+  - `static/img/default_igreja.png`
+  - `static/img/default_ministerio.png`
+  - `static/img/gereigreja_og_image.png`
+
+### Impacto
+- Garante disponibilidade dos assets de fallback e imagem social em produção após deploy.
+- Evita inconsistência visual em telas que dependem desses arquivos base.
+
+---
+
 ## v1.12.5 — 18/05/2026
 🚑 **Hotfix de Deploy (Render) — App Painel do Desenvolvedor**
 
