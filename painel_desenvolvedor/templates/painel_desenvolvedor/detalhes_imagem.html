@@ -1,0 +1,78 @@
+{% extends 'admin/base_site.html' %}
+
+{% block title %}Detalhes da Imagem | Painel Desenvolvedor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12 col-xl-8">
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+              <h1 class="h5 mb-1">{{ imagem.descricao }}</h1>
+              <p class="text-muted mb-0">{{ imagem.get_tipo_display }} - {{ imagem.get_variacao_display }}</p>
+            </div>
+            <div class="d-flex gap-2">
+              <a href="{% url 'painel_desenvolvedor:galeria_imagens' %}" class="btn btn-outline-secondary btn-sm">Voltar</a>
+              <a href="{% url 'painel_desenvolvedor:editar_imagem' imagem.pk %}" class="btn btn-outline-primary btn-sm">Editar</a>
+              <form action="{% url 'painel_desenvolvedor:ativar_imagem' imagem.pk %}" method="post" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-success btn-sm">Ativar</button>
+              </form>
+            </div>
+          </div>
+          {% if imagem.imagem %}
+            <img src="{{ imagem.imagem.url }}" alt="{{ imagem.descricao }}" class="img-fluid rounded border mb-3">
+          {% endif %}
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Tipo</dt><dd class="col-sm-8">{{ imagem.get_tipo_display }}</dd>
+            <dt class="col-sm-4">Variação</dt><dd class="col-sm-8">{{ imagem.get_variacao_display }}</dd>
+            <dt class="col-sm-4">Dimensões</dt><dd class="col-sm-8">{{ dimensoes }}</dd>
+            <dt class="col-sm-4">Ativo</dt><dd class="col-sm-8">{{ imagem.ativo|yesno:'Sim,Não' }}</dd>
+            <dt class="col-sm-4">Tamanho</dt><dd class="col-sm-8">{{ tamanho_kb }} KB</dd>
+            <dt class="col-sm-4">Notas</dt><dd class="col-sm-8">{{ imagem.notas|default:'-' }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+          <strong>Outras Versões (mesmo tipo e variação)</strong>
+        </div>
+        <div class="card-body">
+          {% if outras_versoes %}
+            <ul class="list-group list-group-flush">
+              {% for item in outras_versoes %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <span>{{ item.descricao }}</span>
+                  <a href="{% url 'painel_desenvolvedor:detalhes_imagem' item.pk %}" class="btn btn-sm btn-outline-secondary">Abrir</a>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted mb-0">Não há outras versões para esta combinação.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <strong>Outras Variações deste Tipo</strong>
+        </div>
+        <div class="card-body">
+          {% if outras_variacoes %}
+            <div class="d-flex flex-wrap gap-2">
+              {% for variacao in outras_variacoes %}
+                <span class="badge bg-light text-dark border">{{ variacao.variacao }}</span>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted mb-0">Sem variações adicionais.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

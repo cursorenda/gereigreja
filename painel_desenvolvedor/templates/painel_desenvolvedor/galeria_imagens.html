@@ -1,0 +1,308 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}Galeria de Imagens | Painel Desenvolvedor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div id="galeria-feedback" class="alert d-none" role="alert"></div>
+
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div>
+            <h1 class="h4 mb-1">Galeria de Imagens</h1>
+            <p class="text-muted mb-0">Gerencie logos, favicons e variações de imagem do sistema.</p>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="text-end me-2">
+              <div class="fw-semibold">{{ total_imagens }}</div>
+              <small class="text-muted">imagens cadastradas</small>
+            </div>
+            <a href="{% url 'painel_desenvolvedor:criar_imagem' %}" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i> Nova imagem
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-md-5 col-lg-4">
+              <label for="id_q" class="form-label">Buscar</label>
+              <input type="text" name="q" id="id_q" class="form-control" value="{{ busca }}" placeholder="Descrição ou notas">
+            </div>
+            <div class="col-12 col-md-4 col-lg-3">
+              <label for="id_tipo" class="form-label">Tipo</label>
+              <select name="tipo" id="id_tipo" class="form-select">
+                <option value="">Todos os tipos</option>
+                {% for valor, label in tipos_disponiveis %}
+                  <option value="{{ valor }}" {% if filtro_tipo_selecionado == valor %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-3 col-lg-2">
+              <label for="id_ordem" class="form-label">Ordenar</label>
+              <select name="ordem" id="id_ordem" class="form-select">
+                <option value="data_desc" {% if ordenacao == 'data_desc' %}selected{% endif %}>Mais recentes</option>
+                <option value="data_asc" {% if ordenacao == 'data_asc' %}selected{% endif %}>Mais antigas</option>
+                <option value="tipo_asc" {% if ordenacao == 'tipo_asc' %}selected{% endif %}>Tipo A-Z</option>
+                <option value="tipo_desc" {% if ordenacao == 'tipo_desc' %}selected{% endif %}>Tipo Z-A</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-3 col-lg-1 d-grid">
+              <label class="form-label d-none d-lg-block">&nbsp;</label>
+              <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+            </div>
+            <div class="col-12 col-md-12 col-lg-2 d-grid">
+              <label class="form-label d-none d-lg-block">&nbsp;</label>
+              <a href="{% url 'painel_desenvolvedor:galeria_imagens' %}" class="btn btn-outline-secondary">Limpar filtros</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+    {% for imagem in imagens %}
+      <div class="col js-card-imagem" data-tipo="{{ imagem.tipo }}" data-variacao="{{ imagem.variacao }}" data-imagem-id="{{ imagem.pk }}">
+        <div class="card h-100 shadow-sm">
+          {% if imagem.imagem %}
+            {% with nome=imagem.imagem.name|lower %}
+              {% if '.svg' in nome %}
+                <div class="card-img-top d-flex align-items-center justify-content-center bg-light border-bottom" style="height: 220px;">
+                  <div class="text-center text-muted">
+                    <i class="fas fa-bezier-curve fa-2x mb-2"></i>
+                    <div>Arquivo SVG</div>
+                  </div>
+                </div>
+              {% else %}
+                <img src="{{ imagem.imagem.url }}" class="card-img-top" alt="{{ imagem.descricao }}" style="object-fit: cover; max-height: 220px;" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('d-none');">
+                <div class="card-img-top d-none d-flex align-items-center justify-content-center bg-light border-bottom" style="height: 220px;">
+                  <div class="text-center text-muted">
+                    <i class="fas fa-image fa-2x mb-2"></i>
+                    <div>Sem preview</div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endwith %}
+          {% endif %}
+          <div class="card-body">
+            <h2 class="h6 card-title mb-1">{{ imagem.descricao }}</h2>
+            <p class="text-muted mb-2">{{ imagem.get_tipo_display }} - {{ imagem.get_variacao_display }}</p>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge {% if imagem.ativo %}bg-success{% else %}bg-secondary{% endif %}">
+                {% if imagem.ativo %}Ativa{% else %}Inativa{% endif %}
+              </span>
+              <span class="small text-muted">{{ imagem.get_dimensoes_display }}</span>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <a href="{% url 'painel_desenvolvedor:detalhes_imagem' imagem.pk %}" class="btn btn-sm btn-outline-secondary">Detalhes</a>
+              <a href="{% url 'painel_desenvolvedor:editar_imagem' imagem.pk %}" class="btn btn-sm btn-outline-primary">Editar</a>
+              <form action="{% url 'painel_desenvolvedor:ativar_imagem' imagem.pk %}" method="post" class="d-inline js-async-form" data-action-kind="ativar">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-success js-btn-ativar" {% if imagem.ativo %}disabled{% endif %}>Ativar</button>
+              </form>
+              <form action="{% url 'painel_desenvolvedor:deletar_imagem' imagem.pk %}" method="post" class="d-inline js-async-form" data-action-kind="deletar" data-imagem-label="{{ imagem.descricao|escape }}">
+                {% csrf_token %}
+                <button type="button" class="btn btn-sm btn-outline-danger js-btn-deletar">Excluir</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-info mb-0">Nenhuma imagem cadastrada ainda.</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="Paginação da galeria" class="mt-4">
+      <ul class="pagination justify-content-center mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_tipo_selecionado %}&tipo={{ filtro_tipo_selecionado }}{% endif %}{% if busca %}&q={{ busca }}{% endif %}{% if ordenacao %}&ordem={{ ordenacao }}{% endif %}">Anterior</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+        {% endif %}
+
+        <li class="page-item disabled">
+          <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </li>
+
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_tipo_selecionado %}&tipo={{ filtro_tipo_selecionado }}{% endif %}{% if busca %}&q={{ busca }}{% endif %}{% if ordenacao %}&ordem={{ ordenacao }}{% endif %}">Próxima</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Próxima</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+</div>
+
+<div class="modal fade" id="modalConfirmarExclusao" tabindex="-1" aria-labelledby="modalConfirmarExclusaoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalConfirmarExclusaoLabel">Confirmar exclusão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Deseja remover <strong id="modalImagemNome"></strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="modalConfirmarExclusaoBtn">Excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var feedbackEl = document.getElementById('galeria-feedback');
+    var modalEl = document.getElementById('modalConfirmarExclusao');
+    var modalNomeEl = document.getElementById('modalImagemNome');
+    var modalConfirmarBtn = document.getElementById('modalConfirmarExclusaoBtn');
+    var formPendenteExclusao = null;
+    var bootstrapModal = window.bootstrap && modalEl ? new window.bootstrap.Modal(modalEl) : null;
+
+    function showFeedback(message, success) {
+      if (!feedbackEl) {
+        return;
+      }
+      feedbackEl.classList.remove('d-none', 'alert-success', 'alert-danger');
+      feedbackEl.classList.add(success ? 'alert-success' : 'alert-danger');
+      feedbackEl.textContent = message;
+    }
+
+    function getCsrfToken(form) {
+      var input = form.querySelector('input[name="csrfmiddlewaretoken"]');
+      return input ? input.value : '';
+    }
+
+    function getCard(form) {
+      return form.closest('.js-card-imagem');
+    }
+
+    function atualizarCardAtiva(card) {
+      if (!card) {
+        return;
+      }
+      var tipo = card.getAttribute('data-tipo');
+      var variacao = card.getAttribute('data-variacao');
+      var cardsMesmoGrupo = document.querySelectorAll('.js-card-imagem[data-tipo="' + tipo + '"][data-variacao="' + variacao + '"]');
+
+      cardsMesmoGrupo.forEach(function (item) {
+        var badge = item.querySelector('.badge');
+        var btnAtivar = item.querySelector('.js-btn-ativar');
+        if (!badge || !btnAtivar) {
+          return;
+        }
+        badge.classList.remove('bg-success', 'bg-secondary');
+        badge.classList.add('bg-secondary');
+        badge.textContent = 'Inativa';
+        btnAtivar.disabled = false;
+      });
+
+      var badgeAtual = card.querySelector('.badge');
+      var btnAtual = card.querySelector('.js-btn-ativar');
+      if (badgeAtual) {
+        badgeAtual.classList.remove('bg-secondary');
+        badgeAtual.classList.add('bg-success');
+        badgeAtual.textContent = 'Ativa';
+      }
+      if (btnAtual) {
+        btnAtual.disabled = true;
+      }
+    }
+
+    function enviarFormularioAsync(form) {
+      var csrfToken = getCsrfToken(form);
+      var formData = new FormData(form);
+      return fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrfToken
+        },
+        body: formData
+      }).then(function (response) {
+        return response.json().then(function (json) {
+          return { ok: response.ok, json: json };
+        });
+      });
+    }
+
+    document.querySelectorAll('.js-async-form[data-action-kind="ativar"]').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        enviarFormularioAsync(form).then(function (result) {
+          if (!result.ok || !result.json.sucesso) {
+            showFeedback(result.json.mensagem || 'Erro ao ativar imagem.', false);
+            return;
+          }
+          atualizarCardAtiva(getCard(form));
+          showFeedback(result.json.mensagem || 'Imagem ativada com sucesso.', true);
+        }).catch(function () {
+          showFeedback('Não foi possível concluir a ação agora.', false);
+        });
+      });
+    });
+
+    document.querySelectorAll('.js-btn-deletar').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var form = button.closest('.js-async-form[data-action-kind="deletar"]');
+        if (!form) {
+          return;
+        }
+        formPendenteExclusao = form;
+        var nome = form.getAttribute('data-imagem-label') || 'esta imagem';
+        if (modalNomeEl) {
+          modalNomeEl.textContent = nome;
+        }
+        if (bootstrapModal) {
+          bootstrapModal.show();
+        }
+      });
+    });
+
+    if (modalConfirmarBtn) {
+      modalConfirmarBtn.addEventListener('click', function () {
+        if (!formPendenteExclusao) {
+          return;
+        }
+        enviarFormularioAsync(formPendenteExclusao).then(function (result) {
+          if (!result.ok || !result.json.sucesso) {
+            showFeedback(result.json.mensagem || 'Erro ao excluir imagem.', false);
+            return;
+          }
+          var card = getCard(formPendenteExclusao);
+          if (card && card.parentNode) {
+            card.parentNode.removeChild(card);
+          }
+          showFeedback(result.json.mensagem || 'Imagem removida com sucesso.', true);
+          if (bootstrapModal) {
+            bootstrapModal.hide();
+          }
+          formPendenteExclusao = null;
+        }).catch(function () {
+          showFeedback('Não foi possível concluir a exclusão agora.', false);
+        });
+      });
+    }
+  })();
+</script>
+{% endblock %}

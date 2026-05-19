@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Painel de Testes Unitários (pytest)</h1>
+<p>Execute todos os testes automatizados do sistema usando o Pytest.</p>
+<form id="pytest-form" method="post" onsubmit="return rodarPytest(event);">
+    {% csrf_token %}
+    <button id="pytest-btn" type="submit" class="button" style="background:#6366f1;color:#fff;font-weight:600;padding:10px 24px;border-radius:6px;font-size:16px;">Rodar TODOS os testes</button>
+</form>
+<div id="pytest-loading" style="display:none;margin:24px 0;text-align:center;">
+    <div style="display:inline-block;width:220px;">
+        <div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
+            <div id="pytest-bar" style="width:0%;height:8px;background:#6366f1;transition:width 0.3s;"></div>
+        </div>
+        <div style="margin-top:8px;color:#6366f1;font-weight:600;" id="pytest-msg">Executando testes...</div>
+    </div>
+</div>
+<div id="pytest-resultado">
+    {% if resultado %}
+        <h2>Resultado:</h2>
+        <pre style="background:#222;color:#fff;padding:16px;border-radius:8px;max-height:400px;overflow:auto;font-size:14px;">{{ resultado }}</pre>
+    {% endif %}
+</div>
+<script>
+function rodarPytest(event) {
+    event.preventDefault();
+    document.getElementById('pytest-btn').disabled = true;
+    document.getElementById('pytest-loading').style.display = 'block';
+    document.getElementById('pytest-bar').style.width = '0%';
+    document.getElementById('pytest-msg').innerText = 'Executando testes...';
+    document.getElementById('pytest-resultado').innerHTML = '';
+
+    let pct = 0;
+    let bar = document.getElementById('pytest-bar');
+    let interval = setInterval(() => {
+        pct = Math.min(95, pct + Math.random() * 5 + 1);
+        bar.style.width = pct + '%';
+    }, 400);
+
+    fetch(window.location.pathname, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+    .then(resp => resp.text())
+    .then(html => {
+        clearInterval(interval);
+        bar.style.width = '100%';
+        setTimeout(() => {
+            document.getElementById('pytest-loading').style.display = 'none';
+            document.getElementById('pytest-btn').disabled = false;
+        }, 500);
+        let temp = document.createElement('div');
+        temp.innerHTML = html;
+        let res = temp.querySelector('#pytest-resultado');
+        document.getElementById('pytest-resultado').innerHTML = res ? res.innerHTML : html;
+    })
+    .catch(() => {
+        clearInterval(interval);
+        document.getElementById('pytest-loading').style.display = 'none';
+        document.getElementById('pytest-btn').disabled = false;
+        document.getElementById('pytest-resultado').innerHTML = '<div style="color:red;font-weight:bold;">Erro ao executar os testes.</div>';
+    });
+    return false;
+}
+</script>
+{% endblock %}

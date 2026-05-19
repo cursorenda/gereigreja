@@ -1,3 +1,16 @@
+## v1.12.5 — 18/05/2026
+🚑 **Hotfix de Deploy (Render) — App Painel do Desenvolvedor**
+
+### Correção Crítica de Produção
+- Corrigida falha de build/deploy no Render com erro `ModuleNotFoundError: No module named 'painel_desenvolvedor'`.
+- Inclusão do app `painel_desenvolvedor` no versionamento do repositório (código do módulo que já era referenciado em `INSTALLED_APPS`).
+
+### Impacto
+- Restaura inicialização do Django em produção.
+- Normaliza execução de `collectstatic`, `migrate` e boot da aplicação após deploy.
+
+---
+
 ## v1.12.4 — 18/05/2026
 🖼️ **Logo Dinâmica no Blog, Marca na Landing e Ajustes de Painel do Desenvolvedor**
 
