@@ -1,0 +1,15 @@
+.financeiro-filtro-acoes {
+    min-width: 120px;
+}
+
+.btn-text-gap {
+    margin-left: 0.4em;
+}
+
+.select-auto-width {
+    width: auto;
+}
+
+.fornecedor-acoes-col {
+    width: 15%;
+}

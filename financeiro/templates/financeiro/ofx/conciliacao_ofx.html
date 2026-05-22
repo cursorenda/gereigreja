@@ -1,0 +1,528 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Conciliação OFX - {{ ministerio.nome_fantasia }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/financeiro-listas.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Conciliação OFX</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item active">Conciliação OFX</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-file-import me-1"></i>
+            Selecionar Importação
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-8 col-lg-6">
+                    <label for="importacao" class="form-label">Importação OFX</label>
+                    <select name="importacao" id="importacao" class="form-select form-select-sm">
+                        <option value="">Selecione uma importação</option>
+                        {% for item in importacoes %}
+                        <option value="{{ item.id }}" {% if importacao and item.id == importacao.id %}selected{% endif %}>
+                            {{ item.importado_em|date:"d/m/Y H:i" }} - {{ item.igreja.nome_igreja }} - {{ item.conta_bancaria.nome_identificacao }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Carregar</button>
+                    <a href="{% url 'financeiro:conciliacao_ofx' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eraser"></i> Limpar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if importacao %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                <div>
+                    <i class="fas fa-list-check me-1"></i>
+                    Sugestões de Conciliação
+                </div>
+                {% if can_edit_finance and sugestoes %}
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <label for="score_minimo_lote" class="small text-muted mb-0">Score mínimo</label>
+                    <select id="score_minimo_lote" class="form-select form-select-sm select-auto-width">
+                        <option value="80" {% if score_minimo_atual == 80 %}selected{% endif %}>80</option>
+                        <option value="90" {% if score_minimo_atual == 90 %}selected{% endif %}>90</option>
+                        <option value="95" {% if score_minimo_atual == 95 %}selected{% endif %}>95</option>
+                        <option value="100" {% if score_minimo_atual == 100 %}selected{% endif %}>100</option>
+                        <option value="110" {% if score_minimo_atual == 110 %}selected{% endif %}>110</option>
+                        <option value="130" {% if score_minimo_atual == 130 %}selected{% endif %}>130</option>
+                    </select>
+
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="acao" value="previsualizar_melhores">
+                        <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                        <input type="hidden" name="score_minimo" id="score_minimo_preview" value="{{ score_minimo_atual|default:90 }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-eye"></i> Pré-visualizar lote
+                        </button>
+                    </form>
+
+                    <form method="post" class="d-inline" onsubmit="return confirm('Deseja conciliar automaticamente as melhores sugestões para o score selecionado?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="acao" value="conciliar_melhores">
+                        <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                        <input type="hidden" name="score_minimo" id="score_minimo_confirm" value="{{ score_minimo_atual|default:90 }}">
+                        <button type="submit" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-bolt"></i> Conciliar melhores
+                        </button>
+                    </form>
+
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="acao" value="exportar_previsao_csv">
+                        <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                        <input type="hidden" name="score_minimo" id="score_minimo_export" value="{{ score_minimo_atual|default:90 }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-file-csv"></i> Exportar CSV
+                        </button>
+                    </form>
+
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="acao" value="exportar_previsao_xlsx">
+                        <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                        <input type="hidden" name="score_minimo" id="score_minimo_export_xlsx" value="{{ score_minimo_atual|default:90 }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-file-excel"></i> Exportar XLSX
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            {% if previsao_lote %}
+            <div class="alert alert-secondary mb-3">
+                <div class="fw-semibold">Pré-visualização do lote (score mínimo {{ score_minimo_atual|default:90 }})</div>
+                <div class="small mt-1">
+                    Elegíveis: {{ previsao_lote.total_conciliados }}
+                    • Ignorados por score: {{ previsao_lote.total_ignorados_score }}
+                    • Erros estimados: {{ previsao_lote.total_erros }}
+                </div>
+                <div class="small mt-1">
+                    Entradas: {{ previsao_lote.resumo_impacto.quantidade_entradas }} (R$ {{ previsao_lote.resumo_impacto.total_entradas|floatformat:2|intcomma }})
+                    • Saídas: {{ previsao_lote.resumo_impacto.quantidade_saidas }} (R$ {{ previsao_lote.resumo_impacto.total_saidas|floatformat:2|intcomma }})
+                    • Total movimentado: R$ {{ previsao_lote.resumo_impacto.total_movimentado|floatformat:2|intcomma }}
+                    • Saldo previsto: R$ {{ previsao_lote.resumo_impacto.saldo_previsto|floatformat:2|intcomma }}
+                </div>
+            </div>
+            {% if previsao_lote.itens_selecionados %}
+            <div class="table-responsive mb-3">
+                <table class="table table-sm table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>OFX</th>
+                            <th>Referência sugerida</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item_prev in previsao_lote.itens_selecionados %}
+                        <tr>
+                            <td>
+                                <div class="small">
+                                    <strong>{{ item_prev.tipo_ofx|capfirst }}</strong> #{{ item_prev.lancamento_id }}
+                                    • {{ item_prev.data_ofx|date:"d/m/Y H:i" }}
+                                    • R$ {{ item_prev.valor_ofx|floatformat:2|intcomma }}
+                                </div>
+                                <div class="small text-muted">FITID: {{ item_prev.fit_id|default:"-" }} • {{ item_prev.memo|default:"Sem memo" }}</div>
+                            </td>
+                            <td>
+                                <div class="small">
+                                    <strong>{{ item_prev.tipo_referencia|capfirst }}</strong> #{{ item_prev.referencia_id }}
+                                    • {{ item_prev.data_referencia|date:"d/m/Y" }}
+                                    • R$ {{ item_prev.valor_referencia|floatformat:2|intcomma }}
+                                </div>
+                            </td>
+                            <td><span class="badge bg-info text-dark">{{ item_prev.score }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {% if sugestoes %}
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Data</th>
+                            <th>Tipo</th>
+                            <th>Valor OFX</th>
+                            <th>Memo</th>
+                            <th>Sugestões</th>
+                            <th>Conciliação Manual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in sugestoes %}
+                        <tr>
+                            <td>{{ item.data|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if item.tipo == 'entrada' %}
+                                <span class="badge bg-success">Entrada</span>
+                                {% else %}
+                                <span class="badge bg-danger">Saída</span>
+                                {% endif %}
+                            </td>
+                            <td>R$ {{ item.valor|floatformat:2|intcomma }}</td>
+                            <td>{{ item.memo|default:"-" }}</td>
+                            <td>
+                                {% if item.sugestoes %}
+                                <div class="d-flex flex-column gap-2">
+                                    {% for candidato in item.sugestoes %}
+                                    <div class="border rounded p-2">
+                                        <div class="small mb-2">
+                                            <strong>{{ candidato.tipo|capfirst }}</strong> #{{ candidato.id }}
+                                            em {{ candidato.data|date:"d/m/Y" }}
+                                            • R$ {{ candidato.valor|floatformat:2|intcomma }}
+                                            • score {{ candidato.score }}
+                                        </div>
+                                        {% if can_edit_finance %}
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="acao" value="confirmar">
+                                            <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                                            <input type="hidden" name="lancamento_id" value="{{ item.lancamento_id }}">
+                                            <input type="hidden" name="tipo" value="{{ candidato.tipo }}">
+                                            <input type="hidden" name="referencia_id" value="{{ candidato.id }}">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-check"></i> Confirmar
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <span class="text-muted small">Sem permissão para confirmar.</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">Sem sugestões para este lançamento.</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if can_edit_finance %}
+                                <div class="d-flex flex-column gap-2">
+                                    {% if item.tipo == 'entrada' %}
+                                    <form method="post" class="d-flex gap-2 align-items-start flex-column manual-conciliacao-form" data-tipo="receita" data-ofx-valor="{{ item.valor|stringformat:'s' }}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="acao" value="confirmar">
+                                        <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                                        <input type="hidden" name="lancamento_id" value="{{ item.lancamento_id }}">
+                                        <input type="hidden" name="tipo" value="receita">
+                                        <input type="text" class="form-control form-control-sm manual-filter" placeholder="Filtrar receita por id, data, valor...">
+                                        <select name="referencia_id" class="form-select form-select-sm manual-select" required>
+                                            <option value="">Selecionar receita</option>
+                                            {% for receita in receitas_manuais %}
+                                            <option value="{{ receita.id }}" data-data="{{ receita.data|date:'d/m/Y' }}" data-valor="{{ receita.valor|floatformat:2|intcomma }}" data-descricao="{{ receita.observacao|default:'Receita sem observação' }}">
+                                                #{{ receita.id }} - {{ receita.data|date:"d/m/Y" }} - R$ {{ receita.valor|floatformat:2|intcomma }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="small text-muted manual-preview">
+                                            <span class="manual-preview-text">Selecione uma receita para visualizar os detalhes. Lista ordenada por proximidade de valor.</span>
+                                            <span class="badge rounded-pill d-none manual-proximidade-badge ms-1"></span>
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Vincular</button>
+                                    </form>
+                                    {% else %}
+                                    <form method="post" class="d-flex gap-2 align-items-start flex-column manual-conciliacao-form" data-tipo="despesa" data-ofx-valor="{{ item.valor|stringformat:'s' }}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="acao" value="confirmar">
+                                        <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                                        <input type="hidden" name="lancamento_id" value="{{ item.lancamento_id }}">
+                                        <input type="hidden" name="tipo" value="despesa">
+                                        <input type="text" class="form-control form-control-sm manual-filter" placeholder="Filtrar despesa por id, data, valor...">
+                                        <select name="referencia_id" class="form-select form-select-sm manual-select" required>
+                                            <option value="">Selecionar despesa</option>
+                                            {% for despesa in despesas_manuais %}
+                                            <option value="{{ despesa.id }}" data-data="{{ despesa.data|date:'d/m/Y' }}" data-valor="{{ despesa.valor|floatformat:2|intcomma }}" data-descricao="{{ despesa.descricao|default:'Despesa sem descrição' }}">
+                                                #{{ despesa.id }} - {{ despesa.data|date:"d/m/Y" }} - R$ {{ despesa.valor|floatformat:2|intcomma }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="small text-muted manual-preview">
+                                            <span class="manual-preview-text">Selecione uma despesa para visualizar os detalhes. Lista ordenada por proximidade de valor.</span>
+                                            <span class="badge rounded-pill d-none manual-proximidade-badge ms-1"></span>
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Vincular</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">Sem permissão para vínculo manual.</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="mb-0">Não há lançamentos pendentes de conciliação para esta importação.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-check-double me-1"></i>
+            Lançamentos Já Conciliados
+        </div>
+        <div class="card-body">
+            {% if conciliados %}
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Data</th>
+                            <th>Tipo OFX</th>
+                            <th>Valor OFX</th>
+                            <th>Referência</th>
+                            <th>Conciliado em</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lancamento in conciliados %}
+                        <tr>
+                            <td>{{ lancamento.data|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if lancamento.tipo == 'entrada' %}
+                                <span class="badge bg-success">Entrada</span>
+                                {% else %}
+                                <span class="badge bg-danger">Saída</span>
+                                {% endif %}
+                            </td>
+                            <td>R$ {{ lancamento.valor|floatformat:2|intcomma }}</td>
+                            <td>{{ lancamento.conciliado_tipo|capfirst }} #{{ lancamento.conciliado_referencia_id }}</td>
+                            <td>{{ lancamento.conciliado_em|date:"d/m/Y H:i"|default:"-" }}</td>
+                            <td>
+                                {% if can_edit_finance %}
+                                <form method="post" class="d-inline" onsubmit="return confirm('Deseja desfazer esta conciliação?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="acao" value="desfazer">
+                                    <input type="hidden" name="importacao_id" value="{{ importacao.id }}">
+                                    <input type="hidden" name="lancamento_id" value="{{ lancamento.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-undo"></i> Desfazer
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted small">Sem permissão.</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="mb-0">Nenhum lançamento conciliado para esta importação.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const scoreSelect = document.getElementById('score_minimo_lote');
+    const scorePreview = document.getElementById('score_minimo_preview');
+    const scoreConfirm = document.getElementById('score_minimo_confirm');
+    const scoreExport = document.getElementById('score_minimo_export');
+    const scoreExportXlsx = document.getElementById('score_minimo_export_xlsx');
+
+    if (scoreSelect && scorePreview && scoreConfirm && scoreExport && scoreExportXlsx) {
+        const syncScore = function () {
+            scorePreview.value = scoreSelect.value;
+            scoreConfirm.value = scoreSelect.value;
+            scoreExport.value = scoreSelect.value;
+            scoreExportXlsx.value = scoreSelect.value;
+        };
+        scoreSelect.addEventListener('change', syncScore);
+        syncScore();
+    }
+
+    const forms = document.querySelectorAll('.manual-conciliacao-form');
+    forms.forEach(function (form) {
+        const select = form.querySelector('.manual-select');
+        const filterInput = form.querySelector('.manual-filter');
+        const preview = form.querySelector('.manual-preview');
+        const previewText = form.querySelector('.manual-preview-text');
+        const proximidadeBadge = form.querySelector('.manual-proximidade-badge');
+        if (!select || !preview) {
+            return;
+        }
+
+        const options = Array.from(select.options);
+        const parseCurrency = function (value) {
+            if (value === null || value === undefined) {
+                return NaN;
+            }
+            let normalized = String(value).replace(/\s/g, '').replace('R$', '');
+
+            if (normalized.includes(',') && normalized.includes('.')) {
+                normalized = normalized.replace(/\./g, '').replace(',', '.');
+            } else if (normalized.includes(',')) {
+                normalized = normalized.replace(',', '.');
+            }
+
+            return parseFloat(normalized);
+        };
+
+        const ofxValue = parseCurrency(form.dataset.ofxValor);
+        const ofxValueAbs = Math.abs(ofxValue);
+
+        const setProximidadeBadge = function (label, className) {
+            if (!proximidadeBadge) {
+                return;
+            }
+            proximidadeBadge.classList.remove('d-none', 'bg-success', 'bg-warning', 'bg-secondary', 'text-dark');
+            proximidadeBadge.classList.add(className);
+            if (className === 'bg-warning') {
+                proximidadeBadge.classList.add('text-dark');
+            }
+            proximidadeBadge.textContent = label;
+        };
+
+        const esconderProximidadeBadge = function () {
+            if (!proximidadeBadge) {
+                return;
+            }
+            proximidadeBadge.classList.remove('bg-success', 'bg-warning', 'bg-secondary', 'text-dark');
+            proximidadeBadge.classList.add('d-none');
+            proximidadeBadge.textContent = '';
+            proximidadeBadge.removeAttribute('title');
+        };
+
+        const classificarProximidade = function (valorSelecionado) {
+            if (Number.isNaN(valorSelecionado) || Number.isNaN(ofxValueAbs)) {
+                return null;
+            }
+
+            const diferenca = Math.abs(valorSelecionado - ofxValueAbs);
+            const percentual = ofxValueAbs > 0 ? (diferenca / ofxValueAbs) * 100 : (diferenca === 0 ? 0 : 100);
+
+            if (diferenca <= 1 || percentual <= 2) {
+                return { label: 'Muito proximo', className: 'bg-success', diferenca: diferenca };
+            }
+            if (diferenca <= 5 || percentual <= 10) {
+                return { label: 'Proximo', className: 'bg-warning', diferenca: diferenca };
+            }
+            return { label: 'Distante', className: 'bg-secondary', diferenca: diferenca };
+        };
+
+        const sortOptionsByProximity = function () {
+            if (Number.isNaN(ofxValue)) {
+                return;
+            }
+
+            const placeholder = options[0];
+            const sortable = options.slice(1);
+
+            sortable.sort(function (a, b) {
+                const valueA = parseCurrency(a.dataset.valor);
+                const valueB = parseCurrency(b.dataset.valor);
+                const diffA = Number.isNaN(valueA) ? Number.POSITIVE_INFINITY : Math.abs(valueA - Math.abs(ofxValue));
+                const diffB = Number.isNaN(valueB) ? Number.POSITIVE_INFINITY : Math.abs(valueB - Math.abs(ofxValue));
+                return diffA - diffB;
+            });
+
+            select.innerHTML = '';
+            select.appendChild(placeholder);
+            sortable.forEach(function (option) {
+                select.appendChild(option);
+            });
+        };
+
+        const filterOptions = function () {
+            if (!filterInput) {
+                return;
+            }
+            const term = filterInput.value.trim().toLowerCase();
+
+            options.forEach(function (option, index) {
+                if (index === 0) {
+                    option.hidden = false;
+                    return;
+                }
+
+                const label = option.textContent.toLowerCase();
+                const descricao = (option.dataset.descricao || '').toLowerCase();
+                const match = !term || label.includes(term) || descricao.includes(term);
+                option.hidden = !match;
+            });
+
+            if (select.selectedOptions.length && select.selectedOptions[0].hidden) {
+                select.value = '';
+                updatePreview();
+            }
+        };
+
+        const updatePreview = function () {
+            const option = select.options[select.selectedIndex];
+            if (!option || !option.value) {
+                const tipo = form.dataset.tipo === 'receita' ? 'receita' : 'despesa';
+                const textoPadrao = 'Selecione uma ' + tipo + ' para visualizar os detalhes. Lista ordenada por proximidade de valor.';
+                if (previewText) {
+                    previewText.textContent = textoPadrao;
+                } else {
+                    preview.textContent = textoPadrao;
+                }
+                esconderProximidadeBadge();
+                return;
+            }
+
+            const data = option.dataset.data || '-';
+            const valor = option.dataset.valor || '-';
+            const descricao = option.dataset.descricao || '-';
+            const textoDetalhes = 'Data: ' + data + ' | Valor: R$ ' + valor + ' | Detalhes: ' + descricao;
+            if (previewText) {
+                previewText.textContent = textoDetalhes;
+            } else {
+                preview.textContent = textoDetalhes;
+            }
+
+            const valorSelecionado = parseCurrency(option.dataset.valor);
+            const proximidade = classificarProximidade(valorSelecionado);
+            if (!proximidade) {
+                esconderProximidadeBadge();
+                return;
+            }
+
+            setProximidadeBadge(proximidade.label, proximidade.className);
+            if (proximidadeBadge) {
+                proximidadeBadge.title = 'Diferenca aproximada: R$ ' + proximidade.diferenca.toFixed(2);
+            }
+        };
+
+        select.addEventListener('change', updatePreview);
+        if (filterInput) {
+            filterInput.addEventListener('input', filterOptions);
+        }
+        sortOptionsByProximity();
+        updatePreview();
+    });
+});
+</script>
+{% endblock %}

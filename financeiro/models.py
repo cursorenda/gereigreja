@@ -20,6 +20,7 @@ class PermissaoCaixa(models.Model):
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 class TransferenciaCaixa(models.Model):
     caixa_origem = models.ForeignKey('ContaBancaria', related_name='transferencias_saida', on_delete=models.PROTECT)
     caixa_destino = models.ForeignKey('ContaBancaria', related_name='transferencias_entrada', on_delete=models.PROTECT)
@@ -467,6 +468,151 @@ class FechamentoCaixa(models.Model):
         unique_together = ('igreja', 'data_inicio', 'data_fim')
 
 
+class LogTransacaoFinanceira(models.Model):
+    TIPO_LANCAMENTO_CHOICES = [
+        ('receita', 'Receita'),
+        ('despesa', 'Despesa'),
+        ('transferencia', 'Transferencia'),
+        ('fechamento', 'Fechamento'),
+    ]
+
+    ACAO_CHOICES = [
+        ('criado', 'Criado'),
+        ('atualizado', 'Atualizado'),
+        ('excluido', 'Excluido'),
+    ]
+
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='logs_transacoes_financeiras',
+        verbose_name='Igreja',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='logs_transacoes_financeiras',
+        verbose_name='Usuario',
+    )
+    tipo_lancamento = models.CharField(max_length=20, choices=TIPO_LANCAMENTO_CHOICES, verbose_name='Tipo')
+    acao = models.CharField(max_length=20, choices=ACAO_CHOICES, verbose_name='Acao')
+    referencia_modelo = models.CharField(max_length=80, verbose_name='Referencia do Modelo')
+    referencia_id = models.PositiveBigIntegerField(verbose_name='ID da Referencia')
+    valor = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Valor')
+    detalhes = models.TextField(blank=True, null=True, verbose_name='Detalhes')
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+
+    class Meta:
+        verbose_name = 'Log de Transacao Financeira'
+        verbose_name_plural = 'Logs de Transacoes Financeiras'
+        ordering = ['-criado_em']
+        indexes = [
+            models.Index(fields=['igreja', 'criado_em']),
+            models.Index(fields=['tipo_lancamento', 'criado_em']),
+            models.Index(fields=['referencia_modelo', 'referencia_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_tipo_lancamento_display()} {self.get_acao_display()} ({self.referencia_modelo} #{self.referencia_id})"
+
+
+class ImportacaoExtratoOFX(models.Model):
+    conta_bancaria = models.ForeignKey(
+        'ContaBancaria',
+        on_delete=models.CASCADE,
+        related_name='importacoes_ofx',
+        verbose_name='Conta Bancaria',
+    )
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='importacoes_ofx',
+        verbose_name='Igreja',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='importacoes_ofx',
+        verbose_name='Usuario',
+    )
+    arquivo_nome = models.CharField(max_length=255, blank=True, verbose_name='Nome do Arquivo')
+    hash_arquivo = models.CharField(max_length=64, verbose_name='Hash do Arquivo')
+    banco_id = models.CharField(max_length=30, blank=True, verbose_name='Banco ID')
+    conta_id = models.CharField(max_length=60, blank=True, verbose_name='Conta ID')
+    tipo_conta = models.CharField(max_length=30, blank=True, verbose_name='Tipo de Conta')
+    data_inicio = models.DateTimeField(null=True, blank=True, verbose_name='Data Inicial do Extrato')
+    data_fim = models.DateTimeField(null=True, blank=True, verbose_name='Data Final do Extrato')
+    saldo_final = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Saldo Final')
+    importado_em = models.DateTimeField(auto_now_add=True, verbose_name='Importado em')
+
+    class Meta:
+        verbose_name = 'Importacao de Extrato OFX'
+        verbose_name_plural = 'Importacoes de Extratos OFX'
+        ordering = ['-importado_em']
+        unique_together = ('conta_bancaria', 'hash_arquivo')
+
+    def __str__(self):
+        return f"Extrato OFX {self.conta_bancaria.nome_identificacao} ({self.importado_em:%d/%m/%Y %H:%M})"
+
+
+class LancamentoExtratoOFX(models.Model):
+    TIPO_CHOICES = [
+        ('entrada', 'Entrada'),
+        ('saida', 'Saida'),
+    ]
+    CONCILIADO_TIPO_CHOICES = [
+        ('receita', 'Receita'),
+        ('despesa', 'Despesa'),
+    ]
+
+    importacao = models.ForeignKey(
+        ImportacaoExtratoOFX,
+        on_delete=models.CASCADE,
+        related_name='lancamentos',
+        verbose_name='Importacao',
+    )
+    data = models.DateTimeField(verbose_name='Data do Lancamento')
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name='Tipo')
+    trn_type = models.CharField(max_length=20, blank=True, verbose_name='Tipo OFX')
+    valor = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Valor')
+    fit_id = models.CharField(max_length=80, blank=True, verbose_name='FITID')
+    memo = models.TextField(blank=True, verbose_name='Memo')
+    documento = models.CharField(max_length=80, blank=True, verbose_name='Documento')
+    conciliado = models.BooleanField(default=False, verbose_name='Conciliado')
+    conciliado_tipo = models.CharField(
+        max_length=20,
+        choices=CONCILIADO_TIPO_CHOICES,
+        blank=True,
+        verbose_name='Conciliado com Tipo',
+    )
+    conciliado_referencia_id = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='ID de Referencia Conciliada',
+    )
+    conciliado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='conciliacoes_ofx_realizadas',
+        verbose_name='Conciliado por',
+    )
+    conciliado_em = models.DateTimeField(null=True, blank=True, verbose_name='Conciliado em')
+
+    class Meta:
+        verbose_name = 'Lancamento de Extrato OFX'
+        verbose_name_plural = 'Lancamentos de Extrato OFX'
+        ordering = ['data', 'id']
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} {self.valor} em {self.data:%d/%m/%Y}"
+
+
 
 # ====================================================
 # ========= INÍCIO: NOVOS MODELOS PARA CONTAS A PAGAR =========
@@ -499,6 +645,95 @@ class Fornecedor(models.Model):
     padrao_global = models.BooleanField(default=False, verbose_name="Padrão Global?")
     def __str__(self):
         return self.nome
+
+
+class RecorrenciaContaPagar(models.Model):
+    """Template de despesa fixa para geracao automatica de contas a pagar."""
+    FREQUENCIA_CHOICES = (
+        ('MEN', 'Mensal'),
+    )
+    FORMA_PAGAMENTO_CHOICES = (
+        ('BOL', 'Boleto'),
+        ('TRA', 'Transferência (TED/DOC)'),
+        ('PIX', 'PIX'),
+        ('DIN', 'Dinheiro'),
+        ('DEB', 'Cartão de Débito'),
+        ('CRE', 'Cartão de Crédito'),
+        ('OUT', 'Outro'),
+    )
+
+    ministerio = models.ForeignKey(
+        Ministerio,
+        on_delete=models.PROTECT,
+        related_name='recorrencias_contas_pagar',
+        verbose_name='Ministério',
+    )
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='recorrencias_contas_pagar',
+        verbose_name='Igreja',
+    )
+    fornecedor = models.ForeignKey(
+        Fornecedor,
+        on_delete=models.PROTECT,
+        related_name='recorrencias_contas_pagar',
+        verbose_name='Fornecedor',
+    )
+    categoria = models.ForeignKey(
+        CategoriaDespesa,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorrencias_contas_pagar',
+        verbose_name='Categoria',
+    )
+    descricao = models.CharField(max_length=255, verbose_name='Descrição')
+    valor = models.DecimalField(max_digits=15, decimal_places=2, verbose_name='Valor')
+    dia_vencimento = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        verbose_name='Dia do Vencimento',
+    )
+    frequencia = models.CharField(max_length=3, choices=FREQUENCIA_CHOICES, default='MEN', verbose_name='Frequência')
+    data_inicio = models.DateField(default=timezone.localdate, verbose_name='Data de Início')
+    data_fim = models.DateField(null=True, blank=True, verbose_name='Data de Fim')
+    conta_debito_padrao = models.ForeignKey(
+        ContaBancaria,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorrencias_contas_pagar',
+        verbose_name='Conta/Caixa de Débito Padrão',
+    )
+    forma_pagamento_padrao = models.CharField(
+        max_length=3,
+        choices=FORMA_PAGAMENTO_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='Forma de Pagamento Padrão',
+    )
+    gerar_automaticamente = models.BooleanField(default=True, verbose_name='Gerar Automaticamente?')
+    ultima_competencia_gerada = models.CharField(max_length=7, null=True, blank=True, verbose_name='Última Competência Gerada')
+    ativo = models.BooleanField(default=True, verbose_name='Ativa?')
+    observacoes = models.TextField(blank=True, null=True, verbose_name='Observações')
+    usuario_criacao = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='recorrencias_contas_pagar_criadas',
+        verbose_name='Criado por',
+    )
+    data_criacao = models.DateTimeField(auto_now_add=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Recorrência de Conta a Pagar'
+        verbose_name_plural = 'Recorrências de Contas a Pagar'
+        ordering = ['igreja__nome_igreja', 'descricao']
+
+    def __str__(self):
+        return f"{self.descricao} ({self.igreja.nome_igreja})"
 
 
 class ContaPagar(models.Model):
@@ -542,6 +777,16 @@ class ContaPagar(models.Model):
     conta_debito = models.ForeignKey(ContaBancaria, on_delete=models.SET_NULL, null=True, blank=True, related_name='pagamentos_contas_pagar', verbose_name="Conta/Caixa de Saída")
     forma_pagamento = models.CharField(max_length=3, choices=FORMA_PAGAMENTO_CHOICES, null=True, blank=True, verbose_name="Forma de Pagamento")
     comprovante = models.FileField(upload_to='comprovantes_contapagar/%Y/%m/', blank=True, null=True, verbose_name="Anexar Comprovante")
+    recorrencia_origem = models.ForeignKey(
+        'RecorrenciaContaPagar',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='contas_geradas',
+        verbose_name='Recorrência de Origem',
+    )
+    competencia = models.CharField(max_length=7, null=True, blank=True, db_index=True, verbose_name='Competência (AAAA-MM)')
+    criado_automaticamente = models.BooleanField(default=False, verbose_name='Criado Automaticamente?')
 
     # Opcional: Campo para agrupar parcelas da mesma compra
     # compra_uuid = models.UUIDField(null=True, blank=True, editable=False, help_text="Identificador único para agrupar parcelas da mesma compra")
@@ -556,6 +801,13 @@ class ContaPagar(models.Model):
         verbose_name = "Conta a Pagar"
         verbose_name_plural = "Contas a Pagar"
         ordering = ['data_vencimento', 'status'] # Ordenar por vencimento
+        constraints = [
+            models.UniqueConstraint(
+                fields=['recorrencia_origem', 'competencia'],
+                condition=models.Q(recorrencia_origem__isnull=False),
+                name='uniq_conta_recorrencia_competencia',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.descricao} - {self.fornecedor.nome} (Venc: {self.data_vencimento.strftime('%d/%m/%Y')})"

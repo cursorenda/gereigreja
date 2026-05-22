@@ -1,3 +1,26 @@
+## v1.12.8 — 22/05/2026
+💸 **Financeiro: recorrências, pagamento em lote e alertas de vencimento**
+
+### Entregas
+- Despesas fixas recorrentes com geração operacional por competência (manual e via comando).
+- CRUD de recorrências de contas a pagar com escopo por igreja ativa.
+- Pagamento em lote de contas pendentes/vencidas com criação automática de despesas vinculadas.
+- Alertas automáticos de vencimento de contas a pagar (D-7, D-3, D-1 e vencidas), com deduplicação de notificações.
+- Cobertura de testes para recorrência, permissões, lote e alertas.
+
+### Operação
+- Novo comando: `python manage.py enviar_alertas_vencimento_contas`.
+
+### Nota de release
+- O template `financeiro/templates/financeiro/painel_financeiro.html` foi mantido fora deste deploy para refinamento visual posterior.
+
+### Impacto
+- Melhora da rotina da tesouraria com menos trabalho manual no ciclo mensal de contas fixas.
+- Maior previsibilidade de vencimentos e redução de risco de atraso.
+- Sem mudanças incompatíveis de API pública.
+
+---
+
 ## v1.12.7 — 19/05/2026
 🧑 **Padronização de Avatar com 3 Níveis de Fallback**
 

@@ -1,7 +1,12 @@
 {% extends 'base_com_menu.html' %}
+{% load static %}
 {% load humanize %} {# Para formatar números com vírgula/ponto #}
 
 {% block title %}Lista de Despesas - {{ ministerio.nome_fantasia }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/financeiro-listas.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -28,18 +33,16 @@
             Filtros
         </div>
         <div class="card-body">
-            <form method="get" class="row g-3 align-items-end">
-                <div class="col-md-3">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-6 col-md-2">
                     <label for="data_inicio" class="form-label">Data de Início:</label>
                     <input type="date" name="data_inicio" id="data_inicio" value="{{ request.GET.data_inicio|default_if_none:'' }}" class="form-control form-control-sm">
                 </div>
-
-                <div class="col-md-3">
+                <div class="col-6 col-md-2">
                     <label for="data_fim" class="form-label">Data de Fim:</label>
                     <input type="date" name="data_fim" id="data_fim" value="{{ request.GET.data_fim|default_if_none:'' }}" class="form-control form-control-sm">
                 </div>
-
-                <div class="col-md-3">
+                <div class="col-12 col-md-2">
                     <label for="categoria" class="form-label">Categoria:</label>
                     <select name="categoria" id="categoria" class="form-select form-select-sm">
                         <option value="">Todas</option>
@@ -48,8 +51,7 @@
                         {% endfor %}
                     </select>
                 </div>
-
-                <div class="col-md-3">
+                <div class="col-12 col-md-2">
                     <label for="caixa_filtro_select" class="form-label">Caixa:</label>
                     <select name="caixa_filtro" id="caixa_filtro_select" class="form-select form-select-sm">
                         <option value="" {% if not request.GET.caixa_filtro %}selected{% endif %}>Todos os Caixas</option>
@@ -60,17 +62,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label for="igreja" class="form-label">Igreja:</label>
-                    <select name="igreja" id="igreja" class="form-select form-select-sm">
-                        <option value="">Todas as Permitidas</option>
-                        {% for igreja_obj in igrejas_org %}
-                            <option value="{{ igreja_obj.pk }}" {% if igreja_obj.pk|stringformat:"s" == request.GET.igreja %}selected{% endif %}>{{ igreja_obj.nome_igreja }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-3">
+                <div class="col-12 col-md-2">
                     <label for="filtro_fechado" class="form-label">Status Lançamento:</label>
                     <select name="fechado" id="filtro_fechado" class="form-select form-select-sm">
                         <option value="false" {% if fechado_selecionado == 'false' %}selected{% endif %}>Aberto</option>
@@ -78,12 +70,38 @@
                         <option value="todos" {% if fechado_selecionado == 'todos' %}selected{% endif %}>Todos</option>
                     </select>
                 </div>
-
-                <div class="col-md-auto">
+                <div class="col-12 col-md-auto d-flex align-items-end gap-2 financeiro-filtro-acoes">
                     <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Filtrar</button>
                     <a href="{% url 'financeiro:lista_despesas' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eraser"></i> Limpar</a>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="border rounded p-2 h-100 bg-light">
+                <div class="small text-muted">Despesas no período</div>
+                <div class="fw-semibold">R$ {{ resumo_total_periodo|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="border rounded p-2 h-100 bg-light">
+                <div class="small text-muted">Despesas em aberto</div>
+                <div class="fw-semibold">R$ {{ resumo_total_aberto|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="border rounded p-2 h-100 bg-light">
+                <div class="small text-muted">Ticket médio</div>
+                <div class="fw-semibold">R$ {{ resumo_ticket_medio|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="border rounded p-2 h-100 bg-light">
+                <div class="small text-muted">Quantidade lançada</div>
+                <div class="fw-semibold">{{ resumo_quantidade_periodo }}</div>
+            </div>
         </div>
     </div>
 
@@ -175,5 +193,21 @@
             </div>
         </div>
     </div>
+
+    {% if resumos_categoria %}
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 row-cols-xl-6 g-2 mb-4">
+        {% for categoria, total in resumos_categoria.items %}
+        {% cycle 'success' 'info' 'dark' as card_color silent %}
+        <div class="col">
+            <div class="card border-{{ card_color }} h-100 shadow-sm">
+                <div class="card-body py-2 px-3">
+                    <div class="fw-bold text-{{ card_color }} small mb-1">{{ categoria }}</div>
+                    <div class="fw-semibold">R$ {{ total|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

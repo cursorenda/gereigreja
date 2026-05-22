@@ -1,8 +1,13 @@
 {% extends 'base_com_menu.html' %}
+{% load static %}
 {% load humanize %}
 {% load l10n %}
 
 {% block title %}{{ titulo_pagina|default:"Confirmar Fechamento de Caixa" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/financeiro-lideranca.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -67,23 +72,35 @@
             {# Listagem de Receitas a serem fechadas #}
             <h5 class="mt-4">Receitas a serem incluídas ({{ receitas.count }})</h5>
             {% if receitas %}
-            <div class="table-responsive mb-3" style="max-height: 300px; overflow-y: auto;">
-                <table class="table table-sm table-striped table-hover">
+            <div class="table-responsive mb-3 table-scroll-300">
+                <table id="tabela-receitas-fechamento" class="table table-sm table-striped table-hover">
                     <thead>
                         <tr>
-                            <th>Data</th>
-                            <th>Categoria</th>
-                            <th>Pessoa/Origem</th>
-                            <th class="text-end">Valor</th>
+                            <th>
+                                <button type="button" class="table-sort-btn" data-sort-key="data">Data <span class="sort-indicator"></span></button>
+                            </th>
+                            <th>
+                                <button type="button" class="table-sort-btn" data-sort-key="categoria">Categoria <span class="sort-indicator"></span></button>
+                            </th>
+                            <th>
+                                <button type="button" class="table-sort-btn" data-sort-key="forma">Forma Pgto <span class="sort-indicator"></span></button>
+                            </th>
+                            <th>
+                                <button type="button" class="table-sort-btn" data-sort-key="pessoa">Pessoa/Origem <span class="sort-indicator"></span></button>
+                            </th>
+                            <th class="text-end">
+                                <button type="button" class="table-sort-btn text-end w-100" data-sort-key="valor">Valor <span class="sort-indicator"></span></button>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for receita in receitas %}
                         <tr>
-                            <td>{{ receita.data|date:"d/m/y" }}</td>
-                            <td>{{ receita.get_categoria_display }}</td>
-                            <td>{% if receita.membro %}{{ receita.membro.nome|truncatechars:30 }}{% else %}Anônimo{% endif %}</td>
-                            <td class="text-end">R$ {{ receita.valor|floatformat:2|intcomma }}</td>
+                            <td data-sort="{{ receita.data|date:'Y-m-d' }}">{{ receita.data|date:"d/m/y" }}</td>
+                            <td data-sort="{{ receita.get_categoria_display|default:'' }}">{{ receita.get_categoria_display }}</td>
+                            <td data-sort="{{ receita.get_forma_pgto_display|default:receita.forma_pgto|default:'-' }}">{{ receita.get_forma_pgto_display|default:receita.forma_pgto|default:"-" }}</td>
+                            <td data-sort="{% if receita.membro %}{{ receita.membro.nome|default:'' }}{% else %}Anônimo{% endif %}">{% if receita.membro %}{{ receita.membro.nome|truncatechars:30 }}{% else %}Anônimo{% endif %}</td>
+                            <td class="text-end" data-sort="{{ receita.valor|unlocalize }}">R$ {{ receita.valor|floatformat:2|intcomma }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -93,26 +110,88 @@
             <p class="text-muted">Nenhuma receita aberta encontrada neste período.</p>
             {% endif %}
 
+            <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
+                <div class="col">
+                    <div class="card border-success h-100 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-bold text-success small mb-1">Dízimos em Dinheiro</div>
+                            <div class="fw-semibold">R$ {{ dizimos_dinheiro|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-info h-100 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-bold text-info small mb-1">Dízimos em PIX</div>
+                            <div class="fw-semibold">R$ {{ dizimos_pix|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-dark h-100 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-bold text-dark small mb-1">Total de Dízimos</div>
+                            <div class="fw-semibold">R$ {{ dizimos_total|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
+                <div class="col">
+                    <div class="card border-success h-100 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-bold text-success small mb-1">Ofertas em Dinheiro</div>
+                            <div class="fw-semibold">R$ {{ ofertas_dinheiro|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-info h-100 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-bold text-info small mb-1">Ofertas em PIX</div>
+                            <div class="fw-semibold">R$ {{ ofertas_pix|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="card border-dark h-100 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-bold text-dark small mb-1">Total de Ofertas</div>
+                            <div class="fw-semibold">R$ {{ ofertas_total|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {# Listagem de Despesas a serem fechadas #}
             <h5 class="mt-4">Despesas a serem incluídas ({{ despesas.count }})</h5>
              {% if despesas %}
-             <div class="table-responsive mb-3" style="max-height: 300px; overflow-y: auto;">
-                <table class="table table-sm table-striped table-hover">
+             <div class="table-responsive mb-3 table-scroll-300">
+                <table id="tabela-despesas-fechamento" class="table table-sm table-striped table-hover">
                     <thead>
                         <tr>
-                            <th>Data</th>
-                            <th>Categoria</th>
-                            <th>Descrição</th>
-                            <th class="text-end">Valor</th>
+                            <th>
+                                <button type="button" class="table-sort-btn" data-sort-key="data">Data <span class="sort-indicator"></span></button>
+                            </th>
+                            <th>
+                                <button type="button" class="table-sort-btn" data-sort-key="categoria">Categoria <span class="sort-indicator"></span></button>
+                            </th>
+                            <th>
+                                <button type="button" class="table-sort-btn" data-sort-key="descricao">Descrição <span class="sort-indicator"></span></button>
+                            </th>
+                            <th class="text-end">
+                                <button type="button" class="table-sort-btn text-end w-100" data-sort-key="valor">Valor <span class="sort-indicator"></span></button>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for despesa in despesas %}
                         <tr>
-                            <td>{{ despesa.data|date:"d/m/y" }}</td>
-                            <td>{{ despesa.categoria.nome|default:"N/A" }}</td>
-                            <td>{{ despesa.descricao|truncatechars:40 }}</td>
-                            <td class="text-end">R$ {{ despesa.valor|floatformat:2|intcomma }}</td>
+                            <td data-sort="{{ despesa.data|date:'Y-m-d' }}">{{ despesa.data|date:"d/m/y" }}</td>
+                            <td data-sort="{{ despesa.categoria.nome|default:'N/A' }}">{{ despesa.categoria.nome|default:"N/A" }}</td>
+                            <td data-sort="{{ despesa.descricao|default:'' }}">{{ despesa.descricao|truncatechars:40 }}</td>
+                            <td class="text-end" data-sort="{{ despesa.valor|unlocalize }}">R$ {{ despesa.valor|floatformat:2|intcomma }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -147,4 +226,96 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (function () {
+        function initSortableTable(tableId, sortMap) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            let currentKey = null;
+            let currentDirection = 'asc';
+
+            function getCellSortValue(row, cellIndex) {
+                const cell = row.cells[cellIndex];
+                if (!cell) return '';
+                return (cell.dataset.sort || cell.textContent || '').trim();
+            }
+
+            function updateIndicators(activeButton, direction) {
+                table.querySelectorAll('.table-sort-btn').forEach((btn) => {
+                    const indicator = btn.querySelector('.sort-indicator');
+                    if (!indicator) return;
+                    if (btn === activeButton) {
+                        indicator.textContent = direction === 'asc' ? '▲' : '▼';
+                    } else {
+                        indicator.textContent = '';
+                    }
+                });
+            }
+
+            function sortRowsBy(key, direction, button) {
+                const cellIndex = sortMap[key];
+                const tbody = table.tBodies[0];
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const multiplier = direction === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const va = getCellSortValue(a, cellIndex);
+                    const vb = getCellSortValue(b, cellIndex);
+
+                    if (key === 'valor') {
+                        const na = parseFloat(va || '0');
+                        const nb = parseFloat(vb || '0');
+                        return (na - nb) * multiplier;
+                    }
+
+                    if (key === 'data') {
+                        const da = new Date(va);
+                        const db = new Date(vb);
+                        return (da - db) * multiplier;
+                    }
+
+                    return va.localeCompare(vb, 'pt-BR', { sensitivity: 'base' }) * multiplier;
+                });
+
+                rows.forEach((row) => tbody.appendChild(row));
+                updateIndicators(button, direction);
+            }
+
+            table.querySelectorAll('.table-sort-btn').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const key = button.dataset.sortKey;
+                    if (!key) return;
+
+                    if (currentKey === key) {
+                        currentDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentKey = key;
+                        currentDirection = 'asc';
+                    }
+
+                    sortRowsBy(key, currentDirection, button);
+                });
+            });
+        }
+
+        initSortableTable('tabela-receitas-fechamento', {
+            data: 0,
+            categoria: 1,
+            forma: 2,
+            pessoa: 3,
+            valor: 4
+        });
+
+        initSortableTable('tabela-despesas-fechamento', {
+            data: 0,
+            categoria: 1,
+            descricao: 2,
+            valor: 3
+        });
+    })();
+</script>
 {% endblock %}

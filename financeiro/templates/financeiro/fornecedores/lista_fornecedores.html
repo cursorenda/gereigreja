@@ -4,6 +4,10 @@
 
 {% block title %}Fornecedores - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/financeiro-listas.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-4">
     <h1 class="mt-4">Fornecedores</h1>
@@ -57,7 +61,7 @@
                             <th>Email</th>
                             <th>Status</th>
                             {% if can_edit_finance %}
-                            <th class="text-center" style="width: 15%;">Ações</th>
+                            <th class="text-center fornecedor-acoes-col">Ações</th>
                             {% endif %}
                         </tr>
                     </thead>

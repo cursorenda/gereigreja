@@ -3,7 +3,7 @@ from django.contrib import admin
 
 from core.admin_mixins import MinisterioFilteredMixin, DataHierarchyMixin
 
-from .models import Receitas, Despesas, FechamentoCaixa
+from .models import Receitas, Despesas, FechamentoCaixa, LogTransacaoFinanceira
 
 
 @admin.register(Receitas)
@@ -33,3 +33,26 @@ class FechamentoCaixaAdmin(MinisterioFilteredMixin, admin.ModelAdmin):
     autocomplete_fields = ['igreja']
     date_hierarchy = 'data_inicio'
     ordering = ('-data_inicio',)
+
+
+@admin.register(LogTransacaoFinanceira)
+class LogTransacaoFinanceiraAdmin(MinisterioFilteredMixin, DataHierarchyMixin, admin.ModelAdmin):
+    date_hierarchy = 'criado_em'
+    list_display = ('criado_em', 'igreja', 'tipo_lancamento', 'acao', 'referencia_modelo', 'referencia_id', 'valor', 'usuario')
+    list_filter = ('igreja__ministerio', 'igreja', 'tipo_lancamento', 'acao', 'criado_em')
+    search_fields = ('referencia_modelo', 'detalhes', 'usuario__username', 'igreja__nome_igreja')
+    readonly_fields = (
+        'igreja',
+        'usuario',
+        'tipo_lancamento',
+        'acao',
+        'referencia_modelo',
+        'referencia_id',
+        'valor',
+        'detalhes',
+        'criado_em',
+    )
+    autocomplete_fields = ['igreja', 'usuario']
+
+    def has_add_permission(self, request):
+        return False

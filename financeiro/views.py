@@ -45,16 +45,28 @@ from django.contrib.auth.decorators import login_required, user_passes_test # Im
 from django.utils.timezone import now # Importar now
 
 # Importar modelos corretos
-from .models import Receitas, Despesas, ContaBancaria, FechamentoCaixa, ContaPagar, CategoriaDespesa, Fornecedor, TransferenciaCaixa
+from .models import (
+    Receitas,
+    Despesas,
+    ContaBancaria,
+    FechamentoCaixa,
+    ContaPagar,
+    RecorrenciaContaPagar,
+    CategoriaDespesa,
+    Fornecedor,
+    TransferenciaCaixa,
+    ImportacaoExtratoOFX,
+)
 # Importar forms corretos
 from .forms import (
     ReceitaForm, DespesaForm, CategoriaDespesaForm, FechamentoCaixaForm, ContaBancariaForm,
-    FornecedorForm, ContaPagarForm, RegistrarPagamentoContaPagarForm, TransferenciaCaixaForm # Adicionar novos forms
+    FornecedorForm, ContaPagarForm, RegistrarPagamentoContaPagarForm, TransferenciaCaixaForm,
+    RecorrenciaContaPagarForm,
 )
 # from django.contrib.auth.decorators import login_required # Removido, já importado acima
 from configuracao.models import PerfilUsuario, Ministerio, Igreja
 from django.core.exceptions import PermissionDenied, ValidationError # Adicionar ValidationError
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.db.models import Sum, Q, Count # Adicionado Count
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 
@@ -62,14 +74,17 @@ from .utils import has_finance_view_permission, has_finance_edit_permission, get
 from core.utils import get_ministerio_or_error # Importar de core.utils # noqa: E402
 # --- FIM IMPORT ---
 from decimal import Decimal # Import Decimal
+import csv
 import locale
 import logging, traceback, calendar 
 from datetime import date, datetime, timedelta 
 from num2words import num2words
+from openpyxl import Workbook
 from django.db import transaction # Adicionar import para transações atômicas
 import json # Adicionar esta linha # noqa: E402
 from django.urls import reverse
 from core.decorators import verificar_assinatura_valida # Ou o caminho correto
+from .services import OFXImportService, RecorrenciaContaPagarService
 
 @login_required
 @verificar_assinatura_valida # Nosso novo decorator
@@ -184,6 +199,26 @@ def painel_financeiro(request):
         qtd_contas_pendentes = contas_pagar_base.filter(status='PEN').count()
         qtd_contas_vencidas = contas_pagar_base.filter(status='VEN').count()
         # --- FIM Indicadores de Contas a Pagar ---
+
+        # --- Indicadores de Contas Fixas no mês atual ---
+        contas_fixas_mes_base = contas_pagar_base.filter(
+            Q(recorrencia_origem__isnull=False) | Q(criado_automaticamente=True),
+            data_vencimento__year=ano_atual,
+            data_vencimento__month=data_hoje.month,
+        )
+        total_contas_fixas_previstas = contas_fixas_mes_base.aggregate(total=Sum('valor'))['total'] or Decimal(0)
+        total_contas_fixas_pagas = contas_fixas_mes_base.filter(status='PAG').aggregate(total=Sum('valor'))['total'] or Decimal(0)
+        total_contas_fixas_atrasadas = contas_fixas_mes_base.filter(
+            status__in=['PEN', 'VEN'],
+            data_vencimento__lt=data_hoje,
+        ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+        qtd_contas_fixas_previstas = contas_fixas_mes_base.count()
+        qtd_contas_fixas_pagas = contas_fixas_mes_base.filter(status='PAG').count()
+        qtd_contas_fixas_atrasadas = contas_fixas_mes_base.filter(
+            status__in=['PEN', 'VEN'],
+            data_vencimento__lt=data_hoje,
+        ).count()
+        # --- FIM Indicadores de Contas Fixas ---
 
        
 
@@ -320,14 +355,14 @@ def painel_financeiro(request):
             mes_label = data_mes_loop.strftime("%b/%y").capitalize()
             meses_labels_grafico.append(mes_label)
 
-            # Receitas do mês (usando receitas_base já filtrada por igreja/allowed_churches)
-            receitas_do_mes_val = receitas_base.filter(
+            # Receitas do mês (alinhadas ao período selecionado no painel)
+            receitas_do_mes_val = receitas_filtradas.filter(
                 data__year=ano, data__month=mes
             ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
             receitas_mensais_grafico_data.append(float(receitas_do_mes_val))
 
-            # Despesas do mês (usando despesas_base já filtrada por igreja/allowed_churches)
-            despesas_do_mes_val = despesas_base.filter(
+            # Despesas do mês (alinhadas ao período selecionado no painel)
+            despesas_do_mes_val = despesas_filtradas.filter(
                 data__year=ano, data__month=mes
             ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
             despesas_mensais_grafico_data.append(float(despesas_do_mes_val))
@@ -335,8 +370,8 @@ def painel_financeiro(request):
             # Saldo do mês
             saldos_mensais_grafico_data.append(float(receitas_do_mes_val - despesas_do_mes_val))
 
-            # Dizimistas únicos do mês (usando receitas_base)
-            dizimistas_count = receitas_base.filter(
+            # Dizimistas únicos do mês (alinhados ao período selecionado)
+            dizimistas_count = receitas_filtradas.filter(
                 data__year=ano, data__month=mes, 
                 categoria='dizimo', 
                 membro__isnull=False # Apenas garante que há um membro associado
@@ -441,6 +476,12 @@ def painel_financeiro(request):
             'total_contas_vencidas': total_contas_vencidas,
             'qtd_contas_pendentes': qtd_contas_pendentes,
             'qtd_contas_vencidas': qtd_contas_vencidas,
+            'total_contas_fixas_previstas': total_contas_fixas_previstas,
+            'total_contas_fixas_pagas': total_contas_fixas_pagas,
+            'total_contas_fixas_atrasadas': total_contas_fixas_atrasadas,
+            'qtd_contas_fixas_previstas': qtd_contas_fixas_previstas,
+            'qtd_contas_fixas_pagas': qtd_contas_fixas_pagas,
+            'qtd_contas_fixas_atrasadas': qtd_contas_fixas_atrasadas,
              # Dados para o novo gráfico de categorias de receita
             'grafico_cat_rec_labels_json': json.dumps(grafico_cat_rec_labels),
             'grafico_cat_rec_valores_json': json.dumps(grafico_cat_rec_valores),
@@ -487,16 +528,17 @@ def lista_receitas(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
+        igrejas_base = allowed_churches if allowed_churches.exists() else Igreja.objects.filter(ministerio=ministerio)
         # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
         if request.igreja_ativa:
             # Se uma igreja ativa está selecionada, filtra por ela (garantindo que ela está entre as permitidas)
-            if request.igreja_ativa in allowed_churches: 
+            if request.igreja_ativa in igrejas_base:
                 receitas_qs = Receitas.objects.filter(igreja=request.igreja_ativa).select_related('igreja', 'membro').order_by('-data')
             else: # Segurança: se a igreja ativa não for permitida, mostra vazio ou todas permitidas
-                receitas_qs = Receitas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'membro').order_by('-data')
+                receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro').order_by('-data')
         else:
             # Se nenhuma igreja ativa, mostra de todas as igrejas permitidas
-            receitas_qs = Receitas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'membro').order_by('-data')
+            receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro').order_by('-data')
         # --- Fim Lógica de Filtragem Inicial ---
 
 
@@ -523,6 +565,10 @@ def lista_receitas(request): # noqa: E302
                 if is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists():
                     receitas_qs = receitas_qs.filter(igreja_id=igreja_id_get)
 
+
+        # Base para indicadores antes do filtro final de status (aberto/fechado/todos)
+        receitas_base_periodo = receitas_qs
+
         # --- LÓGICA DO FILTRO 'fechado' ---
         fechado_filter = request.GET.get('fechado', 'false')
 
@@ -531,8 +577,24 @@ def lista_receitas(request): # noqa: E302
             receitas_qs = receitas_qs.filter(fechado=True)
         elif fechado_filter == 'false': # Inclui o default
             receitas_qs = receitas_qs.filter(fechado=False)
+
+        # --- RESUMOS DE DÍZIMOS E OFERTAS (DINHEIRO, PIX, TOTAL) ---
+        from decimal import Decimal
+        # Dízimos
+        dizimos_dinheiro = receitas_qs.filter(categoria='dizimo', forma_pgto__in=['DIN', 'Dinheiro']).aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        dizimos_pix = receitas_qs.filter(categoria='dizimo', forma_pgto__in=['PIX', 'Pix', 'pix']).aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        dizimos_total = receitas_qs.filter(categoria='dizimo').aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        # Ofertas
+        ofertas_dinheiro = receitas_qs.filter(categoria='oferta', forma_pgto__in=['DIN', 'Dinheiro']).aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        ofertas_pix = receitas_qs.filter(categoria='oferta', forma_pgto__in=['PIX', 'Pix', 'pix']).aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        ofertas_total = receitas_qs.filter(categoria='oferta').aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
         # Se você adicionar uma opção 'todos' com value='', pode adicionar um 'elif fechado_filter == "":' aqui
         # --- FIM DA LÓGICA DO FILTRO 'fechado' ---
+
+        resumo_total_periodo = receitas_base_periodo.aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        resumo_total_aberto = receitas_base_periodo.filter(fechado=False).aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        resumo_quantidade_periodo = receitas_base_periodo.count()
+        resumo_ticket_medio = (resumo_total_periodo / resumo_quantidade_periodo) if resumo_quantidade_periodo else Decimal('0.00')
 
         sort_map = {
             'data': 'data',
@@ -552,7 +614,7 @@ def lista_receitas(request): # noqa: E302
 
         categorias_choices = Receitas.CATEGORIA_CHOICES
         # --- Lógica para o dropdown de filtro de igreja no template ---
-        igrejas_para_filtro_template = allowed_churches
+        igrejas_para_filtro_template = igrejas_base
         igreja_id_selecionada_template = igreja_id_get # Para o select do filtro da página
 
         if request.igreja_ativa:
@@ -563,6 +625,12 @@ def lista_receitas(request): # noqa: E302
         can_edit = has_finance_edit_permission(request.user)
         query_params = request.GET.copy()
         query_params.pop('sort', None)
+
+        # --- FILTRO DE CONTAS BANCÁRIAS (respeitando a igreja ativa) ---
+        if request.igreja_ativa and request.igreja_ativa in igrejas_base:
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja=request.igreja_ativa).order_by('nome_identificacao')
+        else:
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja__in=igrejas_base).order_by('igreja__nome_igreja', 'nome_identificacao')
 
         context = {
             'receitas': receitas_qs,
@@ -576,9 +644,20 @@ def lista_receitas(request): # noqa: E302
             # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta no filtro da página
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
-            'contas_bancarias_painel': ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao'),
+            'contas_bancarias_painel': contas_bancarias_dropdown,
             'sort_atual': sort if sort in sort_map else '-data',
             'querystring_without_sort': query_params.urlencode(),
+            'resumo_total_periodo': resumo_total_periodo,
+            'resumo_total_aberto': resumo_total_aberto,
+            'resumo_ticket_medio': resumo_ticket_medio,
+            'resumo_quantidade_periodo': resumo_quantidade_periodo,
+            # Novos cards de resumo
+            'dizimos_dinheiro': dizimos_dinheiro,
+            'dizimos_pix': dizimos_pix,
+            'dizimos_total': dizimos_total,
+            'ofertas_dinheiro': ofertas_dinheiro,
+            'ofertas_pix': ofertas_pix,
+            'ofertas_total': ofertas_total,
         }
         return render(request, 'financeiro/receitas/lista_receitas.html', context)
     except Exception as e:
@@ -587,27 +666,300 @@ def lista_receitas(request): # noqa: E302
         return redirect('financeiro:painel_financeiro')
 
 
+@page_access_required('financeiro')
+def conciliacao_ofx(request):
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    score_minimo_atual = 90
+
+    importacoes = ImportacaoExtratoOFX.objects.select_related('igreja', 'conta_bancaria', 'usuario')
+    if allowed_churches.exists():
+        importacoes = importacoes.filter(igreja__in=allowed_churches)
+    else:
+        importacoes = importacoes.filter(igreja__ministerio=ministerio)
+    importacoes = importacoes.order_by('-importado_em')
+
+    importacao_id = request.GET.get('importacao')
+    importacao = None
+    sugestoes = []
+    conciliados = []
+    receitas_manuais = []
+    despesas_manuais = []
+    previsao_lote = None
+    can_edit = has_finance_edit_permission(request.user)
+
+    if request.method == 'POST':
+        if not can_edit:
+            messages.error(request, 'Você não tem permissão para confirmar conciliações.')
+            return redirect('financeiro:conciliacao_ofx')
+
+        lancamento_id = request.POST.get('lancamento_id')
+        acao = request.POST.get('acao', 'confirmar')
+        tipo = request.POST.get('tipo')
+        referencia_id = request.POST.get('referencia_id')
+        importacao_id_post = request.POST.get('importacao_id')
+        score_minimo_post = request.POST.get('score_minimo', '90')
+        try:
+            score_minimo_atual = int(score_minimo_post)
+        except (TypeError, ValueError):
+            score_minimo_atual = 90
+        score_minimo_atual = max(0, min(score_minimo_atual, 200))
+        redirect_url = reverse('financeiro:conciliacao_ofx')
+        if importacao_id_post:
+            redirect_url = f"{redirect_url}?importacao={importacao_id_post}"
+
+        try:
+            service = OFXImportService()
+            importacao_alvo = None
+            if acao in {'conciliar_melhores', 'previsualizar_melhores', 'exportar_previsao_csv', 'exportar_previsao_xlsx'}:
+                importacoes_para_lote = ImportacaoExtratoOFX.objects.filter(pk=importacao_id_post)
+                if allowed_churches.exists():
+                    importacoes_para_lote = importacoes_para_lote.filter(igreja__in=allowed_churches)
+                else:
+                    importacoes_para_lote = importacoes_para_lote.filter(igreja__ministerio=ministerio)
+                importacao_alvo = get_object_or_404(importacoes_para_lote)
+
+            if acao == 'desfazer':
+                service.desfazer_conciliacao(lancamento_id=lancamento_id)
+                messages.success(request, 'Conciliação desfeita com sucesso.')
+                return redirect(redirect_url)
+            elif acao == 'conciliar_melhores':
+                resumo = service.conciliar_melhores_sugestoes(
+                    importacao=importacao_alvo,
+                    usuario=request.user,
+                    score_minimo=score_minimo_atual,
+                )
+                messages.success(
+                    request,
+                    (
+                        f"Conciliação em lote (score >= {score_minimo_atual}) concluída: {resumo['total_conciliados']} conciliado(s), "
+                        f"{resumo['total_ignorados_score']} ignorado(s) por score e "
+                        f"{resumo['total_erros']} com erro."
+                    )
+                )
+                return redirect(redirect_url)
+            elif acao == 'previsualizar_melhores':
+                previsao_lote = service.conciliar_melhores_sugestoes(
+                    importacao=importacao_alvo,
+                    usuario=request.user,
+                    score_minimo=score_minimo_atual,
+                    dry_run=True,
+                )
+                importacao_id = str(importacao_alvo.id)
+                messages.info(
+                    request,
+                    (
+                        f"Pré-visualização pronta: {previsao_lote['total_conciliados']} item(ns) elegível(is) para lote "
+                        f"com score >= {score_minimo_atual}."
+                    )
+                )
+            elif acao == 'exportar_previsao_csv':
+                previsao_csv = service.conciliar_melhores_sugestoes(
+                    importacao=importacao_alvo,
+                    usuario=request.user,
+                    score_minimo=score_minimo_atual,
+                    dry_run=True,
+                )
+
+                response = HttpResponse(content_type='text/csv; charset=utf-8')
+                nome_arquivo = f"previsao_conciliacao_ofx_{importacao_alvo.id}_score_{score_minimo_atual}.csv"
+                response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+
+                writer = csv.writer(response)
+                writer.writerow([
+                    'lancamento_id_ofx',
+                    'fit_id',
+                    'tipo_ofx',
+                    'data_ofx',
+                    'valor_ofx',
+                    'memo',
+                    'tipo_referencia',
+                    'referencia_id',
+                    'data_referencia',
+                    'valor_referencia',
+                    'score',
+                ])
+
+                for item_csv in previsao_csv.get('itens_selecionados', []):
+                    data_ofx = item_csv.get('data_ofx')
+                    data_ref = item_csv.get('data_referencia')
+                    writer.writerow([
+                        item_csv.get('lancamento_id'),
+                        item_csv.get('fit_id') or '',
+                        item_csv.get('tipo_ofx') or '',
+                        data_ofx.strftime('%d/%m/%Y %H:%M') if data_ofx else '',
+                        f"{abs(Decimal(item_csv.get('valor_ofx') or 0)):.2f}",
+                        item_csv.get('memo') or '',
+                        item_csv.get('tipo_referencia') or '',
+                        item_csv.get('referencia_id') or '',
+                        data_ref.strftime('%d/%m/%Y') if data_ref else '',
+                        f"{abs(Decimal(item_csv.get('valor_referencia') or 0)):.2f}",
+                        item_csv.get('score') or 0,
+                    ])
+
+                resumo = previsao_csv.get('resumo_impacto', {})
+                writer.writerow([])
+                writer.writerow(['resumo'])
+                writer.writerow(['score_minimo', score_minimo_atual])
+                writer.writerow(['elegiveis', previsao_csv.get('total_conciliados', 0)])
+                writer.writerow(['ignorados_score', previsao_csv.get('total_ignorados_score', 0)])
+                writer.writerow(['erros_estimados', previsao_csv.get('total_erros', 0)])
+                writer.writerow(['quantidade_entradas', resumo.get('quantidade_entradas', 0)])
+                writer.writerow(['quantidade_saidas', resumo.get('quantidade_saidas', 0)])
+                writer.writerow(['total_entradas', f"{Decimal(resumo.get('total_entradas', 0)):.2f}"])
+                writer.writerow(['total_saidas', f"{Decimal(resumo.get('total_saidas', 0)):.2f}"])
+                writer.writerow(['total_movimentado', f"{Decimal(resumo.get('total_movimentado', 0)):.2f}"])
+                writer.writerow(['saldo_previsto', f"{Decimal(resumo.get('saldo_previsto', 0)):.2f}"])
+
+                return response
+            elif acao == 'exportar_previsao_xlsx':
+                previsao_xlsx = service.conciliar_melhores_sugestoes(
+                    importacao=importacao_alvo,
+                    usuario=request.user,
+                    score_minimo=score_minimo_atual,
+                    dry_run=True,
+                )
+
+                wb = Workbook()
+                ws = wb.active
+                ws.title = 'Previsao OFX'
+
+                headers = [
+                    'lancamento_id_ofx',
+                    'fit_id',
+                    'tipo_ofx',
+                    'data_ofx',
+                    'valor_ofx',
+                    'memo',
+                    'tipo_referencia',
+                    'referencia_id',
+                    'data_referencia',
+                    'valor_referencia',
+                    'score',
+                ]
+                ws.append(headers)
+
+                for item_xlsx in previsao_xlsx.get('itens_selecionados', []):
+                    data_ofx = item_xlsx.get('data_ofx')
+                    data_ref = item_xlsx.get('data_referencia')
+                    ws.append([
+                        item_xlsx.get('lancamento_id'),
+                        item_xlsx.get('fit_id') or '',
+                        item_xlsx.get('tipo_ofx') or '',
+                        data_ofx.strftime('%d/%m/%Y %H:%M') if data_ofx else '',
+                        float(abs(Decimal(item_xlsx.get('valor_ofx') or 0))),
+                        item_xlsx.get('memo') or '',
+                        item_xlsx.get('tipo_referencia') or '',
+                        item_xlsx.get('referencia_id') or '',
+                        data_ref.strftime('%d/%m/%Y') if data_ref else '',
+                        float(abs(Decimal(item_xlsx.get('valor_referencia') or 0))),
+                        item_xlsx.get('score') or 0,
+                    ])
+
+                ws.append([])
+                ws.append(['resumo'])
+                resumo = previsao_xlsx.get('resumo_impacto', {})
+                ws.append(['score_minimo', score_minimo_atual])
+                ws.append(['elegiveis', previsao_xlsx.get('total_conciliados', 0)])
+                ws.append(['ignorados_score', previsao_xlsx.get('total_ignorados_score', 0)])
+                ws.append(['erros_estimados', previsao_xlsx.get('total_erros', 0)])
+                ws.append(['quantidade_entradas', resumo.get('quantidade_entradas', 0)])
+                ws.append(['quantidade_saidas', resumo.get('quantidade_saidas', 0)])
+                ws.append(['total_entradas', float(Decimal(resumo.get('total_entradas', 0)))])
+                ws.append(['total_saidas', float(Decimal(resumo.get('total_saidas', 0)))])
+                ws.append(['total_movimentado', float(Decimal(resumo.get('total_movimentado', 0)))])
+                ws.append(['saldo_previsto', float(Decimal(resumo.get('saldo_previsto', 0)))])
+
+                response = HttpResponse(
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                nome_arquivo = f"previsao_conciliacao_ofx_{importacao_alvo.id}_score_{score_minimo_atual}.xlsx"
+                response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+                wb.save(response)
+                return response
+            else:
+                service.confirmar_conciliacao(
+                    lancamento_id=lancamento_id,
+                    tipo=tipo,
+                    referencia_id=referencia_id,
+                    usuario=request.user,
+                )
+                messages.success(request, 'Conciliação confirmada com sucesso.')
+                return redirect(redirect_url)
+        except Exception as exc:
+            messages.error(request, f'Não foi possível processar a conciliação: {exc}')
+            if acao != 'previsualizar_melhores':
+                return redirect(redirect_url)
+
+    if importacao_id:
+        importacao = get_object_or_404(importacoes, pk=importacao_id)
+        sugestoes = OFXImportService().gerar_sugestoes_conciliacao(importacao)
+        conciliados = (
+            importacao.lancamentos
+            .filter(conciliado=True)
+            .order_by('-conciliado_em', '-id')
+        )
+        receitas_manuais = (
+            Receitas.objects
+            .filter(igreja=importacao.igreja)
+            .order_by('-data', '-id')[:200]
+        )
+        despesas_manuais = (
+            Despesas.objects
+            .filter(igreja=importacao.igreja)
+            .order_by('-data', '-id')[:200]
+        )
+
+    context = {
+        'ministerio': ministerio,
+        'importacoes': importacoes,
+        'importacao': importacao,
+        'sugestoes': sugestoes,
+        'conciliados': conciliados,
+        'receitas_manuais': receitas_manuais,
+        'despesas_manuais': despesas_manuais,
+        'previsao_lote': previsao_lote,
+        'score_minimo_atual': score_minimo_atual,
+        'can_edit_finance': can_edit,
+    }
+    return render(request, 'financeiro/ofx/conciliacao_ofx.html', context)
+
+
 
 @page_access_required('financeiro')
 def cadastrar_receita(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
+    is_admin = is_admin_org(request.user)
 
     # Se não for admin e não tiver igrejas permitidas, não pode criar
-    if not is_admin_org(request.user) and not allowed_churches.exists():
+    if not is_admin and not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar receitas ou não está associado a nenhuma igreja específica.")
         return redirect('financeiro:lista_receitas')
 
+    # A igreja do lançamento deve vir do seletor global (igreja ativa).
+    if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
+        igreja_padrao_para_form = request.igreja_ativa
+    elif not is_admin and allowed_churches.count() == 1:
+        igreja_padrao_para_form = allowed_churches.first()
+
+    if igreja_padrao_para_form is None:
+        messages.error(request, "Selecione uma igreja no seletor global antes de cadastrar a receita.")
+        return redirect('financeiro:lista_receitas')
+
     if request.method == 'POST':
+        post_data = request.POST.copy()
+        post_data['igreja'] = str(igreja_padrao_para_form.pk)
         # Passa ministério para o form filtrar igrejas e membros (se necessário)
         # Passa allowed_churches para o form filtrar o campo igreja
-        form = ReceitaForm(request.POST, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
+        form = ReceitaForm(post_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
         if form.is_valid():
             try:
                 nova_receita = form.save(commit=False)
+                nova_receita.igreja = igreja_padrao_para_form
                 # Validação extra (form já deve ter validado, mas é bom garantir)
-                if not is_admin_org(request.user) and nova_receita.igreja not in allowed_churches:
+                if not is_admin and not allowed_churches.filter(pk=nova_receita.igreja_id).exists():
                     messages.error(request, "Erro: Igreja selecionada inválida.")
                 # Validar membro (se selecionado) - form já deve filtrar
                 elif nova_receita.membro and nova_receita.membro.igreja.ministerio != ministerio:
@@ -622,23 +974,22 @@ def cadastrar_receita(request): # noqa: E302
                 messages.error(request, f'Erro ao salvar receita: {e}')
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
-        context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Cadastrar Receita'}
+        context = {
+            'form': form,
+            'ministerio': ministerio,
+            'titulo_pagina': 'Cadastrar Receita',
+            'ocultar_campo_igreja': True,
+        }
         return render(request, 'financeiro/receitas/form_receita.html', context)
     else:
-        initial_form_data = {} # Dicionário para passar valores iniciais
-        # --- Lógica para pré-selecionar a igreja no formulário GET ---
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
-            # Se uma igreja ativa está selecionada e é permitida, pré-seleciona ela
-            initial_form_data['igreja'] = request.igreja_ativa
-            igreja_padrao_para_form = request.igreja_ativa # Passa para o form usar a conta padrão
-        elif allowed_churches.count() == 1:
-            # Se nenhuma igreja ativa, mas o usuário só tem uma permitida, pré-seleciona essa
-            igreja_unica_permitida = allowed_churches.first()
-            initial_form_data['igreja'] = igreja_unica_permitida
-            igreja_padrao_para_form = igreja_unica_permitida # Passa para o form usar a conta padrão
-        # Se múltiplas igrejas permitidas e nenhuma ativa, o campo igreja ficará vazio (usuário seleciona)
+        initial_form_data = {'igreja': igreja_padrao_para_form}
         form = ReceitaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
-        context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Cadastrar Receita'}
+        context = {
+            'form': form,
+            'ministerio': ministerio,
+            'titulo_pagina': 'Cadastrar Receita',
+            'ocultar_campo_igreja': True,
+        }
         # Usar um template genérico ou específico
         return render(request, 'financeiro/receitas/form_receita.html', context)
 
@@ -778,11 +1129,32 @@ def lista_despesas(request): # noqa: E302
         despesas_qs = despesas_qs.order_by(order_by, '-id')
 
         categorias_org = CategoriaDespesa.objects.filter(ministerio=ministerio)
+        # --- RESUMOS GERAIS DE DESPESAS ---
+        from decimal import Decimal
+        despesas_base_filtradas = despesas_qs
+        resumo_total_periodo = despesas_base_filtradas.aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        resumo_total_aberto = despesas_base_filtradas.filter(fechado=False).aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
+        resumo_quantidade_periodo = despesas_base_filtradas.count()
+        resumo_ticket_medio = (resumo_total_periodo / resumo_quantidade_periodo) if resumo_quantidade_periodo else Decimal('0.00')
+
+        # --- RESUMOS POR CATEGORIA DE DESPESA ---
+        despesas_por_categoria = despesas_qs.values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
+        resumos_categoria = {}
+        for item in despesas_por_categoria:
+            categoria_nome = item['categoria__nome'] if item['categoria__nome'] else 'Sem Categoria'
+            resumos_categoria[categoria_nome] = item['total'] or Decimal('0.00')
+
         # --- Lógica para o dropdown de filtro de igreja no template ---        
         igrejas_para_filtro_template = allowed_churches
         igreja_id_selecionada_template = igreja_id_get # Para o select do filtro da página
         if request.igreja_ativa: igrejas_para_filtro_template = Igreja.objects.filter(pk=request.igreja_ativa.pk) # Ou desabilitar o filtro
         if request.igreja_ativa: igreja_id_selecionada_template = str(request.igreja_ativa.pk)
+
+        # --- FILTRO DE CONTAS BANCÁRIAS (respeitando a igreja ativa) ---
+        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja=request.igreja_ativa).order_by('nome_identificacao')
+        else:
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao')
 
         # Permissão de edição para o template
         can_edit = has_finance_edit_permission(request.user)
@@ -801,9 +1173,15 @@ def lista_despesas(request): # noqa: E302
             # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
-            'contas_bancarias_painel': ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao'),
+            'contas_bancarias_painel': contas_bancarias_dropdown,
             'sort_atual': sort if sort in sort_map else '-data',
             'querystring_without_sort': query_params.urlencode(),
+            # Novos resumos
+            'resumo_total_periodo': resumo_total_periodo,
+            'resumo_total_aberto': resumo_total_aberto,
+            'resumo_ticket_medio': resumo_ticket_medio,
+            'resumo_quantidade_periodo': resumo_quantidade_periodo,
+            'resumos_categoria': resumos_categoria,
         }
         return render(request, 'financeiro/despesas/lista_despesas.html', context)
     except Exception as e:
@@ -817,18 +1195,31 @@ def cadastrar_despesa(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
+    is_admin = is_admin_org(request.user)
 
     # Se não for admin e não tiver igrejas permitidas, não pode criar
-    if not is_admin_org(request.user) and not allowed_churches.exists():
+    if not is_admin and not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar despesas ou não está associado a nenhuma igreja específica.")
         return redirect('financeiro:lista_despesas')
 
+    if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
+        igreja_padrao_para_form = request.igreja_ativa
+    elif not is_admin and allowed_churches.count() == 1:
+        igreja_padrao_para_form = allowed_churches.first()
+
+    if igreja_padrao_para_form is None:
+        messages.error(request, "Selecione uma igreja no seletor global antes de cadastrar a despesa.")
+        return redirect('financeiro:lista_despesas')
+
     if request.method == 'POST':
-        form = DespesaForm(request.POST, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=request.igreja_ativa) # Passa request.igreja_ativa
+        post_data = request.POST.copy()
+        post_data['igreja'] = str(igreja_padrao_para_form.pk)
+        form = DespesaForm(post_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
         if form.is_valid():
             try:
                 nova_despesa = form.save(commit=False)
-                if not is_admin_org(request.user) and nova_despesa.igreja not in allowed_churches: messages.error(request, "Erro: Igreja inválida.")
+                nova_despesa.igreja = igreja_padrao_para_form
+                if not is_admin and not allowed_churches.filter(pk=nova_despesa.igreja_id).exists(): messages.error(request, "Erro: Igreja inválida.")
                 elif nova_despesa.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
@@ -847,25 +1238,15 @@ def cadastrar_despesa(request): # noqa: E302
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
       
-        initial_form_data = {} # Dicionário para passar valores iniciais
-        
-        # --- Lógica para pré-selecionar a igreja no formulário GET ---
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
-            # Se uma igreja ativa está selecionada e é permitida, pré-seleciona ela
-            initial_form_data['igreja'] = request.igreja_ativa
-            igreja_padrao_para_form = request.igreja_ativa # Passa para o form usar a conta padrão
-        elif allowed_churches.count() == 1:
-            # Se nenhuma igreja ativa, mas o usuário só tem uma permitida, pré-seleciona essa
-            igreja_unica_permitida = allowed_churches.first()
-            initial_form_data['igreja'] = igreja_unica_permitida
-            igreja_padrao_para_form = igreja_unica_permitida # Passa para o form usar a conta padrão
-        # Se múltiplas igrejas permitidas e nenhuma ativa, o campo igreja ficará vazio (usuário seleciona)
-
-
-
+        initial_form_data = {'igreja': igreja_padrao_para_form}
         form = DespesaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
 
-    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Cadastrar Despesa'}
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': 'Cadastrar Despesa',
+        'ocultar_campo_igreja': True,
+    }
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
@@ -967,20 +1348,59 @@ def lista_contas_bancarias(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
-        # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
-            contas_bancarias = ContaBancaria.objects.filter(igreja=request.igreja_ativa).select_related('igreja').order_by('nome_identificacao')
-        else: # Se nenhuma igreja ativa, mostra de todas as permitidas
-            contas_bancarias = ContaBancaria.objects.filter(igreja__in=allowed_churches).select_related('igreja').order_by('igreja__nome_igreja', 'nome_identificacao')
+        query = request.GET.get('q', '').strip()
+        tipo_selecionado = request.GET.get('tipo', 'todos')
+
+        contas_base = ContaBancaria.objects.select_related('igreja')
+        if allowed_churches.exists():
+            contas_base = contas_base.filter(igreja__in=allowed_churches)
+        else:
+            contas_base = contas_base.filter(igreja__ministerio=ministerio)
+
+        # --- Lógica para filtrar pela igreja ativa quando disponível ---
+        if allowed_churches.exists() and request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            contas_base = contas_base.filter(igreja=request.igreja_ativa)
         # --- Fim Lógica de Filtragem Inicial ---
 
+        if query:
+            contas_base = contas_base.filter(
+                Q(nome_identificacao__icontains=query)
+                | Q(igreja__nome_igreja__icontains=query)
+                | Q(instituicao_bancaria__icontains=query)
+                | Q(agencia__icontains=query)
+                | Q(conta__icontains=query)
+            )
+
+        if tipo_selecionado in {'bancaria', 'caixa_fisico'}:
+            contas_base = contas_base.filter(tipo=tipo_selecionado)
+        else:
+            tipo_selecionado = 'todos'
+
+        contas_bancarias = contas_base.order_by('igreja__nome_igreja', 'nome_identificacao')
+
         can_edit = has_finance_edit_permission(request.user)
+
+        resumo = contas_base.aggregate(
+            total_saldo_inicial=Sum('saldo_inicial'),
+            total_saldo_atual=Sum('saldo_atual'),
+            quantidade=Count('id'),
+        )
+        resumo_tipos = contas_base.values('tipo').annotate(total=Count('id'))
+        total_bancarias = next((item['total'] for item in resumo_tipos if item['tipo'] == 'bancaria'), 0)
+        total_caixas = next((item['total'] for item in resumo_tipos if item['tipo'] == 'caixa_fisico'), 0)
 
         context = {
             'contas_bancarias': contas_bancarias,
             'ministerio': ministerio,
             'can_edit_finance': can_edit,
-            'titulo_pagina': 'Contas Bancárias/Caixas'
+            'titulo_pagina': 'Contas Bancárias/Caixas',
+            'current_q': query,
+            'current_tipo': tipo_selecionado,
+            'resumo_quantidade': resumo.get('quantidade') or 0,
+            'resumo_total_bancarias': total_bancarias,
+            'resumo_total_caixas': total_caixas,
+            'resumo_saldo_inicial': resumo.get('total_saldo_inicial') or Decimal('0.00'),
+            'resumo_saldo_atual': resumo.get('total_saldo_atual') or Decimal('0.00'),
         }
         return render(request, 'financeiro/contas_bancarias/lista_contas_bancarias.html', context)
     except Exception as e:
@@ -1222,6 +1642,15 @@ def criar_fechamento_caixa(request): # noqa: E302
             total_saidas = despesas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
             saldo_final = total_entradas - total_saidas
 
+            # Resumo de dízimos e ofertas por forma de pagamento (DIN/PIX)
+            dizimos_dinheiro = receitas.filter(categoria='dizimo', forma_pgto='DIN').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            dizimos_pix = receitas.filter(categoria='dizimo', forma_pgto='PIX').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            dizimos_total = dizimos_dinheiro + dizimos_pix
+
+            ofertas_dinheiro = receitas.filter(categoria='oferta', forma_pgto='DIN').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            ofertas_pix = receitas.filter(categoria='oferta', forma_pgto='PIX').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            ofertas_total = ofertas_dinheiro + ofertas_pix
+
             # 5. Preparar contexto para o template de CONFIRMAÇÃO
             context_confirmacao = {
                 'ministerio': ministerio,
@@ -1234,6 +1663,12 @@ def criar_fechamento_caixa(request): # noqa: E302
                 'total_entradas': total_entradas,
                 'total_saidas': total_saidas,
                 'saldo_final': saldo_final,
+                'dizimos_dinheiro': dizimos_dinheiro,
+                'dizimos_pix': dizimos_pix,
+                'dizimos_total': dizimos_total,
+                'ofertas_dinheiro': ofertas_dinheiro,
+                'ofertas_pix': ofertas_pix,
+                'ofertas_total': ofertas_total,
                 'can_edit_finance': has_finance_edit_permission(request.user), # Adicionar esta linha
                 'titulo_pagina': 'Confirmar Fechamento de Caixa'
             }
@@ -1711,6 +2146,9 @@ def lista_contas_pagar(request): # noqa: E302
         venc_fim = request.GET.get('venc_fim', '')
         igreja_id = request.GET.get('igreja', '')
         fornecedor_id_get = request.GET.get('fornecedor', '')
+        tipo_filtro = request.GET.get('tipo', 'TODOS')
+        competencia_filtro = request.GET.get('competencia', '')
+        gerada_auto_filtro = request.GET.get('gerada_auto', 'TODOS')
 
         if query:
             contas_qs = contas_qs.filter(
@@ -1737,6 +2175,19 @@ def lista_contas_pagar(request): # noqa: E302
         if fornecedor_id_get:
             contas_qs = contas_qs.filter(fornecedor_id=fornecedor_id_get)
 
+        if tipo_filtro == 'FIXA':
+            contas_qs = contas_qs.filter(recorrencia_origem__isnull=False)
+        elif tipo_filtro == 'AVULSA':
+            contas_qs = contas_qs.filter(recorrencia_origem__isnull=True)
+
+        if competencia_filtro:
+            contas_qs = contas_qs.filter(competencia=competencia_filtro)
+
+        if gerada_auto_filtro == 'SIM':
+            contas_qs = contas_qs.filter(criado_automaticamente=True)
+        elif gerada_auto_filtro == 'NAO':
+            contas_qs = contas_qs.filter(criado_automaticamente=False)
+
         # Opcional: Atualizar status para VENCIDA (pode impactar performance)
         # hoje = timezone.now().date()
         # ContaPagar.objects.filter(
@@ -1760,6 +2211,12 @@ def lista_contas_pagar(request): # noqa: E302
 
         # Permissão para criar/pagar
         can_edit = has_finance_edit_permission(request.user)
+        can_pay_batch = bool(can_edit and request.igreja_ativa and request.igreja_ativa in allowed_churches)
+        contas_bancarias_lote = ContaBancaria.objects.none()
+        if can_pay_batch:
+            contas_bancarias_lote = ContaBancaria.objects.filter(
+                igreja=request.igreja_ativa
+            ).order_by('nome_identificacao')
 
         context = {
             'contas': contas_qs,
@@ -1774,13 +2231,237 @@ def lista_contas_pagar(request): # noqa: E302
             'current_venc_fim': venc_fim,
             'current_igreja': igreja_id_selecionada_template, # ID para o select do filtro da página
             'current_fornecedor': fornecedor_id_get,
+            'current_tipo': tipo_filtro,
+            'current_competencia': competencia_filtro,
+            'current_gerada_auto': gerada_auto_filtro,
             'can_edit_finance': can_edit,
+            'can_pay_batch': can_pay_batch,
+            'contas_bancarias_lote': contas_bancarias_lote,
+            'forma_pagamento_choices': ContaPagar.FORMA_PAGAMENTO_CHOICES,
+            'data_pagamento_lote_padrao': now().date().isoformat(),
         }
         return render(request, 'financeiro/contas_pagar/lista_contas_pagar.html', context)
     except Exception as e:
         logger.exception(f"Erro ao listar contas a pagar para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar as contas a pagar: {e}")
         return redirect('financeiro:painel_financeiro')
+
+
+@page_access_required('financeiro')
+def gerar_despesas_fixas_mes(request):
+    """Executa manualmente a geração de contas fixas para a competência atual."""
+    if request.method != 'POST':
+        messages.error(request, 'Ação inválida (requer POST).')
+        return redirect('financeiro:lista_contas_pagar')
+
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para gerar despesas fixas manualmente.')
+
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+
+    igreja_id = None
+    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        igreja_id = request.igreja_ativa.id
+    elif allowed_churches.count() == 1:
+        igreja_id = allowed_churches.first().id
+    else:
+        messages.warning(
+            request,
+            'Selecione uma igreja ativa antes de gerar despesas fixas manualmente.',
+        )
+        return redirect('financeiro:lista_contas_pagar')
+
+    service = RecorrenciaContaPagarService()
+    resultado = service.gerar_competencia(
+        ministerio_id=ministerio.id,
+        igreja_id=igreja_id,
+        dry_run=False,
+    )
+
+    if resultado.get('total_erros', 0):
+        messages.warning(
+            request,
+            (
+                f"Geração concluída com alertas. Competência {resultado['competencia']}: "
+                f"geradas={resultado['total_geradas']}, existentes={resultado['total_existentes']}, "
+                f"ignoradas={resultado['total_ignoradas']}, erros={resultado['total_erros']}."
+            ),
+        )
+    else:
+        messages.success(
+            request,
+            (
+                f"Geração concluída. Competência {resultado['competencia']}: "
+                f"geradas={resultado['total_geradas']}, existentes={resultado['total_existentes']}, "
+                f"ignoradas={resultado['total_ignoradas']}."
+            ),
+        )
+
+    return redirect('financeiro:lista_contas_pagar')
+
+
+@page_access_required('financeiro')
+def lista_recorrencias_contas_pagar(request):
+    """Lista templates de despesas fixas com filtros básicos."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    igreja_id = request.GET.get('igreja', '')
+    ativo = request.GET.get('ativo', 'SIM')
+
+    recorrencias = RecorrenciaContaPagar.objects.filter(
+        ministerio=ministerio,
+        igreja__in=allowed_churches,
+    ).select_related('igreja', 'fornecedor', 'categoria', 'conta_debito_padrao').order_by(
+        'igreja__nome_igreja', 'descricao'
+    )
+
+    if igreja_id:
+        recorrencias = recorrencias.filter(igreja_id=igreja_id)
+    if ativo == 'SIM':
+        recorrencias = recorrencias.filter(ativo=True)
+    elif ativo == 'NAO':
+        recorrencias = recorrencias.filter(ativo=False)
+
+    context = {
+        'ministerio': ministerio,
+        'recorrencias': recorrencias,
+        'igrejas_org': allowed_churches,
+        'current_igreja': igreja_id,
+        'current_ativo': ativo,
+        'can_edit_finance': has_finance_edit_permission(request.user),
+    }
+    return render(request, 'financeiro/recorrencias_contas_pagar/lista_recorrencias.html', context)
+
+
+@page_access_required('financeiro')
+def criar_recorrencia_conta_pagar(request):
+    """Cria um template de despesa fixa recorrente."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para criar recorrências.')
+
+    if not request.igreja_ativa or request.igreja_ativa not in allowed_churches:
+        messages.warning(request, 'Selecione uma igreja ativa para cadastrar despesa fixa.')
+        return redirect('financeiro:lista_recorrencias_contas_pagar')
+
+    if request.method == 'POST':
+        form = RecorrenciaContaPagarForm(
+            request.POST,
+            ministerio=ministerio,
+            user=request.user,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=request.igreja_ativa,
+        )
+        if form.is_valid():
+            recorrencia = form.save(commit=False)
+            recorrencia.ministerio = ministerio
+            recorrencia.usuario_criacao = request.user
+            recorrencia.igreja = request.igreja_ativa
+            recorrencia.save()
+            messages.success(request, 'Recorrência de conta a pagar criada com sucesso!')
+            return redirect('financeiro:lista_recorrencias_contas_pagar')
+        messages.error(request, 'Formulário inválido. Verifique os campos.')
+    else:
+        form = RecorrenciaContaPagarForm(
+            ministerio=ministerio,
+            user=request.user,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=request.igreja_ativa,
+        )
+
+    return render(
+        request,
+        'financeiro/recorrencias_contas_pagar/form_recorrencia.html',
+        {
+            'form': form,
+            'ministerio': ministerio,
+            'titulo_pagina': 'Nova Recorrência de Despesa Fixa',
+            'ocultar_campo_igreja': True,
+        },
+    )
+
+
+@page_access_required('financeiro')
+def editar_recorrencia_conta_pagar(request, pk):
+    """Edita um template de despesa fixa recorrente."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para editar recorrências.')
+    if not request.igreja_ativa or request.igreja_ativa not in allowed_churches:
+        messages.warning(request, 'Selecione uma igreja ativa para editar despesa fixa.')
+        return redirect('financeiro:lista_recorrencias_contas_pagar')
+
+    recorrencia = get_object_or_404(
+        RecorrenciaContaPagar,
+        pk=pk,
+        ministerio=ministerio,
+        igreja=request.igreja_ativa,
+    )
+
+    if request.method == 'POST':
+        form = RecorrenciaContaPagarForm(
+            request.POST,
+            instance=recorrencia,
+            ministerio=ministerio,
+            user=request.user,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=request.igreja_ativa,
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Recorrência atualizada com sucesso!')
+            return redirect('financeiro:lista_recorrencias_contas_pagar')
+        messages.error(request, 'Formulário inválido. Verifique os campos.')
+    else:
+        form = RecorrenciaContaPagarForm(
+            instance=recorrencia,
+            ministerio=ministerio,
+            user=request.user,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=request.igreja_ativa,
+        )
+
+    return render(
+        request,
+        'financeiro/recorrencias_contas_pagar/form_recorrencia.html',
+        {
+            'form': form,
+            'ministerio': ministerio,
+            'recorrencia': recorrencia,
+            'titulo_pagina': f'Editar Recorrência: {recorrencia.descricao}',
+            'ocultar_campo_igreja': True,
+        },
+    )
+
+
+@page_access_required('financeiro')
+def alternar_status_recorrencia_conta_pagar(request, pk):
+    """Alterna status ativo/inativo da recorrência (POST)."""
+    if request.method != 'POST':
+        messages.error(request, 'Ação inválida (requer POST).')
+        return redirect('financeiro:lista_recorrencias_contas_pagar')
+
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para alterar status de recorrências.')
+
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    recorrencia = get_object_or_404(
+        RecorrenciaContaPagar,
+        pk=pk,
+        ministerio=ministerio,
+        igreja__in=allowed_churches,
+    )
+
+    recorrencia.ativo = not recorrencia.ativo
+    recorrencia.save(update_fields=['ativo', 'data_atualizacao'])
+    messages.success(request, f'Recorrência "{recorrencia.descricao}" atualizada com sucesso.')
+    return redirect('financeiro:lista_recorrencias_contas_pagar')
 
 @page_access_required('financeiro')
 def criar_conta_pagar(request): # noqa: E302
@@ -1883,30 +2564,7 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
                     # O form já define o status para 'PAG' no seu método save
                     conta_paga.save()
 
-                    # --- CRIAR A DESPESA CORRESPONDENTE ---
-                    if conta_paga.status == 'PAG' and conta_paga.valor_pago is not None:
-                        valor_efetivo_despesa = conta_paga.valor_pago
-                        if conta_paga.juros_multa:
-                            valor_efetivo_despesa += conta_paga.juros_multa
-                        if conta_paga.desconto:
-                            valor_efetivo_despesa -= conta_paga.desconto
-
-                        Despesas.objects.create(
-                            igreja=conta_paga.igreja,
-                            data=conta_paga.data_pagamento,
-                            descricao=f"Pagamento: {conta_paga.descricao}",
-                            valor=valor_efetivo_despesa,
-                            categoria=conta_paga.categoria, # Usa a mesma categoria da ContaPagar
-                            observacao=f"Pagamento referente à conta a pagar ID {conta_paga.pk}. {conta_paga.observacoes or ''}".strip(),
-                            fechado=False, # Despesa começa aberta
-                            conta_bancaria=conta_paga.conta_debito,
-                            origem_conta_pagar=conta_paga, # Vincula à ContaPagar
-                            usuario_registro_pagamento=request.user # Usuário que registrou o pagamento
-                        )
-                        logger.info(f"Despesa criada automaticamente para a ContaPagar ID {conta_paga.pk}.")
-
-                        # A ATUALIZAÇÃO DO SALDO DA CONTA BANCÁRIA É FEITA PELO MÉTODO SAVE DA DESPESA.
-                     # --- FIM CRIAR DESPESA CORRESPONDENTE ---
+                    _criar_despesa_por_conta_paga(conta_paga, request.user)
     
 
                     messages.success(request, f"Pagamento da conta '{conta.descricao}' registrado com sucesso!")
@@ -1936,6 +2594,133 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
         'titulo_pagina': f"Registrar Pagamento: {conta.descricao}"
     }
     return render(request, 'financeiro/contas_pagar/form_registrar_pagamento.html', context)
+
+
+def _criar_despesa_por_conta_paga(conta_paga, user):
+    """Cria a despesa espelho para uma conta já marcada como paga."""
+    if conta_paga.status != 'PAG' or conta_paga.valor_pago is None:
+        return
+
+    valor_efetivo_despesa = conta_paga.valor_pago
+    if conta_paga.juros_multa:
+        valor_efetivo_despesa += conta_paga.juros_multa
+    if conta_paga.desconto:
+        valor_efetivo_despesa -= conta_paga.desconto
+
+    Despesas.objects.create(
+        igreja=conta_paga.igreja,
+        data=conta_paga.data_pagamento,
+        descricao=f"Pagamento: {conta_paga.descricao}",
+        valor=valor_efetivo_despesa,
+        categoria=conta_paga.categoria,
+        observacao=f"Pagamento referente à conta a pagar ID {conta_paga.pk}. {conta_paga.observacoes or ''}".strip(),
+        fechado=False,
+        conta_bancaria=conta_paga.conta_debito,
+        origem_conta_pagar=conta_paga,
+        usuario_registro_pagamento=user,
+    )
+    logger.info(f"Despesa criada automaticamente para a ContaPagar ID {conta_paga.pk}.")
+
+
+@page_access_required('financeiro')
+def registrar_pagamento_lote_contas_pagar(request):
+    """Registra o pagamento em lote de contas pendentes/vencidas da igreja ativa."""
+    if request.method != 'POST':
+        messages.error(request, 'Ação inválida (requer POST).')
+        return redirect('financeiro:lista_contas_pagar')
+
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para registrar pagamentos em lote.')
+
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+
+    if not request.igreja_ativa or request.igreja_ativa not in allowed_churches:
+        messages.warning(request, 'Selecione uma igreja ativa para realizar pagamento em lote.')
+        return redirect('financeiro:lista_contas_pagar')
+
+    contas_ids_raw = request.POST.getlist('conta_ids')
+    if not contas_ids_raw:
+        messages.warning(request, 'Selecione ao menos uma conta para pagamento em lote.')
+        return redirect('financeiro:lista_contas_pagar')
+
+    try:
+        contas_ids = list({int(conta_id) for conta_id in contas_ids_raw})
+    except (TypeError, ValueError):
+        messages.error(request, 'Lista de contas inválida para pagamento em lote.')
+        return redirect('financeiro:lista_contas_pagar')
+
+    data_pagamento_raw = request.POST.get('data_pagamento_lote')
+    conta_debito_id = request.POST.get('conta_debito_lote')
+    forma_pagamento = request.POST.get('forma_pagamento_lote')
+
+    if not data_pagamento_raw or not conta_debito_id or not forma_pagamento:
+        messages.error(request, 'Preencha data, conta/caixa de débito e forma de pagamento para o lote.')
+        return redirect('financeiro:lista_contas_pagar')
+
+    try:
+        data_pagamento = datetime.strptime(data_pagamento_raw, '%Y-%m-%d').date()
+    except ValueError:
+        messages.error(request, 'Data de pagamento inválida para o lote.')
+        return redirect('financeiro:lista_contas_pagar')
+
+    if forma_pagamento not in dict(ContaPagar.FORMA_PAGAMENTO_CHOICES):
+        messages.error(request, 'Forma de pagamento inválida para o lote.')
+        return redirect('financeiro:lista_contas_pagar')
+
+    conta_debito = get_object_or_404(
+        ContaBancaria,
+        pk=conta_debito_id,
+        igreja=request.igreja_ativa,
+    )
+
+    contas = ContaPagar.objects.filter(
+        pk__in=contas_ids,
+        ministerio=ministerio,
+        igreja=request.igreja_ativa,
+        status__in=['PEN', 'VEN'],
+    ).select_related('categoria', 'igreja')
+
+    if not contas.exists():
+        messages.warning(request, 'Nenhuma conta elegível para pagamento em lote foi encontrada.')
+        return redirect('financeiro:lista_contas_pagar')
+
+    total_pagamentos = 0
+    total_erros = 0
+
+    for conta in contas:
+        try:
+            with transaction.atomic():
+                conta.data_pagamento = data_pagamento
+                conta.valor_pago = conta.valor
+                conta.juros_multa = Decimal('0.00')
+                conta.desconto = Decimal('0.00')
+                conta.conta_debito = conta_debito
+                conta.forma_pagamento = forma_pagamento
+                conta.status = 'PAG'
+                conta.save()
+
+                _criar_despesa_por_conta_paga(conta, request.user)
+                total_pagamentos += 1
+        except Exception:
+            total_erros += 1
+            logger.exception(
+                f"Erro ao registrar pagamento em lote da conta {conta.pk} para ministério {ministerio.id}"
+            )
+
+    if total_pagamentos:
+        messages.success(
+            request,
+            f'Pagamento em lote concluído: {total_pagamentos} conta(s) paga(s).',
+        )
+
+    if total_erros:
+        messages.warning(
+            request,
+            f'Pagamento em lote finalizado com {total_erros} erro(s). Verifique os logs.',
+        )
+
+    return redirect('financeiro:lista_contas_pagar')
 
 # ==================================================
 # ========= FIM: VIEWS PARA CONTAS A PAGAR =========

@@ -17,6 +17,12 @@
         os saldos das contas/caixas envolvidas. Para corrigir saldos, considere excluir e recriar a receita com os dados corretos
         ou realizar um ajuste manual no saldo da conta/caixa.
     </div>
+    {% if receita.categoria == 'dizimo' or receita.categoria == 'oferta' %}
+    <div class="alert alert-info py-2" role="alert">
+        <i class="fas fa-info-circle me-1"></i>
+        <strong>Regra de preenchimento:</strong> para Dízimo e Oferta, use apenas Dinheiro, PIX ou Cartão de Crédito.
+    </div>
+    {% endif %}
     {% endif %}
 
 
@@ -47,30 +53,40 @@
                 {% endif %}
 
                 <div class="row">
+                    {% if not ocultar_campo_igreja %}
                     <div class="col-md-6 mb-3">
                         <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.igreja }}
                         {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="{{ form.data.id_for_label }}" class="form-label">{{ form.data.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.data }}
                         {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
                     </div>
 
-                     <div class="col-md-6 mb-3">
+                     <div class="col-md-3 mb-3">
                         <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.categoria }}
                         {% if form.categoria.errors %}<div class="invalid-feedback d-block">{{ form.categoria.errors|striptags }}</div>{% endif %}
                     </div>
 
-                     <div class="col-md-6 mb-3">
+                     <div class="col-md-3 mb-3">
+                        <label for="{{ form.forma_pgto.id_for_label }}" class="form-label">{{ form.forma_pgto.label }}:</label>
+                        {# --- SIMPLIFICADO --- #}
+                        {{ form.forma_pgto }}
+                                <small id="forma-pgto-hint" class="text-muted d-block mt-1"></small>
+                        {% if form.forma_pgto.errors %}<div class="invalid-feedback d-block">{{ form.forma_pgto.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                     <div class="col-md-3 mb-3">
                         <label for="{{ form.valor.id_for_label }}" class="form-label">{{ form.valor.label }}:</label>
-                        <div class="input-group">
+                        <div class="input-group input-group-sm">
                              <span class="input-group-text">R$</span>
                              {# --- SIMPLIFICADO --- #}
                             {{ form.valor }}
@@ -83,13 +99,6 @@
                         {# --- SIMPLIFICADO --- #}
                         {{ form.membro }}
                         {% if form.membro.errors %}<div class="invalid-feedback d-block">{{ form.membro.errors|striptags }}</div>{% endif %}
-                    </div>
-
-                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.forma_pgto.id_for_label }}" class="form-label">{{ form.forma_pgto.label }}:</label>
-                        {# --- SIMPLIFICADO --- #}
-                        {{ form.forma_pgto }}
-                        {% if form.forma_pgto.errors %}<div class="invalid-feedback d-block">{{ form.forma_pgto.errors|striptags }}</div>{% endif %}
                     </div>
 
                     <div class="col-md-6 mb-3">
@@ -117,4 +126,58 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoriaEl = document.getElementById('{{ form.categoria.id_for_label }}');
+    const formaPgtoEl = document.getElementById('{{ form.forma_pgto.id_for_label }}');
+    const hintEl = document.getElementById('forma-pgto-hint');
+
+    if (!categoriaEl || !formaPgtoEl) {
+        return;
+    }
+
+    const originalOptions = Array.from(formaPgtoEl.options).map(function(opt) {
+        return { value: opt.value, text: opt.text };
+    });
+
+    const allowedForDizimoOferta = new Set(['DIN', 'PIX', 'CRE']);
+
+    function rebuildFormaPgtoOptions() {
+        const categoria = categoriaEl.value;
+        const isDizimoOferta = categoria === 'dizimo' || categoria === 'oferta';
+        const currentValue = formaPgtoEl.value;
+
+        formaPgtoEl.innerHTML = '';
+
+        originalOptions.forEach(function(opt) {
+            const isEmpty = !opt.value;
+            const allowed = !isDizimoOferta || isEmpty || allowedForDizimoOferta.has(opt.value);
+            if (allowed) {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt.value;
+                optionEl.text = opt.text;
+                formaPgtoEl.appendChild(optionEl);
+            }
+        });
+
+        if (Array.from(formaPgtoEl.options).some(function(opt) { return opt.value === currentValue; })) {
+            formaPgtoEl.value = currentValue;
+        } else if (isDizimoOferta && Array.from(formaPgtoEl.options).some(function(opt) { return opt.value === 'PIX'; })) {
+            formaPgtoEl.value = 'PIX';
+        } else {
+            formaPgtoEl.selectedIndex = 0;
+        }
+
+        if (hintEl) {
+            hintEl.textContent = isDizimoOferta
+                ? 'Para Dízimo/Oferta: Dinheiro, PIX e Cartão de Crédito.'
+                : '';
+        }
+    }
+
+    categoriaEl.addEventListener('change', rebuildFormaPgtoOptions);
+    rebuildFormaPgtoOptions();
+});
+</script>
 {% endblock %}

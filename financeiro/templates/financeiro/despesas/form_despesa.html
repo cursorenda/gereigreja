@@ -38,30 +38,32 @@
                 {% endif %}
 
                 <div class="row">
+                    {% if not ocultar_campo_igreja %}
                     <div class="col-md-6 mb-3">
                         <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.igreja }}
                         {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
                     </div>
+                    {% endif %}
 
-                     <div class="col-md-6 mb-3">
+                     <div class="col-md-3 mb-3">
                         <label for="{{ form.data.id_for_label }}" class="form-label">{{ form.data.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.data }}
                         {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
                     </div>
 
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.categoria }}
                         {% if form.categoria.errors %}<div class="invalid-feedback d-block">{{ form.categoria.errors|striptags }}</div>{% endif %}
                     </div>
 
-                     <div class="col-md-6 mb-3">
+                     <div class="col-md-3 mb-3">
                         <label for="{{ form.valor.id_for_label }}" class="form-label">{{ form.valor.label }}:</label>
-                         <div class="input-group">
+                         <div class="input-group input-group-sm">
                              <span class="input-group-text">R$</span>
                              {# --- SIMPLIFICADO --- #}
                             {{ form.valor }}
@@ -69,24 +71,24 @@
                         </div>
                     </div>
 
-                    <div class="col-md-12 mb-3">
+                    <div class="col-md-3 mb-3">
+                        <label for="{{ form.conta_bancaria.id_for_label }}" class="form-label">{{ form.conta_bancaria.label }}:</label>
+                        {{ form.conta_bancaria }}
+                        {% if form.conta_bancaria.errors %}<div class="invalid-feedback d-block">{{ form.conta_bancaria.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
                         <label for="{{ form.descricao.id_for_label }}" class="form-label">{{ form.descricao.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.descricao }}
                         {% if form.descricao.errors %}<div class="invalid-feedback d-block">{{ form.descricao.errors|striptags }}</div>{% endif %}
                     </div>
 
-                    <div class="col-md-12 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label for="{{ form.observacao.id_for_label }}" class="form-label">{{ form.observacao.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.observacao }}
                         {% if form.observacao.errors %}<div class="invalid-feedback d-block">{{ form.observacao.errors|striptags }}</div>{% endif %}
-                    </div>
-
-                    <div class="col-md-6 mb-3"> {# Movido para uma nova linha para melhor layout com 2 colunas #}
-                        <label for="{{ form.conta_bancaria.id_for_label }}" class="form-label">{{ form.conta_bancaria.label }}:</label>
-                        {{ form.conta_bancaria }}
-                        {% if form.conta_bancaria.errors %}<div class="invalid-feedback d-block">{{ form.conta_bancaria.errors|striptags }}</div>{% endif %}
                     </div>
                     
                 </div>

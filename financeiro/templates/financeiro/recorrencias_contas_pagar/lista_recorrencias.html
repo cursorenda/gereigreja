@@ -1,0 +1,123 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Recorrências de Contas a Pagar{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Recorrências de Contas a Pagar</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_contas_pagar' %}">Contas a Pagar</a></li>
+        <li class="breadcrumb-item active">Recorrências</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-repeat me-1"></i>
+            Lista de Recorrências
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-2 mb-4 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label for="igrejaFiltro" class="form-label">Igreja:</label>
+                    <select id="igrejaFiltro" name="igreja" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        {% for igreja in igrejas_org %}
+                            <option value="{{ igreja.id }}" {% if current_igreja == igreja.id|stringformat:'s' %}selected{% endif %}>{{ igreja.nome_igreja }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label for="ativoFiltro" class="form-label">Ativo:</label>
+                    <select id="ativoFiltro" name="ativo" class="form-select form-select-sm">
+                        <option value="SIM" {% if current_ativo == 'SIM' %}selected{% endif %}>Somente Ativas</option>
+                        <option value="NAO" {% if current_ativo == 'NAO' %}selected{% endif %}>Somente Inativas</option>
+                        <option value="TODOS" {% if current_ativo == 'TODOS' %}selected{% endif %}>Todas</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-auto d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'financeiro:lista_recorrencias_contas_pagar' %}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-times"></i> Limpar
+                    </a>
+                </div>
+                {% if can_edit_finance %}
+                <div class="col-12 col-md-auto ms-md-auto">
+                    <a href="{% url 'financeiro:criar_recorrencia_conta_pagar' %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Nova Recorrência
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Igreja</th>
+                            <th>Fornecedor</th>
+                            <th>Descrição</th>
+                            <th class="text-end">Valor (R$)</th>
+                            <th>Vencimento</th>
+                            <th>Última Comp.</th>
+                            <th>Status</th>
+                            {% if can_edit_finance %}
+                            <th class="text-center">Ações</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for recorrencia in recorrencias %}
+                        <tr>
+                            <td>{{ recorrencia.igreja.nome_igreja }}</td>
+                            <td>{{ recorrencia.fornecedor.nome }}</td>
+                            <td>
+                                {{ recorrencia.descricao }}
+                                {% if recorrencia.gerar_automaticamente %}
+                                    <span class="badge bg-secondary ms-1">Auto</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ recorrencia.valor|floatformat:2 }}</td>
+                            <td>Dia {{ recorrencia.dia_vencimento }}</td>
+                            <td>{{ recorrencia.ultima_competencia_gerada|default:'-' }}</td>
+                            <td>
+                                {% if recorrencia.ativo %}
+                                    <span class="badge bg-success">Ativa</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inativa</span>
+                                {% endif %}
+                            </td>
+                            {% if can_edit_finance %}
+                            <td class="text-center">
+                                <a href="{% url 'financeiro:editar_recorrencia_conta_pagar' recorrencia.pk %}" class="btn btn-primary btn-sm me-1" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="post" action="{% url 'financeiro:alternar_status_recorrencia_conta_pagar' recorrencia.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm {% if recorrencia.ativo %}btn-outline-danger{% else %}btn-outline-success{% endif %}" title="Alternar status">
+                                        {% if recorrencia.ativo %}
+                                            <i class="fas fa-ban"></i>
+                                        {% else %}
+                                            <i class="fas fa-check"></i>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if can_edit_finance %}8{% else %}7{% endif %}" class="text-center">
+                                Nenhuma recorrência encontrada com os filtros aplicados.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

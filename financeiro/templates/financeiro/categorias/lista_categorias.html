@@ -23,26 +23,26 @@
     <div class="card-body">
         {% if categorias %}
             <div class="table-responsive">
-                <table class="table table-striped table-bordered table-hover mb-0" style="width:100%;">
+                <table class="table table-striped table-bordered table-hover mb-0 w-100">
                     <thead class="table-light">
                         <tr>
                             <th>Nome da Categoria</th>
                             {% if can_edit_finance %}
-                            <th class="text-center" style="width: 15%;">Ações</th>
+                            <th class="text-center">Ações</th>
                             {% endif %}
                         </tr>
                     </thead>
                     <tbody>
                         {% for categoria in categorias %}
-                        <tr style="height: 48px; vertical-align: middle;">
-                            <td style="vertical-align: middle;">{{ categoria.nome }}</td>
+                        <tr class="align-middle">
+                            <td class="align-middle py-2">{{ categoria.nome }}</td>
                             {% if can_edit_finance %}
                             <td class="text-center align-middle">
                                 <div class="d-flex justify-content-center align-items-center gap-1 flex-nowrap">
                                     <a href="{% url 'financeiro:editar_categoria_despesa' categoria.pk %}" class="btn btn-outline-primary btn-sm" title="Editar">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form action="{% url 'financeiro:excluir_categoria_despesa' categoria.pk %}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir a categoria &quot;{{ categoria.nome }}&quot;? Esta ação não pode ser desfeita.');" style="margin:0;">
+                                    <form action="{% url 'financeiro:excluir_categoria_despesa' categoria.pk %}" method="post" class="d-inline m-0" onsubmit="return confirm('Tem certeza que deseja excluir a categoria &quot;{{ categoria.nome }}&quot;? Esta ação não pode ser desfeita.');">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-outline-danger btn-sm" title="Excluir">
                                             <i class="fas fa-trash"></i>

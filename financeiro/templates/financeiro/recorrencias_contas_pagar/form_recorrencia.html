@@ -1,0 +1,118 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina|default:'Recorrência de Conta a Pagar' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">{{ titulo_pagina|default:'Recorrência de Conta a Pagar' }}</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Painel Financeiro</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_contas_pagar' %}">Contas a Pagar</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_recorrencias_contas_pagar' %}">Recorrências</a></li>
+        <li class="breadcrumb-item active">{{ recorrencia.descricao|default:'Nova' }}</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-calendar-check me-1"></i>
+            Dados da Recorrência
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="row">
+                    {% if not ocultar_campo_igreja %}
+                    <div class="col-md-4 mb-3">
+                        <label for="{{ form.igreja.id_for_label }}" class="form-label">{{ form.igreja.label }}:</label>
+                        {{ form.igreja }}
+                        {% if form.igreja.errors %}<div class="invalid-feedback d-block">{{ form.igreja.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4 {% if ocultar_campo_igreja %}col-lg-3{% else %}col-lg-4{% endif %} mb-3">
+                        <label for="{{ form.fornecedor.id_for_label }}" class="form-label">{{ form.fornecedor.label }}:</label>
+                        {{ form.fornecedor }}
+                        {% if form.fornecedor.errors %}<div class="invalid-feedback d-block">{{ form.fornecedor.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 {% if ocultar_campo_igreja %}col-lg-3{% else %}col-lg-4{% endif %} mb-3">
+                        <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}:</label>
+                        {{ form.categoria }}
+                        {% if form.categoria.errors %}<div class="invalid-feedback d-block">{{ form.categoria.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-4 {% if ocultar_campo_igreja %}col-lg-6{% else %}col-lg-4{% endif %} mb-3">
+                        <label for="{{ form.descricao.id_for_label }}" class="form-label">{{ form.descricao.label }}:</label>
+                        {{ form.descricao }}
+                        {% if form.descricao.errors %}<div class="invalid-feedback d-block">{{ form.descricao.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.valor.id_for_label }}" class="form-label">{{ form.valor.label }}:</label>
+                        {{ form.valor }}
+                        {% if form.valor.errors %}<div class="invalid-feedback d-block">{{ form.valor.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.dia_vencimento.id_for_label }}" class="form-label">{{ form.dia_vencimento.label }}:</label>
+                        {{ form.dia_vencimento }}
+                        {% if form.dia_vencimento.errors %}<div class="invalid-feedback d-block">{{ form.dia_vencimento.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-2 mb-3">
+                        <label for="{{ form.frequencia.id_for_label }}" class="form-label">{{ form.frequencia.label }}:</label>
+                        {{ form.frequencia }}
+                        {% if form.frequencia.errors %}<div class="invalid-feedback d-block">{{ form.frequencia.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.conta_debito_padrao.id_for_label }}" class="form-label">{{ form.conta_debito_padrao.label }}:</label>
+                        {{ form.conta_debito_padrao }}
+                        {% if form.conta_debito_padrao.errors %}<div class="invalid-feedback d-block">{{ form.conta_debito_padrao.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label for="{{ form.data_inicio.id_for_label }}" class="form-label">{{ form.data_inicio.label }}:</label>
+                        {{ form.data_inicio }}
+                        {% if form.data_inicio.errors %}<div class="invalid-feedback d-block">{{ form.data_inicio.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="{{ form.data_fim.id_for_label }}" class="form-label">{{ form.data_fim.label }}:</label>
+                        {{ form.data_fim }}
+                        {% if form.data_fim.errors %}<div class="invalid-feedback d-block">{{ form.data_fim.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.forma_pagamento_padrao.id_for_label }}" class="form-label">{{ form.forma_pagamento_padrao.label }}:</label>
+                        {{ form.forma_pagamento_padrao }}
+                        {% if form.forma_pagamento_padrao.errors %}<div class="invalid-feedback d-block">{{ form.forma_pagamento_padrao.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.observacoes.id_for_label }}" class="form-label">{{ form.observacoes.label }}:</label>
+                        {{ form.observacoes }}
+                        {% if form.observacoes.errors %}<div class="invalid-feedback d-block">{{ form.observacoes.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="col-md-3 mb-3 form-check">
+                        {{ form.gerar_automaticamente }}
+                        <label for="{{ form.gerar_automaticamente.id_for_label }}" class="form-check-label">{{ form.gerar_automaticamente.label }}</label>
+                    </div>
+                    <div class="col-md-3 mb-3 form-check">
+                        {{ form.ativo }}
+                        <label for="{{ form.ativo.id_for_label }}" class="form-check-label">{{ form.ativo.label }}</label>
+                    </div>
+                </div>
+
+                <hr>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Salvar Recorrência
+                </button>
+                <a href="{% url 'financeiro:lista_recorrencias_contas_pagar' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

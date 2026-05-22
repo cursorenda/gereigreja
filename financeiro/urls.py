@@ -12,6 +12,7 @@ urlpatterns = [
 
     # Gestão de Permissões de Caixa
     path('contas-bancarias/<int:caixa_id>/permissoes/', views.gerenciar_permissoes_caixa, name='gerenciar_permissoes_caixa'),
+    path('ofx/conciliacao/', views.conciliacao_ofx, name='conciliacao_ofx'),
 
     # Transferências entre Caixas
     path('transferencias/nova/', views.transferencia_caixa_create, name='nova_transferencia_caixa'),
@@ -78,8 +79,21 @@ urlpatterns = [
     path('contas-pagar/<int:pk>/detalhes/', views.detalhe_conta_pagar, name='detalhe_conta_pagar'), # <-- ADICIONADO
     path('contas-pagar/<int:pk>/cancelar/', views.cancelar_conta_pagar, name='cancelar_conta_pagar'), # <-- ADICIONADO (em vez de excluir)
     path('contas-pagar/<int:pk>/pagar/', views.registrar_pagamento_conta_pagar, name='registrar_pagamento_conta_pagar'),
+    path('contas-pagar/pagar-lote/', views.registrar_pagamento_lote_contas_pagar, name='registrar_pagamento_lote_contas_pagar'),
+    path('contas-pagar/gerar-fixas-mes/', views.gerar_despesas_fixas_mes, name='gerar_despesas_fixas_mes'),
     # ==================================================
     # ========= FIM: URLs PARA CONTAS A PAGAR =========
+    # ==================================================
+
+    # ====================================================
+    # ===== URLs PARA RECORRÊNCIAS DE CONTAS A PAGAR =====
+    # ====================================================
+    path('contas-pagar/recorrencias/', views.lista_recorrencias_contas_pagar, name='lista_recorrencias_contas_pagar'),
+    path('contas-pagar/recorrencias/nova/', views.criar_recorrencia_conta_pagar, name='criar_recorrencia_conta_pagar'),
+    path('contas-pagar/recorrencias/<int:pk>/editar/', views.editar_recorrencia_conta_pagar, name='editar_recorrencia_conta_pagar'),
+    path('contas-pagar/recorrencias/<int:pk>/alternar-status/', views.alternar_status_recorrencia_conta_pagar, name='alternar_status_recorrencia_conta_pagar'),
+    # ==================================================
+    # ===== FIM URLs RECORRÊNCIAS DE CONTAS A PAGAR ====
     # ==================================================
 ]
 

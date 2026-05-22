@@ -1,8 +1,13 @@
 {% extends 'base_com_menu.html' %}
+{% load static %}
 {% load humanize %} {# Para intcomma #}
 {% load l10n %} {# Para datas localizadas #}
 
 {% block title %}Contas a Pagar - {{ ministerio.nome_fantasia|default:"Ministério" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/financeiro-listas.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -22,12 +27,13 @@
         </div>
         <div class="card-body">
             {# Formulário de Filtro #}
-            <form method="GET" action="{% url 'financeiro:lista_contas_pagar' %}" class="row g-3 mb-4 align-items-end">
-                <div class="col-md-4">
+            <form method="GET" action="{% url 'financeiro:lista_contas_pagar' %}" class="row g-2 mb-4 align-items-end">
+                {% csrf_token %}
+                <div class="col-12 col-md-3">
                     <label for="searchQuery" class="form-label">Buscar Descrição/Doc/Fornecedor:</label>
                     <input type="text" class="form-control form-control-sm" id="searchQuery" name="q" value="{{ current_q|default:'' }}">
                 </div>
-                <div class="col-md-2">
+                <div class="col-6 col-md-2">
                      <label for="statusFiltro" class="form-label">Status:</label>
                      <select name="status" id="statusFiltro" class="form-select form-select-sm">
                          <option value="TODOS" {% if current_status == 'TODOS' %}selected{% endif %}>Todos</option>
@@ -36,24 +42,15 @@
                          {% endfor %}
                      </select>
                 </div>
-                 <div class="col-md-2">
+                 <div class="col-6 col-md-2 col-lg-1">
                     <label for="vencInicio" class="form-label">Venc. Início:</label>
                     <input type="date" class="form-control form-control-sm" id="vencInicio" name="venc_inicio" value="{{ current_venc_inicio|default:'' }}">
                 </div>
-                 <div class="col-md-2">
+                 <div class="col-6 col-md-2 col-lg-1">
                     <label for="vencFim" class="form-label">Venc. Fim:</label>
                     <input type="date" class="form-control form-control-sm" id="vencFim" name="venc_fim" value="{{ current_venc_fim|default:'' }}">
                 </div>
-                 <div class="col-md-3">
-                     <label for="igrejaFiltro" class="form-label">Igreja:</label>
-                     <select name="igreja" id="igrejaFiltro" class="form-select form-select-sm">
-                         <option value="">Todas</option>
-                         {% for ig in igrejas_org %}
-                            <option value="{{ ig.pk }}" {% if current_igreja == ig.pk|stringformat:"s" %}selected{% endif %}>{{ ig.nome_igreja }}</option>
-                         {% endfor %}
-                     </select>
-                </div>
-                 <div class="col-md-3">
+                 <div class="col-6 col-md-2">
                      <label for="fornecedorFiltro" class="form-label">Fornecedor:</label>
                      <select name="fornecedor" id="fornecedorFiltro" class="form-select form-select-sm">
                          <option value="">Todos</option>
@@ -62,22 +59,87 @@
                          {% endfor %}
                      </select>
                 </div>
-                <div class="col-auto">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i><span style="margin-left: 0.4em;">Filtrar</span></button>
-                    <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-sm btn-outline-warning ms-1" title="Limpar Filtros"><i class="fas fa-times"></i><span style="margin-left: 0.4em;">Limpar</span></a>
+                <div class="col-6 col-md-2">
+                    <label for="tipoFiltro" class="form-label">Tipo:</label>
+                    <select name="tipo" id="tipoFiltro" class="form-select form-select-sm">
+                        <option value="TODOS" {% if current_tipo == 'TODOS' %}selected{% endif %}>Todos</option>
+                        <option value="FIXA" {% if current_tipo == 'FIXA' %}selected{% endif %}>Fixa</option>
+                        <option value="AVULSA" {% if current_tipo == 'AVULSA' %}selected{% endif %}>Avulsa</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2 col-lg-1">
+                    <label for="competenciaFiltro" class="form-label">Competência:</label>
+                    <input type="month" class="form-control form-control-sm" id="competenciaFiltro" name="competencia" value="{{ current_competencia|default:'' }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="geradaAutoFiltro" class="form-label">Gerada Auto:</label>
+                    <select name="gerada_auto" id="geradaAutoFiltro" class="form-select form-select-sm">
+                        <option value="TODOS" {% if current_gerada_auto == 'TODOS' %}selected{% endif %}>Todos</option>
+                        <option value="SIM" {% if current_gerada_auto == 'SIM' %}selected{% endif %}>Sim</option>
+                        <option value="NAO" {% if current_gerada_auto == 'NAO' %}selected{% endif %}>Não</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-auto d-flex align-items-end gap-2 financeiro-filtro-acoes">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i><span class="btn-text-gap">Filtrar</span></button>
+                    <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-sm btn-outline-warning" title="Limpar Filtros"><i class="fas fa-times"></i><span class="btn-text-gap">Limpar</span></a>
                 </div>
                 {% if can_edit_finance %}
-                 <div class="col-auto ms-auto"> {# Botão Adicionar à direita #}
-                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i><span style="margin-left: 0.4em;">Adicionar Conta/Parcela</span></a>
+                 <div class="col-12 col-md-auto ms-md-auto d-flex gap-2"> {# Botões de ação à direita #}
+                     <button type="submit" formmethod="post" formaction="{% url 'financeiro:gerar_despesas_fixas_mes' %}" class="btn btn-success btn-sm" title="Gera contas fixas da competência atual para a igreja ativa">
+                         <i class="fas fa-rotate"></i><span class="btn-text-gap">Gerar Despesas Fixas do Mês</span>
+                     </button>
+                     <a href="{% url 'financeiro:lista_recorrencias_contas_pagar' %}" class="btn btn-outline-primary btn-sm" title="Gerenciar recorrências">
+                        <i class="fas fa-repeat"></i><span class="btn-text-gap">Recorrências</span>
+                     </a>
+                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i><span class="btn-text-gap">Adicionar Conta/Parcela</span></a>
                 </div>
                 {% endif %}
             </form>
+
+            {% if can_pay_batch %}
+            <form method="post" action="{% url 'financeiro:registrar_pagamento_lote_contas_pagar' %}" id="formPagamentoLote" class="row g-2 mb-3 align-items-end">
+                {% csrf_token %}
+                <div class="col-12 col-md-3">
+                    <label for="dataPagamentoLote" class="form-label">Data do Pagamento (Lote):</label>
+                    <input type="date" class="form-control form-control-sm" id="dataPagamentoLote" name="data_pagamento_lote" value="{{ data_pagamento_lote_padrao }}" required>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="contaDebitoLote" class="form-label">Conta/Caixa de Débito:</label>
+                    <select id="contaDebitoLote" name="conta_debito_lote" class="form-select form-select-sm" required>
+                        <option value="">Selecione</option>
+                        {% for conta_bancaria in contas_bancarias_lote %}
+                            <option value="{{ conta_bancaria.pk }}">{{ conta_bancaria.nome_identificacao }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label for="formaPagamentoLote" class="form-label">Forma de Pagamento:</label>
+                    <select id="formaPagamentoLote" name="forma_pagamento_lote" class="form-select form-select-sm" required>
+                        <option value="">Selecione</option>
+                        {% for valor, descricao in forma_pagamento_choices %}
+                            <option value="{{ valor }}">{{ descricao }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-grid">
+                    <button type="submit" class="btn btn-success btn-sm" id="btnPagamentoLote" disabled>
+                        <i class="fas fa-layer-group"></i><span class="btn-text-gap">Pagar Selecionadas</span>
+                    </button>
+                </div>
+                <div id="contasSelecionadasContainer"></div>
+            </form>
+            {% endif %}
 
             {# Tabela de Contas a Pagar #}
             <div class="table-responsive">
                 <table class="table table-striped table-bordered table-hover table-sm">
                     <thead class="table-light">
                         <tr>
+                            {% if can_pay_batch %}
+                            <th class="text-center" style="width: 40px;">
+                                <input type="checkbox" id="selecionarTodasContas" title="Selecionar todas elegíveis">
+                            </th>
+                            {% endif %}
                             <th>Vencimento</th>
                             <th>Fornecedor</th>
                             <th>Descrição</th>
@@ -97,9 +159,27 @@
                             {% elif conta.status == 'CAN' %}table-secondary text-muted text-decoration-line-through
                             {% elif conta.is_vencida %}table-warning fw-bold{# Contas Pendentes mas vencidas em amarelo e negrito #}{% endif %}
                         ">
+                            {% if can_pay_batch %}
+                            <td class="text-center">
+                                {% if conta.status == 'PEN' or conta.status == 'VEN' %}
+                                    <input type="checkbox" class="conta-lote-checkbox" value="{{ conta.pk }}" title="Selecionar para pagamento em lote">
+                                {% endif %}
+                            </td>
+                            {% endif %}
                             <td>{{ conta.data_vencimento|date:"d/m/Y" }}</td>
                             <td>{{ conta.fornecedor.nome|truncatechars:25 }}</td>
-                            <td>{{ conta.descricao|truncatechars:40 }}</td>
+                            <td>
+                                {{ conta.descricao|truncatechars:40 }}
+                                {% if conta.recorrencia_origem_id %}
+                                    <span class="badge bg-info text-dark ms-1">Fixa</span>
+                                {% endif %}
+                                {% if conta.criado_automaticamente %}
+                                    <span class="badge bg-secondary ms-1">Auto</span>
+                                {% endif %}
+                                {% if conta.competencia %}
+                                    <small class="d-block text-muted">Competência: {{ conta.competencia }}</small>
+                                {% endif %}
+                            </td>
                             <td>{{ conta.igreja.nome_igreja|truncatechars:20 }}</td>
                             <td class="text-end">{{ conta.valor|floatformat:2|intcomma }}</td>
                             <td>
@@ -151,7 +231,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="{% if can_edit_finance %}7{% else %}6{% endif %}" class="text-center">
+                            <td colspan="{% if can_pay_batch %}{% if can_edit_finance %}8{% else %}7{% endif %}{% else %}{% if can_edit_finance %}7{% else %}6{% endif %}{% endif %}" class="text-center">
                                 Nenhuma conta a pagar encontrada com os filtros aplicados.
                                 {% if can_edit_finance %}
                                     <a href="{% url 'financeiro:criar_conta_pagar' %}" class="ms-2">Adicionar uma nova?</a>
@@ -166,4 +246,70 @@
         </div>
     </div>
 </div>
+
+{% if can_pay_batch %}
+<script>
+    (function() {
+        const form = document.getElementById('formPagamentoLote');
+        const selectAll = document.getElementById('selecionarTodasContas');
+        const checkboxes = Array.from(document.querySelectorAll('.conta-lote-checkbox'));
+        const container = document.getElementById('contasSelecionadasContainer');
+        const submitButton = document.getElementById('btnPagamentoLote');
+
+        function getSelecionadas() {
+            return checkboxes.filter((item) => item.checked);
+        }
+
+        function atualizarEstadoBotao() {
+            submitButton.disabled = getSelecionadas().length === 0;
+        }
+
+        function atualizarSelecionarTodas() {
+            if (checkboxes.length === 0) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+                return;
+            }
+            const selecionadas = getSelecionadas().length;
+            selectAll.checked = selecionadas === checkboxes.length;
+            selectAll.indeterminate = selecionadas > 0 && selecionadas < checkboxes.length;
+        }
+
+        checkboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', function() {
+                atualizarSelecionarTodas();
+                atualizarEstadoBotao();
+            });
+        });
+
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach((checkbox) => {
+                checkbox.checked = selectAll.checked;
+            });
+            atualizarSelecionarTodas();
+            atualizarEstadoBotao();
+        });
+
+        form.addEventListener('submit', function(event) {
+            const selecionadas = getSelecionadas();
+            if (selecionadas.length === 0) {
+                event.preventDefault();
+                return;
+            }
+
+            container.innerHTML = '';
+            selecionadas.forEach((checkbox) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'conta_ids';
+                input.value = checkbox.value;
+                container.appendChild(input);
+            });
+        });
+
+        atualizarSelecionarTodas();
+        atualizarEstadoBotao();
+    })();
+</script>
+{% endif %}
 {% endblock content %}

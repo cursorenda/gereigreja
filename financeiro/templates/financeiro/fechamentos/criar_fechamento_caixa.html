@@ -1,6 +1,11 @@
 {% extends 'base_com_menu.html' %}
+{% load static %}
 
 {% block title %}{{ titulo_pagina|default:"Criar Fechamento de Caixa" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/financeiro-lideranca.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -22,7 +27,7 @@
 
                 {# ---- SUBSTITUA O BLOCO non_field_errors POR ESTE ---- #}
                 {% if form.non_field_errors %}
-                    <div style="border: 2px solid red; padding: 10px; color: red; margin-bottom: 15px; background-color: #fdd;">
+                    <div class="form-non-field-errors-box">
                         <strong>Erros Gerais do Formulário:</strong>
                         <ul>
                         {% for error in form.non_field_errors %}

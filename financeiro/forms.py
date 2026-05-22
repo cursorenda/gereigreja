@@ -2,12 +2,13 @@
 from django import forms
 from .models import (
     Receitas, Despesas, CategoriaDespesa, FechamentoCaixa, ContaBancaria,
-    Fornecedor, ContaPagar
+    Fornecedor, ContaPagar, RecorrenciaContaPagar
 )
 from .models import TransferenciaCaixa
 from configuracao.models import Igreja, Ministerio
 from secretaria.models import Membro
 from decimal import Decimal
+from django.utils import timezone
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 from .utils import is_admin_org
 import logging
@@ -116,6 +117,9 @@ class ContaBancariaForm(forms.ModelForm):
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
         super().__init__(*args, **kwargs)
 
+        if not self.is_bound and not (self.instance and self.instance.pk) and not self.initial.get('data'):
+            self.initial['data'] = timezone.localdate()
+
         if user and not is_admin_org(user) and allowed_churches is not None:
             if not hasattr(allowed_churches, 'all'):
                 self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
@@ -139,6 +143,8 @@ class ContaBancariaForm(forms.ModelForm):
 
 class ReceitaForm(forms.ModelForm):
     """ Formulário para Receitas (ligada à Igreja) """
+    FORMAS_PAGAMENTO_DIZIMO_OFERTA = {'DIN', 'PIX', 'CRE'}
+
     class Meta:
         model = Receitas
         fields = ['igreja', 'membro', 'data', 'categoria', 'valor', 'forma_pgto', 'conta_bancaria', 'observacao']
@@ -197,16 +203,30 @@ class ReceitaForm(forms.ModelForm):
         if igreja_para_filtrar_campos_dependentes:
             self.fields['membro'].queryset = Membro.objects.filter(igreja=igreja_para_filtrar_campos_dependentes).order_by('nome')
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja=igreja_para_filtrar_campos_dependentes).order_by('nome_identificacao')
-            if not self.is_bound and not self.initial.get('conta_bancaria') and \
-               hasattr(igreja_para_filtrar_campos_dependentes, 'conta_padrao_receitas') and \
-               igreja_para_filtrar_campos_dependentes.conta_padrao_receitas:
-                self.initial['conta_bancaria'] = igreja_para_filtrar_campos_dependentes.conta_padrao_receitas
+            if not self.is_bound and not self.initial.get('conta_bancaria'):
+                conta_padrao_receitas = getattr(igreja_para_filtrar_campos_dependentes, 'conta_padrao_receitas', None)
+                if conta_padrao_receitas and self.fields['conta_bancaria'].queryset.filter(pk=conta_padrao_receitas.pk).exists():
+                    self.initial['conta_bancaria'] = conta_padrao_receitas
+                else:
+                    caixa_principal = self.fields['conta_bancaria'].queryset.filter(is_principal=True).first()
+                    if caixa_principal:
+                        self.initial['conta_bancaria'] = caixa_principal
         elif ministerio:
             self.fields['membro'].queryset = Membro.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome')
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome_identificacao')
         else:
             self.fields['membro'].queryset = Membro.objects.none()
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.none()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        categoria = cleaned_data.get('categoria')
+        forma_pgto = cleaned_data.get('forma_pgto')
+
+        if categoria in {'dizimo', 'oferta'} and forma_pgto and forma_pgto not in self.FORMAS_PAGAMENTO_DIZIMO_OFERTA:
+            self.add_error('forma_pgto', 'Para Dízimo/Oferta, use Dinheiro, PIX ou Cartão de Crédito.')
+
+        return cleaned_data
 
 
 class DespesaForm(forms.ModelForm):
@@ -230,6 +250,9 @@ class DespesaForm(forms.ModelForm):
         allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
         super().__init__(*args, **kwargs)
+
+        if not self.is_bound and not (self.instance and self.instance.pk) and not self.initial.get('data'):
+            self.initial['data'] = timezone.localdate()
 
         if user and not is_admin_org(user) and allowed_churches is not None:
             if not hasattr(allowed_churches, 'all'):
@@ -269,10 +292,14 @@ class DespesaForm(forms.ModelForm):
 
         if igreja_para_filtrar_contas:
              self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja=igreja_para_filtrar_contas).order_by('nome_identificacao')
-             if not self.is_bound and not self.initial.get('conta_bancaria') and \
-                hasattr(igreja_para_filtrar_contas, 'conta_padrao_despesas') and \
-                igreja_para_filtrar_contas.conta_padrao_despesas:
-                 self.initial['conta_bancaria'] = igreja_para_filtrar_contas.conta_padrao_despesas
+             if not self.is_bound and not self.initial.get('conta_bancaria'):
+                conta_padrao_despesas = getattr(igreja_para_filtrar_contas, 'conta_padrao_despesas', None)
+                if conta_padrao_despesas and self.fields['conta_bancaria'].queryset.filter(pk=conta_padrao_despesas.pk).exists():
+                    self.initial['conta_bancaria'] = conta_padrao_despesas
+                else:
+                    caixa_principal = self.fields['conta_bancaria'].queryset.filter(is_principal=True).first()
+                    if caixa_principal:
+                        self.initial['conta_bancaria'] = caixa_principal
 
 
 class FechamentoCaixaForm(forms.Form):
@@ -344,6 +371,126 @@ class FornecedorForm(forms.ModelForm):
             'endereco': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
             'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
         }
+
+
+class RecorrenciaContaPagarForm(forms.ModelForm):
+    """Formulário para criar/editar template de despesa fixa."""
+
+    class Meta:
+        model = RecorrenciaContaPagar
+        fields = [
+            'igreja',
+            'fornecedor',
+            'categoria',
+            'descricao',
+            'valor',
+            'dia_vencimento',
+            'frequencia',
+            'data_inicio',
+            'data_fim',
+            'conta_debito_padrao',
+            'forma_pagamento_padrao',
+            'gerar_automaticamente',
+            'ativo',
+            'observacoes',
+        ]
+        widgets = {
+            'igreja': forms.Select(attrs={'class': 'form-select'}),
+            'fornecedor': forms.Select(attrs={'class': 'form-select'}),
+            'categoria': forms.Select(attrs={'class': 'form-select'}),
+            'descricao': forms.TextInput(attrs={'class': 'form-control'}),
+            'valor': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'dia_vencimento': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 31}),
+            'frequencia': forms.Select(attrs={'class': 'form-select'}),
+            'data_inicio': DateInput(attrs={'class': 'form-control'}),
+            'data_fim': DateInput(attrs={'class': 'form-control'}),
+            'conta_debito_padrao': forms.Select(attrs={'class': 'form-select'}),
+            'forma_pagamento_padrao': forms.Select(attrs={'class': 'form-select'}),
+            'gerar_automaticamente': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        ministerio = kwargs.pop('ministerio', None)
+        user = kwargs.pop('user', None)
+        allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
+        igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
+        super().__init__(*args, **kwargs)
+
+        if user and not is_admin_org(user) and allowed_churches is not None:
+            self.fields['igreja'].queryset = allowed_churches
+        elif ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
+        else:
+            self.fields['igreja'].queryset = Igreja.objects.none()
+
+        if ministerio:
+            self.fields['fornecedor'].queryset = Fornecedor.objects.filter(ministerio=ministerio, ativo=True)
+            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(ministerio=ministerio)
+            self.fields['conta_debito_padrao'].queryset = ContaBancaria.objects.filter(
+                igreja__ministerio=ministerio
+            ).order_by('igreja__nome_igreja', 'nome_identificacao')
+        else:
+            self.fields['fornecedor'].queryset = Fornecedor.objects.none()
+            self.fields['categoria'].queryset = CategoriaDespesa.objects.none()
+            self.fields['conta_debito_padrao'].queryset = ContaBancaria.objects.none()
+
+        if igreja_selecionada_inicial and self.fields['igreja'].queryset.filter(pk=igreja_selecionada_inicial.pk).exists():
+            self.initial['igreja'] = igreja_selecionada_inicial
+            self.fields['igreja'].disabled = True
+
+        igreja_para_filtrar_conta = None
+        if self.instance and self.instance.pk and self.instance.igreja:
+            igreja_para_filtrar_conta = self.instance.igreja
+        elif self.is_bound and self.data.get('igreja'):
+            try:
+                igreja_para_filtrar_conta = Igreja.objects.get(pk=int(self.data.get('igreja')))
+            except (ValueError, TypeError, Igreja.DoesNotExist):
+                igreja_para_filtrar_conta = None
+        elif igreja_selecionada_inicial:
+            igreja_para_filtrar_conta = igreja_selecionada_inicial
+
+        if igreja_para_filtrar_conta:
+            self.fields['conta_debito_padrao'].queryset = ContaBancaria.objects.filter(
+                igreja=igreja_para_filtrar_conta
+            ).order_by('nome_identificacao')
+            if not self.is_bound and not self.initial.get('conta_debito_padrao'):
+                conta_padrao = getattr(igreja_para_filtrar_conta, 'conta_padrao_despesas', None)
+                if not conta_padrao:
+                    conta_padrao = getattr(igreja_para_filtrar_conta, 'conta_padrao_receitas', None)
+
+                if conta_padrao and self.fields['conta_debito_padrao'].queryset.filter(pk=conta_padrao.pk).exists():
+                    self.initial['conta_debito_padrao'] = conta_padrao
+                else:
+                    caixa_principal = self.fields['conta_debito_padrao'].queryset.filter(is_principal=True).first()
+                    if caixa_principal:
+                        self.initial['conta_debito_padrao'] = caixa_principal
+
+        self.fields['igreja'].empty_label = "Selecione a Igreja"
+        self.fields['fornecedor'].empty_label = "Selecione o Fornecedor"
+        self.fields['categoria'].empty_label = "Selecione a Categoria (Opcional)"
+        self.fields['categoria'].required = False
+        self.fields['conta_debito_padrao'].empty_label = "Selecione a Conta/Caixa (Opcional)"
+        self.fields['conta_debito_padrao'].required = False
+        self.fields['forma_pagamento_padrao'].required = False
+        self.fields['data_fim'].required = False
+        self.fields['observacoes'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        data_inicio = cleaned_data.get('data_inicio')
+        data_fim = cleaned_data.get('data_fim')
+        igreja = cleaned_data.get('igreja')
+        conta_debito_padrao = cleaned_data.get('conta_debito_padrao')
+
+        if data_inicio and data_fim and data_fim < data_inicio:
+            raise forms.ValidationError('A data final não pode ser anterior à data inicial.')
+
+        if conta_debito_padrao and igreja and conta_debito_padrao.igreja_id != igreja.id:
+            self.add_error('conta_debito_padrao', 'A conta/caixa de débito deve pertencer à mesma igreja da recorrência.')
+
+        return cleaned_data
 
 class ContaPagarForm(forms.ModelForm):
     """ Formulário para Criar/Editar a obrigação (Conta/Parcela) """

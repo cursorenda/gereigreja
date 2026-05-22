@@ -1,8 +1,13 @@
 {% extends 'base_com_menu.html' %}
+{% load static %}
 {% load humanize %} {# Para formatar números #}
 {% load l10n %} {# Para formatação localizada (opcional) #}
 
 {% block title %}Detalhes Fechamento: {{ fechamento.igreja.nome_igreja }} ({{ fechamento.data_inicio|date:"d/m/y" }} - {{ fechamento.data_fim|date:"d/m/y" }}){% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/financeiro-lideranca.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -43,7 +48,7 @@
             {# Listagem de Receitas inclusas #}
             <h5 class="mt-4">Receitas Inclusas ({{ receitas.count }})</h5>
             {% if receitas %}
-            <div class="table-responsive mb-3" style="max-height: 400px; overflow-y: auto;">
+            <div class="table-responsive mb-3 table-scroll-400">
                 <table class="table table-sm table-striped table-hover">
                     <thead class="table-light">
                         <tr>
@@ -88,7 +93,7 @@
             {# Listagem de Despesas inclusas #}
             <h5 class="mt-4">Despesas Inclusas ({{ despesas.count }})</h5>
              {% if despesas %}
-             <div class="table-responsive mb-3" style="max-height: 400px; overflow-y: auto;">
+             <div class="table-responsive mb-3 table-scroll-400">
                 <table class="table table-sm table-striped table-hover">
                     <thead class="table-light">
                         <tr>
