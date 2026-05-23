@@ -1,7 +1,7 @@
 
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 15/05/2026
+**Última Atualização:** 23/05/2026
 
 ---
 
@@ -29,7 +29,8 @@
 ## 🏗️ Arquitetura & Estrutura
 
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
+| [sistema/DASHBOARD_DESIGN_SYSTEM.md](sistema/DASHBOARD_DESIGN_SYSTEM.md) | **NOVO:** Design System de Dashboards Premium — tokens, classes `fp-*`, sidebar toggle, guia de criação de novos dashboards |
 | [templates/ARQUITETURA_TEMPLATES.md](templates/ARQUITETURA_TEMPLATES.md) | Estrutura de templates do sistema |
 | [sistema/ARQUITETURA_ADMIN.md](sistema/ARQUITETURA_ADMIN.md) | **NOVO:** Arquitetura do admin Django (modularização, admin sites, convenções) |
 | [sistema/ADMIN_MIXINS.md](sistema/ADMIN_MIXINS.md) | **NOVO:** Referência dos admin mixins reutilizáveis (`core/admin_mixins.py`) |
@@ -43,7 +44,7 @@
 ## 🔐 Segurança & Permissões
 
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [sistema/GRUPOS_PERMISSOES.md](sistema/GRUPOS_PERMISSOES.md) | Sistema de grupos e permissões |
 | [sistema/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md](sistema/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md) | Auditoria completa de permissões |
 | [sistema/AUDITORIA_PERMISSOES_PROFESSOR_EBD.md](sistema/AUDITORIA_PERMISSOES_PROFESSOR_EBD.md) | Permissões específicas Escola Bíblica |
@@ -57,31 +58,31 @@
 
 ### Cadastro de Pessoas
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [sistema/VALIDACOES_CADASTRO_PESSOAS.md](sistema/VALIDACOES_CADASTRO_PESSOAS.md) | **NOVO:** Sistema de validações (CPF, Email, Máscaras, ViaCEP) |
 | [sistema/ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](sistema/ANALISE_MELHORIAS_CADASTRO_PESSOAS.md) | Análise completa: 23 melhorias propostas |
 | [sistema/REGRAS_TIPOS_PESSOA_STATUS.md](sistema/REGRAS_TIPOS_PESSOA_STATUS.md) | Regras de negócio: Tipos e Status de Pessoas |
 
 ### Cargos
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [sistema/CARGOS_USUARIOS.md](sistema/CARGOS_USUARIOS.md) | Guia operacional para secretaria e liderancas no uso da tela de cargos |
 | [sistema/CARGOS_SISTEMA.md](sistema/CARGOS_SISTEMA.md) | Regras tecnicas, sincronizacao de grupos e checklist pre-deploy |
 
 ### Participantes & Eventos
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md](sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md) | Sistema híbrido de participantes (visitantes/membros) |
 
 ### Seletor de Igreja
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [sistema/SELETOR_IGREJA.md](sistema/SELETOR_IGREJA.md) | Funcionalidade de seleção de igreja ativa |
 | [ai/AI_CONTEXT_CHURCH_SELECTOR.md](ai/AI_CONTEXT_CHURCH_SELECTOR.md) | Contexto AI: seletor de igreja |
 
 ### Assinatura e Planos (v1.9.2)
 | Documento | Público | Descrição |
-|-----------|---------|-----------|
+|-----------|---------|----------|
 | [usuario/MANUAL_ASSINATURA_PLANOS.md](usuario/MANUAL_ASSINATURA_PLANOS.md) | Usuário | Como usar a página de assinatura, planos, limites, trial, cortesia |
 | [sistema/ARQUITETURA_ASSINATURA_PLANOS.md](sistema/ARQUITETURA_ASSINATURA_PLANOS.md) | Desenvolvedor | Modelos, services, view gerenciar_assinatura, integração Stripe |
 | [sistema/FLUXO_ELEGIBILIDADE_ACESSO.md](sistema/FLUXO_ELEGIBILIDADE_ACESSO.md) | Desenvolvedor/IA | **NOVO:** Fluxo completo de elegibilidade — plano pioneiro grátis × cortesia × trial × status × BETA — ordem de verificação, inconsistências e correções |
@@ -89,7 +90,7 @@
 
 ### Secretaria - Documentos e Certificados (v1.12.0)
 | Documento | Público | Descrição |
-|-----------|---------|-----------|
+|-----------|---------|----------|
 | [sistema/ATUALIZACAO_v1.12.0.md](sistema/ATUALIZACAO_v1.12.0.md) | Desenvolvedor/Operação | Reorganização de menu, evolução de certificados, novo módulo de carta de recomendação e governança de templates por ministério |
 
 ---
@@ -98,7 +99,7 @@
 ## 🚀 Deploy & Infraestrutura
 
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [deploy/ANALISE_SISTEMA_DEPLOY.md](deploy/ANALISE_SISTEMA_DEPLOY.md) | Análise completa do sistema de deploy |
 
 ---
@@ -107,7 +108,7 @@
 ## 🐛 Troubleshooting & UX
 
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [relatorios/PROBLEMA_UX_PAGINA_VAZIA.md](relatorios/PROBLEMA_UX_PAGINA_VAZIA.md) | Solução: problema de páginas vazias |
 
 ---
@@ -127,7 +128,7 @@ Ver pasta [release-notes/](release-notes/) para histórico de versões.
 ## 📊 Relatórios e Análises
 
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [relatorios/RESUMO_EXECUTIVO_CADASTROS.md](relatorios/RESUMO_EXECUTIVO_CADASTROS.md) | Resumo executivo dos cadastros |
 | [relatorios/README_ANALISE_CADASTROS.md](relatorios/README_ANALISE_CADASTROS.md) | README análise de cadastros |
 | [relatorios/INDICE_ANALISE_CADASTROS.md](relatorios/INDICE_ANALISE_CADASTROS.md) | Índice análise de cadastros |
@@ -140,7 +141,7 @@ Ver pasta [release-notes/](release-notes/) para histórico de versões.
 ## 👤 Documentação do Usuário
 
 | Documento | Descrição |
-|-----------|-----------|
+|-----------|----------|
 | [usuario/USUARIO_MANUAL.md](usuario/USUARIO_MANUAL.md) | Manual do usuário |
 | [usuario/README_IGREJA_USER.md](usuario/README_IGREJA_USER.md) | Guia rápido - Página Igreja |
 | [usuario/MELHORIAS_USUARIOS_v1.7.2.md](usuario/MELHORIAS_USUARIOS_v1.7.2.md) | Novidades v1.7.2 |
@@ -186,6 +187,15 @@ Gereigreja/
 ---
 
 ## 🆕 Documentações Recentes (Março 2026)
+
+### 23/05/2026 - Dashboard Design System
+- **Arquivo:** [sistema/DASHBOARD_DESIGN_SYSTEM.md](sistema/DASHBOARD_DESIGN_SYSTEM.md)
+- **Conteúdo:**
+   - Padrões extraídos do Dashboard Financeiro Premium (v1.12.8)
+   - Tokens CSS `--dp-*` com aliases retrocompatíveis `--fp-*`
+   - Sistema de sidebar toggle parametrizável (`dashboard-sidebar.js`)
+   - Template base Django (`dashboard_base.html`) para herança
+   - Checklist e guia de criação de novos dashboards
 
 ### 13/05/2026 - Secretaria: Documentos, Certificados e Carta
 - **Arquivo:** [sistema/ATUALIZACAO_v1.12.0.md](sistema/ATUALIZACAO_v1.12.0.md)
