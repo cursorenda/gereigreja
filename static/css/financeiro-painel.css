@@ -67,6 +67,7 @@ body.sb-nav-fixed.dash-financeiro #layoutSidenav #layoutSidenav_content:before {
   display: block;
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
   border-radius: var(--fp-radius-sm);
   transition: var(--fp-trans);
 }
