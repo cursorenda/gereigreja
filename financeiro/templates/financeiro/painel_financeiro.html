@@ -188,8 +188,9 @@
 
         
 
-        <a href="{% url 'financeiro:lista_receitas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
-           class="fp-kpi fp-kpi-rec fp-kpi-link">
+        <div class="fp-kpi fp-kpi-rec fp-kpi-link"
+           onclick="window.location.href='{% url "financeiro:lista_receitas" %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}'"
+           role="link" tabindex="0">
 
           <div class="fp-kpi-lbl"><i class="fas fa-arrow-down me-1"></i>Receitas</div>
 
@@ -215,14 +216,15 @@
 
           </div>
 
-        </a>
+        </div>
 
 
 
         
 
-        <a href="{% url 'financeiro:lista_despesas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
-           class="fp-kpi fp-kpi-desp fp-kpi-link">
+        <div class="fp-kpi fp-kpi-desp fp-kpi-link"
+           onclick="window.location.href='{% url "financeiro:lista_despesas" %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}'"
+           role="link" tabindex="0">
 
           <div class="fp-kpi-lbl"><i class="fas fa-arrow-up me-1"></i>Despesas</div>
 
@@ -252,7 +254,7 @@
 
           </div>
 
-        </a>
+        </div>
 
 
 
