@@ -1,0 +1,117 @@
+{% comment %}
+  dashboard_base.html  —  Template base para Dashboards Premium
+  GereIgreja  |  Dashboard Design System
+
+  Uso:
+    {% extends 'dashboard_base.html' %}
+
+    {% block dashboard_css %}
+      <link rel="stylesheet" href="{% static 'css/meu-dashboard.css' %}">
+    {% endblock %}
+
+    {% block dashboard_sidebar_key %}'meu_modulo.sidebar_visible'{% endblock %}
+    {% block dashboard_sidebar_class %}dash-meu-modulo{% endblock %}
+
+    {% block dashboard_title %}Meu Dashboard{% endblock %}
+
+    {% block dashboard_breadcrumb %}
+      <li><a href="{% url 'home' %}"><i class="fas fa-home me-1"></i>Home</a></li>
+      <li><span class="active">Meu Dashboard</span></li>
+    {% endblock %}
+
+    {% block dashboard_filters %}
+      {# filtros opcionais — usa .fp-filters + .fp-filter-pill #}
+    {% endblock %}
+
+    {% block dashboard_content %}
+      {# conteúdo principal do dashboard #}
+    {% endblock %}
+
+  Blocos disponíveis:
+    dashboard_css          — CSS específico do dashboard (carregado após dashboard-base.css)
+    dashboard_sidebar_key  — string JS com a chave localStorage (com aspas simples)
+    dashboard_sidebar_class — nome da classe CSS usada no modo full-width
+    dashboard_title        — título h1 do dashboard
+    dashboard_breadcrumb   — itens <li> do breadcrumb
+    dashboard_filters      — bloco de filtros (opcional)
+    dashboard_content      — conteúdo principal
+    extra_js               — JS adicional (opcional, carregado após os scripts base)
+{% endcomment %}
+
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block extra_css %}
+
+<link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
+{% block dashboard_css %}{% endblock %}
+
+{# Anti-FOUC: aplica a classe fullwidth de forma síncrona antes do render #}
+<script>
+(function () {
+  var storageKey  = {% block dashboard_sidebar_key %}'dashboard.sidebar_visible'{% endblock %};
+  var toggleClass = {% block dashboard_sidebar_class %}'dash-fullwidth'{% endblock %};
+  try {
+    if (localStorage.getItem(storageKey) !== '1') {
+      document.documentElement.classList.add(toggleClass);
+    }
+  } catch (e) {
+    document.documentElement.classList.add(toggleClass);
+  }
+})();
+</script>
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="fp-page">
+
+  <div class="fp-header">
+    <div class="fp-title-wrap">
+
+      <div class="d-flex align-items-center gap-3 mb-1">
+
+        <button class="fp-menu-toggle" id="fp-toggle-sidebar" type="button"
+                title="Abrir/fechar menu lateral"
+                aria-expanded="false">
+          <i class="fas fa-bars"></i>
+          <span class="d-none d-md-inline" data-fp-sidebar-label>Ocultar menu</span>
+        </button>
+
+        <h1 class="fp-title">{% block dashboard_title %}Dashboard{% endblock %}</h1>
+
+      </div>
+
+      <ol class="fp-breadcrumb">
+        {% block dashboard_breadcrumb %}{% endblock %}
+      </ol>
+
+    </div>
+
+    {% block dashboard_filters %}{% endblock %}
+
+  </div>
+
+  {% block dashboard_content %}{% endblock %}
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+
+<script src="{% static 'js/dashboard-sidebar.js' %}"></script>
+<script>
+DashboardSidebar.init({
+  storageKey:    {% block dashboard_sidebar_init_key %}'dashboard.sidebar_visible'{% endblock %},
+  toggleClass:   {% block dashboard_sidebar_init_class %}'dash-fullwidth'{% endblock %},
+  defaultVisible: {% block dashboard_sidebar_default %}false{% endblock %}
+});
+</script>
+
+{% block dashboard_extra_js %}{% endblock %}
+
+{% endblock %}

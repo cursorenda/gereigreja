@@ -1,0 +1,346 @@
+/* =================================================================
+   dashboard-base.css  —  Design System Base para Dashboards Premium
+   GereIgreja  |  Turquesa  |  Bootstrap 5
+
+   Importar ANTES do CSS específico de cada dashboard.
+   Fornece: tokens, layout, blocos, botões, badges, toggle e utilitários.
+   ================================================================= */
+
+
+/* -----------------------------------------------------------------
+   0. DESIGN TOKENS  (prefixo --dp-*)
+      Os aliases --fp-* garantem compatibilidade com financeiro-painel.css
+   ----------------------------------------------------------------- */
+:root {
+  /* Marca (turquesa) */
+  --dp-primary:       #0D8281;
+  --dp-primary-dk:    #0A6665;
+  --dp-primary-lt:    #2AA5A4;
+  --dp-primary-bg:    #DFF4F3;
+
+  /* Superfícies & fundos */
+  --dp-surface:       #FFFFFF;
+  --dp-bg:            #F1F5F9;
+
+  /* Bordas */
+  --dp-border:        #E2E8F0;
+
+  /* Texto */
+  --dp-text:          #1E293B;
+  --dp-muted:         #64748B;
+
+  /* Status */
+  --dp-success:       #10B981;
+  --dp-warning:       #D97706;
+  --dp-danger:        #EF4444;
+
+  /* Geometria */
+  --dp-radius:        16px;
+  --dp-radius-sm:     10px;
+
+  /* Efeitos */
+  --dp-shadow:        0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(13,130,129,.07);
+  --dp-shadow-hover:  0 4px 8px rgba(0,0,0,.07), 0 12px 32px rgba(13,130,129,.13);
+  --dp-trans:         all .18s cubic-bezier(.4,0,.2,1);
+
+  /* Aliases retrocompatíveis (financeiro-painel.css usa --fp-*) */
+  --fp-primary:       var(--dp-primary);
+  --fp-primary-dk:    var(--dp-primary-dk);
+  --fp-primary-lt:    var(--dp-primary-lt);
+  --fp-primary-bg:    var(--dp-primary-bg);
+  --fp-surface:       var(--dp-surface);
+  --fp-bg:            var(--dp-bg);
+  --fp-border:        var(--dp-border);
+  --fp-text:          var(--dp-text);
+  --fp-muted:         var(--dp-muted);
+  --fp-success:       var(--dp-success);
+  --fp-warning:       var(--dp-warning);
+  --fp-danger:        var(--dp-danger);
+  --fp-radius:        var(--dp-radius);
+  --fp-radius-sm:     var(--dp-radius-sm);
+  --fp-shadow:        var(--dp-shadow);
+  --fp-shadow-hover:  var(--dp-shadow-hover);
+  --fp-trans:         var(--dp-trans);
+}
+
+
+/* -----------------------------------------------------------------
+   1. MODO FULL-WIDTH — oculta menu lateral
+      Classe canônica: .dash-fullwidth (novos dashboards)
+      Cada dashboard pode registrar sua própria classe via JS/CSS.
+   ----------------------------------------------------------------- */
+html.dash-fullwidth #layoutSidenav_nav,
+body.dash-fullwidth #layoutSidenav_nav { display: none !important; }
+
+html.dash-fullwidth #layoutSidenav_content,
+body.dash-fullwidth #layoutSidenav_content {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  width: 100% !important;
+  min-width: 0;
+}
+html.dash-fullwidth #layoutSidenav,
+body.dash-fullwidth #layoutSidenav {
+  width: 100% !important;
+}
+body.sb-nav-fixed.dash-fullwidth #layoutSidenav #layoutSidenav_content,
+body.sb-nav-fixed.dash-fullwidth #layoutSidenav #layoutSidenav_content:before {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+
+/* -----------------------------------------------------------------
+   2. WRAPPER GERAL DA PÁGINA
+   ----------------------------------------------------------------- */
+.fp-page {
+  padding: 1.5rem 1.75rem 4rem;
+  background: var(--dp-bg);
+  min-height: calc(100vh - 56px);
+}
+
+
+/* -----------------------------------------------------------------
+   3. CABEÇALHO — título + breadcrumb + filtros
+   ----------------------------------------------------------------- */
+.fp-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1.5px solid var(--dp-border);
+}
+
+.fp-title-wrap { display: flex; flex-direction: column; gap: .15rem; }
+
+.fp-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--dp-text);
+  letter-spacing: -.4px;
+  margin: 0;
+  line-height: 1.15;
+}
+
+/* Breadcrumb */
+.fp-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  list-style: none;
+  padding: 0;
+  margin: .25rem 0 0;
+  font-size: .8rem;
+}
+.fp-breadcrumb li { display: flex; align-items: center; gap: .35rem; }
+.fp-breadcrumb li + li::before {
+  content: "/";
+  color: var(--dp-border);
+  font-weight: 700;
+}
+.fp-breadcrumb a {
+  color: var(--dp-primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: var(--dp-trans);
+}
+.fp-breadcrumb a:hover { color: var(--dp-primary-dk); text-decoration: underline; }
+.fp-breadcrumb .active { color: var(--dp-muted); font-weight: 500; }
+
+/* Filtros em pill */
+.fp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  align-items: center;
+}
+.fp-filter-pill {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  background: var(--dp-surface);
+  border: 1.5px solid var(--dp-border);
+  border-radius: var(--dp-radius-sm);
+  padding: .32rem .8rem;
+  transition: var(--dp-trans);
+  cursor: default;
+}
+.fp-filter-pill:focus-within {
+  border-color: var(--dp-primary);
+  box-shadow: 0 0 0 3px rgba(13,130,129,.1);
+}
+.fp-filter-label {
+  font-size: .76rem;
+  font-weight: 700;
+  color: var(--dp-primary);
+  white-space: nowrap;
+}
+.fp-filter-pill select {
+  border: none;
+  background: transparent;
+  font-size: .83rem;
+  color: var(--dp-text);
+  outline: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+
+/* -----------------------------------------------------------------
+   4. BLOCO BASE — superfície branca elevada
+   ----------------------------------------------------------------- */
+.fp-block {
+  background: var(--dp-surface);
+  border-radius: var(--dp-radius);
+  border: 1px solid rgba(226,232,240,.8);
+  box-shadow: var(--dp-shadow);
+  padding: 1.4rem 1.5rem 1.3rem;
+  transition: var(--dp-trans);
+}
+.fp-block:hover { box-shadow: var(--dp-shadow-hover); }
+
+.fp-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .4rem .8rem;
+  margin-bottom: 1.1rem;
+}
+.fp-block-label {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .73rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--dp-muted);
+}
+.fp-block-label i { color: var(--dp-primary); font-size: .82rem; }
+.fp-block-cta {
+  font-size: .76rem;
+  color: var(--dp-primary);
+  font-weight: 700;
+  text-decoration: none;
+  transition: var(--dp-trans);
+}
+.fp-block-cta:hover { color: var(--dp-primary-dk); }
+
+.fp-block-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: .5rem;
+  padding-top: .9rem;
+  margin-top: .9rem;
+  border-top: 1px solid var(--dp-border);
+}
+
+.fp-span-full { grid-column: 1 / -1; }
+
+
+/* -----------------------------------------------------------------
+   5. MICRO-BOTÕES REUTILIZÁVEIS
+   ----------------------------------------------------------------- */
+.fp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .75rem;
+  font-weight: 700;
+  padding: .28rem .7rem;
+  border-radius: 7px;
+  text-decoration: none;
+  border: 1.5px solid transparent;
+  transition: var(--dp-trans);
+  cursor: pointer;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.fp-btn-ghost {
+  border-color: var(--dp-border);
+  background: var(--dp-surface);
+  color: var(--dp-muted);
+}
+.fp-btn-ghost:hover {
+  border-color: var(--dp-primary);
+  color: var(--dp-primary);
+  background: var(--dp-primary-bg);
+}
+.fp-btn-prim {
+  border-color: var(--dp-primary);
+  background: var(--dp-primary);
+  color: #fff;
+}
+.fp-btn-prim:hover {
+  background: var(--dp-primary-dk);
+  border-color: var(--dp-primary-dk);
+  color: #fff;
+}
+
+
+/* -----------------------------------------------------------------
+   6. STATUS BADGES
+   ----------------------------------------------------------------- */
+.fp-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .15rem .55rem;
+  border-radius: 20px;
+}
+.fp-badge-ok      { background: rgba(16,185,129,.1);  color: #059669; }
+.fp-badge-warn    { background: rgba(217,119,6,.1);   color: #b45309; }
+.fp-badge-danger  { background: rgba(239,68,68,.1);   color: #dc2626; }
+.fp-badge-neutral { background: rgba(100,116,139,.1); color: var(--dp-muted); }
+
+
+/* -----------------------------------------------------------------
+   7. BOTÃO TOGGLE DO MENU LATERAL
+   ----------------------------------------------------------------- */
+.fp-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .3rem .65rem;
+  border: 1.5px solid var(--dp-border);
+  border-radius: 8px;
+  background: var(--dp-surface);
+  color: var(--dp-muted);
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--dp-trans);
+  text-decoration: none;
+}
+.fp-menu-toggle:hover { border-color: var(--dp-primary); color: var(--dp-primary); }
+
+
+/* -----------------------------------------------------------------
+   8. STATUS DOTS (indicadores de alerta)
+   ----------------------------------------------------------------- */
+.fp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.fp-dot-warn   { background: var(--dp-warning); }
+.fp-dot-danger { background: var(--dp-danger);  }
+.fp-dot-prim   { background: var(--dp-primary); }
+
+
+/* -----------------------------------------------------------------
+   9. EMPTY STATE
+   ----------------------------------------------------------------- */
+.fp-empty {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: var(--dp-muted);
+  font-size: .83rem;
+}
+.fp-empty i {
+  font-size: 1.8rem;
+  color: var(--dp-border);
+  display: block;
+  margin-bottom: .45rem;
+}
