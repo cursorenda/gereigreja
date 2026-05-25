@@ -1,872 +1,1338 @@
 {% extends 'base_com_sistema.html' %}
+
+{% load static %}
+
 {% load humanize %}
+
 {% load l10n %}
 
-{% block title %}{{ titulo_dashboard }}{% endblock %} {# Título dinâmico #}
+
+
+{% block title %}{{ titulo_dashboard }}{% endblock %} 
+
+
+
+{% block extra_css %}
+
+<link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
+<link rel="stylesheet" href="{% static 'css/financeiro-painel.css' %}">
+
+<script>
+(function () {
+  try {
+    if (localStorage.getItem('financeiro.sidebar_visible') !== '1') {
+      document.documentElement.classList.add('dash-financeiro');
+    }
+  } catch (e) {
+    document.documentElement.classList.add('dash-financeiro');
+  }
+})();
+</script>
+
+{% endblock %}
+
+
 
 {% block content %}
-<div class="container-fluid px-4">
-<style>
-                    /* Filtros modernos no topo */
-                    .filtros-fin-topo {
-                        background: #fff;
-                        border-radius: 7px;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-                        padding: 1.1rem 1.5rem 1.1rem 1.5rem;
-                        margin-bottom: 1.2rem;
-                        display: flex;
-                        flex-wrap: wrap;
-                        gap: 1.2rem;
-                        align-items: center;
-                        justify-content: space-between;
-                    }
-                    .filtros-fin-topo label {
-                        font-weight: 600;
-                        color: #0d8281;
-                        margin-right: 0.5rem;
-                        margin-bottom: 0;
-                    }
-                    .filtros-fin-topo .form-select {
-                        border-radius: 4px !important;
-                        border: 1.5px solid #b6c6e6;
-                        background: #f8fafc;
-                        color: #222;
-                        font-size: 1.05rem;
-                        box-shadow: 0 1px 4px rgba(67,233,123,0.04);
-                        transition: border 0.2s, box-shadow 0.2s;
-                    }
-                    .filtros-fin-topo .input-group-text {
-                        border: none !important;
-                        background: transparent;
-                        color: #0d8281;
-                        font-size: 1.05rem;
-                        font-weight: 700;
-                        box-shadow: none;
-                        padding-left: 0.5rem;
-                        padding-right: 0.5rem;
-                    }
-                    .filtros-fin-topo .form-select:focus {
-                        border-color: #0d8281;
-                        box-shadow: 0 0 0 2px rgba(13, 130, 129, 0.10);
-                    }
-                    .filtros-fin-topo .input-group {
-                        background: transparent;
-                        border: none;
-                        box-shadow: none;
-                        margin-bottom: 0;
-                    }
-                    @media (max-width: 900px) {
-                        .filtros-fin-topo { flex-direction: column; align-items: stretch; gap: 0.7rem; padding: 1rem; }
-                    }
-                .card-row-flex {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-                    gap: 2rem;
-                    place-items: stretch;
-                    grid-auto-rows: 1fr;
-                    margin-bottom: 0.5rem;
-                }
-                .card-ebd-fin {
-                    width: 100%;
-                    min-width: 0;
-                    min-height: 260px;
-                    border-radius: 18px !important;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.10);
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    padding: 1.2rem;
-                    color: #fff;
-                    margin-bottom: 0;
-                    background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%) !important;
-                    transition: box-shadow 0.2s;
-                    height: 100%;
-                    align-self: stretch;
-                }
-                .card-ebd-fin .card-header-flex, .card-ebd-fin .d-flex { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.3rem; }
-                .card-ebd-fin .card-icon { font-size: 2.2rem; opacity: 0.85; margin-bottom: 0; margin-right: 0; }
-                .card-ebd-fin .card-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 0; margin-top: 0; text-align: left; }
-                .card-ebd-fin .card-desc { font-size: 1.05rem; font-weight: 400; margin-bottom: 0.6rem; text-align: left; }
-                .card-ebd-fin .card-action { margin-top: auto; text-align: left; }
-                @media (max-width: 1200px) {
-                    .card-row-flex { gap: 1.2rem; }
-                    .card-row-flex .card-ebd-fin { min-width: 48%; max-width: 100%; }
-                }
-                @media (max-width: 900px) {
-                    .card-row-flex { gap: 0.7rem; }
-                    .card-row-flex .card-ebd-fin { min-width: 98vw; max-width: 100vw; flex: 1 1 100%; }
-                }
-                @media (max-width: 600px) {
-                    .card-row-flex { flex-direction: column; gap: 0.5rem; }
-                    .card-row-flex .card-ebd-fin { min-width: 98vw; max-width: 100vw; border-radius: 12px !important; }
-                }
-                
-            .ultimas-list-group .data {
-                color: #888;
-                font-size: 1.18em;
-                                font-size: 1.18em;
-                min-width: 70px;
-                display: inline-block;
-                margin-right: 0.4rem;
-            }
-            .ultimas-list-group .valor {
-                font-size: 1.22em;
-                font-weight: 700;
-                color: #0d8281;
-                background: rgba(13, 130, 129, 0.13);
-                border-radius: 8px;
-                padding: 0.18rem 0.8rem;
-                margin-left: 0.7rem;
-                box-shadow: 0 1px 4px rgba(13, 130, 129, 0.08);
-            }
-            .ultimas-list-group .data,
-            .ultimas-list-group .list-group-item > span {
-                font-size: 1.15em;
-                font-weight: 500;
-                color: #222;
-            }
-            .ultimas-list-group .data {
-                font-size: 0.98em;
-                color: #888;
-                min-width: 70px;
-                display: inline-block;
-                margin-right: 0.4rem;
-                font-weight: 400;
-            }
-            .ultimas-card-footer {
-                background: transparent !important;
-                border-top: none !important;
-                padding: 0.5rem 1.2rem 0.7rem 1.2rem;
-                text-align: right;
-            }
-        .card-header {
-            background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-            color: #fff !important;
-            border-top-left-radius: 24px !important;
-            border-top-right-radius: 24px !important;
-            padding: 0.7rem 1rem !important;
-            display: flex !important;
-            align-items: center !important;
-            font-weight: bold !important;
-            font-size: 1.1rem !important;
-            min-height: 48px;
-        }
-        .card {
-            border-top-left-radius: 24px !important;
-            border-top-right-radius: 24px !important;
-        }
-    .card-row-flex {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.7rem;
-        justify-content: center;
-        align-items: stretch;
-    }
-    .card-ebd-fin {
-        width: 170px;
-        height: 170px;
-        border-radius: 16px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 0.7rem 0.7rem 0.7rem 0.7rem;
-        color: #fff;
-        margin-bottom: 0;
-        background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%) !important;
-        transition: box-shadow 0.2s;
-    }
-    .card-row-flex {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 2rem;
-        justify-content: center;
-        align-items: stretch;
-    }
-    .card-ebd-fin {
-        width: 240px;
-        height: 240px;
-        border-radius: 24px !important;
-        box-shadow: 0 6px 24px rgba(0,0,0,0.10);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: flex-start;
-        padding: 1.6rem 1.3rem 1.3rem 1.3rem;
-        color: #fff;
-        margin-bottom: 0;
-        /* background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%) !important; */
-        transition: box-shadow 0.2s;
-    }
-    .card-ebd-fin .card-header-flex, .card-ebd-fin .d-flex { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.2rem; }
-    .card-ebd-fin .card-icon { font-size: 2.8rem; opacity: 0.85; margin-bottom: 0; margin-right: 0; }
-    .card-ebd-fin .card-title { font-size: 1.35rem; font-weight: 700; margin-bottom: 0; margin-top: 0; text-align: left; }
-    .card-ebd-fin .card-desc { font-size: 1rem; font-weight: 400; margin-bottom: 0.7rem; text-align: left; }
-    .card-ebd-fin .card-badge { font-size: 1.1rem; font-weight: 600; background: rgba(255,255,255,0.18); border-radius: 8px; padding: 0.3rem 0.8rem; display: inline-block; margin-bottom: 0.2rem; color: #fff; }
-    .card-ebd-fin .card-action { margin-top: auto; text-align: left; }
-    @media (max-width: 1200px) { .card-row-flex .card-ebd-fin { width: 48%; min-width: 220px; max-width: 48%; } }
-    @media (max-width: 900px) { .card-row-flex .card-ebd-fin { width: 100%; min-width: 180px; max-width: 100%; } }
-    .fin-receita {
-        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-    }
-    .fin-despesa {
-        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-    }
-    .fin-relatorio {
-        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-        color: #fff !important;
-    }
-    .fin-saldo {
-        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-    }
-    .fin-mes { background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important; }
-    .fin-pendente { background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important; color: #fff; }
-    .fin-vencida { background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important; }
-    @media (max-width: 1200px) { .card-row-flex .card-ebd-fin { flex: 1 1 48%; min-width: 180px; max-width: 48%; } }
-    @media (max-width: 900px) { .card-row-flex .card-ebd-fin { flex: 1 1 100%; min-width: 160px; max-width: 100%; } }
-    /* Gradientes para cards secundários */
-    .fin-banco {
-        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-        color: #fff;
-    }
-    /* Seletor menor e elegante para Perfil dos Dizimistas por Tipo */
-    #perfilDizimistaTipoFiltro {
-        font-size: 10px !important;
-        padding: 0.02em 0.3em;
-        height: 20px;
-        min-width: 55px;
-        max-width: 80px;
-        border-radius: 4px;
-        border: 1px solid #0d8281;
-        background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
-        color: #222;
-        box-shadow: 0 1px 2px rgba(13, 130, 129, 0.07);
-        margin-left: 10px;
-        appearance: auto;
-        cursor: pointer;
-        outline: none;
-        transition: border 0.2s, box-shadow 0.2s;
-    }
-    #perfilDizimistaTipoFiltro option {
-        font-size: 10px !important;
-    }
-    #perfilDizimistaTipoFiltro:focus {
-        border-color: #0d8281;
-        box-shadow: 0 0 0 2px rgba(13, 130, 129, 0.15);
-    }
-    .fin-transferencia {
-        background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-        color: #fff;
-    }
-    .card-ebd-fin .card-periodo-menor {
-        font-size: 0.55em;
-        font-weight: 400;
-        opacity: 0.85;
-        margin-left: 0.2em;
-    }
-</style>
-    {# ===================== INÍCIO: TÍTULO DO PAINEL E FILTROS ===================== #}
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2"> {# Usar flex-wrap e gap #}
-        <div class="filtros-fin-topo w-100">
-            <h1 class="mb-0" style="font-size:1.7rem; font-weight:700; color:#0d8281; letter-spacing:0.5px;">Dashboard Financeiro</h1>
-            <form method="get" class="d-flex flex-wrap gap-3 align-items-center" style="margin-bottom:0;">
-                <div class="input-group input-group-sm w-auto align-items-center" style="background:transparent; border:none; box-shadow:none;">
-                    <label class="input-group-text" for="caixa_filtro_select">Caixa:</label>
-                    <select name="caixa_filtro" id="caixa_filtro_select" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="" {% if not request.GET.caixa_filtro %}selected{% endif %}>Todos os Caixas</option>
-                        {% for caixa in contas_bancarias_dropdown %}
-                            <option value="{{ caixa.pk }}" {% if request.GET.caixa_filtro == caixa.pk|stringformat:"s" %}selected{% endif %}>
-                                {{ caixa.nome_identificacao }}{% if caixa.is_principal %} (Principal){% endif %}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="input-group input-group-sm w-auto align-items-center" style="background:transparent; border:none; box-shadow:none;">
-                    <label class="input-group-text" for="periodo_filtro_select">Totais:</label>
-                    <select name="periodo_filtro" id="periodo_filtro_select" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="geral" {% if periodo_filtro_selecionado == 'geral' %}selected{% endif %}>Geral</option>
-                        <option value="aberto" {% if periodo_filtro_selecionado == 'aberto' %}selected{% endif %}>Em Aberto</option>
-                        <option value="ano_atual" {% if periodo_filtro_selecionado == 'ano_atual' %}selected{% endif %}>Ano Atual</option>
-                    </select>
-                </div>
-            </form>
-        </div>
+
+<div class="fp-page">
+
+
+
+  
+
+  <div class="fp-header">
+
+    <div class="fp-title-wrap">
+
+      <div class="d-flex align-items-center gap-3 mb-1">
+
+        <button class="fp-menu-toggle" id="fp-toggle-sidebar" type="button"
+
+          title="Abrir/fechar menu lateral"
+
+          aria-expanded="false">
+
+          <i class="fas fa-bars"></i>
+
+          <span class="d-none d-md-inline" data-fp-sidebar-label>Ocultar menu</span>
+
+        </button>
+
+        <h1 class="fp-title">Dashboard Financeiro</h1>
+
+      </div>
+
+      <ol class="fp-breadcrumb">
+
+        <li><a href="{% url 'secretaria:dashboard' %}"><i class="fas fa-home me-1"></i>Home</a></li>
+
+        <li><a href="{% url 'financeiro:painel_financeiro' %}">Financeiro</a></li>
+
+        <li><span class="active">Visão Geral</span></li>
+
+      </ol>
+
     </div>
-    {# ===================== FIM: TÍTULO DO PAINEL E FILTROS ===================== #}
-
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'financeiro:painel_financeiro' %}">Financeiro</a></li>
-        <li class="breadcrumb-item active">Visão Geral</li>
-    </ol>
 
 
 
+    
 
-    {# Todos os cards em um único grid para alinhamento perfeito #}
-    <div class="card-row-flex" style="gap:2rem; justify-content:center;">
-        <!-- Card Receitas -->
-        <div style="height:100%">
-            <div class="card-ebd-fin fin-receita">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-hand-holding-usd"></i></span>
-                    <span class="card-title ms-2">Receitas</span>
-                </div>
-                <div class="card-desc">Total de receitas <span class="card-periodo-menor">({{ titulo_filtro_periodo }})</span></div>
-                <span class="card-badge">R$ {{ total_receitas|floatformat:2|intcomma }}</span>
-                <div class="card-action d-flex gap-2">
-                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_receitas' %}">Detalhes</a>
-                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:cadastrar_receita' %}"><i class="fas fa-plus"></i> Cadastrar</a>
-                </div>
-            </div>
+    <form method="get" class="fp-filters">
+
+      <div class="fp-filter-pill">
+
+        <span class="fp-filter-label">Caixa</span>
+
+        <select name="caixa_filtro" id="caixa_filtro_select" onchange="this.form.submit()">
+
+          <option value="" {% if not request.GET.caixa_filtro %}selected{% endif %}>Todos</option>
+
+          {% for caixa in contas_bancarias_dropdown %}
+
+            <option value="{{ caixa.pk }}"
+
+                    {% if request.GET.caixa_filtro == caixa.pk|stringformat:"s" %}selected{% endif %}>
+
+              {{ caixa.nome_identificacao }}{% if caixa.is_principal %} *{% endif %}
+
+            </option>
+
+          {% endfor %}
+
+        </select>
+
+      </div>
+
+      <div class="fp-filter-pill">
+
+        <span class="fp-filter-label">Período</span>
+
+        <select name="periodo_filtro" id="periodo_filtro_select" onchange="fpOnPeriodoChange(this)">
+
+          <option value="geral"      {% if periodo_filtro_selecionado == 'geral' %}selected{% endif %}>Geral</option>
+
+          <option value="aberto"     {% if periodo_filtro_selecionado == 'aberto' %}selected{% endif %}>Em Aberto</option>
+
+          <option value="ano_atual"  {% if periodo_filtro_selecionado == 'ano_atual' %}selected{% endif %}>Ano Atual</option>
+
+          <option value="custom"     {% if periodo_filtro_selecionado == 'custom' %}selected{% endif %}>Personalizado</option>
+
+        </select>
+
+      </div>
+
+      <div class="fp-filter-date" id="fp-date-range-wrap"
+           style="{% if periodo_filtro_selecionado != 'custom' %}display:none{% endif %}">
+
+        <span class="fp-filter-label">De</span>
+
+        <input type="date" name="data_inicio" id="fp-data-inicio"
+               value="{{ data_inicio_filtro }}"
+               max="{{ data_hoje|date:'Y-m-d' }}">
+
+        <span class="fp-filter-date-sep">até</span>
+
+        <input type="date" name="data_fim" id="fp-data-fim"
+               value="{{ data_fim_filtro }}"
+               max="{{ data_hoje|date:'Y-m-d' }}">
+
+        <button type="submit" class="fp-btn fp-btn-prim ms-1">
+          <i class="fas fa-search"></i> Aplicar
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+  
+
+
+
+
+
+  
+
+  <div class="fp-macro-grid">
+
+
+
+    
+
+    <div class="fp-block">
+
+      <div class="fp-block-head">
+
+        <span class="fp-block-label">
+
+          <i class="fas fa-heartbeat"></i>
+
+          Saúde Financeira Imediata
+
+        </span>
+
+        <span class="text-muted" style="font-size:.78rem">{{ titulo_filtro_periodo }}</span>
+
+      </div>
+
+
+
+      
+
+      <div class="fp-kpi-row">
+
+
+
+        
+
+        <a href="{% url 'financeiro:lista_receitas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
+           class="fp-kpi fp-kpi-rec fp-kpi-link">
+
+          <div class="fp-kpi-lbl"><i class="fas fa-arrow-down me-1"></i>Receitas</div>
+
+          <div class="fp-kpi-val">R$&nbsp;{{ total_receitas|floatformat:2|intcomma }}</div>
+
+          <div class="fp-kpi-period">{{ titulo_filtro_periodo }}</div>
+
+          {% if variacao_receitas_pct is not None %}
+          <div class="fp-kpi-trend {% if variacao_receitas_pct > 0 %}fp-trend-up{% elif variacao_receitas_pct < 0 %}fp-trend-dn{% else %}fp-trend-eq{% endif %}">
+            {% if variacao_receitas_pct > 0 %}<i class="fas fa-arrow-trend-up"></i> +{{ variacao_receitas_pct }}%
+            {% elif variacao_receitas_pct < 0 %}<i class="fas fa-arrow-trend-down"></i> {{ variacao_receitas_pct }}%
+            {% else %}<i class="fas fa-minus"></i> Estável{% endif %}
+            <span style="font-weight:400;color:var(--fp-muted)">vs mês anterior</span>
+          </div>
+          {% endif %}
+
+          <div class="fp-kpi-actions">
+
+            <span class="fp-btn fp-btn-ghost">Ver lista</span>
+
+            <a href="{% url 'financeiro:cadastrar_receita' %}" onclick="event.stopPropagation()"
+               class="fp-btn fp-btn-prim"><i class="fas fa-plus"></i> Cadastrar</a>
+
+          </div>
+
+        </a>
+
+
+
+        
+
+        <a href="{% url 'financeiro:lista_despesas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
+           class="fp-kpi fp-kpi-desp fp-kpi-link">
+
+          <div class="fp-kpi-lbl"><i class="fas fa-arrow-up me-1"></i>Despesas</div>
+
+          <div class="fp-kpi-val {% if total_despesas > total_receitas %}neg{% endif %}">
+
+            R$&nbsp;{{ total_despesas|floatformat:2|intcomma }}
+
+          </div>
+
+          <div class="fp-kpi-period">{{ titulo_filtro_periodo }}</div>
+
+          {% if variacao_despesas_pct is not None %}
+          <div class="fp-kpi-trend {% if variacao_despesas_pct > 0 %}fp-trend-dn{% elif variacao_despesas_pct < 0 %}fp-trend-up{% else %}fp-trend-eq{% endif %}">
+            {% if variacao_despesas_pct > 0 %}<i class="fas fa-arrow-trend-up"></i> +{{ variacao_despesas_pct }}%
+            {% elif variacao_despesas_pct < 0 %}<i class="fas fa-arrow-trend-down"></i> {{ variacao_despesas_pct }}%
+            {% else %}<i class="fas fa-minus"></i> Estável{% endif %}
+            <span style="font-weight:400;color:var(--fp-muted)">vs mês anterior</span>
+          </div>
+          {% endif %}
+
+          <div class="fp-kpi-actions">
+
+            <span class="fp-btn fp-btn-ghost">Ver lista</span>
+
+            <a href="{% url 'financeiro:cadastrar_despesa' %}" onclick="event.stopPropagation()"
+               class="fp-btn fp-btn-prim"><i class="fas fa-plus"></i> Cadastrar</a>
+
+          </div>
+
+        </a>
+
+
+
+        
+
+        <div class="fp-kpi fp-kpi-sal">
+
+          <div class="fp-kpi-lbl"><i class="fas fa-balance-scale me-1"></i>Saldo</div>
+
+          <div class="fp-kpi-val {% if saldo_geral < 0 %}neg{% endif %}">
+
+            R$&nbsp;{{ saldo_geral|floatformat:2|intcomma }}
+
+          </div>
+
+          <div class="fp-kpi-period">{{ titulo_filtro_periodo }}</div>
+
+          <div class="fp-kpi-actions">
+
+            <span class="fp-btn fp-btn-ghost" style="cursor:default">Período selecionado</span>
+
+          </div>
+
         </div>
-        <!-- Card Despesas -->
-        <div style="height:100%">
-            <div class="card-ebd-fin fin-despesa">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-receipt"></i></span>
-                    <span class="card-title ms-2">Despesas</span>
-                </div>
-                <div class="card-desc">Total de despesas <span class="card-periodo-menor">({{ titulo_filtro_periodo }})</span></div>
-                <span class="card-badge">R$ {{ total_despesas|floatformat:2|intcomma }}</span>
-                <div class="card-action d-flex gap-2">
-                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_despesas' %}">Detalhes</a>
-                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:cadastrar_despesa' %}"><i class="fas fa-plus"></i> Cadastrar</a>
-                </div>
-            </div>
+
+
+
+      </div>
+
+
+
+      
+
+      <div class="fp-saldo-mes">
+
+        <span class="fp-saldo-mes-lbl">
+
+          <i class="fas fa-calendar-check"></i>
+
+          Saldo do Mês Atual
+
+        </span>
+
+        <span class="fp-saldo-mes-val {% if saldo_mes < 0 %}text-danger{% endif %}">
+
+          R$&nbsp;{{ saldo_mes|floatformat:2|intcomma }}
+
+        </span>
+
+      </div>
+
+
+
+    </div>
+
+
+
+
+
+    
+
+    <div class="fp-block fp-block-caixa">
+
+
+
+      
+
+      <div>
+
+        <div class="fp-block-head mb-2">
+
+          <span class="fp-block-label">
+
+            <i class="fas fa-university"></i>
+
+            Bancos & Caixas
+
+          </span>
+
+          <a href="{% url 'financeiro:lista_contas_bancarias' %}" class="fp-block-cta">Gerenciar</a>
+
         </div>
-        <!-- Card Saldo -->
-        <div style="height:100%">
-            <div class="card-ebd-fin fin-saldo">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-balance-scale"></i></span>
-                    <span class="card-title ms-2">Saldo</span>
-                </div>
-                <div class="card-desc">Saldo geral <span class="card-periodo-menor">({{ titulo_filtro_periodo }})</span></div>
-                <span class="card-badge">R$ {{ saldo_geral|floatformat:2|intcomma }}</span>
-                <div class="card-action">
-                    <span class="btn btn-sm btn-light disabled">Período Selecionado</span>
-                </div>
-            </div>
+
+
+
+        {% if contas_bancarias_painel %}
+
+          <ul class="fp-contas-list">
+
+            {% for conta in contas_bancarias_painel %}
+
+              <li class="fp-conta-item">
+
+                <span class="fp-conta-nome">
+
+                  {{ conta.nome_identificacao }}
+
+                  {% if not igreja_selecionada and conta.igreja %}
+
+                    <span class="fp-conta-sub">{{ conta.igreja.nome_igreja|truncatechars:28 }}</span>
+
+                  {% endif %}
+
+                </span>
+
+                <span class="fp-conta-val {% if conta.saldo_atual < 0 %}neg{% endif %}">
+
+                  R$&nbsp;{{ conta.saldo_atual|floatformat:2|intcomma }}
+
+                </span>
+
+              </li>
+
+            {% endfor %}
+
+          </ul>
+
+        {% else %}
+
+          <div class="fp-empty"><i class="fas fa-inbox"></i>Nenhuma conta ativa encontrada.</div>
+
+        {% endif %}
+
+
+
+        <div class="fp-block-footer">
+
+          <a href="{% url 'financeiro:nova_transferencia_caixa' %}" class="fp-btn fp-btn-ghost">
+
+            <i class="fas fa-exchange-alt"></i> Transferir
+
+          </a>
+
         </div>
-        <!-- Card Saldo Mês Atual -->
-        <div style="height:100%">
-            <div class="card-ebd-fin fin-mes">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-calendar-alt"></i></span>
-                    <span class="card-title ms-2">Saldo Mês Atual</span>
-                </div>
-                <div class="card-desc">Saldo do mês atual</div>
-                <span class="card-badge">R$ {{ saldo_mes_atual|default:"0,00" }}</span>
-            </div>
+
+      </div>
+
+
+
+      <div class="fp-divider"></div>
+
+
+
+      
+
+      <div>
+
+        <div class="fp-block-head mb-2">
+
+          <span class="fp-block-label">
+
+            <i class="fas fa-archive"></i>
+
+            Último Fechamento
+
+          </span>
+
+          <a href="{% url 'financeiro:lista_fechamentos_caixa' %}" class="fp-block-cta">Ver todos</a>
+
         </div>
-        <!-- Card Bancos/Caixas -->
-        <div style="height:100%">
-            <div class="card-ebd-fin fin-banco">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-university"></i></span>
-                    <span class="card-title ms-2">Bancos/Caixas</span>
-                </div>
-                <div class="card-body p-0" style="width:100%">
-                    {% if contas_bancarias_painel %}
-                        <div class="list-group list-group-flush" style="margin-bottom:0.5rem; max-height:180px; overflow-y:auto;">
-                            {% for conta in contas_bancarias_painel %}
-                                <div class="list-group-item d-flex justify-content-between align-items-center" style="background:transparent;border:none;padding:0.15rem 0 0.15rem 0;min-height:unset;">
-                                    <span>
-                                        {{ conta.nome_identificacao }}
-                                        {% if not igreja_selecionada and conta.igreja %}
-                                            <small class="text-muted d-block">Igreja: {{ conta.igreja.nome_igreja|truncatechars:30 }}</small>
-                                        {% endif %}
-                                    </span>
-                                    {% if conta.saldo_atual < 0 %}
-                                        <span class="card-badge" style="background:rgba(255,99,132,0.18);color:#fff;font-size:0.95rem;line-height:1.2;min-width:90px;">
-                                            R$ {{ conta.saldo_atual|floatformat:2|intcomma }}
-                                        </span>
-                                    {% else %}
-                                        <span class="card-badge" style="background:rgba(255,255,255,0.18);color:#fff;font-size:0.95rem;line-height:1.2;min-width:90px;">
-                                            R$ {{ conta.saldo_atual|floatformat:2|intcomma }}
-                                        </span>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted">Nenhuma conta bancária/caixa ativa encontrada {% if igreja_selecionada %}para esta igreja{% else %}para as igrejas permitidas na ministério{% endif %}.</p>
-                    {% endif %}
-                    <div class="card-action mt-auto d-flex gap-2" style="width:100%;text-align:left;">
-                        <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_contas_bancarias' %}">Acessar</a>
-                        <a class="btn btn-sm btn-light" href="{% url 'financeiro:nova_transferencia_caixa' %}">Transferir</a>
-                    </div>
-                </div>
+
+
+
+        {% if last_fechamento_caixa_info %}
+
+          <div class="fp-fechamento-box">
+
+            <div class="fp-fechamento-row">
+
+              <span class="fp-fechamento-lbl">Data</span>
+
+              <span class="fp-fechamento-val">{{ last_fechamento_caixa_info.data_fim|date:"d/m/Y" }}</span>
+
             </div>
-        </div>
-        <!-- Card Contas Pendentes -->
-        <div style="height:100%">
-            <div class="card-ebd-fin fin-pendente">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-clock"></i></span>
-                    <span class="card-title ms-2">Contas Pendentes</span>
-                </div>
-                <div class="card-desc">Valor pendente</div>
-                <span class="card-badge">R$ {{ total_contas_pendentes|floatformat:2|intcomma }}</span>
-                <div class="card-action d-flex gap-2 mt-2">
-                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_contas_pagar' %}?status=PEN">{{ qtd_contas_pendentes }} conta(s)</a>
-                </div>
+
+            <div class="fp-fechamento-row">
+
+              <span class="fp-fechamento-lbl">Saldo Final</span>
+
+              <span class="fp-fechamento-val">R$&nbsp;{{ last_fechamento_caixa_info.saldo_final|floatformat:2|intcomma }}</span>
+
             </div>
-        </div>
-        <!-- Card Contas Vencidas -->
-        <div style="height:100%">
-            <div class="card-ebd-fin fin-vencida">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-exclamation-triangle"></i></span>
-                    <span class="card-title ms-2">Contas Vencidas</span>
-                </div>
-                <div class="card-desc">Valor vencido</div>
-                <span class="card-badge">R$ {{ total_contas_vencidas|floatformat:2|intcomma }}</span>
-                <div class="card-action d-flex gap-2 mt-2">
-                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_contas_pagar' %}?status=VEN">{{ qtd_contas_vencidas }} conta(s)</a>
-                </div>
+
+            <div class="fp-fechamento-row">
+
+              <span class="fp-fechamento-lbl">Status</span>
+
+              <span class="fp-badge
+
+                {% if last_fechamento_caixa_info.status == 'Fechado' %}fp-badge-ok
+
+                {% elif last_fechamento_caixa_info.status == 'Aberto' %}fp-badge-warn
+
+                {% else %}fp-badge-neutral{% endif %}">
+
+                {{ last_fechamento_caixa_info.status }}
+
+              </span>
+
             </div>
+
+          </div>
+
+        {% else %}
+
+          <div class="fp-empty"><i class="fas fa-folder-open"></i>Nenhum fechamento registrado.</div>
+
+        {% endif %}
+
+
+
+        <div class="fp-block-footer">
+
+          <a href="{% url 'financeiro:lista_fechamentos_caixa' %}" class="fp-btn fp-btn-prim">
+
+            <i class="fas fa-archive"></i> Acessar Fechamentos
+
+          </a>
+
         </div>
-        <!-- Card Fechamento de Caixa -->
-        <div>
-            <div class="card-ebd-fin fin-relatorio">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="card-icon"><i class="fas fa-archive"></i></span>
-                    <span class="card-title ms-2">Fechamento de Caixa</span>
-                </div>
-                <div class="card-desc">Visualize e Gerencie</div>
-                {% if last_fechamento_caixa_info %}
-                    <div class="mb-2" style="font-size:0.98em;line-height:1.3;">
-                        <strong>Último Fechamento:</strong><br>
-                        <span>Data: {{ last_fechamento_caixa_info.data_fim|date:'d/m/Y' }}</span><br>
-                        <span>Saldo Final: R$ {{ last_fechamento_caixa_info.saldo_final|floatformat:2|intcomma }}</span><br>
-                        <span>Status: {{ last_fechamento_caixa_info.status }}</span>
-                    </div>
-                {% else %}
-                    <div class="mb-2 text-muted" style="font-size:0.98em;">Nenhum fechamento registrado.</div>
+
+      </div>
+
+
+
+    </div>
+
+
+
+
+
+    
+
+    <div class="fp-block fp-span-full">
+
+      <div class="fp-block-head">
+
+        <span class="fp-block-label">
+
+          <i class="fas fa-bell"></i>
+
+          Alertas & Pendências
+
+        </span>
+
+        <a href="{% url 'financeiro:lista_contas_pagar' %}" class="fp-block-cta">Ver todas as contas</a>
+
+      </div>
+
+
+
+      <div class="fp-alertas-row">
+
+
+
+        
+
+        <div class="fp-alerta fp-alerta-pend">
+
+          <div class="fp-alerta-top">
+
+            <span class="fp-dot fp-dot-warn"></span>
+
+            <span class="fp-alerta-title">Pendentes</span>
+
+          </div>
+
+          <div class="fp-alerta-val">R$&nbsp;{{ total_contas_pendentes|floatformat:2|intcomma }}</div>
+
+          <div class="fp-alerta-qty">{{ qtd_contas_pendentes }} conta(s) aguardando pagamento</div>
+
+          <a href="{% url 'financeiro:lista_contas_pagar' %}?status=PEN" class="fp-alerta-link">
+
+            Ver pendentes <i class="fas fa-arrow-right fa-xs"></i>
+
+          </a>
+
+        </div>
+
+
+
+        
+
+        <div class="fp-alerta fp-alerta-venc">
+
+          <div class="fp-alerta-top">
+
+            <span class="fp-dot fp-dot-danger"></span>
+
+            <span class="fp-alerta-title">Vencidas</span>
+
+          </div>
+
+          <div class="fp-alerta-val {% if total_contas_vencidas > 0 %}text-danger{% endif %}">
+
+            R$&nbsp;{{ total_contas_vencidas|floatformat:2|intcomma }}
+
+          </div>
+
+          <div class="fp-alerta-qty">{{ qtd_contas_vencidas }} conta(s) em atraso</div>
+
+          <a href="{% url 'financeiro:lista_contas_pagar' %}?status=VEN" class="fp-alerta-link">
+
+            Ver vencidas <i class="fas fa-arrow-right fa-xs"></i>
+
+          </a>
+
+        </div>
+
+
+
+        
+
+        <div class="fp-alerta fp-alerta-fixa">
+
+          <div class="fp-alerta-top">
+
+            <span class="fp-dot fp-dot-prim"></span>
+
+            <span class="fp-alerta-title">Fixas — Mês Atual</span>
+
+          </div>
+
+          <div class="fp-fixas-rows">
+
+            <div class="fp-fixas-row prev">
+
+              <span class="lbl">Previstas</span>
+
+              <span class="val">R$&nbsp;{{ total_contas_fixas_previstas|floatformat:2|intcomma }}
+
+                <small style="font-weight:400;color:var(--fp-muted)">({{ qtd_contas_fixas_previstas }})</small>
+
+              </span>
+
+            </div>
+
+            <div class="fp-fixas-row paga">
+
+              <span class="lbl">Pagas</span>
+
+              <span class="val">R$&nbsp;{{ total_contas_fixas_pagas|floatformat:2|intcomma }}
+
+                <small style="font-weight:400;color:var(--fp-muted)">({{ qtd_contas_fixas_pagas }})</small>
+
+              </span>
+
+            </div>
+
+            <div class="fp-fixas-row atr">
+
+              <span class="lbl">Atrasadas</span>
+
+              <span class="val">R$&nbsp;{{ total_contas_fixas_atrasadas|floatformat:2|intcomma }}
+
+                <small style="font-weight:400;color:var(--fp-muted)">({{ qtd_contas_fixas_atrasadas }})</small>
+
+              </span>
+
+            </div>
+
+          </div>
+
+          <div class="d-flex gap-2 mt-1">
+
+            <a href="{% url 'financeiro:lista_contas_pagar' %}?tipo=FIXA" class="fp-alerta-link">
+
+              Detalhes <i class="fas fa-arrow-right fa-xs"></i>
+
+            </a>
+
+            <span style="color:var(--fp-border)">|</span>
+
+            <a href="{% url 'financeiro:lista_recorrencias_contas_pagar' %}" class="fp-alerta-link">
+
+              Recorrências <i class="fas fa-arrow-right fa-xs"></i>
+
+            </a>
+
+          </div>
+
+        </div>
+
+
+
+      </div>
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+  
+
+  <div class="fp-tx-grid">
+
+
+
+    
+
+    <div class="fp-block">
+
+      <div class="fp-block-head">
+
+        <span class="fp-block-label"><i class="fas fa-arrow-down"></i>Últimas Receitas</span>
+
+        <a href="{% url 'financeiro:lista_receitas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
+
+           class="fp-block-cta">Ver todas</a>
+
+      </div>
+
+      {% if ultimas_receitas %}
+
+        <ul class="fp-tx-list">
+
+          {% for receita in ultimas_receitas %}
+
+            <li class="fp-tx-item">
+
+              <span class="fp-tx-date">{{ receita.data|date:"d/m/y" }}</span>
+
+              <span class="fp-tx-info">
+
+                <span class="fp-tx-desc">
+
+                  {% if receita.membro %}
+
+                    {% if receita.membro.user %}
+
+                      {% if receita.membro.user.get_full_name %}{{ receita.membro.user.get_full_name|truncatechars:32 }}
+
+                      {% elif receita.membro.user.first_name %}{{ receita.membro.user.first_name|truncatechars:32 }}
+
+                      {% else %}{{ receita.membro.user.username|truncatechars:32 }}{% endif %}
+
+                    {% else %}{{ receita.membro.nome_completo|default:receita.membro.nome|default:"Pessoa"|truncatechars:32 }}{% endif %}
+
+                  {% else %}Anônimo ({{ receita.get_categoria_display }}){% endif %}
+
+                </span>
+
+                {% if not igreja_selecionada %}
+
+                  <span class="fp-tx-sub">{{ receita.igreja.nome_igreja|truncatechars:28 }}</span>
+
                 {% endif %}
-                <div class="card-action mt-2 d-flex justify-content-center" style="width:100%;">
-                    <a class="btn btn-sm btn-light" href="{% url 'financeiro:lista_fechamentos_caixa' %}">Acessar</a>
-                </div>
-            </div>
-        </div>
+
+              </span>
+
+              <span class="fp-tx-val rec">R$&nbsp;{{ receita.valor|floatformat:2|intcomma }}</span>
+
+            </li>
+
+          {% endfor %}
+
+        </ul>
+
+      {% else %}
+
+        <div class="fp-empty"><i class="fas fa-inbox"></i>Nenhuma receita recente.</div>
+
+      {% endif %}
+
     </div>
 
-    {# --- SEGUNDA LINHA DE CARDS: Saldo Mês Atual e Contas a Pagar --- #}
-    <div class="row mt-0"> {# mt-0 ou ajuste conforme necessário, já que a linha de cima tem mb-4 nos cards #}
-        <!-- Segunda linha de cards -->
-        <!-- Segunda linha de cards removida, pois os cards foram movidos para a linha de acesso rápido -->
-    </div>  
 
-    <!-- Listas de Últimas Transações - agora ao final da página -->
-        {# ===================== INÍCIO: LISTA DE ÚLTIMAS 5 RECEITAS ===================== #}
-    <div class="row mt-4">
-        <div class="col-xl-6">
-            <div class="card mb-4">
-                {# Card: Últimas 5 Receitas - Lista as últimas receitas filtradas, com data, nome e valor #}
-                <div class="card-header">
-                    <i class="fas fa-arrow-down me-1"></i>
-                    <span style="font-weight: bold; font-size: 1.1rem;">Últimas 5 Receitas</span>
-                </div>
-                <div class="card-body" style="height: 160px; overflow-y: auto; padding: 1rem;">
-                    {% if ultimas_receitas %}
-                        <ul class="ultimas-list-group">
-                            {% for receita in ultimas_receitas %}
-                                <li class="list-group-item">
-                                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                                        <div style="display: flex; align-items: center; width: 100%;">
-                                            <span class="data" style="flex-shrink:0; margin-right:0.5rem;">{{ receita.data|date:"d/m/y" }}</span>
-                                            <span style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                                {% if receita.membro %}
-                                                    {% if receita.membro.user %}
-                                                        {% if receita.membro.user.get_full_name %}
-                                                            {{ receita.membro.user.get_full_name|truncatechars:32 }}
-                                                        {% elif receita.membro.user.first_name %}
-                                                            {{ receita.membro.user.first_name|truncatechars:32 }}
-                                                        {% else %}
-                                                            {{ receita.membro.user.username|truncatechars:32 }}
-                                                        {% endif %}
-                                                    {% else %}
-                                                        {{ receita.membro.nome_completo|default:receita.membro.nome|default:receita.membro.pk|default:"Pessoa S/ Usuário"|truncatechars:32 }}
-                                                    {% endif %}
-                                                {% else %}
-                                                    Anônimo ({{ receita.get_categoria_display }})
-                                                {% endif %}
-                                                {% if not igreja_selecionada %}
-                                                    <small class="text-muted d-block" style="white-space:normal;">Igreja: {{ receita.igreja.nome_igreja|truncatechars:25 }}</small>
-                                                {% endif %}
-                                            </span>
-                                            <span class="valor" style="margin-left:0.7rem; flex-shrink:0;">R$ {{ receita.valor|floatformat:2|intcomma }}</span>
-                                        </div>
-                                    </div>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="text-muted">Nenhuma receita recente {% if igreja_selecionada %}para esta igreja{% else %}na ministério{% endif %}.</p>
-                    {% endif %}
-                </div>
-                <div class="card-footer" style="background:transparent; border-top:none;">
-                    <a href="{% url 'financeiro:lista_receitas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}" class="btn btn-link ultimas-btn p-0" style="font-weight:500;">Ver Todas Receitas</a>
-                </div>
-            </div>
-    {# ===================== FIM: LISTA DE ÚLTIMAS 5 RECEITAS ===================== #}
-        </div>
-        <div class="col-xl-6">
-    {# ===================== INÍCIO: LISTA DE ÚLTIMAS 5 DESPESAS ===================== #}
-            <div class="card mb-4">
-                {# Card: Últimas 5 Despesas - Lista as últimas despesas filtradas, com data, descrição e valor #}
-                <div class="card-header">
-                    <i class="fas fa-arrow-up me-1"></i>
-                    <span style="font-weight: bold; font-size: 1.1rem;">Últimas 5 Despesas</span>
-                </div>
-                <div class="card-body" style="height: 160px; overflow-y: auto; padding: 1rem;">
-                    {% if ultimas_despesas %}
-                        <ul class="ultimas-list-group">
-                            {% for despesa in ultimas_despesas %}
-                                <li class="list-group-item">
-                                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                                        <div style="display: flex; align-items: center; width: 100%;">
-                                            <span class="data" style="flex-shrink:0; margin-right:0.5rem;">{{ despesa.data|date:"d/m/y" }}</span>
-                                            <span style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                                {% if despesa.categoria %}
-                                                    {{ despesa.categoria.nome|truncatechars:32 }}
-                                                {% else %}
-                                                    {{ despesa.descricao|truncatechars:32 }}
-                                                {% endif %}
-                                                {% if not igreja_selecionada %}
-                                                    <small class="text-muted d-block" style="white-space:normal;">Igreja: {{ despesa.igreja.nome_igreja|truncatechars:25 }}</small>
-                                                {% endif %}
-                                            </span>
-                                            <span class="valor" style="margin-left:0.7rem; flex-shrink:0;">R$ {{ despesa.valor|floatformat:2|intcomma }}</span>
-                                        </div>
-                                    </div>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p style="color:#fff;">Nenhuma despesa recente {% if igreja_selecionada %}para esta igreja{% else %}na ministério{% endif %}.</p>
-                    {% endif %}
-                </div>
-                <div class="card-footer" style="background:transparent; border-top:none;">
-                    <a href="{% url 'financeiro:lista_despesas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}" class="btn btn-link ultimas-btn p-0" style="font-weight:500;">Ver Todas Despesas</a>
-                </div>
-            </div>
-    {# ===================== FIM: LISTA DE ÚLTIMAS 5 DESPESAS ===================== #}
-        </div>
+
+    
+
+    <div class="fp-block">
+
+      <div class="fp-block-head">
+
+        <span class="fp-block-label"><i class="fas fa-arrow-up"></i>Últimas Despesas</span>
+
+        <a href="{% url 'financeiro:lista_despesas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
+
+           class="fp-block-cta">Ver todas</a>
+
+      </div>
+
+      {% if ultimas_despesas %}
+
+        <ul class="fp-tx-list">
+
+          {% for despesa in ultimas_despesas %}
+
+            <li class="fp-tx-item">
+
+              <span class="fp-tx-date">{{ despesa.data|date:"d/m/y" }}</span>
+
+              <span class="fp-tx-info">
+
+                <span class="fp-tx-desc">
+
+                  {% if despesa.categoria %}{{ despesa.categoria.nome|truncatechars:32 }}
+
+                  {% else %}{{ despesa.descricao|truncatechars:32 }}{% endif %}
+
+                </span>
+
+                {% if not igreja_selecionada %}
+
+                  <span class="fp-tx-sub">{{ despesa.igreja.nome_igreja|truncatechars:28 }}</span>
+
+                {% endif %}
+
+              </span>
+
+              <span class="fp-tx-val desp">R$&nbsp;{{ despesa.valor|floatformat:2|intcomma }}</span>
+
+            </li>
+
+          {% endfor %}
+
+        </ul>
+
+      {% else %}
+
+        <div class="fp-empty"><i class="fas fa-inbox"></i>Nenhuma despesa recente.</div>
+
+      {% endif %}
+
     </div>
 
-    <!-- Bloco antigo de saldos das contas/caixas removido -->
 
-    {# --- GRÁFICOS --- #}
-        {# ===================== INÍCIO: GRÁFICOS DO PAINEL FINANCEIRO ===================== #}
-    {# --- PRIMEIRA LINHA DE GRÁFICOS --- #}
-    <div class="row mt-4">
-        <div class="col-xl-6"> {# Movimentação Mensal #}
-            <div class="card mb-4">
-                {# Card: Gráfico Movimentação Mensal - Exibe receitas, despesas e saldo dos últimos 12 meses #}
-                <div class="card-header">
-                    <i class="fas fa-chart-bar me-1"></i>
-                    Movimentação Mensal (Últimos 12 Meses)
-                </div>
-                <div class="card-body card-body-grafico" style="height: 350px;">
-                    <canvas id="movimentacaoMensalChart"></canvas>
-                </div>
-                <div class="card-footer card-footer-grafico">
-                    Dados baseados nas movimentações do período selecionado.
-                </div>
-            </div>
-                        {# Card: Gráfico Perfil dos Dizimistas por Tipo - Exibe perfil dos dizimistas por quantidade, valor, etc #}
-        </div>
-                    <!-- NOVO: Gráfico de Perfil dos Dizimistas por Tipo de Pessoa -->
-            <div class="col-xl-6">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <i class="fas fa-users-cog me-1" style="font-size:1.3em;"></i>
-                        Perfil dos Dizimistas por Tipo ({{ titulo_filtro_periodo }})
-                        <select id="perfilDizimistaTipoFiltro" class="form-select form-select-sm float-end" style="width: auto; display: inline-block; margin-left: 10px;">
-                            <option value="qtd" selected>Quantidade</option>
-                            <option value="perc_qtd">% Quantidade</option>
-                            <option value="valor">Valor (R$)</option>
-                            <option value="perc_valor">% Valor (R$)</option>
-                        </select>
-                    </div>
-                    <div class="card-body card-body-grafico" style="height: 350px;">
-                        <canvas id="perfilDizimistasChart"></canvas>
-                    </div>
-                    <div class="card-footer card-footer-grafico">
-                        Dados baseados nos dízimos do período selecionado.
-                    </div>
-                </div>
-            </div>
 
-        <div class="col-xl-6"> {# Dizimistas Únicos por Mês #}
-            <div class="card mb-4">
-                {# Card: Gráfico Dizimistas Únicos por Mês - Exibe número de dizimistas únicos por mês #}
+  </div>
 
-                <div class="card-header">
-                    <i class="fas fa-users me-1"></i>
-                    Dizimistas Únicos por Mês (Últimos 12 Meses)
-                </div>
-                <div class="card-body" style="height: 350px;">
-                    <canvas id="dizimistasMensalChart"></canvas>
-                </div>
-                <div class="card-footer card-footer-grafico">
-                    Dados baseados nos dízimos do período selecionado.
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-6"> {# Fechamentos de Caixa por Mês #}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-archive me-1"></i>
-                    Fechamentos de Caixa por Mês (Últimos 12 Meses)
-                </div>
-                <div class="card-body" style="height: 350px;">
-                    <canvas id="movimentacaoFechamentosChart"></canvas>
-                </div>
-                <div class="card-footer card-footer-grafico">
-                    Dados baseados nos fechamentos mensais dos caixas.
-                </div>
-            </div>
-        </div>
+
+
+
+
+  
+
+  <div class="fp-charts-grid">
+
+
+
+    <div class="fp-chart-block">
+
+      <div class="fp-chart-head">
+
+        <i class="fas fa-chart-bar"></i>
+
+        Movimentação Mensal (12 meses)
+
+      </div>
+
+      <div class="fp-chart-body"><canvas id="movimentacaoMensalChart"></canvas></div>
+
+      <div class="fp-chart-foot">Receitas, despesas e saldo dos últimos 12 meses.</div>
+
     </div>
 
-    <!-- Gráficos de Receitas e Despesas por Categoria logo após últimas receitas/despesas -->
-    <div class="row mt-4">
-        <div class="col-xl-6">
-            <div class="card mb-4">
-                {# Card: Gráfico Receitas por Categoria - Exibe distribuição das receitas por categoria #}
-                <div class="card-header">
-                    <i class="fas fa-chart-pie me-1"></i>
-                    Receitas por Categoria
-                </div>
-                <div class="card-body card-body-grafico" style="height: 300px;">
-                    <canvas id="categoriasReceitaChart" style="height:100%;width:100%;"></canvas>
-                </div>
-                <div class="card-footer card-footer-grafico">
-                    Dados agrupados por categoria de receita no período selecionado.
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-6">
-            <div class="card mb-4">
-                {# Card: Gráfico Despesas por Categoria - Exibe distribuição das despesas por categoria #}
-                <div class="card-header">
-                    <i class="fas fa-chart-pie me-1"></i>
-                    Despesas por Categoria
-                </div>
-                <div class="card-body card-body-grafico" style="height: 300px;">
-                    <canvas id="categoriasDespesaChart" style="height:100%;width:100%;"></canvas>
-                </div>
-                <div class="card-footer card-footer-grafico">
-                    Dados agrupados por categoria de despesa no período selecionado.
-                </div>
-            </div>
-    {# ===================== FIM: GRÁFICOS DO PAINEL FINANCEIRO ===================== #}
-        </div>
+
+
+    <div class="fp-chart-block">
+
+      <div class="fp-chart-head">
+
+        <i class="fas fa-users-cog"></i>
+
+        Perfil dos Dizimistas — {{ titulo_filtro_periodo }}
+
+        <select id="perfilDizimistaTipoFiltro">
+
+          <option value="qtd" selected>Quantidade</option>
+
+          <option value="perc_qtd">% Quantidade</option>
+
+          <option value="valor">Valor (R$)</option>
+
+          <option value="perc_valor">% Valor</option>
+
+        </select>
+
+      </div>
+
+      <div class="fp-chart-body"><canvas id="perfilDizimistasChart"></canvas></div>
+
+      <div class="fp-chart-foot">Dados baseados nos dízimos do período selecionado.</div>
+
     </div>
-    {# --- FIM DAS LINHAS DE GRÁFICOS --- #}
+
+
+
+    <div class="fp-chart-block">
+
+      <div class="fp-chart-head">
+
+        <i class="fas fa-users"></i>
+
+        Dizimistas Únicos por Mês (12 meses)
+
+      </div>
+
+      <div class="fp-chart-body"><canvas id="dizimistasMensalChart"></canvas></div>
+
+      <div class="fp-chart-foot">Número de dizimistas únicos por mês.</div>
+
+    </div>
+
+
+
+    <div class="fp-chart-block">
+
+      <div class="fp-chart-head">
+
+        <i class="fas fa-archive"></i>
+
+        Fechamentos de Caixa (últimos 6)
+
+      </div>
+
+      <div class="fp-chart-body"><canvas id="movimentacaoFechamentosChart"></canvas></div>
+
+      <div class="fp-chart-foot">Baseado nos 6 fechamentos mais recentes.</div>
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+  
+
+  <div class="fp-charts-grid">
+
+
+
+    <div class="fp-chart-block">
+
+      <div class="fp-chart-head"><i class="fas fa-chart-pie"></i>Receitas por Categoria</div>
+
+      <div class="fp-chart-body"><canvas id="categoriasReceitaChart"></canvas></div>
+
+      <div class="fp-chart-foot">Distribuição por categoria no período selecionado.</div>
+
+    </div>
+
+
+
+    <div class="fp-chart-block">
+
+      <div class="fp-chart-head"><i class="fas fa-chart-pie"></i>Despesas por Categoria</div>
+
+      <div class="fp-chart-body"><canvas id="categoriasDespesaChart"></canvas></div>
+
+      <div class="fp-chart-foot">Distribuição por categoria no período selecionado.</div>
+
+    </div>
+
+
+
+  </div>
+
 
 
 </div>
+
 {% endblock %}
+
+
+
 
 
 {% block extra_js %}
-<!-- Adiciona Chart.js via CDN antes do JS dos gráficos -->
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/dashboard-sidebar.js' %}"></script>
+
 <script>
-// Garantir que todas as variáveis JS estejam sempre definidas
-var catDespLabels = [];
-var catDespValores = [];
-var catRecLabels = [];
-var catRecValores = [];
-var mesesLabels = [];
-var receitasData = [];
-var despesasData = [];
-var saldosData = [];
-var dizimistasData = [];
-var fechLabels = [];
-var fechReceitasData = [];
-var fechDespesasData = [];
-var fechSaldosData = [];
-try {
-    catDespLabels = JSON.parse('{{ grafico_cat_desp_labels_json|default:"[]"|escapejs }}');
-    catDespValores = JSON.parse('{{ grafico_cat_desp_valores_json|default:"[]"|escapejs }}');
-    catRecLabels = JSON.parse('{{ grafico_cat_rec_labels_json|default:"[]"|escapejs }}');
-    catRecValores = JSON.parse('{{ grafico_cat_rec_valores_json|default:"[]"|escapejs }}');
-    mesesLabels = JSON.parse('{{ grafico_mensal_labels_json|default:"[]"|escapejs }}');
-    receitasData = JSON.parse('{{ grafico_receitas_data_json|default:"[]"|escapejs }}');
-    despesasData = JSON.parse('{{ grafico_despesas_data_json|default:"[]"|escapejs }}');
-    saldosData = JSON.parse('{{ grafico_saldos_data_json|default:"[]"|escapejs }}');
-    dizimistasData = JSON.parse('{{ grafico_dizimistas_data_json|default:"[]"|escapejs }}');
-    fechLabels = JSON.parse('{{ grafico_fech_labels_json|default:"[]"|escapejs }}');
-    fechReceitasData = JSON.parse('{{ grafico_fech_receitas_data_json|default:"[]"|escapejs }}');
-    fechDespesasData = JSON.parse('{{ grafico_fech_despesas_data_json|default:"[]"|escapejs }}');
-    fechSaldosData = JSON.parse('{{ grafico_fech_saldos_data_json|default:"[]"|escapejs }}');
-} catch (e) {
-    console.error("Erro ao processar dados para gráficos financeiros:", e);
-}
-function renderGraficoMovimentacao() {
-    var ctx = document.getElementById('movimentacaoMensalChart');
-    if (ctx && mesesLabels.length > 0 && receitasData.length > 0) {
-        new Chart(ctx.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: mesesLabels,
-                datasets: [
-                    { label: 'Receitas', data: receitasData, backgroundColor: '#0d8281' },
-                    { label: 'Despesas', data: despesasData, backgroundColor: '#14b8a6' },
-                    { label: 'Saldo Líquido', data: saldosData, type: 'line', borderColor: '#0a6665', backgroundColor: '#0a6665', fill: false, tension: 0.1 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    } else if (ctx) {
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
-    }
-}
-function renderGraficoDizimistasMensal() {
-    var ctx = document.getElementById('dizimistasMensalChart');
-    if (ctx && mesesLabels.length > 0 && dizimistasData.length > 0) {
-        new Chart(ctx.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: mesesLabels,
-                datasets: [
-                    { label: 'Dizimistas Únicos', data: dizimistasData, backgroundColor: '#0d8281' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    } else if (ctx) {
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
-    }
-}
-function renderGraficoFechamentosMensal() {
-    var ctx = document.getElementById('movimentacaoFechamentosChart');
-    if (ctx && fechLabels.length > 0 && (fechReceitasData.length > 0 || fechDespesasData.length > 0)) {
-        new Chart(ctx.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: fechLabels,
-                datasets: [
-                    { label: 'Receitas', data: fechReceitasData, backgroundColor: '#0d8281' },
-                    { label: 'Despesas', data: fechDespesasData, backgroundColor: '#14b8a6' },
-                    { label: 'Saldo', data: fechSaldosData, type: 'line', borderColor: '#0a6665', backgroundColor: '#0a6665', fill: false, tension: 0.1 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    } else if (ctx) {
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
-    }
-}
-function renderGraficoCategoriasReceita() {
-    var ctx = document.getElementById('categoriasReceitaChart');
-    if (ctx && catRecLabels.length > 0 && catRecValores.length > 0) {
-        new Chart(ctx.getContext('2d'), {
-            type: 'pie',
-            data: {
-                labels: catRecLabels,
-                datasets: [
-                    { data: catRecValores, backgroundColor: ['#0d8281', '#0a6665', '#0d8281', '#0a6665', '#0d8281', '#0a6665', '#0d8281', '#0a6665'] }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    } else if (ctx) {
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
-    }
-}
-function renderGraficoCategoriasDespesa() {
-    var ctx = document.getElementById('categoriasDespesaChart');
-    if (ctx && catDespLabels.length > 0 && catDespValores.length > 0) {
-        new Chart(ctx.getContext('2d'), {
-            type: 'pie',
-            data: {
-                labels: catDespLabels,
-                datasets: [
-                    { data: catDespValores, backgroundColor: ['#0d8281', '#0a6665', '#14b8a6', '#0f766e', '#0d8281', '#0a6665', '#14b8a6', '#0f766e'] }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    } else if (ctx) {
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
-    }
-}
-var perfilDizimistasChartInstance = null;
-function renderGraficoPerfilDizimistas(tipo) {
-    var ctx = document.getElementById('perfilDizimistasChart');
-    var perfilLabels = JSON.parse('{{ perfil_dizimistas_labels_json|default:"[]"|escapejs }}');
-    var perfilData = [];
-    if (tipo === 'qtd') perfilData = JSON.parse('{{ perfil_dizimistas_qtd_valores_json|default:"[]"|escapejs }}');
-    else if (tipo === 'perc_qtd') perfilData = JSON.parse('{{ perfil_dizimistas_qtd_percentuais_json|default:"[]"|escapejs }}');
-    else if (tipo === 'valor') perfilData = JSON.parse('{{ perfil_dizimistas_total_valores_json|default:"[]"|escapejs }}');
-    else if (tipo === 'perc_valor') perfilData = JSON.parse('{{ perfil_dizimistas_valor_percentuais_json|default:"[]"|escapejs }}');
-    if (ctx && perfilLabels.length > 0 && perfilData.length > 0) {
-        if (perfilDizimistasChartInstance) {
-            perfilDizimistasChartInstance.destroy();
-        }
-        perfilDizimistasChartInstance = new Chart(ctx.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: perfilLabels,
-                datasets: [
-                    { label: 'Dizimistas', data: perfilData, backgroundColor: '#0d8281' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } },
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    } else if (ctx) {
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
-    }
-}
-document.addEventListener('DOMContentLoaded', function () {
-    renderGraficoMovimentacao();
-    renderGraficoDizimistasMensal();
-    renderGraficoFechamentosMensal();
-    renderGraficoCategoriasReceita();
-    renderGraficoCategoriasDespesa();
-    var tipo = document.getElementById('perfilDizimistaTipoFiltro') ? document.getElementById('perfilDizimistaTipoFiltro').value : 'qtd';
-    renderGraficoPerfilDizimistas(tipo);
-    if (document.getElementById('perfilDizimistaTipoFiltro')) {
-        document.getElementById('perfilDizimistaTipoFiltro').addEventListener('change', function() {
-            renderGraficoPerfilDizimistas(this.value);
-        });
-    }
+DashboardSidebar.init({
+  storageKey:    'financeiro.sidebar_visible',
+  toggleClass:   'dash-financeiro',
+  defaultVisible: false
 });
+
+function fpOnPeriodoChange(sel) {
+  var wrap = document.getElementById('fp-date-range-wrap');
+  if (sel.value === 'custom') {
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+    sel.form.submit();
+  }
+}
+
+
+
+// Garantir que todas as variáveis JS estejam sempre definidas
+
+var catDespLabels = [];
+
+var catDespValores = [];
+
+var catRecLabels = [];
+
+var catRecValores = [];
+
+var mesesLabels = [];
+
+var receitasData = [];
+
+var despesasData = [];
+
+var saldosData = [];
+
+var dizimistasData = [];
+
+var fechLabels = [];
+
+var fechReceitasData = [];
+
+var fechDespesasData = [];
+
+var fechSaldosData = [];
+
+try {
+
+    catDespLabels = JSON.parse('{{ grafico_cat_desp_labels_json|default:"[]"|escapejs }}');
+
+    catDespValores = JSON.parse('{{ grafico_cat_desp_valores_json|default:"[]"|escapejs }}');
+
+    catRecLabels = JSON.parse('{{ grafico_cat_rec_labels_json|default:"[]"|escapejs }}');
+
+    catRecValores = JSON.parse('{{ grafico_cat_rec_valores_json|default:"[]"|escapejs }}');
+
+    mesesLabels = JSON.parse('{{ grafico_mensal_labels_json|default:"[]"|escapejs }}');
+
+    receitasData = JSON.parse('{{ grafico_receitas_data_json|default:"[]"|escapejs }}');
+
+    despesasData = JSON.parse('{{ grafico_despesas_data_json|default:"[]"|escapejs }}');
+
+    saldosData = JSON.parse('{{ grafico_saldos_data_json|default:"[]"|escapejs }}');
+
+    dizimistasData = JSON.parse('{{ grafico_dizimistas_data_json|default:"[]"|escapejs }}');
+
+    fechLabels = JSON.parse('{{ grafico_fech_labels_json|default:"[]"|escapejs }}');
+
+    fechReceitasData = JSON.parse('{{ grafico_fech_receitas_data_json|default:"[]"|escapejs }}');
+
+    fechDespesasData = JSON.parse('{{ grafico_fech_despesas_data_json|default:"[]"|escapejs }}');
+
+    fechSaldosData = JSON.parse('{{ grafico_fech_saldos_data_json|default:"[]"|escapejs }}');
+
+} catch (e) {
+
+    console.error("Erro ao processar dados para gráficos financeiros:", e);
+
+}
+
+function renderGraficoMovimentacao() {
+
+    var ctx = document.getElementById('movimentacaoMensalChart');
+
+    if (ctx && mesesLabels.length > 0 && receitasData.length > 0) {
+
+        new Chart(ctx.getContext('2d'), {
+
+            type: 'bar',
+
+            data: {
+
+                labels: mesesLabels,
+
+                datasets: [
+
+                    { label: 'Receitas', data: receitasData, backgroundColor: '#0d8281' },
+
+                    { label: 'Despesas', data: despesasData, backgroundColor: '#14b8a6' },
+
+                    { label: 'Saldo Líquido', data: saldosData, type: 'line', borderColor: '#0a6665', backgroundColor: '#0a6665', fill: false, tension: 0.1 }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: { y: { beginAtZero: true } },
+
+                plugins: { legend: { position: 'bottom' } }
+
+            }
+
+        });
+
+    } else if (ctx) {
+
+        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+
+    }
+
+}
+
+function renderGraficoDizimistasMensal() {
+
+    var ctx = document.getElementById('dizimistasMensalChart');
+
+    if (ctx && mesesLabels.length > 0 && dizimistasData.length > 0) {
+
+        new Chart(ctx.getContext('2d'), {
+
+            type: 'bar',
+
+            data: {
+
+                labels: mesesLabels,
+
+                datasets: [
+
+                    { label: 'Dizimistas Únicos', data: dizimistasData, backgroundColor: '#0d8281' }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: { y: { beginAtZero: true } },
+
+                plugins: { legend: { position: 'bottom' } }
+
+            }
+
+        });
+
+    } else if (ctx) {
+
+        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+
+    }
+
+}
+
+function renderGraficoFechamentosMensal() {
+
+    var ctx = document.getElementById('movimentacaoFechamentosChart');
+
+    if (ctx && fechLabels.length > 0 && (fechReceitasData.length > 0 || fechDespesasData.length > 0)) {
+
+        new Chart(ctx.getContext('2d'), {
+
+            type: 'bar',
+
+            data: {
+
+                labels: fechLabels,
+
+                datasets: [
+
+                    { label: 'Receitas', data: fechReceitasData, backgroundColor: '#0d8281' },
+
+                    { label: 'Despesas', data: fechDespesasData, backgroundColor: '#14b8a6' },
+
+                    { label: 'Saldo', data: fechSaldosData, type: 'line', borderColor: '#0a6665', backgroundColor: '#0a6665', fill: false, tension: 0.1 }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: { y: { beginAtZero: true } },
+
+                plugins: { legend: { position: 'bottom' } }
+
+            }
+
+        });
+
+    } else if (ctx) {
+
+        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+
+    }
+
+}
+
+function renderGraficoCategoriasReceita() {
+
+    var ctx = document.getElementById('categoriasReceitaChart');
+
+    if (ctx && catRecLabels.length > 0 && catRecValores.length > 0) {
+
+        new Chart(ctx.getContext('2d'), {
+
+            type: 'pie',
+
+            data: {
+
+                labels: catRecLabels,
+
+                datasets: [
+
+                    { data: catRecValores, backgroundColor: ['#0d8281', '#0a6665', '#0d8281', '#0a6665', '#0d8281', '#0a6665', '#0d8281', '#0a6665'] }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: { legend: { position: 'bottom' } }
+
+            }
+
+        });
+
+    } else if (ctx) {
+
+        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+
+    }
+
+}
+
+function renderGraficoCategoriasDespesa() {
+
+    var ctx = document.getElementById('categoriasDespesaChart');
+
+    if (ctx && catDespLabels.length > 0 && catDespValores.length > 0) {
+
+        new Chart(ctx.getContext('2d'), {
+
+            type: 'pie',
+
+            data: {
+
+                labels: catDespLabels,
+
+                datasets: [
+
+                    { data: catDespValores, backgroundColor: ['#0d8281', '#0a6665', '#14b8a6', '#0f766e', '#0d8281', '#0a6665', '#14b8a6', '#0f766e'] }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: { legend: { position: 'bottom' } }
+
+            }
+
+        });
+
+    } else if (ctx) {
+
+        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+
+    }
+
+}
+
+var perfilDizimistasChartInstance = null;
+
+function renderGraficoPerfilDizimistas(tipo) {
+
+    var ctx = document.getElementById('perfilDizimistasChart');
+
+    var perfilLabels = JSON.parse('{{ perfil_dizimistas_labels_json|default:"[]"|escapejs }}');
+
+    var perfilData = [];
+
+    if (tipo === 'qtd') perfilData = JSON.parse('{{ perfil_dizimistas_qtd_valores_json|default:"[]"|escapejs }}');
+
+    else if (tipo === 'perc_qtd') perfilData = JSON.parse('{{ perfil_dizimistas_qtd_percentuais_json|default:"[]"|escapejs }}');
+
+    else if (tipo === 'valor') perfilData = JSON.parse('{{ perfil_dizimistas_total_valores_json|default:"[]"|escapejs }}');
+
+    else if (tipo === 'perc_valor') perfilData = JSON.parse('{{ perfil_dizimistas_valor_percentuais_json|default:"[]"|escapejs }}');
+
+    if (ctx && perfilLabels.length > 0 && perfilData.length > 0) {
+
+        if (perfilDizimistasChartInstance) {
+
+            perfilDizimistasChartInstance.destroy();
+
+        }
+
+        perfilDizimistasChartInstance = new Chart(ctx.getContext('2d'), {
+
+            type: 'bar',
+
+            data: {
+
+                labels: perfilLabels,
+
+                datasets: [
+
+                    { label: 'Dizimistas', data: perfilData, backgroundColor: '#0d8281' }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: { y: { beginAtZero: true } },
+
+                plugins: { legend: { position: 'bottom' } }
+
+            }
+
+        });
+
+    } else if (ctx) {
+
+        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+
+    }
+
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    renderGraficoMovimentacao();
+
+    renderGraficoDizimistasMensal();
+
+    renderGraficoFechamentosMensal();
+
+    renderGraficoCategoriasReceita();
+
+    renderGraficoCategoriasDespesa();
+
+    var tipo = document.getElementById('perfilDizimistaTipoFiltro') ? document.getElementById('perfilDizimistaTipoFiltro').value : 'qtd';
+
+    renderGraficoPerfilDizimistas(tipo);
+
+    if (document.getElementById('perfilDizimistaTipoFiltro')) {
+
+        document.getElementById('perfilDizimistaTipoFiltro').addEventListener('change', function() {
+
+            renderGraficoPerfilDizimistas(this.value);
+
+        });
+
+    }
+
+});
+
 </script>
+
 {% endblock %}
+

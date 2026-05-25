@@ -169,6 +169,21 @@ def painel_financeiro(request):
         data_hoje = date.today()
         data_inicio_mes = data_hoje.replace(day=1)
 
+        # --- Filtro de data livre ---
+        data_inicio_filtro_str = request.GET.get('data_inicio', '')
+        data_fim_filtro_str    = request.GET.get('data_fim', '')
+        data_inicio_filtro = None
+        data_fim_filtro    = None
+        if data_inicio_filtro_str and data_fim_filtro_str:
+            try:
+                from datetime import datetime as dt
+                data_inicio_filtro = dt.strptime(data_inicio_filtro_str, '%Y-%m-%d').date()
+                data_fim_filtro    = dt.strptime(data_fim_filtro_str,    '%Y-%m-%d').date()
+                periodo_filtro = 'custom'
+            except ValueError:
+                data_inicio_filtro = None
+                data_fim_filtro    = None
+
         # Base Querysets - AGORA FILTRADOS PELAS IGREJAS PERMITIDAS ou pela igreja selecionada (se permitida)
         # Se igreja_selecionada (do seletor global ou do filtro GET) está definida, filtra por ela
 
@@ -232,6 +247,10 @@ def painel_financeiro(request):
             receitas_filtradas = receitas_base.filter(data__year=ano_atual)
             despesas_filtradas = despesas_base.filter(data__year=ano_atual)
             titulo_filtro_periodo = f"Ano {ano_atual}"
+        elif periodo_filtro == 'custom' and data_inicio_filtro and data_fim_filtro:
+            receitas_filtradas = receitas_base.filter(data__range=(data_inicio_filtro, data_fim_filtro))
+            despesas_filtradas = despesas_base.filter(data__range=(data_inicio_filtro, data_fim_filtro))
+            titulo_filtro_periodo = f"{data_inicio_filtro.strftime('%d/%m/%Y')} – {data_fim_filtro.strftime('%d/%m/%Y')}"
         else: # 'geral' ou default
             receitas_filtradas = receitas_base
             despesas_filtradas = despesas_base
@@ -274,6 +293,21 @@ def painel_financeiro(request):
         receitas_mes = receitas_base.filter(data__gte=data_inicio_mes).aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
         despesas_mes = despesas_base.filter(data__gte=data_inicio_mes).aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
         saldo_mes = receitas_mes - despesas_mes
+
+        # --- TENDÊNCIA: mês calendário anterior ---
+        primeiro_dia_mes_ant = (data_inicio_mes - timedelta(days=1)).replace(day=1)
+        ultimo_dia_mes_ant   = data_inicio_mes - timedelta(days=1)
+        receitas_mes_anterior  = receitas_base.filter(data__range=(primeiro_dia_mes_ant, ultimo_dia_mes_ant)).aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+        despesas_mes_anterior  = despesas_base.filter(data__range=(primeiro_dia_mes_ant, ultimo_dia_mes_ant)).aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+
+        def calc_variacao_pct(atual, anterior):
+            if anterior == 0:
+                return None  # sem referência
+            return round(float((atual - anterior) / anterior * 100), 1)
+
+        variacao_receitas_pct  = calc_variacao_pct(receitas_mes, receitas_mes_anterior)
+        variacao_despesas_pct  = calc_variacao_pct(despesas_mes, despesas_mes_anterior)
+        # --- FIM TENDÊNCIA ---
 
         # Últimas receitas/despesas (filtradas por igreja, se aplicável)
         ultimas_receitas = receitas_filtradas.select_related('igreja', 'membro').order_by('-data')[:5]
@@ -440,9 +474,9 @@ def painel_financeiro(request):
         context = {
             'contas_bancarias_dropdown': contas_bancarias_dropdown,
             'ministerio': ministerio,
-            'igrejas_org': igrejas_para_filtro_template, # Lista de igrejas para o dropdown de filtro da página
-            'igreja_selecionada': igreja_selecionada_para_dados, # Objeto da igreja cujos dados estão sendo mostrados (ou None)
-            'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template, # ID para manter o filtro da página selecionado
+            'igrejas_org': igrejas_para_filtro_template,
+            'igreja_selecionada': igreja_selecionada_para_dados,
+            'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template,
             'total_receitas': total_receitas,
             'total_despesas': total_despesas,
             'saldo_geral': saldo_geral,
@@ -450,9 +484,16 @@ def painel_financeiro(request):
             'ultimas_receitas': ultimas_receitas,
             'ultimas_despesas': ultimas_despesas,
             'periodo_filtro_selecionado': periodo_filtro,
-            'titulo_filtro_periodo': titulo_filtro_periodo, # Título do filtro de período
-            'titulo_dashboard': titulo_dashboard, # Título principal (Org ou Igreja)
-            'can_edit_finance': can_edit, # Flag para o template
+            'titulo_filtro_periodo': titulo_filtro_periodo,
+            'titulo_dashboard': titulo_dashboard,
+            'can_edit_finance': can_edit,
+            # Tendência mês anterior
+            'variacao_receitas_pct': variacao_receitas_pct,
+            'variacao_despesas_pct': variacao_despesas_pct,
+            # Filtro de data livre
+            'data_inicio_filtro': data_inicio_filtro_str,
+            'data_fim_filtro': data_fim_filtro_str,
+            'data_hoje': data_hoje,
             # Dados para os novos gráficos
             'grafico_mensal_labels_json': json.dumps(meses_labels_grafico),
             'grafico_receitas_data_json': json.dumps(receitas_mensais_grafico_data),
