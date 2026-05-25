@@ -1,385 +1,390 @@
-/* Filtros modernos no topo */
-.filtros-fin-topo {
-    background: #fff;
-    border-radius: 7px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
-    padding: 1.1rem 1.5rem;
-    margin-bottom: 1.2rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.2rem;
-    align-items: center;
-    justify-content: space-between;
+/* =================================================================
+   financeiro-painel.css  —  Dashboard Financeiro Premium v2
+   GereIgreja  |  Design System: Turquesa  |  Bootstrap 5
+
+   REQUER: dashboard-base.css carregado ANTES
+   Tokens CSS (--fp-*) e componentes base (fp-block, fp-btn, etc.)
+   são fornecidos por dashboard-base.css.
+   ================================================================= */
+
+/* -----------------------------------------------------------------
+   1. FULL-WIDTH DASHBOARD MODE — específico para o Dashboard Financeiro
+      Ativado via classe `dash-financeiro` no <body>
+      A classe canônica (.dash-fullwidth) está em dashboard-base.css
+   ----------------------------------------------------------------- */
+html.dash-financeiro #layoutSidenav_nav,
+body.dash-financeiro #layoutSidenav_nav { display: none !important; }
+html.dash-financeiro #layoutSidenav_content,
+body.dash-financeiro #layoutSidenav_content {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  width: 100% !important;
+  min-width: 0;
+}
+html.dash-financeiro #layoutSidenav,
+body.dash-financeiro #layoutSidenav {
+  width: 100% !important;
+}
+body.sb-nav-fixed.dash-financeiro #layoutSidenav #layoutSidenav_content,
+body.sb-nav-fixed.dash-financeiro #layoutSidenav #layoutSidenav_content:before {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
 }
 
-.filtros-fin-topo label {
-    font-weight: 600;
-    color: #0d8281;
-    margin-right: 0.5rem;
-    margin-bottom: 0;
+/* -----------------------------------------------------------------
+   4. GRID PRINCIPAL dos 3 Blocos Macro
+   -----------------------------------------------------------------
+   Layout 2 colunas: Saúde (flex:1) | Caixa (fixed 360px)
+   Linha 2: Alertas full-width
+   ----------------------------------------------------------------- */
+.fp-macro-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.fp-span-full { grid-column: 1 / -1; }
+
+@media (max-width: 1140px) {
+  .fp-macro-grid { grid-template-columns: 1fr; }
 }
 
-.filtros-fin-topo .form-select {
-    border-radius: 4px !important;
-    border: 1.5px solid #b6c6e6;
-    background: #f8fafc;
-    color: #222;
-    font-size: 1.05rem;
-    box-shadow: 0 1px 4px rgba(67, 233, 123, 0.04);
-    transition: border 0.2s, box-shadow 0.2s;
+/* Tendência vs mês anterior */
+.fp-kpi-trend {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .72rem;
+  font-weight: 700;
+  margin-bottom: .5rem;
+}
+.fp-trend-up   { color: var(--fp-success); }
+.fp-trend-dn   { color: var(--fp-danger);  }
+.fp-trend-eq   { color: var(--fp-muted);   }
+
+/* KPI clicável (drill-down) */
+.fp-kpi-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--fp-radius-sm);
+  transition: var(--fp-trans);
+}
+.fp-kpi-link:hover { box-shadow: 0 0 0 2px var(--fp-primary); }
+
+/* Date range no filtro */
+.fp-filter-date {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  background: var(--fp-surface);
+  border: 1.5px solid var(--fp-border);
+  border-radius: var(--fp-radius-sm);
+  padding: .28rem .7rem;
+  transition: var(--fp-trans);
+}
+.fp-filter-date:focus-within {
+  border-color: var(--fp-primary);
+  box-shadow: 0 0 0 3px rgba(13,130,129,.1);
+}
+.fp-filter-date input[type="date"] {
+  border: none;
+  background: transparent;
+  font-size: .83rem;
+  color: var(--fp-text);
+  outline: none;
+  padding: 0;
+  cursor: pointer;
+}
+.fp-filter-date .fp-filter-label { white-space: nowrap; }
+.fp-filter-date-sep { color: var(--fp-muted); font-size: .78rem; }
+
+/* -----------------------------------------------------------------
+   6. BLOCO 1 — SAÚDE FINANCEIRA IMEDIATA
+   ----------------------------------------------------------------- */
+.fp-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .9rem;
+  margin-bottom: .9rem;
+}
+@media (max-width: 700px) { .fp-kpi-row { grid-template-columns: 1fr; } }
+
+.fp-kpi {
+  padding: 1rem 1.05rem .9rem;
+  border-radius: var(--fp-radius-sm);
+  background: var(--fp-bg);
+  border-left: 3px solid transparent;
+}
+.fp-kpi-rec  { border-left-color: var(--fp-success); }
+.fp-kpi-desp { border-left-color: var(--fp-danger);  }
+.fp-kpi-sal  { border-left-color: var(--fp-primary); }
+
+.fp-kpi-lbl {
+  font-size: .71rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--fp-muted);
+  margin-bottom: .3rem;
+}
+.fp-kpi-val {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--fp-text);
+  line-height: 1.1;
+  margin-bottom: .25rem;
+  word-break: break-word;
+}
+.fp-kpi-val.neg { color: var(--fp-danger); }
+.fp-kpi-period {
+  font-size: .72rem;
+  color: var(--fp-muted);
+  margin-bottom: .5rem;
+}
+.fp-kpi-actions { display: flex; gap: .35rem; flex-wrap: wrap; }
+
+/* Faixa saldo do mês */
+.fp-saldo-mes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .6rem;
+  padding: .8rem 1.05rem;
+  border-radius: var(--fp-radius-sm);
+  background: linear-gradient(135deg, var(--fp-primary-bg) 0%, #eafafa 100%);
+  border: 1px solid rgba(13,130,129,.14);
+}
+.fp-saldo-mes-lbl {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--fp-primary-dk);
+}
+.fp-saldo-mes-val {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--fp-primary-dk);
 }
 
-.filtros-fin-topo .input-group-text {
-    border: none !important;
-    background: transparent;
-    color: #0d8281;
-    font-size: 1.05rem;
-    font-weight: 700;
-    box-shadow: none;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+/* -----------------------------------------------------------------
+   7. BLOCO 2 — GESTÃO DE CAIXA E DISPONIBILIDADE
+   ----------------------------------------------------------------- */
+.fp-block-caixa {
+  display: flex;
+  flex-direction: column;
+  gap: .9rem;
+}
+.fp-contas-list {
+  list-style: none;
+  padding: 0; margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.fp-conta-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .45rem .65rem;
+  border-radius: 8px;
+  background: var(--fp-bg);
+  font-size: .83rem;
+}
+.fp-conta-nome { color: var(--fp-text); font-weight: 500; flex: 1; min-width: 0; }
+.fp-conta-sub  { font-size: .71rem; color: var(--fp-muted); display: block; }
+.fp-conta-val  { font-weight: 700; color: var(--fp-primary-dk); white-space: nowrap; }
+.fp-conta-val.neg { color: var(--fp-danger); }
+
+.fp-fechamento-box {
+  background: var(--fp-bg);
+  border-radius: var(--fp-radius-sm);
+  padding: .85rem .95rem;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.fp-fechamento-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.fp-fechamento-lbl { color: var(--fp-muted); font-size: .78rem; }
+.fp-fechamento-val { font-weight: 700; font-size: .85rem; }
+.fp-divider { width: 100%; height: 1px; background: var(--fp-border); }
+
+/* -----------------------------------------------------------------
+   8. BLOCO 3 — ALERTAS E PENDÊNCIAS
+   ----------------------------------------------------------------- */
+.fp-alertas-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .9rem;
+}
+@media (max-width: 960px) { .fp-alertas-row { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 600px) { .fp-alertas-row { grid-template-columns: 1fr; } }
+
+.fp-alerta {
+  padding: 1rem 1.05rem .9rem;
+  border-radius: var(--fp-radius-sm);
+  background: var(--fp-bg);
+  border-left: 3px solid transparent;
+}
+.fp-alerta-pend { border-left-color: var(--fp-warning); }
+.fp-alerta-venc { border-left-color: var(--fp-danger);  }
+.fp-alerta-fixa { border-left-color: var(--fp-primary); }
+
+.fp-alerta-top {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-bottom: .55rem;
+}
+.fp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.fp-dot-warn   { background: var(--fp-warning); }
+.fp-dot-danger { background: var(--fp-danger);  }
+.fp-dot-prim   { background: var(--fp-primary); }
+
+.fp-alerta-title {
+  font-size: .71rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--fp-muted);
+}
+.fp-alerta-val {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--fp-text);
+  line-height: 1.1;
+  margin-bottom: .12rem;
+}
+.fp-alerta-qty  { font-size: .77rem; color: var(--fp-muted); margin-bottom: .5rem; }
+.fp-alerta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .75rem;
+  color: var(--fp-primary);
+  font-weight: 700;
+  text-decoration: none;
+  transition: var(--fp-trans);
+}
+.fp-alerta-link:hover { color: var(--fp-primary-dk); text-decoration: underline; }
+
+.fp-fixas-rows { display: flex; flex-direction: column; gap: .28rem; margin-bottom: .5rem; }
+.fp-fixas-row  { display: flex; justify-content: space-between; align-items: center; font-size: .79rem; }
+.fp-fixas-row .lbl { color: var(--fp-muted); }
+.fp-fixas-row .val { font-weight: 700; }
+.fp-fixas-row.paga .val { color: var(--fp-success); }
+.fp-fixas-row.atr  .val { color: var(--fp-danger);  }
+
+/* -----------------------------------------------------------------
+   9. ÚLTIMAS TRANSAÇÕES
+   ----------------------------------------------------------------- */
+.fp-tx-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 768px) { .fp-tx-grid { grid-template-columns: 1fr; } }
+
+.fp-tx-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+.fp-tx-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid var(--fp-border);
+}
+.fp-tx-item:last-child { border-bottom: none; }
+.fp-tx-date { font-size: .72rem; color: var(--fp-muted); white-space: nowrap; min-width: 46px; flex-shrink: 0; }
+.fp-tx-info { flex: 1; min-width: 0; }
+.fp-tx-desc { font-size: .83rem; color: var(--fp-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.fp-tx-sub  { font-size: .71rem; color: var(--fp-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-tx-val  { font-size: .85rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.fp-tx-val.rec  { color: var(--fp-success); }
+.fp-tx-val.desp { color: var(--fp-danger);  }
+
+/* -----------------------------------------------------------------
+   10. GRÁFICOS
+   ----------------------------------------------------------------- */
+.fp-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 900px) { .fp-charts-grid { grid-template-columns: 1fr; } }
+
+.fp-chart-block {
+  background: var(--fp-surface);
+  border-radius: var(--fp-radius);
+  border: 1px solid rgba(226,232,240,.8);
+  box-shadow: var(--fp-shadow);
+  overflow: hidden;
+  transition: var(--fp-trans);
+}
+.fp-chart-block:hover { box-shadow: var(--fp-shadow-hover); }
+
+.fp-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem .65rem;
+  padding: .85rem 1.25rem;
+  border-bottom: 1px solid var(--fp-border);
+  font-size: .73rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--fp-muted);
+}
+.fp-chart-head i { color: var(--fp-primary); font-size: .82rem; }
+.fp-chart-head select {
+  margin-left: auto;
+  font-size: .79rem;
+  padding: .2rem .5rem;
+  border: 1px solid var(--fp-border);
+  border-radius: 6px;
+  background: var(--fp-bg);
+  color: var(--fp-text);
+  cursor: pointer;
+  outline: none;
+}
+.fp-chart-body { padding: 1.1rem 1.25rem; height: 290px; position: relative; }
+.fp-chart-foot {
+  padding: .55rem 1.25rem;
+  border-top: 1px solid var(--fp-border);
+  font-size: .74rem;
+  color: var(--fp-muted);
+  background: var(--fp-bg);
 }
 
-.filtros-fin-topo .form-select:focus {
-    border-color: #0d8281;
-    box-shadow: 0 0 0 2px rgba(13, 130, 129, 0.1);
-}
-
-.filtros-fin-topo .input-group {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    margin-bottom: 0;
-}
-
-.painel-titulo {
-    font-size: 1.7rem;
-    font-weight: 700;
-    color: #0d8281;
-    letter-spacing: 0.5px;
-}
-
-.painel-filtros-form {
-    margin-bottom: 0;
-}
-
-.painel-filtro-grupo {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-
-.card-header {
-    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-    color: #fff !important;
-    border-top-left-radius: 24px !important;
-    border-top-right-radius: 24px !important;
-    padding: 0.7rem 1rem !important;
-    display: flex !important;
-    align-items: center !important;
-    font-weight: 700 !important;
-    font-size: 1.1rem !important;
-    min-height: 48px;
-}
-
-.card {
-    border-top-left-radius: 24px !important;
-    border-top-right-radius: 24px !important;
-}
-
-.card-row-flex {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2rem;
-    justify-content: center;
-    align-items: stretch;
-}
-
-.card-ebd-fin {
-    width: 240px;
-    height: 240px;
-    border-radius: 24px !important;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 1.6rem 1.3rem 1.3rem;
-    color: #fff;
-    margin-bottom: 0;
-    transition: box-shadow 0.2s;
-}
-
-.card-col-full {
-    height: 100%;
-}
-
-.card-ebd-fin .card-header-flex,
-.card-ebd-fin .d-flex {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    margin-bottom: 0.2rem;
-}
-
-.card-ebd-fin .card-icon {
-    font-size: 2.8rem;
-    opacity: 0.85;
-    margin-bottom: 0;
-    margin-right: 0;
-}
-
-.card-ebd-fin .card-title {
-    font-size: 1.35rem;
-    font-weight: 700;
-    margin-bottom: 0;
-    margin-top: 0;
-    text-align: left;
-}
-
-.card-ebd-fin .card-desc {
-    font-size: 1rem;
-    font-weight: 400;
-    margin-bottom: 0.7rem;
-    text-align: left;
-}
-
-.card-ebd-fin .card-badge {
-    font-size: 1.1rem;
-    font-weight: 600;
-    background: rgba(255, 255, 255, 0.18);
-    border-radius: 8px;
-    padding: 0.3rem 0.8rem;
-    display: inline-block;
-    margin-bottom: 0.2rem;
-    color: #fff;
-}
-
-.card-ebd-fin .card-action {
-    margin-top: auto;
-    text-align: left;
-}
-
-.card-action-full {
-    width: 100%;
-    text-align: left;
-}
-
-.contas-lista-scroll {
-    margin-bottom: 0.5rem;
-    max-height: 180px;
-    overflow-y: auto;
-}
-
-.conta-item {
-    background: transparent;
-    border: none;
-    padding: 0.15rem 0;
-    min-height: unset;
-}
-
-.badge-saldo-conta,
-.badge-saldo-negativo {
-    color: #fff;
-    font-size: 0.95rem;
-    line-height: 1.2;
-    min-width: 90px;
-}
-
-.badge-saldo-conta {
-    background: rgba(255, 255, 255, 0.18);
-}
-
-.badge-saldo-negativo {
-    background: rgba(255, 99, 132, 0.18);
-}
-
-.fechamento-info {
-    font-size: 0.98em;
-    line-height: 1.3;
-}
-
-.fechamento-vazio {
-    font-size: 0.98em;
-}
-
-.card-ebd-fin .card-periodo-menor {
-    font-size: 0.55em;
-    font-weight: 400;
-    opacity: 0.85;
-    margin-left: 0.2em;
-}
-
-.fin-receita,
-.fin-despesa,
-.fin-relatorio,
-.fin-saldo,
-.fin-mes,
-.fin-pendente,
-.fin-vencida,
-.fin-banco,
-.fin-transferencia {
-    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%) !important;
-    color: #fff;
-}
-
-.ultimas-list-group .data,
-.ultimas-list-group .list-group-item > span {
-    font-size: 1.15em;
-    font-weight: 500;
-    color: #222;
-}
-
-.ultimas-list-group .data {
-    font-size: 0.98em;
-    color: #888;
-    min-width: 70px;
-    display: inline-block;
-    margin-right: 0.4rem;
-    font-weight: 400;
-}
-
-.ultimas-list-group .valor {
-    font-size: 1.22em;
-    font-weight: 700;
-    color: #0d8281;
-    background: rgba(13, 130, 129, 0.13);
-    border-radius: 8px;
-    padding: 0.18rem 0.8rem;
-    margin-left: 0.7rem;
-    box-shadow: 0 1px 4px rgba(13, 130, 129, 0.08);
-}
-
-.ultimas-card-footer {
-    background: transparent !important;
-    border-top: none !important;
-    padding: 0.5rem 1.2rem 0.7rem;
-    text-align: right;
-}
-
-.ultimas-titulo {
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-
-.ultimas-card-body {
-    height: 160px;
-    overflow-y: auto;
-    padding: 1rem;
-}
-
-.ultimas-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.ultimas-content {
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
-.ultimas-data {
-    flex-shrink: 0;
-    margin-right: 0.5rem;
-}
-
-.ultimas-texto {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ultimas-igreja {
-    white-space: normal;
-}
-
-.ultimas-valor {
-    margin-left: 0.7rem;
-    flex-shrink: 0;
-}
-
-.ultimas-footer {
-    background: transparent;
-    border-top: none;
-}
-
-.ultimas-link {
-    font-weight: 500;
-}
-
-.icon-lg {
-    font-size: 1.3em;
-}
-
-.perfil-dizimista-select {
-    width: auto;
-    display: inline-block;
-    margin-left: 10px;
-}
-
-.grafico-h-350 {
-    height: 350px;
-}
-
-.grafico-h-300 {
-    height: 300px;
-}
-
-.grafico-canvas-fill {
-    height: 100%;
-    width: 100%;
-}
-
+/* -----------------------------------------------------------------
+   LEGADO — compatibilidade com outros templates
+   ----------------------------------------------------------------- */
+.grafico-h-350  { height: 350px; }
+.grafico-h-300  { height: 300px; }
+.grafico-canvas-fill { height: 100%; width: 100%; }
 #perfilDizimistaTipoFiltro {
-    font-size: 10px !important;
-    padding: 0.02em 0.3em;
-    height: 20px;
-    min-width: 55px;
-    max-width: 80px;
-    border-radius: 4px;
-    border: 1px solid #0d8281;
-    background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
-    color: #222;
-    box-shadow: 0 1px 2px rgba(13, 130, 129, 0.07);
-    margin-left: 10px;
-    appearance: auto;
-    cursor: pointer;
-    outline: none;
-    transition: border 0.2s, box-shadow 0.2s;
+  font-size: .75rem;
+  padding: .2rem .5rem;
+  border: 1px solid var(--fp-border);
+  border-radius: 6px;
+  background: var(--fp-bg);
+  color: var(--fp-text);
+  cursor: pointer;
+  outline: none;
 }
-
-#perfilDizimistaTipoFiltro option {
-    font-size: 10px !important;
-}
-
 #perfilDizimistaTipoFiltro:focus {
-    border-color: #0d8281;
-    box-shadow: 0 0 0 2px rgba(13, 130, 129, 0.15);
-}
-
-@media (max-width: 1200px) {
-    .card-row-flex .card-ebd-fin {
-        flex: 1 1 48%;
-        min-width: 180px;
-        max-width: 48%;
-    }
-}
-
-@media (max-width: 900px) {
-    .filtros-fin-topo {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.7rem;
-        padding: 1rem;
-    }
-
-    .card-row-flex .card-ebd-fin {
-        flex: 1 1 100%;
-        min-width: 160px;
-        max-width: 100%;
-    }
+  border-color: var(--fp-primary);
+  box-shadow: 0 0 0 2px rgba(13,130,129,.15);
 }
