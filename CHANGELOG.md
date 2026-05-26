@@ -1,3 +1,22 @@
+## v1.13.1 — 26/05/2026
+🔒 **Hotfix de Permissões — Menu/URL do Financeiro**
+
+### Correção
+- Ajustada a regra de acesso ao módulo financeiro para permitir somente:
+  - **Tesoureiro**
+  - **Pastor Local**
+- Removido acesso de **Secretário Local** ao menu financeiro.
+- Bloqueio também aplicado no acesso direto via URL (`/financeiro/`), garantindo consistência entre navegação e backend.
+
+### Nota técnica
+- Mantida a liberação de módulos no modo demonstração para testes de plano, sem flexibilizar a regra de perfil do financeiro.
+
+### Impacto
+- Reforço de governança e segregação de função no módulo financeiro.
+- Sem impacto em banco de dados e sem breaking change de API pública.
+
+---
+
 ## v1.13.0 — 26/05/2026
 📈 **Dashboard Financeiro — Consolidação de Melhorias (retroativo + atual)**
 
