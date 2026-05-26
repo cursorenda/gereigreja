@@ -17,6 +17,54 @@
 <link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
 <link rel="stylesheet" href="{% static 'css/financeiro-painel.css' %}">
 
+<style>
+.fp-updated-at {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .74rem;
+  color: var(--fp-muted);
+  font-weight: 500;
+  margin-top: .15rem;
+}
+.fp-saldo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  font-size: .62rem;
+  font-weight: 700;
+  padding: .1rem .45rem;
+  border-radius: 999px;
+  margin-left: .4rem;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.fp-badge-ok      { background: rgba(16,185,129,.12); color: #059669; }
+.fp-badge-danger  { background: rgba(239,68,68,.12);  color: #dc2626; }
+.fp-kpi-sal-pos { border-left-color: var(--fp-success) !important; }
+.fp-kpi-sal-neg { border-left-color: var(--fp-danger)  !important; }
+.fp-fixas-progress-wrap {
+  height: 6px;
+  background: var(--fp-border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: .6rem 0 .2rem;
+}
+.fp-fixas-progress-bar {
+  height: 100%;
+  background: var(--fp-success);
+  border-radius: 999px;
+  transition: width .4s ease;
+  min-width: 2px;
+}
+.fp-fixas-progress-lbl {
+  font-size: .7rem;
+  color: var(--fp-muted);
+  margin-bottom: .4rem;
+}
+</style>
+
 <script>
 (function () {
   try {
@@ -60,6 +108,11 @@
         </button>
 
         <h1 class="fp-title">Dashboard Financeiro</h1>
+
+        <span class="fp-updated-at">
+          <i class="fas fa-circle" style="color:var(--fp-success);font-size:.5rem;vertical-align:middle"></i>
+          Atualizado em {{ data_hoje|date:"d/m/Y" }} às {% now "H:i" %}
+        </span>
 
       </div>
 
@@ -260,9 +313,14 @@
 
         
 
-        <div class="fp-kpi fp-kpi-sal">
+        <div class="fp-kpi fp-kpi-sal {% if saldo_geral >= 0 %}fp-kpi-sal-pos{% else %}fp-kpi-sal-neg{% endif %}">
 
-          <div class="fp-kpi-lbl"><i class="fas fa-balance-scale me-1"></i>Saldo</div>
+          <div class="fp-kpi-lbl">
+            <i class="fas fa-balance-scale me-1"></i>Saldo
+            <span class="fp-saldo-badge {% if saldo_geral >= 0 %}fp-badge-ok{% else %}fp-badge-danger{% endif %}">
+              {% if saldo_geral >= 0 %}<i class="fas fa-arrow-up"></i> Positivo{% else %}<i class="fas fa-arrow-down"></i> Negativo{% endif %}
+            </span>
+          </div>
 
           <div class="fp-kpi-val {% if saldo_geral < 0 %}neg{% endif %}">
 
@@ -618,6 +676,16 @@
 
           </div>
 
+          {% if qtd_contas_fixas_previstas > 0 %}
+          <div class="fp-fixas-progress-wrap">
+            <div class="fp-fixas-progress-bar" style="width:{% widthratio qtd_contas_fixas_pagas qtd_contas_fixas_previstas 100 %}%"></div>
+          </div>
+          <div class="fp-fixas-progress-lbl">
+            {{ qtd_contas_fixas_pagas }} de {{ qtd_contas_fixas_previstas }} pagas
+            ({% widthratio qtd_contas_fixas_pagas qtd_contas_fixas_previstas 100 %}%)
+          </div>
+          {% endif %}
+
           <div class="d-flex gap-2 mt-1">
 
             <a href="{% url 'financeiro:lista_contas_pagar' %}?tipo=FIXA" class="fp-alerta-link">
@@ -944,6 +1012,24 @@ DashboardSidebar.init({
   defaultVisible: false
 });
 
+var dsChart = {
+  primary: '#0D8281',
+  success: '#10B981',
+  danger: '#EF4444',
+  palette: [
+    '#0D8281', '#10B981', '#0EA5E9', '#D97706',
+    '#EF4444', '#8B5CF6', '#F97316', '#06B6D4',
+    '#EC4899', '#6366F1', '#84CC16', '#2AA5A4'
+  ]
+};
+
+function fpFormatBRL(value) {
+  return 'R$ ' + Number(value || 0).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function fpOnPeriodoChange(sel) {
   var wrap = document.getElementById('fp-date-range-wrap');
   if (sel.value === 'custom') {
@@ -1034,11 +1120,11 @@ function renderGraficoMovimentacao() {
 
                 datasets: [
 
-                    { label: 'Receitas', data: receitasData, backgroundColor: '#0d8281' },
+                    { label: 'Receitas', data: receitasData, backgroundColor: dsChart.success },
 
-                    { label: 'Despesas', data: despesasData, backgroundColor: '#14b8a6' },
+                    { label: 'Despesas', data: despesasData, backgroundColor: dsChart.danger },
 
-                    { label: 'Saldo Líquido', data: saldosData, type: 'line', borderColor: '#0a6665', backgroundColor: '#0a6665', fill: false, tension: 0.1 }
+                    { label: 'Saldo Líquido', data: saldosData, type: 'line', borderColor: dsChart.primary, backgroundColor: dsChart.primary, fill: false, tension: 0.1 }
 
                 ]
 
@@ -1052,7 +1138,16 @@ function renderGraficoMovimentacao() {
 
                 scales: { y: { beginAtZero: true } },
 
-                plugins: { legend: { position: 'bottom' } }
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.dataset.label + ': ' + fpFormatBRL(context.parsed.y);
+                            }
+                        }
+                    }
+                }
 
             }
 
@@ -1126,11 +1221,11 @@ function renderGraficoFechamentosMensal() {
 
                 datasets: [
 
-                    { label: 'Receitas', data: fechReceitasData, backgroundColor: '#0d8281' },
+                    { label: 'Receitas', data: fechReceitasData, backgroundColor: dsChart.success },
 
-                    { label: 'Despesas', data: fechDespesasData, backgroundColor: '#14b8a6' },
+                    { label: 'Despesas', data: fechDespesasData, backgroundColor: dsChart.danger },
 
-                    { label: 'Saldo', data: fechSaldosData, type: 'line', borderColor: '#0a6665', backgroundColor: '#0a6665', fill: false, tension: 0.1 }
+                    { label: 'Saldo', data: fechSaldosData, type: 'line', borderColor: dsChart.primary, backgroundColor: dsChart.primary, fill: false, tension: 0.1 }
 
                 ]
 
@@ -1144,7 +1239,16 @@ function renderGraficoFechamentosMensal() {
 
                 scales: { y: { beginAtZero: true } },
 
-                plugins: { legend: { position: 'bottom' } }
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.dataset.label + ': ' + fpFormatBRL(context.parsed.y);
+                            }
+                        }
+                    }
+                }
 
             }
 
@@ -1174,7 +1278,7 @@ function renderGraficoCategoriasReceita() {
 
                 datasets: [
 
-                    { data: catRecValores, backgroundColor: ['#0d8281', '#0a6665', '#0d8281', '#0a6665', '#0d8281', '#0a6665', '#0d8281', '#0a6665'] }
+                    { data: catRecValores, backgroundColor: dsChart.palette }
 
                 ]
 
@@ -1186,7 +1290,16 @@ function renderGraficoCategoriasReceita() {
 
                 maintainAspectRatio: false,
 
-                plugins: { legend: { position: 'bottom' } }
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.label + ': ' + fpFormatBRL(context.parsed);
+                            }
+                        }
+                    }
+                }
 
             }
 
@@ -1216,7 +1329,7 @@ function renderGraficoCategoriasDespesa() {
 
                 datasets: [
 
-                    { data: catDespValores, backgroundColor: ['#0d8281', '#0a6665', '#14b8a6', '#0f766e', '#0d8281', '#0a6665', '#14b8a6', '#0f766e'] }
+                    { data: catDespValores, backgroundColor: dsChart.palette }
 
                 ]
 
@@ -1228,7 +1341,16 @@ function renderGraficoCategoriasDespesa() {
 
                 maintainAspectRatio: false,
 
-                plugins: { legend: { position: 'bottom' } }
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.label + ': ' + fpFormatBRL(context.parsed);
+                            }
+                        }
+                    }
+                }
 
             }
 

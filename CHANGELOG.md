@@ -1,3 +1,20 @@
+## v1.12.9 — 26/05/2026
+📊 **Dashboard Financeiro: Melhorias Visuais e de UX**
+
+### Melhorias
+- Cores semânticas nos gráficos: Receitas → verde, Despesas → vermelho, Saldo → turquesa (Design System).
+- Gráficos de pizza com paleta de 12 cores distintas (categorias distinguíveis).
+- Tooltips de todos os gráficos formatados em BRL (`R$ 1.234,56`).
+- Badge "Positivo/Negativo" no KPI de Saldo com cor condicional.
+- Barra de progresso visual nas Contas Fixas do Mês (`X de Y pagas`).
+- Timestamp "Atualizado em..." no header do dashboard.
+
+### Impacto
+- Dashboard alinhado ao Design System oficial.
+- Sem breaking changes — apenas ajustes de template e CSS inline.
+
+---
+
 ## v1.12.8 — 22/05/2026
 💸 **Financeiro: recorrências, pagamento em lote e alertas de vencimento**
 
