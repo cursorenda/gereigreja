@@ -78,3 +78,82 @@
 .sb-sidenav-dark .sb-sidenav-menu .nav-link.active {
   color: #fff;
 }
+
+
+/* === Brand Gereigreja no topo da sidebar === */
+.sidebar-brand-gereigreja {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-brand-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.sidebar-brand-logo-img {
+    height: 28px;
+    width: auto;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+    opacity: 0.9;
+}
+
+.sidebar-brand-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+    opacity: 0.9;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+
+.sidebar-brand-link:hover .sidebar-brand-name,
+.sidebar-brand-link:hover .sidebar-brand-logo-img {
+    opacity: 1;
+}
+
+/* === Brand Gereigreja na topbar (alinhado com landing) === */
+.sb-topnav .navbar-brand.app-top-brand {
+  width: auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.75rem;
+  text-decoration: none;
+}
+
+.app-top-brand-logo {
+  height: 32px;
+  width: auto;
+  max-width: 180px;
+  object-fit: contain;
+}
+
+.app-top-brand-text {
+  font-weight: 700;
+  color: #d7f2f2;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.sb-topnav .navbar-brand.app-top-brand:hover .app-top-brand-text {
+  color: #ffffff;
+}
+
+@media (max-width: 991.98px) {
+  .sb-topnav .navbar-brand.app-top-brand {
+    margin-right: 0.25rem;
+  }
+
+  .app-top-brand-logo {
+    height: 28px;
+    max-width: 140px;
+  }
+}

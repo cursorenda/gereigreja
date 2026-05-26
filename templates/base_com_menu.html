@@ -138,15 +138,28 @@
     {% endif %}
     <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
         <!-- Navbar Brand-->
-            <a class="navbar-brand ps-3" href="{% if user.is_authenticated %}{% url 'secretaria:dashboard' %}{% else %}{% url 'login' %}{% endif %}">
-            
-        </a>        <!-- Sidebar Toggle-->
+        <a class="navbar-brand ps-3 app-top-brand" href="{% url 'landing_page' %}" title="Gereigreja">
+            <img
+                src="{% sistema_imagem_url 'logo' 'original' 'img/logo1.png' %}"
+                alt="Gereigreja"
+                class="app-top-brand-logo"
+            >
+            <span class="app-top-brand-text d-none d-md-inline">Gereigreja</span>
+        </a>
+        <!-- Sidebar Toggle-->
         <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>
 
         <!-- Seletor de tamanho de fonte/tela (Acessibilidade) -->
-        <form class="d-flex align-items-center ms-2" id="fontSizeSelectorForm" autocomplete="off" aria-label="Ajuste de tamanho de fonte">
-            <span class="me-1 font-size-label">A</span>
-            <select id="fontSizeSelector" class="font-size-selector-custom" title="Ajustar tamanho da fonte">
+        <form class="d-flex align-items-center ms-2 font-size-control-wrap" id="fontSizeSelectorForm" autocomplete="off" aria-label="Ajuste de tamanho de fonte">
+            <button
+                type="button"
+                id="fontSizeCycleButton"
+                class="font-size-cycle-btn"
+                title="Alterar tamanho da fonte"
+                aria-label="Alterar tamanho da fonte"
+            >A</button>
+            <span id="fontSizeStatus" class="font-size-status" aria-live="polite"></span>
+            <select id="fontSizeSelector" class="font-size-selector-custom d-none" title="Ajustar tamanho da fonte" aria-hidden="true" tabindex="-1">
                 <option value="font-size-xlarge">Extra Grande</option>
                 <option value="font-size-large">Grande</option>
                 <option value="font-size-medium">Médio</option>
@@ -412,3 +425,5 @@
     <script src="{% static 'secretaria/recepcao-bootstrap.js' %}"></script>
     {% block extra_js %}{% endblock %}
     <script src="{% static 'js/layout_custom.js' %}"></script>
+</body>
+</html>

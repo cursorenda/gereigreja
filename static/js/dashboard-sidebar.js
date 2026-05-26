@@ -22,7 +22,7 @@ var DashboardSidebar = (function () {
     toggleClass:   'dash-fullwidth',
     defaultVisible: false,
     labelAttr:     'data-fp-sidebar-label',
-    toggleIds:     ['fp-toggle-sidebar', 'sidebarToggle']
+    toggleIds:     ['fp-toggle-sidebar']
   };
 
   var _buttons = [];
@@ -42,8 +42,9 @@ var DashboardSidebar = (function () {
   }
 
   function _toggle() {
-    /* Se a classe está presente → sidebar oculta → toggle = mostrar */
-    var currentlyHidden = document.body.classList.contains(_cfg.toggleClass);
+    /* Se a classe está presente no html/body → sidebar oculta → toggle = mostrar */
+    var currentlyHidden = document.body.classList.contains(_cfg.toggleClass) ||
+      document.documentElement.classList.contains(_cfg.toggleClass);
     _applyState(currentlyHidden);
     try {
       localStorage.setItem(_cfg.storageKey, currentlyHidden ? '1' : '0');
@@ -66,7 +67,7 @@ var DashboardSidebar = (function () {
       });
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    function bindHandlers() {
       _buttons = (_cfg.toggleIds || [])
         .map(function (id) { return document.getElementById(id); })
         .filter(Boolean);
@@ -74,13 +75,19 @@ var DashboardSidebar = (function () {
       _buttons.forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.preventDefault();
-          e.stopImmediatePropagation();
+          e.stopPropagation();
           _toggle();
         }, true);
       });
 
       _applyState(_readStorage());
-    });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindHandlers);
+    } else {
+      bindHandlers();
+    }
   }
 
   return { init: init };

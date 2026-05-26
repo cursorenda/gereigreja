@@ -1,3 +1,57 @@
+## v1.13.0 — 26/05/2026
+📈 **Dashboard Financeiro — Consolidação de Melhorias (retroativo + atual)**
+
+### Contexto
+- Esta versão consolida e documenta melhorias que vinham sendo aplicadas no dashboard financeiro e na topbar sem registro completo no changelog.
+- Inclui ajustes desta entrega e pendências retroativas do mesmo ciclo de evolução.
+
+### Entregas — Dashboard Financeiro
+- Filtro de **caixa** aplicado de ponta a ponta:
+  - KPIs, gráficos, alertas e listas relacionadas.
+  - Propagação consistente do contexto de filtro nos links de drill-down.
+- Escopo ativo visível no topo com chips de contexto:
+  - Igreja
+  - Caixa
+  - Período
+- Estados vazios aprimorados com CTA:
+  - Limpar filtro
+  - Voltar para visão geral
+- Microcopy orientada à ação em alertas e pendências.
+- Resumo executivo fixo no topo com leitura rápida:
+  - Caixa em foco
+  - Risco imediato (vencidas)
+  - Tendência mensal
+- Tendências com base comparativa explícita:
+  - Valor atual x mês anterior
+  - Período de referência no tooltip
+- Acessibilidade dos cards clicáveis:
+  - Suporte a Enter/Espaço
+  - Foco visual visível
+- Experiência de gráficos aprimorada:
+  - Skeleton/loading visual
+  - Fallback elegante para erro
+  - Mensagens de vazio com ação
+- Auditoria visual de filtros na sessão:
+  - Histórico local (localStorage)
+  - Chips para reaplicar filtros recentes
+
+### Entregas — Layout e Navegação
+- Correção de comportamento de mostrar/ocultar menu no dashboard financeiro (estabilidade do toggle e resolução de conflito com toggle global).
+- Reposicionamento da marca Gereigreja para a topbar, alinhando melhor com a landing page.
+- Uso da logo dinâmica via helper de imagem do sistema com fallback.
+
+### Entregas — Acessibilidade Global (Topbar)
+- Controle de zoom simplificado para botão "A" com ciclo de níveis.
+- Persistência de preferência de fonte mantida via `localStorage`.
+- Feedback visual do nível com tooltip compacto e suporte a hover/foco.
+
+### Impacto
+- Melhora significativa de legibilidade, confiança analítica e velocidade de navegação no financeiro.
+- Melhor consistência entre filtros, contexto e detalhes operacionais.
+- Sem breaking changes de API pública ou migrações de banco.
+
+---
+
 ## v1.12.9 — 26/05/2026
 📊 **Dashboard Financeiro: Melhorias Visuais e de UX**
 

@@ -78,6 +78,7 @@ import csv
 import locale
 import logging, traceback, calendar 
 from datetime import date, datetime, timedelta 
+from urllib.parse import urlencode
 from num2words import num2words
 from openpyxl import Workbook
 from django.db import transaction # Adicionar import para transações atômicas
@@ -184,6 +185,21 @@ def painel_financeiro(request):
                 data_inicio_filtro = None
                 data_fim_filtro    = None
 
+        # --- FILTRO DE CAIXA ---
+        caixa_id_filtro = (request.GET.get('caixa_filtro') or '').strip()
+        if igreja_selecionada_para_dados:
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(
+                igreja=igreja_selecionada_para_dados
+            ).order_by('nome_identificacao')
+        else:
+            contas_bancarias_dropdown = ContaBancaria.objects.filter(
+                igreja__in=allowed_churches
+            ).order_by('igreja__nome_igreja', 'nome_identificacao')
+
+        if caixa_id_filtro and not contas_bancarias_dropdown.filter(pk=caixa_id_filtro).exists():
+            messages.warning(request, 'Caixa selecionado inválido para o seu escopo. Exibindo dados consolidados por caixa.')
+            caixa_id_filtro = ''
+
         # Base Querysets - AGORA FILTRADOS PELAS IGREJAS PERMITIDAS ou pela igreja selecionada (se permitida)
         # Se igreja_selecionada (do seletor global ou do filtro GET) está definida, filtra por ela
 
@@ -195,7 +211,9 @@ def painel_financeiro(request):
             receitas_base = Receitas.objects.filter(igreja__in=allowed_churches) # Já filtrado por allowed_churches
             despesas_base = Despesas.objects.filter(igreja__in=allowed_churches) # Já filtrado por allowed_churches
 
-        # Filtro de caixa
+        if caixa_id_filtro:
+            receitas_base = receitas_base.filter(conta_bancaria_id=caixa_id_filtro)
+            despesas_base = despesas_base.filter(conta_bancaria_id=caixa_id_filtro)
 
 
          # --- Base para Contas a Pagar (filtrado por igreja/allowed_churches) ---
@@ -203,6 +221,9 @@ def painel_financeiro(request):
             contas_pagar_base = ContaPagar.objects.filter(igreja=igreja_selecionada_para_dados)
         else:
             contas_pagar_base = ContaPagar.objects.filter(igreja__in=allowed_churches) 
+
+        if caixa_id_filtro:
+            contas_pagar_base = contas_pagar_base.filter(conta_debito_id=caixa_id_filtro)
         
         # --- Indicadores de Contas a Pagar ---
         total_contas_pendentes = contas_pagar_base.filter(
@@ -307,6 +328,8 @@ def painel_financeiro(request):
 
         variacao_receitas_pct  = calc_variacao_pct(receitas_mes, receitas_mes_anterior)
         variacao_despesas_pct  = calc_variacao_pct(despesas_mes, despesas_mes_anterior)
+        saldo_mes_anterior = receitas_mes_anterior - despesas_mes_anterior
+        variacao_saldo_pct = calc_variacao_pct(saldo_mes, saldo_mes_anterior)
         # --- FIM TENDÊNCIA ---
 
         # Últimas receitas/despesas (filtradas por igreja, se aplicável)
@@ -353,9 +376,23 @@ def painel_financeiro(request):
         for fc in ultimos_fechamentos:
             label = f"{fc.data_inicio.strftime('%d/%m')} a {fc.data_fim.strftime('%d/%m/%y')}"
             grafico_fech_labels.append(label)
-            grafico_fech_receitas_data.append(float(fc.total_entradas))
-            grafico_fech_despesas_data.append(float(fc.total_saidas))
-            grafico_fech_saldos_data.append(float(fc.saldo_final))
+
+            if caixa_id_filtro:
+                receitas_no_fechamento = receitas_base.filter(
+                    data__gte=fc.data_inicio,
+                    data__lte=fc.data_fim,
+                ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+                despesas_no_fechamento = despesas_base.filter(
+                    data__gte=fc.data_inicio,
+                    data__lte=fc.data_fim,
+                ).aggregate(total=Sum('valor'))['total'] or Decimal(0)
+                grafico_fech_receitas_data.append(float(receitas_no_fechamento))
+                grafico_fech_despesas_data.append(float(despesas_no_fechamento))
+                grafico_fech_saldos_data.append(float(receitas_no_fechamento - despesas_no_fechamento))
+            else:
+                grafico_fech_receitas_data.append(float(fc.total_entradas))
+                grafico_fech_despesas_data.append(float(fc.total_saidas))
+                grafico_fech_saldos_data.append(float(fc.saldo_final))
 
             # Contar dizimistas únicos para este fechamento
             dizimistas_no_fechamento_count = receitas_base.filter(
@@ -451,25 +488,52 @@ def painel_financeiro(request):
 
 
         # --- DADOS PARA LISTAGEM DE SALDOS DE CONTAS BANCÁRIAS/CAIXAS ---
-        # Filtra contas pela(s) igreja(s) selecionada(s) ou todas as permitidas, e aplica filtro de caixa se houver
-        caixa_id_filtro = request.GET.get('caixa_filtro')
-        # Queryset para o dropdown de caixas: sempre todas as contas da igreja selecionada (ou todas permitidas)
-        if igreja_selecionada_para_dados:
-            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja=igreja_selecionada_para_dados).order_by('nome_identificacao')
-        else:
-            contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao')
-
         # Queryset para o painel: aplica filtro de caixa se houver
-        if igreja_selecionada_para_dados:
-            if caixa_id_filtro:
-                contas_bancarias_painel = ContaBancaria.objects.filter(igreja=igreja_selecionada_para_dados, pk=caixa_id_filtro).order_by('nome_identificacao')
-            else:
-                contas_bancarias_painel = contas_bancarias_dropdown
+        if caixa_id_filtro:
+            contas_bancarias_painel = contas_bancarias_dropdown.filter(pk=caixa_id_filtro)
         else:
-            if caixa_id_filtro:
-                contas_bancarias_painel = ContaBancaria.objects.filter(igreja__in=allowed_churches, pk=caixa_id_filtro).order_by('igreja__nome_igreja', 'nome_identificacao')
-            else:
-                contas_bancarias_painel = contas_bancarias_dropdown
+            contas_bancarias_painel = contas_bancarias_dropdown
+
+        caixa_selecionada_obj = contas_bancarias_dropdown.filter(pk=caixa_id_filtro).first() if caixa_id_filtro else None
+
+        query_receitas_despesas_parts = []
+        if igreja_id_filtro_selecionado_template:
+            query_receitas_despesas_parts.append(f"igreja={igreja_id_filtro_selecionado_template}")
+        if caixa_id_filtro:
+            query_receitas_despesas_parts.append(f"caixa_filtro={caixa_id_filtro}")
+        if periodo_filtro == 'custom' and data_inicio_filtro_str and data_fim_filtro_str:
+            query_receitas_despesas_parts.append(f"data_inicio={data_inicio_filtro_str}")
+            query_receitas_despesas_parts.append(f"data_fim={data_fim_filtro_str}")
+        elif periodo_filtro == 'aberto':
+            query_receitas_despesas_parts.append("fechado=false")
+        elif periodo_filtro == 'ano_atual':
+            query_receitas_despesas_parts.append(f"data_inicio={ano_atual}-01-01")
+            query_receitas_despesas_parts.append(f"data_fim={data_hoje.strftime('%Y-%m-%d')}")
+        query_receitas_despesas = f"?{'&'.join(query_receitas_despesas_parts)}" if query_receitas_despesas_parts else ''
+
+        query_contas_pagar_params = {}
+        if igreja_id_filtro_selecionado_template:
+            query_contas_pagar_params['igreja'] = igreja_id_filtro_selecionado_template
+        if caixa_id_filtro:
+            query_contas_pagar_params['caixa_filtro'] = caixa_id_filtro
+        query_contas_pagar_suffix = f"?{urlencode(query_contas_pagar_params)}" if query_contas_pagar_params else ''
+        query_contas_pagar_extra = f"&{urlencode(query_contas_pagar_params)}" if query_contas_pagar_params else ''
+
+        limpar_params = {}
+        if igreja_id_filtro_selecionado_template and not request.igreja_ativa:
+            limpar_params['igreja_filtro'] = igreja_id_filtro_selecionado_template
+        url_limpar_filtros = reverse('financeiro:painel_financeiro')
+        if limpar_params:
+            url_limpar_filtros = f"{url_limpar_filtros}?{urlencode(limpar_params)}"
+
+        voltar_geral_params = dict(limpar_params)
+        voltar_geral_params['periodo_filtro'] = 'geral'
+        url_voltar_geral = f"{reverse('financeiro:painel_financeiro')}?{urlencode(voltar_geral_params)}"
+
+        dashboard_tem_dados = receitas_filtradas.exists() or despesas_filtradas.exists() or contas_pagar_base.exists()
+
+        escopo_igreja_label = igreja_selecionada_para_dados.nome_igreja if igreja_selecionada_para_dados else 'Todas as igrejas permitidas'
+        escopo_caixa_label = caixa_selecionada_obj.nome_identificacao if caixa_selecionada_obj else 'Todos os caixas'
 
         context = {
             'contas_bancarias_dropdown': contas_bancarias_dropdown,
@@ -477,6 +541,7 @@ def painel_financeiro(request):
             'igrejas_org': igrejas_para_filtro_template,
             'igreja_selecionada': igreja_selecionada_para_dados,
             'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template,
+            'caixa_id_filtro_selecionado': caixa_id_filtro,
             'total_receitas': total_receitas,
             'total_despesas': total_despesas,
             'saldo_geral': saldo_geral,
@@ -490,6 +555,13 @@ def painel_financeiro(request):
             # Tendência mês anterior
             'variacao_receitas_pct': variacao_receitas_pct,
             'variacao_despesas_pct': variacao_despesas_pct,
+            'saldo_mes_anterior': saldo_mes_anterior,
+            'variacao_saldo_pct': variacao_saldo_pct,
+            'receitas_mes': receitas_mes,
+            'despesas_mes': despesas_mes,
+            'receitas_mes_anterior': receitas_mes_anterior,
+            'despesas_mes_anterior': despesas_mes_anterior,
+            'periodo_tendencia_label': f"{primeiro_dia_mes_ant.strftime('%d/%m/%Y')} a {ultimo_dia_mes_ant.strftime('%d/%m/%Y')}",
             # Filtro de data livre
             'data_inicio_filtro': data_inicio_filtro_str,
             'data_fim_filtro': data_fim_filtro_str,
@@ -534,6 +606,15 @@ def painel_financeiro(request):
             'perfil_dizimistas_total_valores_json': json.dumps(perfil_dizimistas_total_valores),
             'perfil_dizimistas_qtd_percentuais_json': json.dumps(perfil_dizimistas_qtd_percentuais),
             'perfil_dizimistas_valor_percentuais_json': json.dumps(perfil_dizimistas_valor_percentuais),
+            'query_receitas_despesas': query_receitas_despesas,
+            'query_contas_pagar_suffix': query_contas_pagar_suffix,
+            'query_contas_pagar_extra': query_contas_pagar_extra,
+            'escopo_igreja_label': escopo_igreja_label,
+            'escopo_caixa_label': escopo_caixa_label,
+            'escopo_periodo_label': titulo_filtro_periodo,
+            'url_limpar_filtros': url_limpar_filtros,
+            'url_voltar_geral': url_voltar_geral,
+            'dashboard_tem_dados': dashboard_tem_dados,
 
             # 'allowed_churches_count' não é usado diretamente neste painel da mesma forma que no de liderança
             # 'igrejas_permitidas_filtro' e 'igreja_id_filtro_selecionado' já são tratados por 'igrejas_org' e 'igreja_id_filtro'
@@ -2190,6 +2271,7 @@ def lista_contas_pagar(request): # noqa: E302
         tipo_filtro = request.GET.get('tipo', 'TODOS')
         competencia_filtro = request.GET.get('competencia', '')
         gerada_auto_filtro = request.GET.get('gerada_auto', 'TODOS')
+        caixa_id_filtro = request.GET.get('caixa_filtro', '')
 
         if query:
             contas_qs = contas_qs.filter(
@@ -2215,6 +2297,9 @@ def lista_contas_pagar(request): # noqa: E302
 
         if fornecedor_id_get:
             contas_qs = contas_qs.filter(fornecedor_id=fornecedor_id_get)
+
+        if caixa_id_filtro:
+            contas_qs = contas_qs.filter(conta_debito_id=caixa_id_filtro)
 
         if tipo_filtro == 'FIXA':
             contas_qs = contas_qs.filter(recorrencia_origem__isnull=False)
@@ -2275,6 +2360,7 @@ def lista_contas_pagar(request): # noqa: E302
             'current_tipo': tipo_filtro,
             'current_competencia': competencia_filtro,
             'current_gerada_auto': gerada_auto_filtro,
+            'current_caixa_filtro': caixa_id_filtro,
             'can_edit_finance': can_edit,
             'can_pay_batch': can_pay_batch,
             'contas_bancarias_lote': contas_bancarias_lote,

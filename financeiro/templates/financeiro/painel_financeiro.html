@@ -126,6 +126,12 @@
 
       </ol>
 
+      <div class="fp-scope-row" aria-label="Escopo ativo do painel">
+        <span class="fp-scope-chip"><i class="fas fa-church"></i> {{ escopo_igreja_label }}</span>
+        <span class="fp-scope-chip"><i class="fas fa-university"></i> {{ escopo_caixa_label }}</span>
+        <span class="fp-scope-chip"><i class="fas fa-calendar-alt"></i> {{ escopo_periodo_label }}</span>
+      </div>
+
     </div>
 
 
@@ -201,6 +207,55 @@
 
   </div>
 
+  <section class="fp-filter-history" id="fp-filter-history" hidden aria-label="Histórico de filtros recentes">
+    <div class="fp-filter-history-head">
+      <span class="fp-filter-history-title"><i class="fas fa-clock-rotate-left"></i> Filtros recentes</span>
+      <button type="button" class="fp-filter-history-clear" id="fp-clear-filter-history">Limpar histórico</button>
+    </div>
+    <div class="fp-filter-history-list" id="fp-filter-history-list"></div>
+  </section>
+
+  {% if not dashboard_tem_dados %}
+  <div class="fp-empty-state-banner" role="status">
+    <div>
+      <strong>Nenhum dado encontrado para os filtros atuais.</strong>
+      <div class="small text-muted">Ajuste o período/caixa selecionado ou volte para a visão geral para retomar a análise.</div>
+    </div>
+    <div class="fp-empty-state-actions">
+      <a href="{{ url_limpar_filtros }}" class="fp-btn fp-btn-ghost">Limpar filtro</a>
+      <a href="{{ url_voltar_geral }}" class="fp-btn fp-btn-prim">Voltar para Geral</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <section class="fp-exec-strip" aria-label="Resumo executivo do período">
+    <article class="fp-exec-card">
+      <div class="fp-exec-label"><i class="fas fa-university"></i> Caixa em foco</div>
+      <div class="fp-exec-value">{{ escopo_caixa_label }}</div>
+      <div class="fp-exec-meta">Escopo ativo para leitura dos indicadores</div>
+    </article>
+
+    <article class="fp-exec-card {% if qtd_contas_vencidas > 0 %}is-risk{% endif %}">
+      <div class="fp-exec-label"><i class="fas fa-triangle-exclamation"></i> Risco imediato</div>
+      <div class="fp-exec-value">{{ qtd_contas_vencidas }} conta(s) vencidas</div>
+      <div class="fp-exec-meta">Impacto atual: R$ {{ total_contas_vencidas|floatformat:2|intcomma }}</div>
+    </article>
+
+    <article class="fp-exec-card {% if variacao_saldo_pct and variacao_saldo_pct < 0 %}is-risk{% endif %}">
+      <div class="fp-exec-label"><i class="fas fa-chart-line"></i> Tendência mensal</div>
+      <div class="fp-exec-value">
+        {% if variacao_saldo_pct is not None %}
+          {% if variacao_saldo_pct > 0 %}+{% endif %}{{ variacao_saldo_pct }}%
+        {% else %}
+          Sem base comparativa
+        {% endif %}
+      </div>
+      <div class="fp-exec-meta">
+        Saldo mês: R$ {{ saldo_mes|floatformat:2|intcomma }} | Mês anterior: R$ {{ saldo_mes_anterior|floatformat:2|intcomma }}
+      </div>
+    </article>
+  </section>
+
   
 
 
@@ -242,7 +297,7 @@
         
 
         <div class="fp-kpi fp-kpi-rec fp-kpi-link"
-           onclick="window.location.href='{% url "financeiro:lista_receitas" %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}'"
+            onclick="window.location.href='{% url "financeiro:lista_receitas" %}{{ query_receitas_despesas }}'"
            role="link" tabindex="0">
 
           <div class="fp-kpi-lbl"><i class="fas fa-arrow-down me-1"></i>Receitas</div>
@@ -256,7 +311,10 @@
             {% if variacao_receitas_pct > 0 %}<i class="fas fa-arrow-trend-up"></i> +{{ variacao_receitas_pct }}%
             {% elif variacao_receitas_pct < 0 %}<i class="fas fa-arrow-trend-down"></i> {{ variacao_receitas_pct }}%
             {% else %}<i class="fas fa-minus"></i> Estável{% endif %}
-            <span style="font-weight:400;color:var(--fp-muted)">vs mês anterior</span>
+            <span class="fp-trend-meta"
+                  title="Atual: R$ {{ receitas_mes|floatformat:2|intcomma }} | Mês anterior ({{ periodo_tendencia_label }}): R$ {{ receitas_mes_anterior|floatformat:2|intcomma }}">
+              vs mês anterior <i class="fas fa-circle-info"></i>
+            </span>
           </div>
           {% endif %}
 
@@ -276,7 +334,7 @@
         
 
         <div class="fp-kpi fp-kpi-desp fp-kpi-link"
-           onclick="window.location.href='{% url "financeiro:lista_despesas" %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}'"
+            onclick="window.location.href='{% url "financeiro:lista_despesas" %}{{ query_receitas_despesas }}'"
            role="link" tabindex="0">
 
           <div class="fp-kpi-lbl"><i class="fas fa-arrow-up me-1"></i>Despesas</div>
@@ -294,7 +352,10 @@
             {% if variacao_despesas_pct > 0 %}<i class="fas fa-arrow-trend-up"></i> +{{ variacao_despesas_pct }}%
             {% elif variacao_despesas_pct < 0 %}<i class="fas fa-arrow-trend-down"></i> {{ variacao_despesas_pct }}%
             {% else %}<i class="fas fa-minus"></i> Estável{% endif %}
-            <span style="font-weight:400;color:var(--fp-muted)">vs mês anterior</span>
+            <span class="fp-trend-meta"
+                  title="Atual: R$ {{ despesas_mes|floatformat:2|intcomma }} | Mês anterior ({{ periodo_tendencia_label }}): R$ {{ despesas_mes_anterior|floatformat:2|intcomma }}">
+              vs mês anterior <i class="fas fa-circle-info"></i>
+            </span>
           </div>
           {% endif %}
 
@@ -558,7 +619,7 @@
 
         </span>
 
-        <a href="{% url 'financeiro:lista_contas_pagar' %}" class="fp-block-cta">Ver todas as contas</a>
+        <a href="{% url 'financeiro:lista_contas_pagar' %}{{ query_contas_pagar_suffix }}" class="fp-block-cta">Ver todas as contas</a>
 
       </div>
 
@@ -582,9 +643,9 @@
 
           <div class="fp-alerta-val">R$&nbsp;{{ total_contas_pendentes|floatformat:2|intcomma }}</div>
 
-          <div class="fp-alerta-qty">{{ qtd_contas_pendentes }} conta(s) aguardando pagamento</div>
+          <div class="fp-alerta-qty">{{ qtd_contas_pendentes }} conta(s) exigem ação hoje</div>
 
-          <a href="{% url 'financeiro:lista_contas_pagar' %}?status=PEN" class="fp-alerta-link">
+          <a href="{% url 'financeiro:lista_contas_pagar' %}?status=PEN{{ query_contas_pagar_extra }}" class="fp-alerta-link">
 
             Ver pendentes <i class="fas fa-arrow-right fa-xs"></i>
 
@@ -612,9 +673,9 @@
 
           </div>
 
-          <div class="fp-alerta-qty">{{ qtd_contas_vencidas }} conta(s) em atraso</div>
+          <div class="fp-alerta-qty">{{ qtd_contas_vencidas }} conta(s) já estão em atraso</div>
 
-          <a href="{% url 'financeiro:lista_contas_pagar' %}?status=VEN" class="fp-alerta-link">
+          <a href="{% url 'financeiro:lista_contas_pagar' %}?status=VEN{{ query_contas_pagar_extra }}" class="fp-alerta-link">
 
             Ver vencidas <i class="fas fa-arrow-right fa-xs"></i>
 
@@ -688,7 +749,7 @@
 
           <div class="d-flex gap-2 mt-1">
 
-            <a href="{% url 'financeiro:lista_contas_pagar' %}?tipo=FIXA" class="fp-alerta-link">
+            <a href="{% url 'financeiro:lista_contas_pagar' %}?tipo=FIXA{{ query_contas_pagar_extra }}" class="fp-alerta-link">
 
               Detalhes <i class="fas fa-arrow-right fa-xs"></i>
 
@@ -734,7 +795,7 @@
 
         <span class="fp-block-label"><i class="fas fa-arrow-down"></i>Últimas Receitas</span>
 
-        <a href="{% url 'financeiro:lista_receitas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
+        <a href="{% url 'financeiro:lista_receitas' %}{{ query_receitas_despesas }}"
 
            class="fp-block-cta">Ver todas</a>
 
@@ -788,7 +849,14 @@
 
       {% else %}
 
-        <div class="fp-empty"><i class="fas fa-inbox"></i>Nenhuma receita recente.</div>
+        <div class="fp-empty">
+          <i class="fas fa-inbox"></i>
+          Nenhuma receita no recorte atual.
+          <div class="mt-2 d-flex justify-content-center gap-2">
+            <a href="{{ url_limpar_filtros }}" class="fp-btn fp-btn-ghost">Limpar filtro</a>
+            <a href="{{ url_voltar_geral }}" class="fp-btn fp-btn-prim">Ver geral</a>
+          </div>
+        </div>
 
       {% endif %}
 
@@ -804,7 +872,7 @@
 
         <span class="fp-block-label"><i class="fas fa-arrow-up"></i>Últimas Despesas</span>
 
-        <a href="{% url 'financeiro:lista_despesas' %}{% if igreja_id_filtro_selecionado %}?igreja={{ igreja_id_filtro_selecionado }}{% endif %}"
+        <a href="{% url 'financeiro:lista_despesas' %}{{ query_receitas_despesas }}"
 
            class="fp-block-cta">Ver todas</a>
 
@@ -848,7 +916,14 @@
 
       {% else %}
 
-        <div class="fp-empty"><i class="fas fa-inbox"></i>Nenhuma despesa recente.</div>
+        <div class="fp-empty">
+          <i class="fas fa-inbox"></i>
+          Nenhuma despesa no recorte atual.
+          <div class="mt-2 d-flex justify-content-center gap-2">
+            <a href="{{ url_limpar_filtros }}" class="fp-btn fp-btn-ghost">Limpar filtro</a>
+            <a href="{{ url_voltar_geral }}" class="fp-btn fp-btn-prim">Ver geral</a>
+          </div>
+        </div>
 
       {% endif %}
 
@@ -1009,7 +1084,8 @@
 DashboardSidebar.init({
   storageKey:    'financeiro.sidebar_visible',
   toggleClass:   'dash-financeiro',
-  defaultVisible: false
+  defaultVisible: false,
+  toggleIds: ['fp-toggle-sidebar']
 });
 
 var dsChart = {
@@ -1038,6 +1114,162 @@ function fpOnPeriodoChange(sel) {
     wrap.style.display = 'none';
     sel.form.submit();
   }
+}
+
+var FP_FILTER_HISTORY_KEY = 'financeiro.filtros.recentes';
+
+function fpGetCurrentFilterSnapshot() {
+  var params = new URLSearchParams(window.location.search);
+  var periodoSel = document.getElementById('periodo_filtro_select');
+  var caixaSel = document.getElementById('caixa_filtro_select');
+
+  var payload = {
+    igreja_filtro: params.get('igreja_filtro') || '',
+    caixa_filtro: params.get('caixa_filtro') || '',
+    periodo_filtro: params.get('periodo_filtro') || (periodoSel ? periodoSel.value : 'aberto'),
+    data_inicio: params.get('data_inicio') || '',
+    data_fim: params.get('data_fim') || ''
+  };
+
+  var readable = {
+    caixa_nome: caixaSel && caixaSel.selectedOptions.length ? caixaSel.selectedOptions[0].text.trim() : 'Todos',
+    periodo_nome: periodoSel && periodoSel.selectedOptions.length ? periodoSel.selectedOptions[0].text.trim() : 'Em Aberto'
+  };
+
+  return { payload: payload, readable: readable };
+}
+
+function fpBuildFilterQuery(payload) {
+  var sp = new URLSearchParams();
+  if (payload.igreja_filtro) sp.set('igreja_filtro', payload.igreja_filtro);
+  if (payload.caixa_filtro) sp.set('caixa_filtro', payload.caixa_filtro);
+  if (payload.periodo_filtro) sp.set('periodo_filtro', payload.periodo_filtro);
+  if (payload.periodo_filtro === 'custom') {
+    if (payload.data_inicio) sp.set('data_inicio', payload.data_inicio);
+    if (payload.data_fim) sp.set('data_fim', payload.data_fim);
+  }
+  return sp.toString();
+}
+
+function fpLoadFilterHistory() {
+  try {
+    var raw = localStorage.getItem(FP_FILTER_HISTORY_KEY);
+    if (!raw) return [];
+    var parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function fpSaveFilterHistory(history) {
+  try {
+    localStorage.setItem(FP_FILTER_HISTORY_KEY, JSON.stringify(history));
+  } catch (e) {
+    // Ignora falhas de storage
+  }
+}
+
+function fpPushCurrentFilterHistory() {
+  var snapshot = fpGetCurrentFilterSnapshot();
+  var query = fpBuildFilterQuery(snapshot.payload);
+  var signature = query || 'default';
+  var nowIso = new Date().toISOString();
+
+  var entry = {
+    signature: signature,
+    query: query,
+    readable: snapshot.readable,
+    payload: snapshot.payload,
+    updated_at: nowIso
+  };
+
+  var history = fpLoadFilterHistory().filter(function (item) {
+    return item.signature !== signature;
+  });
+
+  history.unshift(entry);
+  history = history.slice(0, 6);
+  fpSaveFilterHistory(history);
+  return history;
+}
+
+function fpRenderFilterHistory(history) {
+  var wrap = document.getElementById('fp-filter-history');
+  var list = document.getElementById('fp-filter-history-list');
+  var clearBtn = document.getElementById('fp-clear-filter-history');
+  if (!wrap || !list || !clearBtn) return;
+
+  if (!history || history.length <= 1) {
+    wrap.hidden = true;
+    list.innerHTML = '';
+    return;
+  }
+
+  wrap.hidden = false;
+  list.innerHTML = '';
+
+  history.forEach(function (item) {
+    var link = document.createElement('a');
+    link.className = 'fp-filter-history-chip';
+    link.href = item.query ? (window.location.pathname + '?' + item.query) : window.location.pathname;
+
+    var caixa = item.readable && item.readable.caixa_nome ? item.readable.caixa_nome : 'Todos';
+    var periodo = item.readable && item.readable.periodo_nome ? item.readable.periodo_nome : 'Em Aberto';
+    var lbl = 'Caixa: ' + caixa + ' | Período: ' + periodo;
+    if (item.payload && item.payload.periodo_filtro === 'custom' && item.payload.data_inicio && item.payload.data_fim) {
+      lbl += ' (' + item.payload.data_inicio + ' a ' + item.payload.data_fim + ')';
+    }
+    link.textContent = lbl;
+    link.title = 'Reaplicar este filtro';
+    list.appendChild(link);
+  });
+
+  clearBtn.onclick = function () {
+    fpSaveFilterHistory([]);
+    wrap.hidden = true;
+    list.innerHTML = '';
+  };
+}
+
+function fpEmptyChartHtml(message) {
+  return (
+    '<div class="fp-chart-empty">' +
+      '<p class="text-muted text-center p-1 mb-2">' + message + '</p>' +
+      '<div class="d-flex justify-content-center gap-2">' +
+        '<a class="fp-btn fp-btn-ghost" href="{{ url_limpar_filtros|escapejs }}">Limpar filtro</a>' +
+        '<a class="fp-btn fp-btn-prim" href="{{ url_voltar_geral|escapejs }}">Ver geral</a>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function fpErrorChartHtml(message) {
+  return (
+    '<div class="fp-chart-empty fp-chart-error">' +
+      '<p class="text-danger text-center p-1 mb-2"><i class="fas fa-triangle-exclamation"></i> ' + message + '</p>' +
+      '<div class="d-flex justify-content-center gap-2">' +
+        '<a class="fp-btn fp-btn-ghost" href="{{ url_limpar_filtros|escapejs }}">Revisar filtros</a>' +
+        '<a class="fp-btn fp-btn-prim" href="{{ url_voltar_geral|escapejs }}">Voltar ao geral</a>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function fpSetChartLoading(containerOrCanvas, loading) {
+  if (!containerOrCanvas) return;
+  var container = containerOrCanvas.classList && containerOrCanvas.classList.contains('fp-chart-body')
+    ? containerOrCanvas
+    : containerOrCanvas.parentNode;
+  if (!container || !container.classList) return;
+  container.classList.toggle('is-loading', !!loading);
+}
+
+function fpRenderChartError(canvasId, message) {
+  var canvas = document.getElementById(canvasId);
+  if (!canvas || !canvas.parentNode) return;
+  fpSetChartLoading(canvas, false);
+  canvas.parentNode.innerHTML = fpErrorChartHtml(message);
 }
 
 
@@ -1107,6 +1339,7 @@ try {
 function renderGraficoMovimentacao() {
 
     var ctx = document.getElementById('movimentacaoMensalChart');
+  fpSetChartLoading(ctx, false);
 
     if (ctx && mesesLabels.length > 0 && receitasData.length > 0) {
 
@@ -1155,7 +1388,7 @@ function renderGraficoMovimentacao() {
 
     } else if (ctx) {
 
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+        ctx.parentNode.innerHTML = fpEmptyChartHtml('Sem dados para exibir neste gráfico para o recorte atual.');
 
     }
 
@@ -1164,6 +1397,7 @@ function renderGraficoMovimentacao() {
 function renderGraficoDizimistasMensal() {
 
     var ctx = document.getElementById('dizimistasMensalChart');
+  fpSetChartLoading(ctx, false);
 
     if (ctx && mesesLabels.length > 0 && dizimistasData.length > 0) {
 
@@ -1199,7 +1433,7 @@ function renderGraficoDizimistasMensal() {
 
     } else if (ctx) {
 
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+        ctx.parentNode.innerHTML = fpEmptyChartHtml('Sem dados para exibir neste gráfico para o recorte atual.');
 
     }
 
@@ -1208,6 +1442,7 @@ function renderGraficoDizimistasMensal() {
 function renderGraficoFechamentosMensal() {
 
     var ctx = document.getElementById('movimentacaoFechamentosChart');
+  fpSetChartLoading(ctx, false);
 
     if (ctx && fechLabels.length > 0 && (fechReceitasData.length > 0 || fechDespesasData.length > 0)) {
 
@@ -1256,7 +1491,7 @@ function renderGraficoFechamentosMensal() {
 
     } else if (ctx) {
 
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+        ctx.parentNode.innerHTML = fpEmptyChartHtml('Sem dados para exibir neste gráfico para o recorte atual.');
 
     }
 
@@ -1265,6 +1500,7 @@ function renderGraficoFechamentosMensal() {
 function renderGraficoCategoriasReceita() {
 
     var ctx = document.getElementById('categoriasReceitaChart');
+  fpSetChartLoading(ctx, false);
 
     if (ctx && catRecLabels.length > 0 && catRecValores.length > 0) {
 
@@ -1307,7 +1543,7 @@ function renderGraficoCategoriasReceita() {
 
     } else if (ctx) {
 
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+        ctx.parentNode.innerHTML = fpEmptyChartHtml('Sem dados para exibir neste gráfico para o recorte atual.');
 
     }
 
@@ -1316,6 +1552,7 @@ function renderGraficoCategoriasReceita() {
 function renderGraficoCategoriasDespesa() {
 
     var ctx = document.getElementById('categoriasDespesaChart');
+  fpSetChartLoading(ctx, false);
 
     if (ctx && catDespLabels.length > 0 && catDespValores.length > 0) {
 
@@ -1358,7 +1595,7 @@ function renderGraficoCategoriasDespesa() {
 
     } else if (ctx) {
 
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+        ctx.parentNode.innerHTML = fpEmptyChartHtml('Sem dados para exibir neste gráfico para o recorte atual.');
 
     }
 
@@ -1369,6 +1606,7 @@ var perfilDizimistasChartInstance = null;
 function renderGraficoPerfilDizimistas(tipo) {
 
     var ctx = document.getElementById('perfilDizimistasChart');
+  fpSetChartLoading(ctx, false);
 
     var perfilLabels = JSON.parse('{{ perfil_dizimistas_labels_json|default:"[]"|escapejs }}');
 
@@ -1422,7 +1660,7 @@ function renderGraficoPerfilDizimistas(tipo) {
 
     } else if (ctx) {
 
-        ctx.parentNode.innerHTML = '<p class="text-muted text-center p-3">Sem dados para exibir.</p>';
+        ctx.parentNode.innerHTML = fpEmptyChartHtml('Sem dados para exibir neste gráfico para o recorte atual.');
 
     }
 
@@ -1430,19 +1668,67 @@ function renderGraficoPerfilDizimistas(tipo) {
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    renderGraficoMovimentacao();
+    // Acessibilidade: permite acionar cards clicáveis via teclado (Enter/Espaço)
+    document.querySelectorAll('.fp-kpi-link[role="link"]').forEach(function (el) {
+      el.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          el.click();
+        }
+      });
+    });
 
-    renderGraficoDizimistasMensal();
+    var history = fpPushCurrentFilterHistory();
+    fpRenderFilterHistory(history);
 
-    renderGraficoFechamentosMensal();
+    document.querySelectorAll('.fp-chart-body').forEach(function (container) {
+      fpSetChartLoading(container, true);
+    });
 
-    renderGraficoCategoriasReceita();
+    setTimeout(function () {
+      try {
+        renderGraficoMovimentacao();
+      } catch (e) {
+        console.error('Erro ao renderizar Movimentação Mensal:', e);
+        fpRenderChartError('movimentacaoMensalChart', 'Erro ao carregar o gráfico de movimentação.');
+      }
 
-    renderGraficoCategoriasDespesa();
+      try {
+        renderGraficoDizimistasMensal();
+      } catch (e) {
+        console.error('Erro ao renderizar Dizimistas Mensal:', e);
+        fpRenderChartError('dizimistasMensalChart', 'Erro ao carregar o gráfico de dizimistas.');
+      }
 
-    var tipo = document.getElementById('perfilDizimistaTipoFiltro') ? document.getElementById('perfilDizimistaTipoFiltro').value : 'qtd';
+      try {
+        renderGraficoFechamentosMensal();
+      } catch (e) {
+        console.error('Erro ao renderizar Fechamentos:', e);
+        fpRenderChartError('movimentacaoFechamentosChart', 'Erro ao carregar o gráfico de fechamentos.');
+      }
 
-    renderGraficoPerfilDizimistas(tipo);
+      try {
+        renderGraficoCategoriasReceita();
+      } catch (e) {
+        console.error('Erro ao renderizar Categorias de Receita:', e);
+        fpRenderChartError('categoriasReceitaChart', 'Erro ao carregar o gráfico de categorias de receita.');
+      }
+
+      try {
+        renderGraficoCategoriasDespesa();
+      } catch (e) {
+        console.error('Erro ao renderizar Categorias de Despesa:', e);
+        fpRenderChartError('categoriasDespesaChart', 'Erro ao carregar o gráfico de categorias de despesa.');
+      }
+
+      try {
+        var tipo = document.getElementById('perfilDizimistaTipoFiltro') ? document.getElementById('perfilDizimistaTipoFiltro').value : 'qtd';
+        renderGraficoPerfilDizimistas(tipo);
+      } catch (e) {
+        console.error('Erro ao renderizar Perfil dos Dizimistas:', e);
+        fpRenderChartError('perfilDizimistasChart', 'Erro ao carregar o gráfico de perfil dos dizimistas.');
+      }
+    }, 120);
 
     if (document.getElementById('perfilDizimistaTipoFiltro')) {
 
