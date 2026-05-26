@@ -5,7 +5,8 @@ Views de dashboard principal (index) e salvar nota do usuário.
 import json
 import locale
 import logging
-from collections import defaultdict
+from calendar import monthrange
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 
 from django.contrib import messages
@@ -101,44 +102,75 @@ def _assinatura_alerta(ministerio, hoje):
     return None
 
 
+def _add_months(base_date, months_delta):
+    """Retorna o primeiro dia do mês deslocado em months_delta."""
+    month_index = (base_date.month - 1) + months_delta
+    year = base_date.year + (month_index // 12)
+    month = (month_index % 12) + 1
+    return date(year, month, 1)
+
+
+def _last_month_starts(reference_date, total_months=12):
+    """Lista meses (primeiro dia), do mais antigo ao atual."""
+    anchor = reference_date.replace(day=1)
+    return [_add_months(anchor, -offset) for offset in range(total_months - 1, -1, -1)]
+
+
+def _month_end(month_start):
+    """Retorna o último dia do mês do month_start."""
+    return month_start.replace(day=monthrange(month_start.year, month_start.month)[1])
+
+
 def _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data):
-    meses_labels = []
+    month_starts = _last_month_starts(hoje_data, 12)
+    month_ends = [_month_end(month_start) for month_start in month_starts]
+    meses_labels = [month_start.strftime('%b/%Y') for month_start in month_starts]
     evolucao_por_tipo = defaultdict(list)
     tipos_para_grafico = ['Membro', 'Congregado', 'Novo Convertido', 'Visitante']
 
-    for i in range(11, -1, -1):
-        mes_ref = hoje_data.replace(day=1) - timedelta(days=30 * i)
-        meses_labels.append(mes_ref.strftime('%b/%Y'))
-        for tipo_nome in tipos_para_grafico:
-            count = membros_base_para_grafico_status.filter(
-                tipo_pessoa__nome__iexact=tipo_nome,
-                data_entrada__year__lte=mes_ref.year,
-                data_entrada__month__lte=mes_ref.month,
-            ).count()
-            evolucao_por_tipo[tipo_nome].append(count)
+    entradas = defaultdict(list)
+    registros = membros_base_para_grafico_status.filter(
+        tipo_pessoa__nome__in=tipos_para_grafico,
+        data_entrada__isnull=False,
+    ).values_list('tipo_pessoa__nome', 'data_entrada')
+    for tipo_nome, data_entrada in registros:
+        if data_entrada:
+            entradas[tipo_nome].append(data_entrada)
+    for tipo_nome in tipos_para_grafico:
+        entradas[tipo_nome].sort()
+
+    for tipo_nome in tipos_para_grafico:
+        datas = entradas[tipo_nome]
+        idx = 0
+        acumulado = []
+        for month_end in month_ends:
+            while idx < len(datas) and datas[idx] <= month_end:
+                idx += 1
+            acumulado.append(idx)
+        evolucao_por_tipo[tipo_nome] = acumulado
 
     return meses_labels, evolucao_por_tipo
 
 
 def _series_mensal_membros(membros_para_relatorios, hoje):
-    meses_evolucao = []
+    month_starts = _last_month_starts(hoje, 12)
+    month_ends = [_month_end(month_start) for month_start in month_starts]
+    meses_evolucao = [month_start.strftime('%Y-%m') for month_start in month_starts]
     membros_evolucao = []
     novos_membros_por_mes = []
 
-    for i in range(11, -1, -1):
-        mes_ref = hoje.replace(day=1) - timedelta(days=30 * i)
-        meses_evolucao.append(mes_ref.strftime('%Y-%m'))
-        membros_evolucao.append(
-            membros_para_relatorios.filter(
-                data_entrada__lte=mes_ref.replace(day=28) + timedelta(days=4)
-            ).count()
-        )
-        novos_membros_por_mes.append(
-            membros_para_relatorios.filter(
-                data_entrada__year=mes_ref.year,
-                data_entrada__month=mes_ref.month,
-            ).count()
-        )
+    datas_entrada = sorted(
+        d for d in membros_para_relatorios.exclude(data_entrada__isnull=True).values_list('data_entrada', flat=True)
+        if d
+    )
+    novos_por_mes = Counter((d.year, d.month) for d in datas_entrada)
+
+    idx = 0
+    for month_start, month_end in zip(month_starts, month_ends):
+        while idx < len(datas_entrada) and datas_entrada[idx] <= month_end:
+            idx += 1
+        membros_evolucao.append(idx)
+        novos_membros_por_mes.append(novos_por_mes.get((month_start.year, month_start.month), 0))
 
     return meses_evolucao, membros_evolucao, novos_membros_por_mes
 
