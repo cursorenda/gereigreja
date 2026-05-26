@@ -17,10 +17,25 @@
     }
   }
 
-  function chartOrMessage(canvasId, message) {
+  function chartOrMessage(canvasId) {
     var el = document.getElementById(canvasId);
     if (!el) return null;
     return el.getContext('2d');
+  }
+
+  function hasAnyData(values) {
+    if (!Array.isArray(values) || values.length === 0) {
+      return false;
+    }
+    return values.some(function (value) {
+      return Number(value) > 0;
+    });
+  }
+
+  function showChartEmptyState(canvasId, message) {
+    var el = document.getElementById(canvasId);
+    if (!el || !el.parentNode) return;
+    el.parentNode.innerHTML = '<div class="secdash-chart-empty">' + message + '</div>';
   }
 
   function initBirthdaysPanel() {
@@ -63,6 +78,10 @@
     var visitantes = readJsonScript('evolucao-visitantes', []);
 
     var evolucaoCtx = chartOrMessage('evolucaoMembrosChart');
+    if (!hasAnyData(membros) && !hasAnyData(congregados) && !hasAnyData(novosConvertidos) && !hasAnyData(visitantes)) {
+      showChartEmptyState('evolucaoMembrosChart', 'Sem dados de evolucao no periodo selecionado.');
+      evolucaoCtx = null;
+    }
     if (evolucaoCtx) {
       new Chart(evolucaoCtx, {
         type: 'line',
@@ -79,14 +98,19 @@
       });
     }
 
+    var pieValues = readJsonScript('pie-values-data', []);
     var pieCtx = chartOrMessage('grafico2');
+    if (!hasAnyData(pieValues)) {
+      showChartEmptyState('grafico2', 'Sem distribuicao de tipos para exibir.');
+      pieCtx = null;
+    }
     if (pieCtx) {
       new Chart(pieCtx, {
         type: 'pie',
         data: {
           labels: readJsonScript('pie-labels-data', []),
           datasets: [{
-            data: readJsonScript('pie-values-data', []),
+            data: pieValues,
             backgroundColor: ['#0d8281', '#0f766e', '#0e7490', '#155e75', '#0891b2', '#334155', '#1e293b', '#14b8a6']
           }]
         },
@@ -94,49 +118,69 @@
       });
     }
 
+    var statusValues = readJsonScript('status-values-data', []);
     var statusCtx = chartOrMessage('graficoStatus');
+    if (!hasAnyData(statusValues)) {
+      showChartEmptyState('graficoStatus', 'Sem pessoas por status para exibir.');
+      statusCtx = null;
+    }
     if (statusCtx) {
       new Chart(statusCtx, {
         type: 'bar',
         data: {
           labels: readJsonScript('status-labels-data', []),
-          datasets: [{ label: 'Total', data: readJsonScript('status-values-data', []), backgroundColor: '#0d8281', borderColor: '#0a6665', borderWidth: 2 }]
+          datasets: [{ label: 'Total', data: statusValues, backgroundColor: '#0d8281', borderColor: '#0a6665', borderWidth: 2 }]
         },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
     }
 
+    var generoValues = readJsonScript('genero-values-data', []);
     var generoCtx = chartOrMessage('graficoGenero');
+    if (!hasAnyData(generoValues)) {
+      showChartEmptyState('graficoGenero', 'Sem dados de genero para exibir.');
+      generoCtx = null;
+    }
     if (generoCtx) {
       new Chart(generoCtx, {
         type: 'bar',
         data: {
           labels: readJsonScript('genero-labels-data', []),
-          datasets: [{ label: 'Total', data: readJsonScript('genero-values-data', []), backgroundColor: '#0f766e', borderColor: '#115e59', borderWidth: 2 }]
+          datasets: [{ label: 'Total', data: generoValues, backgroundColor: '#0f766e', borderColor: '#115e59', borderWidth: 2 }]
         },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
     }
 
+    var faixaValues = readJsonScript('faixa-values-data', []);
     var faixaCtx = chartOrMessage('graficoFaixaEtaria');
+    if (!hasAnyData(faixaValues)) {
+      showChartEmptyState('graficoFaixaEtaria', 'Sem dados de faixa etaria para exibir.');
+      faixaCtx = null;
+    }
     if (faixaCtx) {
       new Chart(faixaCtx, {
         type: 'bar',
         data: {
           labels: readJsonScript('faixa-labels-data', []),
-          datasets: [{ label: 'Total', data: readJsonScript('faixa-values-data', []), backgroundColor: '#0e7490', borderColor: '#155e75', borderWidth: 2 }]
+          datasets: [{ label: 'Total', data: faixaValues, backgroundColor: '#0e7490', borderColor: '#155e75', borderWidth: 2 }]
         },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
     }
 
+    var categoriaValues = readJsonScript('categoria-evento-values-data', []);
     var categoriaCtx = chartOrMessage('graficoCategoriaEvento');
+    if (!hasAnyData(categoriaValues)) {
+      showChartEmptyState('graficoCategoriaEvento', 'Sem participacao por categoria para exibir.');
+      categoriaCtx = null;
+    }
     if (categoriaCtx) {
       new Chart(categoriaCtx, {
         type: 'bar',
         data: {
           labels: readJsonScript('categoria-evento-labels-data', []),
-          datasets: [{ label: 'Participacoes', data: readJsonScript('categoria-evento-values-data', []), backgroundColor: '#0f766e' }]
+          datasets: [{ label: 'Participacoes', data: categoriaValues, backgroundColor: '#0f766e' }]
         },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
       });

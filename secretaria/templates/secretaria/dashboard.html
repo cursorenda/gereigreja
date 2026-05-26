@@ -1,5 +1,6 @@
 {% extends 'base_com_menu.html' %}
 {% load static %}
+{% load permissoes_hierarquia %}
 
 {% block title %}Dashboard Secretaria{% endblock %}
 
@@ -9,6 +10,7 @@
 
 {% block content %}
 <div class="container-fluid px-4 secdash-page">
+  {% user_can_access request.user 'financeiro' as can_section_financeiro %}
   <header class="secdash-header">
     <div>
       <h1 class="secdash-title">Dashboard Secretaria</h1>
@@ -39,6 +41,54 @@
       <div class="label">Membros ativos</div>
       <div class="value">{{ total_membros_ativos|default:'0' }}</div>
     </article>
+  </section>
+
+  <section class="secdash-section" aria-label="Prioridades do dia">
+    <div class="secdash-section-head">
+      <h2>Prioridades do Dia</h2>
+      <p>Itens que demandam acao imediata para manter qualidade cadastral e governanca.</p>
+    </div>
+
+    <div class="secdash-priority-grid">
+      <article class="secdash-priority-card {% if total_pendencias_cadastro > 0 %}is-warn{% else %}is-ok{% endif %}">
+        <div class="head">
+          <span class="pill">Cadastro</span>
+          <i class="fas fa-user-pen"></i>
+        </div>
+        <h3>{{ total_pendencias_cadastro }}</h3>
+        <p>Pessoas com dados essenciais pendentes.</p>
+        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-secondary btn-sm">Tratar pendencias</a>
+      </article>
+
+      <article class="secdash-priority-card {% if total_contas_vencidas > 0 %}is-danger{% else %}is-ok{% endif %}">
+        <div class="head">
+          <span class="pill">Financeiro</span>
+          <i class="fas fa-triangle-exclamation"></i>
+        </div>
+        <h3>{{ total_contas_vencidas }}</h3>
+        <p>Contas vencidas{% if valor_total_contas_vencidas %} (R$ {{ valor_total_contas_vencidas|floatformat:2 }}){% endif %}.</p>
+        {% if can_section_financeiro %}
+        <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-outline-secondary btn-sm">Abrir contas a pagar</a>
+        {% else %}
+        <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Sem permissao financeira</button>
+        {% endif %}
+      </article>
+
+      <article class="secdash-priority-card {% if assinatura_alerta %}is-warn{% else %}is-ok{% endif %}">
+        <div class="head">
+          <span class="pill">Assinatura</span>
+          <i class="fas fa-calendar-check"></i>
+        </div>
+        {% if assinatura_alerta %}
+        <h3>{{ assinatura_alerta.dias_restantes }}</h3>
+        <p>Dias restantes para vencimento ({{ assinatura_alerta.status }}).</p>
+        {% else %}
+        <h3>OK</h3>
+        <p>Status regular, sem alerta no periodo atual.</p>
+        {% endif %}
+        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-outline-secondary btn-sm">Ver assinatura</a>
+      </article>
+    </div>
   </section>
 
   <section class="secdash-section">
@@ -140,32 +190,32 @@
     </div>
 
     <div class="secdash-chart-grid">
-      <article class="secdash-chart-card">
+      <article class="secdash-chart-card" data-chart-card>
         <header><i class="fas fa-chart-line"></i> Evolucao de Pessoas (12 meses)</header>
         <div class="canvas-wrap"><canvas id="evolucaoMembrosChart" height="200"></canvas></div>
       </article>
 
-      <article class="secdash-chart-card">
+      <article class="secdash-chart-card" data-chart-card>
         <header><i class="fas fa-chart-pie"></i> Distribuicao por Tipo</header>
         <div class="canvas-wrap"><canvas id="grafico2" height="200"></canvas></div>
       </article>
 
-      <article class="secdash-chart-card">
+      <article class="secdash-chart-card" data-chart-card>
         <header><i class="fas fa-user-check"></i> Pessoas por Status</header>
         <div class="canvas-wrap"><canvas id="graficoStatus" height="200"></canvas></div>
       </article>
 
-      <article class="secdash-chart-card">
+      <article class="secdash-chart-card" data-chart-card>
         <header><i class="fas fa-venus-mars"></i> Pessoas por Genero</header>
         <div class="canvas-wrap"><canvas id="graficoGenero" height="200"></canvas></div>
       </article>
 
-      <article class="secdash-chart-card">
+      <article class="secdash-chart-card" data-chart-card>
         <header><i class="fas fa-layer-group"></i> Participacao por Categoria de Evento</header>
         <div class="canvas-wrap"><canvas id="graficoCategoriaEvento" height="200"></canvas></div>
       </article>
 
-      <article class="secdash-chart-card">
+      <article class="secdash-chart-card" data-chart-card>
         <header><i class="fas fa-chart-bar"></i> Pessoas por Faixa Etaria</header>
         <div class="canvas-wrap"><canvas id="graficoFaixaEtaria" height="200"></canvas></div>
       </article>
