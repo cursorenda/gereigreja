@@ -101,6 +101,96 @@ def _assinatura_alerta(ministerio, hoje):
     return None
 
 
+def _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data):
+    meses_labels = []
+    evolucao_por_tipo = defaultdict(list)
+    tipos_para_grafico = ['Membro', 'Congregado', 'Novo Convertido', 'Visitante']
+
+    for i in range(11, -1, -1):
+        mes_ref = hoje_data.replace(day=1) - timedelta(days=30 * i)
+        meses_labels.append(mes_ref.strftime('%b/%Y'))
+        for tipo_nome in tipos_para_grafico:
+            count = membros_base_para_grafico_status.filter(
+                tipo_pessoa__nome__iexact=tipo_nome,
+                data_entrada__year__lte=mes_ref.year,
+                data_entrada__month__lte=mes_ref.month,
+            ).count()
+            evolucao_por_tipo[tipo_nome].append(count)
+
+    return meses_labels, evolucao_por_tipo
+
+
+def _series_mensal_membros(membros_para_relatorios, hoje):
+    meses_evolucao = []
+    membros_evolucao = []
+    novos_membros_por_mes = []
+
+    for i in range(11, -1, -1):
+        mes_ref = hoje.replace(day=1) - timedelta(days=30 * i)
+        meses_evolucao.append(mes_ref.strftime('%Y-%m'))
+        membros_evolucao.append(
+            membros_para_relatorios.filter(
+                data_entrada__lte=mes_ref.replace(day=28) + timedelta(days=4)
+            ).count()
+        )
+        novos_membros_por_mes.append(
+            membros_para_relatorios.filter(
+                data_entrada__year=mes_ref.year,
+                data_entrada__month=mes_ref.month,
+            ).count()
+        )
+
+    return meses_evolucao, membros_evolucao, novos_membros_por_mes
+
+
+def _aniversariantes_janela(membros_para_relatorios, hoje):
+    ontem = hoje - timedelta(days=1)
+    amanha = hoje + timedelta(days=1)
+    aniversariantes_hoje = membros_para_relatorios.filter(nascimento__month=hoje.month, nascimento__day=hoje.day)
+    aniversariantes_ontem = membros_para_relatorios.filter(nascimento__month=ontem.month, nascimento__day=ontem.day)
+    aniversariantes_amanha = membros_para_relatorios.filter(nascimento__month=amanha.month, nascimento__day=amanha.day)
+    return aniversariantes_ontem, aniversariantes_hoje, aniversariantes_amanha
+
+
+def _pie_tipos_pessoa(membros_para_grafico_tipo):
+    tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
+    membros_por_tipo = (
+        membros_para_grafico_tipo.values('tipo_pessoa__nome')
+        .annotate(total=Count('chave'))
+        .order_by('tipo_pessoa__nome')
+    )
+
+    pie_labels = []
+    pie_values = []
+    for tipo in tipos_pessoa_qs:
+        found = next((item for item in membros_por_tipo if item['tipo_pessoa__nome'] == tipo.nome), None)
+        pie_labels.append(tipo.nome)
+        pie_values.append(found['total'] if found else 0)
+
+    return pie_labels, pie_values
+
+
+def _categoria_evento_data(igrejas_filtro):
+    eventos_ids = list(Evento.objects.filter(igreja__in=igrejas_filtro).values_list('id', flat=True))
+    participacoes_qs = ParticipacaoEvento.objects.filter(
+        status__in=['CONFIRMADO', 'PRESENTE', 'AUSENTE'],
+        evento_id__in=eventos_ids,
+    )
+    participacoes_por_categoria = (
+        participacoes_qs.values('evento__tipo').annotate(total=Count('id')).order_by('evento__tipo')
+    )
+    tipo_dict = dict(Evento.TIPO_EVENTO_CHOICES)
+
+    categoria_labels = []
+    categoria_values = []
+    for item in participacoes_por_categoria:
+        tipo = item['evento__tipo']
+        categoria_labels.append(tipo_dict.get(tipo, tipo.title()))
+        categoria_values.append(item['total'])
+
+    return categoria_labels, categoria_values
+
+
 # ---------------------------------------------------------------------------
 # index
 # ---------------------------------------------------------------------------
@@ -205,71 +295,15 @@ def index(request):
     hoje = hoje_data
     assinatura = _assinatura_alerta(ministerio, hoje)
 
-    meses_labels = []
-    evolucao_por_tipo = defaultdict(list)
-    tipos_para_grafico = ['Membro', 'Congregado', 'Novo Convertido', 'Visitante']
-    for i in range(11, -1, -1):
-        mes_ref = hoje_data.replace(day=1) - timedelta(days=30 * i)
-        meses_labels.append(mes_ref.strftime('%b/%Y'))
-        for tipo_nome in tipos_para_grafico:
-            count = membros_base_para_grafico_status.filter(
-                tipo_pessoa__nome__iexact=tipo_nome,
-                data_entrada__year__lte=mes_ref.year,
-                data_entrada__month__lte=mes_ref.month,
-            ).count()
-            evolucao_por_tipo[tipo_nome].append(count)
-
-    meses_evolucao = []
-    membros_evolucao = []
-    novos_membros_por_mes = []
-    for i in range(11, -1, -1):
-        mes_ref = hoje.replace(day=1) - timedelta(days=30 * i)
-        meses_evolucao.append(mes_ref.strftime('%Y-%m'))
-        membros_evolucao.append(
-            membros_para_relatorios.filter(
-                data_entrada__lte=mes_ref.replace(day=28) + timedelta(days=4)
-            ).count()
-        )
-        novos_membros_por_mes.append(
-            membros_para_relatorios.filter(
-                data_entrada__year=mes_ref.year, data_entrada__month=mes_ref.month
-            ).count()
-        )
-
-    ontem = hoje - timedelta(days=1)
-    amanha = hoje + timedelta(days=1)
-    aniversariantes_hoje = membros_para_relatorios.filter(nascimento__month=hoje.month, nascimento__day=hoje.day)
-    aniversariantes_ontem = membros_para_relatorios.filter(nascimento__month=ontem.month, nascimento__day=ontem.day)
-    aniversariantes_amanha = membros_para_relatorios.filter(nascimento__month=amanha.month, nascimento__day=amanha.day)
-
-    tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
+    meses_labels, evolucao_por_tipo = _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data)
+    meses_evolucao, membros_evolucao, novos_membros_por_mes = _series_mensal_membros(membros_para_relatorios, hoje)
+    aniversariantes_ontem, aniversariantes_hoje, aniversariantes_amanha = _aniversariantes_janela(
+        membros_para_relatorios,
+        hoje,
+    )
     membros_para_grafico_tipo = Membro.objects.filter(igreja__in=igrejas_filtro)
-    membros_por_tipo = (
-        membros_para_grafico_tipo.values('tipo_pessoa__nome')
-        .annotate(total=Count('chave'))
-        .order_by('tipo_pessoa__nome')
-    )
-    pie_labels = []
-    pie_values = []
-    for tipo in tipos_pessoa_qs:
-        found = next((item for item in membros_por_tipo if item['tipo_pessoa__nome'] == tipo.nome), None)
-        pie_labels.append(tipo.nome)
-        pie_values.append(found['total'] if found else 0)
-
-    eventos_ids = list(Evento.objects.filter(igreja__in=igrejas_filtro).values_list('id', flat=True))
-    participacoes_qs = ParticipacaoEvento.objects.filter(
-        status__in=['CONFIRMADO', 'PRESENTE', 'AUSENTE'], evento_id__in=eventos_ids
-    )
-    participacoes_por_categoria = (
-        participacoes_qs.values('evento__tipo').annotate(total=Count('id')).order_by('evento__tipo')
-    )
-    tipo_dict = dict(Evento.TIPO_EVENTO_CHOICES)
-    categoria_labels = []
-    categoria_values = []
-    for item in participacoes_por_categoria:
-        tipo = item['evento__tipo']
-        categoria_labels.append(tipo_dict.get(tipo, tipo.title()))
-        categoria_values.append(item['total'])
+    pie_labels, pie_values = _pie_tipos_pessoa(membros_para_grafico_tipo)
+    categoria_labels, categoria_values = _categoria_evento_data(igrejas_filtro)
 
     # Foto do usuário
     usuario_foto_url = None
@@ -502,20 +536,7 @@ def dashboard(request):
         for item in status_data_qs if item['status_pessoa__nome']
     ]
 
-    tipos_para_grafico = ['Membro', 'Congregado', 'Novo Convertido', 'Visitante']
-    evolucao_por_tipo = defaultdict(list)
-    meses_labels = []
-    for i in range(11, -1, -1):
-        mes_ref = hoje_data.replace(day=1) - timedelta(days=30 * i)
-        meses_labels.append(mes_ref.strftime('%b/%Y'))
-        for tipo_nome in tipos_para_grafico:
-            evolucao_por_tipo[tipo_nome].append(
-                membros_base_para_grafico_status.filter(
-                    tipo_pessoa__nome__iexact=tipo_nome,
-                    data_entrada__year__lte=mes_ref.year,
-                    data_entrada__month__lte=mes_ref.month,
-                ).count()
-            )
+    meses_labels, evolucao_por_tipo = _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data)
 
     genero_data_qs = membros_para_relatorios.values('genero').annotate(total=Count('chave'))
     genero_map = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
@@ -559,57 +580,14 @@ def dashboard(request):
 
     assinatura = _assinatura_alerta(ministerio, hoje)
 
-    meses = []
-    membros_evolucao = []
-    novos_membros_por_mes = []
-    for i in range(11, -1, -1):
-        mes_ref = hoje.replace(day=1) - timedelta(days=30 * i)
-        meses.append(mes_ref.strftime('%Y-%m'))
-        membros_evolucao.append(
-            membros_para_relatorios.filter(
-                data_entrada__lte=mes_ref.replace(day=28) + timedelta(days=4)
-            ).count()
-        )
-        novos_membros_por_mes.append(
-            membros_para_relatorios.filter(
-                data_entrada__year=mes_ref.year, data_entrada__month=mes_ref.month
-            ).count()
-        )
-
-    ontem = hoje - timedelta(days=1)
-    amanha = hoje + timedelta(days=1)
-    aniversariantes_hoje = membros_para_relatorios.filter(nascimento__month=hoje.month, nascimento__day=hoje.day)
-    aniversariantes_ontem = membros_para_relatorios.filter(nascimento__month=ontem.month, nascimento__day=ontem.day)
-    aniversariantes_amanha = membros_para_relatorios.filter(nascimento__month=amanha.month, nascimento__day=amanha.day)
-
-    tipos_pessoa_qs = TipoPessoa.objects.all().order_by('nome')
+    _meses_ignorado, membros_evolucao, novos_membros_por_mes = _series_mensal_membros(membros_para_relatorios, hoje)
+    aniversariantes_ontem, aniversariantes_hoje, aniversariantes_amanha = _aniversariantes_janela(
+        membros_para_relatorios,
+        hoje,
+    )
     membros_para_grafico_tipo = Membro.objects.filter(igreja__in=igrejas_filtro)
-    membros_por_tipo = (
-        membros_para_grafico_tipo.values('tipo_pessoa__nome')
-        .annotate(total=Count('chave'))
-        .order_by('tipo_pessoa__nome')
-    )
-    pie_labels = []
-    pie_values = []
-    for tipo in tipos_pessoa_qs:
-        found = next((item for item in membros_por_tipo if item['tipo_pessoa__nome'] == tipo.nome), None)
-        pie_labels.append(tipo.nome)
-        pie_values.append(found['total'] if found else 0)
-
-    eventos_ids = list(Evento.objects.filter(igreja__in=igrejas_filtro).values_list('id', flat=True))
-    participacoes_qs = ParticipacaoEvento.objects.filter(
-        status__in=['CONFIRMADO', 'PRESENTE', 'AUSENTE'], evento_id__in=eventos_ids
-    )
-    participacoes_por_categoria = (
-        participacoes_qs.values('evento__tipo').annotate(total=Count('id')).order_by('evento__tipo')
-    )
-    tipo_dict = dict(Evento.TIPO_EVENTO_CHOICES)
-    categoria_labels = []
-    categoria_values = []
-    for item in participacoes_por_categoria:
-        tipo = item['evento__tipo']
-        categoria_labels.append(tipo_dict.get(tipo, tipo.title()))
-        categoria_values.append(item['total'])
+    pie_labels, pie_values = _pie_tipos_pessoa(membros_para_grafico_tipo)
+    categoria_labels, categoria_values = _categoria_evento_data(igrejas_filtro)
 
     total_membros = total_pessoas_igreja
     total_visitantes = membros_base_para_grafico_status.filter(tipo_pessoa__nome__iexact='Visitante').count()
