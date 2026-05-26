@@ -82,5 +82,48 @@ Consolidar e registrar oficialmente todas as melhorias recentes do dashboard fin
 - [x] Sumario tecnico de release (este arquivo)
 - [ ] Revisao final visual em desktop/mobile
 - [ ] Validacao funcional em ambiente de homologacao
-- [ ] Publicacao da tag/release no repositorio
+- [x] Publicacao da tag/release no repositorio
+
+---
+
+## Texto Pronto - Atualizacao do Sistema
+
+### Versao curta (interna)
+
+Atualizacao v1.13.0 publicada com melhorias importantes no Dashboard Financeiro.
+
+Principais ganhos desta versao:
+- Filtro de caixa agora afeta todo o painel (KPIs, graficos, alertas e listas).
+- Melhor leitura analitica com comparacao de tendencia (atual x mes anterior).
+- Novos estados vazios com acao rapida para recuperar contexto.
+- Melhoria de acessibilidade (cards acionaveis por teclado e foco visivel).
+- Topbar com controle de zoom simplificado pelo botao "A".
+- Ajustes de navegacao e estabilidade do menu lateral no dashboard.
+
+Impacto esperado:
+- Mais confianca na analise financeira.
+- Navegacao mais rapida para tesouraria e lideranca.
+- Experiencia mais consistente em desktop e mobile.
+
+### Versao completa (comunicado)
+
+ATUALIZACAO DO SISTEMA - v1.13.0
+
+Publicamos uma nova versao com foco em desempenho operacional e confiabilidade da leitura financeira.
+
+O que melhorou:
+- O filtro de caixa foi padronizado em todo o Dashboard Financeiro, garantindo consistencia entre indicadores, graficos, alertas e detalhamentos.
+- Adicionamos leitura de tendencia com comparacao explicita entre valor atual e mes anterior.
+- Incluimos estados vazios mais inteligentes, com botoes para limpar filtro e retornar para visao geral.
+- Melhoramos a acessibilidade de interacao (teclado e foco visivel).
+- Simplificamos o controle de zoom na topbar com o botao "A", mantendo persistencia da preferencia.
+- Corrigimos a estabilidade do menu lateral no contexto do dashboard.
+
+Resultado para o time:
+- Menos risco de interpretacao incorreta dos dados.
+- Decisoes mais rapidas nas rotinas financeiras.
+- Melhor experiencia geral de uso.
+
+Status da publicacao:
+- Commit e tag v1.13.0 publicados no repositorio.
 
