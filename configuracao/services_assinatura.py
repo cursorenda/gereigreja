@@ -252,6 +252,11 @@ def usuario_pode_usar_modulo(user, modulo: str) -> bool:
     if not ministerio:
         return False
 
+    # No modo demonstracao, todos os modulos devem ficar disponiveis para
+    # que os perfis possam ser explorados sem bloqueio de plano.
+    if _ministerio_eh_demo(ministerio):
+        return True
+
     return ministerio_pode_usar_modulo(ministerio, modulo)
 
 

@@ -92,7 +92,10 @@ PAGE_ACCESS_RULES = {
         PROFESSOR_EBD,
         ]) or _is_active_ebd_professor(user)
     ) and usuario_pode_usar_modulo(user, 'escola_biblica'),
-    'financeiro': lambda user: user_pode_ver_financeiro(user) and usuario_pode_usar_modulo(user, 'financeiro'),
+    'financeiro': lambda user: user_tem_qualquer_grupo(user, [
+        PASTOR_LOCAL,
+        TESOUREIRO,
+    ]) and usuario_pode_usar_modulo(user, 'financeiro'),
     'lideranca_secretaria': user_is_lideranca_secretaria,
     'lideranca_financeira': user_is_lideranca_financeira,
     'comunicacao': lambda user: user_pode_gerenciar_comunicacao(user) and usuario_pode_usar_modulo(user, 'comunicacao'),
