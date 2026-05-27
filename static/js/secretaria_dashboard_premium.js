@@ -1,4 +1,39 @@
 (function () {
+  var rootStyles = window.getComputedStyle ? getComputedStyle(document.documentElement) : null;
+
+  function readCssVar(name, fallback) {
+    if (!rootStyles) return fallback;
+    var value = rootStyles.getPropertyValue(name);
+    return value ? value.trim() : fallback;
+  }
+
+  var dsChart = {
+    primary: readCssVar('--dp-primary', '#0D8281'),
+    primaryDark: readCssVar('--dp-primary-dk', '#0A6665'),
+    primaryLight: readCssVar('--dp-primary-lt', '#2AA5A4'),
+    success: readCssVar('--dp-success', '#10B981'),
+    warning: readCssVar('--dp-warning', '#D97706'),
+    danger: readCssVar('--dp-danger', '#EF4444'),
+    text: readCssVar('--dp-text', '#1E293B'),
+    muted: readCssVar('--dp-muted', '#64748B'),
+    border: readCssVar('--dp-border', '#E2E8F0'),
+    surface: readCssVar('--dp-surface', '#FFFFFF'),
+    palette: [
+      readCssVar('--dp-primary', '#0D8281'),
+      readCssVar('--dp-success', '#10B981'),
+      readCssVar('--dp-warning', '#D97706'),
+      readCssVar('--dp-danger', '#EF4444'),
+      readCssVar('--dp-primary-lt', '#2AA5A4'),
+      readCssVar('--dp-primary-dk', '#0A6665'),
+      readCssVar('--dp-text', '#1E293B'),
+      readCssVar('--dp-muted', '#64748B'),
+      readCssVar('--dp-primary', '#0D8281'),
+      readCssVar('--dp-success', '#10B981'),
+      readCssVar('--dp-warning', '#D97706'),
+      readCssVar('--dp-primary-lt', '#2AA5A4')
+    ]
+  };
+
   if (window.Chart) {
     Chart.defaults.responsive = true;
     Chart.defaults.maintainAspectRatio = false;
@@ -6,7 +41,7 @@
       return Math.min(window.devicePixelRatio || 1, 2);
     };
     Chart.defaults.font.family = "'Segoe UI', Tahoma, Arial, sans-serif";
-    Chart.defaults.color = '#334155';
+    Chart.defaults.color = dsChart.muted;
   }
 
   function readJsonScript(id, fallback) {
@@ -80,8 +115,8 @@
       plugins: {
         tooltip: {
           backgroundColor: 'rgba(15,23,42,0.92)',
-          titleColor: '#f8fafc',
-          bodyColor: '#e2e8f0',
+          titleColor: dsChart.surface,
+          bodyColor: dsChart.border,
           cornerRadius: 8,
           padding: 10,
           displayColors: true
@@ -90,7 +125,7 @@
       scales: {
         x: {
           ticks: {
-            color: '#64748b',
+            color: dsChart.muted,
             font: {
               size: 11
             },
@@ -105,7 +140,7 @@
         y: {
           beginAtZero: true,
           ticks: {
-            color: '#64748b',
+            color: dsChart.muted,
             font: {
               size: 11
             },
@@ -170,10 +205,10 @@
         data: {
           labels: mesesLabels,
           datasets: [
-            { label: 'Membros', data: membros, borderColor: '#0d8281', backgroundColor: 'rgba(13,130,129,0.12)', fill: true, tension: 0.3 },
-            { label: 'Congregados', data: congregados, borderColor: '#0f766e', backgroundColor: 'rgba(15,118,110,0.12)', fill: true, tension: 0.3 },
-            { label: 'Novos Convertidos', data: novosConvertidos, borderColor: '#0e7490', backgroundColor: 'rgba(14,116,144,0.12)', fill: true, tension: 0.3 },
-            { label: 'Visitantes', data: visitantes, borderColor: '#155e75', backgroundColor: 'rgba(21,94,117,0.12)', fill: true, tension: 0.3 }
+            { label: 'Membros', data: membros, borderColor: dsChart.primary, backgroundColor: 'rgba(13,130,129,0.10)', fill: true, tension: 0.3 },
+            { label: 'Congregados', data: congregados, borderColor: dsChart.success, backgroundColor: 'rgba(16,185,129,0.10)', fill: true, tension: 0.3 },
+            { label: 'Novos Convertidos', data: novosConvertidos, borderColor: dsChart.primaryLight, backgroundColor: 'rgba(42,165,164,0.10)', fill: true, tension: 0.3 },
+            { label: 'Visitantes', data: visitantes, borderColor: dsChart.warning, backgroundColor: 'rgba(217,119,6,0.10)', fill: true, tension: 0.3 }
           ]
         },
         options: Object.assign(commonCartesianOptions(), {
@@ -198,8 +233,8 @@
           labels: readJsonScript('pie-labels-data', []),
           datasets: [{
             data: pieValues,
-            backgroundColor: ['#0d8281', '#0f766e', '#0e7490', '#155e75', '#0891b2', '#334155', '#1e293b', '#14b8a6'],
-            borderColor: '#ffffff',
+            backgroundColor: dsChart.palette,
+            borderColor: dsChart.surface,
             borderWidth: 2,
             hoverOffset: 4
           }]
@@ -220,8 +255,8 @@
             legend: commonLegendOptions(),
             tooltip: {
               backgroundColor: 'rgba(15,23,42,0.92)',
-              titleColor: '#f8fafc',
-              bodyColor: '#e2e8f0',
+              titleColor: dsChart.surface,
+              bodyColor: dsChart.border,
               cornerRadius: 8,
               padding: 10
             }
@@ -241,7 +276,7 @@
         type: 'bar',
         data: {
           labels: readJsonScript('status-labels-data', []),
-          datasets: [{ label: 'Total', data: statusValues, backgroundColor: '#0d8281', borderColor: '#0a6665', borderWidth: 2 }]
+          datasets: [{ label: 'Total', data: statusValues, backgroundColor: dsChart.primary, borderColor: dsChart.primaryDark, borderWidth: 2 }]
         },
         options: Object.assign(commonCartesianOptions(), {
           plugins: {
@@ -263,7 +298,7 @@
         type: 'bar',
         data: {
           labels: readJsonScript('genero-labels-data', []),
-          datasets: [{ label: 'Total', data: generoValues, backgroundColor: '#0f766e', borderColor: '#115e59', borderWidth: 2 }]
+          datasets: [{ label: 'Total', data: generoValues, backgroundColor: dsChart.success, borderColor: dsChart.success, borderWidth: 2 }]
         },
         options: Object.assign(commonCartesianOptions(), {
           plugins: {
@@ -285,7 +320,7 @@
         type: 'bar',
         data: {
           labels: readJsonScript('faixa-labels-data', []),
-          datasets: [{ label: 'Total', data: faixaValues, backgroundColor: '#0e7490', borderColor: '#155e75', borderWidth: 2 }]
+          datasets: [{ label: 'Total', data: faixaValues, backgroundColor: dsChart.primaryLight, borderColor: dsChart.primaryDark, borderWidth: 2 }]
         },
         options: Object.assign(commonCartesianOptions(), {
           plugins: {
@@ -307,7 +342,7 @@
         type: 'bar',
         data: {
           labels: readJsonScript('categoria-evento-labels-data', []),
-          datasets: [{ label: 'Participacoes', data: categoriaValues, backgroundColor: '#0f766e' }]
+          datasets: [{ label: 'Participacoes', data: categoriaValues, backgroundColor: dsChart.primaryLight, borderColor: dsChart.primary, borderWidth: 1.5 }]
         },
         options: Object.assign(commonCartesianOptions(1), {
           plugins: {

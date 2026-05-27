@@ -5,6 +5,7 @@
 {% block title %}Dashboard Secretaria{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria-dashboard.css' %}">
 <script>
 (function () {
@@ -36,7 +37,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 secdash-page">
+<div class="secdash-page">
   {% user_can_access request.user 'financeiro' as can_section_financeiro %}
   <header class="secdash-header">
     <div class="secdash-header-main">
@@ -46,16 +47,20 @@
           <span class="secdash-menu-toggle-label" data-secdash-sidebar-label>Mostrar menu</span>
         </button>
         <h1 class="secdash-title">Dashboard Secretaria</h1>
+        <span class="secdash-updated-at">
+          <i class="fas fa-circle"></i>
+          Atualizado em {% now "d/m/Y" %} às {% now "H:i" %}
+        </span>
       </div>
-      <p class="secdash-subtitle">Visão operacional e analítica para acompanhamento de pessoas, recepção e gestão local.</p>
       <ol class="secdash-breadcrumb" aria-label="Caminho da pagina">
-        <li><a href="{% url 'secretaria:index' %}"><i class="fas fa-home me-1"></i>Inicial</a></li>
+        <li><a href="{% url 'secretaria:index' %}"><i class="fas fa-home me-1"></i>Home</a></li>
         <li><a href="{% url 'secretaria:dashboard' %}">Dashboard Secretaria</a></li>
         <li><span class="active">Visão Geral</span></li>
       </ol>
       {% if scope_label %}
       <div class="secdash-scope" aria-label="Escopo ativo">
         <span class="secdash-chip"><i class="fas fa-layer-group"></i> {{ scope_label }}</span>
+        <span class="secdash-chip"><i class="fas fa-calendar-alt"></i> {{ periodo_label }}</span>
       </div>
       {% endif %}
     </div>
@@ -81,7 +86,6 @@
 
       <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
       <a href="{% url 'secretaria:dashboard' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
-      <span class="secdash-filter-active">{{ periodo_label }}</span>
     </form>
   </header>
 
