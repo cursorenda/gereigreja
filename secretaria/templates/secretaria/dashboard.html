@@ -23,10 +23,32 @@
     </div>
   </header>
 
+  <section class="secdash-filters" aria-label="Filtro de periodo">
+    <form method="get" class="secdash-filters-form">
+      <label for="periodo" class="secdash-filter-label">Periodo:</label>
+      <select id="periodo" name="periodo" class="form-select form-select-sm secdash-filter-select">
+        <option value="30d" {% if periodo_filtro == '30d' %}selected{% endif %}>Ultimos 30 dias</option>
+        <option value="90d" {% if periodo_filtro == '90d' %}selected{% endif %}>Ultimos 90 dias</option>
+        <option value="6m" {% if periodo_filtro == '6m' %}selected{% endif %}>Ultimos 6 meses</option>
+        <option value="12m" {% if periodo_filtro == '12m' %}selected{% endif %}>Ultimos 12 meses</option>
+        <option value="custom" {% if periodo_filtro == 'custom' %}selected{% endif %}>Personalizado</option>
+      </select>
+
+      <div id="custom-period-fields" class="secdash-custom-period {% if periodo_filtro != 'custom' %}d-none{% endif %}">
+        <input type="date" name="data_inicio" value="{{ periodo_data_inicio }}" class="form-control form-control-sm" aria-label="Data inicial">
+        <input type="date" name="data_fim" value="{{ periodo_data_fim }}" class="form-control form-control-sm" aria-label="Data final">
+      </div>
+
+      <button type="submit" class="btn btn-sm btn-primary">Aplicar</button>
+      <a href="{% url 'secretaria:dashboard' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+      <span class="secdash-filter-active">{{ periodo_label }}</span>
+    </form>
+  </section>
+
   <section class="secdash-kpi-strip" aria-label="Resumo rapido">
     <article class="secdash-kpi-card">
-      <div class="label">Novos membros (30 dias)</div>
-      <div class="value">{{ novos_membros_30_dias }}</div>
+      <div class="label">Novos membros (periodo)</div>
+      <div class="value">{{ novos_membros_periodo }}</div>
     </article>
     <article class="secdash-kpi-card">
       <div class="label">Aniversariantes (mes)</div>
@@ -66,7 +88,7 @@
           <i class="fas fa-triangle-exclamation"></i>
         </div>
         <h3>{{ total_contas_vencidas }}</h3>
-        <p>Contas vencidas{% if valor_total_contas_vencidas %} (R$ {{ valor_total_contas_vencidas|floatformat:2 }}){% endif %}.</p>
+        <p>Contas vencidas no periodo{% if valor_total_contas_vencidas %} (R$ {{ valor_total_contas_vencidas|floatformat:2 }}){% endif %}.</p>
         {% if can_section_financeiro %}
         <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-outline-secondary btn-sm">Abrir contas a pagar</a>
         {% else %}
@@ -264,6 +286,18 @@
 {{ evolucao_congregados_json|default:'[]'|json_script:"evolucao-congregados" }}
 {{ evolucao_novos_convertidos_json|default:'[]'|json_script:"evolucao-novos-convertidos" }}
 {{ evolucao_visitantes_json|default:'[]'|json_script:"evolucao-visitantes" }}
+
+<script>
+  (function () {
+    var selectPeriodo = document.getElementById('periodo');
+    var customFields = document.getElementById('custom-period-fields');
+    if (!selectPeriodo || !customFields) return;
+
+    selectPeriodo.addEventListener('change', function () {
+      customFields.classList.toggle('d-none', selectPeriodo.value !== 'custom');
+    });
+  })();
+</script>
 
 <script src="{% static 'js/secretaria_dashboard_premium.js' %}"></script>
 {% endblock %}

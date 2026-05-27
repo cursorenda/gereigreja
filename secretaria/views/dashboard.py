@@ -7,7 +7,7 @@ import locale
 import logging
 from calendar import monthrange
 from collections import Counter, defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -38,6 +38,16 @@ from secretaria.views._helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+PERIODO_PRESETS_DIAS = {
+    '30d': 30,
+    '90d': 90,
+}
+
+PERIODO_PRESETS_MESES = {
+    '6m': 6,
+    '12m': 12,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -121,8 +131,70 @@ def _month_end(month_start):
     return month_start.replace(day=monthrange(month_start.year, month_start.month)[1])
 
 
-def _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data):
-    month_starts = _last_month_starts(hoje_data, 12)
+def _month_starts_between(start_date, end_date):
+    """Retorna o primeiro dia de cada mês entre start_date e end_date (inclusive)."""
+    cursor = start_date.replace(day=1)
+    limit = end_date.replace(day=1)
+    months = []
+    while cursor <= limit:
+        months.append(cursor)
+        cursor = _add_months(cursor, 1)
+    return months
+
+
+def _parse_periodo_dashboard(request, hoje_data):
+    """Normaliza o período selecionado no dashboard (presets + custom)."""
+    periodo = (request.GET.get('periodo') or '12m').strip().lower()
+    data_inicio_raw = (request.GET.get('data_inicio') or '').strip()
+    data_fim_raw = (request.GET.get('data_fim') or '').strip()
+
+    if periodo in PERIODO_PRESETS_DIAS:
+        dias = PERIODO_PRESETS_DIAS[periodo]
+        data_inicio = hoje_data - timedelta(days=dias - 1)
+        return {
+            'periodo': periodo,
+            'data_inicio': data_inicio,
+            'data_fim': hoje_data,
+            'periodo_label': f'Últimos {dias} dias',
+        }
+
+    if periodo in PERIODO_PRESETS_MESES:
+        meses = PERIODO_PRESETS_MESES[periodo]
+        data_inicio = _add_months(hoje_data.replace(day=1), -(meses - 1))
+        return {
+            'periodo': periodo,
+            'data_inicio': data_inicio,
+            'data_fim': hoje_data,
+            'periodo_label': f'Últimos {meses} meses',
+        }
+
+    if periodo == 'custom':
+        try:
+            data_inicio = datetime.strptime(data_inicio_raw, '%Y-%m-%d').date()
+            data_fim = datetime.strptime(data_fim_raw, '%Y-%m-%d').date()
+            if data_inicio > data_fim:
+                data_inicio, data_fim = data_fim, data_inicio
+            return {
+                'periodo': 'custom',
+                'data_inicio': data_inicio,
+                'data_fim': data_fim,
+                'periodo_label': f'{data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}',
+            }
+        except ValueError:
+            pass
+
+    # Fallback seguro para manter o comportamento padrão
+    data_inicio = _add_months(hoje_data.replace(day=1), -11)
+    return {
+        'periodo': '12m',
+        'data_inicio': data_inicio,
+        'data_fim': hoje_data,
+        'periodo_label': 'Últimos 12 meses',
+    }
+
+
+def _series_evolucao_por_tipo(membros_base_para_grafico_status, data_inicio, data_fim):
+    month_starts = _month_starts_between(data_inicio, data_fim)
     month_ends = [_month_end(month_start) for month_start in month_starts]
     meses_labels = [month_start.strftime('%b/%Y') for month_start in month_starts]
     evolucao_por_tipo = defaultdict(list)
@@ -132,6 +204,8 @@ def _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data):
     registros = membros_base_para_grafico_status.filter(
         tipo_pessoa__nome__in=tipos_para_grafico,
         data_entrada__isnull=False,
+        data_entrada__gte=data_inicio,
+        data_entrada__lte=data_fim,
     ).values_list('tipo_pessoa__nome', 'data_entrada')
     for tipo_nome, data_entrada in registros:
         if data_entrada:
@@ -550,6 +624,9 @@ def dashboard(request):
 
     hoje_data = date.today()
     hoje = hoje_data
+    periodo_info = _parse_periodo_dashboard(request, hoje_data)
+    data_inicio_periodo = periodo_info['data_inicio']
+    data_fim_periodo = periodo_info['data_fim']
 
     total_pessoas_igreja = Membro.objects.filter(igreja__in=igrejas_filtro).count()
     membros_para_relatorios = Membro.objects.filter(
@@ -559,8 +636,16 @@ def dashboard(request):
     )
 
     membros_base_para_grafico_status = Membro.objects.filter(igreja__in=igrejas_filtro)
+    membros_para_relatorios_periodo = membros_para_relatorios.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(data_inicio_periodo, data_fim_periodo),
+    )
+    membros_base_periodo = membros_base_para_grafico_status.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(data_inicio_periodo, data_fim_periodo),
+    )
 
-    status_data_qs = membros_base_para_grafico_status.values('status_pessoa__nome').annotate(
+    status_data_qs = membros_base_periodo.values('status_pessoa__nome').annotate(
         total=Count('chave')
     ).order_by('status_pessoa__nome')
     status_data_list = [
@@ -568,9 +653,13 @@ def dashboard(request):
         for item in status_data_qs if item['status_pessoa__nome']
     ]
 
-    meses_labels, evolucao_por_tipo = _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data)
+    meses_labels, evolucao_por_tipo = _series_evolucao_por_tipo(
+        membros_base_para_grafico_status,
+        data_inicio_periodo,
+        data_fim_periodo,
+    )
 
-    genero_data_qs = membros_para_relatorios.values('genero').annotate(total=Count('chave'))
+    genero_data_qs = membros_para_relatorios_periodo.values('genero').annotate(total=Count('chave'))
     genero_map = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
     aggregated_genero = {}
     for item in genero_data_qs:
@@ -578,11 +667,10 @@ def dashboard(request):
         aggregated_genero[gd] = aggregated_genero.get(gd, 0) + item['total']
     genero_data_normalized = [{'genero': k, 'total': v} for k, v in aggregated_genero.items()]
 
-    idades = _idades_lista(membros_para_relatorios, hoje_data)
-    faixa_etaria_data = _calcular_faixas_etarias(membros_para_relatorios, idades)
+    idades = _idades_lista(membros_para_relatorios_periodo, hoje_data)
+    faixa_etaria_data = _calcular_faixas_etarias(membros_para_relatorios_periodo, idades)
 
-    trinta_dias_atras = hoje_data - timedelta(days=30)
-    novos_membros_30_dias = membros_para_relatorios.filter(data_entrada__gte=trinta_dias_atras).count()
+    novos_membros_periodo = membros_para_relatorios_periodo.count()
     aniversariantes_mes_atual_count = membros_para_relatorios.filter(nascimento__month=hoje_data.month).count()
 
     idades_para_media = _idades_lista(membros_para_relatorios, hoje_data)
@@ -602,11 +690,17 @@ def dashboard(request):
     ).order_by('passed_this_year', 'nascimento_month', 'nascimento_day')
     aniversariantes_proximos = list(aniversariantes_qs[:10])
 
-    pendencias_cadastro = membros_para_relatorios.filter(Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email=''))
+    pendencias_cadastro = membros_para_relatorios_periodo.filter(
+        Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
+    )
     total_pendencias_cadastro = pendencias_cadastro.count()
 
     igrejas_ids = membros_para_relatorios.values_list('igreja_id', flat=True).distinct()
-    contas_vencidas = ContaPagar.objects.filter(igreja_id__in=igrejas_ids, status='VEN')
+    contas_vencidas = ContaPagar.objects.filter(
+        igreja_id__in=igrejas_ids,
+        status='VEN',
+        data_vencimento__range=(data_inicio_periodo, data_fim_periodo),
+    )
     total_contas_vencidas = contas_vencidas.count()
     valor_total_contas_vencidas = contas_vencidas.aggregate(total=Sum('valor'))['total'] or 0
 
@@ -618,7 +712,11 @@ def dashboard(request):
         hoje,
     )
     membros_para_grafico_tipo = Membro.objects.filter(igreja__in=igrejas_filtro)
-    pie_labels, pie_values = _pie_tipos_pessoa(membros_para_grafico_tipo)
+    membros_para_grafico_tipo_periodo = membros_para_grafico_tipo.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(data_inicio_periodo, data_fim_periodo),
+    )
+    pie_labels, pie_values = _pie_tipos_pessoa(membros_para_grafico_tipo_periodo)
     categoria_labels, categoria_values = _categoria_evento_data(igrejas_filtro)
 
     total_membros = total_pessoas_igreja
@@ -643,7 +741,7 @@ def dashboard(request):
         'faixa_etaria_data_json': json.dumps(faixa_etaria_data),
         'faixa_labels_json': json.dumps([item['faixa_etaria'] for item in faixa_etaria_data]),
         'faixa_values_json': json.dumps([item['total'] for item in faixa_etaria_data]),
-        'novos_membros_30_dias': novos_membros_30_dias,
+        'novos_membros_periodo': novos_membros_periodo,
         'aniversariantes_mes_atual_count': aniversariantes_mes_atual_count,
         'media_idade_membros': media_idade_membros,
         'ministerio': ministerio,
@@ -652,11 +750,15 @@ def dashboard(request):
         'igreja_ativa_atual': request.igreja_ativa,
         'total_membros_ativos': membros_para_relatorios.count(),
         'total_pessoas_igreja': total_pessoas_igreja,
-        'novos_membros_ultimo_mes': novos_membros_30_dias,
+        'novos_membros_ultimo_mes': novos_membros_periodo,
         'total_pendencias_cadastro': total_pendencias_cadastro,
         'total_contas_vencidas': total_contas_vencidas,
         'valor_total_contas_vencidas': valor_total_contas_vencidas,
         'assinatura_alerta': assinatura,
+        'periodo_filtro': periodo_info['periodo'],
+        'periodo_label': periodo_info['periodo_label'],
+        'periodo_data_inicio': data_inicio_periodo.strftime('%Y-%m-%d'),
+        'periodo_data_fim': data_fim_periodo.strftime('%Y-%m-%d'),
         'evolucao_meses_labels_json': json.dumps(meses_labels),
         'evolucao_membros_json': json.dumps(evolucao_por_tipo['Membro']),
         'evolucao_congregados_json': json.dumps(evolucao_por_tipo['Congregado']),
