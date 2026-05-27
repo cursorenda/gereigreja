@@ -1,3 +1,36 @@
+## v1.13.2 — 26/05/2026
+🗂️ **Dashboard da Secretaria — Fases 1, 2 e 3 (premium + precisão analítica)**
+
+### Entregas — Experiência Premium
+- Reestruturação completa do dashboard da secretaria com hierarquia visual mais clara.
+- Separação da implementação em assets dedicados:
+  - `static/css/secretaria-dashboard.css`
+  - `static/js/secretaria_dashboard_premium.js`
+- Melhor responsividade para header, cards, ações rápidas e blocos analíticos.
+
+### Entregas — Operação Diária
+- Inclusão da área **Prioridades do Dia** com cartões orientados a ação para:
+  - Cadastro
+  - Financeiro
+  - Assinatura
+- Estados visuais por severidade e CTA contextual conforme permissão do usuário.
+- Tratamento de estados vazios dos gráficos com mensagens mais úteis no front-end.
+
+### Entregas — Precisão Técnica (Fase 3)
+- Séries mensais reescritas para usar mês-calendário real, sem aproximação por blocos fixos de 30 dias.
+- Contagens acumuladas otimizadas com agregação em memória, reduzindo consultas repetitivas por mês/tipo.
+- Tendências do dashboard passam a refletir melhor a evolução real de membros ao longo do tempo.
+
+### Validação
+- `manage.py check` executado com sucesso após a refatoração da Fase 3.
+- Sem migrações de banco e sem breaking changes de API pública.
+
+### Impacto
+- Melhor leitura operacional para a secretaria local.
+- Dashboard mais confiável para análise mensal e mais estável para evolução futura.
+
+---
+
 ## v1.13.1 — 26/05/2026
 🔒 **Hotfix de Permissões — Menu/URL do Financeiro**
 
