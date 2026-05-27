@@ -1,3 +1,28 @@
+## v1.13.5 — 27/05/2026
+🧭 **Dashboard da Secretaria — Prioridade Operacional, Claridade Visual e Polimento Final**
+
+### Entregas — Fase 1 (hierarquia de decisão)
+- Reordenação do topo para destacar fluxo operacional antes da leitura analítica.
+- Criação da seção **Foco Operacional** com trilha direta: Prioridades do Dia, Alertas de Gestão e Ações Rápidas.
+- Priorização explícita das pendências críticas com card principal de intervenção.
+
+### Entregas — Fase 2 (redução de carga cognitiva)
+- Seções secundárias rebaixadas visualmente para reduzir competição com os blocos de urgência.
+- Ajuste de microcopy para linguagem orientada à execução (verbos de ação nos títulos e descrições).
+- Reorganização do bloco de contexto para leitura rápida sem roubar foco da operação.
+
+### Entregas — Fase 3 (acabamento premium)
+- Polimento mobile com melhor ritmo de leitura e alvos de toque mais consistentes.
+- Estado vazio com CTA em **Sinais da Semana** para manter orientação mesmo sem insights ativos.
+- Reforço de microcontraste em textos secundários para legibilidade superior em cenários de brilho alto.
+
+### Impacto
+- Dashboard da Secretaria mais objetivo e operacional, com menor dispersão visual na primeira dobra.
+- Melhor tempo de entendimento do cenário diário e menor atrito entre identificar e executar ações.
+- Sem migrações de banco e sem breaking changes de API pública.
+
+---
+
 ## v1.13.4 — 27/05/2026
 🎨 **Dashboard da Secretaria — Refinamento Premium com Design System Unificado**
 

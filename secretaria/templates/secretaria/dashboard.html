@@ -89,80 +89,131 @@
     </form>
   </header>
 
-  <section class="secdash-kpi-strip" aria-label="Resumo rapido">
-    <article class="secdash-kpi-card">
-      <div class="label">Novos membros (período)</div>
-      <div class="value">{{ novos_membros_periodo }}</div>
-    </article>
-    <article class="secdash-kpi-card">
-      <div class="label">Aniversariantes (mês)</div>
-      <div class="value">{{ aniversariantes_mes_atual_count }}</div>
-      <button type="button" id="btnAniversariantes" class="secdash-link-btn" aria-label="Ver próximos aniversariantes">Ver lista</button>
-    </article>
-    <article class="secdash-kpi-card">
-      <div class="label">Média de idade</div>
-      <div class="value">{{ media_idade_membros }} anos</div>
-    </article>
-    <article class="secdash-kpi-card emphasis">
-      <div class="label">Membros ativos</div>
-      <div class="value">{{ total_membros_ativos|default:'0' }}</div>
-    </article>
-  </section>
-
-  <section class="secdash-section" aria-label="Prioridades do dia">
-    <div class="secdash-section-head">
-      <h2>Prioridades do Dia</h2>
-      <p>Itens que demandam ação imediata para manter qualidade cadastral e governança.</p>
+  <section class="secdash-section secdash-focus-section" aria-label="Foco operacional do dia">
+    <div class="secdash-section-head secdash-focus-head">
+      <div>
+        <h2>Foco Operacional</h2>
+        <p>Comece pelas pendências críticas, siga para as ações do dia e use os indicadores como apoio de contexto.</p>
+      </div>
     </div>
 
-    <div class="secdash-priority-grid">
-      <article class="secdash-priority-card {% if total_pendencias_cadastro > 0 %}is-warn{% else %}is-ok{% endif %}">
-        <div class="head">
-          <span class="pill">Cadastro</span>
-          <i class="fas fa-user-pen"></i>
+    <div class="secdash-focus-grid">
+      <div class="secdash-focus-main">
+        <section class="secdash-focus-block" aria-label="Prioridades do dia">
+          <div class="secdash-section-head secdash-focus-block-head">
+            <h3>Prioridades do Dia</h3>
+            <p>Itens que exigem ação imediata para manter qualidade cadastral e governança.</p>
+          </div>
+
+          <div class="secdash-priority-grid">
+            <article class="secdash-priority-card secdash-priority-hero {% if total_pendencias_cadastro > 0 %}is-warn{% else %}is-ok{% endif %}">
+              <div class="head">
+                <span class="pill">Cadastro</span>
+                <i class="fas fa-user-pen"></i>
+              </div>
+              <h3>{{ total_pendencias_cadastro }}</h3>
+              <p>Pessoas com dados essenciais pendentes e que precisam de saneamento imediato.</p>
+              <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-secondary btn-sm">Tratar pendências</a>
+            </article>
+          </div>
+        </section>
+
+        {% if pode_ver_alerta_financeiro and total_contas_vencidas > 0 or pode_ver_alerta_assinatura and assinatura_alerta %}
+        <section class="secdash-focus-block secdash-focus-alerts" aria-label="Alertas de gestão">
+          <div class="secdash-section-head secdash-focus-block-head">
+            <h3>Alertas de Gestão</h3>
+            <p>Indicadores sensíveis exibidos apenas para quem pode agir sobre eles.</p>
+          </div>
+
+          <div class="secdash-insights-grid secdash-alerts-grid">
+            {% if pode_ver_alerta_financeiro and total_contas_vencidas > 0 %}
+            <article class="secdash-insight-card secdash-alert-card is-danger">
+              <div class="head">
+                <span><i class="fas fa-triangle-exclamation"></i> Financeiro</span>
+              </div>
+              <p>{{ total_contas_vencidas }} conta(s) vencida(s){% if valor_total_contas_vencidas %} - R$ {{ valor_total_contas_vencidas|floatformat:2 }}{% endif %} no período atual.</p>
+              <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-outline-secondary btn-sm">Abrir contas a pagar</a>
+            </article>
+            {% endif %}
+
+            {% if pode_ver_alerta_assinatura and assinatura_alerta %}
+            <article class="secdash-insight-card secdash-alert-card is-warning">
+              <div class="head">
+                <span><i class="fas fa-calendar-check"></i> Assinatura</span>
+              </div>
+              <p>Vence em {{ assinatura_alerta.dias_restantes }} dia(s) ({{ assinatura_alerta.status }}).</p>
+              <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-outline-secondary btn-sm">Ver assinatura</a>
+            </article>
+            {% endif %}
+          </div>
+        </section>
+        {% endif %}
+      </div>
+
+      <aside class="secdash-focus-side" aria-label="Ações rápidas do dia">
+        <div class="secdash-section-head secdash-focus-block-head">
+          <h3>Ações Rápidas</h3>
+          <p>Atalhos para as tarefas mais recorrentes da rotina da secretaria.</p>
         </div>
-        <h3>{{ total_pendencias_cadastro }}</h3>
-        <p>Pessoas com dados essenciais pendentes.</p>
-        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-secondary btn-sm">Tratar pendências</a>
+
+        <div class="secdash-quick-actions">
+          <a href="{% url 'secretaria:cadastrar_membro' %}" class="secdash-quick-action">
+            <span class="icon"><i class="fas fa-user-plus"></i></span>
+            <span class="content">
+              <strong>Cadastrar pessoa</strong>
+              <small>Adicionar novo membro ou registro de pessoa.</small>
+            </span>
+          </a>
+          <a href="{% url 'secretaria:cadastrar_visitante' %}" class="secdash-quick-action">
+            <span class="icon"><i class="fas fa-handshake"></i></span>
+            <span class="content">
+              <strong>Registrar visitante</strong>
+              <small>Lançar uma nova recepção e manter o acompanhamento em dia.</small>
+            </span>
+          </a>
+          <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="secdash-quick-action">
+            <span class="icon"><i class="fas fa-user-check"></i></span>
+            <span class="content">
+              <strong>Iniciar acompanhamento</strong>
+              <small>Abrir um novo fluxo de visita ou cuidado pastoral.</small>
+            </span>
+          </a>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="secdash-section secdash-context-section" aria-label="Contexto rápido">
+    <div class="secdash-section-head secdash-context-head">
+      <h2>Contexto Rápido</h2>
+      <p>Visão resumida para validar cenário antes de entrar na execução detalhada.</p>
+    </div>
+
+    <div class="secdash-kpi-strip secdash-support-strip">
+      <article class="secdash-kpi-card">
+        <div class="label">Entradas no período</div>
+        <div class="value">{{ novos_membros_periodo }}</div>
+      </article>
+      <article class="secdash-kpi-card">
+        <div class="label">Aniversariantes do mês</div>
+        <div class="value">{{ aniversariantes_mes_atual_count }}</div>
+        <button type="button" id="btnAniversariantes" class="secdash-link-btn" aria-label="Ver próximos aniversariantes">Ver lista</button>
+      </article>
+      <article class="secdash-kpi-card">
+        <div class="label">Idade média</div>
+        <div class="value">{{ media_idade_membros }} anos</div>
+      </article>
+      <article class="secdash-kpi-card emphasis">
+        <div class="label">Base ativa</div>
+        <div class="value">{{ total_membros_ativos|default:'0' }}</div>
       </article>
     </div>
   </section>
 
-  {% if pode_ver_alerta_financeiro and total_contas_vencidas > 0 or pode_ver_alerta_assinatura and assinatura_alerta %}
-  <section class="secdash-section secdash-alerts-section" aria-label="Alertas de gestao">
+  <section class="secdash-section secdash-secondary-section" aria-label="Leituras da semana">
     <div class="secdash-section-head">
-      <h2>Alertas de Gestão</h2>
-      <p>Indicadores sensíveis exibidos apenas para quem pode agir sobre eles.</p>
-    </div>
-
-    <div class="secdash-insights-grid secdash-alerts-grid">
-      {% if pode_ver_alerta_financeiro and total_contas_vencidas > 0 %}
-      <article class="secdash-insight-card secdash-alert-card is-danger">
-        <div class="head">
-          <span><i class="fas fa-triangle-exclamation"></i> Financeiro</span>
-        </div>
-        <p>{{ total_contas_vencidas }} conta(s) vencida(s){% if valor_total_contas_vencidas %} - R$ {{ valor_total_contas_vencidas|floatformat:2 }}{% endif %} no período atual.</p>
-        <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-outline-secondary btn-sm">Abrir contas a pagar</a>
-      </article>
-      {% endif %}
-
-      {% if pode_ver_alerta_assinatura and assinatura_alerta %}
-      <article class="secdash-insight-card secdash-alert-card is-warning">
-        <div class="head">
-          <span><i class="fas fa-calendar-check"></i> Assinatura</span>
-        </div>
-        <p>Vence em {{ assinatura_alerta.dias_restantes }} dia(s) ({{ assinatura_alerta.status }}).</p>
-        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-outline-secondary btn-sm">Ver assinatura</a>
-      </article>
-      {% endif %}
-    </div>
-  </section>
-  {% endif %}
-
-  <section class="secdash-section" aria-label="Leituras da semana">
-    <div class="secdash-section-head">
-      <h2>Leituras da Semana</h2>
-      <p>Resumo acionável do período para acelerar decisões da secretaria.</p>
+      <h2>Sinais da Semana</h2>
+      <p>Indicadores de apoio para identificar tendência e priorizar próximos acompanhamentos.</p>
     </div>
 
     <div class="secdash-insights-grid">
@@ -176,91 +227,99 @@
         <a href="{{ insight.cta_url }}" class="btn btn-outline-secondary btn-sm">{{ insight.cta_label }}</a>
         {% endif %}
       </article>
+      {% empty %}
+      <article class="secdash-insight-card secdash-insight-empty is-neutral">
+        <div class="head">
+          <span><i class="fas fa-circle-info"></i> Sem sinal crítico no período</span>
+        </div>
+        <p>Não há alertas analíticos para priorização no momento. Continue acompanhando os fluxos operacionais.</p>
+        <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-outline-secondary btn-sm">Ver acompanhamentos</a>
+      </article>
       {% endfor %}
     </div>
   </section>
 
-  <section class="secdash-section">
+  <section class="secdash-section secdash-secondary-section">
     <div class="secdash-section-head">
-      <h2>Ações Operacionais</h2>
-      <p>Atalhos com foco em produtividade da rotina da secretaria.</p>
+      <h2>Operação da Secretaria</h2>
+      <p>Fluxos de rotina para executar cadastro, recepção, acompanhamento e governança.</p>
     </div>
 
     <div class="secdash-card-grid">
       <article class="secdash-action-card tone-a">
         <div class="top">
-          <h3><i class="fas fa-users"></i> Pessoas</h3>
+          <h3><i class="fas fa-users"></i> Gerir pessoas</h3>
           <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-light btn-sm" aria-label="Adicionar pessoa"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Cadastro e manutenção de pessoas e membros.</p>
+        <p>Atualizar cadastro, dados essenciais e base de membros.</p>
         <div class="badge-value">{{ total_membros }}</div>
         <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-light btn-sm">Ver lista</a>
       </article>
 
       <article class="secdash-action-card tone-b">
         <div class="top">
-          <h3><i class="fas fa-handshake"></i> Recepção</h3>
+          <h3><i class="fas fa-handshake"></i> Gerir recepção</h3>
           <a href="{% url 'secretaria:cadastrar_visitante' %}" class="btn btn-light btn-sm" aria-label="Adicionar visitante"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Registro e acompanhamento de visitantes.</p>
+        <p>Registrar visitantes e manter acompanhamento inicial.</p>
         <div class="badge-value">{{ total_visitantes }}</div>
         <a href="{% url 'secretaria:lista_visitantes' %}" class="btn btn-light btn-sm">Ver lista</a>
       </article>
 
       <article class="secdash-action-card tone-c">
         <div class="top">
-          <h3><i class="fas fa-id-badge"></i> Cargos</h3>
+          <h3><i class="fas fa-id-badge"></i> Gerir cargos</h3>
           <a href="{% url 'secretaria:criar_cargo' %}" class="btn btn-light btn-sm" aria-label="Adicionar cargo"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Governança de funções e ocupantes.</p>
+        <p>Organizar funções, ocupantes e responsabilidades.</p>
         <div class="badge-value">{{ total_cargos }}</div>
         <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-light btn-sm">Ver cargos</a>
       </article>
 
       <article class="secdash-action-card tone-d">
         <div class="top">
-          <h3><i class="fas fa-home"></i> Grupos/Casas</h3>
+          <h3><i class="fas fa-home"></i> Gerir grupos e casas</h3>
           <a href="{% url 'secretaria:criar_grupo_casa' %}" class="btn btn-light btn-sm" aria-label="Adicionar grupo ou casa"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Organização de pequenos grupos e casas.</p>
+        <p>Manter células, grupos e casas com dados atualizados.</p>
         <div class="badge-value">{{ total_grupos_casa }}</div>
         <a href="{% url 'secretaria:lista_grupos_casa' %}" class="btn btn-light btn-sm">Ver grupos</a>
       </article>
 
       <article class="secdash-action-card tone-e">
         <div class="top">
-          <h3><i class="fas fa-chart-line"></i> Relatorios</h3>
+          <h3><i class="fas fa-chart-line"></i> Relatórios</h3>
         </div>
-        <p>Indicadores para reuniões e acompanhamento.</p>
+        <p>Consolidar indicadores para reuniões de acompanhamento.</p>
         <div class="badge-value">{{ total_relatorios }}</div>
         <a href="{% url 'secretaria:relatorio_reuniao_membros' %}" class="btn btn-light btn-sm">Ver relatório</a>
       </article>
 
       <article class="secdash-action-card tone-f">
         <div class="top">
-          <h3><i class="fas fa-user-check"></i> Visita/Casa</h3>
+          <h3><i class="fas fa-user-check"></i> Acompanhamentos</h3>
           <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-light btn-sm" aria-label="Novo acompanhamento"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Gestão de visitas e acompanhamentos.</p>
+        <p>Planejar visitas e acompanhar cada caso em aberto.</p>
         <div class="badge-value">{{ total_acompanhamentos }}</div>
         <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-light btn-sm">Ver acompanhamentos</a>
       </article>
 
       <article class="secdash-action-card tone-g">
         <div class="top">
-          <h3><i class="fas fa-tags"></i> Tags</h3>
+          <h3><i class="fas fa-tags"></i> Organizar tags</h3>
           <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-light btn-sm" aria-label="Adicionar tag"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Categorização para filtros e campanhas.</p>
+        <p>Criar segmentações para filtros, campanhas e busca.</p>
         <div class="badge-value">{{ total_tags }}</div>
         <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-light btn-sm">Ver tags</a>
       </article>
 
       <article class="secdash-action-card tone-h">
         <div class="top">
-          <h3><i class="fas fa-user-plus"></i> Usuários</h3>
+          <h3><i class="fas fa-user-plus"></i> Vincular usuários</h3>
         </div>
-        <p>Associações de acesso entre usuário e membro.</p>
+        <p>Garantir vínculo correto entre acesso e cadastro de membro.</p>
         <div class="badge-value">{{ total_associacoes }}</div>
         {% url 'secretaria:associar_usuarios_membros' as url_associar_usuarios_membros %}
         {% if url_associar_usuarios_membros %}
@@ -272,10 +331,10 @@
     </div>
   </section>
 
-  <section class="secdash-section">
+  <section class="secdash-section secdash-analytics-section">
     <div class="secdash-section-head">
-      <h2>Inteligência de Pessoas</h2>
-      <p>Leituras gráficas para apoiar decisão e planejamento.</p>
+      <h2>Análise de Pessoas</h2>
+      <p>Leituras analíticas para planejamento e revisão de tendência ao longo do período.</p>
       <div class="secdash-head-actions" aria-label="Exportacao de dados">
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=resumo&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Exportar resumo</a>
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=evolucao&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Exportar evolução</a>
