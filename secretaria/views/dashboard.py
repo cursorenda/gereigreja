@@ -5,6 +5,7 @@ Views de dashboard principal (index) e salvar nota do usuário.
 import json
 import locale
 import logging
+import csv
 from calendar import monthrange
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
@@ -15,8 +16,10 @@ from django.db.models import (
     BooleanField, Case, Count, Q, Sum, Value, When,
 )
 from django.db.models.functions import Extract
+from django.http import HttpResponse
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -276,12 +279,14 @@ def _pie_tipos_pessoa(membros_para_grafico_tipo):
     return pie_labels, pie_values
 
 
-def _categoria_evento_data(igrejas_filtro):
+def _categoria_evento_data(igrejas_filtro, data_inicio=None, data_fim=None):
     eventos_ids = list(Evento.objects.filter(igreja__in=igrejas_filtro).values_list('id', flat=True))
     participacoes_qs = ParticipacaoEvento.objects.filter(
         status__in=['CONFIRMADO', 'PRESENTE', 'AUSENTE'],
         evento_id__in=eventos_ids,
     )
+    if data_inicio and data_fim:
+        participacoes_qs = participacoes_qs.filter(evento__data_inicio__date__range=(data_inicio, data_fim))
     participacoes_por_categoria = (
         participacoes_qs.values('evento__tipo').annotate(total=Count('id')).order_by('evento__tipo')
     )
@@ -295,6 +300,137 @@ def _categoria_evento_data(igrejas_filtro):
         categoria_values.append(item['total'])
 
     return categoria_labels, categoria_values
+
+
+def _gerar_insights_dashboard(
+    membros_para_relatorios,
+    membros_base_periodo,
+    data_inicio_periodo,
+    data_fim_periodo,
+    novos_membros_periodo,
+    total_pendencias_cadastro,
+):
+    """Gera insights determinísticos para orientar ação no dashboard."""
+    insights = []
+    dias_periodo = max((data_fim_periodo - data_inicio_periodo).days + 1, 1)
+
+    # 1) Tendencia de entrada de membros versus janela anterior equivalente.
+    periodo_anterior_fim = data_inicio_periodo - timedelta(days=1)
+    periodo_anterior_inicio = periodo_anterior_fim - timedelta(days=dias_periodo - 1)
+    novos_membros_periodo_anterior = membros_para_relatorios.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(periodo_anterior_inicio, periodo_anterior_fim),
+    ).count()
+
+    diferenca_absoluta = novos_membros_periodo - novos_membros_periodo_anterior
+    if novos_membros_periodo_anterior >= 3:
+        variacao = ((novos_membros_periodo - novos_membros_periodo_anterior) / novos_membros_periodo_anterior) * 100
+        if variacao >= 15 and diferenca_absoluta >= 3:
+            insights.append({
+                'tone': 'is-positive',
+                'icon': 'fas fa-arrow-trend-up',
+                'title': 'Tendencia positiva de entrada',
+                'message': (
+                    f'Novos membros cresceram {variacao:.1f}% em relacao ao periodo anterior equivalente.'
+                ),
+                'cta_label': 'Ver lista de pessoas',
+                'cta_url': reverse('secretaria:lista_pessoas'),
+            })
+        elif variacao <= -15 and abs(diferenca_absoluta) >= 3:
+            insights.append({
+                'tone': 'is-warning',
+                'icon': 'fas fa-arrow-trend-down',
+                'title': 'Queda na entrada de membros',
+                'message': (
+                    f'Novos membros cairam {abs(variacao):.1f}% versus o periodo anterior. Vale revisar a recepcao.'
+                ),
+                'cta_label': 'Abrir visitantes',
+                'cta_url': reverse('secretaria:lista_visitantes'),
+            })
+    elif novos_membros_periodo > 0:
+        insights.append({
+            'tone': 'is-positive',
+            'icon': 'fas fa-seedling',
+            'title': 'Primeiras entradas no comparativo',
+            'message': 'Nao havia base no periodo anterior e agora ha novos membros registrados.',
+            'cta_label': 'Ver lista de pessoas',
+            'cta_url': reverse('secretaria:lista_pessoas'),
+        })
+
+    # 2) Qualidade cadastral no periodo.
+    total_cadastros_periodo = max(membros_base_periodo.count(), 1)
+    taxa_pendencias = total_pendencias_cadastro / total_cadastros_periodo
+    if (
+        total_pendencias_cadastro >= 8
+        and total_cadastros_periodo >= 20
+        and taxa_pendencias >= 0.25
+    ):
+        insights.append({
+            'tone': 'is-danger',
+            'icon': 'fas fa-triangle-exclamation',
+            'title': 'Risco cadastral elevado',
+            'message': (
+                f'{total_pendencias_cadastro} registros com pendencias no periodo '
+                f'({taxa_pendencias * 100:.0f}% dos cadastros do periodo).'
+            ),
+            'cta_label': 'Tratar pendencias',
+            'cta_url': reverse('secretaria:lista_pessoas'),
+        })
+    elif (
+        total_pendencias_cadastro >= 4
+        and total_cadastros_periodo >= 10
+        and taxa_pendencias >= 0.15
+    ):
+        insights.append({
+            'tone': 'is-warning',
+            'icon': 'fas fa-circle-exclamation',
+            'title': 'Atencao em qualidade cadastral',
+            'message': (
+                f'Pendencias cadastrais em {taxa_pendencias * 100:.0f}% dos registros do periodo.'
+            ),
+            'cta_label': 'Revisar cadastros',
+            'cta_url': reverse('secretaria:lista_pessoas'),
+        })
+
+    # 3) Sinal operacional de recepcao e conversao no periodo.
+    total_visitantes_periodo = membros_base_periodo.filter(tipo_pessoa__nome__iexact='Visitante').count()
+    total_convertidos_periodo = membros_base_periodo.filter(tipo_pessoa__nome__iexact='Novo Convertido').count()
+    limiar_visitantes = max(6, dias_periodo // 8)
+    limiar_convertidos = max(3, dias_periodo // 20)
+    if total_visitantes_periodo >= limiar_visitantes:
+        insights.append({
+            'tone': 'is-info',
+            'icon': 'fas fa-handshake-angle',
+            'title': 'Recepcao aquecida no periodo',
+            'message': (
+                f'Foram registrados {total_visitantes_periodo} visitantes. Boa oportunidade de acompanhamento ativo.'
+            ),
+            'cta_label': 'Abrir visitantes',
+            'cta_url': reverse('secretaria:lista_visitantes'),
+        })
+    elif total_convertidos_periodo >= limiar_convertidos:
+        insights.append({
+            'tone': 'is-positive',
+            'icon': 'fas fa-user-check',
+            'title': 'Movimento de conversao relevante',
+            'message': (
+                f'Ha {total_convertidos_periodo} novos convertidos no periodo. Planeje o proximo ciclo de integracao.'
+            ),
+            'cta_label': 'Ver acompanhamentos',
+            'cta_url': reverse('secretaria:acompanhamentos_visita'),
+        })
+
+    if not insights:
+        insights.append({
+            'tone': 'is-neutral',
+            'icon': 'fas fa-circle-check',
+            'title': 'Painel estavel no periodo',
+            'message': 'Sem alertas criticos no recorte atual. Mantenha o monitoramento semanal.',
+            'cta_label': '',
+            'cta_url': '',
+        })
+
+    return insights[:3]
 
 
 # ---------------------------------------------------------------------------
@@ -409,7 +545,11 @@ def index(request):
     )
     membros_para_grafico_tipo = Membro.objects.filter(igreja__in=igrejas_filtro)
     pie_labels, pie_values = _pie_tipos_pessoa(membros_para_grafico_tipo)
-    categoria_labels, categoria_values = _categoria_evento_data(igrejas_filtro)
+    categoria_labels, categoria_values = _categoria_evento_data(
+        igrejas_filtro,
+        data_inicio_periodo,
+        data_fim_periodo,
+    )
 
     # Foto do usuário
     usuario_foto_url = None
@@ -731,6 +871,15 @@ def dashboard(request):
         status_pessoa__nome__in=['Ativo', 'Em Disciplina'],
     ).count()
 
+    insights_dashboard = _gerar_insights_dashboard(
+        membros_para_relatorios,
+        membros_base_periodo,
+        data_inicio_periodo,
+        data_fim_periodo,
+        novos_membros_periodo,
+        total_pendencias_cadastro,
+    )
+
     context = {
         'status_data_json': json.dumps(status_data_list),
         'status_labels_json': json.dumps([item['status'] for item in status_data_list]),
@@ -776,6 +925,7 @@ def dashboard(request):
         'total_acompanhamentos': total_acompanhamentos,
         'total_tags': total_tags,
         'total_associacoes': total_associacoes,
+        'insights_dashboard': insights_dashboard,
     }
 
     igrejas_permitidas_ctx = getattr(request, 'igrejas_permitidas', Igreja.objects.none())
@@ -788,3 +938,134 @@ def dashboard(request):
         context['scope_label'] = None
 
     return render(request, 'secretaria/dashboard.html', context)
+
+
+@login_required
+@page_access_required('dashboard_secretaria')
+def exportar_dashboard_csv(request):
+    ministerio = get_ministerio_or_error(request)
+    igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+    if igrejas_permitidas is None:
+        igrejas_permitidas = get_allowed_churches_for_membros(request.user, ministerio)
+    igrejas_filtro = get_request_scoped_churches(request, igrejas_permitidas)
+
+    hoje_data = date.today()
+    periodo_info = _parse_periodo_dashboard(request, hoje_data)
+    data_inicio_periodo = periodo_info['data_inicio']
+    data_fim_periodo = periodo_info['data_fim']
+
+    dataset = (request.GET.get('dataset') or 'resumo').strip().lower()
+    datasets_validos = {'resumo', 'evolucao', 'status', 'genero', 'faixa', 'tipo', 'categoria'}
+    if dataset not in datasets_validos:
+        dataset = 'resumo'
+
+    membros_para_relatorios = Membro.objects.filter(
+        igreja__in=igrejas_filtro,
+        tipo_pessoa__nome__iexact='Membro',
+        status_pessoa__nome__iexact='Ativo',
+    )
+    membros_base_para_grafico_status = Membro.objects.filter(igreja__in=igrejas_filtro)
+    membros_para_relatorios_periodo = membros_para_relatorios.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(data_inicio_periodo, data_fim_periodo),
+    )
+    membros_base_periodo = membros_base_para_grafico_status.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(data_inicio_periodo, data_fim_periodo),
+    )
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = (
+        f'attachment; filename="dashboard_secretaria_{dataset}_{hoje_data.strftime("%Y%m%d")}.csv"'
+    )
+    writer = csv.writer(response)
+
+    writer.writerow(['dataset', dataset])
+    writer.writerow(['periodo', periodo_info['periodo_label']])
+    writer.writerow(['data_inicio', data_inicio_periodo.strftime('%Y-%m-%d')])
+    writer.writerow(['data_fim', data_fim_periodo.strftime('%Y-%m-%d')])
+    writer.writerow([])
+
+    if dataset == 'resumo':
+        pendencias_cadastro = membros_para_relatorios_periodo.filter(
+            Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
+        ).count()
+        igrejas_ids = membros_para_relatorios.values_list('igreja_id', flat=True).distinct()
+        contas_vencidas = ContaPagar.objects.filter(
+            igreja_id__in=igrejas_ids,
+            status='VEN',
+            data_vencimento__range=(data_inicio_periodo, data_fim_periodo),
+        )
+        writer.writerow(['indicador', 'valor'])
+        writer.writerow(['novos_membros_periodo', membros_para_relatorios_periodo.count()])
+        writer.writerow(['membros_ativos_total_escopo', membros_para_relatorios.count()])
+        writer.writerow(['pendencias_cadastro_periodo', pendencias_cadastro])
+        writer.writerow(['contas_vencidas_periodo', contas_vencidas.count()])
+        writer.writerow(['valor_total_contas_vencidas_periodo', contas_vencidas.aggregate(total=Sum('valor'))['total'] or 0])
+        return response
+
+    if dataset == 'evolucao':
+        meses_labels, evolucao_por_tipo = _series_evolucao_por_tipo(
+            membros_base_para_grafico_status,
+            data_inicio_periodo,
+            data_fim_periodo,
+        )
+        writer.writerow(['mes', 'membro', 'congregado', 'novo_convertido', 'visitante'])
+        for idx, mes in enumerate(meses_labels):
+            writer.writerow([
+                mes,
+                evolucao_por_tipo['Membro'][idx],
+                evolucao_por_tipo['Congregado'][idx],
+                evolucao_por_tipo['Novo Convertido'][idx],
+                evolucao_por_tipo['Visitante'][idx],
+            ])
+        return response
+
+    if dataset == 'status':
+        status_data_qs = membros_base_periodo.values('status_pessoa__nome').annotate(total=Count('chave')).order_by('status_pessoa__nome')
+        writer.writerow(['status', 'total'])
+        for item in status_data_qs:
+            if item['status_pessoa__nome']:
+                writer.writerow([item['status_pessoa__nome'], item['total']])
+        return response
+
+    if dataset == 'genero':
+        genero_data_qs = membros_para_relatorios_periodo.values('genero').annotate(total=Count('chave'))
+        genero_map = {'F': 'Feminino', 'M': 'Masculino', '': 'Não Informado', None: 'Não Informado'}
+        acumulado = defaultdict(int)
+        for item in genero_data_qs:
+            acumulado[genero_map.get(item['genero'], 'Não Informado')] += item['total']
+        writer.writerow(['genero', 'total'])
+        for genero, total in acumulado.items():
+            writer.writerow([genero, total])
+        return response
+
+    if dataset == 'faixa':
+        idades = _idades_lista(membros_para_relatorios_periodo, hoje_data)
+        faixa_etaria_data = _calcular_faixas_etarias(membros_para_relatorios_periodo, idades)
+        writer.writerow(['faixa_etaria', 'total'])
+        for item in faixa_etaria_data:
+            writer.writerow([item['faixa_etaria'], item['total']])
+        return response
+
+    if dataset == 'tipo':
+        membros_para_grafico_tipo_periodo = Membro.objects.filter(
+            igreja__in=igrejas_filtro,
+            data_entrada__isnull=False,
+            data_entrada__range=(data_inicio_periodo, data_fim_periodo),
+        )
+        pie_labels, pie_values = _pie_tipos_pessoa(membros_para_grafico_tipo_periodo)
+        writer.writerow(['tipo', 'total'])
+        for label, value in zip(pie_labels, pie_values):
+            writer.writerow([label, value])
+        return response
+
+    categoria_labels, categoria_values = _categoria_evento_data(
+        igrejas_filtro,
+        data_inicio_periodo,
+        data_fim_periodo,
+    )
+    writer.writerow(['categoria_evento', 'participacoes'])
+    for label, value in zip(categoria_labels, categoria_values):
+        writer.writerow([label, value])
+    return response

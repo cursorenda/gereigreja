@@ -16,6 +16,7 @@ urlpatterns = [
     path('acompanhamentos-visita/', views.lista_acompanhamentos_visita, name='acompanhamentos_visita'),
     path('', views.index, name='index'), # Esta URL agora será /sistema/
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('dashboard/exportar-csv/', views.exportar_dashboard_csv, name='exportar_dashboard_csv'),
     path('certificados/apresentacao/', views.certificado_apresentacao, name='certificado_apresentacao'),
     path('certificados/batismo/', views.certificado_batismo, name='certificado_batismo'),
     path('documentos/carta-recomendacao/', views.carta_recomendacao, name='carta_recomendacao'),

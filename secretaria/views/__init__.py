@@ -48,7 +48,7 @@ from .grupos_casa import (  # noqa: F401
     criar_grupo_casa, editar_grupo_casa,
 )
 from .dashboard import (  # noqa: F401
-    index, salvar_nota_usuario, dashboard,
+    index, salvar_nota_usuario, dashboard, exportar_dashboard_csv,
 )
 from .ajax import (  # noqa: F401
     autocomplete_nome, autocomplete_nome_membro,

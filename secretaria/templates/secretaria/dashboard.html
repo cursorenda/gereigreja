@@ -113,6 +113,27 @@
     </div>
   </section>
 
+  <section class="secdash-section" aria-label="Leituras da semana">
+    <div class="secdash-section-head">
+      <h2>Leituras da Semana</h2>
+      <p>Resumo acionavel do periodo para acelerar decisoes da secretaria.</p>
+    </div>
+
+    <div class="secdash-insights-grid">
+      {% for insight in insights_dashboard %}
+      <article class="secdash-insight-card {{ insight.tone }}">
+        <div class="head">
+          <span><i class="{{ insight.icon }}"></i> {{ insight.title }}</span>
+        </div>
+        <p>{{ insight.message }}</p>
+        {% if insight.cta_url and insight.cta_label %}
+        <a href="{{ insight.cta_url }}" class="btn btn-outline-secondary btn-sm">{{ insight.cta_label }}</a>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
   <section class="secdash-section">
     <div class="secdash-section-head">
       <h2>Acoes Operacionais</h2>
@@ -209,6 +230,15 @@
     <div class="secdash-section-head">
       <h2>Inteligencia de Pessoas</h2>
       <p>Leituras graficas para apoiar decisao e planejamento.</p>
+      <div class="secdash-head-actions" aria-label="Exportacao de dados">
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=resumo&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Exportar resumo</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=evolucao&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Exportar evolucao</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=status&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Status</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=genero&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Genero</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=faixa&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Faixa etaria</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=tipo&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Tipo</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=categoria&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Categoria evento</a>
+      </div>
     </div>
 
     <div class="secdash-chart-grid">
