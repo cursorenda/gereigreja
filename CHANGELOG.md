@@ -1,3 +1,69 @@
+## v1.13.3 — 27/05/2026
+🧭 **Dashboard da Secretaria — Consolidação Premium (filtro avançado, alertas por perfil, gráficos nítidos e modo tela larga)**
+
+### Entregas — Navegação e Layout
+- Inclusão de breadcrumb no topo para orientação do usuário (`Inicial > Dashboard Secretaria > Visão Geral`).
+- Reorganização do header para melhorar hierarquia visual entre título, escopo e filtros.
+- Modo **full-width** no dashboard da secretaria (mesma proposta do financeiro), com ocultação do menu lateral na visualização larga.
+- Botão de mostrar/ocultar menu lateral integrado ao header, com persistência de preferência via `localStorage`.
+
+### Entregas — Filtro de Período (P1)
+- Filtro de período no topo com presets:
+  - Últimos 30 dias
+  - Últimos 90 dias
+  - Últimos 6 meses
+  - Últimos 12 meses
+  - Personalizado
+- Aplicação consistente do período em KPIs, prioridades e séries analíticas.
+- Exibição clara do período ativo na interface.
+
+### Entregas — Exportação de Dados (P2)
+- Exportação CSV integrada ao bloco de inteligência analítica.
+- Datasets disponíveis:
+  - Resumo
+  - Evolução
+  - Status
+  - Gênero
+  - Faixa etária
+  - Tipo
+  - Categoria de evento
+- Exportação respeita o período selecionado no dashboard.
+
+### Entregas — Insights Acionáveis (P3)
+- Inclusão da seção **Leituras da Semana** com insights determinísticos (sem IA generativa).
+- Regras por tendência, pendência cadastral e sinais operacionais.
+- Thresholds refinados para reduzir falso positivo em bases pequenas e períodos curtos.
+
+### Entregas — Governança de Conteúdo por Perfil
+- Remoção de Financeiro e Assinatura do bloco de **Prioridades do Dia**.
+- Criação de bloco separado de **Alertas de Gestão**.
+- Regras de visibilidade:
+  - Alerta financeiro: apenas para **Tesoureiro**.
+  - Alerta de assinatura: apenas para **Admin Ministério** e **Tesouraria Ministerial**.
+
+### Entregas — Qualidade Visual dos Gráficos
+- Correção de desfoque e distorção de canvas (ajuste de sizing e renderização).
+- Padronização premium de Chart.js:
+  - tipografia
+  - legendas
+  - eixos
+  - tooltips
+  - espaçamentos
+- Gráfico de distribuição por tipo atualizado para doughnut com melhor leitura visual.
+
+### Entregas — Microcopy e Acessibilidade
+- Revisão textual completa (acentuação, consistência de termos e clareza de ação).
+- Melhorias de semântica e acessibilidade no botão de menu lateral (`title`, `aria-label`, `aria-expanded`).
+- Comportamento mobile refinado (botão de menu compacto com ícone).
+
+### Impacto
+- Dashboard da secretaria mais amplo, mais legível e com leitura analítica mais confiável.
+- Menor ruído operacional para perfis sem atribuição financeira/assinatura.
+- Melhor equilíbrio entre produtividade diária, governança e experiência premium.
+- Sem migrações de banco e sem breaking changes de API pública.
+
+---
+
 ## v1.13.2 — 26/05/2026
 🗂️ **Dashboard da Secretaria — Fases 1, 2 e 3 (premium + precisão analítica)**
 
