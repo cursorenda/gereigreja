@@ -1,3 +1,38 @@
+## v1.13.4 — 27/05/2026
+🎨 **Dashboard da Secretaria — Refinamento Premium com Design System Unificado**
+
+### Entregas — Cabeçalho e Estrutura
+- Alinhamento do header da secretaria ao padrão do dashboard financeiro.
+- Filtros reposicionados para a linha superior, no canto direito, ao lado do status de atualização.
+- Chip de período movido para a área de escopo, ao lado da identificação da igreja, seguindo o mesmo padrão do financeiro.
+- Padronização do breadcrumb para uso de **Home** como entrada principal.
+- Remoção de microcopy redundante no topo para leitura mais limpa e executiva.
+
+### Entregas — Design System e Tipografia
+- Reestruturação visual do dashboard para aderir ao design system compartilhado (`dashboard-base.css`).
+- Harmonização de tipografia, pesos, tamanhos e espaçamentos com o padrão do módulo financeiro.
+- Ajuste fino de densidade visual em header, KPIs, blocos de conteúdo e grids responsivos.
+- Consolidação de superfícies, bordas, sombras e raios para uma leitura premium mais coesa.
+
+### Entregas — Cards, Estados e Semântica Visual
+- KPIs convertidos para superfícies claras com acentos controlados, reduzindo saturação excessiva.
+- Cards operacionais revisados para manter destaque sem romper com a paleta institucional.
+- Refinamento semântico das cores de cards e ações, evitando uso de tons de risco em contextos operacionais neutros.
+- Estados de alerta, prioridade e insights ajustados para usar variações coerentes da paleta oficial do sistema.
+
+### Entregas — Gráficos e Paleta Oficial
+- Padronização visual dos gráficos da secretaria com a mesma lógica cromática do dashboard financeiro.
+- Remoção de cores paralelas fora da paleta oficial do sistema em datasets, acentos e elementos auxiliares.
+- Consolidação da configuração de Chart.js para tipografia, eixos, tooltips e legendas compatíveis com o design system.
+
+### Impacto
+- Dashboard da secretaria mais consistente com o restante do sistema, especialmente com o financeiro.
+- Melhor percepção de produto premium, com menos ruído visual e maior confiança na leitura operacional.
+- Base visual mais sustentável para futuras evoluções sem reintroduzir desvios de paleta ou tipografia.
+- Sem migrações de banco e sem breaking changes de API pública.
+
+---
+
 ## v1.13.3 — 27/05/2026
 🧭 **Dashboard da Secretaria — Consolidação Premium (filtro avançado, alertas por perfil, gráficos nítidos e modo tela larga)**
 
