@@ -6,36 +6,76 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/secretaria-dashboard.css' %}">
+<script>
+(function () {
+  document.documentElement.classList.add('dash-secretaria');
+  var isVisible = false;
+  try {
+    isVisible = localStorage.getItem('secretaria.sidebar_visible') === '1';
+  } catch (e) {
+    isVisible = false;
+  }
+  if (!isVisible) {
+    document.documentElement.classList.add('dash-secretaria-fullwidth');
+  }
+
+  function applyBodyClasses() {
+    document.body.classList.add('dash-secretaria');
+    if (!isVisible) {
+      document.body.classList.add('dash-secretaria-fullwidth');
+    }
+  }
+
+  if (document.body) {
+    applyBodyClasses();
+  } else {
+    document.addEventListener('DOMContentLoaded', applyBodyClasses);
+  }
+})();
+</script>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4 secdash-page">
   {% user_can_access request.user 'financeiro' as can_section_financeiro %}
   <header class="secdash-header">
-    <div>
-      <h1 class="secdash-title">Dashboard Secretaria</h1>
-      <p class="secdash-subtitle">Visao operacional e analitica para acompanhamento de pessoas, recepcao e gestao local.</p>
+    <div class="secdash-header-main">
+      <div class="secdash-title-row">
+        <button class="secdash-menu-toggle" id="secdash-toggle-sidebar" type="button" title="Mostrar menu lateral" aria-label="Mostrar menu lateral" aria-expanded="false">
+          <i class="fas fa-bars"></i>
+          <span class="secdash-menu-toggle-label" data-secdash-sidebar-label>Mostrar menu</span>
+        </button>
+        <h1 class="secdash-title">Dashboard Secretaria</h1>
+      </div>
+      <p class="secdash-subtitle">Visão operacional e analítica para acompanhamento de pessoas, recepção e gestão local.</p>
+      <ol class="secdash-breadcrumb" aria-label="Caminho da pagina">
+        <li><a href="{% url 'secretaria:index' %}"><i class="fas fa-home me-1"></i>Inicial</a></li>
+        <li><a href="{% url 'secretaria:dashboard' %}">Dashboard Secretaria</a></li>
+        <li><span class="active">Visão Geral</span></li>
+      </ol>
       {% if scope_label %}
       <div class="secdash-scope" aria-label="Escopo ativo">
         <span class="secdash-chip"><i class="fas fa-layer-group"></i> {{ scope_label }}</span>
       </div>
       {% endif %}
     </div>
-  </header>
 
-  <section class="secdash-filters" aria-label="Filtro de periodo">
-    <form method="get" class="secdash-filters-form">
-      <label for="periodo" class="secdash-filter-label">Periodo:</label>
-      <select id="periodo" name="periodo" class="form-select form-select-sm secdash-filter-select">
-        <option value="30d" {% if periodo_filtro == '30d' %}selected{% endif %}>Ultimos 30 dias</option>
-        <option value="90d" {% if periodo_filtro == '90d' %}selected{% endif %}>Ultimos 90 dias</option>
-        <option value="6m" {% if periodo_filtro == '6m' %}selected{% endif %}>Ultimos 6 meses</option>
-        <option value="12m" {% if periodo_filtro == '12m' %}selected{% endif %}>Ultimos 12 meses</option>
-        <option value="custom" {% if periodo_filtro == 'custom' %}selected{% endif %}>Personalizado</option>
-      </select>
+    <form method="get" class="secdash-filters-form secdash-filters-inline" aria-label="Filtro de periodo">
+      <div class="secdash-filter-pill">
+        <label for="periodo" class="secdash-filter-label">Período</label>
+        <select id="periodo" name="periodo" class="form-select form-select-sm secdash-filter-select">
+          <option value="30d" {% if periodo_filtro == '30d' %}selected{% endif %}>Últimos 30 dias</option>
+          <option value="90d" {% if periodo_filtro == '90d' %}selected{% endif %}>Últimos 90 dias</option>
+          <option value="6m" {% if periodo_filtro == '6m' %}selected{% endif %}>Últimos 6 meses</option>
+          <option value="12m" {% if periodo_filtro == '12m' %}selected{% endif %}>Últimos 12 meses</option>
+          <option value="custom" {% if periodo_filtro == 'custom' %}selected{% endif %}>Personalizado</option>
+        </select>
+      </div>
 
-      <div id="custom-period-fields" class="secdash-custom-period {% if periodo_filtro != 'custom' %}d-none{% endif %}">
+      <div id="custom-period-fields" class="secdash-filter-date {% if periodo_filtro != 'custom' %}d-none{% endif %}">
+        <span class="secdash-filter-label">De</span>
         <input type="date" name="data_inicio" value="{{ periodo_data_inicio }}" class="form-control form-control-sm" aria-label="Data inicial">
+        <span class="secdash-filter-date-sep">até</span>
         <input type="date" name="data_fim" value="{{ periodo_data_fim }}" class="form-control form-control-sm" aria-label="Data final">
       </div>
 
@@ -43,20 +83,20 @@
       <a href="{% url 'secretaria:dashboard' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
       <span class="secdash-filter-active">{{ periodo_label }}</span>
     </form>
-  </section>
+  </header>
 
   <section class="secdash-kpi-strip" aria-label="Resumo rapido">
     <article class="secdash-kpi-card">
-      <div class="label">Novos membros (periodo)</div>
+      <div class="label">Novos membros (período)</div>
       <div class="value">{{ novos_membros_periodo }}</div>
     </article>
     <article class="secdash-kpi-card">
-      <div class="label">Aniversariantes (mes)</div>
+      <div class="label">Aniversariantes (mês)</div>
       <div class="value">{{ aniversariantes_mes_atual_count }}</div>
-      <button type="button" id="btnAniversariantes" class="secdash-link-btn" aria-label="Ver proximos aniversariantes">Ver lista</button>
+      <button type="button" id="btnAniversariantes" class="secdash-link-btn" aria-label="Ver próximos aniversariantes">Ver lista</button>
     </article>
     <article class="secdash-kpi-card">
-      <div class="label">Media de idade</div>
+      <div class="label">Média de idade</div>
       <div class="value">{{ media_idade_membros }} anos</div>
     </article>
     <article class="secdash-kpi-card emphasis">
@@ -68,7 +108,7 @@
   <section class="secdash-section" aria-label="Prioridades do dia">
     <div class="secdash-section-head">
       <h2>Prioridades do Dia</h2>
-      <p>Itens que demandam acao imediata para manter qualidade cadastral e governanca.</p>
+      <p>Itens que demandam ação imediata para manter qualidade cadastral e governança.</p>
     </div>
 
     <div class="secdash-priority-grid">
@@ -79,44 +119,46 @@
         </div>
         <h3>{{ total_pendencias_cadastro }}</h3>
         <p>Pessoas com dados essenciais pendentes.</p>
-        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-secondary btn-sm">Tratar pendencias</a>
-      </article>
-
-      <article class="secdash-priority-card {% if total_contas_vencidas > 0 %}is-danger{% else %}is-ok{% endif %}">
-        <div class="head">
-          <span class="pill">Financeiro</span>
-          <i class="fas fa-triangle-exclamation"></i>
-        </div>
-        <h3>{{ total_contas_vencidas }}</h3>
-        <p>Contas vencidas no periodo{% if valor_total_contas_vencidas %} (R$ {{ valor_total_contas_vencidas|floatformat:2 }}){% endif %}.</p>
-        {% if can_section_financeiro %}
-        <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-outline-secondary btn-sm">Abrir contas a pagar</a>
-        {% else %}
-        <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Sem permissao financeira</button>
-        {% endif %}
-      </article>
-
-      <article class="secdash-priority-card {% if assinatura_alerta %}is-warn{% else %}is-ok{% endif %}">
-        <div class="head">
-          <span class="pill">Assinatura</span>
-          <i class="fas fa-calendar-check"></i>
-        </div>
-        {% if assinatura_alerta %}
-        <h3>{{ assinatura_alerta.dias_restantes }}</h3>
-        <p>Dias restantes para vencimento ({{ assinatura_alerta.status }}).</p>
-        {% else %}
-        <h3>OK</h3>
-        <p>Status regular, sem alerta no periodo atual.</p>
-        {% endif %}
-        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-outline-secondary btn-sm">Ver assinatura</a>
+        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-outline-secondary btn-sm">Tratar pendências</a>
       </article>
     </div>
   </section>
 
+  {% if pode_ver_alerta_financeiro and total_contas_vencidas > 0 or pode_ver_alerta_assinatura and assinatura_alerta %}
+  <section class="secdash-section secdash-alerts-section" aria-label="Alertas de gestao">
+    <div class="secdash-section-head">
+      <h2>Alertas de Gestão</h2>
+      <p>Indicadores sensíveis exibidos apenas para quem pode agir sobre eles.</p>
+    </div>
+
+    <div class="secdash-insights-grid secdash-alerts-grid">
+      {% if pode_ver_alerta_financeiro and total_contas_vencidas > 0 %}
+      <article class="secdash-insight-card secdash-alert-card is-danger">
+        <div class="head">
+          <span><i class="fas fa-triangle-exclamation"></i> Financeiro</span>
+        </div>
+        <p>{{ total_contas_vencidas }} conta(s) vencida(s){% if valor_total_contas_vencidas %} - R$ {{ valor_total_contas_vencidas|floatformat:2 }}{% endif %} no período atual.</p>
+        <a href="{% url 'financeiro:lista_contas_pagar' %}" class="btn btn-outline-secondary btn-sm">Abrir contas a pagar</a>
+      </article>
+      {% endif %}
+
+      {% if pode_ver_alerta_assinatura and assinatura_alerta %}
+      <article class="secdash-insight-card secdash-alert-card is-warning">
+        <div class="head">
+          <span><i class="fas fa-calendar-check"></i> Assinatura</span>
+        </div>
+        <p>Vence em {{ assinatura_alerta.dias_restantes }} dia(s) ({{ assinatura_alerta.status }}).</p>
+        <a href="{% url 'configuracao:gerenciar_assinatura' %}" class="btn btn-outline-secondary btn-sm">Ver assinatura</a>
+      </article>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
   <section class="secdash-section" aria-label="Leituras da semana">
     <div class="secdash-section-head">
       <h2>Leituras da Semana</h2>
-      <p>Resumo acionavel do periodo para acelerar decisoes da secretaria.</p>
+      <p>Resumo acionável do período para acelerar decisões da secretaria.</p>
     </div>
 
     <div class="secdash-insights-grid">
@@ -136,8 +178,8 @@
 
   <section class="secdash-section">
     <div class="secdash-section-head">
-      <h2>Acoes Operacionais</h2>
-      <p>Atalhos com foco em produtividade da rotina de secretaria.</p>
+      <h2>Ações Operacionais</h2>
+      <p>Atalhos com foco em produtividade da rotina da secretaria.</p>
     </div>
 
     <div class="secdash-card-grid">
@@ -146,14 +188,14 @@
           <h3><i class="fas fa-users"></i> Pessoas</h3>
           <a href="{% url 'secretaria:cadastrar_membro' %}" class="btn btn-light btn-sm" aria-label="Adicionar pessoa"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Cadastro e manutencao de pessoas e membros.</p>
+        <p>Cadastro e manutenção de pessoas e membros.</p>
         <div class="badge-value">{{ total_membros }}</div>
         <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-light btn-sm">Ver lista</a>
       </article>
 
       <article class="secdash-action-card tone-b">
         <div class="top">
-          <h3><i class="fas fa-handshake"></i> Recepcao</h3>
+          <h3><i class="fas fa-handshake"></i> Recepção</h3>
           <a href="{% url 'secretaria:cadastrar_visitante' %}" class="btn btn-light btn-sm" aria-label="Adicionar visitante"><i class="fas fa-plus"></i></a>
         </div>
         <p>Registro e acompanhamento de visitantes.</p>
@@ -166,7 +208,7 @@
           <h3><i class="fas fa-id-badge"></i> Cargos</h3>
           <a href="{% url 'secretaria:criar_cargo' %}" class="btn btn-light btn-sm" aria-label="Adicionar cargo"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Governanca de funcoes e ocupantes.</p>
+        <p>Governança de funções e ocupantes.</p>
         <div class="badge-value">{{ total_cargos }}</div>
         <a href="{% url 'secretaria:lista_cargos' %}" class="btn btn-light btn-sm">Ver cargos</a>
       </article>
@@ -176,7 +218,7 @@
           <h3><i class="fas fa-home"></i> Grupos/Casas</h3>
           <a href="{% url 'secretaria:criar_grupo_casa' %}" class="btn btn-light btn-sm" aria-label="Adicionar grupo ou casa"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Organizacao de pequenos grupos e casas.</p>
+        <p>Organização de pequenos grupos e casas.</p>
         <div class="badge-value">{{ total_grupos_casa }}</div>
         <a href="{% url 'secretaria:lista_grupos_casa' %}" class="btn btn-light btn-sm">Ver grupos</a>
       </article>
@@ -185,9 +227,9 @@
         <div class="top">
           <h3><i class="fas fa-chart-line"></i> Relatorios</h3>
         </div>
-        <p>Indicadores para reunioes e acompanhamento.</p>
+        <p>Indicadores para reuniões e acompanhamento.</p>
         <div class="badge-value">{{ total_relatorios }}</div>
-        <a href="{% url 'secretaria:relatorio_reuniao_membros' %}" class="btn btn-light btn-sm">Ver relatorio</a>
+        <a href="{% url 'secretaria:relatorio_reuniao_membros' %}" class="btn btn-light btn-sm">Ver relatório</a>
       </article>
 
       <article class="secdash-action-card tone-f">
@@ -195,7 +237,7 @@
           <h3><i class="fas fa-user-check"></i> Visita/Casa</h3>
           <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-light btn-sm" aria-label="Novo acompanhamento"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Gestao de visitas e acompanhamentos.</p>
+        <p>Gestão de visitas e acompanhamentos.</p>
         <div class="badge-value">{{ total_acompanhamentos }}</div>
         <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-light btn-sm">Ver acompanhamentos</a>
       </article>
@@ -205,16 +247,16 @@
           <h3><i class="fas fa-tags"></i> Tags</h3>
           <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-light btn-sm" aria-label="Adicionar tag"><i class="fas fa-plus"></i></a>
         </div>
-        <p>Categorizacao para filtros e campanhas.</p>
+        <p>Categorização para filtros e campanhas.</p>
         <div class="badge-value">{{ total_tags }}</div>
         <a href="{% url 'secretaria:criar_tag' %}" class="btn btn-light btn-sm">Ver tags</a>
       </article>
 
       <article class="secdash-action-card tone-h">
         <div class="top">
-          <h3><i class="fas fa-user-plus"></i> Usuarios</h3>
+          <h3><i class="fas fa-user-plus"></i> Usuários</h3>
         </div>
-        <p>Associacoes de acesso entre usuario e membro.</p>
+        <p>Associações de acesso entre usuário e membro.</p>
         <div class="badge-value">{{ total_associacoes }}</div>
         {% url 'secretaria:associar_usuarios_membros' as url_associar_usuarios_membros %}
         {% if url_associar_usuarios_membros %}
@@ -228,48 +270,48 @@
 
   <section class="secdash-section">
     <div class="secdash-section-head">
-      <h2>Inteligencia de Pessoas</h2>
-      <p>Leituras graficas para apoiar decisao e planejamento.</p>
+      <h2>Inteligência de Pessoas</h2>
+      <p>Leituras gráficas para apoiar decisão e planejamento.</p>
       <div class="secdash-head-actions" aria-label="Exportacao de dados">
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=resumo&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Exportar resumo</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=evolucao&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Exportar evolucao</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=evolucao&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Exportar evolução</a>
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=status&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Status</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=genero&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Genero</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=faixa&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Faixa etaria</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=genero&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Gênero</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=faixa&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Faixa etária</a>
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=tipo&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Tipo</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=categoria&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Categoria evento</a>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:exportar_dashboard_csv' %}?dataset=categoria&periodo={{ periodo_filtro }}&data_inicio={{ periodo_data_inicio }}&data_fim={{ periodo_data_fim }}">Categoria de evento</a>
       </div>
     </div>
 
     <div class="secdash-chart-grid">
       <article class="secdash-chart-card" data-chart-card>
-        <header><i class="fas fa-chart-line"></i> Evolucao de Pessoas (12 meses)</header>
-        <div class="canvas-wrap"><canvas id="evolucaoMembrosChart" height="200"></canvas></div>
+        <header><i class="fas fa-chart-line"></i> Evolução de Pessoas (12 meses)</header>
+        <div class="canvas-wrap"><canvas id="evolucaoMembrosChart"></canvas></div>
       </article>
 
       <article class="secdash-chart-card" data-chart-card>
-        <header><i class="fas fa-chart-pie"></i> Distribuicao por Tipo</header>
-        <div class="canvas-wrap"><canvas id="grafico2" height="200"></canvas></div>
+        <header><i class="fas fa-chart-pie"></i> Distribuição por Tipo</header>
+        <div class="canvas-wrap"><canvas id="grafico2"></canvas></div>
       </article>
 
       <article class="secdash-chart-card" data-chart-card>
         <header><i class="fas fa-user-check"></i> Pessoas por Status</header>
-        <div class="canvas-wrap"><canvas id="graficoStatus" height="200"></canvas></div>
+        <div class="canvas-wrap"><canvas id="graficoStatus"></canvas></div>
       </article>
 
       <article class="secdash-chart-card" data-chart-card>
-        <header><i class="fas fa-venus-mars"></i> Pessoas por Genero</header>
-        <div class="canvas-wrap"><canvas id="graficoGenero" height="200"></canvas></div>
+        <header><i class="fas fa-venus-mars"></i> Pessoas por Gênero</header>
+        <div class="canvas-wrap"><canvas id="graficoGenero"></canvas></div>
       </article>
 
       <article class="secdash-chart-card" data-chart-card>
-        <header><i class="fas fa-layer-group"></i> Participacao por Categoria de Evento</header>
-        <div class="canvas-wrap"><canvas id="graficoCategoriaEvento" height="200"></canvas></div>
+        <header><i class="fas fa-layer-group"></i> Participação por Categoria de Evento</header>
+        <div class="canvas-wrap"><canvas id="graficoCategoriaEvento"></canvas></div>
       </article>
 
       <article class="secdash-chart-card" data-chart-card>
-        <header><i class="fas fa-chart-bar"></i> Pessoas por Faixa Etaria</header>
-        <div class="canvas-wrap"><canvas id="graficoFaixaEtaria" height="200"></canvas></div>
+        <header><i class="fas fa-chart-bar"></i> Pessoas por Faixa Etária</header>
+        <div class="canvas-wrap"><canvas id="graficoFaixaEtaria"></canvas></div>
       </article>
     </div>
   </section>
@@ -277,7 +319,7 @@
   <aside class="secdash-birthdays" id="cardAniversariantes" hidden>
     <div class="card shadow-sm">
       <div class="card-header d-flex align-items-center justify-content-between">
-        <span><i class="fas fa-birthday-cake me-2"></i>Proximos aniversariantes</span>
+        <span><i class="fas fa-birthday-cake me-2"></i>Próximos aniversariantes</span>
         <button type="button" class="btn-close" aria-label="Fechar" id="closeAniversariantes"></button>
       </div>
       <ul class="list-group list-group-flush">
@@ -290,7 +332,7 @@
           <i class="fas fa-gift text-success"></i>
         </li>
         {% empty %}
-        <li class="list-group-item text-muted">Nenhum aniversariante nos proximos dias.</li>
+        <li class="list-group-item text-muted">Nenhum aniversariante nos próximos dias.</li>
         {% endfor %}
       </ul>
     </div>
@@ -321,11 +363,53 @@
   (function () {
     var selectPeriodo = document.getElementById('periodo');
     var customFields = document.getElementById('custom-period-fields');
-    if (!selectPeriodo || !customFields) return;
+    var toggleSidebarButton = document.getElementById('secdash-toggle-sidebar');
+    var sidebarLabel = document.querySelector('[data-secdash-sidebar-label]');
+    var root = document.documentElement;
+    var body = document.body;
 
-    selectPeriodo.addEventListener('change', function () {
-      customFields.classList.toggle('d-none', selectPeriodo.value !== 'custom');
-    });
+    function isSidebarVisible() {
+      return !root.classList.contains('dash-secretaria-fullwidth');
+    }
+
+    function updateSidebarToggleUI() {
+      if (!toggleSidebarButton) return;
+      var visible = isSidebarVisible();
+      var actionLabel = visible ? 'Ocultar menu lateral' : 'Mostrar menu lateral';
+      toggleSidebarButton.setAttribute('aria-expanded', String(visible));
+      toggleSidebarButton.setAttribute('title', actionLabel);
+      toggleSidebarButton.setAttribute('aria-label', actionLabel);
+      if (sidebarLabel) {
+        sidebarLabel.textContent = visible ? 'Ocultar menu' : 'Mostrar menu';
+      }
+    }
+
+    function setSidebarVisibility(visible) {
+      if (visible) {
+        root.classList.remove('dash-secretaria-fullwidth');
+        if (body) body.classList.remove('dash-secretaria-fullwidth');
+      } else {
+        root.classList.add('dash-secretaria-fullwidth');
+        if (body) body.classList.add('dash-secretaria-fullwidth');
+      }
+      try {
+        localStorage.setItem('secretaria.sidebar_visible', visible ? '1' : '0');
+      } catch (e) {}
+      updateSidebarToggleUI();
+    }
+
+    if (selectPeriodo && customFields) {
+      selectPeriodo.addEventListener('change', function () {
+        customFields.classList.toggle('d-none', selectPeriodo.value !== 'custom');
+      });
+    }
+
+    if (toggleSidebarButton) {
+      toggleSidebarButton.addEventListener('click', function () {
+        setSidebarVisibility(!isSidebarVisible());
+      });
+      updateSidebarToggleUI();
+    }
   })();
 </script>
 

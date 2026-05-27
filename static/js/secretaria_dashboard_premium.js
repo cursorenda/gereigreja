@@ -1,4 +1,14 @@
 (function () {
+  if (window.Chart) {
+    Chart.defaults.responsive = true;
+    Chart.defaults.maintainAspectRatio = false;
+    Chart.defaults.devicePixelRatio = function () {
+      return Math.min(window.devicePixelRatio || 1, 2);
+    };
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Arial, sans-serif";
+    Chart.defaults.color = '#334155';
+  }
+
   function readJsonScript(id, fallback) {
     var el = document.getElementById(id);
     if (!el) return fallback;
@@ -36,6 +46,78 @@
     var el = document.getElementById(canvasId);
     if (!el || !el.parentNode) return;
     el.parentNode.innerHTML = '<div class="secdash-chart-empty">' + message + '</div>';
+  }
+
+  function commonLegendOptions() {
+    return {
+      position: 'bottom',
+      labels: {
+        usePointStyle: true,
+        boxWidth: 10,
+        boxHeight: 10,
+        padding: 14,
+        font: {
+          size: 11,
+          weight: '600'
+        }
+      }
+    };
+  }
+
+  function commonCartesianOptions(stepSize) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      resizeDelay: 120,
+      layout: {
+        padding: {
+          top: 4,
+          right: 8,
+          bottom: 2,
+          left: 2
+        }
+      },
+      plugins: {
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.92)',
+          titleColor: '#f8fafc',
+          bodyColor: '#e2e8f0',
+          cornerRadius: 8,
+          padding: 10,
+          displayColors: true
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#64748b',
+            font: {
+              size: 11
+            },
+            maxRotation: 35,
+            minRotation: 0
+          },
+          grid: {
+            color: 'rgba(148,163,184,0.18)',
+            drawBorder: false
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: '#64748b',
+            font: {
+              size: 11
+            },
+            stepSize: stepSize || undefined
+          },
+          grid: {
+            color: 'rgba(148,163,184,0.22)',
+            drawBorder: false
+          }
+        }
+      }
+    };
   }
 
   function initBirthdaysPanel() {
@@ -94,7 +176,12 @@
             { label: 'Visitantes', data: visitantes, borderColor: '#155e75', backgroundColor: 'rgba(21,94,117,0.12)', fill: true, tension: 0.3 }
           ]
         },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+        options: Object.assign(commonCartesianOptions(), {
+          plugins: {
+            legend: commonLegendOptions(),
+            tooltip: commonCartesianOptions().plugins.tooltip
+          }
+        })
       });
     }
 
@@ -106,15 +193,40 @@
     }
     if (pieCtx) {
       new Chart(pieCtx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
           labels: readJsonScript('pie-labels-data', []),
           datasets: [{
             data: pieValues,
-            backgroundColor: ['#0d8281', '#0f766e', '#0e7490', '#155e75', '#0891b2', '#334155', '#1e293b', '#14b8a6']
+            backgroundColor: ['#0d8281', '#0f766e', '#0e7490', '#155e75', '#0891b2', '#334155', '#1e293b', '#14b8a6'],
+            borderColor: '#ffffff',
+            borderWidth: 2,
+            hoverOffset: 4
           }]
         },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '40%',
+          layout: {
+            padding: {
+              top: 8,
+              right: 8,
+              bottom: 0,
+              left: 8
+            }
+          },
+          plugins: {
+            legend: commonLegendOptions(),
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.92)',
+              titleColor: '#f8fafc',
+              bodyColor: '#e2e8f0',
+              cornerRadius: 8,
+              padding: 10
+            }
+          }
+        }
       });
     }
 
@@ -131,7 +243,12 @@
           labels: readJsonScript('status-labels-data', []),
           datasets: [{ label: 'Total', data: statusValues, backgroundColor: '#0d8281', borderColor: '#0a6665', borderWidth: 2 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: Object.assign(commonCartesianOptions(), {
+          plugins: {
+            legend: { display: false },
+            tooltip: commonCartesianOptions().plugins.tooltip
+          }
+        })
       });
     }
 
@@ -148,7 +265,12 @@
           labels: readJsonScript('genero-labels-data', []),
           datasets: [{ label: 'Total', data: generoValues, backgroundColor: '#0f766e', borderColor: '#115e59', borderWidth: 2 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: Object.assign(commonCartesianOptions(), {
+          plugins: {
+            legend: { display: false },
+            tooltip: commonCartesianOptions().plugins.tooltip
+          }
+        })
       });
     }
 
@@ -165,7 +287,12 @@
           labels: readJsonScript('faixa-labels-data', []),
           datasets: [{ label: 'Total', data: faixaValues, backgroundColor: '#0e7490', borderColor: '#155e75', borderWidth: 2 }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: Object.assign(commonCartesianOptions(), {
+          plugins: {
+            legend: { display: false },
+            tooltip: commonCartesianOptions().plugins.tooltip
+          }
+        })
       });
     }
 
@@ -182,7 +309,12 @@
           labels: readJsonScript('categoria-evento-labels-data', []),
           datasets: [{ label: 'Participacoes', data: categoriaValues, backgroundColor: '#0f766e' }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        options: Object.assign(commonCartesianOptions(1), {
+          plugins: {
+            legend: { display: false },
+            tooltip: commonCartesianOptions(1).plugins.tooltip
+          }
+        })
       });
     }
   }

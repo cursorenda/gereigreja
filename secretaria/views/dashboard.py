@@ -742,7 +742,7 @@ def salvar_nota_usuario(request):
 @login_required
 @page_access_required('dashboard_secretaria')
 def dashboard(request):
-    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, user_tem_grupo
+    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, TESOUREIRO, user_tem_grupo
     if request.user.is_superuser:
         return redirect('admin:index')
     if (user_tem_grupo(request.user, MEMBRO_COMUM)
@@ -880,6 +880,12 @@ def dashboard(request):
         total_pendencias_cadastro,
     )
 
+    pode_ver_alerta_financeiro = user_tem_grupo(request.user, TESOUREIRO)
+    pode_ver_alerta_assinatura = (
+        user_tem_grupo(request.user, ADMIN_MINISTERIO)
+        or user_tem_grupo(request.user, LIDERANCA_FINANCEIRA)
+    )
+
     context = {
         'status_data_json': json.dumps(status_data_list),
         'status_labels_json': json.dumps([item['status'] for item in status_data_list]),
@@ -926,6 +932,8 @@ def dashboard(request):
         'total_tags': total_tags,
         'total_associacoes': total_associacoes,
         'insights_dashboard': insights_dashboard,
+        'pode_ver_alerta_financeiro': pode_ver_alerta_financeiro,
+        'pode_ver_alerta_assinatura': pode_ver_alerta_assinatura,
     }
 
     igrejas_permitidas_ctx = getattr(request, 'igrejas_permitidas', Igreja.objects.none())
