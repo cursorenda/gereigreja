@@ -828,6 +828,9 @@ def dashboard(request):
     periodo_info = _parse_periodo_dashboard(request, hoje_data)
     data_inicio_periodo = periodo_info['data_inicio']
     data_fim_periodo = periodo_info['data_fim']
+    dias_periodo = max((data_fim_periodo - data_inicio_periodo).days + 1, 1)
+    periodo_anterior_fim = data_inicio_periodo - timedelta(days=1)
+    periodo_anterior_inicio = periodo_anterior_fim - timedelta(days=dias_periodo - 1)
 
     total_pessoas_igreja = Membro.objects.filter(igreja__in=igrejas_filtro).count()
     membros_para_relatorios = Membro.objects.filter(
@@ -844,6 +847,10 @@ def dashboard(request):
     membros_base_periodo = membros_base_para_grafico_status.filter(
         data_entrada__isnull=False,
         data_entrada__range=(data_inicio_periodo, data_fim_periodo),
+    )
+    membros_base_periodo_anterior = membros_base_para_grafico_status.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(periodo_anterior_inicio, periodo_anterior_fim),
     )
 
     status_data_qs = membros_base_periodo.values('status_pessoa__nome').annotate(
@@ -872,6 +879,10 @@ def dashboard(request):
     faixa_etaria_data = _calcular_faixas_etarias(membros_para_relatorios_periodo, idades)
 
     novos_membros_periodo = membros_para_relatorios_periodo.count()
+    novos_membros_periodo_anterior = membros_para_relatorios.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(periodo_anterior_inicio, periodo_anterior_fim),
+    ).count()
     aniversariantes_mes_atual_count = membros_para_relatorios.filter(nascimento__month=hoje_data.month).count()
 
     idades_para_media = _idades_lista(membros_para_relatorios, hoje_data)
@@ -900,6 +911,44 @@ def dashboard(request):
         Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
     )
     total_pendencias_cadastro_periodo = pendencias_cadastro_periodo.count()
+    total_pendencias_cadastro_periodo_anterior = membros_para_relatorios.filter(
+        data_entrada__isnull=False,
+        data_entrada__range=(periodo_anterior_inicio, periodo_anterior_fim),
+    ).filter(
+        Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
+    ).count()
+
+    total_visitantes_periodo = membros_base_periodo.filter(tipo_pessoa__nome__iexact='Visitante').count()
+    total_visitantes_periodo_anterior = membros_base_periodo_anterior.filter(
+        tipo_pessoa__nome__iexact='Visitante'
+    ).count()
+
+    def _comparativo_card(label, atual, anterior, melhora_quando='up'):
+        diferenca = atual - anterior
+        if diferenca == 0:
+            tone = 'is-neutral'
+            icon = 'fas fa-minus'
+        else:
+            subiu = diferenca > 0
+            melhorou = subiu if melhora_quando == 'up' else not subiu
+            tone = 'is-positive' if melhorou else 'is-warning'
+            icon = 'fas fa-arrow-up' if subiu else 'fas fa-arrow-down'
+
+        return {
+            'label': label,
+            'atual': atual,
+            'anterior': anterior,
+            'diferenca': diferenca,
+            'diferenca_label': f"{diferenca:+d}",
+            'tone': tone,
+            'icon': icon,
+        }
+
+    comparativo_periodo_cards = [
+        _comparativo_card('Entradas de membros', novos_membros_periodo, novos_membros_periodo_anterior, 'up'),
+        _comparativo_card('Pendencias cadastrais', total_pendencias_cadastro_periodo, total_pendencias_cadastro_periodo_anterior, 'down'),
+        _comparativo_card('Visitantes registrados', total_visitantes_periodo, total_visitantes_periodo_anterior, 'up'),
+    ]
 
     igrejas_ids = membros_para_relatorios.values_list('igreja_id', flat=True).distinct()
     contas_vencidas = ContaPagar.objects.filter(
@@ -995,6 +1044,8 @@ def dashboard(request):
         'total_tags': total_tags,
         'total_associacoes': total_associacoes,
         'insights_dashboard': insights_dashboard,
+        'comparativo_periodo_cards': comparativo_periodo_cards,
+        'periodo_anterior_label': f"{periodo_anterior_inicio.strftime('%d/%m/%Y')} a {periodo_anterior_fim.strftime('%d/%m/%Y')}",
         'dashboard_visibility': dashboard_visibility,
         # Compatibilidade temporaria para evitar quebra em templates/partials legados.
         'pode_ver_alerta_financeiro': dashboard_visibility['alertas']['financeiro'],

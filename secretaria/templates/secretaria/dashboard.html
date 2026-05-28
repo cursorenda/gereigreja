@@ -223,6 +223,24 @@
       <p>Indicadores de apoio para identificar tendência e priorizar próximos acompanhamentos.</p>
     </div>
 
+    {% if comparativo_periodo_cards %}
+    <div class="secdash-mini-trend-grid" aria-label="Comparativo objetivo do periodo">
+      {% for card in comparativo_periodo_cards %}
+      <article class="secdash-mini-trend-card {{ card.tone }}">
+        <div class="secdash-mini-trend-head">
+          <span>{{ card.label }}</span>
+          <strong><i class="{{ card.icon }}"></i> {{ card.diferenca_label }}</strong>
+        </div>
+        <div class="secdash-mini-trend-meta">
+          <span>Atual: <strong>{{ card.atual }}</strong></span>
+          <span>Anterior: <strong>{{ card.anterior }}</strong></span>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    <p class="secdash-mini-trend-caption">Comparação com janela anterior equivalente: {{ periodo_anterior_label }}.</p>
+    {% endif %}
+
     <div class="secdash-insights-grid">
       {% for insight in insights_dashboard %}
       <article class="secdash-insight-card {{ insight.tone }}">
