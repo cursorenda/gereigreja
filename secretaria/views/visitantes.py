@@ -47,7 +47,11 @@ def lista_visitantes(request):
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '')
     igreja_id = request.GET.get('igreja')
-    visitantes = _membros_queryset_por_escopo(request).filter(tipo_pessoa__nome__iexact='Visitante')
+    visitantes = (
+        _membros_queryset_por_escopo(request)
+        .filter(tipo_pessoa__nome__iexact='Visitante')
+        .order_by('-data_primeira_visita', 'nome', 'chave')
+    )
     if query:
         visitantes = visitantes.filter(
             Q(nome__icontains=query) | Q(telefone__icontains=query) | Q(email__icontains=query)
@@ -457,6 +461,7 @@ def ajax_get_presencas_evento(request):
 # ---------------------------------------------------------------------------
 
 @login_required
+@page_access_required('recepcao_visitantes')
 def cadastrar_visitante(request):
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)

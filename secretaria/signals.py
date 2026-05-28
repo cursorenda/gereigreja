@@ -61,13 +61,18 @@ import unicodedata, re
 @receiver(post_save, sender=Membro)
 def cria_evento_entrada_membro(sender, instance, created, **kwargs):
     if created and instance.data_entrada:
+        data_entrada = instance.data_entrada
+        if data_entrada:
+            from datetime import date, datetime
+            from django.utils.timezone import get_current_timezone, is_naive, make_aware
+
+            if isinstance(data_entrada, date) and not isinstance(data_entrada, datetime):
+                data_entrada = datetime.combine(data_entrada, datetime.min.time())
+            if is_naive(data_entrada):
+                data_entrada = make_aware(data_entrada, get_current_timezone())
+
         # Evita duplicidade
-        if not TimelineEvent.objects.filter(membro=instance, tipo_evento='entrada', data=instance.data_entrada).exists():
-            data_entrada = instance.data_entrada
-            if data_entrada and not hasattr(data_entrada, 'tzinfo'):
-                from datetime import datetime
-                from django.utils.timezone import make_aware, get_current_timezone
-                data_entrada = make_aware(datetime.combine(data_entrada, datetime.min.time()), get_current_timezone())
+        if not TimelineEvent.objects.filter(membro=instance, tipo_evento='entrada', data=data_entrada).exists():
             TimelineEvent.objects.create(
                 membro=instance,
                 data=data_entrada,

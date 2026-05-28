@@ -34,13 +34,18 @@ def _can_view_internal_menu(user):
 
 
 def _can_manage_reception(user):
-    from configuracao.models import Ministerio
-
     return user_tem_qualquer_grupo(user, [
-        ADMIN_MINISTERIO,
         SECRETARIO_LOCAL,
-        EQUIPE_RECEPCAO,
-    ]) or Ministerio.objects.filter(administrador_principal=user).exists()
+        PASTOR_LOCAL,
+    ])
+
+
+def _can_manage_secretaria_base(user):
+    """Base única para telas da Secretaria: Secretaria Local + Pastor Local."""
+    return user_tem_qualquer_grupo(user, [
+        SECRETARIO_LOCAL,
+        PASTOR_LOCAL,
+    ])
 
 
 def _is_active_ebd_professor(user):
@@ -60,21 +65,15 @@ def _is_active_ebd_professor(user):
 
 PAGE_ACCESS_RULES = {
     'menu_interno': _can_view_internal_menu,
-    'dashboard_secretaria': lambda user: user_tem_qualquer_grupo(user, [
-        ADMIN_MINISTERIO,
-        LIDERANCA_SECRETARIA,
-        PASTOR_REGIONAL,
-        PASTOR_LOCAL,
-        SECRETARIO_LOCAL,
-    ]) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'secretaria_pessoas': lambda user: user_pode_gerenciar_secretaria(user) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'secretaria_transferencias': lambda user: user_pode_gerenciar_secretaria(user) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'secretaria_cargos': lambda user: user_pode_gerenciar_cargos(user) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'secretaria_grupos_casa': lambda user: user_pode_gerenciar_secretaria(user) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'secretaria_acompanhamentos': lambda user: user_pode_gerenciar_secretaria(user) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'secretaria_tags': lambda user: user_pode_gerenciar_secretaria(user) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'secretaria_relatorios': lambda user: user_pode_gerenciar_secretaria(user) and usuario_pode_usar_modulo(user, 'secretaria'),
-    'recepcao_visitantes': _can_manage_reception,
+    'dashboard_secretaria': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'secretaria_pessoas': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'secretaria_transferencias': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'secretaria_cargos': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'secretaria_grupos_casa': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'secretaria_acompanhamentos': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'secretaria_tags': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'secretaria_relatorios': lambda user: _can_manage_secretaria_base(user) and usuario_pode_usar_modulo(user, 'secretaria'),
+    'recepcao_visitantes': lambda user: _can_manage_reception(user) and usuario_pode_usar_modulo(user, 'secretaria'),
     'agenda': lambda user: user_pode_gerenciar_eventos(user) and usuario_pode_usar_modulo(user, 'agenda'),
     'eventos': lambda user: user_pode_gerenciar_eventos(user) and usuario_pode_usar_modulo(user, 'eventos'),
     'escola_biblica': lambda user: user_tem_qualquer_grupo(user, [

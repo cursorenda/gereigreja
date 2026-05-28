@@ -1,0 +1,17 @@
+<article class="secdash-action-card {{ tone }}">
+  <div class="top">
+    <h3><i class="fas fa-{{ icon }}"></i> {{ title }}</h3>
+  </div>
+  <p>{{ description }}</p>
+  <div class="badge-value">{{ badge_value }}</div>
+  <div class="secdash-action-footer">
+    {% if primary_href %}
+    <a href="{{ primary_href }}" class="btn btn-light btn-sm">{{ primary_label|default:'Abrir gestão' }}</a>
+    {% else %}
+    <button type="button" class="btn btn-light btn-sm" disabled>{{ unavailable_label|default:'Gestão indisponível' }}</button>
+    {% endif %}
+    {% if secondary_href and secondary_label %}
+    <a href="{{ secondary_href }}" class="secdash-action-link">{{ secondary_label }}</a>
+    {% endif %}
+  </div>
+</article>

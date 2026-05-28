@@ -1,3 +1,33 @@
+## v1.13.6 — 27/05/2026
+✅ **Dashboard da Secretaria — QA Funcional, Permissões e Robustez Operacional**
+
+### Entregas — Governança de Acesso
+- Regra de acesso do dashboard consolidada e coberta por testes para os perfis permitidos.
+- Cobertura explícita de bloqueio para perfis fora da regra atual da Secretaria.
+- Consistência entre exibição no dashboard e proteção real por rota reforçada.
+
+### Entregas — Qualidade Operacional
+- Separação das métricas de pendência cadastral entre **base ativa** e **período filtrado**.
+- Exportação CSV de resumo alinhada à mesma semântica da tela para evitar divergência de leitura.
+- Validação automatizada de CTAs do dashboard para evitar ação visível com retorno 403 em perfis permitidos.
+
+### Entregas — Estabilidade Técnica
+- Ajuste de ordenação determinística na lista de visitantes antes da paginação.
+- Ajuste de criação/checagem de `TimelineEvent` com `datetime` timezone-aware.
+- Redução de ruído técnico da suíte da Secretaria (warnings de datetime ingênuo removidos nessa frente).
+
+### Entregas — Cobertura de Período e Estado
+- Testes para presets de período (`30d`, `90d`, `6m`, `12m`).
+- Testes para período personalizado (normalização de datas invertidas e fallback seguro para custom inválido).
+- Cenário neutro validado para recortes sem sinal crítico.
+
+### Impacto
+- Menor risco de regressão em permissões e navegação operacional.
+- Maior previsibilidade de leitura para liderança local da Secretaria.
+- Base mais segura para fechamento de release sem mudanças de schema.
+
+---
+
 ## v1.13.5 — 27/05/2026
 🧭 **Dashboard da Secretaria — Prioridade Operacional, Claridade Visual e Polimento Final**
 

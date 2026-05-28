@@ -115,6 +115,61 @@ def _assinatura_alerta(ministerio, hoje):
     return None
 
 
+def _dashboard_visibility_flags(user):
+    """Centraliza a visibilidade dos blocos do dashboard por perfil."""
+    from contas.constants import (
+        ADMIN_MINISTERIO,
+        LIDERANCA_FINANCEIRA,
+        TESOUREIRO,
+        user_tem_grupo,
+    )
+    from contas.page_permissions import user_can_access_page
+
+    can_manage_secretaria = user_can_access_page(user, 'secretaria_pessoas')
+    can_manage_cargos = user_can_access_page(user, 'secretaria_cargos')
+    can_manage_reception = user_can_access_page(user, 'recepcao_visitantes')
+    can_manage_grupos = user_can_access_page(user, 'secretaria_grupos_casa')
+    can_manage_acompanhamentos = user_can_access_page(user, 'secretaria_acompanhamentos')
+    can_manage_tags = user_can_access_page(user, 'secretaria_tags')
+    can_view_relatorios = user_can_access_page(user, 'secretaria_relatorios')
+    can_view_financial_alert = user_tem_grupo(user, TESOUREIRO)
+    can_view_signature_alert = (
+        user_tem_grupo(user, ADMIN_MINISTERIO)
+        or user_tem_grupo(user, LIDERANCA_FINANCEIRA)
+    )
+
+    cards = {
+        'pessoas': can_manage_secretaria,
+        'recepcao': can_manage_reception,
+        'cargos': can_manage_cargos,
+        'grupos': can_manage_grupos,
+        'relatorios': can_view_relatorios,
+        'acompanhamentos': can_manage_acompanhamentos,
+        'tags': can_manage_tags,
+        'associacoes': can_manage_secretaria,
+    }
+
+    quick_actions = {
+        'cadastrar_pessoa': can_manage_secretaria,
+        'registrar_visitante': can_manage_reception,
+        'iniciar_acompanhamento': can_manage_acompanhamentos,
+    }
+
+    return {
+        'alertas': {
+            'financeiro': can_view_financial_alert,
+            'assinatura': can_view_signature_alert,
+            'exibir_algum': can_view_financial_alert or can_view_signature_alert,
+        },
+        'cards': cards,
+        'quick_actions': quick_actions,
+        'secoes': {
+            'operacao': any(cards.values()),
+            'acoes_rapidas': any(quick_actions.values()),
+        },
+    }
+
+
 def _add_months(base_date, months_delta):
     """Retorna o primeiro dia do mês deslocado em months_delta."""
     month_index = (base_date.month - 1) + months_delta
@@ -742,7 +797,7 @@ def salvar_nota_usuario(request):
 @login_required
 @page_access_required('dashboard_secretaria')
 def dashboard(request):
-    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, TESOUREIRO, user_tem_grupo
+    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, user_tem_grupo
     if request.user.is_superuser:
         return redirect('admin:index')
     if (user_tem_grupo(request.user, MEMBRO_COMUM)
@@ -830,10 +885,15 @@ def dashboard(request):
     ).order_by('passed_this_year', 'nascimento_month', 'nascimento_day')
     aniversariantes_proximos = list(aniversariantes_qs[:10])
 
-    pendencias_cadastro = membros_para_relatorios_periodo.filter(
+    pendencias_cadastro_base = membros_para_relatorios.filter(
         Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
     )
-    total_pendencias_cadastro = pendencias_cadastro.count()
+    total_pendencias_cadastro = pendencias_cadastro_base.count()
+
+    pendencias_cadastro_periodo = membros_para_relatorios_periodo.filter(
+        Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
+    )
+    total_pendencias_cadastro_periodo = pendencias_cadastro_periodo.count()
 
     igrejas_ids = membros_para_relatorios.values_list('igreja_id', flat=True).distinct()
     contas_vencidas = ContaPagar.objects.filter(
@@ -877,14 +937,10 @@ def dashboard(request):
         data_inicio_periodo,
         data_fim_periodo,
         novos_membros_periodo,
-        total_pendencias_cadastro,
+        total_pendencias_cadastro_periodo,
     )
 
-    pode_ver_alerta_financeiro = user_tem_grupo(request.user, TESOUREIRO)
-    pode_ver_alerta_assinatura = (
-        user_tem_grupo(request.user, ADMIN_MINISTERIO)
-        or user_tem_grupo(request.user, LIDERANCA_FINANCEIRA)
-    )
+    dashboard_visibility = _dashboard_visibility_flags(request.user)
 
     context = {
         'status_data_json': json.dumps(status_data_list),
@@ -907,6 +963,7 @@ def dashboard(request):
         'total_pessoas_igreja': total_pessoas_igreja,
         'novos_membros_ultimo_mes': novos_membros_periodo,
         'total_pendencias_cadastro': total_pendencias_cadastro,
+        'total_pendencias_cadastro_periodo': total_pendencias_cadastro_periodo,
         'total_contas_vencidas': total_contas_vencidas,
         'valor_total_contas_vencidas': valor_total_contas_vencidas,
         'assinatura_alerta': assinatura,
@@ -932,8 +989,10 @@ def dashboard(request):
         'total_tags': total_tags,
         'total_associacoes': total_associacoes,
         'insights_dashboard': insights_dashboard,
-        'pode_ver_alerta_financeiro': pode_ver_alerta_financeiro,
-        'pode_ver_alerta_assinatura': pode_ver_alerta_assinatura,
+        'dashboard_visibility': dashboard_visibility,
+        # Compatibilidade temporaria para evitar quebra em templates/partials legados.
+        'pode_ver_alerta_financeiro': dashboard_visibility['alertas']['financeiro'],
+        'pode_ver_alerta_assinatura': dashboard_visibility['alertas']['assinatura'],
     }
 
     igrejas_permitidas_ctx = getattr(request, 'igrejas_permitidas', Igreja.objects.none())
@@ -995,7 +1054,10 @@ def exportar_dashboard_csv(request):
     writer.writerow([])
 
     if dataset == 'resumo':
-        pendencias_cadastro = membros_para_relatorios_periodo.filter(
+        pendencias_cadastro_base = membros_para_relatorios.filter(
+            Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
+        ).count()
+        pendencias_cadastro_periodo = membros_para_relatorios_periodo.filter(
             Q(nascimento__isnull=True) | Q(email__isnull=True) | Q(email='')
         ).count()
         igrejas_ids = membros_para_relatorios.values_list('igreja_id', flat=True).distinct()
@@ -1007,7 +1069,8 @@ def exportar_dashboard_csv(request):
         writer.writerow(['indicador', 'valor'])
         writer.writerow(['novos_membros_periodo', membros_para_relatorios_periodo.count()])
         writer.writerow(['membros_ativos_total_escopo', membros_para_relatorios.count()])
-        writer.writerow(['pendencias_cadastro_periodo', pendencias_cadastro])
+        writer.writerow(['pendencias_cadastro_base_ativa', pendencias_cadastro_base])
+        writer.writerow(['pendencias_cadastro_periodo', pendencias_cadastro_periodo])
         writer.writerow(['contas_vencidas_periodo', contas_vencidas.count()])
         writer.writerow(['valor_total_contas_vencidas_periodo', contas_vencidas.aggregate(total=Sum('valor'))['total'] or 0])
         return response

@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET
 
 from core.decorators import page_access_required, verificar_assinatura_valida
 from core.utils import get_ministerio_or_error
+from core.decorators import page_access_required
 from secretaria.views._helpers import _membros_queryset_por_escopo
 from secretaria.models import (
     Membro, StatusHistorico, StatusPessoa, TimelineEvent, TipoPessoa,
@@ -213,6 +214,7 @@ def linha_do_tempo(request):
 
 
 @login_required
+@page_access_required('dashboard_secretaria')
 def relatorio_reuniao_membros(request):
     """Gera relatório HTML para impressão da reunião de membros."""
     ministerio = get_ministerio_or_error(request)
