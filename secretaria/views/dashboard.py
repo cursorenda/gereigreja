@@ -557,6 +557,8 @@ def index(request):
     genero_data_normalized = [{'genero': k, 'total': v} for k, v in aggregated_genero.items()]
 
     hoje_data = date.today()
+    data_inicio_periodo = _add_months(hoje_data.replace(day=1), -11)
+    data_fim_periodo = hoje_data
     idades = _idades_lista(membros_para_relatorios, hoje_data)
     faixa_etaria_data = _calcular_faixas_etarias(membros_para_relatorios, idades)
 
@@ -592,7 +594,11 @@ def index(request):
     hoje = hoje_data
     assinatura = _assinatura_alerta(ministerio, hoje)
 
-    meses_labels, evolucao_por_tipo = _series_evolucao_por_tipo(membros_base_para_grafico_status, hoje_data)
+    meses_labels, evolucao_por_tipo = _series_evolucao_por_tipo(
+        membros_base_para_grafico_status,
+        data_inicio_periodo,
+        data_fim_periodo,
+    )
     meses_evolucao, membros_evolucao, novos_membros_por_mes = _series_mensal_membros(membros_para_relatorios, hoje)
     aniversariantes_ontem, aniversariantes_hoje, aniversariantes_amanha = _aniversariantes_janela(
         membros_para_relatorios,

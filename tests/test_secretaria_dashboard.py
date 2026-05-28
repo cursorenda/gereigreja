@@ -85,6 +85,13 @@ class SecretariaDashboardPendenciasTest(TestCase):
         self.assertContains(response, 'Pessoas da base ativa com dados essenciais pendentes')
         self.assertContains(response, '1 registro(s) com pendência no período filtrado.')
 
+    def test_index_secretaria_nao_quebra_com_serie_evolucao(self):
+        self.client.force_login(self.usuario_secretaria)
+
+        response = self.client.get(reverse('secretaria:index'))
+
+        self.assertEqual(response.status_code, 200)
+
     def test_dashboard_presets_de_periodo(self):
         self.client.force_login(self.usuario_secretaria)
 
