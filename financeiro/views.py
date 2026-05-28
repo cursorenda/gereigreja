@@ -328,7 +328,10 @@ def painel_financeiro(request):
 
         variacao_receitas_pct  = calc_variacao_pct(receitas_mes, receitas_mes_anterior)
         variacao_despesas_pct  = calc_variacao_pct(despesas_mes, despesas_mes_anterior)
+        diferenca_receitas = receitas_mes - receitas_mes_anterior
+        diferenca_despesas = despesas_mes - despesas_mes_anterior
         saldo_mes_anterior = receitas_mes_anterior - despesas_mes_anterior
+        diferenca_saldo = saldo_mes - saldo_mes_anterior
         variacao_saldo_pct = calc_variacao_pct(saldo_mes, saldo_mes_anterior)
         # --- FIM TENDÊNCIA ---
 
@@ -561,6 +564,9 @@ def painel_financeiro(request):
             'despesas_mes': despesas_mes,
             'receitas_mes_anterior': receitas_mes_anterior,
             'despesas_mes_anterior': despesas_mes_anterior,
+            'diferenca_receitas': diferenca_receitas,
+            'diferenca_despesas': diferenca_despesas,
+            'diferenca_saldo': diferenca_saldo,
             'periodo_tendencia_label': f"{primeiro_dia_mes_ant.strftime('%d/%m/%Y')} a {ultimo_dia_mes_ant.strftime('%d/%m/%Y')}",
             # Filtro de data livre
             'data_inicio_filtro': data_inicio_filtro_str,

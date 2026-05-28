@@ -312,7 +312,7 @@
             {% elif variacao_receitas_pct < 0 %}<i class="fas fa-arrow-trend-down"></i> {{ variacao_receitas_pct }}%
             {% else %}<i class="fas fa-minus"></i> Estável{% endif %}
             <span class="fp-trend-meta"
-                  title="Atual: R$ {{ receitas_mes|floatformat:2|intcomma }} | Mês anterior ({{ periodo_tendencia_label }}): R$ {{ receitas_mes_anterior|floatformat:2|intcomma }}">
+                  title="Atual: R$ {{ receitas_mes|floatformat:2|intcomma }} | Mês anterior ({{ periodo_tendencia_label }}): R$ {{ receitas_mes_anterior|floatformat:2|intcomma }} | Dif.: {% if diferenca_receitas > 0 %}+{% endif %}R$ {{ diferenca_receitas|floatformat:2|intcomma }}">
               vs mês anterior <i class="fas fa-circle-info"></i>
             </span>
           </div>
@@ -353,7 +353,7 @@
             {% elif variacao_despesas_pct < 0 %}<i class="fas fa-arrow-trend-down"></i> {{ variacao_despesas_pct }}%
             {% else %}<i class="fas fa-minus"></i> Estável{% endif %}
             <span class="fp-trend-meta"
-                  title="Atual: R$ {{ despesas_mes|floatformat:2|intcomma }} | Mês anterior ({{ periodo_tendencia_label }}): R$ {{ despesas_mes_anterior|floatformat:2|intcomma }}">
+                  title="Atual: R$ {{ despesas_mes|floatformat:2|intcomma }} | Mês anterior ({{ periodo_tendencia_label }}): R$ {{ despesas_mes_anterior|floatformat:2|intcomma }} | Dif.: {% if diferenca_despesas > 0 %}+{% endif %}R$ {{ diferenca_despesas|floatformat:2|intcomma }}">
               vs mês anterior <i class="fas fa-circle-info"></i>
             </span>
           </div>
@@ -393,7 +393,8 @@
 
           <div class="fp-kpi-actions">
 
-            <span class="fp-btn fp-btn-ghost" style="cursor:default">Período selecionado</span>
+            <span class="fp-btn fp-btn-ghost" style="cursor:default"
+              title="Saldo mês atual: R$ {{ saldo_mes|floatformat:2|intcomma }} | Mês anterior ({{ periodo_tendencia_label }}): R$ {{ saldo_mes_anterior|floatformat:2|intcomma }} | Dif.: {% if diferenca_saldo > 0 %}+{% endif %}R$ {{ diferenca_saldo|floatformat:2|intcomma }}{% if variacao_saldo_pct is not None %} | Variação: {% if variacao_saldo_pct > 0 %}+{% endif %}{{ variacao_saldo_pct }}%{% endif %}">Período selecionado</span>
 
           </div>
 
