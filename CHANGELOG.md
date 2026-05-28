@@ -1,3 +1,46 @@
+## v1.13.8 — 27/05/2026
+📊 **Dashboard da Secretaria — Comparativo Enxuto de Período nos Sinais da Semana**
+
+### Entregas
+- Inclusão de mini cards de comparativo no bloco **Sinais da Semana** com leitura objetiva de:
+  - Entradas de membros
+  - Pendências cadastrais
+  - Visitantes registrados
+- Exibição consolidada por indicador com **Atual / Anterior / Diferença absoluta**.
+- Regra semântica de tom para facilitar decisão:
+  - Crescimento positivo para entradas e visitantes.
+  - Redução positiva para pendências cadastrais.
+- Adição de legenda de referência da janela anterior equivalente no mesmo bloco.
+
+### Impacto
+- Melhor leitura operacional sem depender apenas de variação percentual.
+- Comparação mais acionável para priorização semanal da Secretaria.
+- Sem migrações de banco e sem breaking changes de API pública.
+
+---
+
+## v1.13.7 — 27/05/2026
+💡 **Dashboard Financeiro — Tendência Mais Informativa com Interface Enxuta**
+
+### Entregas
+- Ajuste dos cards de tendência para manter visual limpo, sem linhas extras no corpo dos KPIs.
+- Enriquecimento dos tooltips de tendência em **Receitas** e **Despesas** com:
+  - Valor atual
+  - Valor do mês anterior
+  - Diferença absoluta (R$)
+- Enriquecimento do tooltip do card de **Saldo** com:
+  - Saldo do mês atual
+  - Saldo do mês anterior
+  - Diferença absoluta (R$)
+  - Variação percentual quando houver base comparável
+
+### Impacto
+- Mais contexto para decisão sem aumento de carga visual nos cards principais.
+- Melhor equilíbrio entre clareza analítica e legibilidade do painel financeiro.
+- Sem migrações de banco e sem breaking changes de API pública.
+
+---
+
 ## v1.13.6 — 27/05/2026
 ✅ **Dashboard da Secretaria — QA Funcional, Permissões e Robustez Operacional**
 
