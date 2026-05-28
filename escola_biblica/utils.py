@@ -50,15 +50,27 @@ def gerar_domingos_periodo(data_inicio, data_fim):
     """
     Retorna lista de datas de todos os domingos entre data_inicio e data_fim (inclusive).
     """
-    domingos = []
+    return gerar_datas_semana_periodo(data_inicio, data_fim, dia_semana=6)
+
+
+def gerar_datas_semana_periodo(data_inicio, data_fim, dia_semana=6):
+    """
+    Retorna lista de datas de um dia da semana entre data_inicio e data_fim (inclusive).
+
+    dia_semana segue padrão do Python:
+    0=segunda ... 6=domingo.
+    """
+    if dia_semana is None or dia_semana < 0 or dia_semana > 6:
+        dia_semana = 6
+
+    datas = []
     atual = data_inicio
-    # Avança até o primeiro domingo
-    while atual.weekday() != 6:
+    while atual.weekday() != dia_semana:
         atual += datetime.timedelta(days=1)
     while atual <= data_fim:
-        domingos.append(atual)
+        datas.append(atual)
         atual += datetime.timedelta(days=7)
-    return domingos
+    return datas
 
 
 # Função para gerar lições para todos os domingos de todos os períodos e turmas

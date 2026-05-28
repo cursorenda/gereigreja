@@ -13,6 +13,49 @@ def _normalizar_texto(valor):
     texto_sem_acentos = ''.join(caractere for caractere in texto if not unicodedata.combining(caractere))
     return ' '.join(texto_sem_acentos.casefold().split())
 
+
+def _get_turma_ministerio(turma):
+    if turma is None:
+        return None
+
+    igreja = getattr(turma, 'igreja', None)
+    if igreja and getattr(igreja, 'ministerio', None):
+        return igreja.ministerio
+
+    classe = getattr(turma, 'classe', None)
+    if classe and getattr(classe, 'igreja', None) and getattr(classe.igreja, 'ministerio', None):
+        return classe.igreja.ministerio
+
+    membro = turma.membros.exclude(igreja__ministerio__isnull=True).select_related('igreja__ministerio').first()
+    if membro and membro.igreja and membro.igreja.ministerio:
+        return membro.igreja.ministerio
+
+    return None
+
+
+def _get_config_ebd_turma(turma):
+    from configuracao.models import ConfiguracaoSistema
+
+    ministerio = _get_turma_ministerio(turma)
+    if not ministerio:
+        return None
+    return ConfiguracaoSistema.objects.filter(ministerio=ministerio).first()
+
+
+def _get_periodo_ebd_turma_para_data(turma, data_referencia):
+    if turma is None or data_referencia is None:
+        return None
+
+    config = _get_config_ebd_turma(turma)
+    tipo_periodo = config.ebd_periodo if config and config.ebd_periodo else 'trimestre'
+
+    return PeriodoEBD.objects.filter(
+        ano_letivo=turma.ano_letivo,
+        tipo=tipo_periodo,
+        data_inicio__lte=data_referencia,
+        data_fim__gte=data_referencia,
+    ).first()
+
 # --- MODELO DEPARTAMENTO ---
 class Departamento(models.Model):
     nome = models.CharField(max_length=100, unique=True)
@@ -507,24 +550,29 @@ class Frequencia(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        from configuracao.models import ConfiguracaoSistema
+
         if self.data > timezone.now().date():
             raise ValidationError("Não é possível registrar frequência em data futura.")
-        # Validação do dia padrão da EBD
-        turma = getattr(self, 'aluno', None)
-        if turma and hasattr(self.aluno, 'turma') and self.aluno.turma:
-            ministerio = getattr(self.aluno.turma, 'classe', None)
-            if ministerio and hasattr(self.aluno.turma.classe, 'ministerio'):
-                ministerio = self.aluno.turma.classe.ministerio
-            else:
-                ministerio = None
-            if not ministerio and hasattr(self.aluno.turma, 'ministerio'):
-                ministerio = self.aluno.turma.ministerio
-            if ministerio:
-                config = ConfiguracaoSistema.objects.filter(ministerio=ministerio).first()
-                if config and config.ebd_dia_semana is not None:
-                    if self.data.weekday() != config.ebd_dia_semana:
-                        raise ValidationError(f"A chamada só pode ser registrada para o dia padrão da EBD: {config.get_ebd_dia_semana_display()}.")
+
+        turma = getattr(self.aluno, 'turma', None)
+        if turma is None:
+            return
+
+        periodo = _get_periodo_ebd_turma_para_data(turma, self.data)
+        if periodo is None:
+            raise ValidationError(
+                f"A frequência em {self.data.strftime('%d/%m/%Y')} está fora do período EBD configurado para a turma."
+            )
+
+        config = _get_config_ebd_turma(turma)
+        if config and config.ebd_dia_semana is not None and self.data.weekday() != config.ebd_dia_semana:
+            raise ValidationError(
+                f"A chamada só pode ser registrada para o dia padrão da EBD: {config.get_ebd_dia_semana_display()}."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.aluno} - {self.data} - {'Presente' if self.presente else 'Faltou'}"
@@ -542,6 +590,22 @@ class Licao(models.Model):
     professor = models.ForeignKey('secretaria.Membro', on_delete=models.SET_NULL, blank=True, null=True, related_name='licoes_ministradas')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['turma', 'data'], name='uq_licao_turma_data'),
+        ]
+
+    def clean(self):
+        periodo = _get_periodo_ebd_turma_para_data(self.turma, self.data)
+        if periodo is None:
+            raise ValidationError(
+                f"A lição em {self.data.strftime('%d/%m/%Y')} está fora do período EBD configurado para a turma."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.tema} - {self.data}"
@@ -571,12 +635,19 @@ class OfertaClasse(models.Model):
         if self.turma_id:
             if self.classe_id and self.turma.classe_id != self.classe_id:
                 raise ValidationError('A oferta deve usar a mesma classe vinculada na turma.')
+
+            periodo = _get_periodo_ebd_turma_para_data(self.turma, self.data)
+            if periodo is None:
+                raise ValidationError(
+                    f"A oferta em {self.data.strftime('%d/%m/%Y')} está fora do período EBD configurado para a turma."
+                )
         elif not self.classe_id:
             raise ValidationError('Informe a turma da oferta.')
 
     def save(self, *args, **kwargs):
         if self.turma_id:
             self.classe = self.turma.classe
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):

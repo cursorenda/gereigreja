@@ -1,3 +1,29 @@
+## v1.13.10 — 28/05/2026
+⚙️ **Escola Dominical (EBD) — Automação de Períodos/Lições + Governança Estrita de Dados por Período**
+
+### Entregas
+- Implementação de auto-sync da EBD para reduzir dependência de ação manual do usuário:
+  - Criação automática dos períodos do ano atual e do próximo ano conforme configuração ministerial.
+  - Geração automática de lições do período vigente (ou próximo) para turmas do escopo.
+  - Execução automática em pontos críticos de uso: dashboard EBD, chamada por turma e lista de turmas.
+- Novo utilitário para geração de datas por dia da semana configurado da EBD (não apenas domingo).
+- Governança reforçada no domínio da EBD com validações de período no backend:
+  - Lição só pode ser registrada dentro do período EBD válido da turma.
+  - Frequência só pode ser registrada dentro do período EBD válido e no dia da semana configurado.
+  - Oferta por turma só pode ser registrada dentro do período EBD válido.
+- Inclusão de constraint de unicidade para lições por `turma + data`.
+
+### Migrações
+- Nova migration em `escola_biblica`: criação da constraint `uq_licao_turma_data`.
+
+### Impacto
+- Menos fricção operacional: módulo EBD passa a funcionar de forma muito mais automática, sem exigir “gerar período” manual para uso cotidiano.
+- Maior confiabilidade analítica: relatórios, chamadas e indicadores ficam mais consistentes com o período oficial adotado.
+- Redução de inconsistências de dados ao bloquear registros fora do período válido.
+- Mudança de schema controlada (constraint em lições), sem breaking changes de API pública.
+
+---
+
 ## v1.13.9 — 28/05/2026
 📚 **Escola Dominical (EBD) — Governança de Período por Ministério + Padronização Premium do Dashboard**
 

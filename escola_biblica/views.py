@@ -2,6 +2,7 @@
 import logging
 from django.db.models import Count, Sum, Q, OuterRef, Subquery
 from django.utils.dateparse import parse_date
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from core.decorators import secretaria_ebd_required, user_passes_test_or_403, page_access_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -157,6 +158,106 @@ def get_ebd_dia_semana(request):
     if config and config.ebd_dia_semana is not None:
         return config.ebd_dia_semana
     return 6
+
+
+def _get_ebd_auto_sync_session_key(request, tipo_periodo, dia_semana):
+    perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
+    ministerio = getattr(perfil, 'ministerio', None)
+    ministerio_id = getattr(ministerio, 'id', 'global')
+    return f'ebd:auto-sync:{ministerio_id}:{tipo_periodo}:{dia_semana}'
+
+
+def auto_sync_ebd_periodos_e_licoes(request, force=False):
+    """
+    Garante de forma automática:
+    1) períodos do ano atual e próximo ano (conforme configuração ministerial);
+    2) lições do período vigente (ou próximo) para turmas do escopo.
+    """
+    if not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return
+
+    try:
+        from .models import AnoLetivo, Licao, PeriodoEBD, Turma
+        from .utils import gerar_datas_semana_periodo, gerar_periodos_ebd
+
+        hoje = timezone.now().date()
+        tipo_periodo = get_ebd_tipo_periodo(request)
+        dia_semana = get_ebd_dia_semana(request)
+        session_key = _get_ebd_auto_sync_session_key(request, tipo_periodo, dia_semana)
+
+        if not force and request.session.get(session_key) == hoje.isoformat():
+            return
+
+        anos = [hoje.year, hoje.year + 1]
+        anos_letivos = []
+
+        for ano in anos:
+            ano_letivo, _ = AnoLetivo.objects.get_or_create(ano=ano, defaults={'ativo': ano == hoje.year})
+            anos_letivos.append(ano_letivo)
+
+            for periodo in gerar_periodos_ebd(ano, tipo_periodo):
+                PeriodoEBD.objects.get_or_create(
+                    ano_letivo=ano_letivo,
+                    tipo=tipo_periodo,
+                    numero=periodo['numero'],
+                    defaults={
+                        'data_inicio': periodo['data_inicio'],
+                        'data_fim': periodo['data_fim'],
+                    },
+                )
+
+        periodo_referencia = PeriodoEBD.objects.filter(
+            ano_letivo__in=anos_letivos,
+            tipo=tipo_periodo,
+            data_inicio__lte=hoje,
+            data_fim__gte=hoje,
+        ).order_by('ano_letivo__ano', 'numero').first()
+
+        if periodo_referencia is None:
+            periodo_referencia = PeriodoEBD.objects.filter(
+                ano_letivo__in=anos_letivos,
+                tipo=tipo_periodo,
+                data_inicio__gte=hoje,
+            ).order_by('data_inicio').first()
+
+        if periodo_referencia is not None:
+            datas_aula = gerar_datas_semana_periodo(
+                periodo_referencia.data_inicio,
+                periodo_referencia.data_fim,
+                dia_semana=dia_semana,
+            )
+
+            turmas = filtrar_turmas_ebd(
+                Turma.objects.filter(ano_letivo=periodo_referencia.ano_letivo),
+                request,
+            ).order_by('id')
+
+            total_criadas = 0
+            periodo_nome = f"{periodo_referencia.get_tipo_display()} {periodo_referencia.numero}/{periodo_referencia.ano_letivo.ano}"
+            for turma in turmas:
+                for idx, data_aula in enumerate(datas_aula, start=1):
+                    _, criada = Licao.objects.get_or_create(
+                        turma=turma,
+                        data=data_aula,
+                        defaults={
+                            'tema': f'Lição {idx} - {periodo_nome}',
+                            'status': 'ativa',
+                        },
+                    )
+                    if criada:
+                        total_criadas += 1
+
+            if total_criadas:
+                logger.info(
+                    'Auto-sync EBD criou %s lições para %s (dia=%s)',
+                    total_criadas,
+                    periodo_nome,
+                    dia_semana,
+                )
+
+        request.session[session_key] = hoje.isoformat()
+    except Exception as exc:
+        logger.warning('Falha no auto-sync de periodos/licoes da EBD para user=%s: %s', request.user.pk, exc)
 
 
 def filtrar_queryset_ebd(queryset, request, igreja_lookup):
@@ -405,6 +506,7 @@ def chamada_presenca(request, turma_id):
     - Secretaria EBD / Superintendente EBD (todas as turmas)
     - Professor da turma (apenas sua turma)
     """
+    auto_sync_ebd_periodos_e_licoes(request)
     turma = get_object_or_404(filtrar_turmas_ebd(Turma.objects.all(), request), pk=turma_id)
     
     # Verifica permiss├úo (secretaria EBD ou professor da turma)
@@ -1937,6 +2039,7 @@ def classe_delete(request, pk):
 @page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def dashboard(request):
+    auto_sync_ebd_periodos_e_licoes(request)
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
     alunos = filtrar_alunos_ebd(Aluno.objects.all(), request)
     classes = filtrar_classes_ebd(Classe.objects.all(), request)
@@ -2458,6 +2561,7 @@ def aluno_create(request):
 @page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def turma_list(request):
+    auto_sync_ebd_periodos_e_licoes(request)
     now = date.today()
     anos_letivos = AnoLetivo.objects.order_by('-ano')
     ano_letivo_filtro = request.GET.get('ano_letivo')
