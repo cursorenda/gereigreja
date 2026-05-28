@@ -1,3 +1,22 @@
+## v1.13.9 — 28/05/2026
+📚 **Escola Dominical (EBD) — Governança de Período por Ministério + Padronização Premium do Dashboard**
+
+### Entregas
+- Governança central do período da EBD via configuração ministerial (`ConfiguracaoSistema.ebd_periodo`) aplicada nos fluxos principais do módulo.
+- Substituição de pontos com período fixo por leitura dinâmica da configuração no backend (incluindo chamada/presença e rotinas de cronograma/listagem).
+- Dashboard EBD atualizado para trabalhar com seleção por **Ano letivo + Período** do tipo configurado, com comparativo contra janela anterior equivalente.
+- Reposicionamento de filtros e elementos de contexto do cabeçalho para o mesmo padrão visual dos demais dashboards (especialmente Financeiro/Secretaria).
+- Breadcrumb padronizado para: **Home > Escola Dominical > Visão Geral**.
+- Ajuste de exibição do filtro de ano para formato sem localidade numérica (ex.: `2026`, sem `2.026`).
+
+### Impacto
+- Consistência funcional: o comportamento do módulo EBD passa a respeitar a configuração de período definida no ministério.
+- Consistência visual: header, filtros e chips de contexto alinhados ao padrão de UX dos dashboards do sistema.
+- Melhora de confiabilidade analítica ao comparar períodos equivalentes de forma configurável.
+- Sem migrações de banco e sem breaking changes de API pública.
+
+---
+
 ## v1.13.8 — 27/05/2026
 📊 **Dashboard da Secretaria — Comparativo Enxuto de Período nos Sinais da Semana**
 

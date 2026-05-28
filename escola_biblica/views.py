@@ -1,4 +1,4 @@
-# --- RELATÓRIO GERAL DO DIA DA EBD ---
+﻿# --- RELAT├ôRIO GERAL DO DIA DA EBD ---
 import logging
 from django.db.models import Count, Sum, Q, OuterRef, Subquery
 from django.utils.dateparse import parse_date
@@ -11,15 +11,15 @@ from secretaria.models import MembroCargo
 
 logger = logging.getLogger(__name__)
 
-# --- FUNÇÕES HELPER DE PERMISSÕES ---
+# --- FUN├ç├òES HELPER DE PERMISS├òES ---
 def pode_acessar_chamada_turma(user, turma):
     """
-    Verifica se usuário pode acessar a chamada de presença da turma.
+    Verifica se usu├írio pode acessar a chamada de presen├ºa da turma.
     
     Permite acesso se:
-    - É superuser
-    - Está no grupo Secretaria EBD ou Superintendente EBD
-    - É professor da turma específica
+    - ├ë superuser
+    - Est├í no grupo Secretaria EBD ou Superintendente EBD
+    - ├ë professor da turma espec├¡fica
     """
     # Superuser sempre pode
     if user.is_superuser:
@@ -29,12 +29,12 @@ def pode_acessar_chamada_turma(user, turma):
     if user_has_permission_level_or_higher(user, SECRETARIA_EBD):
         return True
     
-    # Verifica se é professor da turma
+    # Verifica se ├® professor da turma
     try:
         # Acessa o membro via related_name 'membro_secretaria' (Pessoa->User)
         membro = getattr(user, 'membro_secretaria', None)
         if membro:
-            # Verifica se está nos membros da turma
+            # Verifica se est├í nos membros da turma
             if membro in turma.membros.all():
                 # Verifica se tem cargo de professor EBD ativo
                 cargo_professor_ativo = MembroCargo.objects.filter(
@@ -53,7 +53,7 @@ def pode_acessar_chamada_turma(user, turma):
 
 def get_turmas_professor(user):
     """
-    Retorna turmas onde o usuário é professor.
+    Retorna turmas onde o usu├írio ├® professor.
     """
     from .models import Turma
     
@@ -61,7 +61,7 @@ def get_turmas_professor(user):
         # Acessa o membro via related_name 'membro_secretaria' (Pessoa->User)
         membro = getattr(user, 'membro_secretaria', None)
         if membro:
-            # Busca turmas onde o membro está cadastrado
+            # Busca turmas onde o membro est├í cadastrado
             turmas_candidatas = Turma.objects.filter(membros=membro)
             
             # Filtra apenas turmas onde tem cargo de professor EBD ativo
@@ -85,12 +85,12 @@ def get_turmas_professor(user):
 
 def pode_ver_aluno(user, aluno):
     """
-    Verifica se usuário pode ver detalhes do aluno.
+    Verifica se usu├írio pode ver detalhes do aluno.
     
     Permite se:
-    - É superuser
-    - É secretaria/superintendente EBD
-    - É professor da turma do aluno
+    - ├ë superuser
+    - ├ë secretaria/superintendente EBD
+    - ├ë professor da turma do aluno
     """
     if user.is_superuser:
         return True
@@ -99,7 +99,7 @@ def pode_ver_aluno(user, aluno):
     if user_has_permission_level_or_higher(user, SECRETARIA_EBD):
         return True
     
-    # Verifica se é professor da turma do aluno
+    # Verifica se ├® professor da turma do aluno
     return pode_acessar_chamada_turma(user, aluno.turma)
 
 
@@ -133,6 +133,30 @@ def get_ebd_scope_churches(request):
         return igrejas_permitidas.filter(pk=igreja_ativa_id)
 
     return get_request_scoped_churches(request, igrejas_permitidas)
+
+
+def get_ebd_ministerio_config(request):
+    from configuracao.models import ConfiguracaoSistema
+
+    perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
+    ministerio = getattr(perfil, 'ministerio', None)
+    if not ministerio:
+        return None
+    return ConfiguracaoSistema.objects.filter(ministerio=ministerio).first()
+
+
+def get_ebd_tipo_periodo(request):
+    config = get_ebd_ministerio_config(request)
+    if config and config.ebd_periodo:
+        return config.ebd_periodo
+    return 'trimestre'
+
+
+def get_ebd_dia_semana(request):
+    config = get_ebd_ministerio_config(request)
+    if config and config.ebd_dia_semana is not None:
+        return config.ebd_dia_semana
+    return 6
 
 
 def filtrar_queryset_ebd(queryset, request, igreja_lookup):
@@ -262,17 +286,17 @@ def relatorio_ebd_dia(request):
     from .models import Turma, Frequencia, OfertaClasse, AnoLetivo, Licao
     from decimal import Decimal
     
-    # Se data não for fornecida, busca a data da lição mais recente
+    # Se data n├úo for fornecida, busca a data da li├º├úo mais recente
     data_str = request.GET.get('data')
     if data_str:
         data = parse_date(data_str)
     else:
-        # Busca a data da lição mais recente
+        # Busca a data da li├º├úo mais recente
         ultima_licao = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__membros__igreja').order_by('-data').first()
         data = ultima_licao.data if ultima_licao else timezone.now().date()
     
-    # Filtra turmas apenas do ano letivo correspondente à data selecionada
-    # E que tenham lições cadastradas na data selecionada
+    # Filtra turmas apenas do ano letivo correspondente ├á data selecionada
+    # E que tenham li├º├Áes cadastradas na data selecionada
     ano_da_data = data.year
     ano_letivo = AnoLetivo.objects.filter(ano=ano_da_data).first()
     if ano_letivo:
@@ -281,7 +305,7 @@ def relatorio_ebd_dia(request):
     else:
         turmas = Turma.objects.none()
     
-    # Busca todas as datas com lições do ano letivo para o campo de seleção
+    # Busca todas as datas com li├º├Áes do ano letivo para o campo de sele├º├úo
     datas_com_licoes = []
     if ano_letivo:
         datas_com_licoes = filtrar_queryset_ebd(Licao.objects.filter(turma__ano_letivo=ano_letivo), request, 'turma__membros__igreja').values_list('data', flat=True).distinct().order_by('-data')
@@ -364,7 +388,7 @@ def relatorio_ebd_dia(request):
         'data_anterior': data_anterior,
         'datas_com_licoes': datas_com_licoes,
     })
-# --- CHAMADA DE PRESENÇA POR TURMA ---
+# --- CHAMADA DE PRESEN├çA POR TURMA ---
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Turma, Aluno, Licao, PeriodoEBD, Frequencia, OfertaClasse
 from .forms import ChamadaPresencaFormSet
@@ -375,7 +399,7 @@ from django.contrib import messages
 @page_access_required('escola_biblica_professor')
 def chamada_presenca(request, turma_id):
     """
-    Chamada de presença da turma.
+    Chamada de presen├ºa da turma.
     
     Pode ser acessada por:
     - Secretaria EBD / Superintendente EBD (todas as turmas)
@@ -383,19 +407,19 @@ def chamada_presenca(request, turma_id):
     """
     turma = get_object_or_404(filtrar_turmas_ebd(Turma.objects.all(), request), pk=turma_id)
     
-    # Verifica permissão (secretaria EBD ou professor da turma)
+    # Verifica permiss├úo (secretaria EBD ou professor da turma)
     if not pode_acessar_chamada_turma(request.user, turma):
-        raise PermissionDenied("Você não tem permissão para acessar a chamada desta turma.")
-    # --- Busca a turma pelo ID e obtém alunos ativos ---
+        raise PermissionDenied("Voc├¬ n├úo tem permiss├úo para acessar a chamada desta turma.")
+    # --- Busca a turma pelo ID e obt├®m alunos ativos ---
     alunos = turma.alunos.filter(ativo=True).order_by('nome')
     ano_letivo = turma.ano_letivo
-    tipo_periodo = 'trimestre'
-    # Descobrir período vigente
+    tipo_periodo = get_ebd_tipo_periodo(request)
+    # Descobrir per├¡odo vigente
 
-    # --- Descobre o período vigente (trimestre) para a turma ---
+    # --- Descobre o período vigente configurado para a turma ---
     periodo = PeriodoEBD.objects.filter(ano_letivo=ano_letivo, tipo=tipo_periodo).order_by('numero').first()
     datas_validas = []
-    dia_ebd = 6  # domingo
+    dia_ebd = get_ebd_dia_semana(request)
     if periodo:
         data_atual = periodo.data_inicio
         while data_atual <= periodo.data_fim:
@@ -403,36 +427,36 @@ def chamada_presenca(request, turma_id):
                 datas_validas.append(data_atual)
             data_atual += timezone.timedelta(days=1)
 
-    # --- Assistente: verifica se há datas sem lição cadastrada ---
-    # Assistente de verificação de lições do trimestre
+    # --- Assistente: verifica se h├í datas sem li├º├úo cadastrada ---
+    # Assistente de verificação de lições do período configurado
     licoes_faltantes = []
     for d in datas_validas:
         if not Licao.objects.filter(turma=turma, data=d).exists():
             licoes_faltantes.append(d)
     if licoes_faltantes:
-        msg = f"Atenção: Existem {len(licoes_faltantes)} datas do trimestre sem lição cadastrada para esta turma. "
+        msg = f"Atenção: Existem {len(licoes_faltantes)} datas do período sem lição cadastrada para esta turma. "
         url_cronograma = redirect('escola_biblica:gerar_cronograma_wizard').url
-        msg += f"<a href='{url_cronograma}?turma_id={turma.id}' class='btn btn-sm btn-warning ms-2'>Criar lições em lote</a>"
+        msg += f"<a href='{url_cronograma}?turma_id={turma.id}' class='btn btn-sm btn-warning ms-2'>Criar li├º├Áes em lote</a>"
         messages.warning(request, msg)
 
     # --- Repete busca da turma e alunos para garantir contexto atualizado ---
     turma = get_object_or_404(filtrar_turmas_ebd(Turma.objects.all(), request), pk=turma_id)
     alunos = turma.alunos.filter(ativo=True).order_by('nome')
     ano_letivo = turma.ano_letivo
-    tipo_periodo = 'trimestre'
+    tipo_periodo = get_ebd_tipo_periodo(request)
 
-    # --- Descobre novamente o período vigente (trimestre) ---
-    # Descobrir período vigente
+    # --- Descobre novamente o período vigente configurado ---
+    # Descobrir per├¡odo vigente
     periodo = PeriodoEBD.objects.filter(ano_letivo=ano_letivo, tipo=tipo_periodo).order_by('numero').first()
     datas_validas = []
-    dia_ebd = 6  # domingo
+    dia_ebd = get_ebd_dia_semana(request)
     if periodo:
         data_atual = periodo.data_inicio
         while data_atual <= periodo.data_fim:
             if data_atual.weekday() == dia_ebd:
                 datas_validas.append(data_atual)
 
-    # --- Seleção da data da chamada (automática ou manual) ---
+    # --- Sele├º├úo da data da chamada (autom├ítica ou manual) ---
             data_atual += timezone.timedelta(days=1)
     # Data selecionada
     data = request.POST.get('data') or request.GET.get('data')
@@ -445,7 +469,7 @@ def chamada_presenca(request, turma_id):
                 break
         if not data_hoje_ou_proxima and datas_validas:
 
-    # --- Busca a lição cadastrada para a data selecionada ---
+    # --- Busca a li├º├úo cadastrada para a data selecionada ---
             data_hoje_ou_proxima = datas_validas[-1]
 
     # --- Busca valor da oferta da turma para a data ---
@@ -456,17 +480,17 @@ def chamada_presenca(request, turma_id):
     classe = turma.classe if hasattr(turma, 'classe') else None
     if classe:
 
-    # --- Formulário de chamada de presença ---
+    # --- Formul├írio de chamada de presen├ºa ---
         oferta_obj = oferta_queryset_por_turma_data(turma, data).first()
         if oferta_obj and oferta_obj.valor is not None:
-            valor_oferta_atual = f"{oferta_obj.valor:.2f}"  # Mantém ponto para input type='number'
+            valor_oferta_atual = f"{oferta_obj.valor:.2f}"  # Mant├®m ponto para input type='number'
     # Formset de chamada
     if alunos.exists():
         if request.method == 'POST' and not request.POST.get('troca_data'):
-            # --- Validação: impede salvar chamada se não houver lição cadastrada para a data ---
+            # --- Valida├º├úo: impede salvar chamada se n├úo houver li├º├úo cadastrada para a data ---
             licao_do_dia = Licao.objects.filter(turma=turma, data=data).first()
             if not licao_do_dia:
-                messages.error(request, 'Não é possível registrar a chamada: não existe lição cadastrada para esta data. Cadastre a lição antes de registrar a presença.')
+                messages.error(request, 'N├úo ├® poss├¡vel registrar a chamada: n├úo existe li├º├úo cadastrada para esta data. Cadastre a li├º├úo antes de registrar a presen├ºa.')
                 return redirect(request.path + f'?data={data}')
             formset = ChamadaPresencaFormSet(request.POST)
             if formset.is_valid():
@@ -517,10 +541,10 @@ def chamada_presenca(request, turma_id):
                     except Exception as e:
                         messages.error(request, f'Erro ao registrar valor da oferta: {e}')
                 if not erro_validacao:
-                    messages.success(request, f'Chamada de presença registrada para {turma} em {data}.')
+                    messages.success(request, f'Chamada de presen├ºa registrada para {turma} em {data}.')
                     return redirect('escola_biblica:turma_list')
             else:
-                messages.error(request, 'Erro ao registrar chamada de presença. Verifique os dados e tente novamente.')
+                messages.error(request, 'Erro ao registrar chamada de presen├ºa. Verifique os dados e tente novamente.')
         else:
             initial = [
                 {
@@ -541,17 +565,17 @@ def chamada_presenca(request, turma_id):
         'turma': turma,
         'formset': formset,
 
-    # --- Renderiza o template passando todos os dados necessários ---
+    # --- Renderiza o template passando todos os dados necess├írios ---
         'data': data,
         'datas_validas': datas_validas,
         'valor_oferta_atual': valor_oferta_atual,
         'licao_do_dia': licao_do_dia,
     })
-# --- IMPORTS NECESSÁRIOS PARA DECORADORES ---
+# --- IMPORTS NECESS├üRIOS PARA DECORADORES ---
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from core.decorators import secretaria_ebd_required
-# --- WIZARD: Geração de lições em etapas ---
+# --- WIZARD: Gera├º├úo de li├º├Áes em etapas ---
 @page_access_required('escola_biblica')
 @csrf_exempt
 def gerar_cronograma_wizard(request):
@@ -561,17 +585,17 @@ def gerar_cronograma_wizard(request):
     etapa = int(request.POST.get('etapa', request.GET.get('etapa', 1)))
     hoje = timezone.now().date()
     ano_atual = hoje.year
-    # Ano letivo: apenas atual e próximo (se existir)
+    # Ano letivo: apenas atual e pr├│ximo (se existir)
     anos_letivos = AnoLetivo.objects.filter(ano__gte=ano_atual).order_by('ano')
-    # Turmas: únicas, ordem alfabética
+    # Turmas: ├║nicas, ordem alfab├®tica
     turmas = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ano__gte=ano_atual).order_by('nome').distinct(), request, 'membros__igreja')
-    # Períodos: só do ano letivo selecionado, abertos/futuros
+    # Per├¡odos: s├│ do ano letivo selecionado, abertos/futuros
     periodo_ano_raw = request.POST.get('ano_letivo', ano_atual)
     periodo_ano = int(str(periodo_ano_raw).replace('.', '').replace(' ', ''))
     periodos = PeriodoEBD.objects.filter(ano_letivo__ano=periodo_ano, data_fim__gte=hoje).order_by('numero')
     context = {'etapa': etapa}
 
-    # Etapa 1: Seleção
+    # Etapa 1: Sele├º├úo
     if etapa == 1:
         context.update({
             'anos_letivos': anos_letivos,
@@ -583,7 +607,7 @@ def gerar_cronograma_wizard(request):
             ano_letivo = int(str(ano_letivo_raw).replace('.', '').replace(' ', ''))
             periodo = int(request.POST.get('periodo'))
             turmas_ids = request.POST.getlist('turmas')
-            # Buscar horário padrão da configuração do sistema
+            # Buscar hor├írio padr├úo da configura├º├úo do sistema
             horario_inicial = ''
             perfil = getattr(request.user, 'perfil', None)
             if perfil and hasattr(perfil, 'ministerio'):
@@ -596,7 +620,7 @@ def gerar_cronograma_wizard(request):
                         horario_inicial = config.ebd_horario.strftime('%H:%M')
             # Inicializa periodo_nome corretamente
             periodo_obj = PeriodoEBD.objects.filter(ano_letivo__ano=ano_letivo, numero=periodo).first()
-            periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Período"
+            periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Per├¡odo"
             periodos_prox = PeriodoEBD.objects.filter(ano_letivo__ano=ano_letivo, data_fim__gte=hoje).order_by('numero')
             turmas_prox = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ano=ano_letivo).order_by('nome').distinct(), request, 'membros__igreja')
             context.update({
@@ -610,34 +634,34 @@ def gerar_cronograma_wizard(request):
                 'material': request.POST.get('material', ''),
                 'status': request.POST.get('status', 'ativa'),
                 'observacoes': request.POST.get('observacoes', ''),
-                'nome_licao_padrao': request.POST.get('nome_licao_padrao', f'Lição {{n}} - {periodo_nome}'),
+                'nome_licao_padrao': request.POST.get('nome_licao_padrao', f'Li├º├úo {{n}} - {periodo_nome}'),
             })
             return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
         return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
 
-    # Etapa 2: Configuração
+    # Etapa 2: Configura├º├úo
     if etapa == 2:
         ano_letivo_raw = request.POST.get('ano_letivo')
         ano_letivo = int(str(ano_letivo_raw).replace('.', '').replace(' ', ''))
         periodo = int(request.POST.get('periodo'))
         turmas_ids = request.POST.getlist('turmas')
-        # Buscar horário padrão da configuração do sistema
+        # Buscar hor├írio padr├úo da configura├º├úo do sistema
         horario_inicial = ''
         perfil = getattr(request.user, 'perfil', None)
         if perfil and hasattr(perfil, 'ministerio'):
             from configuracao.models import ConfiguracaoSistema
             config = ConfiguracaoSistema.objects.filter(ministerio=perfil.ministerio).first()
             if config and config.ebd_horario:
-                # Garante que o valor é string no formato HH:MM
+                # Garante que o valor ├® string no formato HH:MM
                 if isinstance(config.ebd_horario, str):
                     horario_inicial = config.ebd_horario[:5]
                 else:
                     horario_inicial = config.ebd_horario.strftime('%H:%M')
-        # Padrão de nome sugerido
+        # Padr├úo de nome sugerido
         periodo_obj = PeriodoEBD.objects.filter(ano_letivo__ano=ano_letivo, numero=periodo).first()
-        periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Período"
-        nome_licao_padrao = request.POST.get('nome_licao_padrao', f'Lição {{n}} - {periodo_nome}')
-        # Se já veio do POST, prioriza o valor enviado, senão usa o padrão do sistema
+        periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Per├¡odo"
+        nome_licao_padrao = request.POST.get('nome_licao_padrao', f'Li├º├úo {{n}} - {periodo_nome}')
+        # Se j├í veio do POST, prioriza o valor enviado, sen├úo usa o padr├úo do sistema
         if 'horario' in request.POST:
             horario = request.POST.get('horario', '')
             if not horario:
@@ -660,11 +684,11 @@ def gerar_cronograma_wizard(request):
         if request.POST.get('wizard_next'):
             erro_wizard = None
             if not turmas_ids or not periodo_obj:
-                erro_wizard = 'Selecione ao menos uma turma e um período válido para continuar.'
+                erro_wizard = 'Selecione ao menos uma turma e um per├¡odo v├ílido para continuar.'
                 context['erro_wizard'] = erro_wizard
                 return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
             context['etapa'] = 3
-            # Pré-visualização das lições
+            # Pr├®-visualiza├º├úo das li├º├Áes
             turmas_objs = filtrar_queryset_ebd(Turma.objects.filter(id__in=turmas_ids), request, 'membros__igreja')
             licoes_preview = []
             if periodo_obj:
@@ -684,7 +708,7 @@ def gerar_cronograma_wizard(request):
             context['nome_licao_padrao'] = nome_licao_padrao
             return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
         if request.POST.get('wizard_back'):
-            # Garante que o horário padrão seja preenchido ao voltar
+            # Garante que o hor├írio padr├úo seja preenchido ao voltar
             if not horario:
                 horario = horario_inicial
             context['etapa'] = 1
@@ -695,7 +719,7 @@ def gerar_cronograma_wizard(request):
             return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
         return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
 
-    # Etapa 3: Confirmação e geração
+    # Etapa 3: Confirma├º├úo e gera├º├úo
     if etapa == 3:
         ano_letivo_raw = request.POST.get('ano_letivo')
         ano_letivo = int(str(ano_letivo_raw).replace('.', '').replace(' ', ''))
@@ -707,7 +731,7 @@ def gerar_cronograma_wizard(request):
         observacoes = request.POST.get('observacoes', '')
         nome_licao_padrao = request.POST.get('nome_licao_padrao', '')
         periodo_obj = PeriodoEBD.objects.filter(ano_letivo__ano=ano_letivo, numero=periodo).first()
-        periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Período"
+        periodo_nome = f"{periodo_obj.get_tipo_display()} {periodo_obj.numero}" if periodo_obj else "Per├¡odo"
         turmas_objs = filtrar_queryset_ebd(Turma.objects.filter(id__in=turmas_ids), request, 'membros__igreja')
         licoes_geradas = 0
         if request.POST.get('wizard_confirm'):
@@ -728,7 +752,7 @@ def gerar_cronograma_wizard(request):
                             professor=turma.get_professor_nome(),
                         )
                         licoes_geradas += 1
-            resultado_msg = f'{licoes_geradas} lições geradas com sucesso!' if licoes_geradas else 'Nenhuma nova lição foi gerada (já existiam para este período/turma).'
+            resultado_msg = f'{licoes_geradas} li├º├Áes geradas com sucesso!' if licoes_geradas else 'Nenhuma nova li├º├úo foi gerada (j├í existiam para este per├¡odo/turma).'
             context['resultado_msg'] = resultado_msg
             context['etapa'] = 4
             return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
@@ -745,7 +769,7 @@ def gerar_cronograma_wizard(request):
                 'etapa': 2,
             })
             return render(request, 'escola_biblica/gerar_cronograma_wizard.html', context)
-        # Pré-visualização
+        # Pr├®-visualiza├º├úo
         licoes_preview = []
         if periodo_obj:
             from .utils import gerar_domingos_periodo
@@ -774,7 +798,7 @@ from core.decorators import secretaria_ebd_required
 from django.contrib import messages
 from django.shortcuts import render, redirect
 
-# --- SELEÇÃO DE DADOS PARA CÓPIA DO PERÍODO ANTERIOR ---
+# --- SELE├ç├âO DE DADOS PARA C├ôPIA DO PER├ìODO ANTERIOR ---
 @page_access_required('escola_biblica')
 @require_http_methods(["GET", "POST"])
 def copiar_periodo_selecao(request):
@@ -783,12 +807,12 @@ def copiar_periodo_selecao(request):
     try:
         ano_destino_int = int(float(str(ano_destino).replace('.', '')))
     except Exception:
-        messages.error(request, 'Ano destino inválido.')
+        messages.error(request, 'Ano destino inv├ílido.')
         return redirect('escola_biblica:turma_list')
     ano_origem = ano_destino_int - 1
     ano_letivo_origem = AnoLetivo.objects.filter(ano=ano_origem).first()
     if not ano_letivo_origem:
-        messages.error(request, f'Não existe ano letivo anterior ({ano_origem}) para copiar.')
+        messages.error(request, f'N├úo existe ano letivo anterior ({ano_origem}) para copiar.')
         return redirect('escola_biblica:turma_list')
     turmas = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo=ano_letivo_origem), request, 'membros__igreja')
     classes = Classe.objects.filter(turma__in=turmas).distinct()
@@ -799,7 +823,7 @@ def copiar_periodo_selecao(request):
         alunos_ids = request.POST.getlist('alunos_selecionados')
         ano_letivo_dest, _ = AnoLetivo.objects.get_or_create(ano=ano_destino_int, defaults={'ativo': True})
 
-        # Copiar classes (só cria se não existir)
+        # Copiar classes (s├│ cria se n├úo existir)
         classes_criadas = 0
         for classe in classes.filter(id__in=classes_ids):
             filtro_classe = Classe.objects.filter(nome=classe.nome)
@@ -844,7 +868,7 @@ def copiar_periodo_selecao(request):
         for aluno in alunos.filter(id__in=alunos_ids):
             turma_dest = Turma.objects.filter(nome=aluno.turma.nome, ano_letivo=ano_letivo_dest).first()
             if turma_dest:
-                # Evita duplicidade: só matricula se não houver aluno com mesmo nome e data_nascimento na turma_dest
+                # Evita duplicidade: s├│ matricula se n├úo houver aluno com mesmo nome e data_nascimento na turma_dest
                 existe = Aluno.objects.filter(nome=aluno.nome, data_nascimento=aluno.data_nascimento, turma=turma_dest).exists()
                 if not existe:
                     Aluno.objects.create(
@@ -868,7 +892,7 @@ def copiar_periodo_selecao(request):
         if membros_copiados_total:
             msg.append(f'{membros_copiados_total} membro(s) (professores/colaboradores) copiado(s)')
         if not (turmas_criadas or classes_criadas or alunos_copiados or membros_copiados_total):
-            messages.warning(request, 'Nenhum dado novo foi criado. Todos os dados selecionados já existiam para o ano/período de destino.')
+            messages.warning(request, 'Nenhum dado novo foi criado. Todos os dados selecionados j├í existiam para o ano/per├¡odo de destino.')
         else:
             messages.success(request, f"{' | '.join(msg)} do ano {ano_origem} para {ano_destino_int}.")
         return redirect('escola_biblica:turma_list')
@@ -901,15 +925,15 @@ def copiar_turmas_ano_anterior(request):
     try:
         ano_destino_int = int(float(str(ano_destino).replace('.', '')))
     except Exception:
-        messages.error(request, 'Ano destino inválido.')
+        messages.error(request, 'Ano destino inv├ílido.')
         return redirect('escola_biblica:turma_list')
     ano_letivo_dest, _ = AnoLetivo.objects.get_or_create(ano=ano_destino_int, defaults={'ativo': True})
     ano_origem = ano_letivo_dest.ano - 1
     ano_letivo_origem = AnoLetivo.objects.filter(ano=ano_origem).first()
     if not ano_letivo_origem:
-        messages.error(request, f'Não existe ano letivo anterior ({ano_origem}) para copiar.')
+        messages.error(request, f'N├úo existe ano letivo anterior ({ano_origem}) para copiar.')
         return redirect('escola_biblica:turma_list')
-    # Copiar classes se não existirem
+    # Copiar classes se n├úo existirem
     turmas_origem = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo=ano_letivo_origem), request, 'membros__igreja')
     classes_origem = Classe.objects.filter(turma__in=turmas_origem).distinct()
     for classe in classes_origem:
@@ -958,7 +982,7 @@ def copiar_turmas_ano_anterior(request):
     messages.success(request, f'{turmas_criadas} turmas e {alunos_copiados} alunos copiados do ano {ano_origem} para {ano_destino_int}.')
     return redirect('escola_biblica:turma_list')
 
-# --- ABRIR NOVO PERÍODO EBD ---
+# --- ABRIR NOVO PER├ìODO EBD ---
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from core.decorators import secretaria_ebd_required
@@ -973,19 +997,19 @@ def abrir_novo_periodo(request):
     ano_letivo = request.POST.get('ano_letivo')
     tipo_periodo = request.POST.get('tipo_periodo')
     if not ano_letivo or not tipo_periodo:
-        messages.error(request, 'Ano letivo e tipo de período são obrigatórios.')
+        messages.error(request, 'Ano letivo e tipo de per├¡odo s├úo obrigat├│rios.')
         return redirect('escola_biblica:turma_list')
     try:
         ano_letivo_int = int(float(str(ano_letivo).replace('.', '')))
     except ValueError:
-        messages.error(request, f'Ano letivo inválido: {ano_letivo}')
+        messages.error(request, f'Ano letivo inv├ílido: {ano_letivo}')
         return redirect('escola_biblica:turma_list')
     ano_letivo_obj, _ = AnoLetivo.objects.get_or_create(ano=ano_letivo_int, defaults={'ativo': True})
-    # Descobre períodos já existentes
+    # Descobre per├¡odos j├í existentes
     periodos_existentes = PeriodoEBD.objects.filter(ano_letivo=ano_letivo_obj, tipo=tipo_periodo).order_by('numero')
-    # Gera todos os períodos possíveis para o ano
+    # Gera todos os per├¡odos poss├¡veis para o ano
     periodos_gerados = gerar_periodos_ebd(ano_letivo_int, tipo_periodo)
-    # Lógica: cria só o próximo período (ou o primeiro do ano, se nenhum existir)
+    # L├│gica: cria s├│ o pr├│ximo per├¡odo (ou o primeiro do ano, se nenhum existir)
     if not periodos_existentes.exists():
         proximo = periodos_gerados[0]
         PeriodoEBD.objects.create(
@@ -995,8 +1019,8 @@ def abrir_novo_periodo(request):
             data_inicio=proximo['data_inicio'],
             data_fim=proximo['data_fim']
         )
-        messages.success(request, f'Período {proximo["numero"]} criado para {ano_letivo}/{tipo_periodo}.')
-        # Redireciona para seleção de cópia
+        messages.success(request, f'Per├¡odo {proximo["numero"]} criado para {ano_letivo}/{tipo_periodo}.')
+        # Redireciona para sele├º├úo de c├│pia
         return redirect(f'/escola_biblica/copiar_periodo_selecao/?ano_destino={ano_letivo_int}')
     else:
         ultimo = periodos_existentes.last()
@@ -1010,10 +1034,10 @@ def abrir_novo_periodo(request):
                 data_inicio=proximo['data_inicio'],
                 data_fim=proximo['data_fim']
             )
-            messages.success(request, f'Próximo período ({proximo["numero"]}) criado para {ano_letivo}/{tipo_periodo}.')
+            messages.success(request, f'Pr├│ximo per├¡odo ({proximo["numero"]}) criado para {ano_letivo}/{tipo_periodo}.')
             return redirect(f'/escola_biblica/copiar_periodo_selecao/?ano_destino={ano_letivo_int}')
         else:
-            # Todos os períodos do ano já existem, criar novo ano e 1º período do próximo ano
+            # Todos os per├¡odos do ano j├í existem, criar novo ano e 1┬║ per├¡odo do pr├│ximo ano
             proximo_ano = ano_letivo_obj.ano + 1
             proximo_ano_obj, _ = AnoLetivo.objects.get_or_create(ano=proximo_ano, defaults={'ativo': True})
             periodos_prox_ano = gerar_periodos_ebd(proximo_ano, tipo_periodo)
@@ -1025,7 +1049,7 @@ def abrir_novo_periodo(request):
                 data_inicio=primeiro_prox_ano['data_inicio'],
                 data_fim=primeiro_prox_ano['data_fim']
             )
-            messages.success(request, f'Ano {proximo_ano} criado com o 1º período ({primeiro_prox_ano["numero"]}) de {tipo_periodo}.')
+            messages.success(request, f'Ano {proximo_ano} criado com o 1┬║ per├¡odo ({primeiro_prox_ano["numero"]}) de {tipo_periodo}.')
             return redirect(f'/escola_biblica/copiar_periodo_selecao/?ano_destino={proximo_ano}')
 from django.http import JsonResponse
 # --- AJAX: Retorna nome do professor da turma ---
@@ -1108,7 +1132,7 @@ def departamento_edit(request, pk):
         form = DepartamentoForm(instance=departamento)
     return render(request, 'escola_biblica/departamento_form.html', {'form': form, 'departamento': departamento, 'departamentos_sugeridos': DEPARTAMENTOS_SUGERIDOS})
 
-# --- PERFIL DO ALUNO E HISTÓRICO DE TRANSFERÊNCIAS ---
+# --- PERFIL DO ALUNO E HIST├ôRICO DE TRANSFER├èNCIAS ---
 
 
 @login_required
@@ -1136,9 +1160,9 @@ def aluno_detail(request, pk):
         pk=pk,
     )
     
-    # Verifica permissão
+    # Verifica permiss├úo
     if not pode_ver_aluno(request.user, aluno):
-        raise PermissionDenied("Você não tem permissão para ver detalhes deste aluno.")
+        raise PermissionDenied("Voc├¬ n├úo tem permiss├úo para ver detalhes deste aluno.")
     
     transferencias = TransferenciaAluno.objects.filter(aluno__cadastro_id=aluno.cadastro_id).select_related(
         'aluno',
@@ -1181,11 +1205,11 @@ def aluno_historico_consolidado(request, pk):
         ).first()
 
     if aluno is None:
-        messages.warning(request, 'Aluno não encontrado no escopo atual. Abra o histórico pela lista de alunos.')
+        messages.warning(request, 'Aluno n├úo encontrado no escopo atual. Abra o hist├│rico pela lista de alunos.')
         return redirect('escola_biblica:aluno_list')
 
     if not pode_ver_aluno(request.user, aluno):
-        raise PermissionDenied("Você não tem permissão para ver detalhes deste aluno.")
+        raise PermissionDenied("Voc├¬ n├úo tem permiss├úo para ver detalhes deste aluno.")
 
     cadastro = aluno.cadastro
     matriculas = list(
@@ -1333,7 +1357,7 @@ def aluno_vinculo_secretaria(request, pk):
         if acao == 'desvincular':
             cadastro.pessoa = None
             cadastro.save()
-            messages.success(request, 'Vínculo com a Secretaria removido com sucesso.')
+            messages.success(request, 'V├¡nculo com a Secretaria removido com sucesso.')
             return redirect('escola_biblica:aluno_vinculo_secretaria', pk=aluno.pk)
 
         pessoa_id = request.POST.get('pessoa_id')
@@ -1343,7 +1367,7 @@ def aluno_vinculo_secretaria(request, pk):
             pessoa = get_object_or_404(pessoas_base, pk=pessoa_id)
             cadastro.pessoa = pessoa
             cadastro.save()
-            messages.success(request, f'Aluno vinculado com sucesso à pessoa {pessoa.nome}.')
+            messages.success(request, f'Aluno vinculado com sucesso ├á pessoa {pessoa.nome}.')
             return redirect('escola_biblica:aluno_vinculo_secretaria', pk=aluno.pk)
 
     return render(request, 'escola_biblica/aluno_vinculo_secretaria.html', {
@@ -1358,7 +1382,7 @@ def aluno_vinculo_secretaria(request, pk):
 @verificar_assinatura_valida
 def aluno_vinculo_secretaria_lote(request):
     if not usuario_pode_gerenciar_ebd(request.user):
-        raise PermissionDenied('Você não tem permissão para gerenciar vínculos em lote.')
+        raise PermissionDenied('Voc├¬ n├úo tem permiss├úo para gerenciar v├¡nculos em lote.')
 
     nome_filtro = request.GET.get('nome', '').strip()
     turma_filtro = request.GET.get('turma', '').strip()
@@ -1446,9 +1470,9 @@ def aluno_vinculo_secretaria_lote(request):
             exibicao = ', '.join(vinculos_realizados[:10])
             restantes = len(vinculos_realizados) - 10
             sufixo = f' (+{restantes} outro(s))' if restantes > 0 else ''
-            messages.success(request, f'Vínculos aplicados: {exibicao}{sufixo}.')
+            messages.success(request, f'V├¡nculos aplicados: {exibicao}{sufixo}.')
         else:
-            messages.info(request, 'Nenhum vínculo foi selecionado para aplicar.')
+            messages.info(request, 'Nenhum v├¡nculo foi selecionado para aplicar.')
 
         querystring_pos_post = request.GET.urlencode()
         redirect_url = reverse('escola_biblica:aluno_vinculo_secretaria_lote')
@@ -1461,7 +1485,7 @@ def aluno_vinculo_secretaria_lote(request):
         'total_cadastros': len(cadastros),
     })
 
-# --- TRANSFERÊNCIA DE ALUNO ENTRE TURMAS/CLASSES ---
+# --- TRANSFER├èNCIA DE ALUNO ENTRE TURMAS/CLASSES ---
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 @transaction.atomic
@@ -1483,7 +1507,7 @@ def transferir_aluno(request, aluno_id):
             except ValidationError as exc:
                 form.add_error('turma_destino', exc.message)
             else:
-                messages.success(request, f'Transferência realizada com sucesso para {transferencia.turma_destino}!')
+                messages.success(request, f'Transfer├¬ncia realizada com sucesso para {transferencia.turma_destino}!')
                 return redirect('escola_biblica:aluno_detail', pk=matricula_destino.pk)
     else:
         form = TransferenciaAlunoForm(request=request)
@@ -1495,7 +1519,7 @@ def transferir_aluno(request, aluno_id):
 
 
 
-# --- RELATÓRIO DE FREQUÊNCIA DETALHADO ---
+# --- RELAT├ôRIO DE FREQU├èNCIA DETALHADO ---
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def relatorio_frequencia(request):
@@ -1507,12 +1531,12 @@ def relatorio_frequencia(request):
     inicio = parse_date(request.GET.get('inicio') or '')
     fim = parse_date(request.GET.get('fim') or '')
     alunos = consolidar_alunos_por_cadastro_periodo(alunos, inicio=inicio, fim=fim, turma_id=turma_id, classe_id=classe_id)
-    # Exportação CSV
+    # Exporta├º├úo CSV
     if 'export' in request.GET:
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="relatorio_frequencia.csv"'
         writer = csv.writer(response)
-        writer.writerow(['Cadastro', 'Turma de Referência', 'Classe', 'Presenças', 'Total Aulas', 'Frequência (%)'])
+        writer.writerow(['Cadastro', 'Turma de Refer├¬ncia', 'Classe', 'Presen├ºas', 'Total Aulas', 'Frequ├¬ncia (%)'])
         for aluno in alunos:
             writer.writerow([
             aluno.nome_exibicao,
@@ -1529,7 +1553,7 @@ def relatorio_frequencia(request):
         'alunos': alunos,
     })
 
-# --- LISTAGEM DINÂMICA DE CARGOS/FUNÇÕES ---
+# --- LISTAGEM DIN├éMICA DE CARGOS/FUN├ç├òES ---
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def cargos_ebd_list(request):
@@ -1546,7 +1570,7 @@ def cargos_ebd_list(request):
         'cargo_selecionado': cargo_nome,
     })
 
-# --- GRÁFICOS DE EVOLUÇÃO ---
+# --- GR├üFICOS DE EVOLU├ç├âO ---
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def graficos_evolucao(request):
@@ -1576,7 +1600,7 @@ def graficos_evolucao(request):
     }
     return render(request, 'escola_biblica/graficos_evolucao.html', context)
 
-# --- DASHBOARD GRÁFICOS ---
+# --- DASHBOARD GR├üFICOS ---
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def dashboard_graficos(request):
@@ -1685,11 +1709,11 @@ def oferta_classe_delete(request, pk):
     )
     if request.method == 'POST':
         oferta.delete()
-        messages.success(request, 'Oferta excluída com sucesso!')
+        messages.success(request, 'Oferta exclu├¡da com sucesso!')
         return redirect('escola_biblica:oferta_classe_list')
     return render(request, 'escola_biblica/oferta_classe_confirm_delete.html', {'oferta': oferta})
 
-# --- RELATÓRIO DE ALUNOS ---
+# --- RELAT├ôRIO DE ALUNOS ---
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def relatorio_alunos(request):
@@ -1708,7 +1732,7 @@ def relatorio_alunos(request):
     })
 # --- LICOES ---
  
- # --- AVALIAÇÕES ---
+ # --- AVALIA├ç├òES ---
 @page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
 def avaliacao_list(request):
@@ -1725,7 +1749,7 @@ def avaliacao_create(request):
         form = AvaliacaoForm(request.POST, request=request)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Avaliação cadastrada com sucesso!')
+            messages.success(request, 'Avalia├º├úo cadastrada com sucesso!')
             return redirect('escola_biblica:avaliacao_list')
     else:
         form = AvaliacaoForm(request=request)
@@ -1742,7 +1766,7 @@ def avaliacao_edit(request, pk):
         form = AvaliacaoForm(request.POST, instance=avaliacao, request=request)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Avaliação atualizada com sucesso!')
+            messages.success(request, 'Avalia├º├úo atualizada com sucesso!')
             return redirect('escola_biblica:avaliacao_list')
     else:
         form = AvaliacaoForm(instance=avaliacao, request=request)
@@ -1757,7 +1781,7 @@ def avaliacao_delete(request, pk):
     )
     if request.method == 'POST':
         avaliacao.delete()
-        messages.success(request, 'Avaliação excluída com sucesso!')
+        messages.success(request, 'Avalia├º├úo exclu├¡da com sucesso!')
         return redirect('escola_biblica:avaliacao_list')
     return render(request, 'escola_biblica/avaliacao_confirm_delete.html', {'avaliacao': avaliacao})
 @page_access_required('escola_biblica_professor')
@@ -1767,16 +1791,16 @@ def licao_list(request):
     from django.utils import timezone
     hoje = timezone.now().date()
     
-    # Buscar lições com escopo correto
+    # Buscar li├º├Áes com escopo correto
     licoes_scope = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__membros__igreja')
     
-    # Buscar períodos que têm lições no escopo do usuário (evitar vazamento de dados)
+    # Buscar per├¡odos que t├¬m li├º├Áes no escopo do usu├írio (evitar vazamento de dados)
     periodos_ids = licoes_scope.values_list('data__year', flat=True).distinct()
     periodos = PeriodoEBD.objects.select_related('ano_letivo').filter(
         data_inicio__year__in=periodos_ids
     ).order_by('-ano_letivo__ano', '-numero')
     
-    # Identificar período atual
+    # Identificar per├¡odo atual
     periodo_atual = periodos.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first()
     
     # Filtro por GET
@@ -1790,14 +1814,14 @@ def licao_list(request):
     if periodo_selecionado:
         licoes = licoes.filter(data__gte=periodo_selecionado.data_inicio, data__lte=periodo_selecionado.data_fim)
     
-    # Buscar turmas para o filtro (apenas do escopo do usuário)
+    # Buscar turmas para o filtro (apenas do escopo do usu├írio)
     from .models import Turma
     turma_nomes = filtrar_queryset_ebd(Turma.objects.all(), request, 'membros__igreja').values_list('nome', flat=True).distinct().order_by('nome')
     turma_nome = request.GET.get('turma')
     if turma_nome:
         licoes = licoes.filter(turma__nome=turma_nome)
 
-    # Filtro de professor (apenas do escopo do usuário)
+    # Filtro de professor (apenas do escopo do usu├írio)
     from secretaria.models import Membro, MembroCargo
     igrejas_escopo = get_ebd_scope_churches(request)
     membros_professor_ids = MembroCargo.objects.filter(
@@ -1829,7 +1853,7 @@ def licao_create(request):
         form = LicaoForm(request.POST, request.FILES, request=request)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Lição cadastrada com sucesso!')
+            messages.success(request, 'Li├º├úo cadastrada com sucesso!')
             return redirect('escola_biblica:licao_list')
     else:
         form = LicaoForm(request=request)
@@ -1844,7 +1868,7 @@ def licao_edit(request, pk):
         form = LicaoForm(request.POST, request.FILES, instance=licao, request=request)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Lição atualizada com sucesso!')
+            messages.success(request, 'Li├º├úo atualizada com sucesso!')
             return redirect('escola_biblica:licao_list')
     else:
         form = LicaoForm(instance=licao, request=request)
@@ -1857,7 +1881,7 @@ def licao_delete(request, pk):
     licao = get_object_or_404_ebd(Licao.objects.select_related('turma'), request, 'turma__membros__igreja', pk=pk)
     if request.method == 'POST':
         licao.delete()
-        messages.success(request, 'Lição excluída com sucesso!')
+        messages.success(request, 'Li├º├úo exclu├¡da com sucesso!')
         return redirect('escola_biblica:licao_list')
 # --- CLASSES ---
 # --- CLASSES ---
@@ -1901,7 +1925,7 @@ def classe_delete(request, pk):
     classe = get_object_or_404(filtrar_classes_ebd(Classe.objects.all(), request), pk=pk)
     if request.method == 'POST':
         classe.delete()
-        messages.success(request, 'Classe excluída com sucesso!')
+        messages.success(request, 'Classe exclu├¡da com sucesso!')
         return redirect('escola_biblica:classe_list')
     return render(request, 'escola_biblica/classe_confirm_delete.html', {'classe': classe})
 
@@ -1919,22 +1943,75 @@ def dashboard(request):
     licoes = filtrar_queryset_ebd(Licao.objects.all(), request, 'turma__igreja')
     avaliacoes = filtrar_queryset_ebd(Avaliacao.objects.all(), request, 'aluno__turma__igreja')
     igrejas_escopo = get_ebd_scope_churches(request)
-    total_oferta = OfertaClasse.objects.filter(
-        Q(turma__igreja__in=igrejas_escopo) |
-        Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
-        Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
-        Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
-    ).distinct().aggregate(total=Sum('valor'))['total'] or 0
 
     igreja = getattr(request, 'igreja_ativa', None)
     if igreja is None and igrejas_escopo.count() == 1:
         igreja = igrejas_escopo.first()
 
     hoje = date.today()
-    mes_atual = hoje.replace(day=1)
     ano_atual = hoje.year
 
-    meses = [(hoje.replace(day=1) - timedelta(days=30*i)).replace(day=1) for i in range(11, -1, -1)]
+    tipo_periodo = get_ebd_tipo_periodo(request)
+    config = get_ebd_ministerio_config(request)
+    periodo_tipo_label = dict(getattr(config, 'EBD_PERIODO_CHOICES', [])).get(tipo_periodo, tipo_periodo.title())
+
+    ano_letivo_filtro = request.GET.get('ano_letivo')
+    periodo_filtro = request.GET.get('periodo')
+
+    ano_letivo_qs = AnoLetivo.objects.order_by('-ano')
+    if ano_letivo_filtro:
+        try:
+            ano_letivo_selecionado = ano_letivo_qs.get(ano=int(str(ano_letivo_filtro).strip()))
+        except (AnoLetivo.DoesNotExist, ValueError):
+            ano_letivo_selecionado = ano_letivo_qs.filter(ano=ano_atual).first() or ano_letivo_qs.first()
+    else:
+        ano_letivo_selecionado = ano_letivo_qs.filter(ano=ano_atual).first() or ano_letivo_qs.first()
+
+    periodos_disponiveis = PeriodoEBD.objects.none()
+    if ano_letivo_selecionado:
+        periodos_disponiveis = PeriodoEBD.objects.filter(
+            ano_letivo=ano_letivo_selecionado,
+            tipo=tipo_periodo,
+        ).order_by('numero')
+
+    periodo_selecionado = None
+    if periodos_disponiveis.exists():
+        if periodo_filtro:
+            try:
+                periodo_selecionado = periodos_disponiveis.get(numero=int(periodo_filtro))
+            except (PeriodoEBD.DoesNotExist, ValueError):
+                periodo_selecionado = periodos_disponiveis.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first() or periodos_disponiveis.first()
+        else:
+            periodo_selecionado = periodos_disponiveis.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first() or periodos_disponiveis.first()
+
+    if periodo_selecionado:
+        data_inicio_periodo = periodo_selecionado.data_inicio
+        data_fim_periodo = periodo_selecionado.data_fim
+    else:
+        data_inicio_periodo = hoje.replace(day=1)
+        data_fim_periodo = hoje
+
+    periodo_anterior_obj = PeriodoEBD.objects.filter(
+        tipo=tipo_periodo,
+        data_fim__lt=data_inicio_periodo,
+    ).order_by('-data_fim').first()
+
+    if periodo_anterior_obj:
+        data_inicio_periodo_anterior = periodo_anterior_obj.data_inicio
+        data_fim_periodo_anterior = periodo_anterior_obj.data_fim
+    else:
+        dias_periodo = max((data_fim_periodo - data_inicio_periodo).days + 1, 1)
+        data_fim_periodo_anterior = data_inicio_periodo - timedelta(days=1)
+        data_inicio_periodo_anterior = data_fim_periodo_anterior - timedelta(days=dias_periodo - 1)
+
+    total_oferta = OfertaClasse.objects.filter(
+        Q(turma__igreja__in=igrejas_escopo)
+        | Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo)
+        | Q(turma__isnull=True, classe__igreja__in=igrejas_escopo)
+        | Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja__in=igrejas_escopo)
+    ).distinct().aggregate(total=Sum('valor'))['total'] or 0
+
+    meses = [(hoje.replace(day=1) - timedelta(days=30 * i)).replace(day=1) for i in range(11, -1, -1)]
     alunos_evolucao = []
     for m in meses:
         prox_mes = (m + timedelta(days=32)).replace(day=1)
@@ -1946,25 +2023,55 @@ def dashboard(request):
             turma__classe__isnull=False,
             turma__classe__departamento__in=[c[0] for c in Classe.DEPARTAMENTO_CHOICES],
             data_nascimento__isnull=False,
-            data_nascimento__lte=prox_mes
+            data_nascimento__lte=prox_mes,
         )
         if igreja:
             qs = qs.filter(turma__membros__igreja=igreja).distinct()
-        count = qs.count()
-        alunos_evolucao.append(count)
+        alunos_evolucao.append(qs.count())
 
-    freq_mes = Frequencia.objects.filter(data__gte=mes_atual, data__lt=hoje+timedelta(days=1))
+    alunos_ids = list(alunos.values_list('id', flat=True))
+
+    def _media_frequencia(alunos_ids_base, data_inicio, data_fim):
+        if not alunos_ids_base:
+            return 0
+        freq_periodo = Frequencia.objects.filter(
+            aluno_id__in=alunos_ids_base,
+            data__gte=data_inicio,
+            data__lte=data_fim,
+        )
+        if igreja:
+            freq_periodo = freq_periodo.filter(aluno__turma__membros__igreja=igreja).distinct()
+
+        resumo = freq_periodo.values('aluno_id').annotate(
+            total=Count('id'),
+            presencas=Count('id', filter=Q(presente=True)),
+        )
+        if not resumo:
+            return 0
+
+        soma_percentuais = 0
+        qtd_alunos = 0
+        for item in resumo:
+            total = item['total'] or 0
+            if total > 0:
+                soma_percentuais += (item['presencas'] / total)
+                qtd_alunos += 1
+        return round((soma_percentuais / qtd_alunos) * 100, 1) if qtd_alunos else 0
+
+    freq_geral = _media_frequencia(alunos_ids, data_inicio_periodo, data_fim_periodo)
+    freq_mes_anterior = _media_frequencia(alunos_ids, data_inicio_periodo_anterior, data_fim_periodo_anterior)
+
+    freq_mes = Frequencia.objects.filter(data__gte=data_inicio_periodo, data__lte=data_fim_periodo)
     if igreja:
         freq_mes = freq_mes.filter(aluno__turma__membros__igreja=igreja).distinct()
-    alunos_ids = alunos.values_list('id', flat=True)
     engajados = 0
     for aluno_id in alunos_ids:
         freq_aluno = freq_mes.filter(aluno_id=aluno_id)
         total = freq_aluno.count()
         presencas = freq_aluno.filter(presente=True).count()
-        if total > 0 and presencas/total >= 0.75:
+        if total > 0 and presencas / total >= 0.75:
             engajados += 1
-    engajamento_percent = round((engajados/len(alunos_ids))*100, 1) if alunos_ids else 0
+    engajamento_percent = round((engajados / len(alunos_ids)) * 100, 1) if alunos_ids else 0
 
     evasao_qs = Aluno.objects.filter(ativo=False, turma__ano_letivo__ano__contains=str(ano_atual))
     if igreja:
@@ -1976,33 +2083,10 @@ def dashboard(request):
         alunos_classe = Aluno.objects.filter(turma__classe=classe, ativo=True)
         if igreja:
             alunos_classe = alunos_classe.filter(turma__membros__igreja=igreja).distinct()
-        freq_total = 0
-        freq_count = 0
-        for aluno in alunos_classe:
-            freq_aluno = Frequencia.objects.filter(aluno=aluno, data__gte=mes_atual, data__lt=hoje+timedelta(days=1))
-            if igreja:
-                freq_aluno = freq_aluno.filter(aluno__turma__membros__igreja=igreja).distinct()
-            total = freq_aluno.count()
-            presencas = freq_aluno.filter(presente=True).count()
-            if total > 0:
-                freq_total += presencas/total
-                freq_count += 1
-        freq_media = round((freq_total/freq_count)*100, 1) if freq_count else 0
+        alunos_classe_ids = list(alunos_classe.values_list('id', flat=True))
+        freq_media = _media_frequencia(alunos_classe_ids, data_inicio_periodo, data_fim_periodo)
         ranking_classes.append({'classe': classe.nome, 'frequencia_media': freq_media})
     ranking_classes = sorted(ranking_classes, key=lambda x: x['frequencia_media'], reverse=True)
-
-    freq_geral_total = 0
-    freq_geral_count = 0
-    for aluno in alunos:
-        freq_aluno = Frequencia.objects.filter(aluno=aluno, data__gte=mes_atual, data__lt=hoje+timedelta(days=1))
-        if igreja:
-            freq_aluno = freq_aluno.filter(aluno__turma__membros__igreja=igreja).distinct()
-        total = freq_aluno.count()
-        presencas = freq_aluno.filter(presente=True).count()
-        if total > 0:
-            freq_geral_total += presencas/total
-            freq_geral_count += 1
-    freq_geral = round((freq_geral_total/freq_geral_count)*100, 1) if freq_geral_count else 0
 
     ranking_ofertas = []
     for classe in classes:
@@ -2012,39 +2096,76 @@ def dashboard(request):
         )
         if igreja:
             oferta_qs = oferta_qs.filter(
-                Q(turma__igreja=igreja) |
-                Q(turma__igreja__isnull=True, turma__membros__igreja=igreja) |
-                Q(turma__isnull=True, classe__igreja=igreja) |
-                Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja=igreja)
+                Q(turma__igreja=igreja)
+                | Q(turma__igreja__isnull=True, turma__membros__igreja=igreja)
+                | Q(turma__isnull=True, classe__igreja=igreja)
+                | Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja=igreja)
             ).distinct()
         total_oferta_classe = oferta_qs.aggregate(s=Sum('valor'))['s'] or 0
         ranking_ofertas.append({'classe': classe.nome, 'total_oferta': float(total_oferta_classe)})
     ranking_ofertas = sorted(ranking_ofertas, key=lambda x: x['total_oferta'], reverse=True)
 
-    alunos_novos_qs = Aluno.objects.filter(turma__isnull=False, ativo=True, turma__ano_letivo__ativo=True, turma__ano_letivo__ano__contains=str(mes_atual.year), turma__classe__isnull=False, data_nascimento__isnull=False, data_nascimento__gte=mes_atual)
+    alunos_novos_qs = Aluno.objects.filter(
+        turma__isnull=False,
+        ativo=True,
+        turma__ano_letivo__ativo=True,
+        created_at__date__gte=data_inicio_periodo,
+        created_at__date__lte=data_fim_periodo,
+    )
     if igreja:
         alunos_novos_qs = alunos_novos_qs.filter(turma__membros__igreja=igreja).distinct()
     alunos_novos = alunos_novos_qs.count()
 
-    transferidos_mes_qs = TransferenciaAluno.objects.filter(data_transferencia__gte=mes_atual, data_transferencia__lt=hoje+timedelta(days=1))
+    alunos_novos_mes_anterior_qs = Aluno.objects.filter(
+        turma__isnull=False,
+        ativo=True,
+        turma__ano_letivo__ativo=True,
+        created_at__date__gte=data_inicio_periodo_anterior,
+        created_at__date__lte=data_fim_periodo_anterior,
+    )
+    if igreja:
+        alunos_novos_mes_anterior_qs = alunos_novos_mes_anterior_qs.filter(turma__membros__igreja=igreja).distinct()
+    alunos_novos_mes_anterior = alunos_novos_mes_anterior_qs.count()
+
+    transferidos_mes_qs = TransferenciaAluno.objects.filter(
+        data_transferencia__gte=data_inicio_periodo,
+        data_transferencia__lte=data_fim_periodo,
+    )
     if igreja:
         transferidos_mes_qs = transferidos_mes_qs.filter(
-            Q(turma_origem__membros__igreja=igreja) |
-            Q(turma_destino__membros__igreja=igreja)
+            Q(turma_origem__membros__igreja=igreja) | Q(turma_destino__membros__igreja=igreja)
         ).distinct()
     transferidos_mes = transferidos_mes_qs.count()
 
+    ofertas_mes_qs = OfertaClasse.objects.filter(data__gte=data_inicio_periodo, data__lte=data_fim_periodo)
+    ofertas_mes_anterior_qs = OfertaClasse.objects.filter(
+        data__gte=data_inicio_periodo_anterior,
+        data__lte=data_fim_periodo_anterior,
+    )
+    if igreja:
+        filtro_igreja_oferta = (
+            Q(turma__igreja=igreja)
+            | Q(turma__igreja__isnull=True, turma__membros__igreja=igreja)
+            | Q(turma__isnull=True, classe__igreja=igreja)
+            | Q(turma__isnull=True, classe__igreja__isnull=True, classe__turma__membros__igreja=igreja)
+        )
+        ofertas_mes_qs = ofertas_mes_qs.filter(filtro_igreja_oferta).distinct()
+        ofertas_mes_anterior_qs = ofertas_mes_anterior_qs.filter(filtro_igreja_oferta).distinct()
+
+    total_ofertas_mes = float(ofertas_mes_qs.aggregate(total=Sum('valor'))['total'] or 0)
+    total_ofertas_mes_anterior = float(ofertas_mes_anterior_qs.aggregate(total=Sum('valor'))['total'] or 0)
+
     faixas = [
-        ("0-5", 0, 5),
-        ("6-12", 6, 12),
-        ("13-17", 13, 17),
-        ("18-29", 18, 29),
-        ("30-59", 30, 59),
-        ("60+", 60, 200),
+        ('0-5', 0, 5),
+        ('6-12', 6, 12),
+        ('13-17', 13, 17),
+        ('18-29', 18, 29),
+        ('30-59', 30, 59),
+        ('60+', 60, 200),
     ]
     faixas_etarias_labels = [f[0] for f in faixas]
     faixas_etarias_counts = []
-    for label, min_idade, max_idade in faixas:
+    for _label, min_idade, max_idade in faixas:
         count = 0
         for aluno in alunos:
             if aluno.data_nascimento:
@@ -2053,24 +2174,134 @@ def dashboard(request):
                     count += 1
         faixas_etarias_counts.append(count)
 
+    def _comparativo_card(label, atual, anterior, melhora_quando='up', formato='int'):
+        diferenca = atual - anterior
+        subiu = diferenca > 0
+        melhorou = subiu if melhora_quando == 'up' else not subiu
+        if diferenca == 0:
+            tone = 'is-neutral'
+            icon = 'fas fa-minus'
+        else:
+            tone = 'is-positive' if melhorou else 'is-warning'
+            icon = 'fas fa-arrow-up' if subiu else 'fas fa-arrow-down'
+
+        if formato == 'currency':
+            diferenca_label = f"{diferenca:+.2f}"
+        elif formato == 'percent':
+            diferenca_label = f"{diferenca:+.1f}"
+        else:
+            diferenca_label = f"{int(diferenca):+d}"
+
+        return {
+            'label': label,
+            'atual': atual,
+            'anterior': anterior,
+            'diferenca': diferenca,
+            'diferenca_label': diferenca_label,
+            'tone': tone,
+            'icon': icon,
+            'format': formato,
+        }
+
+    comparativo_periodo_cards = [
+        _comparativo_card('Novos alunos', alunos_novos, alunos_novos_mes_anterior, 'up', 'int'),
+        _comparativo_card('Frequência média (%)', freq_geral, freq_mes_anterior, 'up', 'percent'),
+        _comparativo_card('Ofertas do período (R$)', total_ofertas_mes, total_ofertas_mes_anterior, 'up', 'currency'),
+    ]
+
+    insights_dashboard = []
+    if freq_geral >= 80:
+        insights_dashboard.append({
+            'tone': 'is-positive',
+            'icon': 'fas fa-circle-check',
+            'title': 'Frequência saudável',
+            'message': f'Frequência média do período em {freq_geral:.1f}%. Mantenha o ritmo das classes com melhor presença.',
+            'cta_label': 'Ver frequência',
+            'cta_url': reverse('escola_biblica:frequencia_list'),
+        })
+    elif freq_geral < 65:
+        insights_dashboard.append({
+            'tone': 'is-warning',
+            'icon': 'fas fa-triangle-exclamation',
+            'title': 'Atenção na presença',
+            'message': f'Frequência média do período em {freq_geral:.1f}%. Vale reforçar contato com responsáveis e líderes de turma.',
+            'cta_label': 'Abrir turmas',
+            'cta_url': reverse('escola_biblica:turma_list'),
+        })
+
+    if evasao > 0:
+        insights_dashboard.append({
+            'tone': 'is-danger',
+            'icon': 'fas fa-user-minus',
+            'title': 'Evasão no ano letivo',
+            'message': f'Há {evasao} aluno(s) inativos no ano. Priorize o acompanhamento das classes com maior queda.',
+            'cta_label': 'Ver alunos',
+            'cta_url': reverse('escola_biblica:aluno_list'),
+        })
+
+    if total_ofertas_mes > total_ofertas_mes_anterior:
+        insights_dashboard.append({
+            'tone': 'is-info',
+            'icon': 'fas fa-hand-holding-dollar',
+            'title': 'Evolução nas ofertas',
+            'message': 'As ofertas de classes cresceram em relação ao período anterior. Bom sinal de participação comunitária.',
+            'cta_label': 'Abrir ofertas',
+            'cta_url': reverse('escola_biblica:oferta_classe_list'),
+        })
+
+    if not insights_dashboard:
+        insights_dashboard.append({
+            'tone': 'is-neutral',
+            'icon': 'fas fa-circle-info',
+            'title': 'Painel estável no período',
+            'message': 'Sem alertas críticos neste recorte. Mantenha a rotina de chamada, ensino e acompanhamento.',
+            'cta_label': 'Ver turmas',
+            'cta_url': reverse('escola_biblica:turma_list'),
+        })
+
+    if igreja:
+        scope_label = f'Igreja: {igreja.nome_igreja}'
+    else:
+        total_igrejas = igrejas_escopo.count()
+        scope_label = f'Consolidado EBD ({total_igrejas} igrejas)'
+
     return render(request, 'escola_biblica/dashboard.html', {
         'turmas': turmas,
         'alunos': alunos,
         'classes': classes,
         'licoes': licoes,
         'avaliacoes': avaliacoes,
+        'total_turmas': turmas.count(),
+        'total_alunos': alunos.count(),
+        'total_classes': classes.count(),
+        'total_licoes': licoes.count(),
         'total_oferta': total_oferta,
+        'total_ofertas_mes': total_ofertas_mes,
+        'total_ofertas_mes_anterior': total_ofertas_mes_anterior,
         'alunos_evolucao': alunos_evolucao,
         'engajamento_percent': engajamento_percent,
         'evasao': evasao,
         'ranking_classes': ranking_classes,
         'freq_geral': freq_geral,
+        'freq_mes_anterior': freq_mes_anterior,
         'ranking_ofertas': ranking_ofertas,
         'alunos_novos': alunos_novos,
+        'alunos_novos_mes_anterior': alunos_novos_mes_anterior,
         'transferidos_mes': transferidos_mes,
         'meses': [m.strftime('%m/%Y') for m in meses],
         'faixas_etarias_labels': faixas_etarias_labels,
         'faixas_etarias_counts': faixas_etarias_counts,
+        'comparativo_periodo_cards': comparativo_periodo_cards,
+        'insights_dashboard': insights_dashboard[:3],
+        'periodo_anterior_label': f"{data_inicio_periodo_anterior.strftime('%d/%m/%Y')} a {data_fim_periodo_anterior.strftime('%d/%m/%Y')}",
+        'periodo_selecionado_label': f"{data_inicio_periodo.strftime('%d/%m/%Y')} a {data_fim_periodo.strftime('%d/%m/%Y')}",
+        'periodo_tipo_label': periodo_tipo_label,
+        'tipo_periodo': tipo_periodo,
+        'anos_letivos': ano_letivo_qs,
+        'ano_letivo_selecionado': ano_letivo_selecionado,
+        'periodos_disponiveis': periodos_disponiveis,
+        'periodo_selecionado': periodo_selecionado,
+        'scope_label': scope_label,
     })
 
 @login_required
@@ -2085,7 +2316,7 @@ def aluno_list(request):
     """
     from .models import AnoLetivo
 
-    # Verifica se é secretaria EBD (acesso total)
+    # Verifica se ├® secretaria EBD (acesso total)
     is_secretaria = (
         request.user.is_superuser or 
         request.user.groups.filter(name__in=['Secretaria EBD', 'Superintendente EBD']).exists()
@@ -2105,11 +2336,11 @@ def aluno_list(request):
         ano_filtro = ano_atual
     
     if is_secretaria:
-        # Secretaria vê todos os alunos
+        # Secretaria v├¬ todos os alunos
         alunos_list = Aluno.objects.all().order_by('nome')
         alunos_list = filtrar_alunos_ebd(alunos_list, request)
     else:
-        # Professor vê apenas alunos de suas turmas
+        # Professor v├¬ apenas alunos de suas turmas
         turmas_professor = get_turmas_professor(request.user)
         alunos_list = filtrar_alunos_ebd(Aluno.objects.filter(turma__in=turmas_professor).order_by('nome').distinct(), request)
 
@@ -2160,12 +2391,12 @@ def aluno_list(request):
             sufixo = f' (+{restantes} outro(s))' if restantes > 0 else ''
             messages.success(
                 request,
-                f'{vinculados} cadastro(s) vinculados automaticamente à Secretaria. Vinculados: {exibicao}{sufixo}.',
+                f'{vinculados} cadastro(s) vinculados automaticamente ├á Secretaria. Vinculados: {exibicao}{sufixo}.',
             )
         if sem_correspondencia:
-            messages.warning(request, f'{sem_correspondencia} cadastro(s) continuam sem correspondência segura.')
+            messages.warning(request, f'{sem_correspondencia} cadastro(s) continuam sem correspond├¬ncia segura.')
         if not vinculados and not sem_correspondencia:
-            messages.info(request, 'Nenhum cadastro elegível para tentativa de vínculo automático.')
+            messages.info(request, 'Nenhum cadastro eleg├¡vel para tentativa de v├¡nculo autom├ítico.')
 
         querystring_pos_post = request.GET.urlencode()
         redirect_url = reverse('escola_biblica:aluno_list')
@@ -2191,7 +2422,7 @@ def aluno_list(request):
         query_params.pop('page')
     querystring = query_params.urlencode()
     
-    paginator = Paginator(alunos_list, 20)  # 20 alunos por página
+    paginator = Paginator(alunos_list, 20)  # 20 alunos por p├ígina
     page = request.GET.get('page')
     try:
         alunos = paginator.page(page)
@@ -2235,7 +2466,7 @@ def turma_list(request):
     classe_filtro = request.GET.get('classe', '').strip()
     ano_atual = now.year
 
-    # Seleção do ano letivo
+    # Sele├º├úo do ano letivo
     if ano_letivo_filtro:
         try:
             # Garante que o valor do ano seja inteiro, mesmo se vier como string com ponto ou milhar
@@ -2247,7 +2478,7 @@ def turma_list(request):
     else:
         ano_letivo_selecionado, _ = AnoLetivo.objects.get_or_create(ano=ano_atual, defaults={'ativo': True})
 
-    # Sugerir cópia de turmas/classes/alunos do ano anterior se o ano letivo acabou de ser criado e não há turmas
+    # Sugerir c├│pia de turmas/classes/alunos do ano anterior se o ano letivo acabou de ser criado e n├úo h├í turmas
     sugerir_copiar = False
     ano_anterior = ano_letivo_selecionado.ano - 1 if ano_letivo_selecionado else None
     turmas_ano_atual = Turma.objects.filter(ano_letivo=ano_letivo_selecionado).count() if ano_letivo_selecionado else 0
@@ -2255,14 +2486,7 @@ def turma_list(request):
     if ano_letivo_selecionado and turmas_ano_atual == 0 and turmas_ano_anterior > 0:
         sugerir_copiar = True
 
-    config = None
-    tipo_periodo = 'trimestre'
-    if hasattr(request, 'user') and request.user.is_authenticated:
-        perfil = getattr(request.user, 'perfil', None)
-        if perfil and hasattr(perfil, 'ministerio'):
-            config = ConfiguracaoSistema.objects.filter(ministerio=perfil.ministerio).first()
-            if config:
-                tipo_periodo = config.ebd_periodo
+    tipo_periodo = get_ebd_tipo_periodo(request)
     periodos = PeriodoEBD.objects.filter(ano_letivo=ano_letivo_selecionado, tipo=tipo_periodo).order_by('numero')
     periodo_selecionado = None
     if periodo_filtro:
@@ -2278,7 +2502,7 @@ def turma_list(request):
     # Filtro unificado de turmas
     turmas_list = Turma.objects.filter(ano_letivo=ano_letivo_selecionado)
     
-    # Verifica se é secretaria EBD (acesso total) ou professor (acesso limitado)
+    # Verifica se ├® secretaria EBD (acesso total) ou professor (acesso limitado)
     is_secretaria = usuario_pode_gerenciar_ebd(request.user)
     
     if not is_secretaria:
@@ -2291,7 +2515,7 @@ def turma_list(request):
     if classe_filtro:
         turmas_list = turmas_list.filter(classe__nome__icontains=classe_filtro)
     if periodo_selecionado:
-        # Se quiser filtrar por período, adicione lógica aqui (exemplo: turmas_list = turmas_list.filter(periodo=periodo_selecionado))
+        # Se quiser filtrar por per├¡odo, adicione l├│gica aqui (exemplo: turmas_list = turmas_list.filter(periodo=periodo_selecionado))
         pass
     turmas_list = turmas_list.order_by('nome')
     turmas_list = filtrar_turmas_ebd(turmas_list, request)
@@ -2303,7 +2527,7 @@ def turma_list(request):
         turmas = paginator.page(1)
     except EmptyPage:
         turmas = paginator.page(paginator.num_pages)
-    # Banner do período EBD atual
+    # Banner do per├¡odo EBD atual
     from .models import Licao
     ebd_periodo_atual = periodo_selecionado
     ebd_aulas_total = None
@@ -2313,7 +2537,7 @@ def turma_list(request):
         from .utils import gerar_domingos_periodo
         domingos = gerar_domingos_periodo(ebd_periodo_atual.data_inicio, ebd_periodo_atual.data_fim)
         ebd_aulas_total = len(domingos)
-        # Aula atual: quantos domingos já passaram (incluindo hoje se for domingo)
+        # Aula atual: quantos domingos j├í passaram (incluindo hoje se for domingo)
         ebd_aulas_realizadas = sum(1 for d in domingos if d <= now)
         ebd_percentual = int((ebd_aulas_realizadas / ebd_aulas_total) * 100) if ebd_aulas_total else 0
     context = {
@@ -2362,7 +2586,7 @@ def turma_delete(request, pk):
     turma = get_object_or_404_ebd(Turma.objects.all(), request, 'membros__igreja', pk=pk)
     if request.method == 'POST':
         turma.delete()
-        messages.success(request, 'Turma excluída com sucesso!')
+        messages.success(request, 'Turma exclu├¡da com sucesso!')
         return redirect('escola_biblica:turma_list')
     return render(request, 'escola_biblica/turma_confirm_delete.html', {'turma': turma})
 
@@ -2384,7 +2608,7 @@ def frequencia_list(request):
     return render(request, 'escola_biblica/frequencia_list.html', {'frequencias': frequencias})
 
 
-# --- NOVA VIEW: Geração automática de períodos e lições em lote ---
+# --- NOVA VIEW: Gera├º├úo autom├ítica de per├¡odos e li├º├Áes em lote ---
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def gerar_cronograma(request):
@@ -2394,19 +2618,7 @@ def gerar_cronograma(request):
     ano_atual = date.today().year
     turmas = filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ano=ano_atual, ano_letivo__ativo=True), request, 'membros__igreja')
     turma_selecionada = None
-    config = None
-    tipo_periodo = 'trimestre'
-    # Busca configuração do período da EBD
-    if hasattr(request, 'user') and request.user.is_authenticated:
-        try:
-            # Supondo que o usuário tem perfil/ministério
-            perfil = getattr(request.user, 'perfil', None)
-            if perfil and hasattr(perfil, 'ministerio'):
-                config = ConfiguracaoSistema.objects.filter(ministerio=perfil.ministerio).first()
-                if config:
-                    tipo_periodo = config.ebd_periodo
-        except Exception as exc:
-            logger.warning('Falha ao carregar configuração de período EBD para user=%s: %s', request.user.pk, exc)
+    tipo_periodo = get_ebd_tipo_periodo(request)
     if request.method == 'POST':
         form = GerarCronogramaForm(request.POST, request=request)
         if form.is_valid():
@@ -2416,7 +2628,7 @@ def gerar_cronograma(request):
             observacoes = form.cleaned_data.get('observacoes', '')
             horario = form.cleaned_data.get('horario', None)
             status = form.cleaned_data.get('status', 'ativa')
-            # Gera lições para todos os períodos e domingos do ano
+            # Gera li├º├Áes para todos os per├¡odos e domingos do ano
             licoes = gerar_licoes_periodos(
                 ano=ano_atual,
                 tipo_periodo=tipo_periodo,
@@ -2426,11 +2638,11 @@ def gerar_cronograma(request):
                 horario=horario,
                 status=status
             )
-            # Salva as lições no banco
+            # Salva as li├º├Áes no banco
             from .models import Licao
             criadas = 0
             for licao_data in licoes:
-                # Evita duplicidade: só cria se não existir para turma/data/tema
+                # Evita duplicidade: s├│ cria se n├úo existir para turma/data/tema
                 if not Licao.objects.filter(turma=licao_data['turma'], data=licao_data['data'], tema=licao_data['tema']).exists():
                     Licao.objects.create(
                         turma=licao_data['turma'],
@@ -2444,9 +2656,9 @@ def gerar_cronograma(request):
                     )
                     criadas += 1
             if criadas:
-                messages.success(request, f'{criadas} lições geradas com sucesso!')
+                messages.success(request, f'{criadas} li├º├Áes geradas com sucesso!')
             else:
-                messages.info(request, 'Nenhuma nova lição foi gerada (já existem para este período/turma).')
+                messages.info(request, 'Nenhuma nova li├º├úo foi gerada (j├í existem para este per├¡odo/turma).')
             return redirect('escola_biblica:gerar_cronograma')
         else:
             for field, errors in form.errors.items():

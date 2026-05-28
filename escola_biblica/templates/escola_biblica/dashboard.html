@@ -1,228 +1,311 @@
 {% extends 'base_com_menu.html' %}
+{% load static %}
+{% load humanize %}
+{% load l10n %}
+
 {% block title %}Dashboard EBD{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
+<link rel="stylesheet" href="{% static 'css/escola-biblica-dashboard.css' %}">
+{% endblock %}
+
 {% block content %}
+<div class="ebdash-page">
+	<header class="ebdash-header">
+		<div class="ebdash-header-main">
+			<div class="ebdash-title-row">
+				<h1 class="ebdash-title">Escola Bíblica Dominical</h1>
+				<div class="ebdash-updated-at"><i class="fas fa-circle"></i>Atualizado em {% now "d/m/Y" %} às {% now "H:i" %}</div>
+			</div>
+			<ol class="ebdash-breadcrumb">
+				<li><a href="{% url 'secretaria:index' %}"><i class="fas fa-home me-1"></i>Home</a></li>
+				<li><a href="{% url 'escola_biblica:dashboard' %}">Escola Dominical</a></li>
+				<li class="active">Visão Geral</li>
+			</ol>
+			{% if periodo_selecionado_label or scope_label %}
+			<div class="ebdash-scope">
+				{% if scope_label %}
+				<span class="ebdash-chip"><i class="fas fa-location-dot"></i>{{ scope_label }}</span>
+				{% endif %}
+				{% if periodo_selecionado_label %}
+				<span class="ebdash-chip"><i class="fas fa-calendar-days"></i>{{ periodo_tipo_label }} atual: {{ periodo_selecionado_label }}</span>
+				{% endif %}
+			</div>
+			{% endif %}
+		</div>
+		<div class="ebdash-header-actions">
+			<form method="get" class="ebdash-filters-inline" aria-label="Filtro de período da EBD">
+				<div class="ebdash-filter-pill">
+					<span class="ebdash-filter-pill-label">Ano</span>
+					<select id="ano_letivo" name="ano_letivo" class="form-select form-select-sm" onchange="this.form.submit()">
+						{% for ano in anos_letivos %}
+						<option value="{{ ano.ano|unlocalize }}" {% if ano_letivo_selecionado and ano.ano == ano_letivo_selecionado.ano %}selected{% endif %}>{{ ano.ano|unlocalize }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="ebdash-filter-pill">
+					<span class="ebdash-filter-pill-label">Período</span>
+					<select id="periodo" name="periodo" class="form-select form-select-sm" onchange="this.form.submit()">
+						{% for periodo in periodos_disponiveis %}
+						<option value="{{ periodo.numero }}" {% if periodo_selecionado and periodo.numero == periodo_selecionado.numero %}selected{% endif %}>
+							{{ periodo.numero }} - {{ periodo.data_inicio|date:"d/m/Y" }} a {{ periodo.data_fim|date:"d/m/Y" }}
+						</option>
+						{% empty %}
+						<option value="">Sem períodos cadastrados</option>
+						{% endfor %}
+					</select>
+				</div>
+			</form>
+		</div>
+	</header>
 
-<div class="container-fluid px-4">
-	<h1 class="mt-4 fw-bold">Escola Bíblica Dominical</h1>
-	<ol class="breadcrumb mb-4">
-		<li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-		<li class="breadcrumb-item active">EBD</li>
-	</ol>
+	<section class="ebdash-kpi-strip" aria-label="Indicadores principais da EBD">
+		<article class="ebdash-kpi-card">
+			<div class="label">Alunos ativos</div>
+			<div class="value">{{ total_alunos }}</div>
+		</article>
+		<article class="ebdash-kpi-card">
+			<div class="label">Turmas ativas</div>
+			<div class="value">{{ total_turmas }}</div>
+		</article>
+		<article class="ebdash-kpi-card">
+			<div class="label">Frequência média do período</div>
+			<div class="value">{{ freq_geral|floatformat:1 }}%</div>
+			<small>Engajamento: {{ engajamento_percent|floatformat:1 }}%</small>
+		</article>
+		<article class="ebdash-kpi-card emphasis">
+			<div class="label">Ofertas acumuladas</div>
+			<div class="value">R$ {{ total_oferta|floatformat:2|intcomma }}</div>
+			<small>Período: R$ {{ total_ofertas_mes|floatformat:2|intcomma }}</small>
+		</article>
+	</section>
 
-	<h2 class="h5 fw-bold text-uppercase text-muted mb-3">Cadastros</h2>
+	<section class="ebdash-focus-section" aria-label="Foco operacional da EBD">
+		<div class="ebdash-section-head">
+			<h2>Foco Operacional</h2>
+			<p>Resolva primeiro os sinais críticos de turma, depois siga para as ações de rotina.</p>
+		</div>
 
-	<!-- Cards de navegação panorâmica -->
-	<div class="row g-4 mb-4">
-		<!-- Turmas -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:turma_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div>
-							<i class="fas fa-chalkboard-teacher fa-3x mb-2"></i>
-							<h4 class="fw-bold">Turmas e Chamadas</h4>
-							<p class="mb-1">Gerencie turmas e faça chamadas de presença das classes.</p>
-						</div>
-						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ turmas|length }} turmas</span></div>
+		<div class="ebdash-focus-grid">
+			<div class="ebdash-focus-main">
+				<article class="ebdash-priority-card {% if evasao > 0 %}is-warn{% else %}is-ok{% endif %}">
+					<div class="head">
+						<span class="pill">Prioridade do período</span>
+						<i class="fas fa-clipboard-check"></i>
 					</div>
+					<h3>{{ evasao }}</h3>
+					<p>Aluno(s) com status inativo no ano letivo atual. Trate primeiro as turmas com queda recente.</p>
+					<small class="text-muted">Novos alunos no período: {{ alunos_novos }} | Transferências no período: {{ transferidos_mes }}</small>
+					<a href="{% url 'escola_biblica:aluno_list' %}" class="btn btn-outline-secondary btn-sm">Acompanhar alunos</a>
+				</article>
+			</div>
+
+			<aside class="ebdash-focus-side" aria-label="Ações rápidas da EBD">
+				<div class="ebdash-section-head compact">
+					<h3>Ações Rápidas</h3>
+					<p>Atalhos para os fluxos mais frequentes da secretaria EBD.</p>
 				</div>
-			</a>
+
+				<div class="ebdash-quick-actions">
+					<a href="{% url 'escola_biblica:turma_list' %}" class="ebdash-quick-action">
+						<span class="icon"><i class="fas fa-chalkboard-teacher"></i></span>
+						<span class="content">
+							<strong>Gerir turmas e chamadas</strong>
+							<small>Abra turmas e registre presença com rapidez.</small>
+						</span>
+					</a>
+					<a href="{% url 'escola_biblica:aluno_create' %}" class="ebdash-quick-action">
+						<span class="icon"><i class="fas fa-user-plus"></i></span>
+						<span class="content">
+							<strong>Matricular aluno</strong>
+							<small>Cadastre novos alunos para o período atual.</small>
+						</span>
+					</a>
+					<a href="{% url 'escola_biblica:gerar_cronograma_wizard' %}" class="ebdash-quick-action">
+						<span class="icon"><i class="fas fa-calendar-week"></i></span>
+						<span class="content">
+							<strong>Gerar cronograma</strong>
+							<small>Planeje lições e sequência de aulas.</small>
+						</span>
+					</a>
+				</div>
+			</aside>
 		</div>
-		<!-- Classes -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:classe_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div>
-							<i class="fas fa-users fa-3x mb-2"></i>
-							<h4 class="fw-bold">Classes</h4>
-							<p class="mb-1">Grupos temáticos/faixa etária.</p>
-						</div>
-						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ classes|length }} classes</span></div>
-					</div>
-				</div>
-			</a>
+	</section>
+
+	<section class="ebdash-secondary-section" aria-label="Sinais do período da EBD">
+		<div class="ebdash-section-head">
+			<h2>Sinais do Período</h2>
+			<p>Comparativo objetivo da operação atual versus janela anterior equivalente.</p>
 		</div>
-		<!-- Alunos -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:aluno_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div>
-							<i class="fas fa-user-graduate fa-3x mb-2"></i>
-							<h4 class="fw-bold">Alunos</h4>
-							<p class="mb-1">Visualize e gerencie os alunos.</p>
-						</div>
-						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ alunos|length }} alunos</span></div>
-					</div>
+
+		<div class="ebdash-mini-trend-grid">
+			{% for card in comparativo_periodo_cards %}
+			<article class="ebdash-mini-trend-card {{ card.tone }}">
+				<div class="ebdash-mini-trend-head">
+					<span>{{ card.label }}</span>
+					<strong><i class="{{ card.icon }}"></i>
+						{% if card.format == 'currency' %}R$ {{ card.diferenca_label }}
+						{% elif card.format == 'percent' %}{{ card.diferenca_label }} p.p.
+						{% else %}{{ card.diferenca_label }}{% endif %}
+					</strong>
 				</div>
-			</a>
+				<div class="ebdash-mini-trend-meta">
+					<span>Atual:
+						<strong>
+							{% if card.format == 'currency' %}R$ {{ card.atual|floatformat:2|intcomma }}
+							{% elif card.format == 'percent' %}{{ card.atual|floatformat:1 }}%
+							{% else %}{{ card.atual }}{% endif %}
+						</strong>
+					</span>
+					<span>Anterior:
+						<strong>
+							{% if card.format == 'currency' %}R$ {{ card.anterior|floatformat:2|intcomma }}
+							{% elif card.format == 'percent' %}{{ card.anterior|floatformat:1 }}%
+							{% else %}{{ card.anterior }}{% endif %}
+						</strong>
+					</span>
+				</div>
+			</article>
+			{% endfor %}
 		</div>
-		<!-- Lições -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:licao_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div>
-							<i class="fas fa-book-open fa-3x mb-2"></i>
-							<h4 class="fw-bold">Lições</h4>
-							<p class="mb-1">Acompanhe e gere lições/aulas.</p>
-						</div>
-						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ licoes|length }} lições</span></div>
-					</div>
-				</div>
-			</a>
+		<p class="ebdash-mini-trend-caption">Período atual: {{ periodo_selecionado_label }} | Comparação com: {{ periodo_anterior_label }}.</p>
+
+		<div class="ebdash-insights-grid">
+			{% for insight in insights_dashboard %}
+			<article class="ebdash-insight-card {{ insight.tone }}">
+				<div class="head"><span><i class="{{ insight.icon }}"></i> {{ insight.title }}</span></div>
+				<p>{{ insight.message }}</p>
+				{% if insight.cta_url and insight.cta_label %}
+				<a href="{{ insight.cta_url }}" class="btn btn-outline-secondary btn-sm">{{ insight.cta_label }}</a>
+				{% endif %}
+			</article>
+			{% endfor %}
 		</div>
-		<!-- Frequência -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:frequencia_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div>
-							<i class="fas fa-clipboard-check fa-3x mb-2"></i>
-							<h4 class="fw-bold">Frequência</h4>
-							<p class="mb-1">Registre e acompanhe presença.</p>
-						</div>
-						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">{{ freq_geral }}% média</span></div>
-					</div>
-				</div>
-			</a>
-		</div>
-		<!-- Avaliações -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:avaliacao_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div>
-							<i class="fas fa-star fa-3x mb-2"></i>
-							<h4 class="fw-bold">Avaliações</h4>
-							<p class="mb-1">Notas e participação dos alunos.</p>
-						</div>
-						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">Ver avaliações</span></div>
-					</div>
-				</div>
-			</a>
-		</div>
-		<!-- Ofertas -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<a href="{% url 'escola_biblica:oferta_classe_list' %}" class="text-decoration-none">
-				<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-					<div class="card-body d-flex flex-column justify-content-between">
-						<div>
-							<i class="fas fa-hand-holding-usd fa-3x mb-2"></i>
-							<h4 class="fw-bold">Ofertas</h4>
-							<p class="mb-1">Controle de ofertas por classe.</p>
-						</div>
-						<div class="mt-2"><span class="badge bg-light" style="color:#0a6665;">R$ {{ total_oferta|floatformat:2 }}</span></div>
-					</div>
-				</div>
-			</a>
-		</div>
-		<!-- Relatórios -->
-		<!-- Relatórios (NOVO PADRÃO) -->
-		<div class="col-12 col-md-6 col-lg-3">
-			<div class="card card-gradient shadow h-100" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius: 18px;">
-				<div class="card-body d-flex flex-column justify-content-between">
-					<div>
-						<div class="mb-2">
-							<i class="fas fa-file-alt fa-2x text-white"></i>
-						</div>
-						<div class="mb-1" style="display: flex; align-items: center; gap: 0.5em;">
-							<span class="fw-bold text-white" style="font-size: 1.6em;">Relatórios</span>
-							<span class="align-middle" data-bs-toggle="tooltip" data-bs-placement="right" title="Relatórios de alunos, frequência e avaliações da EBD. Clique para acessar os relatórios disponíveis.">
-								<i class="fas fa-question-circle" style="font-size:1.1em; color:#fff; cursor:pointer;"></i>
-							</span>
-						</div>
-					</div>
-					<div class="d-grid gap-2 mt-3">
-						<a href="{% url 'escola_biblica:cargos_ebd_list' %}" class="btn btn-light fw-bold mb-2 py-2" style="border-radius: 10px; background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border: none; font-size:1.05em;">
-							<i class="fas fa-users me-1"></i> Cargos e Funções da EBD
-						</a>
-						<a href="{% url 'escola_biblica:relatorio_ebd_dia' %}" class="btn btn-light fw-bold py-2" style="border-radius: 10px; background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border: none; font-size:1.05em;">
-							<i class="fas fa-calendar-day me-1"></i> Relatório Geral do Dia
-						</a>
-					</div>
-				</div>
+	</section>
+
+	<section class="ebdash-analytics-section" aria-label="Análise de evolução da EBD">
+		<div class="ebdash-section-head">
+			<h2>Análise da Escola Dominical</h2>
+			<p>Combine leitura de presença, evolução de alunos e distribuição etária para planejamento de classes.</p>
+			<div class="ebdash-head-actions" aria-label="Relatórios da EBD">
+				<a href="{% url 'escola_biblica:relatorio_ebd_dia' %}" class="btn btn-outline-secondary btn-sm">Relatório geral do dia</a>
+				<a href="{% url 'escola_biblica:relatorio_frequencia' %}" class="btn btn-outline-secondary btn-sm">Relatório de frequência</a>
+				<a href="{% url 'escola_biblica:relatorio_alunos' %}" class="btn btn-outline-secondary btn-sm">Relatório de alunos</a>
 			</div>
 		</div>
-	</div>
 
-	<!-- Indicadores principais e gráficos -->
+		<div class="ebdash-chart-grid">
+			<article class="ebdash-chart-card">
+				<header><i class="fas fa-chart-line"></i> Evolução de Alunos Ativos (12 meses)</header>
+				<div class="canvas-wrap"><canvas id="evolucaoAlunosChart"></canvas></div>
+			</article>
 
-	<div class="row mb-4 g-4 align-items-stretch">
-		<div class="col-md-7 d-flex">
-			<div class="card shadow flex-fill d-flex flex-column" style="border-radius:18px; min-height:340px;">
-				<div class="card-header bg-light" style="border-radius:18px 18px 0 0;"><b>Evolução de Alunos Ativos (12 meses)</b></div>
-				<div class="card-body flex-fill d-flex align-items-center justify-content-center">
-					<canvas id="evolucaoAlunosChart"></canvas>
-				</div>
-			</div>
+			<article class="ebdash-chart-card">
+				<header><i class="fas fa-chart-pie"></i> Distribuição por Faixa Etária</header>
+				<div class="canvas-wrap"><canvas id="faixaEtariaChart"></canvas></div>
+			</article>
+
+			<article class="ebdash-chart-card">
+				<header><i class="fas fa-list-ol"></i> Ranking de Frequência por Classe</header>
+				<ul class="ebdash-ranking-list">
+					{% for item in ranking_classes|slice:":6" %}
+					<li><span>{{ item.classe }}</span><strong>{{ item.frequencia_media|floatformat:1 }}%</strong></li>
+					{% empty %}
+					<li><span>Sem dados suficientes</span><strong>-</strong></li>
+					{% endfor %}
+				</ul>
+			</article>
+
+			<article class="ebdash-chart-card">
+				<header><i class="fas fa-hand-holding-dollar"></i> Ranking de Ofertas por Classe</header>
+				<ul class="ebdash-ranking-list">
+					{% for item in ranking_ofertas|slice:":6" %}
+					<li><span>{{ item.classe }}</span><strong>R$ {{ item.total_oferta|floatformat:2|intcomma }}</strong></li>
+					{% empty %}
+					<li><span>Sem dados suficientes</span><strong>-</strong></li>
+					{% endfor %}
+				</ul>
+			</article>
 		</div>
-		<div class="col-md-5 d-flex">
-			<div class="card shadow flex-fill d-flex flex-column" style="border-radius:18px; min-height:340px;">
-				<div class="card-header bg-light" style="border-radius:18px 18px 0 0;"><b>Distribuição por Faixa Etária</b></div>
-				<div class="card-body flex-fill d-flex align-items-center justify-content-center">
-					<canvas id="faixaEtariaChart"></canvas>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-	<script>
-		// Inicializa tooltips do Bootstrap
-		var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-		var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-			return new bootstrap.Tooltip(tooltipTriggerEl);
-		});
-	</script>
-	{{ meses|json_script:"meses-data" }}
-	{{ alunos_evolucao|json_script:"alunos-evolucao-data" }}
-	{{ faixas_etarias_labels|json_script:"faixas-etarias-labels" }}
-	{{ faixas_etarias_counts|json_script:"faixas-etarias-counts" }}
-	<script>
-		// Gráfico de evolução de alunos ativos
-		let ctxEvolucao = document.getElementById('evolucaoAlunosChart').getContext('2d');
-		let mesesEvolucao = JSON.parse(document.getElementById('meses-data').textContent);
-		let alunosEvolucaoData = JSON.parse(document.getElementById('alunos-evolucao-data').textContent);
-		new Chart(ctxEvolucao, {
-			type: 'line',
-			data: {
-				labels: mesesEvolucao,
-				datasets: [{
-					label: 'Alunos Ativos',
-					data: alunosEvolucaoData,
-					borderColor: '#0d8281',
-					backgroundColor: 'rgba(13,130,129,0.15)',
-					fill: true,
-					tension: 0.3
-				}]
-			},
-			options: {
-				responsive: true,
-				plugins: { legend: { display: false } },
-				scales: { y: { beginAtZero: true } }
-			}
-		});
-
-		// Gráfico de distribuição por faixa etária
-		let ctxFaixa = document.getElementById('faixaEtariaChart').getContext('2d');
-		let faixasLabels = JSON.parse(document.getElementById('faixas-etarias-labels').textContent);
-		let faixasCounts = JSON.parse(document.getElementById('faixas-etarias-counts').textContent);
-		new Chart(ctxFaixa, {
-			type: 'pie',
-			data: {
-				labels: faixasLabels,
-				datasets: [{
-					data: faixasCounts,
-					backgroundColor: ['#0d8281','#0a6665','#2aa5a4','#4db7b6','#86cecd','#b7e4e3']
-				}]
-			},
-			options: {
-				responsive: true,
-				plugins: { legend: { position: 'bottom' } }
-			}
-		});
-	</script>
+	</section>
 </div>
+
+{{ meses|json_script:"meses-data" }}
+{{ alunos_evolucao|json_script:"alunos-evolucao-data" }}
+{{ faixas_etarias_labels|json_script:"faixas-etarias-labels" }}
+{{ faixas_etarias_counts|json_script:"faixas-etarias-counts" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+	(function () {
+		const meses = JSON.parse(document.getElementById('meses-data').textContent || '[]');
+		const alunosEvolucao = JSON.parse(document.getElementById('alunos-evolucao-data').textContent || '[]');
+		const faixasLabels = JSON.parse(document.getElementById('faixas-etarias-labels').textContent || '[]');
+		const faixasCounts = JSON.parse(document.getElementById('faixas-etarias-counts').textContent || '[]');
+
+		const chartDefaults = {
+			color: '#64748B',
+			font: { family: 'Segoe UI, system-ui, -apple-system, sans-serif', size: 12 }
+		};
+		Chart.defaults.plugins.legend.labels.color = '#334155';
+
+		const evolucaoEl = document.getElementById('evolucaoAlunosChart');
+		if (evolucaoEl) {
+			new Chart(evolucaoEl.getContext('2d'), {
+				type: 'line',
+				data: {
+					labels: meses,
+					datasets: [{
+						label: 'Alunos ativos',
+						data: alunosEvolucao,
+						borderColor: '#0D8281',
+						backgroundColor: 'rgba(13,130,129,0.14)',
+						fill: true,
+						tension: 0.28,
+						borderWidth: 2,
+						pointRadius: 2.4,
+						pointHoverRadius: 4,
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: { legend: { display: false } },
+					scales: {
+						x: { ticks: chartDefaults, grid: { color: 'rgba(148,163,184,.15)' } },
+						y: { beginAtZero: true, ticks: chartDefaults, grid: { color: 'rgba(148,163,184,.15)' } }
+					}
+				}
+			});
+		}
+
+		const faixaEl = document.getElementById('faixaEtariaChart');
+		if (faixaEl) {
+			new Chart(faixaEl.getContext('2d'), {
+				type: 'doughnut',
+				data: {
+					labels: faixasLabels,
+					datasets: [{
+						data: faixasCounts,
+						backgroundColor: ['#0D8281', '#0A6665', '#2AA5A4', '#4DB7B6', '#86CECD', '#B7E4E3'],
+						borderColor: '#ffffff',
+						borderWidth: 2,
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						legend: {
+							position: 'bottom',
+							labels: { color: '#334155', usePointStyle: true, boxWidth: 8 }
+						}
+					}
+				}
+			});
+		}
+	})();
+</script>
 {% endblock %}
