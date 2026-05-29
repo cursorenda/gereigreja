@@ -580,6 +580,14 @@ class Frequencia(models.Model):
 class Licao(models.Model):
     """Lição ministrada para uma turma em uma data específica."""
     turma = models.ForeignKey('Turma', on_delete=models.CASCADE)
+    periodo = models.ForeignKey(
+        'PeriodoEBD',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='licoes',
+        verbose_name='Período EBD',
+    )
     data = models.DateField()
     tema = models.CharField(max_length=200)  # Verifique se o modelo Licao possui os campos: turma, data, tema, material, observacoes, horario, status, professor
     descricao = models.TextField(blank=True)
@@ -602,6 +610,7 @@ class Licao(models.Model):
             raise ValidationError(
                 f"A lição em {self.data.strftime('%d/%m/%Y')} está fora do período EBD configurado para a turma."
             )
+        self.periodo = periodo
 
     def save(self, *args, **kwargs):
         self.full_clean()

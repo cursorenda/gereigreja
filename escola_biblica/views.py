@@ -242,6 +242,7 @@ def auto_sync_ebd_periodos_e_licoes(request, force=False):
                         defaults={
                             'tema': f'Lição {idx} - {periodo_nome}',
                             'status': 'ativa',
+                               'periodo': periodo_referencia,
                         },
                     )
                     if criada:
@@ -1914,7 +1915,7 @@ def licao_list(request):
     
     licoes = licoes_scope
     if periodo_selecionado:
-        licoes = licoes.filter(data__gte=periodo_selecionado.data_inicio, data__lte=periodo_selecionado.data_fim)
+        licoes = licoes.filter(periodo=periodo_selecionado)
     
     # Buscar turmas para o filtro (apenas do escopo do usu├írio)
     from .models import Turma
