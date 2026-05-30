@@ -3,6 +3,28 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Estatísticas e Gráficos - EBD</h2>
+  <form method="get" class="row g-2 mb-4 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label fw-bold">Ano letivo</label>
+      <select name="ano_letivo" class="form-select">
+        {% for ano in anos_letivos %}
+        <option value="{{ ano.ano|floatformat:0 }}" {% if ano_letivo_selecionado and ano.ano == ano_letivo_selecionado.ano %}selected{% endif %}>{{ ano.ano|floatformat:0 }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-bold">{{ tipo_periodo|title }}</label>
+      <select name="periodo" class="form-select">
+        {% for periodo in periodos_disponiveis %}
+        <option value="{{ periodo.numero }}" {% if periodo_selecionado and periodo.numero == periodo_selecionado.numero %}selected{% endif %}>{{ periodo.numero }} - {{ periodo.data_inicio|date:'d/m/Y' }} a {{ periodo.data_fim|date:'d/m/Y' }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+      <a href="?" class="btn btn-outline-secondary">Limpar</a>
+    </div>
+  </form>
   <div class="row">
     <div class="col-md-6 mb-4">
       <div class="card">

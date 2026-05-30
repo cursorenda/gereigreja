@@ -1,5 +1,40 @@
 > **Aviso:** documento histórico (fev/2026). Pode divergir do estado atual após a migração para `@page_access_required` + `PAGE_ACCESS_RULES`.
 
+## Atualizacao de Estado (28/05/2026)
+
+Este arquivo permanece como auditoria historica de permissoes, mas o modulo EBD evoluiu significativamente no eixo de governanca de periodo e automacao operacional.
+
+### O que mudou no estado atual da EBD
+
+- O periodo EBD passou a seguir a configuracao ministerial (`ebd_periodo`) de forma centralizada.
+- O modulo agora possui auto-sync de periodos e licoes para reduzir dependencia de clique manual.
+- A automacao e acionada em pontos criticos de uso (dashboard, chamada por turma e lista de turmas).
+- Foram adicionadas validacoes de dominio para bloquear registros fora do periodo EBD valido.
+
+### Regras tecnicas em vigor
+
+1. Licao:
+- So pode ser salva se a data estiver dentro de um periodo EBD valido para a turma.
+- Constraint de unicidade por turma+data.
+
+2. Frequencia:
+- Nao permite data futura.
+- Exige data dentro do periodo EBD valido da turma.
+- Exige aderencia ao dia da semana configurado para EBD no ministerio.
+
+3. Oferta por turma:
+- Exige data dentro do periodo EBD valido da turma.
+
+### Referencia tecnica oficial atual
+
+Para arquitetura e operacao atualizadas, consulte:
+
+- `docs/sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md`
+
+### Nota
+
+As secoes abaixo deste bloco preservam a auditoria original de 17/02/2026 para rastreabilidade historica.
+
 # 🔐 Auditoria de Permissões: Professor EBD
 ## Análise Completa de Acesso às Views - Escola Bíblica
 

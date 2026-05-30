@@ -1,3 +1,22 @@
+## v1.13.11 — 28/05/2026
+📝 **Documentacao do Sistema — Escola Dominical (EBD) atualizada com governanca de periodo e automacao**
+
+### Entregas
+- Novo documento tecnico de sistema para EBD com consolidacao das regras atuais:
+  - fonte de verdade do periodo por ministerio;
+  - auto-sync de periodos/licoes sem clique manual;
+  - validacoes de dominio para licao, frequencia e oferta;
+  - constraint de unicidade para licoes por turma/data.
+- Atualizacao do indice de documentacao (`docs/INDEX.md`) com secao dedicada a Escola Dominical.
+- Inclusao da atualizacao de 28/05/2026 na area de documentacoes recentes.
+
+### Impacto
+- Documentacao tecnica mais clara para operacao e evolucao do modulo EBD.
+- Menor risco de regressao funcional por falta de referencia de regras de periodo.
+- Sem migracoes adicionais de banco e sem breaking changes de API publica.
+
+---
+
 ## v1.13.10 — 28/05/2026
 ⚙️ **Escola Dominical (EBD) — Automação de Períodos/Lições + Governança Estrita de Dados por Período**
 

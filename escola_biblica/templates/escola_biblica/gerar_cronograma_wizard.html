@@ -14,6 +14,12 @@
             <span style="font-size:1.1rem; font-weight:600;">Wizard de Geração de Lições</span>
         </div>
         <div class="card-body pt-4 bg-white" style="border-radius:0 0 12px 12px;">
+            {% if modo_contingencia %}
+            <div class="alert alert-warning border-0 shadow-sm mb-4">
+                <strong>Fluxo de contingência.</strong> A geração normal das lições e períodos já acontece automaticamente nas telas principais.
+                Use este wizard apenas se precisar recriar ou revisar um cronograma manualmente.
+            </div>
+            {% endif %}
             <!-- Etapa 1: Seleção -->
             {% if etapa == 1 %}
             <form method="post">

@@ -167,6 +167,49 @@ def _get_ebd_auto_sync_session_key(request, tipo_periodo, dia_semana):
     return f'ebd:auto-sync:{ministerio_id}:{tipo_periodo}:{dia_semana}'
 
 
+def get_ebd_periodo_filtro(request):
+    from .models import AnoLetivo, PeriodoEBD
+
+    hoje = timezone.now().date()
+    tipo_periodo = get_ebd_tipo_periodo(request)
+    ano_letivo_filtro = request.GET.get('ano_letivo')
+    periodo_filtro = request.GET.get('periodo')
+
+    anos_letivos = AnoLetivo.objects.order_by('-ano')
+    if ano_letivo_filtro:
+        try:
+            ano_letivo_selecionado = anos_letivos.get(ano=int(str(ano_letivo_filtro).strip()))
+        except (AnoLetivo.DoesNotExist, ValueError):
+            ano_letivo_selecionado = anos_letivos.filter(ano=hoje.year).first() or anos_letivos.first()
+    else:
+        ano_letivo_selecionado = anos_letivos.filter(ano=hoje.year).first() or anos_letivos.first()
+
+    periodos_disponiveis = PeriodoEBD.objects.none()
+    if ano_letivo_selecionado:
+        periodos_disponiveis = PeriodoEBD.objects.filter(
+            ano_letivo=ano_letivo_selecionado,
+            tipo=tipo_periodo,
+        ).order_by('numero')
+
+    periodo_selecionado = None
+    if periodos_disponiveis.exists():
+        if periodo_filtro:
+            try:
+                periodo_selecionado = periodos_disponiveis.get(numero=int(periodo_filtro))
+            except (PeriodoEBD.DoesNotExist, ValueError):
+                periodo_selecionado = periodos_disponiveis.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first() or periodos_disponiveis.first()
+        else:
+            periodo_selecionado = periodos_disponiveis.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first() or periodos_disponiveis.first()
+
+    return {
+        'tipo_periodo': tipo_periodo,
+        'anos_letivos': anos_letivos,
+        'ano_letivo_selecionado': ano_letivo_selecionado,
+        'periodos_disponiveis': periodos_disponiveis,
+        'periodo_selecionado': periodo_selecionado,
+    }
+
+
 def auto_sync_ebd_periodos_e_licoes(request, force=False):
     """
     Garante de forma automática:
@@ -303,7 +346,11 @@ def colapsar_alunos_por_cadastro(queryset):
     return queryset.filter(id=Subquery(ultimo_aluno_por_cadastro))
 
 
-def consolidar_alunos_por_cadastro_periodo(queryset, inicio=None, fim=None, turma_id=None, classe_id=None):
+def consolidar_alunos_por_cadastro_periodo(queryset, inicio=None, fim=None, turma_id=None, classe_id=None, periodo=None):
+    if periodo is not None:
+        inicio = periodo.data_inicio
+        fim = periodo.data_fim
+
     data_referencia = fim or inicio or timezone.now().date()
     matriculas = list(queryset.select_related('cadastro', 'turma', 'turma__classe', 'turma__ano_letivo'))
     if not matriculas:
@@ -344,10 +391,13 @@ def consolidar_alunos_por_cadastro_periodo(queryset, inicio=None, fim=None, turm
     }
 
     avaliacoes = Avaliacao.objects.filter(aluno__cadastro_id__in=cadastro_ids)
-    if inicio:
-        avaliacoes = avaliacoes.filter(licao__data__gte=inicio)
-    if fim:
-        avaliacoes = avaliacoes.filter(licao__data__lte=fim)
+    if periodo is not None:
+        avaliacoes = avaliacoes.filter(licao__periodo=periodo)
+    else:
+        if inicio:
+            avaliacoes = avaliacoes.filter(licao__data__gte=inicio)
+        if fim:
+            avaliacoes = avaliacoes.filter(licao__data__lte=fim)
     avaliacoes_por_cadastro = {
         item['aluno__cadastro_id']: item
         for item in avaliacoes.values('aluno__cadastro_id').annotate(
@@ -685,6 +735,7 @@ def gerar_cronograma_wizard(request):
     from .models import AnoLetivo, PeriodoEBD, Turma, Licao
     from datetime import date
     from django.utils import timezone
+    auto_sync_ebd_periodos_e_licoes(request)
     etapa = int(request.POST.get('etapa', request.GET.get('etapa', 1)))
     hoje = timezone.now().date()
     ano_atual = hoje.year
@@ -697,6 +748,7 @@ def gerar_cronograma_wizard(request):
     periodo_ano = int(str(periodo_ano_raw).replace('.', '').replace(' ', ''))
     periodos = PeriodoEBD.objects.filter(ano_letivo__ano=periodo_ano, data_fim__gte=hoje).order_by('numero')
     context = {'etapa': etapa}
+    context['modo_contingencia'] = True
 
     # Etapa 1: Sele├º├úo
     if etapa == 1:
@@ -1629,11 +1681,19 @@ def relatorio_frequencia(request):
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
     classes = filtrar_classes_ebd(Classe.objects.all(), request)
     alunos = filtrar_alunos_ebd(Aluno.objects.select_related('cadastro', 'turma', 'turma__classe').all(), request)
+    periodo_ctx = get_ebd_periodo_filtro(request)
     turma_id = request.GET.get('turma')
     classe_id = request.GET.get('classe')
     inicio = parse_date(request.GET.get('inicio') or '')
     fim = parse_date(request.GET.get('fim') or '')
-    alunos = consolidar_alunos_por_cadastro_periodo(alunos, inicio=inicio, fim=fim, turma_id=turma_id, classe_id=classe_id)
+    alunos = consolidar_alunos_por_cadastro_periodo(
+        alunos,
+        inicio=inicio,
+        fim=fim,
+        turma_id=turma_id,
+        classe_id=classe_id,
+        periodo=periodo_ctx['periodo_selecionado'],
+    )
     # Exporta├º├úo CSV
     if 'export' in request.GET:
         response = HttpResponse(content_type='text/csv')
@@ -1654,6 +1714,7 @@ def relatorio_frequencia(request):
         'turmas': turmas,
         'classes': classes,
         'alunos': alunos,
+        **periodo_ctx,
     })
 
 # --- LISTAGEM DIN├éMICA DE CARGOS/FUN├ç├òES ---
@@ -1677,29 +1738,113 @@ def cargos_ebd_list(request):
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def graficos_evolucao(request):
-    hoje = timezone.now().date()
-    meses = [(hoje.replace(day=1) - timezone.timedelta(days=30*i)).replace(day=1) for i in range(11, -1, -1)]
+    periodo_ctx = get_ebd_periodo_filtro(request)
+    periodo_selecionado = periodo_ctx['periodo_selecionado']
+    ano_letivo_selecionado = periodo_ctx['ano_letivo_selecionado']
+
+    if periodo_selecionado:
+        mes_atual = periodo_selecionado.data_inicio.replace(day=1)
+        limite = periodo_selecionado.data_fim.replace(day=1)
+        meses = []
+        while mes_atual <= limite:
+            meses.append(mes_atual)
+            mes_atual = (mes_atual + timezone.timedelta(days=32)).replace(day=1)
+    elif ano_letivo_selecionado:
+        meses = [timezone.datetime(ano_letivo_selecionado.ano, mes, 1).date() for mes in range(1, 13)]
+    else:
+        hoje = timezone.now().date()
+        meses = [(hoje.replace(day=1) - timezone.timedelta(days=30 * i)).replace(day=1) for i in range(11, -1, -1)]
+
     meses_fmt = [m.strftime('%m/%Y') for m in meses]
+    classes = list(filtrar_classes_ebd(Classe.objects.all(), request).order_by('nome'))
 
-    alunos_evolucao = defaultdict(lambda: [0]*12)
+    cadastros = list(
+        filtrar_queryset_ebd(
+            CadastroAluno.objects.prefetch_related('matriculas__turma__classe', 'matriculas__turma__ano_letivo'),
+            request,
+            'igreja',
+        )
+    )
+    transferencias = list(
+        TransferenciaAluno.objects.filter(aluno__cadastro_id__in=[cadastro.id for cadastro in cadastros])
+        .select_related('turma_origem', 'turma_destino')
+        .order_by('data_transferencia', 'id')
+    ) if cadastros else []
+
+    matriculas_por_cadastro = defaultdict(list)
+    for cadastro in cadastros:
+        for matricula in cadastro.matriculas.all():
+            matriculas_por_cadastro[cadastro.id].append(matricula)
+
+    transferencias_por_cadastro = defaultdict(list)
+    for transferencia in transferencias:
+        transferencias_por_cadastro[transferencia.aluno.cadastro_id].append(transferencia)
+
+    def _matricula_referencia_snapshot(cadastro_id, data_referencia):
+        matriculas = matriculas_por_cadastro.get(cadastro_id, [])
+        if not matriculas:
+            return None
+
+        matriculas_por_turma = defaultdict(list)
+        for matricula in matriculas:
+            matriculas_por_turma[matricula.turma_id].append(matricula)
+
+        for turma_id in matriculas_por_turma:
+            matriculas_por_turma[turma_id].sort(key=lambda item: (item.ativo, item.updated_at, item.id), reverse=True)
+
+        transferencia_passada = None
+        transferencia_futura = None
+        for transferencia in transferencias_por_cadastro.get(cadastro_id, []):
+            if transferencia.data_transferencia and transferencia.data_transferencia <= data_referencia:
+                transferencia_passada = transferencia
+            elif transferencia_futura is None:
+                transferencia_futura = transferencia
+                break
+
+        if transferencia_passada is not None:
+            candidatas = matriculas_por_turma.get(transferencia_passada.turma_destino_id)
+            if candidatas:
+                return candidatas[0]
+
+        if transferencia_futura is not None:
+            candidatas = matriculas_por_turma.get(transferencia_futura.turma_origem_id)
+            if candidatas:
+                return candidatas[0]
+
+        matricula_ativa = next((matricula for matricula in sorted(matriculas, key=lambda item: (item.ativo, item.updated_at, item.id), reverse=True) if matricula.ativo), None)
+        if matricula_ativa is not None:
+            return matricula_ativa
+
+        return sorted(matriculas, key=lambda item: (item.updated_at, item.id), reverse=True)[0]
+
+    alunos_evolucao = defaultdict(lambda: [0] * len(meses))
+    for idx, mes in enumerate(meses):
+        referencia = ((mes + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1))
+        for cadastro in cadastros:
+            matricula = _matricula_referencia_snapshot(cadastro.id, referencia)
+            if matricula is None or matricula.turma_id is None or matricula.turma.classe_id is None:
+                continue
+            if ano_letivo_selecionado and matricula.turma.ano_letivo_id != ano_letivo_selecionado.id:
+                continue
+            classe_nome = matricula.turma.classe.nome
+            alunos_evolucao[classe_nome][idx] += 1
+
+    ofertas_evolucao = defaultdict(lambda: [0] * len(meses))
     for idx, mes in enumerate(meses):
         prox_mes = (mes + timezone.timedelta(days=32)).replace(day=1)
-        for turma in filtrar_queryset_ebd(Turma.objects.filter(ano_letivo__ativo=True, classe__isnull=False), request, 'membros__igreja'):
-            classe_nome = turma.classe.nome
-            count = Aluno.objects.filter(turma=turma, data_matricula__lte=prox_mes, data_saida__isnull=True).count()
-            alunos_evolucao[classe_nome][idx] += count
-
-    ofertas_evolucao = defaultdict(lambda: [0]*12)
-    for idx, mes in enumerate(meses):
-        prox_mes = (mes + timezone.timedelta(days=32)).replace(day=1)
-        for classe in filtrar_queryset_ebd(Classe.objects.all(), request, 'turma__membros__igreja'):
-            total = filtrar_queryset_ebd(OfertaClasse.objects.filter(classe=classe, data__gte=mes, data__lt=prox_mes), request, 'classe__turma__membros__igreja').aggregate(s=Sum('valor'))['s'] or 0
+        for classe in classes:
+            total = filtrar_queryset_ebd(
+                OfertaClasse.objects.filter(classe=classe, data__gte=mes, data__lt=prox_mes),
+                request,
+                'classe__turma__membros__igreja',
+            ).aggregate(s=Sum('valor'))['s'] or 0
             ofertas_evolucao[classe.nome][idx] = float(total)
 
     context = {
         'meses': json.dumps(meses_fmt),
         'alunos_evolucao': json.dumps(alunos_evolucao),
         'ofertas_evolucao': json.dumps(ofertas_evolucao),
+        **periodo_ctx,
     }
     return render(request, 'escola_biblica/graficos_evolucao.html', context)
 
@@ -1707,17 +1852,28 @@ def graficos_evolucao(request):
 @page_access_required('escola_biblica')
 @verificar_assinatura_valida
 def dashboard_graficos(request):
+    periodo_ctx = get_ebd_periodo_filtro(request)
+    periodo_selecionado = periodo_ctx['periodo_selecionado']
+    ano_letivo_selecionado = periodo_ctx['ano_letivo_selecionado']
     departamentos = dict(Classe.DEPARTAMENTO_CHOICES)
     igrejas_escopo = get_ebd_scope_churches(request)
     alunos_por_departamento = {d: 0 for d in departamentos.values()}
     for dep_key, dep_label in departamentos.items():
-        alunos_por_departamento[dep_label] = filtrar_queryset_ebd(Aluno.objects.filter(turma__classe__departamento=dep_key), request, 'turma__membros__igreja').count()
+        alunos_qs = Aluno.objects.filter(turma__classe__departamento=dep_key)
+        if ano_letivo_selecionado:
+            alunos_qs = alunos_qs.filter(turma__ano_letivo=ano_letivo_selecionado)
+        alunos_por_departamento[dep_label] = filtrar_queryset_ebd(alunos_qs, request, 'turma__membros__igreja').count()
 
     ofertas_por_departamento = {d: 0 for d in departamentos.values()}
     for dep_key, dep_label in departamentos.items():
-        ofertas_por_departamento[dep_label] = OfertaClasse.objects.filter(
+        ofertas_qs = OfertaClasse.objects.filter(
             Q(turma__classe__departamento=dep_key) | Q(turma__isnull=True, classe__departamento=dep_key)
-        ).filter(
+        )
+        if periodo_selecionado:
+            ofertas_qs = ofertas_qs.filter(data__gte=periodo_selecionado.data_inicio, data__lte=periodo_selecionado.data_fim)
+        elif ano_letivo_selecionado:
+            ofertas_qs = ofertas_qs.filter(data__year=ano_letivo_selecionado.ano)
+        ofertas_por_departamento[dep_label] = ofertas_qs.filter(
             Q(turma__igreja__in=igrejas_escopo) |
             Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
             Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
@@ -1726,9 +1882,14 @@ def dashboard_graficos(request):
 
     ofertas_por_classe = {}
     for classe in filtrar_queryset_ebd(Classe.objects.all(), request, 'turma__membros__igreja'):
-        ofertas_por_classe[classe.nome] = OfertaClasse.objects.filter(
+        ofertas_qs = OfertaClasse.objects.filter(
             Q(turma__classe=classe) | Q(turma__isnull=True, classe=classe)
-        ).filter(
+        )
+        if periodo_selecionado:
+            ofertas_qs = ofertas_qs.filter(data__gte=periodo_selecionado.data_inicio, data__lte=periodo_selecionado.data_fim)
+        elif ano_letivo_selecionado:
+            ofertas_qs = ofertas_qs.filter(data__year=ano_letivo_selecionado.ano)
+        ofertas_por_classe[classe.nome] = ofertas_qs.filter(
             Q(turma__igreja__in=igrejas_escopo) |
             Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas_escopo) |
             Q(turma__isnull=True, classe__igreja__in=igrejas_escopo) |
@@ -1737,13 +1898,17 @@ def dashboard_graficos(request):
 
     alunos_por_classe = {}
     for classe in filtrar_queryset_ebd(Classe.objects.all(), request, 'turma__membros__igreja'):
-        alunos_por_classe[classe.nome] = filtrar_queryset_ebd(Aluno.objects.filter(turma__classe=classe), request, 'turma__membros__igreja').count()
+        alunos_qs = Aluno.objects.filter(turma__classe=classe)
+        if ano_letivo_selecionado:
+            alunos_qs = alunos_qs.filter(turma__ano_letivo=ano_letivo_selecionado)
+        alunos_por_classe[classe.nome] = filtrar_queryset_ebd(alunos_qs, request, 'turma__membros__igreja').count()
 
     context = {
         'alunos_por_departamento': json.dumps(alunos_por_departamento),
         'ofertas_por_departamento': json.dumps(ofertas_por_departamento),
         'ofertas_por_classe': json.dumps(ofertas_por_classe),
         'alunos_por_classe': json.dumps(alunos_por_classe),
+        **periodo_ctx,
     }
     return render(request, 'escola_biblica/dashboard_graficos.html', context)
 
@@ -1823,15 +1988,24 @@ def relatorio_alunos(request):
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
     classes = filtrar_classes_ebd(Classe.objects.all(), request)
     alunos = filtrar_alunos_ebd(Aluno.objects.select_related('cadastro', 'turma', 'turma__classe').all(), request)
+    periodo_ctx = get_ebd_periodo_filtro(request)
     turma_id = request.GET.get('turma')
     classe_id = request.GET.get('classe')
     inicio = parse_date(request.GET.get('inicio') or '')
     fim = parse_date(request.GET.get('fim') or '')
-    alunos = consolidar_alunos_por_cadastro_periodo(alunos, inicio=inicio, fim=fim, turma_id=turma_id, classe_id=classe_id)
+    alunos = consolidar_alunos_por_cadastro_periodo(
+        alunos,
+        inicio=inicio,
+        fim=fim,
+        turma_id=turma_id,
+        classe_id=classe_id,
+        periodo=periodo_ctx['periodo_selecionado'],
+    )
     return render(request, 'escola_biblica/relatorio_alunos.html', {
         'turmas': turmas,
         'classes': classes,
         'alunos': alunos,
+        **periodo_ctx,
     })
 # --- LICOES ---
  
@@ -2055,38 +2229,14 @@ def dashboard(request):
     hoje = date.today()
     ano_atual = hoje.year
 
-    tipo_periodo = get_ebd_tipo_periodo(request)
+    periodo_ctx = get_ebd_periodo_filtro(request)
+    tipo_periodo = periodo_ctx['tipo_periodo']
+    ano_letivo_qs = periodo_ctx['anos_letivos']
+    ano_letivo_selecionado = periodo_ctx['ano_letivo_selecionado']
+    periodos_disponiveis = periodo_ctx['periodos_disponiveis']
+    periodo_selecionado = periodo_ctx['periodo_selecionado']
     config = get_ebd_ministerio_config(request)
     periodo_tipo_label = dict(getattr(config, 'EBD_PERIODO_CHOICES', [])).get(tipo_periodo, tipo_periodo.title())
-
-    ano_letivo_filtro = request.GET.get('ano_letivo')
-    periodo_filtro = request.GET.get('periodo')
-
-    ano_letivo_qs = AnoLetivo.objects.order_by('-ano')
-    if ano_letivo_filtro:
-        try:
-            ano_letivo_selecionado = ano_letivo_qs.get(ano=int(str(ano_letivo_filtro).strip()))
-        except (AnoLetivo.DoesNotExist, ValueError):
-            ano_letivo_selecionado = ano_letivo_qs.filter(ano=ano_atual).first() or ano_letivo_qs.first()
-    else:
-        ano_letivo_selecionado = ano_letivo_qs.filter(ano=ano_atual).first() or ano_letivo_qs.first()
-
-    periodos_disponiveis = PeriodoEBD.objects.none()
-    if ano_letivo_selecionado:
-        periodos_disponiveis = PeriodoEBD.objects.filter(
-            ano_letivo=ano_letivo_selecionado,
-            tipo=tipo_periodo,
-        ).order_by('numero')
-
-    periodo_selecionado = None
-    if periodos_disponiveis.exists():
-        if periodo_filtro:
-            try:
-                periodo_selecionado = periodos_disponiveis.get(numero=int(periodo_filtro))
-            except (PeriodoEBD.DoesNotExist, ValueError):
-                periodo_selecionado = periodos_disponiveis.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first() or periodos_disponiveis.first()
-        else:
-            periodo_selecionado = periodos_disponiveis.filter(data_inicio__lte=hoje, data_fim__gte=hoje).first() or periodos_disponiveis.first()
 
     if periodo_selecionado:
         data_inicio_periodo = periodo_selecionado.data_inicio

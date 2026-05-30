@@ -73,6 +73,11 @@
 |-----------|-----------|
 | [sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md](sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md) | Sistema híbrido de participantes (visitantes/membros) |
 
+### Escola Dominical (EBD)
+| Documento | Descrição |
+|-----------|-----------|
+| [sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md](sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md) | Governanca de periodo, auto-sync de licoes e validacoes de dominio da EBD |
+
 ### Seletor de Igreja
 | Documento | Descrição |
 |-----------|-----------|
@@ -186,6 +191,14 @@ Gereigreja/
 ---
 
 ## 🆕 Documentações Recentes (Março 2026)
+
+### 28/05/2026 - Escola Dominical: Governanca de Periodo e Automacao
+- **Arquivo:** [sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md](sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md)
+- **Conteúdo:**
+   - fonte de verdade do periodo EBD por ministerio
+   - auto-sync de periodos e licoes sem clique manual
+   - validacoes estritas para licao, frequencia e oferta por periodo
+   - constraint de unicidade de licoes por turma+data
 
 ### 13/05/2026 - Secretaria: Documentos, Certificados e Carta
 - **Arquivo:** [sistema/ATUALIZACAO_v1.12.0.md](sistema/ATUALIZACAO_v1.12.0.md)

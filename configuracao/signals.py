@@ -1,7 +1,8 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.conf import settings
-from .models import PerfilUsuario, Ministerio, Igreja
+from types import SimpleNamespace
+from .models import PerfilUsuario, Ministerio, Igreja, ConfiguracaoSistema
 # Cria automaticamente uma igreja ao criar um novo Ministério
 from django.db import transaction
 
@@ -16,6 +17,50 @@ def criar_igreja_para_novo_ministerio(sender, instance, created, **kwargs):
                     nome_igreja=instance.nome_fantasia,
                     tipo_igreja='sede'
                 )
+
+
+@receiver(pre_save, sender=ConfiguracaoSistema)
+def registrar_estado_anterior_configuracao_ebd(sender, instance, **kwargs):
+    if not instance.pk:
+        return
+
+    anterior = ConfiguracaoSistema.objects.filter(pk=instance.pk).only('ebd_periodo', 'ebd_dia_semana').first()
+    if anterior is None:
+        return
+
+    instance._old_ebd_periodo = anterior.ebd_periodo
+    instance._old_ebd_dia_semana = anterior.ebd_dia_semana
+
+
+def _disparar_auto_sync_ebd_configuracao(instance):
+    from escola_biblica.views import auto_sync_ebd_periodos_e_licoes
+    from configuracao.models import Igreja
+
+    fake_request = SimpleNamespace(
+        user=SimpleNamespace(
+            is_authenticated=True,
+            is_superuser=True,
+            pk=getattr(instance.ministerio, 'pk', None),
+            perfil=SimpleNamespace(ministerio=instance.ministerio),
+            perfil_usuario=SimpleNamespace(ministerio=instance.ministerio),
+        ),
+        session={},
+        igrejas_permitidas=Igreja.objects.filter(ministerio=instance.ministerio),
+        igreja_ativa=None,
+    )
+    auto_sync_ebd_periodos_e_licoes(fake_request, force=True)
+
+
+@receiver(post_save, sender=ConfiguracaoSistema)
+def disparar_auto_sync_ebd_apos_configuracao(sender, instance, created, **kwargs):
+    antigo_periodo = getattr(instance, '_old_ebd_periodo', None)
+    antigo_dia = getattr(instance, '_old_ebd_dia_semana', None)
+    mudou_ebd = created or antigo_periodo != instance.ebd_periodo or antigo_dia != instance.ebd_dia_semana
+
+    if not mudou_ebd:
+        return
+
+    transaction.on_commit(lambda: _disparar_auto_sync_ebd_configuracao(instance))
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_perfilusuario_for_new_user(sender, instance, created, **kwargs):
