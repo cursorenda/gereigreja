@@ -452,6 +452,27 @@ class Igreja(models.Model):
 
     # --- Outras Configurações ---
     moeda = models.CharField(max_length=3, default="BRL", verbose_name="Moeda")
+    ebd_periodo = models.CharField(
+        max_length=20,
+        choices=ConfiguracaoSistema.EBD_PERIODO_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='Período da EBD (Igreja)',
+        help_text='Opcional. Se preenchido, substitui o período EBD herdado do ministério para esta igreja.'
+    )
+    ebd_dia_semana = models.IntegerField(
+        choices=ConfiguracaoSistema.DIAS_SEMANA,
+        blank=True,
+        null=True,
+        verbose_name='Dia da EBD (Igreja)',
+        help_text='Opcional. Se preenchido, substitui o dia EBD herdado do ministério para esta igreja.'
+    )
+    ebd_horario = models.TimeField(
+        blank=True,
+        null=True,
+        verbose_name='Horário da EBD (Igreja)',
+        help_text='Opcional. Se preenchido, substitui o horário EBD herdado do ministério para esta igreja.'
+    )
     observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
     logo1 = models.ImageField(upload_to=logo1_upload_to_path, blank=True, null=True, verbose_name="Logo 1")
     logo2 = models.ImageField(upload_to=logo2_upload_to_path, blank=True, null=True, verbose_name="Logo 2")

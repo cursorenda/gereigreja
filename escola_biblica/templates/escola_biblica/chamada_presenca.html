@@ -26,6 +26,34 @@
                 Registrado em: <strong>{% now 'd/m/Y' %}</strong>
             </span>
         </div>
+        <div class="px-3 py-2" style="background:#f4f7fb; border-bottom:1px solid #e2e8f0;">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                {% if periodo_label %}
+                <span class="badge text-bg-light border">Período: {{ periodo_label }}</span>
+                {% endif %}
+                {% if data %}
+                <span class="badge text-bg-light border">Aula selecionada: {{ data|date:'d/m/Y' }}</span>
+                {% endif %}
+                {% if licao_do_dia %}
+                <span class="badge text-bg-success">Lição válida</span>
+                {% else %}
+                <span class="badge text-bg-warning">Sem lição válida</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if status_aula_selecionada == 'hoje' %}
+        <div class="alert alert-success mb-0 rounded-0 border-0" style="border-left: 6px solid #198754 !important;">
+            <strong>Aula atual selecionada (HOJE).</strong> Você está registrando presença na data correta do dia.
+        </div>
+        {% elif status_aula_selecionada == 'passada' %}
+        <div class="alert alert-secondary mb-0 rounded-0 border-0" style="border-left: 6px solid #6c757d !important;">
+            <strong>Atenção:</strong> você selecionou uma aula passada para ajuste/retificação.
+        </div>
+        {% elif status_aula_selecionada == 'futura' %}
+        <div class="alert alert-primary mb-0 rounded-0 border-0" style="border-left: 6px solid #0d6efd !important;">
+            <strong>Atenção:</strong> você selecionou uma aula futura. Confirme antes de salvar a chamada.
+        </div>
+        {% endif %}
         {# --- Exibe informações da lição do dia, se houver --- #}
         {% if licao_do_dia %}
         <div class="alert alert-info mb-2 d-flex justify-content-between align-items-center" style="border-left: 5px solid #0d6efd;">
@@ -71,14 +99,22 @@
                     {{ formset.management_form }}
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="data" class="form-label">Data da Chamada</label>
-                                <select name="data" id="data" class="form-select" required onchange="this.form.submit()">
-                                    {% for d in datas_validas %}
-                                        <option value="{{ d|date:'Y-m-d' }}" {% if d|date:'Y-m-d' == data %}selected{% endif %}>
-                                            {{ forloop.counter }}º {{ d|date:'D' }} {{ d|date:'d/m/Y' }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
+                            <label for="data" class="form-label">Lição/Aula da Chamada</label>
+                            <select name="data" id="data" class="form-select" required>
+                                {% for opcao in opcoes_aula %}
+                                <option value="{{ opcao.value }}" {% if opcao.value == data %}selected{% endif %}>
+                                    {% if opcao.status == 'hoje' %}[HOJE] {% elif opcao.status == 'passada' %}[PASSADA] {% else %}[FUTURA] {% endif %}{{ opcao.label }}{% if opcao.tema %} - {{ opcao.tema }}{% endif %}
+                                </option>
+                                {% empty %}
+                                <option value="">Nenhuma lição cadastrada neste período</option>
+                                {% endfor %}
+                            </select>
+                            <div class="mt-2 d-flex flex-wrap gap-2" aria-label="Legenda de status das aulas">
+                                <span class="badge text-bg-success">[HOJE]</span>
+                                <span class="badge text-bg-secondary">[PASSADA]</span>
+                                <span class="badge text-bg-primary">[FUTURA]</span>
+                            </div>
+                            <small class="text-muted">A lista mostra apenas lições do período vigente da turma.</small>
                         </div>
                     </div>
     {# --- Script: identifica troca de data para evitar submit de chamada ao apenas trocar a data --- #}
@@ -145,6 +181,8 @@
                     </div>
                 </form>
             {# --- Caso não haja alunos ativos, exibe alerta --- #}
+            {% elif bloqueio_chamada_msg %}
+                <div class="alert alert-warning">{{ bloqueio_chamada_msg }}</div>
             {% else %}
                 <div class="alert alert-warning">Não há alunos ativos nesta turma para realizar a chamada de presença.</div>
             {% endif %}

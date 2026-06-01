@@ -7,6 +7,11 @@ from configuracao.models import Igreja
 
 
 class Evento(models.Model):
+	STATUS_EVENTO_CHOICES = [
+		('ativo', 'Ativo'),
+		('cancelado', 'Cancelado'),
+	]
+
 	quantidade_dias = models.PositiveIntegerField(
 		default=1,
 		verbose_name="Quantidade de dias do evento",
@@ -39,6 +44,7 @@ class Evento(models.Model):
 		("festa", "Festa"),
 		("feriado", "Feriado"),
 		("estudo", "Estudo"),
+		("escola_dominical", "Escola Dominical"),
 		("outro", "Outro"),
 	]
 
@@ -46,6 +52,16 @@ class Evento(models.Model):
 	titulo = models.CharField(max_length=200)
 	descricao = models.TextField(blank=True, null=True)
 	tipo = models.CharField(max_length=20, choices=TIPO_EVENTO_CHOICES, default="outro")
+	status_evento = models.CharField(max_length=20, choices=STATUS_EVENTO_CHOICES, default='ativo')
+	motivo_cancelamento = models.TextField(blank=True, null=True)
+	cancelado_em = models.DateTimeField(blank=True, null=True)
+	cancelado_por = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name='eventos_cancelados',
+	)
 	local = models.CharField(max_length=200, blank=True, null=True)
 	responsavel = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='eventos_responsavel')
 	data_inicio = models.DateTimeField()
@@ -89,6 +105,20 @@ class Evento(models.Model):
 
 	def __str__(self):
 		return f"{self.titulo} ({self.data_inicio:%d/%m/%Y %H:%M})"
+
+	def cancelar(self, motivo='', usuario=None):
+		self.status_evento = 'cancelado'
+		self.motivo_cancelamento = (motivo or '').strip()
+		self.cancelado_em = timezone.now()
+		self.cancelado_por = usuario
+		self.save(update_fields=['status_evento', 'motivo_cancelamento', 'cancelado_em', 'cancelado_por'])
+
+	def reativar(self):
+		self.status_evento = 'ativo'
+		self.motivo_cancelamento = ''
+		self.cancelado_em = None
+		self.cancelado_por = None
+		self.save(update_fields=['status_evento', 'motivo_cancelamento', 'cancelado_em', 'cancelado_por'])
 
 	def get_participantes_esperados(self):
 		"""

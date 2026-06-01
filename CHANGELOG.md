@@ -1,3 +1,32 @@
+## v1.13.12 — 01/06/2026
+🎯 **Escola Dominical (EBD) — Configuracao local por igreja + chamada com selecao segura de aula**
+
+### Entregas
+- Modelo church-first para configuracao EBD por igreja, com fallback para configuracao ministerial.
+- Inclusao de campos de configuracao EBD na igreja (`periodo`, `dia da semana`, `horario`) com formularios e tela de edicao.
+- Ajustes de dashboard/listagens EBD para exibir origem da configuracao (local x herdada) e atalhos operacionais.
+- Reforco de sincronizacao de agenda/eventos para respeitar horario local da igreja quando configurado.
+- Evolucao da tela de chamada por turma:
+  - periodo vigente escolhido corretamente;
+  - seletor exibindo apenas aulas com licao valida no periodo;
+  - bloqueio de lancamento quando nao houver licao valida;
+  - banner operacional destacando aula de HOJE, PASSADA ou FUTURA.
+- Atualizacao da documentacao tecnica da EBD em `/docs/sistema` com arquitetura local por igreja, roadmap e checklist de homologacao.
+
+### Migracoes
+- `configuracao/migrations/0027_igreja_ebd_config_local.py`
+- `escola_biblica/migrations/0026_licao_evento_agenda.py`
+- `eventos/migrations/0013_evento_tipo_escola_dominical.py`
+- `eventos/migrations/0014_evento_status_cancelamento.py`
+
+### Impacto
+- Menor risco operacional na chamada (evita lancamento em aula de periodo incorreto).
+- Melhor governanca multi-igreja para EBD com configuracao local auditavel.
+- Melhor consistencia entre EBD e Agenda para operacao semanal.
+- Mudanca de schema controlada (migracoes listadas), sem breaking changes de API publica.
+
+---
+
 ## v1.13.11 — 28/05/2026
 📝 **Documentacao do Sistema — Escola Dominical (EBD) atualizada com governanca de periodo e automacao**
 

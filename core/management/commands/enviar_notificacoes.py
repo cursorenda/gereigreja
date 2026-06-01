@@ -1,7 +1,7 @@
 from configuracao.models import ConfiguracaoSistema, Ministerio
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from agenda.models import AgendaEvento
+from eventos.models import Evento
 from secretaria.models import Membro
 from notificacoes.models import NotificacaoEnviada
 
@@ -21,10 +21,16 @@ class Command(BaseCommand):
     def notificar_eventos_proximos(self):
         agora = timezone.now()
         daqui_1_dia = agora + timezone.timedelta(days=1)
-        eventos = AgendaEvento.objects.filter(data_inicio__gte=agora, data_inicio__lte=daqui_1_dia)
+        eventos = Evento.objects.filter(
+            data_inicio__gte=agora,
+            data_inicio__lte=daqui_1_dia,
+            status_evento='ativo',
+        )
         for evento in eventos:
             ministerio = None
-            if evento.responsavel and hasattr(evento.responsavel, 'perfil'):
+            if evento.igreja and hasattr(evento.igreja, 'ministerio'):
+                ministerio = evento.igreja.ministerio
+            elif evento.responsavel and hasattr(evento.responsavel, 'perfil'):
                 ministerio = getattr(evento.responsavel.perfil, 'ministerio', None)
             if not ministerio:
                 continue  # Não envia se não conseguir identificar o ministério

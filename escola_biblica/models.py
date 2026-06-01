@@ -36,6 +36,19 @@ def _get_turma_ministerio(turma):
 def _get_config_ebd_turma(turma):
     from configuracao.models import ConfiguracaoSistema
 
+    igreja = getattr(turma, 'igreja', None)
+    if igreja is None:
+        classe = getattr(turma, 'classe', None)
+        if classe is not None:
+            igreja = getattr(classe, 'igreja', None)
+
+    if igreja is not None and (
+        igreja.ebd_periodo
+        or igreja.ebd_dia_semana is not None
+        or igreja.ebd_horario is not None
+    ):
+        return igreja
+
     ministerio = _get_turma_ministerio(turma)
     if not ministerio:
         return None
@@ -596,6 +609,14 @@ class Licao(models.Model):
     horario = models.TimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=[('ativa', 'Ativa'), ('rascunho', 'Rascunho')], default='ativa')
     professor = models.ForeignKey('secretaria.Membro', on_delete=models.SET_NULL, blank=True, null=True, related_name='licoes_ministradas')
+    evento_agenda = models.ForeignKey(
+        'eventos.Evento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='licoes_ebd',
+        verbose_name='Evento da Agenda',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

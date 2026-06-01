@@ -1,6 +1,11 @@
 {# Parcial para aba de configuração da Escola Bíblica (EBD) #}
 {% load static %}
 {% if ebd_form %}
+<div class="alert alert-warning" role="alert">
+    <strong>Modo legado (ministerial):</strong> esta aba permanece ativa por compatibilidade.
+    Para configuração principal da EBD por igreja, acesse
+    <a href="{% url 'configuracao:lista_igrejas' %}" class="alert-link">Gerenciar Igrejas</a>.
+</div>
 <form method="post" class="card p-4 shadow-sm w-100" style="border-radius: 8px;" autocomplete="off">
     {% csrf_token %}
     <input type="hidden" name="aba_ativa" value="ebd">

@@ -13,6 +13,10 @@
     <div class="alert alert-info mt-3" role="alert">
         <strong>Atenção:</strong> Estas configurações afetam <b>todas as igrejas do ministério</b>, não apenas a igreja selecionada no topo do sistema.
     </div>
+    <div class="alert alert-warning mt-3" role="alert">
+        <strong>EBD por igreja (recomendado):</strong> a configuração oficial da Escola Bíblica agora pode ser definida por igreja.
+        Use <a href="{% url 'configuracao:lista_igrejas' %}" class="alert-link">Gerenciar Igrejas</a> para configurar período, dia e horário local.
+    </div>
     <ul class="nav nav-tabs" id="configTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="fornecedores-tab" data-bs-toggle="tab" data-bs-target="#fornecedores" type="button" role="tab" aria-controls="fornecedores" aria-selected="true">Fornecedores</button>
@@ -24,7 +28,7 @@
             <button class="nav-link" id="categorias-receita-tab" data-bs-toggle="tab" data-bs-target="#categorias-receita" type="button" role="tab" aria-controls="categorias-receita" aria-selected="false">Categorias de Receita</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="ebd-tab" data-bs-toggle="tab" data-bs-target="#ebd" type="button" role="tab" aria-controls="ebd" aria-selected="false">Escola Bíblica</button>
+            <button class="nav-link" id="ebd-tab" data-bs-toggle="tab" data-bs-target="#ebd" type="button" role="tab" aria-controls="ebd" aria-selected="false">Escola Bíblica (legado)</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="notificacoes-tab" data-bs-toggle="tab" data-bs-target="#notificacoes" type="button" role="tab" aria-controls="notificacoes" aria-selected="false">Notificações</button>

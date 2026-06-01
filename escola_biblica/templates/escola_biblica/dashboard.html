@@ -23,13 +23,23 @@
 				<li><a href="{% url 'escola_biblica:dashboard' %}">Escola Dominical</a></li>
 				<li class="active">Visão Geral</li>
 			</ol>
-			{% if periodo_selecionado_label or scope_label %}
+			{% if periodo_selecionado_label or scope_label or ebd_config_source_label %}
 			<div class="ebdash-scope">
 				{% if scope_label %}
 				<span class="ebdash-chip"><i class="fas fa-location-dot"></i>{{ scope_label }}</span>
 				{% endif %}
 				{% if periodo_selecionado_label %}
 				<span class="ebdash-chip"><i class="fas fa-calendar-days"></i>{{ periodo_tipo_label }} atual: {{ periodo_selecionado_label }}</span>
+				{% endif %}
+				{% if ebd_config_source_label %}
+				<span class="ebdash-chip" title="{{ ebd_config_source_hint }}">
+					{% if ebd_config_source == 'igreja' %}
+					<i class="fas fa-building-church"></i>
+					{% else %}
+					<i class="fas fa-diagram-project"></i>
+					{% endif %}
+					{{ ebd_config_source_label }}
+				</span>
 				{% endif %}
 			</div>
 			{% endif %}
@@ -99,6 +109,22 @@
 					<small class="text-muted">Novos alunos no período: {{ alunos_novos }} | Transferências no período: {{ transferidos_mes }}</small>
 					<a href="{% url 'escola_biblica:aluno_list' %}" class="btn btn-outline-secondary btn-sm">Acompanhar alunos</a>
 				</article>
+
+				<article class="ebdash-priority-card {% if turmas_sem_chamada_semana > 0 %}is-warn{% else %}is-ok{% endif %}">
+					<div class="head">
+						<span class="pill">Pendências da semana</span>
+						<i class="fas fa-list-check"></i>
+					</div>
+					<h3>{{ turmas_sem_chamada_semana }}</h3>
+					{% if houve_janela_operacional %}
+					<p>Turma(s) sem chamada nesta semana. Resolva para fechar a operação semanal sem pendências.</p>
+					<small class="text-muted">Com chamada: {{ turmas_com_chamada_semana }} | Previstas: {{ turmas_previstas_semana }}</small>
+					{% else %}
+					<p>A janela operacional da semana ainda não abriu para a EBD.</p>
+					<small class="text-muted">As pendências serão contabilizadas após o dia oficial da EBD.</small>
+					{% endif %}
+					<a href="{% url 'escola_biblica:turma_list' %}" class="btn btn-outline-secondary btn-sm">Abrir turmas</a>
+				</article>
 			</div>
 
 			<aside class="ebdash-focus-side" aria-label="Ações rápidas da EBD">
@@ -129,8 +155,86 @@
 							<small>Planeje lições e sequência de aulas.</small>
 						</span>
 					</a>
+					{% if ebd_config_igreja_link %}
+					<a href="{{ ebd_config_igreja_link }}" class="ebdash-quick-action">
+						<span class="icon"><i class="fas fa-sliders"></i></span>
+						<span class="content">
+							<strong>Configurar EBD da igreja</strong>
+							<small>Ajuste período, dia e horário local da EBD.</small>
+						</span>
+					</a>
+					{% endif %}
 				</div>
 			</aside>
+		</div>
+	</section>
+
+	<section class="ebdash-secondary-section ebdash-live-section" aria-label="Relatório instantâneo da EBD">
+		<div class="ebdash-section-head">
+			<h2>Relatório Instantâneo do Dia</h2>
+			<p>Visão em tempo real das turmas na aula de {{ data_relatorio_dia|date:"d/m/Y" }}: chamada, presença, Bíblia e oferta.</p>
+			<div class="ebdash-head-actions" aria-label="Ações do relatório do dia">
+				<form method="get" class="ebdash-mini-date-form" aria-label="Filtrar dia do relatório instantâneo">
+					{% if ano_letivo_selecionado %}
+					<input type="hidden" name="ano_letivo" value="{{ ano_letivo_selecionado.ano|unlocalize }}">
+					{% endif %}
+					{% if periodo_selecionado %}
+					<input type="hidden" name="periodo" value="{{ periodo_selecionado.numero }}">
+					{% endif %}
+					<input type="date" name="data_relatorio" value="{{ data_relatorio_dia|date:'Y-m-d' }}" class="form-control form-control-sm">
+					<button type="submit" class="btn btn-outline-secondary btn-sm">Aplicar dia</button>
+					{% if request.GET.data_relatorio %}
+					<a href="?{% if ano_letivo_selecionado %}ano_letivo={{ ano_letivo_selecionado.ano|unlocalize }}&{% endif %}{% if periodo_selecionado %}periodo={{ periodo_selecionado.numero }}{% endif %}" class="btn btn-outline-secondary btn-sm">Limpar dia</a>
+					{% endif %}
+				</form>
+				<span class="ebdash-chip"><i class="fas fa-hourglass-half"></i>Pendentes: {{ turmas_pendentes_relatorio }}</span>
+				<span class="ebdash-chip"><i class="fas fa-list-check"></i>Parciais: {{ turmas_parciais_relatorio }}</span>
+				<span class="ebdash-chip"><i class="fas fa-circle-check"></i>Completos: {{ turmas_completas_relatorio }}</span>
+				<a href="{% url 'escola_biblica:relatorio_ebd_dia' %}?data={{ data_relatorio_dia|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm">Abrir relatório completo</a>
+			</div>
+		</div>
+
+		<div class="ebdash-live-table-wrap">
+			<table class="ebdash-live-table" aria-label="Tabela de relatório instantâneo por turma">
+				<thead>
+					<tr>
+						<th>Turma</th>
+						<th>Segmento</th>
+						<th>Chamada</th>
+						<th>Presença</th>
+						<th>Ausência</th>
+						<th>Bíblias</th>
+						<th>Oferta</th>
+						<th>Status</th>
+						<th>Ação</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for item in relatorio_instantaneo_turmas %}
+					<tr>
+						<td>{{ item.turma_nome }}</td>
+						<td>{{ item.segmento_nome }}</td>
+						<td>
+							{% if item.chamada_realizada %}
+								<span class="ebdash-live-pill is-ok">Preenchida</span>
+							{% else %}
+								<span class="ebdash-live-pill is-pending">Pendente</span>
+							{% endif %}
+						</td>
+						<td>{{ item.presentes }} / {{ item.matriculados }}</td>
+						<td>{{ item.ausentes }}</td>
+						<td>{{ item.biblias }}</td>
+						<td>R$ {{ item.oferta_total|floatformat:2|intcomma }}</td>
+						<td><span class="ebdash-live-pill {{ item.status_tone }}">{{ item.status_label }}</span></td>
+						<td><a href="{% url 'escola_biblica:chamada_presenca' item.turma_id %}" class="btn btn-outline-secondary btn-sm">Abrir</a></td>
+					</tr>
+					{% empty %}
+					<tr>
+						<td colspan="9" class="ebdash-live-empty">Sem turmas disponíveis para o recorte selecionado.</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		</div>
 	</section>
 
@@ -188,7 +292,7 @@
 	<section class="ebdash-analytics-section" aria-label="Análise de evolução da EBD">
 		<div class="ebdash-section-head">
 			<h2>Análise da Escola Dominical</h2>
-			<p>Combine leitura de presença, evolução de alunos e distribuição etária para planejamento de classes.</p>
+			<p>Combine leitura de presença, evolução de alunos e distribuição etária para planejamento das turmas.</p>
 			<div class="ebdash-head-actions" aria-label="Relatórios da EBD">
 				<a href="{% url 'escola_biblica:relatorio_ebd_dia' %}" class="btn btn-outline-secondary btn-sm">Relatório geral do dia</a>
 				<a href="{% url 'escola_biblica:relatorio_frequencia' %}" class="btn btn-outline-secondary btn-sm">Relatório de frequência</a>
@@ -208,7 +312,7 @@
 			</article>
 
 			<article class="ebdash-chart-card">
-				<header><i class="fas fa-list-ol"></i> Ranking de Frequência por Classe</header>
+				<header><i class="fas fa-list-ol"></i> Ranking de Frequência por Segmento</header>
 				<ul class="ebdash-ranking-list">
 					{% for item in ranking_classes|slice:":6" %}
 					<li><span>{{ item.classe }}</span><strong>{{ item.frequencia_media|floatformat:1 }}%</strong></li>
@@ -219,7 +323,7 @@
 			</article>
 
 			<article class="ebdash-chart-card">
-				<header><i class="fas fa-hand-holding-dollar"></i> Ranking de Ofertas por Classe</header>
+				<header><i class="fas fa-hand-holding-dollar"></i> Ranking de Ofertas por Segmento</header>
 				<ul class="ebdash-ranking-list">
 					{% for item in ranking_ofertas|slice:":6" %}
 					<li><span>{{ item.classe }}</span><strong>R$ {{ item.total_oferta|floatformat:2|intcomma }}</strong></li>

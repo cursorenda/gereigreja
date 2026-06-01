@@ -73,6 +73,13 @@
                 </div>
             </div>
             <div class="col-6 col-md-2">
+                <div class="card-tipo-evento shadow-sm" data-tipo="escola_dominical">
+                    <i class="fas fa-school text-primary"></i>
+                    <span class="tipo-nome">Escola Dominical</span>
+                    <span class="badge bg-primary tipo-contador">0</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
                 <div class="card-tipo-evento shadow-sm" data-tipo="outro">
                     <i class="fas fa-calendar text-primary"></i>
                     <span class="tipo-nome">Outro</span>
@@ -191,6 +198,7 @@
                 'Festa': { icon: 'fa-cake-candles', color: '#2aa5a4', key: 'festa' },
                 'Feriado': { icon: 'fa-umbrella-beach', color: '#155e75', key: 'feriado' },
                 'Estudo': { icon: 'fa-book', color: '#0a6665', key: 'estudo' },
+                'Escola Dominical': { icon: 'fa-school', color: '#0d8281', key: 'escola_dominical' },
                 'Outro': { icon: 'fa-calendar', color: '#64748b', key: 'outro' }
             };
             
@@ -331,6 +339,12 @@
                     sabadoSemanaAtual.setDate(domingoSemanaAtual.getDate() + 6);
                     
                     // Aplicar classes de destaque
+                    const statusEvento = props.status_evento || 'ativo';
+                    if (statusEvento === 'cancelado') {
+                        info.el.style.opacity = '0.65';
+                        info.el.style.textDecoration = 'line-through';
+                    }
+
                     if (eventoData.getTime() === hoje.getTime()) {
                         info.el.classList.add('evento-hoje');
                     } else if (eventoData >= domingoSemanaAtual && eventoData <= sabadoSemanaAtual) {
@@ -385,6 +399,11 @@
                                 <div class="mb-2">
                                     <i class="fas fa-users text-success me-2"></i>
                                     <small>${props.participantes} participante${props.participantes !== 1 ? 's' : ''} esperado${props.participantes !== 1 ? 's' : ''}</small>
+                                </div>` : ''}
+                                ${statusEvento === 'cancelado' ? `
+                                <div class="mb-2">
+                                    <i class="fas fa-ban text-danger me-2"></i>
+                                    <small><strong>Cancelado</strong>${props.motivo_cancelamento ? `: ${props.motivo_cancelamento}` : ''}</small>
                                 </div>` : ''}
                                 ${props.descricao ? `
                                 <div class="mt-2 pt-2 border-top">
@@ -478,6 +497,17 @@
                                         <small>Descrição</small>
                                         <div class="info-value">${props.descricao}</div>
                                     </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    if ((props.status_evento || 'ativo') === 'cancelado') {
+                        html += `
+                            <div class="col-12">
+                                <div class="alert alert-danger mb-0">
+                                    <strong>Evento cancelado</strong>
+                                    ${props.motivo_cancelamento ? `<div class="small mt-1">Motivo: ${props.motivo_cancelamento}</div>` : ''}
                                 </div>
                             </div>
                         `;
@@ -740,6 +770,11 @@
                     } else if (eventoData < hoje) {
                         classeDestaque += ' evento-passado';
                     }
+
+                    const statusEvento = (evento.extendedProps?.status_evento || 'ativo');
+                    if (statusEvento === 'cancelado') {
+                        classeDestaque += ' table-secondary';
+                    }
                     
                     const row = document.createElement('tr');
                     row.className = classeDestaque;
@@ -754,6 +789,7 @@
                         </td>
                         <td>
                             <strong>${evento.title}</strong>
+                            ${statusEvento === 'cancelado' ? `<br><span class="badge bg-danger">Cancelado</span>` : ''}
                             ${evento.extendedProps?.descricao ? `<br><small class="text-muted">${evento.extendedProps.descricao.substring(0, 60)}${evento.extendedProps.descricao.length > 60 ? '...' : ''}</small>` : ''}
                         </td>
                         <td>

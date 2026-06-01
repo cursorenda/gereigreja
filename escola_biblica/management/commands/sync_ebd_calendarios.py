@@ -7,14 +7,14 @@ from escola_biblica.views import auto_sync_ebd_periodos_e_licoes
 
 
 class Command(BaseCommand):
-    help = 'Sincroniza automaticamente os calendarios e licoes da EBD para os ministerios configurados.'
+    help = 'Ferramenta opcional de manutencao para sincronizar calendarios e licoes da EBD.'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--ministerio-id',
             type=int,
             dest='ministerio_id',
-            help='Sincroniza apenas o ministerio informado.',
+            help='Limita a sincronizacao ao ministerio informado.',
         )
         parser.add_argument(
             '--force',
@@ -33,10 +33,10 @@ class Command(BaseCommand):
 
         total_configs = configs.count()
         if total_configs == 0:
-            self.stdout.write(self.style.WARNING('Nenhuma configuracao EBD encontrada para sincronizar.'))
+            self.stdout.write(self.style.WARNING('Nenhuma configuracao EBD encontrada para manutencao/sincronizacao.'))
             return
 
-        self.stdout.write(f'Iniciando sincronizacao EBD para {total_configs} configuracao(oes)...')
+        self.stdout.write(f'Iniciando manutencao/sincronizacao EBD para {total_configs} configuracao(oes)...')
         total_processadas = 0
 
         for config in configs:
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 )
             )
 
-        self.stdout.write(self.style.SUCCESS(f'Sincronizacao EBD concluida para {total_processadas} configuracao(oes).'))
+        self.stdout.write(self.style.SUCCESS(f'Manutencao/sincronizacao EBD concluida para {total_processadas} configuracao(oes).'))
 
     def _build_fake_request(self, ministerio):
         user = SimpleNamespace(

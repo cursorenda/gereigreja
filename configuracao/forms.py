@@ -149,7 +149,7 @@ class IgrejaForm(forms.ModelForm):
             'cep', 'rua', 'numero_casa', 'complemento', 'bairro_distrito', 'cidade', 'estado', 'pais',
             'email', 'cnpj', 'telefone', 'celular', 'site', 'conta_padrao_receitas', 'conta_padrao_despesas',
             'pastor_local', 'pastor_regional',
-            'moeda', 'observacoes', 'logo1', 'logo2',
+            'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario', 'observacoes', 'logo1', 'logo2',
         ]
         widgets = {
             'nome_igreja': forms.TextInput(attrs={'class': 'form-control'}),
@@ -172,6 +172,9 @@ class IgrejaForm(forms.ModelForm):
             'pastor_local': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do Pastor/Responsável'}),
             'pastor_regional': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
             'moeda': forms.TextInput(attrs={'class': 'form-control'}),
+            'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
+            'ebd_dia_semana': forms.Select(attrs={'class': 'form-select'}),
+            'ebd_horario': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
             'logo1': forms.FileInput(attrs={'class': 'form-control'}),
             'logo2': forms.FileInput(attrs={'class': 'form-control'}),
@@ -319,7 +322,7 @@ class IgrejaEditForm(forms.ModelForm):
                 'cep', 'rua', 'numero_casa', 'complemento', 'bairro_distrito', 'cidade', 'estado', 'pais',
                 'email', 'cnpj', 'telefone', 'celular', 'site',
                 'pastor_local', 'pastor_regional',
-                'moeda', 'observacoes', 'logo1', 'logo2',
+                'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario', 'observacoes', 'logo1', 'logo2',
                 'conta_padrao_receitas', 'conta_padrao_despesas'
             ]
             widgets = {
@@ -340,6 +343,9 @@ class IgrejaEditForm(forms.ModelForm):
                 'pastor_local': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome do Pastor/Responsável'}),
                 'pastor_regional': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional'}),
                 'moeda': forms.TextInput(attrs={'class': 'form-control'}),
+                'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
+                'ebd_dia_semana': forms.Select(attrs={'class': 'form-select'}),
+                'ebd_horario': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
                 'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
                 'logo1': forms.FileInput(attrs={'class': 'form-control'}),
                 'logo2': forms.FileInput(attrs={'class': 'form-control'}),

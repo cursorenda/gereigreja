@@ -1,7 +1,7 @@
 
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 15/05/2026
+**Última Atualização:** 01/06/2026
 
 ---
 
@@ -11,7 +11,7 @@
 | Documento | Descrição | Última Atualização |
 |-----------|-----------|-------------------|
 | [../README.md](../README.md) | README principal do projeto | — |
-| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 15/05/2026 |
+| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 01/06/2026 |
 
 ---
 
@@ -77,6 +77,9 @@
 | Documento | Descrição |
 |-----------|-----------|
 | [sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md](sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md) | Governanca de periodo, auto-sync de licoes e validacoes de dominio da EBD |
+| [sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md](sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md) | Roadmap premium da EBD com fluxo operacional, decisoes de UX e plano por sprints |
+| [sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md) | Configuracao EBD local por igreja (church-first com fallback ministerial) e plano de rollout |
+| [sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md) | Checklist de homologacao para validar configuracao EBD local por igreja e fallback ministerial |
 
 ### Seletor de Igreja
 | Documento | Descrição |
@@ -121,6 +124,7 @@
 ## 📝 Release Notes
 
 ### Versões Recentes
+- [release-notes/RELEASE_NOTES_v1.13.12.md](release-notes/RELEASE_NOTES_v1.13.12.md) - EBD church-first por igreja e chamada com selecao segura de aula
 - [release-notes/RELEASE_NOTES_v1.8.23.md](release-notes/RELEASE_NOTES_v1.8.23.md) - Ciclo v1.8.10 até v1.8.23
 - [release-notes/RELEASE_NOTES_v1.7.2.md](release-notes/RELEASE_NOTES_v1.7.2.md)
 
@@ -190,7 +194,38 @@ Gereigreja/
 
 ---
 
-## 🆕 Documentações Recentes (Março 2026)
+## 🆕 Documentações Recentes
+
+### 01/06/2026 - Release Notes v1.13.12
+- **Arquivo:** [release-notes/RELEASE_NOTES_v1.13.12.md](release-notes/RELEASE_NOTES_v1.13.12.md)
+- **Conteúdo:**
+   - consolidacao do modelo EBD church-first por igreja
+   - melhorias operacionais da chamada com seletor seguro por licao valida
+   - validacoes, impacto e checklist operacional de deploy
+
+### 01/06/2026 - Escola Dominical: Checklist de Homologacao (Config Local por Igreja)
+- **Arquivo:** [sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md)
+- **Conteúdo:**
+   - cenarios de teste local x herdado
+   - validacao de dashboard, turmas, wizard e eventos
+   - validacao da mini-lista de classes na aba EBD da igreja
+   - criterio de Go/No-Go e rollback funcional rapido
+
+### 01/06/2026 - Escola Dominical: Configuracao Local por Igreja (Fase 1)
+- **Arquivo:** [sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md)
+- **Conteúdo:**
+   - novos campos EBD na igreja com migration e backfill
+   - resolucao church-first com fallback ministerial
+   - auto-sync por sinais para mudancas de configuracao local
+   - ajuste do wizard, agenda macro e atalho no dashboard
+
+### 01/06/2026 - Escola Dominical: Roadmap Premium
+- **Arquivo:** [sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md](sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md)
+- **Conteúdo:**
+   - diretriz de produto para operacao semanal
+   - benchmark de fluxo (planejamento -> operacao -> engajamento -> governanca)
+   - decisao de UX: classe como configuracao, nao foco operacional
+   - plano de implementacao por sprints e metricas de sucesso
 
 ### 28/05/2026 - Escola Dominical: Governanca de Periodo e Automacao
 - **Arquivo:** [sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md](sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md)

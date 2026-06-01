@@ -229,6 +229,7 @@ def agenda_eventos_json(request):
 		'festa': '#ffc107',      # amarelo
 		'feriado': '#dc3545',    # vermelho
 		'estudo': '#6f42c1',     # roxo
+		'escola_dominical': '#0d8281',
 		'outro': '#6c757d',      # cinza
 	}
 	tipo_icones = {
@@ -237,6 +238,7 @@ def agenda_eventos_json(request):
 		'festa': 'fa-solid fa-cake-candles',
 		'feriado': 'fa-solid fa-umbrella-beach',
 		'estudo': 'fa-solid fa-book',
+		'escola_dominical': 'fa-solid fa-school',
 		'outro': 'fa-solid fa-calendar',
 	}
 	eventos_json = []
@@ -246,6 +248,9 @@ def agenda_eventos_json(request):
 		start_str = start_local.isoformat(timespec='seconds')
 		end_str = end_local.isoformat(timespec='seconds')
 		cor = tipo_cores.get(evento.tipo, '#6c757d')
+		status_evento = getattr(evento, 'status_evento', 'ativo')
+		if status_evento == 'cancelado':
+			cor = '#9aa0a6'
 		
 		# Calcular total de participantes esperados (com segurança)
 		total_participantes = 0
@@ -257,7 +262,8 @@ def agenda_eventos_json(request):
 			# Se houver erro, participantes fica 0
 			pass
 		
-		tooltip = f"{evento.titulo}\n{evento.get_tipo_display()}\n{evento.data_inicio:%d/%m/%Y %H:%M} - {evento.data_fim:%d/%m/%Y %H:%M if evento.data_fim else ''}\n{evento.local or ''}\n{evento.descricao or ''}"
+		status_label = 'Cancelado' if status_evento == 'cancelado' else 'Ativo'
+		tooltip = f"{evento.titulo}\n{evento.get_tipo_display()}\nStatus: {status_label}\n{evento.data_inicio:%d/%m/%Y %H:%M} - {evento.data_fim:%d/%m/%Y %H:%M if evento.data_fim else ''}\n{evento.local or ''}\n{evento.descricao or ''}"
 		eventos_json.append({
 			'id': evento.id,
 			'title': evento.titulo,
@@ -269,6 +275,8 @@ def agenda_eventos_json(request):
 				'local': evento.local,
 				'descricao': evento.descricao,
 				'tipo': evento.get_tipo_display(),
+				'status_evento': status_evento,
+				'motivo_cancelamento': getattr(evento, 'motivo_cancelamento', ''),
 				'participantes': total_participantes,
 			},
 			'tooltip': tooltip,

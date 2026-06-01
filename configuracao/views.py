@@ -693,11 +693,42 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
     else:
         form = IgrejaEditForm(instance=igreja, ministerio=ministerio)
 
+    from django.db.models import Count, Exists, OuterRef, Q
+    from django.utils import timezone
+    from escola_biblica.models import Classe, Frequencia, Turma
+    ebd_classes_igreja = (
+        Classe.objects.filter(igreja=igreja)
+        .annotate(total_turmas=Count('turma', distinct=True))
+        .order_by('nome')
+    )
+    hoje = timezone.localdate()
+    chamada_hoje_subquery = Frequencia.objects.filter(
+        aluno__turma_id=OuterRef('pk'),
+        data=hoje,
+    )
+    ebd_turmas_igreja = (
+        Turma.objects.filter(igreja=igreja)
+        .select_related('classe', 'ano_letivo')
+        .annotate(
+            matriculados_ativos=Count('alunos', filter=Q(alunos__ativo=True), distinct=True),
+            chamada_hoje=Exists(chamada_hoje_subquery),
+        )
+        .order_by('nome')
+    )
+    ebd_turmas_com_chamada_hoje = ebd_turmas_igreja.filter(chamada_hoje=True).count()
+    ebd_turmas_pendentes_hoje = ebd_turmas_igreja.filter(chamada_hoje=False).count()
+
     context = {
         'form': form,
         'igreja': igreja,
         'titulo_pagina': f"Editar Igreja: {igreja.nome_igreja}",
-        'cnpj_ministerio': ministerio.cnpj if hasattr(ministerio, 'cnpj') and ministerio.cnpj else ''
+        'cnpj_ministerio': ministerio.cnpj if hasattr(ministerio, 'cnpj') and ministerio.cnpj else '',
+        'ebd_classes_igreja': ebd_classes_igreja[:8],
+        'ebd_classes_total': ebd_classes_igreja.count(),
+        'ebd_turmas_igreja': ebd_turmas_igreja[:8],
+        'ebd_turmas_total': ebd_turmas_igreja.count(),
+        'ebd_turmas_com_chamada_hoje': ebd_turmas_com_chamada_hoje,
+        'ebd_turmas_pendentes_hoje': ebd_turmas_pendentes_hoje,
     }
     return render(request, 'configuracao/igrejas/editar_igreja_config.html', context) # Ajustado para 'igrejas' no plural
 

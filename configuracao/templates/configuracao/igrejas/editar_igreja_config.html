@@ -1,14 +1,10 @@
-{# Extende o template base com menu lateral #}
 {% extends 'base_com_menu.html' %}
 {% load static %}
 
-{# Título da página #}
 {% block title %}{{ titulo_pagina|default:"Editar Igreja" }}{% endblock %}
 
-{# Início do conteúdo principal da página #}
 {% block content %}
 <div class="container-fluid px-4">
-    {# Cabeçalho e navegação breadcrumb #}
     <h1 class="mt-4">{{ titulo_pagina }}</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
@@ -16,221 +12,376 @@
         <li class="breadcrumb-item active">Editar Igreja</li>
     </ol>
 
-    {# Card do formulário de edição #}
     <div class="card">
         <div class="card-header">
             <i class="fas fa-church me-1"></i>
             Formulário de Edição da Igreja
         </div>
         <div class="card-body">
-            {# Formulário principal #}
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
-                
-                {# Bloco: Informações Básicas #}
-                <h4>Informações Básicas</h4>
-                <hr>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.nome_igreja.id_for_label }}" class="form-label">{{ form.nome_igreja.label }}</label>
-                        {{ form.nome_igreja }}
-                        {% if form.nome_igreja.errors %}<div class="invalid-feedback d-block">{{ form.nome_igreja.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.tipo_igreja.id_for_label }}" class="form-label">{{ form.tipo_igreja.label }}</label>
-                        {{ form.tipo_igreja }}
-                        {% if form.tipo_igreja.errors %}<div class="invalid-feedback d-block">{{ form.tipo_igreja.errors|join:", " }}</div>{% endif %}
-                    </div>
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ form.non_field_errors|join:", " }}
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3" id="div_igreja_superior">
-                        <label for="{{ form.igreja_superior.id_for_label }}" class="form-label">{{ form.igreja_superior.label }}</label>
-                        {{ form.igreja_superior }}
-                        {% if form.igreja_superior.help_text %}<div class="form-text">{{ form.igreja_superior.help_text|safe }}</div>{% endif %}
-                        {% if form.igreja_superior.errors %}<div class="invalid-feedback d-block">{{ form.igreja_superior.errors|join:", " }}</div>{% endif %}
-                    </div>
-                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.data_fundacao.id_for_label }}" class="form-label">{{ form.data_fundacao.label }}</label>
-                        {{ form.data_fundacao }}
-                        {% if form.data_fundacao.errors %}<div class="invalid-feedback d-block">{{ form.data_fundacao.errors|join:", " }}</div>{% endif %}
-                    </div>
-                </div>
-                
-                {# Bloco: Endereço #}
-                <h5 class="mt-4">Endereço</h5>
-                <hr>
-                <div class="row g-1 align-items-end">
-                    <div class="col-md-2">
-                        <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}</label>
-                        {{ form.cep }}
-                        {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}</label>
-                        {{ form.rua }}
-                        {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-2">
-                        <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}</label>
-                        {{ form.numero_casa }}
-                        {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}</label>
-                        {{ form.bairro_distrito }}
-                        {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <!-- Campo Site removido do lado do CEP -->
-                    <div class="col-md-2">
-                        <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}</label>
-                        {{ form.complemento }}
-                        {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}</label>
-                        {{ form.cidade }}
-                        {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-1">
-                        <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}</label>
-                        {{ form.estado }}
-                        {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-1">
-                        <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}</label>
-                        <div class="input-group">
-                            {{ form.pais }}
-                            <span class="input-group-text" id="bandeira-brasil" style="padding: 0 0.5rem; background: none; border: none;">
-                                <img src="https://cdn.jsdelivr.net/gh/hjnilsson/country-flags/svg/br.svg" alt="Brasil" style="width: 24px; height: 16px; vertical-align: middle;" />
-                            </span>
-                        </div>
-                        {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|join:", " }}</div>{% endif %}
-                    </div>
-                </div>
-                <!-- Complemento movido para a linha acima, ao lado esquerdo de Cidade -->
+                {% endif %}
 
-                {# Bloco: Contato e Documentos #}
-                <h5 class="mt-4">Contato e Documentos</h5>
-                <hr>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
-                        {{ form.email }}
-                        {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}</label>
-                        {{ form.telefone }}
-                        {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.celular.id_for_label }}" class="form-label">{{ form.celular.label }}</label>
-                        {{ form.celular }}
-                        {% if form.celular.errors %}<div class="invalid-feedback d-block">{{ form.celular.errors|join:", " }}</div>{% endif %}
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.site.id_for_label }}" class="form-label">{{ form.site.label }}</label>
-                        {{ form.site }}
-                        {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="cnpj_selector" class="form-label">CNPJ</label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <select id="cnpj_selector" class="form-select" style="max-width: 50%; min-width: 120px;">
-                                <option value="proprio">Usar CNPJ próprio</option>
-                                <option value="ministerio">Usar CNPJ do Ministério: {{ cnpj_ministerio }}</option>
-                            </select>
-                            <span id="cnpj_ministerio_valor" style="display:none;">{{ cnpj_ministerio }}</span>
-                            <div style="flex:1;">
-                                {{ form.cnpj }}
+                <ul class="nav nav-tabs mb-3" id="igrejaConfigTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="aba-geral-tab" data-bs-toggle="tab" data-bs-target="#aba-geral" type="button" role="tab" aria-controls="aba-geral" aria-selected="true">Geral</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aba-endereco-tab" data-bs-toggle="tab" data-bs-target="#aba-endereco" type="button" role="tab" aria-controls="aba-endereco" aria-selected="false">Endereço</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aba-contato-tab" data-bs-toggle="tab" data-bs-target="#aba-contato" type="button" role="tab" aria-controls="aba-contato" aria-selected="false">Contato e Documentos</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aba-responsaveis-tab" data-bs-toggle="tab" data-bs-target="#aba-responsaveis" type="button" role="tab" aria-controls="aba-responsaveis" aria-selected="false">Responsáveis</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aba-financeiro-tab" data-bs-toggle="tab" data-bs-target="#aba-financeiro" type="button" role="tab" aria-controls="aba-financeiro" aria-selected="false">Financeiro</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aba-ebd-tab" data-bs-toggle="tab" data-bs-target="#aba-ebd" type="button" role="tab" aria-controls="aba-ebd" aria-selected="false">EBD</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aba-outros-tab" data-bs-toggle="tab" data-bs-target="#aba-outros" type="button" role="tab" aria-controls="aba-outros" aria-selected="false">Outros</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content border border-top-0 rounded-bottom p-3" id="igrejaConfigTabsContent">
+                    <div class="tab-pane fade show active" id="aba-geral" role="tabpanel" aria-labelledby="aba-geral-tab" tabindex="0">
+                        <h5 class="mb-3">Informações Básicas</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.nome_igreja.id_for_label }}" class="form-label">{{ form.nome_igreja.label }}</label>
+                                {{ form.nome_igreja }}
+                                {% if form.nome_igreja.errors %}<div class="invalid-feedback d-block">{{ form.nome_igreja.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.tipo_igreja.id_for_label }}" class="form-label">{{ form.tipo_igreja.label }}</label>
+                                {{ form.tipo_igreja }}
+                                {% if form.tipo_igreja.errors %}<div class="invalid-feedback d-block">{{ form.tipo_igreja.errors|join:", " }}</div>{% endif %}
                             </div>
                         </div>
-                        {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|join:", " }}</div>{% endif %}
-                    </div>
-                </div>
-
-                {# Bloco: Responsáveis #}
-                <h5 class="mt-4">Responsáveis</h5>
-                <hr>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.pastor_local.id_for_label }}" class="form-label">{{ form.pastor_local.label }}</label>
-                        {{ form.pastor_local }}
-                        {% if form.pastor_local.errors %}<div class="invalid-feedback d-block">{{ form.pastor_local.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-3" id="div_pastor_regional" style="display:none;">
-                        <label for="{{ form.pastor_regional.id_for_label }}" class="form-label">{{ form.pastor_regional.label }}</label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <select id="pastor_regional_selector" class="form-select" style="max-width: 50%; min-width: 120px;">
-                                <option value="regional">Usar pastor da regional</option>
-                                <option value="manual">Inserir manualmente</option>
-                            </select>
-                            <span id="pastor_regional_padrao" style="display:none;">{{ pastor_regional_padrao|default:'' }}</span>
-                            <div style="flex:1;">
-                                {{ form.pastor_regional }}
+                        <div class="row">
+                            <div class="col-md-6 mb-3" id="div_igreja_superior">
+                                <label for="{{ form.igreja_superior.id_for_label }}" class="form-label">{{ form.igreja_superior.label }}</label>
+                                {{ form.igreja_superior }}
+                                {% if form.igreja_superior.help_text %}<div class="form-text">{{ form.igreja_superior.help_text|safe }}</div>{% endif %}
+                                {% if form.igreja_superior.errors %}<div class="invalid-feedback d-block">{{ form.igreja_superior.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.data_fundacao.id_for_label }}" class="form-label">{{ form.data_fundacao.label }}</label>
+                                {{ form.data_fundacao }}
+                                {% if form.data_fundacao.errors %}<div class="invalid-feedback d-block">{{ form.data_fundacao.errors|join:", " }}</div>{% endif %}
                             </div>
                         </div>
-                        {% if form.pastor_regional.errors %}<div class="invalid-feedback d-block">{{ form.pastor_regional.errors|join:", " }}</div>{% endif %}
                     </div>
-                </div>
 
-                {# Bloco: Configurações Financeiras Padrão #}
-                <h5 class="mt-4">Configurações Financeiras Padrão</h5>
-                <hr>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.moeda.id_for_label }}" class="form-label">{{ form.moeda.label }}</label>
-                        {{ form.moeda }}
-                        {% if form.moeda.errors %}<div class="invalid-feedback d-block">{{ form.moeda.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.conta_padrao_receitas.id_for_label }}" class="form-label">{{ form.conta_padrao_receitas.label }}</label>
-                        {{ form.conta_padrao_receitas }}
-                        {% if form.conta_padrao_receitas.help_text %}<div class="form-text">{{ form.conta_padrao_receitas.help_text|safe }}</div>{% endif %}
-                        {% if form.conta_padrao_receitas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_receitas.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.conta_padrao_despesas.id_for_label }}" class="form-label">{{ form.conta_padrao_despesas.label }}</label>
-                        {{ form.conta_padrao_despesas }}
-                        {% if form.conta_padrao_despesas.help_text %}<div class="form-text">{{ form.conta_padrao_despesas.help_text|safe }}</div>{% endif %}
-                        {% if form.conta_padrao_despesas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_despesas.errors|join:", " }}</div>{% endif %}
-                    </div>
-                </div>
-
-                {# Bloco: Outras Informações #}
-                <h5 class="mt-4">Outras Informações</h5>
-                <hr>
-                 <div class="mb-3">
-                    <label for="{{ form.observacoes.id_for_label }}" class="form-label">{{ form.observacoes.label }}</label>
-                    {{ form.observacoes }}
-                    {% if form.observacoes.errors %}<div class="invalid-feedback d-block">{{ form.observacoes.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.logo1.id_for_label }}" class="form-label">{{ form.logo1.label }}</label>
-                        {{ form.logo1 }} {# Este é o campo de input para o novo logo #}
-                        {% if form.logo1.errors %}<div class="invalid-feedback d-block">{{ form.logo1.errors|join:", " }}</div>{% endif %}
-
-                        <div class="mt-2">
-                            <small>Logo 1 Atual:</small><br>
-                            <img src="{{ igreja.logo1_url }}" alt="Logo 1 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
+                    <div class="tab-pane fade" id="aba-endereco" role="tabpanel" aria-labelledby="aba-endereco-tab" tabindex="0">
+                        <h5 class="mb-3">Endereço</h5>
+                        <div class="row g-1 align-items-end">
+                            <div class="col-md-2">
+                                <label for="{{ form.cep.id_for_label }}" class="form-label">{{ form.cep.label }}</label>
+                                {{ form.cep }}
+                                {% if form.cep.errors %}<div class="invalid-feedback d-block">{{ form.cep.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="{{ form.rua.id_for_label }}" class="form-label">{{ form.rua.label }}</label>
+                                {{ form.rua }}
+                                {% if form.rua.errors %}<div class="invalid-feedback d-block">{{ form.rua.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-2">
+                                <label for="{{ form.numero_casa.id_for_label }}" class="form-label">{{ form.numero_casa.label }}</label>
+                                {{ form.numero_casa }}
+                                {% if form.numero_casa.errors %}<div class="invalid-feedback d-block">{{ form.numero_casa.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="{{ form.bairro_distrito.id_for_label }}" class="form-label">{{ form.bairro_distrito.label }}</label>
+                                {{ form.bairro_distrito }}
+                                {% if form.bairro_distrito.errors %}<div class="invalid-feedback d-block">{{ form.bairro_distrito.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-2">
+                                <label for="{{ form.complemento.id_for_label }}" class="form-label">{{ form.complemento.label }}</label>
+                                {{ form.complemento }}
+                                {% if form.complemento.errors %}<div class="invalid-feedback d-block">{{ form.complemento.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="{{ form.cidade.id_for_label }}" class="form-label">{{ form.cidade.label }}</label>
+                                {{ form.cidade }}
+                                {% if form.cidade.errors %}<div class="invalid-feedback d-block">{{ form.cidade.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-1">
+                                <label for="{{ form.estado.id_for_label }}" class="form-label">{{ form.estado.label }}</label>
+                                {{ form.estado }}
+                                {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-2">
+                                <label for="{{ form.pais.id_for_label }}" class="form-label">{{ form.pais.label }}</label>
+                                <div class="input-group">
+                                    {{ form.pais }}
+                                    <span class="input-group-text" id="bandeira-brasil" style="padding: 0 0.5rem; background: none; border: none;">
+                                        <img src="https://cdn.jsdelivr.net/gh/hjnilsson/country-flags/svg/br.svg" alt="Brasil" style="width: 24px; height: 16px; vertical-align: middle;" />
+                                    </span>
+                                </div>
+                                {% if form.pais.errors %}<div class="invalid-feedback d-block">{{ form.pais.errors|join:", " }}</div>{% endif %}
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.logo2.id_for_label }}" class="form-label">{{ form.logo2.label }}</label>
-                        {{ form.logo2 }} {# Este é o campo de input para o novo logo #}
-                        {% if form.logo2.errors %}<div class="invalid-feedback d-block">{{ form.logo2.errors|join:", " }}</div>{% endif %}
 
-                        <div class="mt-2">
-                            <small>Logo 2 Atual:</small><br>
-                            <img src="{{ igreja.logo2_url }}" alt="Logo 2 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
+                    <div class="tab-pane fade" id="aba-contato" role="tabpanel" aria-labelledby="aba-contato-tab" tabindex="0">
+                        <h5 class="mb-3">Contato e Documentos</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                                {{ form.email }}
+                                {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.telefone.id_for_label }}" class="form-label">{{ form.telefone.label }}</label>
+                                {{ form.telefone }}
+                                {% if form.telefone.errors %}<div class="invalid-feedback d-block">{{ form.telefone.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.celular.id_for_label }}" class="form-label">{{ form.celular.label }}</label>
+                                {{ form.celular }}
+                                {% if form.celular.errors %}<div class="invalid-feedback d-block">{{ form.celular.errors|join:", " }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.site.id_for_label }}" class="form-label">{{ form.site.label }}</label>
+                                {{ form.site }}
+                                {% if form.site.errors %}<div class="invalid-feedback d-block">{{ form.site.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="cnpj_selector" class="form-label">CNPJ</label>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <select id="cnpj_selector" class="form-select" style="max-width: 50%; min-width: 120px;">
+                                        <option value="proprio">Usar CNPJ próprio</option>
+                                        <option value="ministerio">Usar CNPJ do Ministério: {{ cnpj_ministerio }}</option>
+                                    </select>
+                                    <span id="cnpj_ministerio_valor" style="display:none;">{{ cnpj_ministerio }}</span>
+                                    <div style="flex:1;">
+                                        {{ form.cnpj }}
+                                    </div>
+                                </div>
+                                {% if form.cnpj.errors %}<div class="invalid-feedback d-block">{{ form.cnpj.errors|join:", " }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="aba-responsaveis" role="tabpanel" aria-labelledby="aba-responsaveis-tab" tabindex="0">
+                        <h5 class="mb-3">Responsáveis</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.pastor_local.id_for_label }}" class="form-label">{{ form.pastor_local.label }}</label>
+                                {{ form.pastor_local }}
+                                {% if form.pastor_local.errors %}<div class="invalid-feedback d-block">{{ form.pastor_local.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3" id="div_pastor_regional" style="display:none;">
+                                <label for="{{ form.pastor_regional.id_for_label }}" class="form-label">{{ form.pastor_regional.label }}</label>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <select id="pastor_regional_selector" class="form-select" style="max-width: 50%; min-width: 120px;">
+                                        <option value="regional">Usar pastor da regional</option>
+                                        <option value="manual">Inserir manualmente</option>
+                                    </select>
+                                    <span id="pastor_regional_padrao" style="display:none;">{{ pastor_regional_padrao|default:'' }}</span>
+                                    <div style="flex:1;">
+                                        {{ form.pastor_regional }}
+                                    </div>
+                                </div>
+                                {% if form.pastor_regional.errors %}<div class="invalid-feedback d-block">{{ form.pastor_regional.errors|join:", " }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="aba-financeiro" role="tabpanel" aria-labelledby="aba-financeiro-tab" tabindex="0">
+                        <h5 class="mb-3">Configurações Financeiras Padrão</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.moeda.id_for_label }}" class="form-label">{{ form.moeda.label }}</label>
+                                {{ form.moeda }}
+                                {% if form.moeda.errors %}<div class="invalid-feedback d-block">{{ form.moeda.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.conta_padrao_receitas.id_for_label }}" class="form-label">{{ form.conta_padrao_receitas.label }}</label>
+                                {{ form.conta_padrao_receitas }}
+                                {% if form.conta_padrao_receitas.help_text %}<div class="form-text">{{ form.conta_padrao_receitas.help_text|safe }}</div>{% endif %}
+                                {% if form.conta_padrao_receitas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_receitas.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.conta_padrao_despesas.id_for_label }}" class="form-label">{{ form.conta_padrao_despesas.label }}</label>
+                                {{ form.conta_padrao_despesas }}
+                                {% if form.conta_padrao_despesas.help_text %}<div class="form-text">{{ form.conta_padrao_despesas.help_text|safe }}</div>{% endif %}
+                                {% if form.conta_padrao_despesas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_despesas.errors|join:", " }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="aba-ebd" role="tabpanel" aria-labelledby="aba-ebd-tab" tabindex="0">
+                        <h5 class="mb-3">Configurações EBD da Igreja</h5>
+                        <p class="text-muted mb-3" style="font-size:0.92rem;">
+                            Opcional. Se preenchido, este bloco substitui a configuração EBD herdada do ministério para esta igreja.
+                        </p>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.ebd_periodo.id_for_label }}" class="form-label">{{ form.ebd_periodo.label }}</label>
+                                {{ form.ebd_periodo }}
+                                {% if form.ebd_periodo.help_text %}<div class="form-text">{{ form.ebd_periodo.help_text|safe }}</div>{% endif %}
+                                {% if form.ebd_periodo.errors %}<div class="invalid-feedback d-block">{{ form.ebd_periodo.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.ebd_dia_semana.id_for_label }}" class="form-label">{{ form.ebd_dia_semana.label }}</label>
+                                {{ form.ebd_dia_semana }}
+                                {% if form.ebd_dia_semana.help_text %}<div class="form-text">{{ form.ebd_dia_semana.help_text|safe }}</div>{% endif %}
+                                {% if form.ebd_dia_semana.errors %}<div class="invalid-feedback d-block">{{ form.ebd_dia_semana.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.ebd_horario.id_for_label }}" class="form-label">{{ form.ebd_horario.label }}</label>
+                                {{ form.ebd_horario }}
+                                {% if form.ebd_horario.help_text %}<div class="form-text">{{ form.ebd_horario.help_text|safe }}</div>{% endif %}
+                                {% if form.ebd_horario.errors %}<div class="invalid-feedback d-block">{{ form.ebd_horario.errors|join:", " }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-1">Estrutura EBD - Classes</h6>
+                                <small class="text-muted">Classes vinculadas a esta igreja: {{ ebd_classes_total }}</small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'escola_biblica:classe_list' %}?igreja_id={{ igreja.id }}" class="btn btn-outline-secondary btn-sm">Gerenciar classes</a>
+                                <a href="{% url 'escola_biblica:classe_create' %}?igreja_id={{ igreja.id }}" class="btn btn-primary btn-sm">Nova classe</a>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Classe</th>
+                                        <th>Faixa etária</th>
+                                        <th>Turmas</th>
+                                        <th style="width: 1%; white-space: nowrap;">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for classe in ebd_classes_igreja %}
+                                    <tr>
+                                        <td>{{ classe.nome }}</td>
+                                        <td>{{ classe.faixa_etaria|default:'-' }}</td>
+                                        <td>{{ classe.total_turmas }}</td>
+                                        <td>
+                                            <a href="{% url 'escola_biblica:classe_edit' classe.pk %}" class="btn btn-outline-primary btn-sm">Editar</a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-3">
+                                            Nenhuma classe cadastrada para esta igreja.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if ebd_classes_total > ebd_classes_igreja|length %}
+                        <small class="text-muted">Exibindo as primeiras {{ ebd_classes_igreja|length }} classes.</small>
+                        {% endif %}
+
+                        <hr class="my-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-1">Operação EBD - Turmas</h6>
+                                <small class="text-muted">Turmas desta igreja: {{ ebd_turmas_total }}</small>
+                            </div>
+                            <a href="{% url 'escola_biblica:turma_list' %}?igreja_id={{ igreja.id }}" class="btn btn-outline-secondary btn-sm">Abrir turmas</a>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="badge text-bg-warning">Pendentes hoje: {{ ebd_turmas_pendentes_hoje }}</span>
+                            <span class="badge text-bg-success">Com chamada hoje: {{ ebd_turmas_com_chamada_hoje }}</span>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Turma</th>
+                                        <th>Classe</th>
+                                        <th>Ano</th>
+                                        <th>Alunos ativos</th>
+                                        <th>Status do dia</th>
+                                        <th style="width: 1%; white-space: nowrap;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for turma in ebd_turmas_igreja %}
+                                    <tr>
+                                        <td>{{ turma.nome }}</td>
+                                        <td>{{ turma.classe.nome|default:'-' }}</td>
+                                        <td>{{ turma.ano_letivo.ano|default:'-' }}</td>
+                                        <td>{{ turma.matriculados_ativos }}</td>
+                                        <td>
+                                            {% if turma.chamada_hoje %}
+                                                <span class="badge text-bg-success">Chamada registrada</span>
+                                            {% else %}
+                                                <span class="badge text-bg-warning">Pendente</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'escola_biblica:chamada_presenca' turma.id %}" class="btn btn-outline-primary btn-sm">Chamada</a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">
+                                            Nenhuma turma cadastrada para esta igreja.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if ebd_turmas_total > ebd_turmas_igreja|length %}
+                        <small class="text-muted">Exibindo as primeiras {{ ebd_turmas_igreja|length }} turmas.</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="tab-pane fade" id="aba-outros" role="tabpanel" aria-labelledby="aba-outros-tab" tabindex="0">
+                        <h5 class="mb-3">Outras Informações</h5>
+                        <div class="mb-3">
+                            <label for="{{ form.observacoes.id_for_label }}" class="form-label">{{ form.observacoes.label }}</label>
+                            {{ form.observacoes }}
+                            {% if form.observacoes.errors %}<div class="invalid-feedback d-block">{{ form.observacoes.errors|join:", " }}</div>{% endif %}
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.logo1.id_for_label }}" class="form-label">{{ form.logo1.label }}</label>
+                                {{ form.logo1 }}
+                                {% if form.logo1.errors %}<div class="invalid-feedback d-block">{{ form.logo1.errors|join:", " }}</div>{% endif %}
+                                <div class="mt-2">
+                                    <small>Logo 1 Atual:</small><br>
+                                    <img src="{{ igreja.logo1_url }}" alt="Logo 1 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.logo2.id_for_label }}" class="form-label">{{ form.logo2.label }}</label>
+                                {{ form.logo2 }}
+                                {% if form.logo2.errors %}<div class="invalid-feedback d-block">{{ form.logo2.errors|join:", " }}</div>{% endif %}
+                                <div class="mt-2">
+                                    <small>Logo 2 Atual:</small><br>
+                                    <img src="{{ igreja.logo2_url }}" alt="Logo 2 Atual" class="img-thumbnail mt-1" style="max-height: 100px; max-width: 200px; object-fit: contain;">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {# Botões de ação do formulário #}
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                     <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-secondary">Cancelar</a>
@@ -239,34 +390,64 @@
         </div>
     </div>
 </div>
-{# Bloco de scripts extras para máscaras, autocomplete e lógica dinâmica do formulário #}
-{% block extra_js %}
-    <script src="{% static 'secretaria/form_masks.js' %}"></script>
-    <script src="{% static 'secretaria/cep_autocomplete.js' %}"></script>
-    <script src="{% static 'secretaria/oculta_igreja_superior.js' %}"></script>
-    <script src="{% static 'configuracao/pastor_regional_dinamico.js' %}"></script>
-    <script src="{% static 'secretaria/cnpj_igreja.js' %}"></script>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Preencher automaticamente o campo país como Brasil ao buscar o CEP
-        var paisInput = document.getElementById('id_pais');
-        var cepInput = document.getElementById('id_cep');
-        if (cepInput && paisInput) {
-            cepInput.addEventListener('blur', function() {
-                let cep = this.value.replace(/\D/g, '');
-                if (cep.length === 8) {
-                    paisInput.value = 'Brasil';
-                }
-            });
-        }
-        // Sempre que o campo país for limpo, volta para Brasil
-        if (paisInput) {
-            paisInput.addEventListener('blur', function() {
-                if (!this.value) this.value = 'Brasil';
-            });
-        }
-        // Máscara para CNPJ agora está centralizada em form_masks.js
-    });
-    </script>
 {% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'secretaria/form_masks.js' %}"></script>
+<script src="{% static 'secretaria/cep_autocomplete.js' %}"></script>
+<script src="{% static 'secretaria/oculta_igreja_superior.js' %}"></script>
+<script src="{% static 'configuracao/pastor_regional_dinamico.js' %}"></script>
+<script src="{% static 'secretaria/cnpj_igreja.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var paisInput = document.getElementById('id_pais');
+    var cepInput = document.getElementById('id_cep');
+    if (cepInput && paisInput) {
+        cepInput.addEventListener('blur', function() {
+            var cep = this.value.replace(/\D/g, '');
+            if (cep.length === 8) {
+                paisInput.value = 'Brasil';
+            }
+        });
+    }
+    if (paisInput) {
+        paisInput.addEventListener('blur', function() {
+            if (!this.value) {
+                this.value = 'Brasil';
+            }
+        });
+    }
+
+    var tabs = document.querySelectorAll('#igrejaConfigTabs button[data-bs-toggle="tab"]');
+    var storageKey = 'igreja-config-active-tab';
+
+    tabs.forEach(function(tab) {
+        tab.addEventListener('shown.bs.tab', function(event) {
+            localStorage.setItem(storageKey, event.target.getAttribute('data-bs-target'));
+        });
+    });
+
+    var firstError = document.querySelector('.tab-pane .invalid-feedback.d-block');
+    if (firstError) {
+        var pane = firstError.closest('.tab-pane');
+        if (pane) {
+            var trigger = document.querySelector('#igrejaConfigTabs button[data-bs-target="#' + pane.id + '"]');
+            if (trigger && window.bootstrap && window.bootstrap.Tab) {
+                var tabObj = new bootstrap.Tab(trigger);
+                tabObj.show();
+            }
+            return;
+        }
+    }
+
+    var savedTabTarget = localStorage.getItem(storageKey);
+    if (savedTabTarget) {
+        var savedTrigger = document.querySelector('#igrejaConfigTabs button[data-bs-target="' + savedTabTarget + '"]');
+        if (savedTrigger && window.bootstrap && window.bootstrap.Tab) {
+            var savedTabObj = new bootstrap.Tab(savedTrigger);
+            savedTabObj.show();
+        }
+    }
+});
+</script>
 {% endblock %}

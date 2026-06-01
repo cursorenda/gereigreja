@@ -65,8 +65,8 @@
                             <td>{{ igreja.pastor_local|default:"-" }}</td>
                             <td>{{ igreja.telefone|default:"-" }}</td>
                             <td>
-                                <a href="{% url 'configuracao:editar_igreja_config' igreja.pk %}" class="btn btn-primary btn-sm" title="Editar">
-                                    <i class="fas fa-edit"></i>
+                                <a href="{% url 'configuracao:editar_igreja_config' igreja.pk %}" class="btn btn-primary btn-sm" title="Editar e configurar EBD local">
+                                    <i class="fas fa-sliders-h me-1"></i> Configurar EBD
                                 </a>
                                 {# Formulário de Exclusão #}
                                 <form action="{% url 'configuracao:excluir_igreja' igreja.pk %}" method="post" class="d-inline">
