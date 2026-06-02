@@ -27,7 +27,26 @@ def detalhe_post(request, slug):
         categoria=post.categoria
     ).exclude(pk=post.pk)[:3]
 
+    post_absolute_url = request.build_absolute_uri(post.get_absolute_url())
+    post_og_image_url = ''
+    post_og_image_width = None
+    post_og_image_height = None
+    post_og_image_alt = post.titulo
+    if post.imagem_capa:
+        post_og_image_url = request.build_absolute_uri(post.imagem_capa.url)
+        try:
+            post_og_image_width = post.imagem_capa.width
+            post_og_image_height = post.imagem_capa.height
+        except Exception:
+            post_og_image_width = None
+            post_og_image_height = None
+
     return render(request, 'blog/detalhe.html', {
         'post': post,
         'posts_relacionados': posts_relacionados,
+        'post_absolute_url': post_absolute_url,
+        'post_og_image_url': post_og_image_url,
+        'post_og_image_width': post_og_image_width,
+        'post_og_image_height': post_og_image_height,
+        'post_og_image_alt': post_og_image_alt,
     })

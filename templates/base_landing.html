@@ -18,14 +18,14 @@
     <meta property="og:url" content="{% block og_url %}https://gereigreja.site/{% endblock %}">
     <meta property="og:title" content="{% block og_title %}Gereigreja - O Sistema Completo para Gestão de Igrejas{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Organize, cresça e pastoreie com mais eficiência. Gereigreja centraliza a gestão de pessoas, finanças e comunicação da sua igreja.{% endblock %}">
-    <meta property="og:image" content="{% sistema_imagem_url 'og_image' '1200x630' 'img/gereigreja_og_image.png' %}">
+    <meta property="og:image" content="{% block og_image %}{% sistema_imagem_url 'og_image' '1200x630' 'img/gereigreja_og_image.png' %}{% endblock %}">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="{% block twitter_url %}https://gereigreja.site/{% endblock %}">
     <meta property="twitter:title" content="{% block twitter_title %}Gereigreja - O Sistema Completo para Gestão de Igrejas{% endblock %}">
     <meta property="twitter:description" content="{% block twitter_description %}Organize, cresça e pastoreie com mais eficiência. Gereigreja centraliza a gestão de pessoas, finanças e comunicação da sua igreja.{% endblock %}">
-    <meta property="twitter:image" content="{% sistema_imagem_url 'og_image' '1200x630' 'img/gereigreja_og_image.png' %}">
+    <meta property="twitter:image" content="{% block twitter_image %}{% sistema_imagem_url 'og_image' '1200x630' 'img/gereigreja_og_image.png' %}{% endblock %}">
 
     <!-- Favicon -->
     <link rel="icon" href="{% sistema_imagem_url 'favicon' 'original' 'favicon.ico' %}" type="image/x-icon">
