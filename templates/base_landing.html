@@ -14,7 +14,7 @@
     <meta name="author" content="Gereigreja">
 
     <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{% block og_url %}https://gereigreja.site/{% endblock %}">
     <meta property="og:title" content="{% block og_title %}Gereigreja - O Sistema Completo para Gestão de Igrejas{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Organize, cresça e pastoreie com mais eficiência. Gereigreja centraliza a gestão de pessoas, finanças e comunicação da sua igreja.{% endblock %}">
