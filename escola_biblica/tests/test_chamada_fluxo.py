@@ -18,6 +18,8 @@ from escola_biblica.views import _build_chamada_processing_lock_key
 class ChamadaPresencaFluxoTest(TestCase):
     QUERY_BUDGET_CHAMADA_GET = 140
     QUERY_BUDGET_DASHBOARD_GET = 140
+    QUERY_BUDGET_CHAMADA_CARGA_GET = 180
+    QUERY_BUDGET_DASHBOARD_CARGA_GET = 220
 
     def setUp(self):
         cache.clear()
@@ -87,6 +89,41 @@ class ChamadaPresencaFluxoTest(TestCase):
             )
 
         return turma
+
+    def _seed_frequencias_turma(self, turma, semanas=8):
+        alunos = list(turma.alunos.all())
+        base = timezone.localdate()
+        datas = [base - timedelta(days=7 * idx) for idx in range(semanas)]
+
+        licoes = [
+            Licao(
+                turma=turma,
+                data=data,
+                tema=f'Licao carga {idx}',
+                status='ativa',
+            )
+            for idx, data in enumerate(datas, start=1)
+        ]
+        Licao.objects.bulk_create(licoes, ignore_conflicts=True)
+
+        frequencias = []
+        for aluno in alunos:
+            for idx, data in enumerate(datas):
+                presente = (idx % 4) != 0
+                frequencias.append(
+                    Frequencia(
+                        aluno=aluno,
+                        data=data,
+                        presente=presente,
+                        trouxe_biblia=presente,
+                        trouxe_revista=False,
+                        trouxe_visitante=False,
+                        trouxe_oferta=False,
+                        pontos_total=12 if presente else 0,
+                    )
+                )
+
+        Frequencia.objects.bulk_create(frequencias, ignore_conflicts=True)
 
     def test_chamada_post_salva_frequencia_com_snapshot_pontos(self):
         turma = self._criar_turma('post', qtd_alunos=1, criar_licao=True)
@@ -226,3 +263,30 @@ class ChamadaPresencaFluxoTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Frequencia.objects.filter(aluno=aluno, data=timezone.localdate()).count(), 0)
         self.assertContains(response, 'está sendo processada no momento')
+
+    def test_carga_get_chamada_turma_grande_periodo_extenso(self):
+        turma = self._criar_turma('carga-chamada', qtd_alunos=120, criar_licao=True)
+        self._seed_frequencias_turma(turma, semanas=10)
+        url = reverse('escola_biblica:chamada_presenca', args=[turma.id])
+
+        # Warm-up para reduzir ruído de cache/sessão.
+        self.client.get(url)
+
+        response = self._assert_query_budget_get(url, self.QUERY_BUDGET_CHAMADA_CARGA_GET)
+        self.assertContains(response, 'Chamada de Presença')
+
+    def test_carga_get_dashboard_periodo_extenso(self):
+        turmas = [
+            self._criar_turma('carga-dash-a', qtd_alunos=60, criar_licao=True),
+            self._criar_turma('carga-dash-b', qtd_alunos=60, criar_licao=True),
+        ]
+        for turma in turmas:
+            self._seed_frequencias_turma(turma, semanas=12)
+
+        url = reverse('escola_biblica:dashboard')
+
+        # Warm-up para reduzir ruído de cache/sessão.
+        self.client.get(url)
+
+        response = self._assert_query_budget_get(url, self.QUERY_BUDGET_DASHBOARD_CARGA_GET)
+        self.assertContains(response, 'Dashboard EBD')
