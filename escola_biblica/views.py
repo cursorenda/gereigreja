@@ -98,6 +98,11 @@ def _build_chamada_idempotency_key(request, turma_id, data_selecionada):
     digest = hashlib.sha256(raw.encode('utf-8')).hexdigest()
     return f'ebd:chamada:idempotency:{digest}'
 
+
+def _build_chamada_processing_lock_key(turma_id, data_selecionada):
+    data_ref = data_selecionada.isoformat() if data_selecionada else 'sem-data'
+    return f'ebd:chamada:processing:{turma_id}:{data_ref}'
+
 # --- FUN├ç├òES HELPER DE PERMISS├òES ---
 def pode_acessar_chamada_turma(user, turma):
     """
@@ -755,6 +760,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 
 from .forms import ChamadaPresencaFormSet
 from .models import Turma, Aluno, Licao, PeriodoEBD, Frequencia, OfertaClasse
@@ -879,100 +885,105 @@ def chamada_presenca(request, turma_id):
                 messages.info(request, 'Esta chamada já foi processada recentemente. Nenhuma alteração duplicada foi aplicada.')
                 return redirect('escola_biblica:turma_list')
 
+            chamada_processing_lock_key = _build_chamada_processing_lock_key(turma.id, data_selecionada)
+            if not cache.add(chamada_processing_lock_key, request.user.pk, timeout=30):
+                log_ebd_audit_event(
+                    request,
+                    'chamada_concorrente_ignorada',
+                    turma_id=turma.id,
+                    data=data_selecionada,
+                )
+                messages.info(request, 'Outra submissão desta chamada está sendo processada no momento. Tente novamente em instantes.')
+                return redirect(request.path + (f'?data={data}' if data else ''))
+
             formset = ChamadaPresencaFormSet(request.POST)
-            if formset.is_valid():
-                erro_validacao = False
-                pontos_totais_aula = 0
-                for form in formset:
-                    aluno_id = form.cleaned_data['aluno_id']
-                    presente = form.cleaned_data.get('presente', False)
-                    trouxe_biblia = form.cleaned_data.get('trouxe_biblia', False)
-                    trouxe_revista = form.cleaned_data.get('trouxe_revista', False)
-                    trouxe_visitante = form.cleaned_data.get('trouxe_visitante', False)
-                    trouxe_oferta = form.cleaned_data.get('trouxe_oferta', False)
-                    freq, _ = Frequencia.objects.get_or_create(
-                        aluno_id=aluno_id,
-                        data=data_selecionada,
-                        defaults={
-                            'presente': presente,
-                            'trouxe_biblia': trouxe_biblia,
-                            'trouxe_revista': trouxe_revista,
-                            'trouxe_visitante': trouxe_visitante,
-                            'trouxe_oferta': trouxe_oferta,
-                        }
-                    )
-                    freq.presente = presente
-                    freq.trouxe_biblia = trouxe_biblia
-                    freq.trouxe_revista = trouxe_revista
-                    freq.trouxe_visitante = trouxe_visitante
-                    freq.trouxe_oferta = trouxe_oferta
-                    freq.pontos_total = calcular_pontos_frequencia_flags(
-                        presente=presente,
-                        trouxe_biblia=trouxe_biblia,
-                        trouxe_revista=trouxe_revista,
-                        trouxe_oferta=trouxe_oferta,
-                        trouxe_visitante=trouxe_visitante,
-                        pontos_cfg=ebd_pontos_config,
-                    )
-                    pontos_totais_aula += freq.pontos_total
+            try:
+                if formset.is_valid():
+                    erro_validacao = False
+                    pontos_totais_aula = 0
                     try:
-                        freq.save()
+                        with transaction.atomic():
+                            for form in formset:
+                                aluno_id = form.cleaned_data['aluno_id']
+                                presente = form.cleaned_data.get('presente', False)
+                                trouxe_biblia = form.cleaned_data.get('trouxe_biblia', False)
+                                trouxe_revista = form.cleaned_data.get('trouxe_revista', False)
+                                trouxe_visitante = form.cleaned_data.get('trouxe_visitante', False)
+                                trouxe_oferta = form.cleaned_data.get('trouxe_oferta', False)
+                                pontos_total = calcular_pontos_frequencia_flags(
+                                    presente=presente,
+                                    trouxe_biblia=trouxe_biblia,
+                                    trouxe_revista=trouxe_revista,
+                                    trouxe_oferta=trouxe_oferta,
+                                    trouxe_visitante=trouxe_visitante,
+                                    pontos_cfg=ebd_pontos_config,
+                                )
+                                Frequencia.objects.update_or_create(
+                                    aluno_id=aluno_id,
+                                    data=data_selecionada,
+                                    defaults={
+                                        'presente': presente,
+                                        'trouxe_biblia': trouxe_biblia,
+                                        'trouxe_revista': trouxe_revista,
+                                        'trouxe_visitante': trouxe_visitante,
+                                        'trouxe_oferta': trouxe_oferta,
+                                        'pontos_total': pontos_total,
+                                    },
+                                )
+                                pontos_totais_aula += pontos_total
+
+                            valor_oferta = request.POST.get('valor_oferta')
+                            if valor_oferta is not None and classe and data_selecionada:
+                                valor_str = str(valor_oferta).replace(',', '.').strip()
+                                valor_float = float(valor_str) if valor_str else 0.0
+                                oferta_obj = OfertaClasse.objects.select_for_update().filter(
+                                    turma=turma,
+                                    data=data_selecionada,
+                                ).first()
+                                if oferta_obj:
+                                    oferta_obj.valor = valor_float
+                                    oferta_obj.save(update_fields=['valor'])
+                                else:
+                                    OfertaClasse.objects.create(
+                                        turma=turma,
+                                        classe=classe,
+                                        data=data_selecionada,
+                                        valor=valor_float,
+                                    )
+                                log_ebd_audit_event(
+                                    request,
+                                    'chamada_oferta_registrada',
+                                    turma_id=turma.id,
+                                    data=data_selecionada,
+                                    valor=valor_float,
+                                )
                     except Exception as exc:
                         erro_validacao = True
                         logger.warning(
-                            'ebd.chamada.save_error turma_id=%s aluno_id=%s data=%s user_id=%s erro=%s',
+                            'ebd.chamada.atomic_error turma_id=%s data=%s user_id=%s erro=%s',
                             turma.id,
-                            aluno_id,
                             data_selecionada,
                             request.user.pk,
                             exc,
                         )
-                        messages.error(request, f'Erro ao registrar chamada para {freq.aluno.nome}: {exc}')
+                        messages.error(request, f'Erro ao registrar chamada de presença: {exc}')
 
-                valor_oferta = request.POST.get('valor_oferta')
-                if valor_oferta is not None and classe and data_selecionada:
-                    try:
-                        valor_str = str(valor_oferta).replace(',', '.').strip()
-                        valor_float = float(valor_str) if valor_str else 0.0
-                        oferta_obj, created = OfertaClasse.objects.get_or_create(
-                            turma=turma,
-                            data=data_selecionada,
-                            defaults={'classe': classe, 'valor': valor_float}
-                        )
-                        if not created:
-                            oferta_obj.valor = valor_float
-                            oferta_obj.save()
+                    if not erro_validacao:
+                        cache.set(chamada_idempotency_key, True, 60)
                         log_ebd_audit_event(
                             request,
-                            'chamada_oferta_registrada',
+                            'chamada_registrada',
                             turma_id=turma.id,
                             data=data_selecionada,
-                            valor=valor_float,
+                            alunos_formset=len(formset.forms),
+                            pontos_totais_aula=pontos_totais_aula,
                         )
-                    except Exception as exc:
-                        logger.warning(
-                            'ebd.chamada.oferta_error turma_id=%s data=%s user_id=%s erro=%s',
-                            turma.id,
-                            data_selecionada,
-                            request.user.pk,
-                            exc,
-                        )
-                        messages.error(request, f'Erro ao registrar valor da oferta: {exc}')
-
-                if not erro_validacao:
-                    cache.set(chamada_idempotency_key, True, 60)
-                    log_ebd_audit_event(
-                        request,
-                        'chamada_registrada',
-                        turma_id=turma.id,
-                        data=data_selecionada,
-                        alunos_formset=len(formset.forms),
-                        pontos_totais_aula=pontos_totais_aula,
-                    )
-                    messages.success(request, f'Chamada de presença registrada para {turma} em {data}. Pontos da aula: {pontos_totais_aula}.')
-                    return redirect('escola_biblica:turma_list')
-            else:
-                messages.error(request, 'Erro ao registrar chamada de presença. Verifique os dados e tente novamente.')
+                        messages.success(request, f'Chamada de presença registrada para {turma} em {data}. Pontos da aula: {pontos_totais_aula}.')
+                        return redirect('escola_biblica:turma_list')
+                else:
+                    messages.error(request, 'Erro ao registrar chamada de presença. Verifique os dados e tente novamente.')
+            finally:
+                cache.delete(chamada_processing_lock_key)
         else:
             freq_registros = {
                 item.aluno_id: item

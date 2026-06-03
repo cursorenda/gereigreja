@@ -12,6 +12,7 @@ from django.utils import timezone
 from configuracao.models import Igreja, Ministerio, PerfilUsuario
 from contas.constants import ADMIN_MINISTERIO
 from escola_biblica.models import Aluno, AnoLetivo, Classe, Frequencia, Licao, PeriodoEBD, Turma
+from escola_biblica.views import _build_chamada_processing_lock_key
 
 
 class ChamadaPresencaFluxoTest(TestCase):
@@ -154,3 +155,29 @@ class ChamadaPresencaFluxoTest(TestCase):
         self.assertEqual(segunda.status_code, 200)
         self.assertEqual(Frequencia.objects.filter(aluno=aluno, data=timezone.localdate()).count(), 1)
         self.assertContains(segunda, 'já foi processada recentemente')
+
+    def test_chamada_post_concorrente_e_ignorado_por_processing_lock(self):
+        turma = self._criar_turma('lock', qtd_alunos=1, criar_licao=True)
+        aluno = turma.alunos.first()
+
+        url = reverse('escola_biblica:chamada_presenca', args=[turma.id])
+        payload = {
+            'form-TOTAL_FORMS': '1',
+            'form-INITIAL_FORMS': '0',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+            'form-0-aluno_id': str(aluno.id),
+            'form-0-nome': aluno.nome,
+            'form-0-presente': 'on',
+            'form-0-trouxe_biblia': 'on',
+            'valor_oferta': '0',
+        }
+
+        lock_key = _build_chamada_processing_lock_key(turma.id, timezone.localdate())
+        cache.add(lock_key, self.user.pk, timeout=30)
+
+        response = self.client.post(url, payload, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Frequencia.objects.filter(aluno=aluno, data=timezone.localdate()).count(), 0)
+        self.assertContains(response, 'está sendo processada no momento')
