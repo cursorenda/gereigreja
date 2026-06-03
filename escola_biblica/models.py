@@ -552,6 +552,12 @@ class Frequencia(models.Model):
     trouxe_revista = models.BooleanField(default=False, verbose_name='Trouxe Revista')
     trouxe_visitante = models.BooleanField(default=False, verbose_name='Trouxe Visitante')
     trouxe_oferta = models.BooleanField(default=False, verbose_name='Trouxe Oferta')
+    pontos_total = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Pontos totais da aula',
+        help_text='Snapshot de pontos computado no momento do registro da chamada.'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

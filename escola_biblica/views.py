@@ -251,6 +251,36 @@ def calcular_pontos_frequencia_flags(*, presente=False, trouxe_biblia=False, tro
     return total
 
 
+def _get_expr_pontos_frequencia(pontos_cfg):
+    return (
+        Case(
+            When(presente=True, then=Value(pontos_cfg['presente'])),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+        + Case(
+            When(trouxe_biblia=True, then=Value(pontos_cfg['biblia'])),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+        + Case(
+            When(trouxe_revista=True, then=Value(pontos_cfg['revista'])),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+        + Case(
+            When(trouxe_oferta=True, then=Value(pontos_cfg['oferta'])),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+        + Case(
+            When(trouxe_visitante=True, then=Value(pontos_cfg['visitante'])),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+    )
+
+
 def _get_ebd_auto_sync_session_key(request, tipo_periodo, dia_semana):
     perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
     ministerio = getattr(perfil, 'ministerio', None)
@@ -777,7 +807,7 @@ def chamada_presenca(request, turma_id):
                     freq.trouxe_revista = trouxe_revista
                     freq.trouxe_visitante = trouxe_visitante
                     freq.trouxe_oferta = trouxe_oferta
-                    pontos_totais_aula += calcular_pontos_frequencia_flags(
+                    freq.pontos_total = calcular_pontos_frequencia_flags(
                         presente=presente,
                         trouxe_biblia=trouxe_biblia,
                         trouxe_revista=trouxe_revista,
@@ -785,8 +815,8 @@ def chamada_presenca(request, turma_id):
                         trouxe_visitante=trouxe_visitante,
                         pontos_cfg=ebd_pontos_config,
                     )
+                    pontos_totais_aula += freq.pontos_total
                     try:
-                        freq.full_clean()
                         freq.save()
                     except Exception as exc:
                         erro_validacao = True
@@ -814,15 +844,19 @@ def chamada_presenca(request, turma_id):
             else:
                 messages.error(request, 'Erro ao registrar chamada de presença. Verifique os dados e tente novamente.')
         else:
+            freq_registros = {
+                item.aluno_id: item
+                for item in Frequencia.objects.filter(aluno__in=alunos, data=data_selecionada)
+            }
             initial = [
                 {
                     'aluno_id': aluno.id,
                     'nome': aluno.nome,
-                    'presente': Frequencia.objects.filter(aluno=aluno, data=data_selecionada, presente=True).exists(),
-                    'trouxe_biblia': Frequencia.objects.filter(aluno=aluno, data=data_selecionada, trouxe_biblia=True).exists(),
-                    'trouxe_revista': Frequencia.objects.filter(aluno=aluno, data=data_selecionada, trouxe_revista=True).exists(),
-                    'trouxe_visitante': Frequencia.objects.filter(aluno=aluno, data=data_selecionada, trouxe_visitante=True).exists(),
-                    'trouxe_oferta': Frequencia.objects.filter(aluno=aluno, data=data_selecionada, trouxe_oferta=True).exists(),
+                    'presente': bool(freq_registros.get(aluno.id) and freq_registros[aluno.id].presente),
+                    'trouxe_biblia': bool(freq_registros.get(aluno.id) and freq_registros[aluno.id].trouxe_biblia),
+                    'trouxe_revista': bool(freq_registros.get(aluno.id) and freq_registros[aluno.id].trouxe_revista),
+                    'trouxe_visitante': bool(freq_registros.get(aluno.id) and freq_registros[aluno.id].trouxe_visitante),
+                    'trouxe_oferta': bool(freq_registros.get(aluno.id) and freq_registros[aluno.id].trouxe_oferta),
                 }
                 for aluno in alunos
             ]
@@ -1340,6 +1374,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from core.decorators import superintendente_required, secretaria_ebd_required, verificar_assinatura_valida
 from django.db.models import Avg, Case, Count, IntegerField, Q, Sum, Value, When
+from django.db.models.functions import Coalesce
 from django.db import transaction
 from .models import Licao, Aluno, CadastroAluno, Turma, Frequencia, Classe, Avaliacao, OfertaClasse, TransferenciaAluno, Departamento, DEPARTAMENTOS_SUGERIDOS
 from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, AvaliacaoForm, OfertaClasseForm, TransferenciaAlunoForm, ChamadaPresencaFormSet, DepartamentoForm, GerarCronogramaForm
@@ -2481,13 +2516,26 @@ def dashboard(request):
     evasao = evasao_qs.count()
 
     ranking_classes = []
-    for classe in classes:
-        alunos_classe = Aluno.objects.filter(turma__classe=classe, ativo=True)
-        if igreja:
-            alunos_classe = alunos_classe.filter(turma__membros__igreja=igreja).distinct()
-        alunos_classe_ids = list(alunos_classe.values_list('id', flat=True))
-        freq_media = _media_frequencia(alunos_classe_ids, data_inicio_periodo, data_fim_periodo)
-        ranking_classes.append({'classe': classe.nome, 'frequencia_media': freq_media})
+    base_frequencia_classe = Frequencia.objects.filter(
+        aluno__turma__classe__in=classes,
+        aluno__ativo=True,
+        data__gte=data_inicio_periodo,
+        data__lte=data_fim_periodo,
+    )
+    if igreja:
+        base_frequencia_classe = base_frequencia_classe.filter(aluno__turma__membros__igreja=igreja).distinct()
+
+    resumo_classes = base_frequencia_classe.values('aluno__turma__classe_id', 'aluno__turma__classe__nome').annotate(
+        total=Count('id'),
+        presentes=Count('id', filter=Q(presente=True)),
+    )
+
+    for item in resumo_classes:
+        total = int(item.get('total') or 0)
+        presentes = int(item.get('presentes') or 0)
+        frequencia_media = round((presentes / total) * 100, 1) if total else 0
+        ranking_classes.append({'classe': item['aluno__turma__classe__nome'], 'frequencia_media': frequencia_media})
+
     ranking_classes = sorted(ranking_classes, key=lambda x: x['frequencia_media'], reverse=True)
 
     ranking_alunos_pontos = []
@@ -2501,41 +2549,7 @@ def dashboard(request):
 
     pontos_por_cadastro = list(
         frequencias_pontos_qs.values('aluno__cadastro_id').annotate(
-            total_pontos=Sum(
-                Case(
-                    When(presente=True, then=Value(ebd_pontos_config['presente'])),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            )
-            + Sum(
-                Case(
-                    When(trouxe_biblia=True, then=Value(ebd_pontos_config['biblia'])),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            )
-            + Sum(
-                Case(
-                    When(trouxe_revista=True, then=Value(ebd_pontos_config['revista'])),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            )
-            + Sum(
-                Case(
-                    When(trouxe_oferta=True, then=Value(ebd_pontos_config['oferta'])),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            )
-            + Sum(
-                Case(
-                    When(trouxe_visitante=True, then=Value(ebd_pontos_config['visitante'])),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            ),
+            total_pontos=Sum(Coalesce('pontos_total', _get_expr_pontos_frequencia(ebd_pontos_config))),
             presencas=Count('id', filter=Q(presente=True)),
         )
     )
