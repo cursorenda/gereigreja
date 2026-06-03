@@ -1,5 +1,7 @@
 ﻿# --- RELAT├ôRIO GERAL DO DIA DA EBD ---
+import time
 import logging
+from functools import wraps
 from django.db.models import Count, Sum, Q, OuterRef, Subquery
 from django.utils.dateparse import parse_date
 from django.utils import timezone
@@ -11,6 +13,47 @@ from contas.constants import SECRETARIA_EBD, user_has_permission_level_or_higher
 from secretaria.models import MembroCargo
 
 logger = logging.getLogger(__name__)
+
+
+def log_ebd_endpoint(action):
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            started_at = time.perf_counter()
+            status_code = 500
+            user_id = getattr(request.user, 'pk', None)
+            igreja_ativa = getattr(request, 'igreja_ativa', None)
+            igreja_ativa_id = getattr(igreja_ativa, 'pk', None)
+            try:
+                response = view_func(request, *args, **kwargs)
+                status_code = getattr(response, 'status_code', 200)
+                return response
+            except Exception:
+                logger.exception(
+                    'ebd.endpoint.error action=%s method=%s path=%s user_id=%s igreja_ativa_id=%s',
+                    action,
+                    request.method,
+                    request.path,
+                    user_id,
+                    igreja_ativa_id,
+                )
+                raise
+            finally:
+                elapsed_ms = (time.perf_counter() - started_at) * 1000
+                logger.info(
+                    'ebd.endpoint.metric action=%s method=%s path=%s status=%s elapsed_ms=%.2f user_id=%s igreja_ativa_id=%s',
+                    action,
+                    request.method,
+                    request.path,
+                    status_code,
+                    elapsed_ms,
+                    user_id,
+                    igreja_ativa_id,
+                )
+
+        return _wrapped
+
+    return decorator
 
 # --- FUN├ç├òES HELPER DE PERMISS├òES ---
 def pode_acessar_chamada_turma(user, turma):
@@ -557,6 +600,7 @@ def oferta_queryset_por_turma_data(turma, data):
     )
 
 @page_access_required('escola_biblica')
+@log_ebd_endpoint('relatorio_ebd_dia')
 def relatorio_ebd_dia(request):
     from .models import Turma, Frequencia, OfertaClasse, AnoLetivo, Licao
     from decimal import Decimal
@@ -675,6 +719,7 @@ from .models import Turma, Aluno, Licao, PeriodoEBD, Frequencia, OfertaClasse
 
 @login_required
 @page_access_required('escola_biblica_professor')
+@log_ebd_endpoint('chamada_presenca')
 def chamada_presenca(request, turma_id):
 
     """
@@ -820,6 +865,14 @@ def chamada_presenca(request, turma_id):
                         freq.save()
                     except Exception as exc:
                         erro_validacao = True
+                        logger.warning(
+                            'ebd.chamada.save_error turma_id=%s aluno_id=%s data=%s user_id=%s erro=%s',
+                            turma.id,
+                            aluno_id,
+                            data_selecionada,
+                            request.user.pk,
+                            exc,
+                        )
                         messages.error(request, f'Erro ao registrar chamada para {freq.aluno.nome}: {exc}')
 
                 valor_oferta = request.POST.get('valor_oferta')
@@ -836,6 +889,13 @@ def chamada_presenca(request, turma_id):
                             oferta_obj.valor = valor_float
                             oferta_obj.save()
                     except Exception as exc:
+                        logger.warning(
+                            'ebd.chamada.oferta_error turma_id=%s data=%s user_id=%s erro=%s',
+                            turma.id,
+                            data_selecionada,
+                            request.user.pk,
+                            exc,
+                        )
                         messages.error(request, f'Erro ao registrar valor da oferta: {exc}')
 
                 if not erro_validacao:
@@ -1380,6 +1440,14 @@ from django.db import transaction
 from .models import Licao, Aluno, CadastroAluno, Turma, Frequencia, Classe, Avaliacao, OfertaClasse, TransferenciaAluno, Departamento, DEPARTAMENTOS_SUGERIDOS
 from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, AvaliacaoForm, OfertaClasseForm, TransferenciaAlunoForm, ChamadaPresencaFormSet, DepartamentoForm, GerarCronogramaForm
 from secretaria.models import Pessoa
+
+
+def _increment_dashboard_cache_counter(counter_name):
+    key = f'ebd:dashboard:{counter_name}'
+    try:
+        cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, None)
 
 
 @page_access_required('escola_biblica')
@@ -2387,6 +2455,7 @@ def classe_delete(request, pk):
 
 @page_access_required('escola_biblica_professor')
 @verificar_assinatura_valida
+@log_ebd_endpoint('dashboard')
 def dashboard(request):
     auto_sync_ebd_periodos_e_licoes(request)
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
@@ -2421,7 +2490,22 @@ def dashboard(request):
     )
     cached_html = cache.get(cache_key)
     if cached_html is not None:
+        _increment_dashboard_cache_counter('cache_hit')
+        logger.info(
+            'ebd.dashboard.cache result=hit user_id=%s igreja_ativa_id=%s tipo_periodo=%s',
+            request.user.pk,
+            getattr(igreja, 'pk', None),
+            tipo_periodo,
+        )
         return HttpResponse(cached_html)
+
+    _increment_dashboard_cache_counter('cache_miss')
+    logger.info(
+        'ebd.dashboard.cache result=miss user_id=%s igreja_ativa_id=%s tipo_periodo=%s',
+        request.user.pk,
+        getattr(igreja, 'pk', None),
+        tipo_periodo,
+    )
 
     ebd_config_igreja_link = None
     from configuracao.utils import pode_editar_configuracao_org
