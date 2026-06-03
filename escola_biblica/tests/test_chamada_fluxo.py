@@ -16,6 +16,9 @@ from escola_biblica.views import _build_chamada_processing_lock_key
 
 
 class ChamadaPresencaFluxoTest(TestCase):
+    QUERY_BUDGET_CHAMADA_GET = 140
+    QUERY_BUDGET_DASHBOARD_GET = 140
+
     def setUp(self):
         cache.clear()
 
@@ -51,6 +54,17 @@ class ChamadaPresencaFluxoTest(TestCase):
         )
 
         self.client.force_login(self.user)
+
+    def _assert_query_budget_get(self, url, max_queries):
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(
+            len(ctx),
+            max_queries,
+            f'Orçamento de queries excedido para {url}: {len(ctx)} > {max_queries}',
+        )
+        return response
 
     def _criar_turma(self, nome, qtd_alunos=1, criar_licao=True):
         classe = Classe.objects.create(igreja=self.igreja, nome=f'Classe {nome}')
@@ -130,6 +144,37 @@ class ChamadaPresencaFluxoTest(TestCase):
         self.assertEqual(resp_pequena.status_code, 200)
         self.assertEqual(resp_grande.status_code, 200)
         self.assertLessEqual(len(ctx_grande), len(ctx_pequena) + 15)
+
+    def test_get_chamada_respeita_orcamento_queries(self):
+        turma = self._criar_turma('budget-chamada', qtd_alunos=15, criar_licao=True)
+        url = reverse('escola_biblica:chamada_presenca', args=[turma.id])
+
+        # Warm-up para evitar ruído de primeira requisição.
+        self.client.get(url)
+
+        self._assert_query_budget_get(url, self.QUERY_BUDGET_CHAMADA_GET)
+
+    def test_get_dashboard_respeita_orcamento_queries(self):
+        turma = self._criar_turma('budget-dashboard', qtd_alunos=15, criar_licao=True)
+        alunos = list(turma.alunos.all()[:5])
+        for aluno in alunos:
+            Frequencia.objects.create(
+                aluno=aluno,
+                data=timezone.localdate(),
+                presente=True,
+                trouxe_biblia=True,
+                trouxe_revista=False,
+                trouxe_visitante=False,
+                trouxe_oferta=False,
+                pontos_total=12,
+            )
+
+        url = reverse('escola_biblica:dashboard')
+
+        # Warm-up para evitar ruído de primeira requisição.
+        self.client.get(url)
+
+        self._assert_query_budget_get(url, self.QUERY_BUDGET_DASHBOARD_GET)
 
     def test_chamada_post_duplicado_e_ignorado_por_idempotencia(self):
         turma = self._criar_turma('idem', qtd_alunos=1, criar_licao=True)
