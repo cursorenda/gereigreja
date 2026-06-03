@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/ebd-regression-ci.yml'
       - 'escola_biblica/**'
+      - 'scripts/automation/ebd_quality_gates.py'
       - 'core/settings_test.py'
       - 'requirements.txt'
   pull_request:
@@ -17,6 +18,7 @@ on:
     paths:
       - '.github/workflows/ebd-regression-ci.yml'
       - 'escola_biblica/**'
+      - 'scripts/automation/ebd_quality_gates.py'
       - 'core/settings_test.py'
       - 'requirements.txt'
   workflow_dispatch:
@@ -52,9 +54,6 @@ jobs:
       - name: Ensure Logs Directory
         run: mkdir -p logs
 
-      - name: Run EBD Focused Regression Tests
+      - name: Run EBD Release Quality Gates
         run: |
-          python manage.py test \
-            escola_biblica.tests.test_pontos_ebd \
-            escola_biblica.tests.test_chamada_fluxo \
-            --settings=core.settings_test -v 2
+          python scripts/automation/ebd_quality_gates.py
