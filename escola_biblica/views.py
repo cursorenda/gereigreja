@@ -1375,6 +1375,7 @@ from django.contrib.auth.decorators import login_required
 from core.decorators import superintendente_required, secretaria_ebd_required, verificar_assinatura_valida
 from django.db.models import Avg, Case, Count, IntegerField, Q, Sum, Value, When
 from django.db.models.functions import Coalesce
+from django.core.cache import cache
 from django.db import transaction
 from .models import Licao, Aluno, CadastroAluno, Turma, Frequencia, Classe, Avaliacao, OfertaClasse, TransferenciaAluno, Departamento, DEPARTAMENTOS_SUGERIDOS
 from .forms import LicaoForm, AlunoForm, TurmaForm, FrequenciaForm, ClasseForm, AvaliacaoForm, OfertaClasseForm, TransferenciaAlunoForm, ChamadaPresencaFormSet, DepartamentoForm, GerarCronogramaForm
@@ -2413,6 +2414,15 @@ def dashboard(request):
     from configuracao.models import ConfiguracaoSistema
     periodo_tipo_label = dict(ConfiguracaoSistema.EBD_PERIODO_CHOICES).get(tipo_periodo, tipo_periodo.title())
 
+    cache_version = cache.get('ebd:dashboard:version') or 1
+    cache_key = (
+        f"ebd:dashboard:v{cache_version}:u{request.user.pk}:ig{getattr(igreja, 'pk', 'all')}"
+        f":tp:{tipo_periodo}:a:{request.GET.get('ano_letivo', '')}:p:{request.GET.get('periodo', '')}:r:{request.GET.get('data_relatorio', '')}"
+    )
+    cached_html = cache.get(cache_key)
+    if cached_html is not None:
+        return HttpResponse(cached_html)
+
     ebd_config_igreja_link = None
     from configuracao.utils import pode_editar_configuracao_org
     if pode_editar_configuracao_org(request.user):
@@ -2878,7 +2888,7 @@ def dashboard(request):
         total_igrejas = igrejas_escopo.count()
         scope_label = f'Consolidado EBD ({total_igrejas} igrejas)'
 
-    return render(request, 'escola_biblica/dashboard.html', {
+    response = render(request, 'escola_biblica/dashboard.html', {
         'turmas': turmas,
         'alunos': alunos,
         'classes': classes,
@@ -2931,6 +2941,8 @@ def dashboard(request):
         'ebd_config_source_hint': ebd_config_source_info['ebd_config_source_hint'],
         'ebd_pontos_config': ebd_pontos_config,
     })
+    cache.set(cache_key, response.content, 120)
+    return response
 
 @login_required
 @page_access_required('escola_biblica_professor')

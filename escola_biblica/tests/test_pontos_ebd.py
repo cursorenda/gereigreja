@@ -91,3 +91,14 @@ class EBDPontosRankingSnapshotTest(TestCase):
         )['total']
 
         self.assertEqual(total, 112)
+
+    def test_ordenacao_empate_por_nome_casefold(self):
+        ranking = [
+            {'nome': 'joao', 'total_pontos': 20, 'presencas': 2},
+            {'nome': 'Ana', 'total_pontos': 20, 'presencas': 2},
+            {'nome': 'bia', 'total_pontos': 30, 'presencas': 1},
+        ]
+
+        ranking.sort(key=lambda r: (-r['total_pontos'], -r['presencas'], r['nome'].casefold()))
+
+        self.assertEqual([item['nome'] for item in ranking], ['bia', 'Ana', 'joao'])

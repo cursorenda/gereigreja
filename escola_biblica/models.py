@@ -565,6 +565,8 @@ class Frequencia(models.Model):
         unique_together = ("aluno", "data")
         indexes = [
             models.Index(fields=["data"]),
+            models.Index(fields=["data", "aluno"], name='ebd_freq_data_aluno_idx'),
+            models.Index(fields=["data", "presente"], name='ebd_freq_data_pres_idx'),
         ]
 
     def clean(self):
