@@ -55,6 +55,18 @@ def log_ebd_endpoint(action):
 
     return decorator
 
+
+def log_ebd_audit_event(request, action, **extra):
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    payload = {
+        'action': action,
+        'user_id': getattr(request.user, 'pk', None),
+        'igreja_ativa_id': getattr(igreja_ativa, 'pk', None),
+        **extra,
+    }
+    kv = ' '.join(f'{key}={value}' for key, value in payload.items())
+    logger.info('ebd.audit %s', kv)
+
 # --- FUN├ç├òES HELPER DE PERMISS├òES ---
 def pode_acessar_chamada_turma(user, turma):
     """
@@ -888,6 +900,13 @@ def chamada_presenca(request, turma_id):
                         if not created:
                             oferta_obj.valor = valor_float
                             oferta_obj.save()
+                        log_ebd_audit_event(
+                            request,
+                            'chamada_oferta_registrada',
+                            turma_id=turma.id,
+                            data=data_selecionada,
+                            valor=valor_float,
+                        )
                     except Exception as exc:
                         logger.warning(
                             'ebd.chamada.oferta_error turma_id=%s data=%s user_id=%s erro=%s',
@@ -899,6 +918,14 @@ def chamada_presenca(request, turma_id):
                         messages.error(request, f'Erro ao registrar valor da oferta: {exc}')
 
                 if not erro_validacao:
+                    log_ebd_audit_event(
+                        request,
+                        'chamada_registrada',
+                        turma_id=turma.id,
+                        data=data_selecionada,
+                        alunos_formset=len(formset.forms),
+                        pontos_totais_aula=pontos_totais_aula,
+                    )
                     messages.success(request, f'Chamada de presença registrada para {turma} em {data}. Pontos da aula: {pontos_totais_aula}.')
                     return redirect('escola_biblica:turma_list')
             else:
@@ -1890,6 +1917,15 @@ def transferir_aluno(request, aluno_id):
             except ValidationError as exc:
                 form.add_error('turma_destino', exc.message)
             else:
+                log_ebd_audit_event(
+                    request,
+                    'transferencia_aluno',
+                    aluno_origem_id=aluno.id,
+                    cadastro_id=aluno.cadastro_id,
+                    turma_origem_id=getattr(transferencia, 'turma_origem_id', None),
+                    turma_destino_id=getattr(transferencia, 'turma_destino_id', None),
+                    matricula_destino_id=matricula_destino.id,
+                )
                 messages.success(request, f'Transfer├¬ncia realizada com sucesso para {transferencia.turma_destino}!')
                 return redirect('escola_biblica:aluno_detail', pk=matricula_destino.pk)
     else:
@@ -2159,7 +2195,15 @@ def oferta_classe_create(request):
     if request.method == 'POST':
         form = OfertaClasseForm(request.POST, request=request)
         if form.is_valid():
-            form.save()
+            oferta = form.save()
+            log_ebd_audit_event(
+                request,
+                'oferta_create',
+                oferta_id=oferta.id,
+                turma_id=oferta.turma_id,
+                data=oferta.data,
+                valor=oferta.valor,
+            )
             messages.success(request, 'Oferta registrada com sucesso!')
             return redirect('escola_biblica:oferta_classe_list')
     else:
@@ -2182,7 +2226,15 @@ def oferta_classe_edit(request, pk):
     if request.method == 'POST':
         form = OfertaClasseForm(request.POST, instance=oferta, request=request)
         if form.is_valid():
-            form.save()
+            oferta_atualizada = form.save()
+            log_ebd_audit_event(
+                request,
+                'oferta_edit',
+                oferta_id=oferta_atualizada.id,
+                turma_id=oferta_atualizada.turma_id,
+                data=oferta_atualizada.data,
+                valor=oferta_atualizada.valor,
+            )
             messages.success(request, 'Oferta atualizada com sucesso!')
             return redirect('escola_biblica:oferta_classe_list')
     else:
@@ -2204,6 +2256,14 @@ def oferta_classe_delete(request, pk):
         pk=pk,
     )
     if request.method == 'POST':
+        log_ebd_audit_event(
+            request,
+            'oferta_delete',
+            oferta_id=oferta.id,
+            turma_id=oferta.turma_id,
+            data=oferta.data,
+            valor=oferta.valor,
+        )
         oferta.delete()
         messages.success(request, 'Oferta exclu├¡da com sucesso!')
         return redirect('escola_biblica:oferta_classe_list')
