@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.cache import cache
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -15,6 +16,8 @@ from escola_biblica.models import Aluno, AnoLetivo, Classe, Frequencia, Licao, P
 
 class ChamadaPresencaFluxoTest(TestCase):
     def setUp(self):
+        cache.clear()
+
         user_model = get_user_model()
         self.user = user_model.objects.create_user(username='admin_chamada', password='senha123')
 
@@ -126,3 +129,28 @@ class ChamadaPresencaFluxoTest(TestCase):
         self.assertEqual(resp_pequena.status_code, 200)
         self.assertEqual(resp_grande.status_code, 200)
         self.assertLessEqual(len(ctx_grande), len(ctx_pequena) + 15)
+
+    def test_chamada_post_duplicado_e_ignorado_por_idempotencia(self):
+        turma = self._criar_turma('idem', qtd_alunos=1, criar_licao=True)
+        aluno = turma.alunos.first()
+
+        url = reverse('escola_biblica:chamada_presenca', args=[turma.id])
+        payload = {
+            'form-TOTAL_FORMS': '1',
+            'form-INITIAL_FORMS': '0',
+            'form-MIN_NUM_FORMS': '0',
+            'form-MAX_NUM_FORMS': '1000',
+            'form-0-aluno_id': str(aluno.id),
+            'form-0-nome': aluno.nome,
+            'form-0-presente': 'on',
+            'form-0-trouxe_biblia': 'on',
+            'valor_oferta': '0',
+        }
+
+        primeira = self.client.post(url, payload)
+        segunda = self.client.post(url, payload, follow=True)
+
+        self.assertEqual(primeira.status_code, 302)
+        self.assertEqual(segunda.status_code, 200)
+        self.assertEqual(Frequencia.objects.filter(aluno=aluno, data=timezone.localdate()).count(), 1)
+        self.assertContains(segunda, 'já foi processada recentemente')

@@ -1,6 +1,7 @@
 ﻿# --- RELAT├ôRIO GERAL DO DIA DA EBD ---
 import time
 import logging
+import hashlib
 from functools import wraps
 from django.db.models import Count, Sum, Q, OuterRef, Subquery
 from django.utils.dateparse import parse_date
@@ -66,6 +67,36 @@ def log_ebd_audit_event(request, action, **extra):
     }
     kv = ' '.join(f'{key}={value}' for key, value in payload.items())
     logger.info('ebd.audit %s', kv)
+
+
+def _build_chamada_idempotency_key(request, turma_id, data_selecionada):
+    total_forms = int(request.POST.get('form-TOTAL_FORMS') or 0)
+    alunos_payload = []
+    for idx in range(total_forms):
+        alunos_payload.append(
+            (
+                request.POST.get(f'form-{idx}-aluno_id', ''),
+                1 if request.POST.get(f'form-{idx}-presente') else 0,
+                1 if request.POST.get(f'form-{idx}-trouxe_biblia') else 0,
+                1 if request.POST.get(f'form-{idx}-trouxe_revista') else 0,
+                1 if request.POST.get(f'form-{idx}-trouxe_visitante') else 0,
+                1 if request.POST.get(f'form-{idx}-trouxe_oferta') else 0,
+            )
+        )
+
+    raw = json.dumps(
+        {
+            'user_id': request.user.pk,
+            'turma_id': turma_id,
+            'data': data_selecionada.isoformat() if data_selecionada else '',
+            'valor_oferta': request.POST.get('valor_oferta', ''),
+            'alunos': alunos_payload,
+        },
+        sort_keys=True,
+        ensure_ascii=True,
+    )
+    digest = hashlib.sha256(raw.encode('utf-8')).hexdigest()
+    return f'ebd:chamada:idempotency:{digest}'
 
 # --- FUN├ç├òES HELPER DE PERMISS├òES ---
 def pode_acessar_chamada_turma(user, turma):
@@ -837,6 +868,17 @@ def chamada_presenca(request, turma_id):
                 messages.error(request, 'Não é possível registrar a chamada: não existe lição cadastrada para a data selecionada.')
                 return redirect(request.path + (f'?data={data}' if data else ''))
 
+            chamada_idempotency_key = _build_chamada_idempotency_key(request, turma.id, data_selecionada)
+            if cache.get(chamada_idempotency_key):
+                log_ebd_audit_event(
+                    request,
+                    'chamada_duplicada_ignorada',
+                    turma_id=turma.id,
+                    data=data_selecionada,
+                )
+                messages.info(request, 'Esta chamada já foi processada recentemente. Nenhuma alteração duplicada foi aplicada.')
+                return redirect('escola_biblica:turma_list')
+
             formset = ChamadaPresencaFormSet(request.POST)
             if formset.is_valid():
                 erro_validacao = False
@@ -918,6 +960,7 @@ def chamada_presenca(request, turma_id):
                         messages.error(request, f'Erro ao registrar valor da oferta: {exc}')
 
                 if not erro_validacao:
+                    cache.set(chamada_idempotency_key, True, 60)
                     log_ebd_audit_event(
                         request,
                         'chamada_registrada',
