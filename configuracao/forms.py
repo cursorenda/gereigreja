@@ -149,7 +149,9 @@ class IgrejaForm(forms.ModelForm):
             'cep', 'rua', 'numero_casa', 'complemento', 'bairro_distrito', 'cidade', 'estado', 'pais',
             'email', 'cnpj', 'telefone', 'celular', 'site', 'conta_padrao_receitas', 'conta_padrao_despesas',
             'pastor_local', 'pastor_regional',
-            'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario', 'observacoes', 'logo1', 'logo2',
+            'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario',
+            'ebd_pontos_presente', 'ebd_pontos_biblia', 'ebd_pontos_revista', 'ebd_pontos_oferta', 'ebd_pontos_visitante',
+            'observacoes', 'logo1', 'logo2',
         ]
         widgets = {
             'nome_igreja': forms.TextInput(attrs={'class': 'form-control'}),
@@ -175,6 +177,11 @@ class IgrejaForm(forms.ModelForm):
             'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
             'ebd_dia_semana': forms.Select(attrs={'class': 'form-select'}),
             'ebd_horario': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'ebd_pontos_presente': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'ebd_pontos_biblia': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'ebd_pontos_revista': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'ebd_pontos_oferta': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'ebd_pontos_visitante': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
             'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
             'logo1': forms.FileInput(attrs={'class': 'form-control'}),
             'logo2': forms.FileInput(attrs={'class': 'form-control'}),
@@ -322,7 +329,9 @@ class IgrejaEditForm(forms.ModelForm):
                 'cep', 'rua', 'numero_casa', 'complemento', 'bairro_distrito', 'cidade', 'estado', 'pais',
                 'email', 'cnpj', 'telefone', 'celular', 'site',
                 'pastor_local', 'pastor_regional',
-                'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario', 'observacoes', 'logo1', 'logo2',
+                'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario',
+                'ebd_pontos_presente', 'ebd_pontos_biblia', 'ebd_pontos_revista', 'ebd_pontos_oferta', 'ebd_pontos_visitante',
+                'observacoes', 'logo1', 'logo2',
                 'conta_padrao_receitas', 'conta_padrao_despesas'
             ]
             widgets = {
@@ -346,6 +355,11 @@ class IgrejaEditForm(forms.ModelForm):
                 'ebd_periodo': forms.Select(attrs={'class': 'form-select'}),
                 'ebd_dia_semana': forms.Select(attrs={'class': 'form-select'}),
                 'ebd_horario': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+                'ebd_pontos_presente': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+                'ebd_pontos_biblia': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+                'ebd_pontos_revista': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+                'ebd_pontos_oferta': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+                'ebd_pontos_visitante': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
                 'observacoes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Opcional'}),
                 'logo1': forms.FileInput(attrs={'class': 'form-control'}),
                 'logo2': forms.FileInput(attrs={'class': 'form-control'}),

@@ -204,6 +204,53 @@ def get_ebd_dia_semana(request):
     return 6
 
 
+EBD_PONTOS_DEFAULT = {
+    'presente': 10,
+    'biblia': 2,
+    'revista': 2,
+    'oferta': 3,
+    'visitante': 5,
+}
+
+
+def get_ebd_pontos_config(request):
+    config = get_ebd_config(request)
+    return {
+        'presente': getattr(config, 'ebd_pontos_presente', None) if config else None,
+        'biblia': getattr(config, 'ebd_pontos_biblia', None) if config else None,
+        'revista': getattr(config, 'ebd_pontos_revista', None) if config else None,
+        'oferta': getattr(config, 'ebd_pontos_oferta', None) if config else None,
+        'visitante': getattr(config, 'ebd_pontos_visitante', None) if config else None,
+    }
+
+
+def get_ebd_pontos_config_com_fallback(request):
+    cfg = get_ebd_pontos_config(request)
+    return {
+        'presente': EBD_PONTOS_DEFAULT['presente'] if cfg['presente'] is None else int(cfg['presente']),
+        'biblia': EBD_PONTOS_DEFAULT['biblia'] if cfg['biblia'] is None else int(cfg['biblia']),
+        'revista': EBD_PONTOS_DEFAULT['revista'] if cfg['revista'] is None else int(cfg['revista']),
+        'oferta': EBD_PONTOS_DEFAULT['oferta'] if cfg['oferta'] is None else int(cfg['oferta']),
+        'visitante': EBD_PONTOS_DEFAULT['visitante'] if cfg['visitante'] is None else int(cfg['visitante']),
+    }
+
+
+def calcular_pontos_frequencia_flags(*, presente=False, trouxe_biblia=False, trouxe_revista=False, trouxe_oferta=False, trouxe_visitante=False, pontos_cfg=None):
+    cfg = pontos_cfg or EBD_PONTOS_DEFAULT
+    total = 0
+    if presente:
+        total += cfg['presente']
+    if trouxe_biblia:
+        total += cfg['biblia']
+    if trouxe_revista:
+        total += cfg['revista']
+    if trouxe_oferta:
+        total += cfg['oferta']
+    if trouxe_visitante:
+        total += cfg['visitante']
+    return total
+
+
 def _get_ebd_auto_sync_session_key(request, tipo_periodo, dia_semana):
     perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
     ministerio = getattr(perfil, 'ministerio', None)
@@ -683,6 +730,8 @@ def chamada_presenca(request, turma_id):
         else:
             status_aula_selecionada = 'futura'
 
+    ebd_pontos_config = get_ebd_pontos_config_com_fallback(request)
+
     valor_oferta_atual = ''
     classe = turma.classe if hasattr(turma, 'classe') else None
     if classe and data_selecionada:
@@ -704,6 +753,7 @@ def chamada_presenca(request, turma_id):
             formset = ChamadaPresencaFormSet(request.POST)
             if formset.is_valid():
                 erro_validacao = False
+                pontos_totais_aula = 0
                 for form in formset:
                     aluno_id = form.cleaned_data['aluno_id']
                     presente = form.cleaned_data.get('presente', False)
@@ -727,6 +777,14 @@ def chamada_presenca(request, turma_id):
                     freq.trouxe_revista = trouxe_revista
                     freq.trouxe_visitante = trouxe_visitante
                     freq.trouxe_oferta = trouxe_oferta
+                    pontos_totais_aula += calcular_pontos_frequencia_flags(
+                        presente=presente,
+                        trouxe_biblia=trouxe_biblia,
+                        trouxe_revista=trouxe_revista,
+                        trouxe_oferta=trouxe_oferta,
+                        trouxe_visitante=trouxe_visitante,
+                        pontos_cfg=ebd_pontos_config,
+                    )
                     try:
                         freq.full_clean()
                         freq.save()
@@ -751,7 +809,7 @@ def chamada_presenca(request, turma_id):
                         messages.error(request, f'Erro ao registrar valor da oferta: {exc}')
 
                 if not erro_validacao:
-                    messages.success(request, f'Chamada de presença registrada para {turma} em {data}.')
+                    messages.success(request, f'Chamada de presença registrada para {turma} em {data}. Pontos da aula: {pontos_totais_aula}.')
                     return redirect('escola_biblica:turma_list')
             else:
                 messages.error(request, 'Erro ao registrar chamada de presença. Verifique os dados e tente novamente.')
@@ -786,6 +844,7 @@ def chamada_presenca(request, turma_id):
         'licao_do_dia': licao_do_dia,
         'bloqueio_chamada_msg': bloqueio_chamada_msg,
         'status_aula_selecionada': status_aula_selecionada,
+        'ebd_pontos_config': ebd_pontos_config,
     })
 # --- IMPORTS NECESS├üRIOS PARA DECORADORES ---
 from django.views.decorators.csrf import csrf_exempt
@@ -2310,6 +2369,7 @@ def dashboard(request):
 
     periodo_ctx = get_ebd_periodo_filtro(request)
     ebd_config_source_info = get_ebd_config_source_info(request)
+    ebd_pontos_config = get_ebd_pontos_config_com_fallback(request)
     tipo_periodo = periodo_ctx['tipo_periodo']
     ano_letivo_qs = periodo_ctx['anos_letivos']
     ano_letivo_selecionado = periodo_ctx['ano_letivo_selecionado']
@@ -2429,6 +2489,89 @@ def dashboard(request):
         freq_media = _media_frequencia(alunos_classe_ids, data_inicio_periodo, data_fim_periodo)
         ranking_classes.append({'classe': classe.nome, 'frequencia_media': freq_media})
     ranking_classes = sorted(ranking_classes, key=lambda x: x['frequencia_media'], reverse=True)
+
+    ranking_alunos_pontos = []
+    frequencias_pontos_qs = Frequencia.objects.filter(
+        aluno__turma__in=turmas,
+        data__gte=data_inicio_periodo,
+        data__lte=data_fim_periodo,
+    )
+    if ano_letivo_selecionado:
+        frequencias_pontos_qs = frequencias_pontos_qs.filter(aluno__turma__ano_letivo=ano_letivo_selecionado)
+
+    pontos_por_cadastro = list(
+        frequencias_pontos_qs.values('aluno__cadastro_id').annotate(
+            total_pontos=Sum(
+                Case(
+                    When(presente=True, then=Value(ebd_pontos_config['presente'])),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            + Sum(
+                Case(
+                    When(trouxe_biblia=True, then=Value(ebd_pontos_config['biblia'])),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            + Sum(
+                Case(
+                    When(trouxe_revista=True, then=Value(ebd_pontos_config['revista'])),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            + Sum(
+                Case(
+                    When(trouxe_oferta=True, then=Value(ebd_pontos_config['oferta'])),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            + Sum(
+                Case(
+                    When(trouxe_visitante=True, then=Value(ebd_pontos_config['visitante'])),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ),
+            presencas=Count('id', filter=Q(presente=True)),
+        )
+    )
+
+    cadastro_ids_ranking = [item['aluno__cadastro_id'] for item in pontos_por_cadastro if item['aluno__cadastro_id']]
+    referencia_por_cadastro = {}
+    if cadastro_ids_ranking:
+        alunos_referencia_qs = filtrar_alunos_ebd(
+            Aluno.objects.filter(cadastro_id__in=cadastro_ids_ranking).select_related('cadastro', 'turma', 'turma__classe', 'turma__ano_letivo'),
+            request,
+        )
+        if ano_letivo_selecionado:
+            alunos_referencia_qs = alunos_referencia_qs.filter(turma__ano_letivo=ano_letivo_selecionado)
+
+        for aluno_ref in alunos_referencia_qs.order_by('cadastro_id', '-ativo', '-updated_at', '-id'):
+            referencia_por_cadastro.setdefault(aluno_ref.cadastro_id, aluno_ref)
+
+    for item in pontos_por_cadastro:
+        cadastro_id = item['aluno__cadastro_id']
+        if not cadastro_id:
+            continue
+        aluno_ref = referencia_por_cadastro.get(cadastro_id)
+        if aluno_ref is None:
+            continue
+
+        ranking_alunos_pontos.append({
+            'nome': aluno_ref.cadastro.nome,
+            'turma': aluno_ref.turma.nome if aluno_ref.turma_id else '-',
+            'classe': aluno_ref.turma.classe.nome if aluno_ref.turma_id and aluno_ref.turma.classe_id else '-',
+            'total_pontos': int(item.get('total_pontos') or 0),
+            'presencas': int(item.get('presencas') or 0),
+        })
+
+    ranking_alunos_pontos.sort(key=lambda r: (-r['total_pontos'], -r['presencas'], r['nome'].casefold()))
+    for pos, item in enumerate(ranking_alunos_pontos, start=1):
+        item['posicao'] = pos
 
     ranking_ofertas = []
     for classe in classes:
@@ -2738,6 +2881,7 @@ def dashboard(request):
         'engajamento_percent': engajamento_percent,
         'evasao': evasao,
         'ranking_classes': ranking_classes,
+        'ranking_alunos_pontos': ranking_alunos_pontos,
         'freq_geral': freq_geral,
         'freq_mes_anterior': freq_mes_anterior,
         'ranking_ofertas': ranking_ofertas,
@@ -2771,6 +2915,7 @@ def dashboard(request):
         'ebd_config_source': ebd_config_source_info['ebd_config_source'],
         'ebd_config_source_label': ebd_config_source_info['ebd_config_source_label'],
         'ebd_config_source_hint': ebd_config_source_info['ebd_config_source_hint'],
+        'ebd_pontos_config': ebd_pontos_config,
     })
 
 @login_required

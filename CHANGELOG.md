@@ -1,3 +1,34 @@
+## v1.13.13 — 02/06/2026
+🏆 **EBD Premium — Pontuação por aluno + ranking no dashboard + social preview do blog corrigido**
+
+### Entregas
+- Novo modelo de pontuação da EBD por igreja, configurável na aba EBD:
+  - Presença
+  - Bíblia
+  - Revista
+  - Oferta
+  - Visitante
+- Chamada de presença evoluída para exibir as regras de pontuação ativas e computar pontos automaticamente no salvamento.
+- Dashboard da EBD com novo bloco de **Melhores Alunos por Pontos** no período selecionado.
+- Mensagem operacional da chamada com total de pontos da aula para feedback imediato da professora/secretaria.
+- Correções de Open Graph/Twitter no blog para compartilhamento social:
+  - URL canônica e `og:url` consistentes por post;
+  - `og:image`/`twitter:image` com URL absoluta da capa do post;
+  - `og:type` por página com `article` no detalhe de post;
+  - metadados de imagem (`alt`, `width`, `height`) compatíveis com crawler social.
+
+### Migrações
+- `configuracao/migrations/0028_igreja_ebd_pontos.py`
+
+### Impacto
+- Maior engajamento dos alunos com gamificação prática e transparente.
+- Governança local de pontuação por igreja, com fallback seguro para valores padrão.
+- Dashboard EBD mais acionável para liderança e acompanhamento de desempenho.
+- Preview social do blog mais confiável em Facebook/WhatsApp/LinkedIn.
+- Mudança de schema controlada (nova migration), sem breaking changes de API pública.
+
+---
+
 ## v1.13.12 — 01/06/2026
 🎯 **Escola Dominical (EBD) — Configuracao local por igreja + chamada com selecao segura de aula**
 

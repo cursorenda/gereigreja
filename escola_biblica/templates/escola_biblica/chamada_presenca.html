@@ -116,6 +116,17 @@
                             </div>
                             <small class="text-muted">A lista mostra apenas lições do período vigente da turma.</small>
                         </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Regras de Pontuação da Turma</label>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <span class="badge text-bg-primary">Presença: {{ ebd_pontos_config.presente }} pts</span>
+                                <span class="badge text-bg-secondary">Bíblia: {{ ebd_pontos_config.biblia }} pts</span>
+                                <span class="badge text-bg-secondary">Revista: {{ ebd_pontos_config.revista }} pts</span>
+                                <span class="badge text-bg-secondary">Oferta: {{ ebd_pontos_config.oferta }} pts</span>
+                                <span class="badge text-bg-secondary">Visitante: {{ ebd_pontos_config.visitante }} pts</span>
+                            </div>
+                            <small class="text-muted">A pontuação é computada automaticamente ao salvar a chamada.</small>
+                        </div>
                     </div>
     {# --- Script: identifica troca de data para evitar submit de chamada ao apenas trocar a data --- #}
     <script>

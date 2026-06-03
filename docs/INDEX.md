@@ -1,7 +1,7 @@
 
 # 📚 Índice de Documentação - Sistema Gereigreja
 
-**Última Atualização:** 01/06/2026
+**Última Atualização:** 02/06/2026
 
 ---
 
@@ -11,7 +11,7 @@
 | Documento | Descrição | Última Atualização |
 |-----------|-----------|-------------------|
 | [../README.md](../README.md) | README principal do projeto | — |
-| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 01/06/2026 |
+| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 02/06/2026 |
 
 ---
 
@@ -124,6 +124,7 @@
 ## 📝 Release Notes
 
 ### Versões Recentes
+- [release-notes/RELEASE_NOTES_v1.13.13.md](release-notes/RELEASE_NOTES_v1.13.13.md) - EBD com pontuacao configuravel, ranking de alunos e ajustes de preview social do blog
 - [release-notes/RELEASE_NOTES_v1.13.12.md](release-notes/RELEASE_NOTES_v1.13.12.md) - EBD church-first por igreja e chamada com selecao segura de aula
 - [release-notes/RELEASE_NOTES_v1.8.23.md](release-notes/RELEASE_NOTES_v1.8.23.md) - Ciclo v1.8.10 até v1.8.23
 - [release-notes/RELEASE_NOTES_v1.7.2.md](release-notes/RELEASE_NOTES_v1.7.2.md)
@@ -195,6 +196,13 @@ Gereigreja/
 ---
 
 ## 🆕 Documentações Recentes
+
+### 02/06/2026 - Release Notes v1.13.13
+- **Arquivo:** [release-notes/RELEASE_NOTES_v1.13.13.md](release-notes/RELEASE_NOTES_v1.13.13.md)
+- **Conteúdo:**
+   - pontuacao EBD configuravel por igreja
+   - ranking de melhores alunos por pontos no dashboard
+   - correcoes de Open Graph/Twitter no blog para preview social
 
 ### 01/06/2026 - Release Notes v1.13.12
 - **Arquivo:** [release-notes/RELEASE_NOTES_v1.13.12.md](release-notes/RELEASE_NOTES_v1.13.12.md)

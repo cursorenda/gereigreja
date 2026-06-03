@@ -247,6 +247,40 @@
                             </div>
                         </div>
 
+                        <div class="row mt-1">
+                            <div class="col-12">
+                                <div class="alert alert-light border mb-3">
+                                    <strong>Pontuação do Ranking EBD</strong>
+                                    <div class="text-muted small mt-1">Defina quantos pontos cada aluno recebe por aula. Deixe em branco para usar padrão: Presença 10, Bíblia 2, Revista 2, Oferta 3, Visitante 5.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.ebd_pontos_presente.id_for_label }}" class="form-label">{{ form.ebd_pontos_presente.label }}</label>
+                                {{ form.ebd_pontos_presente }}
+                                {% if form.ebd_pontos_presente.errors %}<div class="invalid-feedback d-block">{{ form.ebd_pontos_presente.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.ebd_pontos_biblia.id_for_label }}" class="form-label">{{ form.ebd_pontos_biblia.label }}</label>
+                                {{ form.ebd_pontos_biblia }}
+                                {% if form.ebd_pontos_biblia.errors %}<div class="invalid-feedback d-block">{{ form.ebd_pontos_biblia.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.ebd_pontos_revista.id_for_label }}" class="form-label">{{ form.ebd_pontos_revista.label }}</label>
+                                {{ form.ebd_pontos_revista }}
+                                {% if form.ebd_pontos_revista.errors %}<div class="invalid-feedback d-block">{{ form.ebd_pontos_revista.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.ebd_pontos_oferta.id_for_label }}" class="form-label">{{ form.ebd_pontos_oferta.label }}</label>
+                                {{ form.ebd_pontos_oferta }}
+                                {% if form.ebd_pontos_oferta.errors %}<div class="invalid-feedback d-block">{{ form.ebd_pontos_oferta.errors|join:", " }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="{{ form.ebd_pontos_visitante.id_for_label }}" class="form-label">{{ form.ebd_pontos_visitante.label }}</label>
+                                {{ form.ebd_pontos_visitante }}
+                                {% if form.ebd_pontos_visitante.errors %}<div class="invalid-feedback d-block">{{ form.ebd_pontos_visitante.errors|join:", " }}</div>{% endif %}
+                            </div>
+                        </div>
+
                         <hr class="my-4">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div>

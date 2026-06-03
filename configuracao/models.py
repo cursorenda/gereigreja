@@ -473,6 +473,36 @@ class Igreja(models.Model):
         verbose_name='Horário da EBD (Igreja)',
         help_text='Opcional. Se preenchido, substitui o horário EBD herdado do ministério para esta igreja.'
     )
+    ebd_pontos_presente = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Pontos por Presença',
+        help_text='Opcional. Pontos atribuídos quando o aluno está presente na chamada.'
+    )
+    ebd_pontos_biblia = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Pontos por Bíblia',
+        help_text='Opcional. Pontos atribuídos quando o aluno marca Bíblia na chamada.'
+    )
+    ebd_pontos_revista = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Pontos por Revista',
+        help_text='Opcional. Pontos atribuídos quando o aluno marca Revista na chamada.'
+    )
+    ebd_pontos_oferta = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Pontos por Oferta',
+        help_text='Opcional. Pontos atribuídos quando o aluno marca Oferta na chamada.'
+    )
+    ebd_pontos_visitante = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Pontos por Visitante',
+        help_text='Opcional. Pontos atribuídos quando o aluno marca Visitante na chamada.'
+    )
     observacoes = models.TextField(blank=True, null=True, verbose_name="Observações")
     logo1 = models.ImageField(upload_to=logo1_upload_to_path, blank=True, null=True, verbose_name="Logo 1")
     logo2 = models.ImageField(upload_to=logo2_upload_to_path, blank=True, null=True, verbose_name="Logo 2")
