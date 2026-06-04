@@ -169,6 +169,57 @@
 		</div>
 	</section>
 
+	<section class="ebdash-secondary-section" aria-label="Resumo semanal e checklist operacional">
+		<div class="ebdash-section-head">
+			<h2>Resumo Semanal e Operação Mobile</h2>
+			<p>Use este bloco para fechar a semana da EBD e orientar a rotina da secretaria e liderança no domingo.</p>
+		</div>
+
+		<div class="ebdash-insights-grid">
+			<article class="ebdash-insight-card is-info">
+				<div class="head"><span><i class="fas fa-envelope-open-text"></i> Resumo Semanal da EBD</span></div>
+				{% if resumo_semanal %}
+				<p>
+					Turmas com chamada: {{ resumo_semanal.turmas_com_chamada }}/{{ resumo_semanal.turmas_previstas }} |
+					Pendentes: {{ resumo_semanal.turmas_sem_chamada }} |
+					Frequência: {{ resumo_semanal.frequencia_media|floatformat:1 }}%
+				</p>
+				<pre class="small bg-light border rounded p-3 mb-3" style="white-space: pre-wrap;">{{ resumo_semanal_formatado }}</pre>
+				{% if pode_publicar_resumo_semanal %}
+				<form method="post">
+					{% csrf_token %}
+					<input type="hidden" name="acao" value="publicar_resumo_semanal">
+					<button type="submit" class="btn btn-outline-secondary btn-sm">Publicar em Avisos</button>
+				</form>
+				{% endif %}
+				{% else %}
+				<p>Resumo semanal indisponível para o contexto atual.</p>
+				{% endif %}
+			</article>
+
+			<article class="ebdash-insight-card is-neutral">
+				<div class="head"><span><i class="fas fa-mobile-screen-button"></i> Checklist Mobile de Domingo</span></div>
+				<ul class="ebdash-ranking-list">
+					{% for item in checklist_operacional_domingo %}
+					<li>
+						<span>
+							{% if item.status == 'done' %}
+							<i class="fas fa-circle-check text-success"></i>
+							{% elif item.status == 'warning' %}
+							<i class="fas fa-triangle-exclamation text-warning"></i>
+							{% else %}
+							<i class="fas fa-clock text-muted"></i>
+							{% endif %}
+							<strong>{{ item.titulo }}</strong>
+							<br><small class="text-muted">{{ item.descricao }}</small>
+						</span>
+					</li>
+					{% endfor %}
+				</ul>
+			</article>
+		</div>
+	</section>
+
 	<section class="ebdash-secondary-section ebdash-live-section" aria-label="Relatório instantâneo da EBD">
 		<div class="ebdash-section-head">
 			<h2>Relatório Instantâneo do Dia</h2>

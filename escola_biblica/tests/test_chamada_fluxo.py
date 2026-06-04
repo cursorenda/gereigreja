@@ -9,6 +9,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
+from comunicacao.models import Aviso
 from configuracao.models import Igreja, Ministerio, PerfilUsuario
 from contas.constants import ADMIN_MINISTERIO
 from escola_biblica.models import Aluno, AnoLetivo, Classe, Frequencia, Licao, PeriodoEBD, Turma
@@ -212,6 +213,27 @@ class ChamadaPresencaFluxoTest(TestCase):
         self.client.get(url)
 
         self._assert_query_budget_get(url, self.QUERY_BUDGET_DASHBOARD_GET)
+
+    def test_dashboard_exibe_resumo_semanal_e_checklist_mobile(self):
+        self._criar_turma('dash-ui', qtd_alunos=3, criar_licao=True)
+
+        url = reverse('escola_biblica:dashboard')
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Resumo Semanal da EBD')
+        self.assertContains(response, 'Checklist Mobile de Domingo')
+        self.assertContains(response, 'Publicar em Avisos')
+
+    def test_dashboard_post_publica_resumo_semanal_em_avisos(self):
+        self._criar_turma('dash-post', qtd_alunos=2, criar_licao=True)
+
+        url = reverse('escola_biblica:dashboard')
+        response = self.client.post(url, {'acao': 'publicar_resumo_semanal'}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Aviso.objects.filter(ministerio=self.ministerio).count(), 1)
+        self.assertContains(response, 'Resumo semanal da EBD publicado em Avisos')
 
     def test_chamada_post_duplicado_e_ignorado_por_idempotencia(self):
         turma = self._criar_turma('idem', qtd_alunos=1, criar_licao=True)

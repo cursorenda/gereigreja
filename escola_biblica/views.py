@@ -423,6 +423,32 @@ def build_painel_executivo_ebd(*, freq_atual, freq_anterior, ofertas_atual, ofer
     }
 
 
+def build_checklist_operacional_domingo(*, houve_janela_operacional, turmas_sem_chamada_semana, turmas_parciais_relatorio, turmas_pendentes_relatorio):
+    itens = [
+        {
+            'titulo': 'Abrir dashboard pelo celular',
+            'descricao': 'Validar filtros de ano/período e confirmar se a igreja ativa está correta.',
+            'status': 'done' if houve_janela_operacional else 'pending',
+        },
+        {
+            'titulo': 'Fechar chamadas pendentes',
+            'descricao': f'{turmas_sem_chamada_semana} turma(s) sem chamada registrada na janela operacional.',
+            'status': 'done' if turmas_sem_chamada_semana == 0 else 'pending',
+        },
+        {
+            'titulo': 'Conferir turmas parciais do dia',
+            'descricao': f'{turmas_parciais_relatorio} turma(s) com chamada sem fechamento completo de oferta/status.',
+            'status': 'done' if turmas_parciais_relatorio == 0 else 'warning',
+        },
+        {
+            'titulo': 'Revisar pendências do relatório instantâneo',
+            'descricao': f'{turmas_pendentes_relatorio} turma(s) ainda pendente(s) no recorte do dia.',
+            'status': 'done' if turmas_pendentes_relatorio == 0 else 'warning',
+        },
+    ]
+    return itens
+
+
 def _get_expr_pontos_frequencia(pontos_cfg):
     return (
         Case(
@@ -2653,6 +2679,31 @@ def classe_delete(request, pk):
 @log_ebd_endpoint('dashboard')
 def dashboard(request):
     auto_sync_ebd_periodos_e_licoes(request)
+    perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
+    ministerio = getattr(perfil, 'ministerio', None)
+
+    if request.method == 'POST' and request.POST.get('acao') == 'publicar_resumo_semanal':
+        from comunicacao.models import Aviso
+        from .utils import build_resumo_semanal_ebd, formatar_resumo_semanal_ebd, get_faixa_semana_anterior
+
+        if not ministerio or not usuario_pode_gerenciar_ebd(request.user):
+            messages.error(request, 'Você não tem permissão para publicar o resumo semanal da EBD.')
+            return redirect('escola_biblica:dashboard')
+
+        resumo_inicio, resumo_fim = get_faixa_semana_anterior(timezone.localdate())
+        resumo = build_resumo_semanal_ebd(ministerio, resumo_inicio, resumo_fim)
+        titulo = f"Resumo semanal EBD - {resumo_inicio.strftime('%d/%m')} a {resumo_fim.strftime('%d/%m')}"
+        Aviso.objects.create(
+            ministerio=ministerio,
+            titulo=titulo,
+            conteudo=formatar_resumo_semanal_ebd(resumo),
+            autor=request.user,
+            publicado=True,
+        )
+        log_ebd_audit_event(request, 'resumo_semanal_publicado', ministerio_id=ministerio.id, inicio=resumo_inicio, fim=resumo_fim)
+        messages.success(request, 'Resumo semanal da EBD publicado em Avisos para secretaria/liderança.')
+        return redirect('escola_biblica:dashboard')
+
     turmas = filtrar_turmas_ebd(Turma.objects.all(), request)
     alunos = filtrar_alunos_ebd(Aluno.objects.all(), request)
     classes = filtrar_classes_ebd(Classe.objects.all(), request)
@@ -3177,6 +3228,22 @@ def dashboard(request):
         evasao=evasao,
     )
 
+    resumo_semanal = None
+    resumo_semanal_formatado = ''
+    if ministerio:
+        from .utils import build_resumo_semanal_ebd, formatar_resumo_semanal_ebd, get_faixa_semana_anterior
+
+        resumo_inicio, resumo_fim = get_faixa_semana_anterior(hoje)
+        resumo_semanal = build_resumo_semanal_ebd(ministerio, resumo_inicio, resumo_fim)
+        resumo_semanal_formatado = formatar_resumo_semanal_ebd(resumo_semanal)
+
+    checklist_operacional_domingo = build_checklist_operacional_domingo(
+        houve_janela_operacional=houve_janela_operacional,
+        turmas_sem_chamada_semana=turmas_sem_chamada_semana,
+        turmas_parciais_relatorio=turmas_parciais_relatorio,
+        turmas_pendentes_relatorio=turmas_pendentes_relatorio,
+    )
+
     response = render(request, 'escola_biblica/dashboard.html', {
         'turmas': turmas,
         'alunos': alunos,
@@ -3216,6 +3283,10 @@ def dashboard(request):
         'houve_janela_operacional': houve_janela_operacional,
         'insights_dashboard': insights_dashboard[:3],
         'painel_executivo': painel_executivo,
+        'resumo_semanal': resumo_semanal,
+        'resumo_semanal_formatado': resumo_semanal_formatado,
+        'checklist_operacional_domingo': checklist_operacional_domingo,
+        'pode_publicar_resumo_semanal': bool(ministerio and usuario_pode_gerenciar_ebd(request.user)),
         'periodo_anterior_label': f"{data_inicio_periodo_anterior.strftime('%d/%m/%Y')} a {data_fim_periodo_anterior.strftime('%d/%m/%Y')}",
         'periodo_selecionado_label': f"{data_inicio_periodo.strftime('%d/%m/%Y')} a {data_fim_periodo.strftime('%d/%m/%Y')}",
         'periodo_tipo_label': periodo_tipo_label,

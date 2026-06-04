@@ -61,7 +61,7 @@ Escopo: app `escola_biblica`
 
 - [ ] KPIs de professor/turma com tendencia mensal.
 - [ ] Centro de acoes com fila de tarefas operacionais.
-- [ ] Checklist de usabilidade mobile para rotina de domingo.
+- [x] Checklist de usabilidade mobile para rotina de domingo.
 
 ## Metricas de sucesso
 
