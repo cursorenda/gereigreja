@@ -169,6 +169,48 @@
 		</div>
 	</section>
 
+	<section class="ebdash-secondary-section" aria-label="Centro de ações operacionais da EBD">
+		<div class="ebdash-section-head">
+			<h2>Centro de Ações Operacionais</h2>
+			<p>Fila priorizada de execução para a secretaria fechar a operação semanal sem precisar caçar pendências em vários blocos.</p>
+		</div>
+
+		<div class="ebdash-insights-grid">
+			<article class="ebdash-insight-card is-neutral">
+				<div class="head">
+					<span><i class="fas fa-bolt"></i> Fila Prioritária</span>
+					<strong>{{ centro_acoes_operacionais.pendencias_abertas }}</strong>
+				</div>
+				<ul class="ebdash-ranking-list">
+					{% for item in centro_acoes_operacionais.fila %}
+					<li>
+						<span>
+							<strong>{{ item.titulo }}</strong>
+							<br><small class="text-muted">{{ item.descricao }}</small>
+							<br><a href="{{ item.cta_url }}" class="btn btn-outline-secondary btn-sm mt-2">{{ item.cta_label }}</a>
+						</span>
+						<strong class="{{ item.tone }}">
+							<i class="{{ item.icone }}"></i>
+							{% if item.contador is not None %}
+							<br><small>{{ item.contador }} {{ item.contador_label }}</small>
+							{% endif %}
+						</strong>
+					</li>
+					{% endfor %}
+				</ul>
+			</article>
+
+			<article class="ebdash-insight-card is-info">
+				<div class="head"><span><i class="fas fa-crosshairs"></i> Próximo passo recomendado</span></div>
+				{% with proxima=centro_acoes_operacionais.fila|first %}
+				<p><strong>{{ proxima.titulo }}</strong></p>
+				<p>{{ proxima.descricao }}</p>
+				<a href="{{ proxima.cta_url }}" class="btn btn-outline-secondary btn-sm">{{ proxima.cta_label }}</a>
+				{% endwith %}
+			</article>
+		</div>
+	</section>
+
 	<section class="ebdash-secondary-section" aria-label="Resumo semanal e checklist operacional">
 		<div class="ebdash-section-head">
 			<h2>Resumo Semanal e Operação Mobile</h2>
@@ -176,7 +218,7 @@
 		</div>
 
 		<div class="ebdash-insights-grid">
-			<article class="ebdash-insight-card is-info">
+			<article id="centro-resumo-semanal" class="ebdash-insight-card is-info">
 				<div class="head"><span><i class="fas fa-envelope-open-text"></i> Resumo Semanal da EBD</span></div>
 				{% if resumo_semanal %}
 				<p>
@@ -250,7 +292,7 @@
 				<thead>
 					<tr>
 						<th>Turma</th>
-						<th>Segmento</th>
+						<th>Classe (apoio)</th>
 						<th>Chamada</th>
 						<th>Presença</th>
 						<th>Ausência</th>
@@ -264,7 +306,7 @@
 					{% for item in relatorio_instantaneo_turmas %}
 					<tr>
 						<td>{{ item.turma_nome }}</td>
-						<td>{{ item.segmento_nome }}</td>
+						<td><small class="text-muted">{{ item.segmento_nome }}</small></td>
 						<td>
 							{% if item.chamada_realizada %}
 								<span class="ebdash-live-pill is-ok">Preenchida</span>
@@ -381,6 +423,28 @@
 
 		<div class="ebdash-chart-grid">
 			<article class="ebdash-chart-card">
+				<header><i class="fas fa-people-group"></i> KPIs por Turma e Professor</header>
+				<ul class="ebdash-ranking-list">
+					{% for item in kpis_turma_professor %}
+					<li>
+						<span>
+							<strong>{{ item.turma_nome }}</strong>
+							<small class="text-muted">Professor: {{ item.professor_nome }} | Classe (apoio): {{ item.classe_nome }}</small>
+							<br>
+							<small class="text-muted">
+								Frequência {{ item.frequencia_atual|floatformat:1 }}% ({{ item.delta_frequencia|floatformat:1 }} p.p.) |
+								Oferta R$ {{ item.oferta_atual|floatformat:2|intcomma }}
+							</small>
+						</span>
+						<strong class="{{ item.tendencia_tone }}"><i class="{{ item.tendencia_icon }}"></i></strong>
+					</li>
+					{% empty %}
+					<li><span>Sem KPIs de turma/professor no período</span><strong>-</strong></li>
+					{% endfor %}
+				</ul>
+			</article>
+
+			<article class="ebdash-chart-card">
 				<header><i class="fas fa-chart-line"></i> Evolução de Alunos Ativos (12 meses)</header>
 				<div class="canvas-wrap"><canvas id="evolucaoAlunosChart"></canvas></div>
 			</article>
@@ -391,9 +455,10 @@
 			</article>
 
 			<article class="ebdash-chart-card">
-				<header><i class="fas fa-list-ol"></i> Ranking de Frequência por Segmento</header>
+				<header><i class="fas fa-layer-group"></i> Contexto de Classe (apoio)</header>
+				<div class="small text-muted mb-2">Classe permanece aqui apenas como referência estrutural para leitura da operação por turma.</div>
 				<ul class="ebdash-ranking-list">
-					{% for item in ranking_classes|slice:":6" %}
+					{% for item in ranking_classes|slice:":4" %}
 					<li><span>{{ item.classe }}</span><strong>{{ item.frequencia_media|floatformat:1 }}%</strong></li>
 					{% empty %}
 					<li><span>Sem dados suficientes</span><strong>-</strong></li>
@@ -419,9 +484,9 @@
 			</article>
 
 			<article class="ebdash-chart-card">
-				<header><i class="fas fa-hand-holding-dollar"></i> Ranking de Ofertas por Segmento</header>
+				<header><i class="fas fa-hand-holding-dollar"></i> Ofertas por Classe (apoio)</header>
 				<ul class="ebdash-ranking-list">
-					{% for item in ranking_ofertas|slice:":6" %}
+					{% for item in ranking_ofertas|slice:":4" %}
 					<li><span>{{ item.classe }}</span><strong>R$ {{ item.total_oferta|floatformat:2|intcomma }}</strong></li>
 					{% empty %}
 					<li><span>Sem dados suficientes</span><strong>-</strong></li>

@@ -49,7 +49,7 @@ Escopo: app `escola_biblica`
 
 - [x] Reorganizar dashboard EBD em 3 blocos: Operacao da Semana, Saude das Turmas, Governanca do Periodo.
 - [x] Criar card "Pendencias da Semana" com links de acao.
-- [ ] Rebaixar visual de Classe no dashboard para contexto secundario.
+- [x] Rebaixar visual de Classe no dashboard para contexto secundario.
 
 ### Sprint 2 (premium operacional)
 
@@ -59,8 +59,8 @@ Escopo: app `escola_biblica`
 
 ### Sprint 3 (escala e excelencia)
 
-- [ ] KPIs de professor/turma com tendencia mensal.
-- [ ] Centro de acoes com fila de tarefas operacionais.
+- [x] KPIs de professor/turma com tendencia mensal.
+- [x] Centro de acoes com fila de tarefas operacionais.
 - [x] Checklist de usabilidade mobile para rotina de domingo.
 
 ## Metricas de sucesso

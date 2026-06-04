@@ -449,6 +449,154 @@ def build_checklist_operacional_domingo(*, houve_janela_operacional, turmas_sem_
     return itens
 
 
+def build_kpis_turma_professor(*, turmas, freq_atual_map, freq_anterior_map, ofertas_atual_map, ofertas_anterior_map, professor_por_turma):
+    itens = []
+    for turma in turmas:
+        freq_atual_item = freq_atual_map.get(turma.id, {})
+        freq_anterior_item = freq_anterior_map.get(turma.id, {})
+        total_atual = int(freq_atual_item.get('total') or 0)
+        presentes_atual = int(freq_atual_item.get('presentes') or 0)
+        total_anterior = int(freq_anterior_item.get('total') or 0)
+        presentes_anterior = int(freq_anterior_item.get('presentes') or 0)
+
+        freq_atual = round((presentes_atual / total_atual) * 100, 1) if total_atual else 0.0
+        freq_anterior = round((presentes_anterior / total_anterior) * 100, 1) if total_anterior else 0.0
+        delta_freq = round(freq_atual - freq_anterior, 1)
+
+        oferta_atual = float(ofertas_atual_map.get(turma.id) or 0)
+        oferta_anterior = float(ofertas_anterior_map.get(turma.id) or 0)
+        delta_oferta = round(oferta_atual - oferta_anterior, 2)
+
+        if delta_freq > 0:
+            tendencia_tone = 'is-positive'
+            tendencia_icon = 'fas fa-arrow-trend-up'
+        elif delta_freq < 0:
+            tendencia_tone = 'is-warning'
+            tendencia_icon = 'fas fa-arrow-trend-down'
+        else:
+            tendencia_tone = 'is-neutral'
+            tendencia_icon = 'fas fa-minus'
+
+        itens.append({
+            'turma_id': turma.id,
+            'turma_nome': turma.nome,
+            'classe_nome': turma.classe.nome if getattr(turma, 'classe_id', None) else '-',
+            'professor_nome': professor_por_turma.get(turma.id) or 'Sem professor vinculado',
+            'frequencia_atual': freq_atual,
+            'frequencia_anterior': freq_anterior,
+            'delta_frequencia': delta_freq,
+            'oferta_atual': oferta_atual,
+            'delta_oferta': delta_oferta,
+            'tendencia_tone': tendencia_tone,
+            'tendencia_icon': tendencia_icon,
+        })
+
+    itens.sort(key=lambda item: (-item['frequencia_atual'], -item['oferta_atual'], item['turma_nome'].casefold()))
+    return itens
+
+
+def build_centro_acoes_operacionais(*, houve_janela_operacional, turmas_sem_chamada_semana, turmas_pendentes_relatorio, turmas_parciais_relatorio, evasao, resumo_semanal, pode_publicar_resumo_semanal, relatorio_instantaneo_turmas):
+    fila = []
+    turmas_pendentes = [item['turma_nome'] for item in relatorio_instantaneo_turmas if item['status_tone'] == 'is-pending'][:3]
+    turmas_parciais = [item['turma_nome'] for item in relatorio_instantaneo_turmas if item['status_tone'] == 'is-partial'][:3]
+
+    if houve_janela_operacional and turmas_sem_chamada_semana > 0:
+        detalhe = f'{turmas_sem_chamada_semana} turma(s) sem chamada na janela operacional.'
+        if turmas_pendentes:
+            detalhe += f" Priorize: {', '.join(turmas_pendentes)}."
+        fila.append({
+            'prioridade': 0,
+            'tone': 'is-danger',
+            'icone': 'fas fa-siren-on',
+            'titulo': 'Fechar chamadas da semana',
+            'descricao': detalhe,
+            'contador': turmas_sem_chamada_semana,
+            'contador_label': 'pendências críticas',
+            'cta_label': 'Abrir painel de turmas',
+            'cta_url': reverse('escola_biblica:turma_list'),
+        })
+
+    if turmas_pendentes_relatorio > 0:
+        detalhe = f'{turmas_pendentes_relatorio} turma(s) ainda sem fechamento no relatório do dia.'
+        if turmas_pendentes:
+            detalhe += f" Turmas: {', '.join(turmas_pendentes)}."
+        fila.append({
+            'prioridade': 1,
+            'tone': 'is-warning',
+            'icone': 'fas fa-hourglass-half',
+            'titulo': 'Fechar pendências do relatório do dia',
+            'descricao': detalhe,
+            'contador': turmas_pendentes_relatorio,
+            'contador_label': 'turmas pendentes',
+            'cta_label': 'Abrir relatório instantâneo',
+            'cta_url': reverse('escola_biblica:relatorio_ebd_dia'),
+        })
+
+    if turmas_parciais_relatorio > 0:
+        detalhe = f'{turmas_parciais_relatorio} turma(s) com chamada feita, mas sem oferta ou fechamento completo.'
+        if turmas_parciais:
+            detalhe += f" Revisar: {', '.join(turmas_parciais)}."
+        fila.append({
+            'prioridade': 2,
+            'tone': 'is-info',
+            'icone': 'fas fa-list-check',
+            'titulo': 'Completar registros parciais',
+            'descricao': detalhe,
+            'contador': turmas_parciais_relatorio,
+            'contador_label': 'registros parciais',
+            'cta_label': 'Revisar chamadas',
+            'cta_url': reverse('escola_biblica:turma_list'),
+        })
+
+    if evasao > 0:
+        fila.append({
+            'prioridade': 3,
+            'tone': 'is-warning',
+            'icone': 'fas fa-user-minus',
+            'titulo': 'Acompanhar evasão do período',
+            'descricao': f'{evasao} aluno(s) inativos no ano letivo atual. Acione professores e secretaria para retenção.',
+            'contador': evasao,
+            'contador_label': 'alunos em risco',
+            'cta_label': 'Abrir alunos',
+            'cta_url': reverse('escola_biblica:aluno_list'),
+        })
+
+    if pode_publicar_resumo_semanal and resumo_semanal:
+        fila.append({
+            'prioridade': 4,
+            'tone': 'is-neutral',
+            'icone': 'fas fa-bullhorn',
+            'titulo': 'Publicar resumo semanal para liderança',
+            'descricao': (
+                f"Resumo pronto com {resumo_semanal.get('turmas_com_chamada', 0)}/{resumo_semanal.get('turmas_previstas', 0)} "
+                f"turmas fechadas e frequência média de {float(resumo_semanal.get('frequencia_media', 0) or 0):.1f}%"
+            ),
+            'contador': None,
+            'contador_label': '',
+            'cta_label': 'Ir ao bloco de resumo',
+            'cta_url': '#centro-resumo-semanal',
+        })
+
+    fila.sort(key=lambda item: item['prioridade'])
+    if not fila:
+        fila.append({
+            'prioridade': 9,
+            'tone': 'is-positive',
+            'icone': 'fas fa-circle-check',
+            'titulo': 'Fila operacional zerada',
+            'descricao': 'Sem pendências críticas neste recorte. Mantenha a rotina semanal e acompanhe apenas a execução normal.',
+            'contador': 0,
+            'contador_label': 'pendências abertas',
+            'cta_label': 'Ver turmas',
+            'cta_url': reverse('escola_biblica:turma_list'),
+        })
+
+    return {
+        'fila': fila[:5],
+        'pendencias_abertas': sum(1 for item in fila if item['prioridade'] < 9),
+    }
+
+
 def _get_expr_pontos_frequencia(pontos_cfg):
     return (
         Case(
@@ -2944,6 +3092,68 @@ def dashboard(request):
         ranking_ofertas.append({'classe': classe.nome, 'total_oferta': float(total_oferta_classe)})
     ranking_ofertas = sorted(ranking_ofertas, key=lambda x: x['total_oferta'], reverse=True)
 
+    turmas_kpi_qs = turmas.select_related('classe').order_by('nome')
+    if ano_letivo_selecionado:
+        turmas_kpi_qs = turmas_kpi_qs.filter(ano_letivo=ano_letivo_selecionado)
+    turmas_kpi = list(turmas_kpi_qs)
+    turmas_kpi_ids = [turma.id for turma in turmas_kpi]
+
+    freq_turma_atual_map = {
+        item['aluno__turma_id']: item
+        for item in Frequencia.objects.filter(
+            aluno__turma_id__in=turmas_kpi_ids,
+            data__gte=data_inicio_periodo,
+            data__lte=data_fim_periodo,
+        ).values('aluno__turma_id').annotate(
+            total=Count('id'),
+            presentes=Count('id', filter=Q(presente=True)),
+        )
+    }
+    freq_turma_anterior_map = {
+        item['aluno__turma_id']: item
+        for item in Frequencia.objects.filter(
+            aluno__turma_id__in=turmas_kpi_ids,
+            data__gte=data_inicio_periodo_anterior,
+            data__lte=data_fim_periodo_anterior,
+        ).values('aluno__turma_id').annotate(
+            total=Count('id'),
+            presentes=Count('id', filter=Q(presente=True)),
+        )
+    }
+    ofertas_turma_atual_map = {
+        item['turma_id']: item['total'] or 0
+        for item in OfertaClasse.objects.filter(
+            turma_id__in=turmas_kpi_ids,
+            data__gte=data_inicio_periodo,
+            data__lte=data_fim_periodo,
+        ).values('turma_id').annotate(total=Sum('valor'))
+    }
+    ofertas_turma_anterior_map = {
+        item['turma_id']: item['total'] or 0
+        for item in OfertaClasse.objects.filter(
+            turma_id__in=turmas_kpi_ids,
+            data__gte=data_inicio_periodo_anterior,
+            data__lte=data_fim_periodo_anterior,
+        ).values('turma_id').annotate(total=Sum('valor'))
+    }
+    professor_por_turma = {}
+    for item in MembroCargo.objects.filter(
+        membro__turmas_ebd__in=turmas_kpi,
+        cargo__is_ebd=True,
+        cargo__nome__icontains='professor',
+        data_fim__isnull=True,
+    ).values('membro__turmas_ebd', 'membro__nome').order_by('membro__nome'):
+        professor_por_turma.setdefault(item['membro__turmas_ebd'], item['membro__nome'])
+
+    kpis_turma_professor = build_kpis_turma_professor(
+        turmas=turmas_kpi,
+        freq_atual_map=freq_turma_atual_map,
+        freq_anterior_map=freq_turma_anterior_map,
+        ofertas_atual_map=ofertas_turma_atual_map,
+        ofertas_anterior_map=ofertas_turma_anterior_map,
+        professor_por_turma=professor_por_turma,
+    )
+
     alunos_novos_qs = Aluno.objects.filter(
         turma__isnull=False,
         ativo=True,
@@ -3243,6 +3453,17 @@ def dashboard(request):
         turmas_parciais_relatorio=turmas_parciais_relatorio,
         turmas_pendentes_relatorio=turmas_pendentes_relatorio,
     )
+    pode_publicar_resumo_semanal = bool(ministerio and usuario_pode_gerenciar_ebd(request.user))
+    centro_acoes_operacionais = build_centro_acoes_operacionais(
+        houve_janela_operacional=houve_janela_operacional,
+        turmas_sem_chamada_semana=turmas_sem_chamada_semana,
+        turmas_pendentes_relatorio=turmas_pendentes_relatorio,
+        turmas_parciais_relatorio=turmas_parciais_relatorio,
+        evasao=evasao,
+        resumo_semanal=resumo_semanal,
+        pode_publicar_resumo_semanal=pode_publicar_resumo_semanal,
+        relatorio_instantaneo_turmas=relatorio_instantaneo_turmas,
+    )
 
     response = render(request, 'escola_biblica/dashboard.html', {
         'turmas': turmas,
@@ -3265,6 +3486,7 @@ def dashboard(request):
         'freq_geral': freq_geral,
         'freq_mes_anterior': freq_mes_anterior,
         'ranking_ofertas': ranking_ofertas,
+        'kpis_turma_professor': kpis_turma_professor[:6],
         'alunos_novos': alunos_novos,
         'alunos_novos_mes_anterior': alunos_novos_mes_anterior,
         'transferidos_mes': transferidos_mes,
@@ -3285,8 +3507,9 @@ def dashboard(request):
         'painel_executivo': painel_executivo,
         'resumo_semanal': resumo_semanal,
         'resumo_semanal_formatado': resumo_semanal_formatado,
+        'centro_acoes_operacionais': centro_acoes_operacionais,
         'checklist_operacional_domingo': checklist_operacional_domingo,
-        'pode_publicar_resumo_semanal': bool(ministerio and usuario_pode_gerenciar_ebd(request.user)),
+        'pode_publicar_resumo_semanal': pode_publicar_resumo_semanal,
         'periodo_anterior_label': f"{data_inicio_periodo_anterior.strftime('%d/%m/%Y')} a {data_fim_periodo_anterior.strftime('%d/%m/%Y')}",
         'periodo_selecionado_label': f"{data_inicio_periodo.strftime('%d/%m/%Y')} a {data_fim_periodo.strftime('%d/%m/%Y')}",
         'periodo_tipo_label': periodo_tipo_label,

@@ -224,6 +224,10 @@ class ChamadaPresencaFluxoTest(TestCase):
         self.assertContains(response, 'Resumo Semanal da EBD')
         self.assertContains(response, 'Checklist Mobile de Domingo')
         self.assertContains(response, 'Publicar em Avisos')
+        self.assertContains(response, 'KPIs por Turma e Professor')
+        self.assertContains(response, 'Centro de Ações Operacionais')
+        self.assertContains(response, 'Fechar pendências do relatório do dia')
+        self.assertContains(response, 'Contexto de Classe (apoio)')
 
     def test_dashboard_post_publica_resumo_semanal_em_avisos(self):
         self._criar_turma('dash-post', qtd_alunos=2, criar_licao=True)

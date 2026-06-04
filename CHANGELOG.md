@@ -1,3 +1,36 @@
+## v1.13.14 — 04/06/2026
+🚀 **EBD Premium — Fechamento operacional completo do dashboard (fila de ações + KPIs mensais + UX orientada por turma)**
+
+### Entregas
+- Hardening operacional da chamada e dashboard EBD validado com suíte focada e orçamento de queries já estabelecido.
+- Novo bloco **Centro de Ações Operacionais** no dashboard EBD com fila priorizada baseada em pendências reais:
+  - chamadas semanais em aberto;
+  - turmas pendentes/parciais no relatório do dia;
+  - evasão no período;
+  - atalho para publicação do resumo semanal.
+- Novo bloco **KPIs por Turma e Professor** com tendência mensal:
+  - frequência atual vs período anterior (delta em p.p.);
+  - oferta atual vs período anterior;
+  - indicação visual de tendência.
+- Evolução da experiência premium de operação:
+  - resumo semanal com ação de publicar em Avisos;
+  - checklist mobile de domingo para rotina da secretaria/liderança.
+- Ajuste final de UX para manter **Classe** em contexto secundário:
+  - coluna e textos marcados como apoio;
+  - cards de classe rebaixados no bloco analítico.
+- Roadmap premium atualizado em `docs/sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md` com itens concluídos.
+
+### Migrações
+- Nenhuma.
+
+### Impacto
+- Operação semanal da EBD mais acionável, com priorização clara do que fechar primeiro.
+- Melhor governança para liderança com resumo semanal publicável e indicadores de tendência por turma/professor.
+- Redução de ruído visual ao privilegiar execução por turma e tratar classe como estrutura de apoio.
+- Sem breaking changes de API pública.
+
+---
+
 ## v1.13.13 — 02/06/2026
 🏆 **EBD Premium — Pontuação por aluno + ranking no dashboard + social preview do blog corrigido**
 
