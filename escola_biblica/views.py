@@ -342,6 +342,87 @@ def calcular_pontos_frequencia_flags(*, presente=False, trouxe_biblia=False, tro
     return total
 
 
+def build_painel_executivo_ebd(*, freq_atual, freq_anterior, ofertas_atual, ofertas_anterior, turmas_previstas_semana, turmas_sem_chamada_semana, evasao):
+    anomalia_labels = {
+        'frequencia_baixa': 'Frequencia baixa',
+        'queda_frequencia_acelerada': 'Queda acelerada de frequencia',
+        'chamadas_pendentes_semana': 'Chamadas pendentes na semana',
+        'queda_ofertas_relevante': 'Queda relevante de ofertas',
+        'evasao_detectada': 'Evasao detectada',
+    }
+
+    delta_freq = round(float(freq_atual) - float(freq_anterior), 1)
+    delta_ofertas = round(float(ofertas_atual) - float(ofertas_anterior), 2)
+    pendencia_pct = 0.0
+    if turmas_previstas_semana > 0:
+        pendencia_pct = round((turmas_sem_chamada_semana / turmas_previstas_semana) * 100, 1)
+
+    tendencia = {
+        'freq_delta': delta_freq,
+        'ofertas_delta': delta_ofertas,
+        'pendencia_semana_pct': pendencia_pct,
+    }
+
+    anomalias = []
+    if float(freq_atual) < 65:
+        anomalias.append('frequencia_baixa')
+    if delta_freq <= -5:
+        anomalias.append('queda_frequencia_acelerada')
+    if pendencia_pct >= 30:
+        anomalias.append('chamadas_pendentes_semana')
+    if float(ofertas_anterior) > 0 and float(ofertas_atual) <= (float(ofertas_anterior) * 0.8):
+        anomalias.append('queda_ofertas_relevante')
+    if int(evasao or 0) > 0:
+        anomalias.append('evasao_detectada')
+
+    recomendacoes = []
+    if 'chamadas_pendentes_semana' in anomalias:
+        recomendacoes.append({
+            'titulo': 'Priorizar fechamento de chamadas pendentes',
+            'descricao': 'Concentre o acompanhamento das turmas sem chamada registrada nesta semana operacional.',
+            'cta_label': 'Abrir turmas',
+            'cta_url': reverse('escola_biblica:turma_list'),
+        })
+    if 'frequencia_baixa' in anomalias or 'queda_frequencia_acelerada' in anomalias:
+        recomendacoes.append({
+            'titulo': 'Executar plano de recuperação de presença',
+            'descricao': 'Acione professores e responsáveis das classes mais críticas para retomada de frequência.',
+            'cta_label': 'Ver frequência',
+            'cta_url': reverse('escola_biblica:frequencia_list'),
+        })
+    if 'queda_ofertas_relevante' in anomalias:
+        recomendacoes.append({
+            'titulo': 'Revisar engajamento de ofertas por classe',
+            'descricao': 'Analise as classes com maior queda e alinhe ações de orientação e prestação de contas.',
+            'cta_label': 'Abrir ofertas',
+            'cta_url': reverse('escola_biblica:oferta_classe_list'),
+        })
+    if 'evasao_detectada' in anomalias:
+        recomendacoes.append({
+            'titulo': 'Iniciar contato de retenção de alunos',
+            'descricao': 'Mapeie motivos de inatividade e ative um plano de acompanhamento por turma.',
+            'cta_label': 'Ver alunos',
+            'cta_url': reverse('escola_biblica:aluno_list'),
+        })
+
+    if not recomendacoes:
+        recomendacoes.append({
+            'titulo': 'Operação estável no período',
+            'descricao': 'Sem anomalias críticas detectadas. Mantenha rotina semanal e monitoramento dos indicadores.',
+            'cta_label': 'Abrir dashboard gráfico',
+            'cta_url': reverse('escola_biblica:dashboard_graficos'),
+        })
+
+    anomalias_detalhes = [{'chave': chave, 'label': anomalia_labels.get(chave, chave)} for chave in anomalias]
+
+    return {
+        'tendencia': tendencia,
+        'anomalias': anomalias,
+        'anomalias_detalhes': anomalias_detalhes,
+        'recomendacoes': recomendacoes[:3],
+    }
+
+
 def _get_expr_pontos_frequencia(pontos_cfg):
     return (
         Case(
@@ -3086,6 +3167,16 @@ def dashboard(request):
         total_igrejas = igrejas_escopo.count()
         scope_label = f'Consolidado EBD ({total_igrejas} igrejas)'
 
+    painel_executivo = build_painel_executivo_ebd(
+        freq_atual=freq_geral,
+        freq_anterior=freq_mes_anterior,
+        ofertas_atual=total_ofertas_mes,
+        ofertas_anterior=total_ofertas_mes_anterior,
+        turmas_previstas_semana=turmas_previstas_semana,
+        turmas_sem_chamada_semana=turmas_sem_chamada_semana,
+        evasao=evasao,
+    )
+
     response = render(request, 'escola_biblica/dashboard.html', {
         'turmas': turmas,
         'alunos': alunos,
@@ -3124,6 +3215,7 @@ def dashboard(request):
         'turmas_sem_chamada_semana': turmas_sem_chamada_semana,
         'houve_janela_operacional': houve_janela_operacional,
         'insights_dashboard': insights_dashboard[:3],
+        'painel_executivo': painel_executivo,
         'periodo_anterior_label': f"{data_inicio_periodo_anterior.strftime('%d/%m/%Y')} a {data_fim_periodo_anterior.strftime('%d/%m/%Y')}",
         'periodo_selecionado_label': f"{data_inicio_periodo.strftime('%d/%m/%Y')} a {data_fim_periodo.strftime('%d/%m/%Y')}",
         'periodo_tipo_label': periodo_tipo_label,

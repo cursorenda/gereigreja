@@ -276,6 +276,34 @@
 		</div>
 		<p class="ebdash-mini-trend-caption">Período atual: {{ periodo_selecionado_label }} | Comparação com: {{ periodo_anterior_label }}.</p>
 
+		<div class="ebdash-insights-grid mb-3">
+			<article class="ebdash-insight-card is-info">
+				<div class="head"><span><i class="fas fa-briefcase"></i> Painel Executivo</span></div>
+				<p>
+					Frequência: {{ painel_executivo.tendencia.freq_delta|floatformat:1 }} p.p. |
+					Ofertas: R$ {{ painel_executivo.tendencia.ofertas_delta|floatformat:2|intcomma }} |
+					Pendência semanal: {{ painel_executivo.tendencia.pendencia_semana_pct|floatformat:1 }}%
+				</p>
+				{% if painel_executivo.anomalias_detalhes %}
+				<div class="d-flex flex-wrap gap-2">
+					{% for anomalia in painel_executivo.anomalias_detalhes %}
+					<span class="badge text-bg-warning">{{ anomalia.label }}</span>
+					{% endfor %}
+				</div>
+				{% endif %}
+			</article>
+
+			{% for rec in painel_executivo.recomendacoes %}
+			<article class="ebdash-insight-card is-neutral">
+				<div class="head"><span><i class="fas fa-lightbulb"></i> {{ rec.titulo }}</span></div>
+				<p>{{ rec.descricao }}</p>
+				{% if rec.cta_url and rec.cta_label %}
+				<a href="{{ rec.cta_url }}" class="btn btn-outline-secondary btn-sm">{{ rec.cta_label }}</a>
+				{% endif %}
+			</article>
+			{% endfor %}
+		</div>
+
 		<div class="ebdash-insights-grid">
 			{% for insight in insights_dashboard %}
 			<article class="ebdash-insight-card {{ insight.tone }}">

@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from configuracao.models import Igreja, Ministerio
 from escola_biblica.models import Aluno, AnoLetivo, Classe, Frequencia, PeriodoEBD, Turma
-from escola_biblica.views import _get_expr_pontos_frequencia, calcular_pontos_frequencia_flags
+from escola_biblica.views import _get_expr_pontos_frequencia, build_painel_executivo_ebd, calcular_pontos_frequencia_flags
 
 
 class EBDPontosHelpersTest(TestCase):
@@ -29,6 +29,39 @@ class EBDPontosHelpersTest(TestCase):
         )
 
         self.assertEqual(pontos, 20)
+
+    def test_build_painel_executivo_detecta_anomalias_criticas(self):
+        painel = build_painel_executivo_ebd(
+            freq_atual=58,
+            freq_anterior=71,
+            ofertas_atual=800,
+            ofertas_anterior=1500,
+            turmas_previstas_semana=10,
+            turmas_sem_chamada_semana=4,
+            evasao=3,
+        )
+
+        self.assertIn('frequencia_baixa', painel['anomalias'])
+        self.assertIn('queda_frequencia_acelerada', painel['anomalias'])
+        self.assertIn('chamadas_pendentes_semana', painel['anomalias'])
+        self.assertIn('queda_ofertas_relevante', painel['anomalias'])
+        self.assertIn('evasao_detectada', painel['anomalias'])
+        self.assertGreaterEqual(len(painel['recomendacoes']), 1)
+
+    def test_build_painel_executivo_retorna_recomendacao_estavel(self):
+        painel = build_painel_executivo_ebd(
+            freq_atual=84,
+            freq_anterior=82,
+            ofertas_atual=1200,
+            ofertas_anterior=1150,
+            turmas_previstas_semana=8,
+            turmas_sem_chamada_semana=0,
+            evasao=0,
+        )
+
+        self.assertEqual(painel['anomalias'], [])
+        self.assertEqual(len(painel['recomendacoes']), 1)
+        self.assertEqual(painel['recomendacoes'][0]['titulo'], 'Operação estável no período')
 
 
 class EBDPontosRankingSnapshotTest(TestCase):
