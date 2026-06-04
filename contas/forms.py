@@ -170,7 +170,7 @@ class AceitarConviteSetPasswordForm(forms.Form):
 class EditarPapeisUsuarioForm(forms.Form):
     """ Formulário para selecionar os grupos (papéis) e igrejas permitidas de um usuário. """
     grupos = forms.ModelMultipleChoiceField(
-        queryset=Group.objects.all().order_by('name'),
+        queryset=Group.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
         label="Papéis Atribuídos (Grupos)"
@@ -188,13 +188,22 @@ class EditarPapeisUsuarioForm(forms.Form):
     def __init__(self, *args, **kwargs):
         # Pega a ministério passada pela view
         ministerio = kwargs.pop('ministerio', None)
+        allowed_groups = kwargs.pop('allowed_groups', None)
+        allowed_igrejas = kwargs.pop('allowed_igrejas', None)
         super().__init__(*args, **kwargs)
+
+        # Por padrão, usa todos os grupos para manter compatibilidade com fluxos antigos.
+        if allowed_groups is None:
+            self.fields['grupos'].queryset = Group.objects.all().order_by('name')
+        else:
+            self.fields['grupos'].queryset = allowed_groups.order_by('name')
 
         # Filtra o queryset de igrejas_permitidas se a ministério foi fornecida
         if ministerio:
-            self.fields['igrejas_permitidas'].queryset = Igreja.objects.filter(
-                ministerio=ministerio
-            ).order_by('nome_igreja')
+            queryset_base = Igreja.objects.filter(ministerio=ministerio)
+            if allowed_igrejas is not None:
+                queryset_base = queryset_base.filter(pk__in=allowed_igrejas.values_list('pk', flat=True))
+            self.fields['igrejas_permitidas'].queryset = queryset_base.order_by('nome_igreja')
         else:
             # Se não houver ministério, não mostra nenhuma igreja (segurança)
             self.fields['igrejas_permitidas'].queryset = Igreja.objects.none()

@@ -36,7 +36,15 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 from configuracao.models import Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionar Plano e AssinaturaMinisterio
 from secretaria.models import Membro # Importar Membro
-from contas.constants import ADMIN_MINISTERIO, user_is_admin, user_has_permission_level_or_higher
+from contas.constants import (
+    ADMIN_MINISTERIO,
+    HIERARQUIA_GRUPOS,
+    PASTOR_LOCAL,
+    SECRETARIO_LOCAL,
+    get_user_permission_level,
+    user_is_admin,
+    user_has_permission_level_or_higher,
+)
 
 from .models import Convite, PermissionRequest
 from .forms import (
@@ -49,7 +57,7 @@ from .forms import (
 )
 from core.decorators import verificar_assinatura_valida, admin_ministerio_required # Ou o caminho correto
 
-from core.utils import get_ministerio_or_error # Importar de core.utils
+from core.utils import get_igrejas_permitidas, get_ministerio_or_error # Importar de core.utils
 
 
 # --- FUNÇÃO AUXILIAR PARA CAPTURAR IP ---
@@ -65,18 +73,79 @@ def get_client_ip(request):
     return ip
 # --- FIM FUNÇÃO AUXILIAR ---
 
+
+def _usuario_pode_gerenciar_fluxo_usuarios(user):
+    """Permite gestão de usuários para Secretário Local e superiores."""
+    return user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
+
+
+def _grupos_alteraveis_por_operador(user):
+    """Retorna os grupos que o operador pode atribuir no fluxo tradicional de usuários."""
+    if user_has_permission_level_or_higher(user, ADMIN_MINISTERIO):
+        return Group.objects.all().order_by('name')
+
+    if user_has_permission_level_or_higher(user, PASTOR_LOCAL):
+        nivel_maximo = HIERARQUIA_GRUPOS.get(PASTOR_LOCAL)
+    elif user_has_permission_level_or_higher(user, SECRETARIO_LOCAL):
+        nivel_maximo = HIERARQUIA_GRUPOS.get(SECRETARIO_LOCAL)
+    else:
+        return Group.objects.none()
+
+    grupos_permitidos = [nome for nome, nivel in HIERARQUIA_GRUPOS.items() if nivel >= nivel_maximo]
+    return Group.objects.filter(name__in=grupos_permitidos).order_by('name')
+
+
+def _get_igrejas_no_escopo_usuario(user, ministerio):
+    """Retorna igrejas editáveis do operador dentro do ministério."""
+    if user_has_permission_level_or_higher(user, ADMIN_MINISTERIO):
+        from configuracao.models import Igreja
+
+        return Igreja.objects.filter(ministerio=ministerio)
+
+    return get_igrejas_permitidas(user, ministerio).filter(ministerio=ministerio)
+
+
+def _usuarios_no_escopo_gerenciamento(user, ministerio):
+    """Lista usuários gerenciáveis considerando escopo de igrejas para papéis locais."""
+    base = User.objects.filter(
+        perfil__ministerio=ministerio
+    ).select_related('perfil').prefetch_related('groups')
+
+    if user_has_permission_level_or_higher(user, ADMIN_MINISTERIO):
+        return base
+
+    igrejas_permitidas = _get_igrejas_no_escopo_usuario(user, ministerio)
+    return base.filter(perfil__igrejas_permitidas__in=igrejas_permitidas).distinct()
+
+
+def _usuario_alvo_e_superior_hierarquico(operador, alvo):
+    """Bloqueia edição/reset quando alvo possui nível superior ao operador."""
+    if user_has_permission_level_or_higher(operador, ADMIN_MINISTERIO):
+        return False
+
+    nivel_operador = get_user_permission_level(operador)
+    nivel_alvo = get_user_permission_level(alvo)
+    if nivel_operador is None or nivel_alvo is None:
+        return False
+
+    return nivel_alvo < nivel_operador
+
 # --- VIEW REENVIAR CONVITE ---
 @login_required
-@admin_ministerio_required
 def reenviar_convite(request, pk):
     """Reenvia o e-mail de convite para um usuário pendente."""
+    if not _usuario_pode_gerenciar_fluxo_usuarios(request.user):
+        raise PermissionDenied("Você não tem permissão para reenviar convites.")
+
     ministerio = get_ministerio_or_error(request)
-    convite = get_object_or_404(
-        Convite,
+    convite_qs = Convite.objects.filter(
         pk=pk,
         ministerio=ministerio,
         status='pendente'
     )
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
+        convite_qs = convite_qs.filter(remetente=request.user)
+    convite = get_object_or_404(convite_qs)
     if request.method == 'POST':
         current_site = get_current_site(request)
         subject = f"Convite para se juntar à ministério {ministerio.nome_fantasia}"
@@ -356,11 +425,10 @@ def registrar_usuario_e_org(request):
 
 # --- VIEW LISTAR USUÁRIOS E CONVITES ---
 @login_required
-@admin_ministerio_required
 def lista_usuarios_org(request):
     """ Lista os usuários associados E os convites pendentes do ministério. """
     try:
-        ministerio = get_ministerio_or_error(request) # Levanta exceção se não for admin de org
+        ministerio = get_ministerio_or_error(request)
     except (PermissionDenied, Http404):
         return redirect('login')
     except Exception as e:
@@ -369,9 +437,10 @@ def lista_usuarios_org(request):
         messages.error(request, f"Ocorreu um erro ao listar os usuários e convites: {e}")
         return redirect('secretaria:dashboard')
 
-    usuarios_org = User.objects.filter(
-        perfil__ministerio=ministerio
-    ).select_related('perfil').prefetch_related('groups')
+    if not _usuario_pode_gerenciar_fluxo_usuarios(request.user):
+        raise PermissionDenied("Você não tem permissão para listar usuários da organização.")
+
+    usuarios_org = _usuarios_no_escopo_gerenciamento(request.user, ministerio)
 
     # Filtros de busca
     nome = request.GET.get('nome', '').strip()
@@ -392,6 +461,9 @@ def lista_usuarios_org(request):
         ministerio=ministerio,
         status='pendente'
     ).select_related('remetente').order_by('-data_criacao')
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
+        convites_pendentes = convites_pendentes.filter(remetente=request.user)
+
     context = {
         'ministerio': ministerio,
         'usuarios': usuarios_org,
@@ -402,10 +474,12 @@ def lista_usuarios_org(request):
 
 # --- VIEW ENVIAR CONVITE ---
 @login_required
-@admin_ministerio_required
 def enviar_convite(request):
     """ View para o Admin do Minist. enviar um convite para um novo usuário. """
     ministerio = get_ministerio_or_error(request)
+
+    if not _usuario_pode_gerenciar_fluxo_usuarios(request.user):
+        raise PermissionDenied("Você não tem permissão para enviar convites.")
 
     if request.method == 'POST':
         form = ConviteForm(request.POST, ministerio=ministerio)
@@ -553,16 +627,20 @@ def aceitar_convite(request, token):
 
 # --- VIEW CANCELAR CONVITE ---
 @login_required
-@admin_ministerio_required
 def cancelar_convite(request, pk):
     """ Cancela um convite pendente (requer POST). """
+    if not _usuario_pode_gerenciar_fluxo_usuarios(request.user):
+        raise PermissionDenied("Você não tem permissão para cancelar convites.")
+
     ministerio = get_ministerio_or_error(request)
-    convite = get_object_or_404(
-        Convite,
+    convite_qs = Convite.objects.filter(
         pk=pk,
         ministerio=ministerio,
         status='pendente'
     )
+    if not user_has_permission_level_or_higher(request.user, ADMIN_MINISTERIO):
+        convite_qs = convite_qs.filter(remetente=request.user)
+    convite = get_object_or_404(convite_qs)
 
     if request.method == 'POST':
         try:
@@ -579,18 +657,18 @@ def cancelar_convite(request, pk):
 
 # --- VIEW EDITAR PAPÉIS/GRUPOS ---
 @login_required
-@admin_ministerio_required
 def editar_papeis_usuario(request, user_pk):
     """ Permite ao Admin do Minist. editar os grupos (papéis) e igrejas permitidas de um usuário. """
+    if not _usuario_pode_gerenciar_fluxo_usuarios(request.user):
+        raise PermissionDenied("Você não tem permissão para editar acessos de usuários.")
+
     ministerio = get_ministerio_or_error(request)
+    grupos_editaveis = _grupos_alteraveis_por_operador(request.user)
+    igrejas_editaveis = _get_igrejas_no_escopo_usuario(request.user, ministerio)
     
     try:
         # Busca o usuário alvo e seu perfil, garantindo que pertence à ministério
-        usuario_alvo = get_object_or_404(
-            User.objects.select_related('perfil'), # Otimiza buscando o perfil junto
-            pk=user_pk,
-            perfil__ministerio=ministerio
-        )
+        usuario_alvo = get_object_or_404(_usuarios_no_escopo_gerenciamento(request.user, ministerio), pk=user_pk)
         # Pega o perfil do usuário alvo (já sabemos que existe por causa do filtro acima)
         perfil_alvo = usuario_alvo.perfil
     except Http404:
@@ -611,15 +689,24 @@ def editar_papeis_usuario(request, user_pk):
     if usuario_alvo == ministerio.administrador_principal:
          messages.error(request, f"Não é possível alterar os acessos do administrador principal ({usuario_alvo.get_full_name()}) por aqui.")
          return redirect('contas:lista_usuarios')
+    if _usuario_alvo_e_superior_hierarquico(request.user, usuario_alvo):
+        messages.error(request, "Você não pode alterar acessos de um usuário com nível hierárquico superior ao seu.")
+        return redirect('contas:lista_usuarios')
 
     if request.method == 'POST':
         # Passa a ministério para o form filtrar o queryset de igrejas
-        form = EditarPapeisUsuarioForm(request.POST, ministerio=ministerio)
+        form = EditarPapeisUsuarioForm(
+            request.POST,
+            ministerio=ministerio,
+            allowed_groups=grupos_editaveis,
+            allowed_igrejas=igrejas_editaveis,
+        )
         if form.is_valid():
             try:
                 with transaction.atomic(): # Garante atomicidade ao salvar grupos e igrejas
                     # Atualiza os grupos
-                    grupos_selecionados = form.cleaned_data['grupos']
+                    grupos_ids = form.cleaned_data['grupos'].values_list('id', flat=True)
+                    grupos_selecionados = grupos_editaveis.filter(id__in=grupos_ids)
                     
                     # --- AVISO DE REMOÇÃO DE GRUPOS ---
                     if not grupos_selecionados:
@@ -634,7 +721,8 @@ def editar_papeis_usuario(request, user_pk):
                     usuario_alvo.groups.set(grupos_selecionados)
 
                     # Atualiza as igrejas permitidas no Perfil
-                    igrejas_selecionadas = form.cleaned_data['igrejas_permitidas']
+                    igrejas_ids = form.cleaned_data['igrejas_permitidas'].values_list('id', flat=True)
+                    igrejas_selecionadas = igrejas_editaveis.filter(id__in=igrejas_ids)
                     perfil_alvo.igrejas_permitidas.set(igrejas_selecionadas)
 
                 messages.success(request, f"Acessos do usuário {usuario_alvo.get_full_name()} atualizados com sucesso.")
@@ -648,9 +736,11 @@ def editar_papeis_usuario(request, user_pk):
         # GET: Preenche o formulário com os dados atuais do usuário
         form = EditarPapeisUsuarioForm(
             ministerio=ministerio, # Passa ministério para filtrar igrejas
+            allowed_groups=grupos_editaveis,
+            allowed_igrejas=igrejas_editaveis,
             initial={
-                'grupos': usuario_alvo.groups.all(),
-                'igrejas_permitidas': perfil_alvo.igrejas_permitidas.all() # Pega igrejas do perfil
+                'grupos': usuario_alvo.groups.filter(id__in=grupos_editaveis.values_list('id', flat=True)),
+                'igrejas_permitidas': perfil_alvo.igrejas_permitidas.filter(id__in=igrejas_editaveis.values_list('id', flat=True)) # Pega igrejas do perfil
             }
         )
 
@@ -667,16 +757,21 @@ def editar_papeis_usuario(request, user_pk):
 
 # --- NOVA VIEW PARA ENVIAR LINK DE RESET PELO ADMIN ---
 @login_required
-@admin_ministerio_required
 def enviar_link_reset_senha(request, user_pk):
     """
     View para o Admin do Minist. enviar um link de redefinição de senha
     para um usuário específico.
     """
+    if not _usuario_pode_gerenciar_fluxo_usuarios(request.user):
+        raise PermissionDenied("Você não tem permissão para enviar links de redefinição de senha.")
+
     ministerio = get_ministerio_or_error(request)
 
     # 2. Encontrar o usuário alvo, garantindo que ele pertence à ministério
-    usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__ministerio=ministerio)
+    usuario_alvo = get_object_or_404(_usuarios_no_escopo_gerenciamento(request.user, ministerio), pk=user_pk)
+    if _usuario_alvo_e_superior_hierarquico(request.user, usuario_alvo):
+        messages.error(request, "Você não pode enviar reset para um usuário com nível hierárquico superior ao seu.")
+        return redirect('contas:lista_usuarios')
 
     # 3. Gerar o token e a URL de reset manualmente
     current_site = get_current_site(request)
@@ -714,11 +809,13 @@ def enviar_link_reset_senha(request, user_pk):
 
 # --- VIEW ATIVAR/DESATIVAR USUÁRIO ---
 @login_required
-@admin_ministerio_required
 def alternar_status_usuario_org(request, user_pk):
     """ Ativa ou desativa um usuário dentro do ministério (requer POST). """
+    if not _usuario_pode_gerenciar_fluxo_usuarios(request.user):
+        raise PermissionDenied("Você não tem permissão para alterar status de usuários.")
+
     ministerio = get_ministerio_or_error(request)
-    usuario_alvo = get_object_or_404(User, pk=user_pk, perfil__ministerio=ministerio)
+    usuario_alvo = get_object_or_404(_usuarios_no_escopo_gerenciamento(request.user, ministerio), pk=user_pk)
 
     # Validações de Permissão
     if usuario_alvo == request.user:
@@ -727,6 +824,9 @@ def alternar_status_usuario_org(request, user_pk):
     if usuario_alvo == ministerio.administrador_principal:
          messages.error(request, f"Não é possível alterar o status do administrador principal ({usuario_alvo.get_full_name()}).")
          return redirect('contas:lista_usuarios')
+    if _usuario_alvo_e_superior_hierarquico(request.user, usuario_alvo):
+        messages.error(request, "Você não pode alterar status de um usuário com nível hierárquico superior ao seu.")
+        return redirect('contas:lista_usuarios')
 
     if request.method == 'POST':
         try:
