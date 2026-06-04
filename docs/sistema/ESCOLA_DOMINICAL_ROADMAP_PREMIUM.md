@@ -47,15 +47,15 @@ Escopo: app `escola_biblica`
 
 ### Sprint 1 (rapido)
 
-- [ ] Reorganizar dashboard EBD em 3 blocos: Operacao da Semana, Saude das Turmas, Governanca do Periodo.
-- [ ] Criar card "Pendencias da Semana" com links de acao.
+- [x] Reorganizar dashboard EBD em 3 blocos: Operacao da Semana, Saude das Turmas, Governanca do Periodo.
+- [x] Criar card "Pendencias da Semana" com links de acao.
 - [ ] Rebaixar visual de Classe no dashboard para contexto secundario.
 
 ### Sprint 2 (premium operacional)
 
-- [ ] Alertas automaticos por regra (falta de chamada, queda de frequencia, evasao).
+- [x] Alertas automaticos por regra (falta de chamada, queda de frequencia, evasao).
 - [ ] Resumo semanal automatico para secretaria/lideranca.
-- [ ] Estado vazio guiado por acao em todas as listas da EBD.
+- [x] Estado vazio guiado por acao nas visoes operacionais centrais da EBD.
 
 ### Sprint 3 (escala e excelencia)
 
