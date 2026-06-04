@@ -54,7 +54,7 @@ Escopo: app `escola_biblica`
 ### Sprint 2 (premium operacional)
 
 - [x] Alertas automaticos por regra (falta de chamada, queda de frequencia, evasao).
-- [ ] Resumo semanal automatico para secretaria/lideranca.
+- [x] Resumo semanal automatico para secretaria/lideranca.
 - [x] Estado vazio guiado por acao nas visoes operacionais centrais da EBD.
 
 ### Sprint 3 (escala e excelencia)
