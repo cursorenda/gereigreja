@@ -246,7 +246,12 @@ def relatorio_reuniao_membros(request):
     nome_ministerio = razao_social or nome_fantasia or str(ministerio)
     pastor_local = getattr(igreja, 'pastor_local', '')
     pastor_regional = getattr(igreja, 'pastor_regional', '')
-    data_reuniao = timezone.now().strftime('%d de %B de %Y')
+    agora = timezone.localtime()
+    meses_pt_br = [
+        'janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho',
+        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+    ]
+    data_reuniao = f"{agora.day:02d} de {meses_pt_br[agora.month - 1]} de {agora.year}"
 
     logo_igreja_url = igreja.logo1_url
     logo_ministerio_url = ministerio.logo_url

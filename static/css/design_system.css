@@ -476,16 +476,16 @@ a:focus {
 .app-footer-info {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  margin-bottom: 0.45rem;
 }
 
 .app-footer-copyright {
   font-weight: 600;
   color: var(--gi-color-text);
   white-space: nowrap;
-  font-size: 1rem;
-  letter-spacing: 0.3px;
+  font-size: 0.9rem;
+  letter-spacing: 0.1px;
 }
 
 .app-footer-copyright strong {
@@ -495,12 +495,12 @@ a:focus {
 .app-footer-version {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 0.35rem;
+  font-size: 0.8rem;
   color: #666;
   background: white;
-  padding: 0.45rem 1rem;
-  border-radius: 20px;
+  padding: 0.25rem 0.7rem;
+  border-radius: 14px;
   white-space: nowrap;
   border: 1px solid var(--gi-color-border);
   transition: all 0.2s ease;
@@ -513,11 +513,12 @@ a:focus {
 
 .app-footer-links {
   display: flex;
-  gap: 1rem;
+  gap: 0.55rem;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.3rem;
+  line-height: 1.2;
 }
 
 .app-footer-links a {
@@ -525,7 +526,7 @@ a:focus {
   text-decoration: none;
   font-weight: 500;
   transition: all 0.2s ease;
-  font-size: 0.95rem;
+  font-size: 0.86rem;
 }
 
 .app-footer-links a:hover {
@@ -537,6 +538,7 @@ a:focus {
   color: var(--gi-color-border);
   opacity: 0.6;
   font-weight: 300;
+  font-size: 0.75rem;
 }
 
 /* Redes sociais inline (desktop) */
@@ -632,7 +634,8 @@ a:focus {
   }
 
   .app-footer-links {
-    margin-bottom: 1rem;
+    margin-bottom: 0.65rem;
+    gap: 0.4rem;
   }
 }
 
