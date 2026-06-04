@@ -67,6 +67,32 @@
                     <a href="{{ request.path }}" class="btn btn-outline-secondary ms-1" title="Limpar Busca" style="height:40px; min-width:80px; font-weight:600; border-radius:8px;"><i class="fas fa-eraser"></i><span style="margin-left: 0.4em;">Limpar</span></a>
                 {% endif %}
             </div>
+
+            <div class="col-12 d-flex justify-content-end">
+                <div class="btn-group btn-group-sm mt-1" role="group" aria-label="Filtro rápido de integração com Secretaria">
+                    <a
+                        href="{% if querystring_sem_vinculo %}?{{ querystring_sem_vinculo }}{% else %}{{ request.path }}{% endif %}"
+                        class="btn {% if not vinculo_filtro %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                        style="height:34px; font-weight:600;"
+                    >
+                        <i class="fas fa-users me-1"></i>Todos
+                    </a>
+                    <a
+                        href="{% if querystring_sem_vinculo %}?{{ querystring_sem_vinculo }}&vinculo=vinculado{% else %}?vinculo=vinculado{% endif %}"
+                        class="btn {% if vinculo_filtro == 'vinculado' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                        style="height:34px; font-weight:600;"
+                    >
+                        <i class="fas fa-link me-1"></i>Conectados
+                    </a>
+                    <a
+                        href="{% if querystring_sem_vinculo %}?{{ querystring_sem_vinculo }}&vinculo=sem_vinculo{% else %}?vinculo=sem_vinculo{% endif %}"
+                        class="btn {% if vinculo_filtro == 'sem_vinculo' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                        style="height:34px; font-weight:600;"
+                    >
+                        <i class="fas fa-link-slash me-1"></i>Não conectados
+                    </a>
+                </div>
+            </div>
         </form>
         {% if usuario_pode_vincular and vinculo_filtro == 'sem_vinculo' and total_alunos %}
         <div class="mb-3 d-flex justify-content-end gap-2 flex-wrap">
@@ -88,7 +114,7 @@
                     <tr>
                         <th>Nome</th>
                         <th>Turma</th>
-                        <th>Secretaria</th>
+                        <th>Integração Secretaria</th>
                         <th>Ativo</th>
                         <th>Ações</th>
                     </tr>
@@ -100,10 +126,27 @@
                         <td>{{ aluno.turma }}</td>
                         <td>
                             {% if aluno.cadastro.pessoa %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle">Vinculado à Secretaria</span>
-                                <div class="small text-muted mt-1">{{ aluno.cadastro.pessoa.nome }}</div>
+                                <span
+                                    class="badge rounded-pill bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1"
+                                    title="Cadastro EBD vinculado a uma Pessoa da Secretaria"
+                                >
+                                    <i class="fas fa-link"></i> Conectado
+                                </span>
+                                <div class="small text-muted mt-1 d-flex align-items-center gap-1">
+                                    <i class="fas fa-user-check text-success"></i>
+                                    <span>{{ aluno.cadastro.pessoa.nome }}</span>
+                                </div>
                             {% else %}
-                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Sem vínculo na Secretaria</span>
+                                <span
+                                    class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle d-inline-flex align-items-center gap-1"
+                                    title="Cadastro EBD sem vínculo com Secretaria"
+                                >
+                                    <i class="fas fa-link-slash"></i> Não conectado
+                                </span>
+                                <div class="small text-muted mt-1 d-flex align-items-center gap-1">
+                                    <i class="fas fa-triangle-exclamation text-warning"></i>
+                                    <span>Vincule para unificar histórico</span>
+                                </div>
                             {% endif %}
                         </td>
                         <td>{{ aluno.ativo|yesno:'Sim,Não' }}</td>

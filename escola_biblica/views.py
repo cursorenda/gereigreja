@@ -3645,6 +3645,13 @@ def aluno_list(request):
     if 'page' in query_params:
         query_params.pop('page')
     querystring = query_params.urlencode()
+
+    query_params_sem_vinculo = request.GET.copy()
+    if 'page' in query_params_sem_vinculo:
+        query_params_sem_vinculo.pop('page')
+    if 'vinculo' in query_params_sem_vinculo:
+        query_params_sem_vinculo.pop('vinculo')
+    querystring_sem_vinculo = query_params_sem_vinculo.urlencode()
     
     paginator = Paginator(alunos_list, 20)  # 20 alunos por p├ígina
     page = request.GET.get('page')
@@ -3663,6 +3670,7 @@ def aluno_list(request):
         'historico': historico,
         'vinculo_filtro': vinculo_filtro,
         'querystring': querystring,
+        'querystring_sem_vinculo': querystring_sem_vinculo,
         'usuario_pode_vincular': is_secretaria,
     })
 

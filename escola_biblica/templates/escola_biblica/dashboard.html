@@ -8,6 +8,17 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
 <link rel="stylesheet" href="{% static 'css/escola-biblica-dashboard.css' %}">
+<script>
+(function () {
+	try {
+		if (localStorage.getItem('ebd.sidebar_visible') !== '1') {
+			document.documentElement.classList.add('dash-fullwidth');
+		}
+	} catch (e) {
+		document.documentElement.classList.add('dash-fullwidth');
+	}
+})();
+</script>
 {% endblock %}
 
 {% block content %}
@@ -15,6 +26,10 @@
 	<header class="ebdash-header">
 		<div class="ebdash-header-main">
 			<div class="ebdash-title-row">
+				<button class="fp-menu-toggle" id="ebdash-toggle-sidebar" type="button" title="Mostrar menu lateral" aria-label="Mostrar menu lateral" aria-expanded="false">
+					<i class="fas fa-bars"></i>
+					<span class="d-none d-md-inline" data-ebdash-sidebar-label>Mostrar menu</span>
+				</button>
 				<h1 class="ebdash-title">Escola Bíblica Dominical</h1>
 				<div class="ebdash-updated-at"><i class="fas fa-circle"></i>Atualizado em {% now "d/m/Y" %} às {% now "H:i" %}</div>
 			</div>
@@ -503,8 +518,17 @@
 {{ faixas_etarias_counts|json_script:"faixas-etarias-counts" }}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/dashboard-sidebar.js' %}"></script>
 <script>
 	(function () {
+		DashboardSidebar.init({
+			storageKey: 'ebd.sidebar_visible',
+			toggleClass: 'dash-fullwidth',
+			defaultVisible: false,
+			labelAttr: 'data-ebdash-sidebar-label',
+			toggleIds: ['ebdash-toggle-sidebar']
+		});
+
 		const meses = JSON.parse(document.getElementById('meses-data').textContent || '[]');
 		const alunosEvolucao = JSON.parse(document.getElementById('alunos-evolucao-data').textContent || '[]');
 		const faixasLabels = JSON.parse(document.getElementById('faixas-etarias-labels').textContent || '[]');
