@@ -381,6 +381,7 @@ from .models import Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinister
 from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
 import django.db.utils # Import django utils
+from decimal import Decimal
 from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
@@ -809,6 +810,39 @@ def _anotar_tipo_planos(planos, plano_efetivo, pessoas_ativas=0, igrejas_ativas=
     return resultado
 
 
+def _registrar_historico_mensalidade(
+    ministerio,
+    plano,
+    valor,
+    data_inicio,
+    data_fim=None,
+    observacao='',
+):
+    """Registra mensalidade no histórico com deduplicação por observação Stripe."""
+    from configuracao.models import HistoricoAssinatura
+
+    observacao = (observacao or '').strip()
+    if observacao:
+        ja_existe = HistoricoAssinatura.objects.filter(
+            ministerio=ministerio,
+            tipo='mensalidade',
+            observacao=observacao,
+        ).exists()
+        if ja_existe:
+            return
+
+    HistoricoAssinatura.objects.create(
+        ministerio=ministerio,
+        plano=plano,
+        tipo='mensalidade',
+        valor=valor,
+        status='paga',
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        observacao=observacao or None,
+    )
+
+
 @login_required
 def gerenciar_assinatura(request):
     """
@@ -817,6 +851,71 @@ def gerenciar_assinatura(request):
     """
     ministerio = get_ministerio_or_error(request)
     assinatura_atual = AssinaturaMinisterio.objects.filter(ministerio=ministerio).order_by('-data_inicio').first()
+
+    # Reconciliacao de sucesso de checkout para cobrir atraso/falha de webhook.
+    checkout_status = request.GET.get('status')
+    checkout_session_id = request.GET.get('session_id', '').strip()
+    if checkout_status == 'success' and checkout_session_id:
+        try:
+            session = stripe.checkout.Session.retrieve(
+                checkout_session_id,
+                expand=['subscription', 'subscription.latest_invoice'],
+            )
+            metadata = session.get('metadata', {}) or {}
+            if str(metadata.get('ministerio_id', '')) == str(ministerio.id):
+                plano_id = metadata.get('plano_id')
+                ciclo_pagamento = metadata.get('ciclo_pagamento')
+                plano_checkout = Plano.objects.filter(id=plano_id).first()
+                if plano_checkout and ciclo_pagamento in ('mensal', 'anual'):
+                    data_inicio = timezone.now()
+                    subscription_obj = session.get('subscription') or {}
+                    current_period_end = subscription_obj.get('current_period_end')
+                    data_fim = data_inicio + (timedelta(days=365) if ciclo_pagamento == 'anual' else timedelta(days=30))
+                    if current_period_end:
+                        from datetime import datetime
+
+                        dt = datetime.fromtimestamp(current_period_end)
+                        data_fim = timezone.make_aware(dt, timezone.get_current_timezone()) if timezone.is_naive(dt) else dt
+
+                    assinatura_atual, _ = AssinaturaMinisterio.objects.update_or_create(
+                        ministerio=ministerio,
+                        defaults={
+                            'plano': plano_checkout,
+                            'data_inicio': data_inicio,
+                            'data_fim': data_fim,
+                            'ciclo_pagamento': ciclo_pagamento,
+                            'status': 'ativa',
+                            'periodo_cortesia_ativo': False,
+                            'trial_ativo': False,
+                            'tentativas_falha_pagamento': 0,
+                            'data_fim_graca_inadimplencia': None,
+                            'id_transacao_gateway': session.get('subscription'),
+                        },
+                    )
+
+                    stripe_customer_id = session.get('customer')
+                    if stripe_customer_id and ministerio.stripe_customer_id != stripe_customer_id:
+                        ministerio.stripe_customer_id = stripe_customer_id
+                        ministerio.save(update_fields=['stripe_customer_id'])
+
+                    amount_total = session.get('amount_total')
+                    valor_pago = Decimal('0.00')
+                    if amount_total is not None:
+                        valor_pago = (Decimal(str(amount_total)) / Decimal('100')).quantize(Decimal('0.01'))
+
+                    invoice_obj = (subscription_obj or {}).get('latest_invoice') or {}
+                    invoice_id = invoice_obj.get('id')
+                    obs = f"Checkout Stripe confirmado. session_id={checkout_session_id}; invoice_id={invoice_id or 'n/a'}"
+                    _registrar_historico_mensalidade(
+                        ministerio=ministerio,
+                        plano=plano_checkout,
+                        valor=valor_pago,
+                        data_inicio=data_inicio,
+                        data_fim=data_fim,
+                        observacao=obs,
+                    )
+        except Exception as exc:
+            logger.warning(f"Falha na reconciliacao de checkout success para ministerio {ministerio.id}: {exc}")
 
     # --- VERIFICAR EXPIRAÇÃO DE GRACE PERIOD ---
     if assinatura_atual and assinatura_atual.status == 'pendente_pagamento' and assinatura_atual.data_fim_graca_inadimplencia:
@@ -1047,7 +1146,7 @@ def gerenciar_assinatura(request):
                 # Nota: PIX e boleto não suportam débito automático recorrente —
                 # renovações subsequentes serão cobradas apenas via cartão salvo.
                 'payment_method_types': ['card'],
-                'success_url': request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=success',
+                'success_url': request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=success&session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url': request.build_absolute_uri(reverse('configuracao:gerenciar_assinatura')) + '?status=cancelled',
                 'metadata': {
                     'ministerio_id': ministerio.id,
@@ -1676,6 +1775,78 @@ def stripe_webhook(request):
                 logger.warning(f"invoice.payment_failed: customer {stripe_customer_id} não encontrado no banco.")
             except Exception as e:
                 logger.error(f"Erro ao processar invoice.payment_failed: {e}")
+                return HttpResponse(status=500)
+
+    elif event['type'] == 'invoice.paid':
+        invoice = event['data']['object']
+        stripe_customer_id = invoice.get('customer')
+        stripe_subscription_id = invoice.get('subscription')
+        if stripe_customer_id:
+            try:
+                with transaction.atomic():
+                    ministerio = Ministerio.objects.get(stripe_customer_id=stripe_customer_id)
+                    assinatura = AssinaturaMinisterio.objects.filter(ministerio=ministerio).first()
+                    if assinatura:
+                        # Pagamento confirmado, limpa estado de inadimplencia.
+                        assinatura.status = 'ativa'
+                        assinatura.tentativas_falha_pagamento = 0
+                        assinatura.data_ultima_falha_pagamento = None
+                        assinatura.data_fim_graca_inadimplencia = None
+                        assinatura.periodo_cortesia_ativo = False
+
+                        lines = (invoice.get('lines') or {}).get('data') or []
+                        if lines:
+                            period = (lines[0] or {}).get('period') or {}
+                            period_start = period.get('start')
+                            period_end = period.get('end')
+                            if period_start:
+                                from datetime import datetime
+
+                                dt_start = datetime.fromtimestamp(period_start)
+                                assinatura.data_inicio = timezone.make_aware(dt_start, timezone.get_current_timezone()) if timezone.is_naive(dt_start) else dt_start
+                            if period_end:
+                                from datetime import datetime
+
+                                dt_end = datetime.fromtimestamp(period_end)
+                                assinatura.data_fim = timezone.make_aware(dt_end, timezone.get_current_timezone()) if timezone.is_naive(dt_end) else dt_end
+
+                        assinatura.save(update_fields=[
+                            'status',
+                            'tentativas_falha_pagamento',
+                            'data_ultima_falha_pagamento',
+                            'data_fim_graca_inadimplencia',
+                            'periodo_cortesia_ativo',
+                            'data_inicio',
+                            'data_fim',
+                        ])
+
+                        amount_paid = invoice.get('amount_paid')
+                        valor_pago = Decimal('0.00')
+                        if amount_paid is not None:
+                            valor_pago = (Decimal(str(amount_paid)) / Decimal('100')).quantize(Decimal('0.01'))
+
+                        from datetime import datetime
+
+                        created_ts = invoice.get('created')
+                        data_inicio_hist = timezone.now()
+                        if created_ts:
+                            dt_created = datetime.fromtimestamp(created_ts)
+                            data_inicio_hist = timezone.make_aware(dt_created, timezone.get_current_timezone()) if timezone.is_naive(dt_created) else dt_created
+
+                        data_fim_hist = assinatura.data_fim
+                        observacao = f"Pagamento Stripe confirmado. invoice_id={invoice.get('id')}; subscription_id={stripe_subscription_id or 'n/a'}"
+                        _registrar_historico_mensalidade(
+                            ministerio=ministerio,
+                            plano=assinatura.plano,
+                            valor=valor_pago,
+                            data_inicio=data_inicio_hist,
+                            data_fim=data_fim_hist,
+                            observacao=observacao,
+                        )
+            except Ministerio.DoesNotExist:
+                logger.warning(f"invoice.paid: customer {stripe_customer_id} não encontrado no banco.")
+            except Exception as e:
+                logger.error(f"Erro ao processar invoice.paid: {e}")
                 return HttpResponse(status=500)
 
     elif event['type'] == 'customer.subscription.deleted':
