@@ -10,7 +10,7 @@ body {
 
 /* --- Header e Hero Section --- */
 .header {
-    background: linear-gradient(135deg, rgba(10, 102, 101, 0.92), rgba(13, 130, 129, 0.92)), url('../img/hero-bg.jpg');
+    background: linear-gradient(135deg, rgba(10, 102, 101, 0.92), rgba(13, 130, 129, 0.92));
     background-size: cover;
     background-position: center center;
     color: white;

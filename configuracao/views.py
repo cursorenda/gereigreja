@@ -932,6 +932,62 @@ def gerenciar_assinatura(request):
             if not is_valido:
                 messages.error(request, f"❌ Cupom inválido: {erro}")
                 return redirect('configuracao:gerenciar_assinatura')
+
+        def _resolver_desconto_checkout(codigo_desconto):
+            """Resolve o desconto para o formato aceito pelo Checkout do Stripe.
+
+            Ordem de tentativa:
+            1) ID de promotion code (promo_...)
+            2) Código promocional legível (ex.: USUARIO10) -> busca PromotionCode por código
+            3) ID de cupom Stripe (Coupon ID)
+            4) Nome do cupom no Stripe (fallback para casos antigos)
+            """
+            if not codigo_desconto:
+                return None
+
+            codigo_limpo = codigo_desconto.strip()
+            if not codigo_limpo:
+                return None
+
+            if codigo_limpo.startswith('promo_'):
+                return {'promotion_code': codigo_limpo}
+
+            # Tenta como ID de promotion code (quando não veio com prefixo esperado)
+            try:
+                promo = stripe.PromotionCode.retrieve(codigo_limpo)
+                if promo and getattr(promo, 'active', False):
+                    return {'promotion_code': promo.id}
+            except Exception:
+                pass
+
+            try:
+                promotion_codes = stripe.PromotionCode.list(code=codigo_limpo, active=True, limit=1)
+                if getattr(promotion_codes, 'data', None):
+                    return {'promotion_code': promotion_codes.data[0].id}
+            except Exception as exc:
+                logger.warning(f"Falha ao consultar PromotionCode no Stripe para '{codigo_limpo}': {exc}")
+
+            # Tenta como Coupon ID
+            try:
+                coupon = stripe.Coupon.retrieve(codigo_limpo)
+                if coupon and getattr(coupon, 'valid', False):
+                    return {'coupon': coupon.id}
+            except Exception:
+                pass
+
+            # Fallback: alguns ambientes antigos salvam/expõem o NOME do cupom,
+            # mas o Checkout precisa do ID interno do Stripe.
+            try:
+                coupons = stripe.Coupon.list(limit=100)
+                for coupon in coupons.auto_paging_iter():
+                    if (getattr(coupon, 'name', '') or '').strip().lower() == codigo_limpo.lower():
+                        if getattr(coupon, 'valid', False):
+                            return {'coupon': coupon.id}
+                        return None
+            except Exception as exc:
+                logger.warning(f"Falha ao buscar cupom por nome no Stripe para '{codigo_limpo}': {exc}")
+
+            return None
         try:
             plano_escolhido = Plano.objects.get(id=plano_id_selecionado, ativo=True)
 
@@ -998,11 +1054,18 @@ def gerenciar_assinatura(request):
                     'user_id': request.user.id,
                     'plano_id': plano_escolhido.id,
                     'ciclo_pagamento': ciclo_pagamento_selecionado,
-                    'stripe_coupon': stripe_coupon or '',  # Registra cupom usado
+                    'stripe_coupon': '',
+                    'stripe_coupon_input': stripe_coupon or '',
                 }
             }
             if stripe_coupon:
-                checkout_params['discounts'] = [{ 'coupon': stripe_coupon }]
+                desconto = _resolver_desconto_checkout(stripe_coupon)
+                if desconto:
+                    checkout_params['discounts'] = [desconto]
+                    checkout_params['metadata']['stripe_coupon'] = desconto.get('promotion_code') or desconto.get('coupon') or stripe_coupon
+                else:
+                    messages.error(request, "❌ Cupom inválido no Stripe. Use um código promocional válido ou o ID do cupom.")
+                    return redirect('configuracao:gerenciar_assinatura')
 
             checkout_session = stripe.checkout.Session.create(**checkout_params)
 
@@ -1019,6 +1082,13 @@ def gerenciar_assinatura(request):
             return redirect(checkout_session.url, code=303)
         except Plano.DoesNotExist:
             messages.error(request, "O plano selecionado não é válido ou não está mais disponível.")
+            return redirect('configuracao:gerenciar_assinatura')
+        except stripe.error.InvalidRequestError as e:
+            logger.error(f"Erro de validação Stripe ao processar escolha de plano para ministério {ministerio.id}: {e}")
+            if stripe_coupon:
+                messages.error(request, "❌ Cupom inválido no Stripe. Revise o código promocional e tente novamente.")
+            else:
+                messages.error(request, "Não foi possível iniciar o checkout com o Stripe. Tente novamente.")
             return redirect('configuracao:gerenciar_assinatura')
         except Exception as e:
             logger.error(f"Erro ao processar escolha de plano para ministério {ministerio.id}: {e}")
@@ -1514,7 +1584,16 @@ def stripe_webhook(request):
                         cupom.registrar_uso()
                         logger.info(f"Cupom {stripe_coupon} registrado como usado por {ministerio.nome_fantasia}")
                     except CodigoPromocional.DoesNotExist:
-                        logger.warning(f"Cupom {stripe_coupon} não encontrado no banco (stripe webhook).")
+                        logger.warning(f"Cupom {stripe_coupon} não encontrado no banco (stripe webhook). Tentando sincronizar do Stripe.")
+                        try:
+                            from configuracao.services_assinatura import validar_codigo_promocional
+                            ok, _ = validar_codigo_promocional(stripe_coupon)
+                            if ok:
+                                cupom_sync = CodigoPromocional.objects.get(codigo_stripe=stripe_coupon)
+                                cupom_sync.registrar_uso()
+                                logger.info(f"Cupom {stripe_coupon} sincronizado e registrado como usado por {ministerio.nome_fantasia}")
+                        except Exception as exc_sync:
+                            logger.warning(f"Não foi possível sincronizar cupom {stripe_coupon} no webhook: {exc_sync}")
 
                 # --- FUNIL: checkout completo ---
                 from configuracao.services_assinatura import registrar_evento_funil

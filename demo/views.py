@@ -69,8 +69,11 @@ def _resolve_demo_username(perfil_raw):
     return None
 
 
-def _demo_redirect_home(user):
+def _demo_redirect_home(request, user=None):
     """Define landing page por permissão para evitar acesso negado no modo demo."""
+    if user is None:
+        user = request.user
+
     # Perfis de liderança ministerial devem abrir seus respectivos painéis.
     if user_tem_grupo(user, LIDERANCA_FINANCEIRA) and not user_tem_grupo(user, ADMIN_MINISTERIO):
         return redirect('financeiro:painel_lideranca_financeiro')
@@ -78,7 +81,7 @@ def _demo_redirect_home(user):
     if user_tem_grupo(user, LIDERANCA_SECRETARIA) and not user_tem_grupo(user, ADMIN_MINISTERIO):
         return redirect('secretaria:painel_lideranca_secretaria')
 
-    if user_can_access_page(user, 'dashboard_secretaria'):
+    if user_can_access_page(user, 'dashboard_secretaria', request=request):
         return redirect('secretaria:dashboard')
 
     return redirect('secretaria:portal_membro')
@@ -98,7 +101,7 @@ def demo_login_view(request):
         if user is not None:
             login(request, user)
             messages.success(request, 'Você entrou no modo demonstração. Explore o sistema à vontade!')
-            return _demo_redirect_home(user)
+            return _demo_redirect_home(request, user)
         else:
             messages.error(request, 'Usuário demo não encontrado. Tente "Resetar dados" e repita.')
     return render(request, 'demo/demo_login.html', {
@@ -107,7 +110,7 @@ def demo_login_view(request):
 
 # View para dashboard demo — redireciona para o dashboard real do sistema
 def demo_dashboard_view(request):
-    return _demo_redirect_home(request.user)
+    return _demo_redirect_home(request)
 
 # View para trocar de perfil demo
 @never_cache
@@ -126,7 +129,7 @@ def demo_trocar_perfil_view(request):
         if user is not None:
             login(request, user)
             messages.success(request, f'Perfil alterado para {perfil}!')
-            return _demo_redirect_home(user)
+            return _demo_redirect_home(request, user)
         else:
             messages.error(request, 'Usuário demo não encontrado. Tente "Resetar dados" e repita.')
     return render(request, 'demo/demo_trocar_perfil.html', {
@@ -139,7 +142,7 @@ def demo_reset_view(request):
         return redirect('demo:demo_login')
     if request.user.username != 'demo_admin':
         messages.error(request, 'Apenas o admin demo pode resetar os dados demo.')
-        return _demo_redirect_home(request.user)
+        return _demo_redirect_home(request)
     import subprocess
     from django.conf import settings
     try:
@@ -148,5 +151,5 @@ def demo_reset_view(request):
         messages.success(request, 'Dados demo resetados com sucesso!')
     except Exception as e:
         messages.error(request, f'Erro ao resetar dados demo: {e}')
-        return _demo_redirect_home(request.user)
-    return _demo_redirect_home(request.user)
+        return _demo_redirect_home(request)
+    return _demo_redirect_home(request)

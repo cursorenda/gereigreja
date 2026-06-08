@@ -62,7 +62,16 @@
                                 <li>{% if plano.limite_membros == 0 %}Pessoas ilimitadas{% else %}Ate {{ plano.limite_membros }} pessoas ativas{% endif %}</li>
                                 <li>{% if plano.limite_igrejas == 0 %}Congregacoes ilimitadas{% elif plano.limite_igrejas == 1 %}1 congregacao{% else %}Ate {{ plano.limite_igrejas }} congregacoes{% endif %}</li>
                             </ul>
+                            {% if user.is_authenticated %}
+                            <form method="post" action="{% url 'configuracao:gerenciar_assinatura' %}" class="mt-auto">
+                                {% csrf_token %}
+                                <input type="hidden" name="plano_id" value="{{ plano.id }}">
+                                <input type="hidden" name="ciclo_pagamento" value="mensal">
+                                <button type="submit" class="btn btn-primary w-100">Ir para checkout</button>
+                            </form>
+                            {% else %}
                             <a href="{% url 'contas:registrar' %}?origem=planos_card_{{ plano.codigo_plano }}" class="btn btn-primary mt-auto">Escolher plano</a>
+                            {% endif %}
                         </div>
                     </article>
                 </div>

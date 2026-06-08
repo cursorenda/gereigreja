@@ -131,13 +131,22 @@ class Command(BaseCommand):
         # ── Produto ──────────────────────────────────────────────────
         product_id = plano_obj.stripe_product_id
         if product_id:
-            self.stdout.write(f"   Produto existente no banco: {product_id} — atualizando nome/descrição.")
+            self.stdout.write(f"   Produto existente no banco: {product_id} — validando no Stripe.")
             if not dry_run:
-                stripe.Product.modify(
-                    product_id,
-                    name=cfg['nome_display'],
-                    description=cfg["descricao"],
-                )
+                try:
+                    stripe.Product.modify(
+                        product_id,
+                        name=cfg['nome_display'],
+                        description=cfg["descricao"],
+                    )
+                except stripe.error.InvalidRequestError:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"   Produto {product_id} não existe neste ambiente Stripe. Tentando localizar por metadata..."
+                        )
+                    )
+                    product_id = None
+                    plano_obj.stripe_product_id = None
         else:
             # Verifica se já existe produto com metadata gereigreja_plano=codigo no Stripe
             # para evitar duplicatas em re-runs
@@ -150,24 +159,33 @@ class Command(BaseCommand):
                 if results.data:
                     existing = results.data[0]
 
+        if not product_id and not dry_run:
+            # Tenta localizar de novo por metadata (caso o product_id antigo seja inválido)
+            results = stripe.Product.search(
+                query=f'metadata["gereigreja_plano"]:"{codigo}"',
+                limit=1,
+            )
+            if results.data:
+                existing = results.data[0]
+            else:
+                existing = None
+
             if existing:
                 product_id = existing.id
                 self.stdout.write(f"   Produto já existe no Stripe (via metadata): {product_id} — reutilizando.")
-                if not dry_run:
-                    plano_obj.stripe_product_id = product_id
+                plano_obj.stripe_product_id = product_id
             else:
                 self.stdout.write("   Criando produto no Stripe...")
-                if not dry_run:
-                    product = stripe.Product.create(
-                        name=cfg['nome_display'],
-                        description=cfg["descricao"],
-                        metadata={"gereigreja_plano": codigo},
-                    )
-                    product_id = product.id
-                    plano_obj.stripe_product_id = product_id
-                    self.stdout.write(f"   Produto criado: {product_id}")
-                else:
-                    self.stdout.write("   [dry-run] Criaria produto.")
+                product = stripe.Product.create(
+                    name=cfg['nome_display'],
+                    description=cfg["descricao"],
+                    metadata={"gereigreja_plano": codigo},
+                )
+                product_id = product.id
+                plano_obj.stripe_product_id = product_id
+                self.stdout.write(f"   Produto criado: {product_id}")
+        elif not product_id and dry_run:
+            self.stdout.write("   [dry-run] Criaria produto.")
 
         # ── Preço Mensal ─────────────────────────────────────────────
         price_id_mensal = plano_obj.stripe_price_id_mensal
@@ -223,13 +241,41 @@ class Command(BaseCommand):
     ) -> str:
         """Retorna o price_id a usar: o existente (já ok) ou cria um novo."""
         if price_id_existente:
-            self.stdout.write(f"   Preço {interval} existente: {price_id_existente}")
-            return price_id_existente
+            self.stdout.write(f"   Preço {interval} existente: {price_id_existente} — validando no Stripe.")
+            if dry_run:
+                return price_id_existente
+
+            try:
+                price = stripe.Price.retrieve(price_id_existente)
+                product_ok = str(getattr(price, 'product', '')) == str(product_id)
+                unit_ok = int(getattr(price, 'unit_amount', -1) or -1) == int(unit_amount)
+                recurring = getattr(price, 'recurring', None) or {}
+                interval_ok = (recurring.get('interval') == interval)
+                if getattr(price, 'active', False) and product_ok and unit_ok and interval_ok:
+                    return price_id_existente
+
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   Preço {price_id_existente} incompatível (active/product/amount/interval). Criando novo."
+                    )
+                )
+            except stripe.error.InvalidRequestError:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   Preço {price_id_existente} não existe neste ambiente Stripe. Criando novo."
+                    )
+                )
+            except Exception as exc:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   Falha ao validar preço {price_id_existente}: {exc}. Criando novo."
+                    )
+                )
 
         self.stdout.write(f"   Criando preço {interval} ({unit_amount/100:.2f} {MOEDA.upper()})...")
         if dry_run:
             self.stdout.write(f"   [dry-run] Criaria price {interval}.")
-            return price_id_existente  # None
+            return price_id_existente
 
         if not product_id:
             self.stdout.write(

@@ -295,12 +295,28 @@
                             </ul>
 
                             <!-- CTA -->
+                                {% if user.is_authenticated %}
+                            <form method="post"
+                                  action="{% url 'configuracao:gerenciar_assinatura' %}"
+                                  class="w-100 mt-auto js-plan-checkout-form"
+                                  data-has-anual="{% if plano.preco_anual > 0 %}1{% else %}0{% endif %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="plano_id" value="{{ plano.id }}">
+                                <input type="hidden" name="ciclo_pagamento" value="mensal" class="js-ciclo-pagamento">
+                                <button type="submit" class="btn w-100 {% if plano.codigo_plano == 'ministerio' %}btn-primary btn-lg{% elif plano.preco_mensal == 0 %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
+                                    {% if plano.preco_mensal == 0 %}Ativar plano grátis
+                                    {% elif plano.codigo_plano == 'ministerio' %}Ir para checkout
+                                    {% else %}Ir para checkout{% endif %}
+                                </button>
+                            </form>
+                            {% else %}
                             <a href="{% url 'contas:registrar' %}?origem=landing_pricing_{{ plano.codigo_plano }}"
                                class="btn w-100 mt-auto {% if plano.codigo_plano == 'ministerio' %}btn-primary btn-lg{% elif plano.preco_mensal == 0 %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}">
                                 {% if plano.preco_mensal == 0 %}Começar Grátis
                                 {% elif plano.codigo_plano == 'ministerio' %}Quero este plano
                                 {% else %}Escolher {{ plano.get_nome_display }}{% endif %}
                             </a>
+                            {% endif %}
 
                         </div>{# /card-body #}
                     </div>{# /card #}
@@ -454,6 +470,14 @@
         });
         document.querySelectorAll('.price-anual').forEach(el => {
             el.classList.toggle('d-none', !isAnual);
+        });
+
+        // Ajusta ciclo dos forms de checkout para usuários logados.
+        document.querySelectorAll('.js-plan-checkout-form').forEach(form => {
+            const inputCiclo = form.querySelector('.js-ciclo-pagamento');
+            const hasAnual = form.dataset.hasAnual === '1';
+            if (!inputCiclo) return;
+            inputCiclo.value = (isAnual && hasAnual) ? 'anual' : 'mensal';
         });
     });
 

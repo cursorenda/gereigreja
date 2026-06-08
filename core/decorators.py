@@ -164,7 +164,7 @@ def page_access_required(page_key):
         def _wrapped_view(request, *args, **kwargs):
             from contas.page_permissions import user_can_access_page
 
-            if user_can_access_page(request.user, page_key):
+            if user_can_access_page(request.user, page_key, request=request):
                 return view_func(request, *args, **kwargs)
 
             raise PermissionDenied("Você não tem permissão para acessar esta página.")

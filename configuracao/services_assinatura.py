@@ -1,11 +1,58 @@
 import logging
 from typing import Optional
+from datetime import datetime
 
 from configuracao.models import AssinaturaMinisterio, EventoFunil, HistoricoAssinatura, LiberacaoPlanoMinisterio, Ministerio, Plano
 
 logger = logging.getLogger(__name__)
 
 STATUS_ASSINATURA_REGULAR = {'ativa', 'gratuita'}
+
+
+def _timestamp_to_date(ts):
+    if not ts:
+        return None
+    try:
+        return datetime.utcfromtimestamp(int(ts)).date()
+    except Exception:
+        return None
+
+
+def _calcular_usos_restantes(max_redemptions, times_redeemed):
+    if max_redemptions is None:
+        return None
+    try:
+        restantes = int(max_redemptions) - int(times_redeemed or 0)
+        return max(0, restantes)
+    except Exception:
+        return None
+
+
+def _upsert_codigo_promocional_local(
+    codigo_stripe,
+    descricao='',
+    ativo=True,
+    percentual_desconto=None,
+    data_termino=None,
+    usos_restantes=None,
+    vezes_usado=None,
+):
+    from configuracao.models import CodigoPromocional
+
+    defaults = {
+        'descricao': descricao or '',
+        'status': 'ativo' if ativo else 'inativo',
+        'percentual_desconto': percentual_desconto,
+        'data_termino': data_termino,
+        'usos_restantes': usos_restantes,
+    }
+    if vezes_usado is not None:
+        defaults['vezes_usado'] = int(vezes_usado)
+
+    CodigoPromocional.objects.update_or_create(
+        codigo_stripe=str(codigo_stripe).strip(),
+        defaults=defaults,
+    )
 
 
 def _ministerio_eh_demo(ministerio: Optional[Ministerio]) -> bool:
@@ -134,16 +181,100 @@ def validar_codigo_promocional(codigo: str) -> tuple[bool, str]:
     if not codigo or not codigo.strip():
         return (False, "Cupom vazio.")
     
+    codigo_limpo = codigo.strip()
+
+    # 1) Tenta validar pelo cadastro interno (quando existir)
     try:
         from configuracao.models import CodigoPromocional
-        cupom = CodigoPromocional.objects.get(codigo_stripe=codigo.strip())
-        
+        cupom = CodigoPromocional.objects.get(codigo_stripe=codigo_limpo)
+
         if not cupom.is_valido():
             return (False, "Este cupom não é mais válido.")
-        
+
         return (True, "")
     except CodigoPromocional.DoesNotExist:
-        return (False, "Cupom não reconhecido. Verifique o código.")
+        pass
+
+    # 2) Fallback: valida direto no Stripe para não bloquear cupons válidos
+    # que ainda não foram cadastrados localmente.
+    try:
+        import stripe
+        from django.conf import settings
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+
+        # 2.1 Promotion code por ID
+        if codigo_limpo.startswith('promo_'):
+            promo = stripe.PromotionCode.retrieve(codigo_limpo)
+            if promo and getattr(promo, 'active', False):
+                coupon_id = promo.coupon.id if hasattr(promo.coupon, 'id') else promo.coupon
+                coupon = stripe.Coupon.retrieve(coupon_id)
+                _upsert_codigo_promocional_local(
+                    codigo_stripe=promo.id,
+                    descricao=getattr(promo, 'code', '') or getattr(coupon, 'name', '') or 'Promotion Code Stripe',
+                    ativo=bool(getattr(promo, 'active', False)),
+                    percentual_desconto=getattr(coupon, 'percent_off', None),
+                    data_termino=_timestamp_to_date(getattr(coupon, 'redeem_by', None)),
+                    usos_restantes=_calcular_usos_restantes(getattr(promo, 'max_redemptions', None), getattr(promo, 'times_redeemed', 0)),
+                    vezes_usado=getattr(promo, 'times_redeemed', 0),
+                )
+                return (True, "")
+
+        # 2.2 Promotion code por código legível
+        promotion_codes = stripe.PromotionCode.list(code=codigo_limpo, active=True, limit=1)
+        if getattr(promotion_codes, 'data', None):
+            promo = promotion_codes.data[0]
+            coupon_id = promo.coupon.id if hasattr(promo.coupon, 'id') else promo.coupon
+            coupon = stripe.Coupon.retrieve(coupon_id)
+            _upsert_codigo_promocional_local(
+                codigo_stripe=promo.id,
+                descricao=getattr(promo, 'code', '') or getattr(coupon, 'name', '') or 'Promotion Code Stripe',
+                ativo=bool(getattr(promo, 'active', False)),
+                percentual_desconto=getattr(coupon, 'percent_off', None),
+                data_termino=_timestamp_to_date(getattr(coupon, 'redeem_by', None)),
+                usos_restantes=_calcular_usos_restantes(getattr(promo, 'max_redemptions', None), getattr(promo, 'times_redeemed', 0)),
+                vezes_usado=getattr(promo, 'times_redeemed', 0),
+            )
+            return (True, "")
+
+        # 2.3 Coupon por ID
+        try:
+            coupon = stripe.Coupon.retrieve(codigo_limpo)
+            if coupon and getattr(coupon, 'valid', False):
+                _upsert_codigo_promocional_local(
+                    codigo_stripe=coupon.id,
+                    descricao=getattr(coupon, 'name', '') or 'Cupom Stripe',
+                    ativo=bool(getattr(coupon, 'valid', False)),
+                    percentual_desconto=getattr(coupon, 'percent_off', None),
+                    data_termino=_timestamp_to_date(getattr(coupon, 'redeem_by', None)),
+                    usos_restantes=_calcular_usos_restantes(getattr(coupon, 'max_redemptions', None), getattr(coupon, 'times_redeemed', 0)),
+                    vezes_usado=getattr(coupon, 'times_redeemed', 0),
+                )
+                return (True, "")
+        except Exception:
+            pass
+
+        # 2.4 Coupon por nome (fallback para painel Stripe)
+        coupons = stripe.Coupon.list(limit=100)
+        for coupon in coupons.auto_paging_iter():
+            if (getattr(coupon, 'name', '') or '').strip().lower() == codigo_limpo.lower():
+                if getattr(coupon, 'valid', False):
+                    _upsert_codigo_promocional_local(
+                        codigo_stripe=coupon.id,
+                        descricao=getattr(coupon, 'name', '') or 'Cupom Stripe',
+                        ativo=bool(getattr(coupon, 'valid', False)),
+                        percentual_desconto=getattr(coupon, 'percent_off', None),
+                        data_termino=_timestamp_to_date(getattr(coupon, 'redeem_by', None)),
+                        usos_restantes=_calcular_usos_restantes(getattr(coupon, 'max_redemptions', None), getattr(coupon, 'times_redeemed', 0)),
+                        vezes_usado=getattr(coupon, 'times_redeemed', 0),
+                    )
+                    return (True, "")
+                return (False, "Este cupom existe no Stripe, mas não está mais válido.")
+
+    except Exception as exc:
+        logger.warning(f"Falha ao validar cupom diretamente no Stripe '{codigo_limpo}': {exc}")
+
+    return (False, "Cupom não reconhecido. Verifique o código.")
 
 
 def is_trial_ativo(assinatura: Optional[AssinaturaMinisterio]) -> bool:

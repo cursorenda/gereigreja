@@ -22,11 +22,13 @@ def get_permission_level(group_name):
     return HIERARQUIA_GRUPOS.get(group_name, "N/A")
 
 
-@register.simple_tag
-def user_can_access(user, page_key):
-    return user_can_access_page(user, page_key)
+@register.simple_tag(takes_context=True)
+def user_can_access(context, user, page_key):
+    request = context.get('request')
+    return user_can_access_page(user, page_key, request=request)
 
 
-@register.simple_tag
-def user_can_access_any_tag(user, *page_keys):
-    return user_can_access_any(user, *page_keys)
+@register.simple_tag(takes_context=True)
+def user_can_access_any_tag(context, user, *page_keys):
+    request = context.get('request')
+    return user_can_access_any(user, *page_keys, request=request)

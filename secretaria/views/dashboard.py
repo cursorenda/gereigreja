@@ -115,7 +115,7 @@ def _assinatura_alerta(ministerio, hoje):
     return None
 
 
-def _dashboard_visibility_flags(user):
+def _dashboard_visibility_flags(request):
     """Centraliza a visibilidade dos blocos do dashboard por perfil."""
     from contas.constants import (
         ADMIN_MINISTERIO,
@@ -125,13 +125,14 @@ def _dashboard_visibility_flags(user):
     )
     from contas.page_permissions import user_can_access_page
 
-    can_manage_secretaria = user_can_access_page(user, 'secretaria_pessoas')
-    can_manage_cargos = user_can_access_page(user, 'secretaria_cargos')
-    can_manage_reception = user_can_access_page(user, 'recepcao_visitantes')
-    can_manage_grupos = user_can_access_page(user, 'secretaria_grupos_casa')
-    can_manage_acompanhamentos = user_can_access_page(user, 'secretaria_acompanhamentos')
-    can_manage_tags = user_can_access_page(user, 'secretaria_tags')
-    can_view_relatorios = user_can_access_page(user, 'secretaria_relatorios')
+    user = request.user
+    can_manage_secretaria = user_can_access_page(user, 'secretaria_pessoas', request=request)
+    can_manage_cargos = user_can_access_page(user, 'secretaria_cargos', request=request)
+    can_manage_reception = user_can_access_page(user, 'recepcao_visitantes', request=request)
+    can_manage_grupos = user_can_access_page(user, 'secretaria_grupos_casa', request=request)
+    can_manage_acompanhamentos = user_can_access_page(user, 'secretaria_acompanhamentos', request=request)
+    can_manage_tags = user_can_access_page(user, 'secretaria_tags', request=request)
+    can_view_relatorios = user_can_access_page(user, 'secretaria_relatorios', request=request)
     can_view_financial_alert = user_tem_grupo(user, TESOUREIRO)
     can_view_signature_alert = (
         user_tem_grupo(user, ADMIN_MINISTERIO)
@@ -995,7 +996,7 @@ def dashboard(request):
         total_pendencias_cadastro_periodo,
     )
 
-    dashboard_visibility = _dashboard_visibility_flags(request.user)
+    dashboard_visibility = _dashboard_visibility_flags(request)
 
     context = {
         'status_data_json': json.dumps(status_data_list),

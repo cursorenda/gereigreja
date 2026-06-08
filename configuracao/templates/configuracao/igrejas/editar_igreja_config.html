@@ -63,6 +63,11 @@
                                 <label for="{{ form.tipo_igreja.id_for_label }}" class="form-label">{{ form.tipo_igreja.label }}</label>
                                 {{ form.tipo_igreja }}
                                 {% if form.tipo_igreja.errors %}<div class="invalid-feedback d-block">{{ form.tipo_igreja.errors|join:", " }}</div>{% endif %}
+                                <div id="tipo-igreja-acesso-info" class="alert alert-info mt-2 mb-0 py-2 px-3 small" role="alert">
+                                    <strong>Importante sobre acesso da Secretaria (Administrador):</strong><br>
+                                    Se o tipo for <strong>Sede</strong> ou <strong>Independente</strong>, o Administrador pode cadastrar pessoas e gerenciar a Secretaria local desta igreja.<br>
+                                    Se o tipo for <strong>Regional</strong> ou <strong>Congregação</strong>, o Administrador <strong>não terá acesso</strong> à Secretaria local desta igreja (inclusive igrejas filhas).
+                                </div>
                             </div>
                         </div>
                         <div class="row">
@@ -481,6 +486,48 @@ document.addEventListener('DOMContentLoaded', function() {
             var savedTabObj = new bootstrap.Tab(savedTrigger);
             savedTabObj.show();
         }
+    }
+
+    var tipoIgrejaSelect = document.getElementById('{{ form.tipo_igreja.id_for_label }}');
+    var alertaAcesso = document.getElementById('tipo-igreja-acesso-info');
+
+    function atualizarAvisoAcessoSecretaria() {
+        if (!tipoIgrejaSelect || !alertaAcesso) return;
+
+        var valorBruto = (tipoIgrejaSelect.value || '').toLowerCase().trim();
+        var mapaTipo = {
+            s: 'sede',
+            d: 'independente',
+            r: 'regional',
+            c: 'congregacao'
+        };
+        var tipo = mapaTipo[valorBruto] || valorBruto;
+
+        if (tipo === 'sede' || tipo === 'independente') {
+            alertaAcesso.className = 'alert alert-success mt-2 mb-0 py-2 px-3 small';
+            alertaAcesso.innerHTML =
+                '<strong>Acesso liberado para Secretaria local:</strong><br>' +
+                'Como <strong>Administrador</strong>, você poderá cadastrar pessoas e gerenciar a Secretaria desta igreja porque o tipo selecionado é <strong>Sede/Independente</strong>.';
+            return;
+        }
+
+        if (tipo === 'regional' || tipo === 'congregacao') {
+            alertaAcesso.className = 'alert alert-warning mt-2 mb-0 py-2 px-3 small';
+            alertaAcesso.innerHTML =
+                '<strong>Acesso bloqueado para Secretaria local:</strong><br>' +
+                'Como <strong>Administrador</strong>, você <strong>não terá acesso</strong> para cadastrar pessoas/gerenciar Secretaria nesta igreja porque o tipo selecionado é <strong>Regional/Congregação</strong>.';
+            return;
+        }
+
+        alertaAcesso.className = 'alert alert-info mt-2 mb-0 py-2 px-3 small';
+        alertaAcesso.innerHTML =
+            '<strong>Importante sobre acesso da Secretaria (Administrador):</strong><br>' +
+            'Sede/Independente: acesso liberado. Regional/Congregação: acesso bloqueado para Secretaria local.';
+    }
+
+    if (tipoIgrejaSelect) {
+        atualizarAvisoAcessoSecretaria();
+        tipoIgrejaSelect.addEventListener('change', atualizarAvisoAcessoSecretaria);
     }
 });
 </script>

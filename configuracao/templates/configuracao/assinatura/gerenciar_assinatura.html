@@ -446,7 +446,7 @@
                                         </div>
                                         {% endif %}
 
-                                        <form method="POST" class="d-grid gap-2">
+                                        <form method="POST" action="{% url 'configuracao:gerenciar_assinatura' %}" class="d-grid gap-2">
                                             {% csrf_token %}
                                             <input type="hidden" name="plano_id" value="{{ item.plano.id }}">
                                             {% if item.plano.preco_mensal > 0 or item.plano.preco_anual > 0 %}

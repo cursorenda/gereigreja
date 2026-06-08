@@ -1,3 +1,38 @@
+## v1.13.15 — 08/06/2026
+🔐 **Secretaria por tipo de igreja + assinatura Stripe em producao com fallback resiliente**
+
+### Entregas
+- Governanca de acesso da Secretaria por papel e tipo de igreja:
+  - `secretario` com acesso permitido;
+  - `administrador` permitido apenas em `sede` e `independente`;
+  - bloqueio consistente para perfis fora da regra.
+- Camada de permissao centralizada evoluida para contexto da igreja ativa (request-aware):
+  - `user_can_access_page` com suporte a regras simples e contextuais;
+  - decoradores e template tags alinhados para a mesma matriz de acesso.
+- Consistencia de navegacao em dashboard/menu/demo com leitura da igreja ativa.
+- UX de configuracao de igreja reforcada com orientacao dinamica no campo tipo de igreja.
+- Fluxo de assinatura revisado para conversao:
+  - botoes de planos (landing/publico/interno) direcionando corretamente usuarios autenticados ao checkout;
+  - alternancia mensal/anual refletida no `ciclo_pagamento` enviado.
+- Checkout Stripe fortalecido para cupons:
+  - resolucao robusta de cupom/codigo promocional;
+  - fallback de validacao no Stripe quando cache local nao possui o codigo;
+  - sincronizacao local de cupom no webhook para evitar divergencia.
+- Comando de sincronizacao de planos Stripe endurecido:
+  - validacao de `product_id` e `price_id` existentes no ambiente corrente;
+  - recriacao de preco quando ID estiver invalido, inativo ou incompativel.
+
+### Migracoes
+- Nenhuma.
+
+### Impacto
+- Reducao de risco de acesso indevido na Secretaria em cenarios multi-igreja.
+- Melhor previsibilidade de checkout com cupons em producao.
+- Menor chance de falha `No such price` por IDs obsoletos entre ambientes Stripe.
+- Sem breaking changes de API publica.
+
+---
+
 ## v1.13.14 — 04/06/2026
 🚀 **EBD Premium — Fechamento operacional completo do dashboard (fila de ações + KPIs mensais + UX orientada por turma)**
 
