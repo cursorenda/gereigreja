@@ -518,7 +518,7 @@
                             <tr>
                                 <td>{{ invoice.created|date:"d/m/Y" }}</td>
                                 <td>{% if invoice.invoice_number %}Fatura #{{ invoice.invoice_number }}{% else %}Cobrança{% endif %}</td>
-                                <td><strong>R$ {{ invoice.amount_paid|floatformat:2|intcomma }}</strong></td>
+                                <td><strong>R$ {{ invoice.amount_paid|stripe_centavos_para_reais|floatformat:2|intcomma }}</strong></td>
                                 <td>
                                     {% if invoice.paid %}
                                         <span class="badge bg-success">Paga</span>

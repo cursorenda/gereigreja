@@ -1,5 +1,6 @@
 {% extends "base_com_menu.html" %}
 {% load humanize %}
+{% load configuracao_tags %}
 
 {% block title %}Minha Assinatura — {{ sistema_nome }}{% endblock %}
 
@@ -293,7 +294,7 @@
                                         </td>
                                         <td>
                                             <strong>
-                                                R$ {{ invoice.amount_paid|floatformat:2|intcomma }}
+                                                R$ {{ invoice.amount_paid|stripe_centavos_para_reais|floatformat:2|intcomma }}
                                             </strong>
                                         </td>
                                         <td>
