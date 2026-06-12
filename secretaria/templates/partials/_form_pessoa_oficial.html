@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="{% static 'css/secretaria/input_foto_colado.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria/input_foto_compact.css' %}">
 <script src="{% static 'secretaria/form_tipo_status.js' %}" defer></script>
-<script src="{% static 'secretaria/form_dynamic.js' %}" defer></script>
+<script src="{% static 'secretaria/form_dynamic.js' %}?v=20260612-1" defer></script>
 <form method="post" enctype="multipart/form-data">
 	{% csrf_token %}
 
@@ -69,6 +69,16 @@
 						</div>
 						<small class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Quando a mudança de status ocorreu (editável)</small>
 						{% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
+					</div>
+				</div>
+				<div class="row" id="row-grau-eclesiastico" style="display: none;">
+					<div class="col-md-6">
+						<div class="mb-3">
+							<label for="{{ form.grau_eclesiastico.id_for_label }}" class="form-label">{{ form.grau_eclesiastico.label }}</label>
+							{{ form.grau_eclesiastico }}
+							<small class="form-text text-muted">Disponível apenas quando o tipo da pessoa for Membro.</small>
+							{% if form.grau_eclesiastico.errors %}<div class="invalid-feedback d-block">{{ form.grau_eclesiastico.errors|striptags }}</div>{% endif %}
+						</div>
 					</div>
 				</div>
 				<div class="row" id="row-sub-status-inativo" style="display: none;">

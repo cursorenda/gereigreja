@@ -29,13 +29,14 @@ const etapasOnboarding = [
     },
     {
         label: 'Etapa 2 de 4',
-        // Etapa dinâmica: mostra dados da igreja principal
+        // Etapa dinâmica: mostra dados da igreja em contexto
         renderHtml: function() {
             // Lê os dados da igreja do bloco oculto
             const el = document.getElementById('onboarding-igreja-dados');
             if (!el) {
                 return `<p><strong>Etapa 2: Igreja do Ministério</strong></p><p>Nenhuma igreja cadastrada para este ministério.</p>`;
             }
+            const contextoLabel = el.getAttribute('data-contexto-label') || 'Igreja principal do ministério';
             const nome_igreja = el.getAttribute('data-nome-igreja') || '';
             const tipo_igreja = el.getAttribute('data-tipo-igreja') || '';
             const endereco = el.getAttribute('data-endereco') || '';
@@ -46,8 +47,9 @@ const etapasOnboarding = [
             const data_fundacao = el.getAttribute('data-data-fundacao') || '';
             return `
 <p><strong>Etapa 2: Igreja do Ministério</strong></p>
-<p>Confira os dados da igreja principal cadastrada para este ministério.</p>
+<p>Confira os dados da igreja atualmente em contexto no sistema.</p>
 <div class='onboarding-ministerio-box' style='background:#f8f9fa; border:1px solid #e3e6f0; border-radius:8px; padding:12px 16px; margin-bottom:10px;'>
+    <b>Contexto:</b> ${contextoLabel}<br>
     <b>Nome da igreja:</b> ${nome_igreja}<br>
     <b>Tipo:</b> ${tipo_igreja}<br>
     <b>CNPJ:</b> ${cnpj}<br>

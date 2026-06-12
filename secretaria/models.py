@@ -227,6 +227,23 @@ class Pessoa(models.Model):
         blank=True, null=True,
         verbose_name="Tipo de Entrada (se membro)"
     )
+
+    GRAU_ECLESIASTICO_CHOICES = [
+        ('membro_comum', 'Membro Comum / Sem cargo ministerial'),
+        ('diacono', 'Diácono / Diaconisa'),
+        ('presbitero', 'Presbítero'),
+        ('evangelista', 'Evangelista'),
+        ('missionario', 'Missionário / Missionária'),
+        ('pastor', 'Pastor / Pastora'),
+    ]
+    grau_eclesiastico = models.CharField(
+        max_length=30,
+        choices=GRAU_ECLESIASTICO_CHOICES,
+        default=None,
+        blank=True,
+        null=True,
+        verbose_name='Grau Eclesiástico'
+    )
     
     # --- CAMPOS DE AUDITORIA ---
     criado_em = models.DateTimeField(
@@ -271,6 +288,19 @@ class Pessoa(models.Model):
         current_user = kwargs.pop('user', None) # Espera um 'user' opcional de kwargs
         data_mudanca_tipo = kwargs.pop('data_mudanca_tipo', None) # Data customizada para mudança de tipo
         data_mudanca_status = kwargs.pop('data_mudanca_status', None) # Data customizada para mudança de status
+
+        tipo_nome_normalizado = ''
+        if self.tipo_pessoa_id:
+            try:
+                tipo_nome_normalizado = (self.tipo_pessoa.nome or '').strip().lower()
+            except Exception:
+                tipo_nome_normalizado = ''
+
+        if tipo_nome_normalizado and tipo_nome_normalizado != 'membro':
+            self.grau_eclesiastico = None
+        elif not self.grau_eclesiastico:
+            self.grau_eclesiastico = 'membro_comum'
+
         is_new = self._state.adding
         changed_tipo = not is_new and self.tipo_pessoa_id != self._original_tipo_pessoa_id
         changed_status = not is_new and self.status_pessoa_id != self._original_status_pessoa_id

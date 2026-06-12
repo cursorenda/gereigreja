@@ -259,6 +259,7 @@ class MembroForm(forms.ModelForm):
             'igreja',
             'nome', 'apelido', 'cpf', 'rg', 'naturalidade', 'nascimento', 'genero', 'tipo_pessoa', 'status_pessoa',
             'sub_status_inativo',
+            'grau_eclesiastico',
             'estado_civil', 'profissao', 'escolaridade', 'nome_pai', 'nome_mae', 'cep', 'pais', 'estado', 'nacionalidade',
             'cidade', 'bairro_distrito', 'rua', 'numero_casa', 'complemento', 'telefone', 'celular',
             'data_entrada', 'conjuge', 'data_casamento',
@@ -305,6 +306,9 @@ class MembroForm(forms.ModelForm):
             self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
         if 'status_pessoa' in self.fields:
             self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
+        if 'grau_eclesiastico' in self.fields:
+            self.fields['grau_eclesiastico'].required = False
+            self.fields['grau_eclesiastico'].initial = self.instance.grau_eclesiastico if getattr(self.instance, 'pk', None) else 'membro_comum'
         # Preenche o queryset do campo igreja conforme o perfil do usuário
         import logging
         logger = logging.getLogger("django")
@@ -379,13 +383,17 @@ class MembroForm(forms.ModelForm):
         cleaned_data = super().clean()
         tipo_pessoa = cleaned_data.get('tipo_pessoa')
         tipo_entrada = cleaned_data.get('tipo_entrada')
+        grau_eclesiastico = cleaned_data.get('grau_eclesiastico')
         status_pessoa = cleaned_data.get('status_pessoa')
         sub_status_inativo = cleaned_data.get('sub_status_inativo')
         if tipo_pessoa and hasattr(tipo_pessoa, 'nome') and tipo_pessoa.nome.lower() == 'membro':
             if not tipo_entrada:
                 self.add_error('tipo_entrada', 'Informe o tipo de entrada para pessoas com tipo "Membro".')
+            if not grau_eclesiastico:
+                cleaned_data['grau_eclesiastico'] = 'membro_comum'
         else:
             cleaned_data['tipo_entrada'] = None
+            cleaned_data['grau_eclesiastico'] = None
 
         # Validação do sub status
         if status_pessoa and hasattr(status_pessoa, 'nome') and status_pessoa.nome.strip().lower() == 'inativo':

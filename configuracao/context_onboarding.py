@@ -44,13 +44,23 @@ def onboarding_context(request):
                 }
                 if ministerio_dados['responsavel']:
                     ministerio_dados['responsavel'] = str(ministerio_dados['responsavel'])
-                # Coleta dados da igreja inicial, se existir
+                # Coleta dados da igreja em contexto (prioriza igreja ativa da sessão).
                 igrejas = getattr(ministerio, 'igrejas', None)
                 if igrejas and igrejas.exists():
-                    igreja = igrejas.first()
+                    igreja = None
+                    igreja_contexto_label = 'Igreja principal do ministério'
+
+                    igreja_ativa = getattr(request, 'igreja_ativa', None)
+                    if igreja_ativa and getattr(igreja_ativa, 'ministerio_id', None) == ministerio.id:
+                        igreja = igreja_ativa
+                        igreja_contexto_label = 'Igreja selecionada no topo (contexto ativo)'
+                    else:
+                        igreja = igrejas.first()
+
                     igreja_dados = {
                         'id': igreja.id,
                         'nome_igreja': igreja.nome_igreja,
+                        'contexto_label': igreja_contexto_label,
                         'tipo_igreja': igreja.get_tipo_igreja_display() if hasattr(igreja, 'get_tipo_igreja_display') else '',
                         'endereco': f"{igreja.rua or ''}, {igreja.numero_casa or ''} {getattr(igreja, 'bairro', '') or ''} {igreja.cidade or ''} {igreja.estado or ''}",
                         'responsavel': igreja.pastor_local or '',

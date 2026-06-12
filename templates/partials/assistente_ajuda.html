@@ -49,6 +49,7 @@
     {% if onboarding_igreja_dados %}
     <div id="onboarding-igreja-dados"
         data-nome-igreja="{{ onboarding_igreja_dados.nome_igreja|default_if_none:'' }}"
+        data-contexto-label="{{ onboarding_igreja_dados.contexto_label|default_if_none:'Igreja principal do ministério' }}"
         data-tipo-igreja="{{ onboarding_igreja_dados.tipo_igreja|default_if_none:'' }}"
         data-endereco="{{ onboarding_igreja_dados.endereco|default_if_none:'' }}"
         data-responsavel="{{ onboarding_igreja_dados.responsavel|default_if_none:'' }}"

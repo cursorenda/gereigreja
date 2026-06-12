@@ -1,13 +1,26 @@
 // Controle dinâmico do formulário de dados cadastrais
 
+function normalizeText(text) {
+    if (!text) return '';
+    return text
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
 // Exibe ou oculta o campo sub_status_inativo conforme o status selecionado
 function toggleSubStatusInativo() {
     var statusField = document.getElementById('id_status_pessoa');
     var row = document.getElementById('row-sub-status-inativo');
     if (!statusField || !row) return;
-    var selected = statusField.options[statusField.selectedIndex]?.text || '';
+    var selected = '';
+    if (statusField.selectedIndex >= 0 && statusField.options[statusField.selectedIndex]) {
+        selected = statusField.options[statusField.selectedIndex].text || '';
+    }
     // Normaliza: remove acentos, espaços extras e caixa
-    var normalized = selected.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toLowerCase();
+    var normalized = normalizeText(selected);
     if (normalized === 'inativo') {
         row.style.display = '';
     } else {
@@ -77,13 +90,41 @@ function setupDataMudancaControls() {
     });
 }
 
+function toggleGrauEclesiastico() {
+    var tipoField = document.getElementById('id_tipo_pessoa');
+    var row = document.getElementById('row-grau-eclesiastico');
+    var grauField = document.getElementById('id_grau_eclesiastico');
+    if (!tipoField || !row || !grauField) return;
+
+    var selected = '';
+    if (tipoField.selectedIndex >= 0 && tipoField.options[tipoField.selectedIndex]) {
+        selected = tipoField.options[tipoField.selectedIndex].text || '';
+    }
+    var normalized = normalizeText(selected);
+    var isMembro = normalized.indexOf('membro') !== -1;
+
+    if (isMembro) {
+        row.style.display = '';
+        grauField.disabled = false;
+    } else {
+        row.style.display = 'none';
+        grauField.value = '';
+        grauField.disabled = true;
+    }
+}
+
 // Inicialização dos controles dinâmicos
 
 document.addEventListener('DOMContentLoaded', function() {
     var statusField = document.getElementById('id_status_pessoa');
+    var tipoField = document.getElementById('id_tipo_pessoa');
     if (statusField) {
         statusField.addEventListener('change', toggleSubStatusInativo);
         toggleSubStatusInativo();
+    }
+    if (tipoField) {
+        tipoField.addEventListener('change', toggleGrauEclesiastico);
+        toggleGrauEclesiastico();
     }
     setupDataMudancaControls();
 });
