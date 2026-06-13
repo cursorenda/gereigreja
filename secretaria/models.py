@@ -368,6 +368,31 @@ class Pessoa(models.Model):
             dt_tipo = _to_datetime(data_mudanca_tipo) if changed_tipo else None
             dt_status = _to_datetime(data_mudanca_status) if changed_status else None
 
+            # Regra hibrida de governanca de datas:
+            # - primeira mudanca pode ficar sem data
+            # - apos existir data historica registrada, mudancas sem data assumem hoje
+            has_tipo_date_registered = False
+            has_status_date_registered = False
+            if changed_tipo and not dt_tipo:
+                has_tipo_date_registered = StatusHistorico.objects.filter(
+                    membro=self,
+                    tipo_pessoa_anterior__isnull=False,
+                    tipo_pessoa_novo__isnull=False,
+                    data_transicao__isnull=False,
+                ).exists()
+                if has_tipo_date_registered:
+                    dt_tipo = _to_datetime(timezone.localdate())
+
+            if changed_status and not dt_status:
+                has_status_date_registered = StatusHistorico.objects.filter(
+                    membro=self,
+                    status_pessoa_anterior__isnull=False,
+                    status_pessoa_novo__isnull=False,
+                    data_transicao__isnull=False,
+                ).exists()
+                if has_status_date_registered:
+                    dt_status = _to_datetime(timezone.localdate())
+
             if dt_tipo and dt_status:
                 data_transicao_final = dt_tipo if dt_tipo >= dt_status else dt_status
             elif dt_tipo:
@@ -671,7 +696,7 @@ class StatusHistorico(models.Model):
     tipo_pessoa_novo = models.ForeignKey(TipoPessoa, null=True, blank=True, on_delete=models.SET_NULL, related_name='historico_tipo_novo')
     status_pessoa_anterior = models.ForeignKey(StatusPessoa, null=True, blank=True, on_delete=models.SET_NULL, related_name='historico_status_anterior')
     status_pessoa_novo = models.ForeignKey(StatusPessoa, null=True, blank=True, on_delete=models.SET_NULL, related_name='historico_status_novo')
-    data_transicao = models.DateTimeField(default=timezone.now) # MODIFICADO: Permite definir manualmente, default para agora
+    data_transicao = models.DateTimeField(null=True, blank=True, default=None)
     observacao = models.TextField(blank=True, null=True)
     registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
 

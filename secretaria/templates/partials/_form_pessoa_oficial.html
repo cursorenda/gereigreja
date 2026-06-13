@@ -163,14 +163,23 @@
 									<div class="col-md-6">
 										<label for="modal_data_mudanca_tipo" class="form-label">Data da mudanca de Tipo</label>
 										<input type="date" id="modal_data_mudanca_tipo" class="form-control" value="{% if request.POST.data_mudanca_tipo %}{{ request.POST.data_mudanca_tipo }}{% endif %}">
+										<div class="d-flex gap-2 mt-2">
+											<button type="button" class="btn btn-outline-secondary btn-sm" id="btn-hoje-mudanca-tipo">Hoje</button>
+											<button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-mudanca-tipo">Limpar</button>
+										</div>
 									</div>
 									<div class="col-md-6">
 										<label for="modal_data_mudanca_status" class="form-label">Data da mudanca de Status</label>
 										<input type="date" id="modal_data_mudanca_status" class="form-control" value="{% if request.POST.data_mudanca_status %}{{ request.POST.data_mudanca_status }}{% endif %}">
+										<div class="d-flex gap-2 mt-2">
+											<button type="button" class="btn btn-outline-secondary btn-sm" id="btn-hoje-mudanca-status">Hoje</button>
+											<button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-mudanca-status">Limpar</button>
+										</div>
 									</div>
 									<div class="col-12">
 										<label for="modal_motivo_transicao" class="form-label">Motivo da alteracao</label>
 										<textarea id="modal_motivo_transicao" rows="3" class="form-control" placeholder="Explique o motivo da alteracao.">{% if request.POST.motivo_transicao %}{{ request.POST.motivo_transicao }}{% endif %}</textarea>
+										<small class="form-text text-muted d-block mt-2">A primeira mudanca pode ficar sem data. Apos existir data historica, o sistema usa hoje automaticamente quando o campo vier em branco.</small>
 									</div>
 								</div>
 							</div>

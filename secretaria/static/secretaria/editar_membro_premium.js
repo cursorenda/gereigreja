@@ -12,6 +12,10 @@
     var modalTipoDate = document.getElementById('modal_data_mudanca_tipo');
     var modalStatusDate = document.getElementById('modal_data_mudanca_status');
     var modalMotivo = document.getElementById('modal_motivo_transicao');
+    var btnHojeMudancaTipo = document.getElementById('btn-hoje-mudanca-tipo');
+    var btnLimparMudancaTipo = document.getElementById('btn-limpar-mudanca-tipo');
+    var btnHojeMudancaStatus = document.getElementById('btn-hoje-mudanca-status');
+    var btnLimparMudancaStatus = document.getElementById('btn-limpar-mudanca-status');
     var btnOpenTransitionModal = document.getElementById('btn-open-transition-modal');
     var btnSaveTransitionMeta = document.getElementById('btn-save-transition-meta');
     var summaryMotivo = document.getElementById('transition-summary-motivo');
@@ -22,6 +26,45 @@
     var transitionMetaSavedThisOpen = false;
     var isRevertingCriticalFields = false;
     var dirty = false;
+    var initialFormSnapshot = '';
+
+    function buildFormSnapshot(targetForm) {
+      if (!targetForm) return '';
+      var entries = [];
+      var elements = Array.prototype.slice.call(targetForm.elements || []);
+
+      elements.forEach(function (el) {
+        if (!el || !el.name || el.disabled) return;
+        var tag = (el.tagName || '').toLowerCase();
+        if (tag === 'button') return;
+
+        var type = (el.type || '').toLowerCase();
+        if (type === 'submit' || type === 'button' || type === 'reset') return;
+
+        if (type === 'checkbox' || type === 'radio') {
+          entries.push(el.name + '::checked=' + (el.checked ? '1' : '0'));
+          return;
+        }
+
+        if (tag === 'select' && el.multiple) {
+          var selected = Array.prototype.slice.call(el.options || [])
+            .filter(function (opt) { return opt.selected; })
+            .map(function (opt) { return opt.value; })
+            .sort()
+            .join('|');
+          entries.push(el.name + '::value=' + selected);
+          return;
+        }
+
+        entries.push(el.name + '::value=' + String(el.value || ''));
+      });
+
+      return entries.sort().join('||');
+    }
+
+    function refreshDirtyState() {
+      dirty = buildFormSnapshot(form) !== initialFormSnapshot;
+    }
 
     function todayIso() {
       var d = new Date();
@@ -67,16 +110,37 @@
     }
 
     function syncModalFromHidden() {
-      if (modalTipoDate && dataMudancaTipoField) modalTipoDate.value = dataMudancaTipoField.value || todayIso();
-      if (modalStatusDate && dataMudancaStatusField) modalStatusDate.value = dataMudancaStatusField.value || todayIso();
+      if (modalTipoDate && dataMudancaTipoField) modalTipoDate.value = dataMudancaTipoField.value || '';
+      if (modalStatusDate && dataMudancaStatusField) modalStatusDate.value = dataMudancaStatusField.value || '';
       if (modalMotivo && motivoField) modalMotivo.value = motivoField.value || '';
     }
 
     function syncHiddenFromModal() {
-      if (dataMudancaTipoField && modalTipoDate) dataMudancaTipoField.value = modalTipoDate.value || todayIso();
-      if (dataMudancaStatusField && modalStatusDate) dataMudancaStatusField.value = modalStatusDate.value || todayIso();
+      if (dataMudancaTipoField && modalTipoDate) dataMudancaTipoField.value = modalTipoDate.value || '';
+      if (dataMudancaStatusField && modalStatusDate) dataMudancaStatusField.value = modalStatusDate.value || '';
       if (motivoField && modalMotivo) motivoField.value = modalMotivo.value || '';
       updateTransitionSummary();
+    }
+
+    if (btnHojeMudancaTipo && modalTipoDate) {
+      btnHojeMudancaTipo.addEventListener('click', function () {
+        modalTipoDate.value = todayIso();
+      });
+    }
+    if (btnLimparMudancaTipo && modalTipoDate) {
+      btnLimparMudancaTipo.addEventListener('click', function () {
+        modalTipoDate.value = '';
+      });
+    }
+    if (btnHojeMudancaStatus && modalStatusDate) {
+      btnHojeMudancaStatus.addEventListener('click', function () {
+        modalStatusDate.value = todayIso();
+      });
+    }
+    if (btnLimparMudancaStatus && modalStatusDate) {
+      btnLimparMudancaStatus.addEventListener('click', function () {
+        modalStatusDate.value = '';
+      });
     }
 
     function openTransitionModal() {
@@ -226,12 +290,15 @@
 
     if (!form) return;
 
+    initialFormSnapshot = buildFormSnapshot(form);
+    dirty = false;
+
     form.addEventListener('input', function () {
-      dirty = true;
+      refreshDirtyState();
     });
 
     form.addEventListener('change', function () {
-      dirty = true;
+      refreshDirtyState();
     });
 
     window.addEventListener('beforeunload', function (event) {
@@ -271,6 +338,7 @@
       }
 
       dirty = false;
+      initialFormSnapshot = buildFormSnapshot(form);
     });
   });
 })();
