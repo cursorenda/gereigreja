@@ -27,7 +27,12 @@ from secretaria.forms import MembroForm, MembroUserManagementForm, StatusHistori
 from secretaria.models import (
     Membro, MembroCargo, StatusHistorico, StatusPessoa, Tag, TipoPessoa,
 )
-from secretaria.utils import get_allowed_churches_for_membros, is_admin_org, has_membro_edit_permission
+from secretaria.utils import (
+    get_allowed_churches_for_membros,
+    is_admin_org,
+    has_membro_edit_permission,
+    filter_people_by_name_or_nickname,
+)
 
 from secretaria.views._helpers import (
     _get_navigation_context,
@@ -52,16 +57,12 @@ def lista_membros(request):  # noqa: E302
     # Filtro por nome/apelido (busca parcial)
     nome_apelido = request.GET.get('nome_apelido')
     if nome_apelido:
-        membros_queryset = membros_queryset.filter(
-            Q(nome__icontains=nome_apelido) | Q(apelido__icontains=nome_apelido)
-        )
+        membros_queryset = filter_people_by_name_or_nickname(membros_queryset, nome_apelido)
 
     # Filtro GET de query (q)
     query = request.GET.get('q')
     if query:
-        membros_queryset = membros_queryset.filter(
-            Q(nome__icontains=query) | Q(apelido__icontains=query)
-        )
+        membros_queryset = filter_people_by_name_or_nickname(membros_queryset, query)
 
     # Filtro GET de igreja na página (só se nenhuma igreja ativa globalmente)
     igreja_id_get = request.GET.get('igreja')
@@ -69,7 +70,7 @@ def lista_membros(request):  # noqa: E302
         if allowed_churches.filter(pk=igreja_id_get).exists():
             membros_queryset = membros_queryset.filter(igreja_id=igreja_id_get)
 
-    tipos_pessoa = TipoPessoa.objects.all().order_by('nome')
+    tipos_pessoa = TipoPessoa.objects.exclude(nome__iexact='obreiro').order_by('nome')
     status_pendentes_qs = StatusPessoa.objects.filter(
         nome__iexact="Pendente"
     ) | StatusPessoa.objects.filter(
@@ -242,14 +243,10 @@ def imprimir_lista_membros(request):
 
     nome_apelido = request.GET.get('nome_apelido')
     if nome_apelido:
-        membros_queryset = membros_queryset.filter(
-            Q(nome__icontains=nome_apelido) | Q(apelido__icontains=nome_apelido)
-        )
+        membros_queryset = filter_people_by_name_or_nickname(membros_queryset, nome_apelido)
     query = request.GET.get('q')
     if query:
-        membros_queryset = membros_queryset.filter(
-            Q(nome__icontains=query) | Q(apelido__icontains=query)
-        )
+        membros_queryset = filter_people_by_name_or_nickname(membros_queryset, query)
     igreja_id_get = request.GET.get('igreja')
     if igreja_id_get and not request.igreja_ativa:
         if allowed_churches.filter(pk=igreja_id_get).exists():
@@ -336,6 +333,11 @@ def editar_membro(request, membro_id):  # noqa: E302
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user)
     membro = get_object_or_404(Membro, pk=membro_id, igreja__in=allowed_churches)
+    original_tipo_id = membro.tipo_pessoa_id
+    original_status_id = membro.status_pessoa_id
+    original_igreja_id = membro.igreja_id
+    original_grau = membro.grau_eclesiastico
+    original_updated_epoch = str(int(membro.atualizado_em.timestamp())) if getattr(membro, 'atualizado_em', None) else ''
     if request.igreja_ativa and membro.igreja != request.igreja_ativa:
         messages.warning(request, "O membro selecionado não pertence à igreja ativa atual.")
         return redirect('secretaria:lista_pessoas')
@@ -360,26 +362,57 @@ def editar_membro(request, membro_id):  # noqa: E302
         )
 
         if 'submit_membro_form' in request.POST:
-            if form.is_valid():
+            posted_epoch = (request.POST.get('_last_updated_epoch') or '').strip()
+            if posted_epoch and original_updated_epoch and posted_epoch != original_updated_epoch:
+                messages.error(
+                    request,
+                    'Este cadastro foi atualizado por outro usuario enquanto voce editava. Recarregue a pagina e aplique novamente suas alteracoes.'
+                )
+            elif form.is_valid():
                 try:
                     membro_editado = form.save(commit=False)
                     if not is_admin_org(request.user) and not allowed_churches.filter(pk=membro_editado.igreja_id).exists():
                         messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                     else:
-                        data_mudanca_tipo = form.cleaned_data.get('data_mudanca_tipo')
-                        data_mudanca_status = form.cleaned_data.get('data_mudanca_status')
-                        membro_editado.save(
-                            user=request.user,
-                            data_mudanca_tipo=data_mudanca_tipo,
-                            data_mudanca_status=data_mudanca_status,
+                        critical_changed = (
+                            membro_editado.tipo_pessoa_id != original_tipo_id or
+                            membro_editado.status_pessoa_id != original_status_id or
+                            membro_editado.igreja_id != original_igreja_id or
+                            membro_editado.grau_eclesiastico != original_grau
                         )
-                        form.save_m2m()
-                        messages.success(request, f'Membro "{membro_editado.nome}" atualizado com sucesso!')
-                        submit_value = request.POST.get('submit_membro_form')
-                        if submit_value == '_save_and_continue':
-                            return redirect('secretaria:editar_membro', membro_id=membro_id)
+                        motivo_transicao = (request.POST.get('motivo_transicao') or '').strip()
+
+                        if critical_changed and not motivo_transicao:
+                            messages.error(
+                                request,
+                                'Informe o motivo da alteracao para salvar mudancas de Tipo, Status, Igreja ou Grau Eclesiastico.'
+                            )
                         else:
-                            return redirect('secretaria:lista_membros')
+                            data_mudanca_tipo = form.cleaned_data.get('data_mudanca_tipo')
+                            data_mudanca_status = form.cleaned_data.get('data_mudanca_status')
+                            membro_editado.observacoes_visita = MembroForm.upsert_premium_etapas_metadata(
+                                getattr(membro_editado, 'observacoes_visita', ''),
+                                {
+                                    'data_batismo': form.cleaned_data.get('data_batismo'),
+                                    'numero_credencial': (form.cleaned_data.get('numero_credencial') or '').strip(),
+                                    'data_consagracao': form.cleaned_data.get('data_consagracao'),
+                                    'convencao': (form.cleaned_data.get('convencao') or '').strip(),
+                                    'observacoes_ministeriais': (form.cleaned_data.get('observacoes_ministeriais') or '').strip(),
+                                },
+                            )
+                            membro_editado.save(
+                                user=request.user,
+                                data_mudanca_tipo=data_mudanca_tipo,
+                                data_mudanca_status=data_mudanca_status,
+                                motivo_transicao=motivo_transicao,
+                            )
+                            form.save_m2m()
+                            messages.success(request, f'Membro "{membro_editado.nome}" atualizado com sucesso!')
+                            submit_value = request.POST.get('submit_membro_form')
+                            if submit_value == '_save_and_continue':
+                                return redirect('secretaria:editar_membro', membro_id=membro_id)
+                            else:
+                                return redirect('secretaria:lista_membros')
                 except Exception as e:
                     logger.exception(f"Erro ao salvar edição do membro {membro_id} para ministério {ministerio.id}")
                     messages.error(request, f"Ocorreu um erro ao salvar as alterações: {e}")
@@ -456,6 +489,26 @@ def editar_membro(request, membro_id):  # noqa: E302
     historico_status_qs = membro.transicoes_status_secretaria.all()
     historico_status_membro = list(historico_status_qs) if historico_status_qs.exists() else []
 
+    ultima_data_mudanca_tipo = None
+    ultima_data_mudanca_status = None
+    for historico in historico_status_membro:
+        if (
+            not ultima_data_mudanca_tipo and
+            historico.tipo_pessoa_anterior_id and
+            historico.tipo_pessoa_novo_id and
+            historico.tipo_pessoa_anterior_id != historico.tipo_pessoa_novo_id
+        ):
+            ultima_data_mudanca_tipo = historico.data_transicao
+        if (
+            not ultima_data_mudanca_status and
+            historico.status_pessoa_anterior_id and
+            historico.status_pessoa_novo_id and
+            historico.status_pessoa_anterior_id != historico.status_pessoa_novo_id
+        ):
+            ultima_data_mudanca_status = historico.data_transicao
+        if ultima_data_mudanca_tipo and ultima_data_mudanca_status:
+            break
+
     for h in historico_status_membro:
         pass  # Bloco mantido para evitar erro de indentação
 
@@ -487,6 +540,8 @@ def editar_membro(request, membro_id):  # noqa: E302
         'filtro_data': filtro_data,
         'cargos_historico': list(cargos_historico),
         'historico_status_membro': historico_status_membro,
+        'ultima_data_mudanca_tipo': ultima_data_mudanca_tipo,
+        'ultima_data_mudanca_status': ultima_data_mudanca_status,
     }
     context.update(nav_context)
     return render(request, 'secretaria/editar_membro.html', context)
@@ -536,6 +591,16 @@ def criar_membro(request):  # noqa: E302
                         )
                     data_mudanca_tipo = form.cleaned_data.get('data_mudanca_tipo')
                     data_mudanca_status = form.cleaned_data.get('data_mudanca_status')
+                    novo_membro.observacoes_visita = MembroForm.upsert_premium_etapas_metadata(
+                        getattr(novo_membro, 'observacoes_visita', ''),
+                        {
+                            'data_batismo': form.cleaned_data.get('data_batismo'),
+                            'numero_credencial': (form.cleaned_data.get('numero_credencial') or '').strip(),
+                            'data_consagracao': form.cleaned_data.get('data_consagracao'),
+                            'convencao': (form.cleaned_data.get('convencao') or '').strip(),
+                            'observacoes_ministeriais': (form.cleaned_data.get('observacoes_ministeriais') or '').strip(),
+                        },
+                    )
                     novo_membro.save(
                         user=request.user,
                         data_mudanca_tipo=data_mudanca_tipo,

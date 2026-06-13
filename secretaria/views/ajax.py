@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from secretaria.models import Membro
+from secretaria.utils import filter_people_by_name_or_nickname
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ def autocomplete_nome(request):
     q = request.GET.get('q', '').strip()
     results = []
     if q and len(q) >= 1:
-        membros = Membro.objects.filter(nome__istartswith=q).order_by('nome')[:10]
+        membros = filter_people_by_name_or_nickname(Membro.objects.all(), q).order_by('nome')[:10]
         for m in membros:
             results.append({
                 'id': m.pk,
@@ -37,6 +38,6 @@ def autocomplete_nome_membro(request):
     termo = request.GET.get('q', '').strip()
     results = []
     if termo:
-        membros = Membro.objects.filter(nome__icontains=termo)[:20]
+        membros = filter_people_by_name_or_nickname(Membro.objects.all(), termo)[:20]
         results = [{'id': m.id, 'nome': m.nome} for m in membros]
     return JsonResponse({'results': results})

@@ -633,95 +633,23 @@ def desvincular_usuario_membro(request):
 # --- ETAPAS DO CADASTRO PROGRESSIVO ---
 @login_required
 def pre_cadastro(request):
-    """
-    Etapa 1: Pré-cadastro - coleta dados básicos e tipo de pessoa.
-    - Exibe formulário para preenchimento inicial de dados do membro.
-    - Seleciona igreja inicial com base no contexto do usuário.
-    Parâmetros:
-        request (HttpRequest): Requisição HTTP.
-    Retorno:
-        HttpResponse: Renderiza o template de pré-cadastro.
-    Regras de negócio:
-        - Só permite igrejas permitidas ao usuário.
-        - Redireciona para etapa detalhada após sucesso.
-    """
-    logger = logging.getLogger("django")
-    ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-    igreja_inicial_para_form = None
-    # Sempre pega a igreja do seletor global, se disponível
-    if hasattr(request, 'igreja_ativa') and request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
-        igreja_inicial_para_form = request.igreja_ativa
-    else:
-        igreja_inicial_para_form = allowed_churches.first() if allowed_churches.exists() else None
-
-    if request.method == 'POST':
-        form = MembroForm(request.POST, igreja_inicial=igreja_inicial_para_form, allowed_churches=allowed_churches, user=request.user)
-        if form.is_valid():
-            pessoa = form.save(commit=True)
-            messages.success(request, 'Pré-cadastro realizado com sucesso!')
-            return redirect('secretaria:cadastro_detalhado', pessoa_id=pessoa.pk)
-    else:
-        form = MembroForm(igreja_inicial=igreja_inicial_para_form, allowed_churches=allowed_churches, user=request.user)
-    return render(request, 'secretaria/pre_cadastro.html', {'form': form, 'igreja_selecionada': igreja_inicial_para_form})
+    """Fluxo legado descontinuado: redireciona para o cadastro premium."""
+    messages.info(request, 'Fluxo antigo de cadastro descontinuado. Voce foi redirecionado para o Cadastro Premium.')
+    return redirect('secretaria:cadastrar_membro_premium')
 
 
 @login_required
 def cadastro_detalhado(request, pessoa_id):
-    """
-    Etapa 2: Cadastro detalhado - coleta dados adicionais conforme tipo de pessoa.
-    - Exibe formulário para preenchimento de dados complementares do membro.
-    Parâmetros:
-        request (HttpRequest): Requisição HTTP.
-        pessoa_id (int): ID do membro a ser detalhado.
-    Retorno:
-        HttpResponse: Renderiza o template de cadastro detalhado.
-    Regras de negócio:
-        - Só permite editar membros permitidos ao usuário.
-        - Redireciona para etapa complementar após sucesso.
-    """
-    ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-    pessoa = get_object_or_404(Membro, pk=pessoa_id, igreja__in=allowed_churches)
-    igreja_inicial = getattr(request, 'igreja_ativa', None)
-    if request.method == 'POST':
-        form = MembroForm(request.POST, instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Cadastro detalhado salvo!')
-            return redirect('secretaria:cadastro_complementar', pessoa_id=pessoa.pk)
-    else:
-        form = MembroForm(instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
-    return render(request, 'secretaria/cadastro_detalhado.html', {'form': form, 'pessoa': pessoa})
+    """Fluxo legado descontinuado: redireciona para o cadastro premium."""
+    messages.info(request, 'Fluxo antigo de cadastro descontinuado. Voce foi redirecionado para o Cadastro Premium.')
+    return redirect('secretaria:cadastrar_membro_premium')
 
 
 @login_required
 def cadastro_complementar(request, pessoa_id):
-    """
-    Etapa 3: Cadastro complementar - histórico, tags, acompanhamento, etc.
-    - Exibe formulário para preenchimento de dados complementares finais do membro.
-    Parâmetros:
-        request (HttpRequest): Requisição HTTP.
-        pessoa_id (int): ID do membro a ser complementado.
-    Retorno:
-        HttpResponse: Renderiza o template de cadastro complementar.
-    Regras de negócio:
-        - Só permite editar membros permitidos ao usuário.
-        - Redireciona para lista de membros após sucesso.
-    """
-    ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
-    pessoa = get_object_or_404(Membro, pk=pessoa_id, igreja__in=allowed_churches)
-    igreja_inicial = getattr(request, 'igreja_ativa', None)
-    if request.method == 'POST':
-        form = MembroForm(request.POST, instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Cadastro complementar salvo!')
-            return redirect('secretaria:lista_membros')
-    else:
-        form = MembroForm(instance=pessoa, allowed_churches=allowed_churches, igreja_inicial=igreja_inicial, user=request.user)
-    return render(request, 'secretaria/cadastro_complementar.html', {'form': form, 'pessoa': pessoa})
+    """Fluxo legado descontinuado: redireciona para o cadastro premium."""
+    messages.info(request, 'Fluxo antigo de cadastro descontinuado. Voce foi redirecionado para o Cadastro Premium.')
+    return redirect('secretaria:cadastrar_membro_premium')
 
 
 # --- VIEWS DE AÇÕES RÁPIDAS DE ACOMPANHAMENTO ---

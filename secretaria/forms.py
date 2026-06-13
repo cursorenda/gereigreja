@@ -36,7 +36,7 @@ class PessoaBulkEditForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     tipo_pessoa = forms.ModelChoiceField(
-        queryset=TipoPessoa.objects.all(),
+        queryset=TipoPessoa.objects.exclude(nome__iexact='obreiro').order_by('nome'),
         required=False,
         label='Tipo de Pessoa',
         widget=forms.Select(attrs={'class': 'form-select'})
@@ -87,6 +87,7 @@ from configuracao.services_assinatura import contar_pessoas_ativas, ministerio_p
 from .utils import is_admin_org, get_allowed_churches_for_membros
 from .models import Tag
 import re
+import unicodedata
 
 
 # --- FUNÇÕES DE VALIDAÇÃO ---
@@ -197,6 +198,23 @@ class CargoForm(forms.ModelForm):
 
 # --- MembroForm unificado ---
 class MembroForm(forms.ModelForm):
+    PREMIUM_ETAPAS_HEADER = '[Cadastro Premium - Etapas]'
+    PREMIUM_ETAPAS_FOOTER = '[/Cadastro Premium - Etapas]'
+    PREMIUM_ETAPAS_LABELS = {
+        'data_batismo': 'Data do Batismo',
+        'numero_credencial': 'N. da Credencial',
+        'data_consagracao': 'Data da Consagracao',
+        'convencao': 'Convencao',
+        'observacoes_ministeriais': 'Observacoes Ministeriais',
+    }
+    PREMIUM_ETAPAS_LABEL_TO_KEY = {
+        'data do batismo': 'data_batismo',
+        'n. da credencial': 'numero_credencial',
+        'data da consagracao': 'data_consagracao',
+        'convencao': 'convencao',
+        'observacoes ministeriais': 'observacoes_ministeriais',
+    }
+
     # DEBUG: Mostra igrejas disponíveis e igreja do membro (mover para __init__ se necessário)
     sub_status_inativo = forms.ChoiceField(
         choices=[
@@ -252,6 +270,111 @@ class MembroForm(forms.ModelForm):
         label='Tags',
         help_text='Segure Ctrl para selecionar múltiplas tags'
     )
+    data_batismo = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        label='Data do Batismo'
+    )
+    numero_credencial = forms.CharField(
+        required=False,
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Numero da credencial'}),
+        label='Numero da Credencial'
+    )
+    data_consagracao = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        label='Data da Consagracao'
+    )
+    convencao = forms.CharField(
+        required=False,
+        max_length=120,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Convencao / jurisdicao'}),
+        label='Convencao'
+    )
+    observacoes_ministeriais = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observacoes ministeriais'}),
+        label='Observacoes Ministeriais'
+    )
+
+    @classmethod
+    def extract_premium_etapas_metadata(cls, observacoes_text):
+        parsed = {
+            'data_batismo': '',
+            'numero_credencial': '',
+            'data_consagracao': '',
+            'convencao': '',
+            'observacoes_ministeriais': '',
+        }
+        if not observacoes_text:
+            return parsed
+
+        lines = str(observacoes_text).splitlines()
+        in_block = False
+        for raw_line in lines:
+            line = (raw_line or '').strip()
+            if not in_block:
+                if line == cls.PREMIUM_ETAPAS_HEADER:
+                    in_block = True
+                continue
+
+            if line == cls.PREMIUM_ETAPAS_FOOTER:
+                break
+
+            # Suporta bloco legado sem rodape: interrompe ao entrar em outro marcador.
+            if line.startswith('[') and line.endswith(']') and line != cls.PREMIUM_ETAPAS_HEADER:
+                break
+
+            if ':' not in line:
+                continue
+
+            label, value = line.split(':', 1)
+            key = cls.PREMIUM_ETAPAS_LABEL_TO_KEY.get(label.strip().lower())
+            if key:
+                parsed[key] = value.strip()
+
+        return parsed
+
+    @classmethod
+    def upsert_premium_etapas_metadata(cls, observacoes_text, metadata):
+        current_text = str(observacoes_text or '')
+        lines = current_text.splitlines()
+        cleaned_lines = []
+        i = 0
+        while i < len(lines):
+            line = (lines[i] or '').strip()
+            if line == cls.PREMIUM_ETAPAS_HEADER:
+                i += 1
+                while i < len(lines):
+                    inner = (lines[i] or '').strip()
+                    if inner == cls.PREMIUM_ETAPAS_FOOTER:
+                        i += 1
+                        break
+                    if inner.startswith('[') and inner.endswith(']') and inner != cls.PREMIUM_ETAPAS_HEADER:
+                        break
+                    i += 1
+                continue
+            cleaned_lines.append(lines[i])
+            i += 1
+
+        base_text = '\n'.join(cleaned_lines).strip()
+        block_lines = []
+        for key, label in cls.PREMIUM_ETAPAS_LABELS.items():
+            value = metadata.get(key) if metadata else None
+            if value in (None, ''):
+                continue
+            block_lines.append(f'{label}: {value}')
+
+        if not block_lines:
+            return base_text
+
+        premium_block = '\n'.join(
+            [cls.PREMIUM_ETAPAS_HEADER] + block_lines + [cls.PREMIUM_ETAPAS_FOOTER]
+        )
+        if base_text:
+            return f'{base_text}\n\n{premium_block}'
+        return premium_block
 
     class Meta:
         model = Pessoa
@@ -300,10 +423,12 @@ class MembroForm(forms.ModelForm):
             self.fields['celular'].widget.attrs['placeholder'] = '(99) 99999-9999'
         if 'email' in self.fields:
             self.fields['email'].widget.attrs['placeholder'] = 'email@exemplo.com'
+        if 'nome' in self.fields:
+            self.fields['nome'].label = 'Nome Completo'
         if 'tags' in self.fields:
             self.fields['tags'].queryset = Tag.objects.all().order_by('nome')
         if 'tipo_pessoa' in self.fields:
-            self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
+            self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.exclude(nome__iexact='obreiro').order_by('nome')
         if 'status_pessoa' in self.fields:
             self.fields['status_pessoa'].queryset = StatusPessoa.objects.filter(nome__in=["Ativo", "Desligado", "Em Disciplina", "Inativo"]).order_by('nome')
         if 'grau_eclesiastico' in self.fields:
@@ -356,6 +481,12 @@ class MembroForm(forms.ModelForm):
             if not self.instance or not self.instance.pk:
                 self.fields['igreja'].disabled = True
 
+        if self.instance and self.instance.pk and not self.is_bound:
+            premium_data = self.extract_premium_etapas_metadata(getattr(self.instance, 'observacoes_visita', ''))
+            for key, value in premium_data.items():
+                if key in self.fields and value and key not in self.initial:
+                    self.initial[key] = value
+
     def clean_cpf(self):
         """Valida CPF se fornecido."""
         cpf = self.cleaned_data.get('cpf')
@@ -368,6 +499,49 @@ class MembroForm(forms.ModelForm):
             except ValidationError as e:
                 raise ValidationError(e.message)
         return cpf
+
+
+    @staticmethod
+    def _smart_title_token(token):
+        """Aplica capitalização inteligente preservando hífen e apóstrofo."""
+        token = (token or '').strip()
+        if not token:
+            return ''
+
+        for sep in ('-', "'"):
+            if sep in token:
+                return sep.join(MembroForm._smart_title_token(part) for part in token.split(sep))
+
+        return token[:1].upper() + token[1:].lower()
+
+
+    @staticmethod
+    def _normalize_person_name(value):
+        """Normaliza espaços e aplica formatação profissional para nomes."""
+        if not value:
+            return value
+
+        value = unicodedata.normalize('NFC', str(value).strip())
+        value = re.sub(r'\s+', ' ', value)
+        if not value:
+            return value
+
+        lower_particles = {'da', 'de', 'do', 'das', 'dos', 'e'}
+        tokens = value.split(' ')
+        normalized_tokens = []
+
+        for idx, token in enumerate(tokens):
+            token_clean = token.strip()
+            if not token_clean:
+                continue
+            token_lower = token_clean.lower()
+
+            if idx > 0 and token_lower in lower_particles:
+                normalized_tokens.append(token_lower)
+            else:
+                normalized_tokens.append(MembroForm._smart_title_token(token_lower))
+
+        return ' '.join(normalized_tokens)
     
     def clean_email(self):
         """Valida formato de email."""
@@ -378,6 +552,21 @@ class MembroForm(forms.ModelForm):
             if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
                 raise ValidationError('Email inválido. Use o formato: nome@exemplo.com')
         return email
+
+    def clean_nome(self):
+        """Padroniza o nome completo sem remover acentos."""
+        nome = self.cleaned_data.get('nome')
+        nome = self._normalize_person_name(nome)
+        if nome and len(nome) < 3:
+            raise ValidationError('Informe um nome completo valido com pelo menos 3 caracteres.')
+        return nome
+
+    def clean_apelido(self):
+        """Padroniza apelido para manter consistência visual."""
+        apelido = self.cleaned_data.get('apelido')
+        if not apelido:
+            return apelido
+        return self._normalize_person_name(apelido)
     
     def clean(self):
         cleaned_data = super().clean()
@@ -417,6 +606,21 @@ class MembroForm(forms.ModelForm):
                     'status_pessoa',
                     f'Limite de pessoas ativas do plano atingido ({total_ativos}/{limite}). Faça upgrade para ativar mais pessoas.'
                 )
+
+        tipo_nome = (getattr(tipo_pessoa, 'nome', '') or '').strip().lower()
+        grau = cleaned_data.get('grau_eclesiastico')
+        if tipo_nome != 'membro':
+            cleaned_data['data_batismo'] = None
+            cleaned_data['numero_credencial'] = ''
+            cleaned_data['data_consagracao'] = None
+            cleaned_data['convencao'] = ''
+            cleaned_data['observacoes_ministeriais'] = ''
+        elif grau == 'membro_comum':
+            cleaned_data['numero_credencial'] = ''
+            cleaned_data['data_consagracao'] = None
+            cleaned_data['convencao'] = ''
+            cleaned_data['observacoes_ministeriais'] = ''
+
         return cleaned_data
 
     def save(self, commit=True):
@@ -670,7 +874,7 @@ if 'MembroForm' in globals():
 
             if 'tipo_pessoa' in getattr(self, 'fields', {}):
                 try:
-                    self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
+                    self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.exclude(nome__iexact='obreiro').order_by('nome')
                 except Exception:
                     pass
             if 'status_pessoa' in getattr(self, 'fields', {}):
@@ -747,7 +951,7 @@ if 'MembroForm' in globals():
                             except Exception:
                                 pass
                     if 'tipo_pessoa' in self.fields:
-                        self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.all().order_by('nome')
+                        self.fields['tipo_pessoa'].queryset = TipoPessoa.objects.exclude(nome__iexact='obreiro').order_by('nome')
                     if 'status_pessoa' in self.fields:
                         self.fields['status_pessoa'].queryset = StatusPessoa.objects.all().order_by('nome')
                     if 'foto' in self.fields:
@@ -774,3 +978,85 @@ class TagForm(forms.ModelForm):
             'cor': forms.TextInput(attrs={'type': 'color', 'class': 'form-control-color', 'style': 'max-width: 60px; display: inline-block;'}),
             'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 1, 'placeholder': 'Descrição (opcional)', 'style': 'max-width: 220px; display: inline-block;'}),
         }
+
+
+class CadastroPremiumMultietapasForm(MembroForm):
+    data_batismo = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        label='Data do Batismo'
+    )
+    numero_credencial = forms.CharField(
+        required=False,
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Numero da credencial'}),
+        label='Numero da Credencial'
+    )
+    data_consagracao = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        label='Data da Consagracao'
+    )
+    convencao = forms.CharField(
+        required=False,
+        max_length=120,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Convencao / jurisdicao'}),
+        label='Convencao'
+    )
+    observacoes_ministeriais = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observacoes ministeriais'}),
+        label='Observacoes Ministeriais'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'tipo_pessoa' in self.fields:
+            self.fields['tipo_pessoa'].queryset = self.fields['tipo_pessoa'].queryset.exclude(nome__iexact='obreiro')
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        tipo_pessoa = cleaned_data.get('tipo_pessoa')
+        status_pessoa = cleaned_data.get('status_pessoa')
+        grau_eclesiastico = cleaned_data.get('grau_eclesiastico')
+
+        tipo_nome = (getattr(tipo_pessoa, 'nome', '') or '').strip().lower()
+        status_nome = (getattr(status_pessoa, 'nome', '') or '').strip().lower()
+
+        if tipo_nome == 'obreiro':
+            self.add_error(
+                'tipo_pessoa',
+                'O tipo "Obreiro" foi incorporado ao Grau Eclesiastico. Selecione "Membro" e defina o grau eclesiastico.'
+            )
+
+        if status_nome in {'em disciplina', 'desligado'} and tipo_nome != 'membro':
+            self.add_error(
+                'status_pessoa',
+                'Status "Em Disciplina" e "Desligado" sao permitidos apenas para Tipo de Pessoa "Membro".'
+            )
+
+        if tipo_nome != 'membro':
+            cleaned_data['tipo_entrada'] = None
+            cleaned_data['grau_eclesiastico'] = None
+            cleaned_data['data_batismo'] = None
+            cleaned_data['numero_credencial'] = ''
+            cleaned_data['data_consagracao'] = None
+            cleaned_data['convencao'] = ''
+            cleaned_data['observacoes_ministeriais'] = ''
+        else:
+            if not grau_eclesiastico:
+                cleaned_data['grau_eclesiastico'] = 'membro_comum'
+            if cleaned_data.get('grau_eclesiastico') == 'membro_comum':
+                cleaned_data['numero_credencial'] = ''
+                cleaned_data['data_consagracao'] = None
+                cleaned_data['convencao'] = ''
+                cleaned_data['observacoes_ministeriais'] = ''
+
+        if tipo_nome in {'visitante'}:
+            cleaned_data['profissao'] = ''
+            cleaned_data['escolaridade'] = ''
+            cleaned_data['nome_pai'] = ''
+            cleaned_data['nome_mae'] = ''
+
+        return cleaned_data

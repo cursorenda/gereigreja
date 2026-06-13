@@ -68,3 +68,9 @@ from .certificado_batismo import (  # noqa: F401
 from .carta_recomendacao import (  # noqa: F401
     carta_recomendacao,
 )
+from .cadastro_premium import (  # noqa: F401
+    cadastro_premium_multietapas,
+)
+from .cadastro_legado_redirects import (  # noqa: F401
+    pre_cadastro, cadastro_detalhado, cadastro_complementar,
+)

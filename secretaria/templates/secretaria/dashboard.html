@@ -186,7 +186,7 @@
 
         <div class="secdash-quick-actions">
           {% if dashboard_visibility.quick_actions.cadastrar_pessoa %}
-          <a href="{% url 'secretaria:cadastrar_membro' %}" class="secdash-quick-action">
+          <a href="{% url 'secretaria:cadastrar_membro_premium' %}" class="secdash-quick-action">
             <span class="icon"><i class="fas fa-user-plus"></i></span>
             <span class="content">
               <strong>Cadastrar pessoa</strong>
@@ -273,7 +273,7 @@
 
     <div class="secdash-card-grid">
       {% url 'secretaria:lista_pessoas' as url_lista_pessoas %}
-      {% url 'secretaria:cadastrar_membro' as url_cadastrar_membro %}
+      {% url 'secretaria:cadastrar_membro_premium' as url_cadastrar_membro %}
       {% if dashboard_visibility.cards.pessoas %}
       {% include 'secretaria/partials/_operation_card.html' with tone='tone-a' icon='users' title='Gerir pessoas' description='Atualizar cadastro, dados essenciais e base de membros.' badge_value=total_membros primary_href=url_lista_pessoas primary_label='Abrir gestão' secondary_href=url_cadastrar_membro secondary_label='Novo cadastro' %}
       {% endif %}

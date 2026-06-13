@@ -7,10 +7,19 @@
 <link rel="stylesheet" href="{% static 'css/secretaria/secretaria_pessoa.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria/input_foto_colado.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria/input_foto_compact.css' %}">
-<script src="{% static 'secretaria/form_tipo_status.js' %}" defer></script>
-<script src="{% static 'secretaria/form_dynamic.js' %}?v=20260612-1" defer></script>
-<form method="post" enctype="multipart/form-data">
+<link rel="stylesheet" href="{% static 'css/secretaria/form_sections_premium.css' %}">
+<script src="{% static 'secretaria/form_tipo_status.js' %}?v=20260613-1" defer></script>
+<script src="{% static 'secretaria/form_dynamic.js' %}?v=20260613-2" defer></script>
+<script src="{% static 'secretaria/form_sections_premium.js' %}?v=20260612-1" defer></script>
+<form method="post" enctype="multipart/form-data" data-premium-sections="1">
 	{% csrf_token %}
+	{% if form.instance.pk and form.instance.atualizado_em %}
+	<input type="hidden" name="_last_updated_epoch" value="{{ form.instance.atualizado_em|date:'U' }}">
+	{% endif %}
+	<div class="premium-sections-progress" id="premium-sections-progress" aria-live="polite">
+		<span class="label">Progresso do preenchimento:</span>
+		<span class="value" id="premium-sections-progress-value">0 de 0 seções completas</span>
+	</div>
 
 		{# --- BLOQUEIO DE CAMPOS EM MODO AUDITORIA --- #}
 		{% if modo_auditoria_ativo %}
@@ -22,62 +31,153 @@
 		{% endif %}
 	<div class="container-fluid p-0">
 		{% load widget_tweaks %}
-		<!-- FOTO À ESQUERDA, CAMPOS À DIREITA -->
-		<div class="row align-items-center mb-4">
-			<div class="col-md-3 text-center">
-				{% if form.instance.pk and form.instance.foto %}
-					<img src="{{ form.instance.foto.url }}" alt="Foto Atual de {{ form.instance.nome }}" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;">
-				{% else %}
-					<img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Sem Foto" class="img-fluid rounded-circle mb-2" style="width: 120px; height: 120px; object-fit: cover;">
-				{% endif %}
-				<label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
-				{{ form.foto|add_class:'input-foto-colado input-foto-compact form-control-sm'|attr:'style=width:120px;height:28px;font-size:0.9em;padding:2px 4px;margin-top:0;margin-bottom:0;' }}
-				{% if form.foto.errors %}
-					<div class="invalid-feedback d-block">{% for error in form.foto.errors %}{{ error }}{% endfor %}</div>
-				{% endif %}
-			</div>
-			<div class="col-md-9">
-				<div class="row mb-2">
-					<div class="col-md-8">
-						<label for="{{ form.nome.id_for_label }}" class="form-label fw-bold">Nome <span class="badge bg-danger">Obrigatório</span></label>
-						{{ form.nome }}
-						{% if form.nome.errors %}<div class="invalid-feedback d-block">{{ form.nome.errors|striptags }}</div>{% endif %}
-					</div>
-					<div class="col-md-4">
-						<label for="{{ form.apelido.id_for_label }}" class="form-label">Apelido</label>
-						{{ form.apelido }}
-						{% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
+		<!-- IDENTIDADE PREMIUM: FOTO + NOME/APELIDO -->
+		<div class="premium-identity-shell mb-4">
+			<div class="row g-3 align-items-stretch premium-identity-row">
+				<div class="col-xl-3 col-lg-4">
+					<div class="premium-photo-pane text-center h-100">
+						{% if form.instance.pk and form.instance.foto %}
+							<img src="{{ form.instance.foto.url }}" alt="Foto Atual de {{ form.instance.nome }}" class="premium-profile-avatar">
+						{% else %}
+							<img src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Sem Foto" class="premium-profile-avatar">
+						{% endif %}
+						<label for="{{ form.foto.id_for_label }}" class="form-label visually-hidden">{{ form.foto.label }}</label>
+						{{ form.foto|add_class:'input-foto-colado input-foto-compact form-control-sm premium-photo-input' }}
+						<div class="premium-photo-hint">Foto de perfil da pessoa</div>
+						{% if form.foto.errors %}
+							<div class="invalid-feedback d-block">{% for error in form.foto.errors %}{{ error }}{% endfor %}</div>
+						{% endif %}
 					</div>
 				</div>
-				<div class="row mb-2">
-					<div class="col-md-6">
-						<label for="{{ form.tipo_pessoa.id_for_label }}" class="form-label">Tipo <span class="badge bg-danger">Obrigatório</span></label>
-						<div class="input-group input-group-data-mudanca">
-							{{ form.tipo_pessoa }}
-							<span class="input-group-text"><i class="fas fa-calendar-alt text-muted"></i></span>
-							<input type="date" id="id_data_mudanca_tipo" name="data_mudanca_tipo" class="form-control" value="{% now 'Y-m-d' %}" title="Data em que a mudança de tipo ocorreu">
+				<div class="col-xl-9 col-lg-8">
+					<div class="premium-name-pane mb-2">
+						<div class="row g-3 align-items-end">
+							<div class="col-md-8">
+								<label for="{{ form.nome.id_for_label }}" class="form-label fw-bold">Nome Completo <span class="badge bg-danger">Obrigatório</span></label>
+								{{ form.nome }}
+								{% if form.nome.errors %}<div class="invalid-feedback d-block">{{ form.nome.errors|striptags }}</div>{% endif %}
+							</div>
+							<div class="col-md-4">
+								<label for="{{ form.apelido.id_for_label }}" class="form-label">Apelido</label>
+								{{ form.apelido }}
+								{% if form.apelido.errors %}<div class="invalid-feedback d-block">{{ form.apelido.errors|striptags }}</div>{% endif %}
+							</div>
 						</div>
-						<small class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Quando a mudança de tipo ocorreu (editável)</small>
-						{% if form.tipo_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa.errors|striptags }}</div>{% endif %}
 					</div>
-					<div class="col-md-6">
-						<label for="{{ form.status_pessoa.id_for_label }}" class="form-label">Status <span class="badge bg-danger">Obrigatório</span></label>
-						<div class="input-group input-group-data-mudanca">
-							{{ form.status_pessoa }}
-							<span class="input-group-text"><i class="fas fa-calendar-alt text-muted"></i></span>
-							<input type="date" id="id_data_mudanca_status" name="data_mudanca_status" class="form-control" value="{% now 'Y-m-d' %}" title="Data em que a mudança de status ocorreu">
+				<div class="premium-transition-panel mb-2" role="region" aria-label="Governanca de alteracoes criticas">
+					<div class="premium-transition-panel-header">
+						<div class="title-wrap">
+							<i class="fas fa-shield-alt" aria-hidden="true"></i>
+							<span class="title">Governanca de Alteracoes Criticas</span>
 						</div>
-						<small class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Quando a mudança de status ocorreu (editável)</small>
-						{% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
+						<span class="hint-pill">Somente para mudancas sensiveis</span>
 					</div>
-				</div>
-				<div class="row" id="row-grau-eclesiastico" style="display: none;">
-					<div class="col-md-6">
-						<div class="mb-3">
+
+					<div class="row g-3 premium-transition-fields-grid">
+						<div class="col-lg-4">
+							<label for="{{ form.tipo_pessoa.id_for_label }}" class="form-label">Tipo <span class="badge bg-danger">Obrigatório</span></label>
+							<div class="premium-transition-select-wrap">
+								{{ form.tipo_pessoa }}
+							</div>
+							<small class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Ao alterar, o sistema pedira data e motivo em uma janela rapida.</small>
+							{% if form.tipo_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipo_pessoa.errors|striptags }}</div>{% endif %}
+						</div>
+
+						<div class="col-lg-4" id="row-grau-eclesiastico" style="display: none;">
 							<label for="{{ form.grau_eclesiastico.id_for_label }}" class="form-label">{{ form.grau_eclesiastico.label }}</label>
-							{{ form.grau_eclesiastico }}
+							<div class="premium-transition-select-wrap">
+								{{ form.grau_eclesiastico }}
+							</div>
 							<small class="form-text text-muted">Disponível apenas quando o tipo da pessoa for Membro.</small>
 							{% if form.grau_eclesiastico.errors %}<div class="invalid-feedback d-block">{{ form.grau_eclesiastico.errors|striptags }}</div>{% endif %}
+						</div>
+
+						<div class="col-lg-4">
+							<label for="{{ form.status_pessoa.id_for_label }}" class="form-label">Status <span class="badge bg-danger">Obrigatório</span></label>
+							<div class="premium-transition-select-wrap">
+								{{ form.status_pessoa }}
+							</div>
+							<small class="form-text text-muted"><i class="fas fa-info-circle me-1"></i>Ao alterar, o sistema pedira data e motivo em uma janela rapida.</small>
+							{% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
+						</div>
+					</div>
+
+					<div class="premium-transition-summary mt-3">
+						<div class="summary-row">
+							<span class="summary-label">Motivo registrado</span>
+							<span class="summary-value" id="transition-summary-motivo">
+								{% if request.POST.motivo_transicao %}{{ request.POST.motivo_transicao }}{% else %}Nenhum motivo informado ainda.{% endif %}
+							</span>
+						</div>
+						<div class="summary-row date-row">
+							<div>
+								<span class="summary-label">Data mudanca tipo</span>
+								<span class="summary-value" id="transition-summary-data-tipo"{% if ultima_data_mudanca_tipo %} data-initial-iso="{{ ultima_data_mudanca_tipo|date:'Y-m-d' }}"{% endif %}>
+									{% if request.POST.data_mudanca_tipo %}
+										{{ request.POST.data_mudanca_tipo }}
+									{% elif ultima_data_mudanca_tipo %}
+										{{ ultima_data_mudanca_tipo|date:'d/m/Y' }}
+									{% else %}
+										--/--/----
+									{% endif %}
+								</span>
+							</div>
+							<div>
+								<span class="summary-label">Data mudanca status</span>
+								<span class="summary-value" id="transition-summary-data-status"{% if ultima_data_mudanca_status %} data-initial-iso="{{ ultima_data_mudanca_status|date:'Y-m-d' }}"{% endif %}>
+									{% if request.POST.data_mudanca_status %}
+										{{ request.POST.data_mudanca_status }}
+									{% elif ultima_data_mudanca_status %}
+										{{ ultima_data_mudanca_status|date:'d/m/Y' }}
+									{% else %}
+										--/--/----
+									{% endif %}
+								</span>
+							</div>
+							<button type="button" class="btn btn-outline-secondary btn-sm" id="btn-open-transition-modal">
+								<i class="fas fa-pen me-1"></i>Registrar motivo e datas
+							</button>
+						</div>
+						<small class="form-text text-muted d-block transition-empty-hint" id="transition-summary-empty-hint">
+							<i class="fas fa-info-circle" aria-hidden="true"></i>
+							<span>Sem registro de mudanca de Tipo/Status ainda.</span>
+						</small>
+						<small class="form-text text-muted">Essas informacoes sao solicitadas automaticamente ao alterar Tipo/Status e ficam no historico.</small>
+					</div>
+
+					<input type="hidden" id="id_data_mudanca_tipo" name="data_mudanca_tipo" value="{% if request.POST.data_mudanca_tipo %}{{ request.POST.data_mudanca_tipo }}{% endif %}">
+					<input type="hidden" id="id_data_mudanca_status" name="data_mudanca_status" value="{% if request.POST.data_mudanca_status %}{{ request.POST.data_mudanca_status }}{% endif %}">
+					<textarea id="id_motivo_transicao" name="motivo_transicao" class="d-none">{% if request.POST.motivo_transicao %}{{ request.POST.motivo_transicao }}{% endif %}</textarea>
+				</div>
+
+				<div class="modal fade" id="modalTransitionMeta" tabindex="-1" aria-labelledby="modalTransitionMetaLabel" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+						<div class="modal-content transition-modal-content">
+							<div class="modal-header">
+								<h5 class="modal-title" id="modalTransitionMetaLabel">Registrar Alteracao Critica</h5>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+							</div>
+							<div class="modal-body">
+								<p class="transition-modal-help">Informe os dados de auditoria para a mudanca. Isso sera gravado no historico de Tipo/Status.</p>
+								<div class="row g-3">
+									<div class="col-md-6">
+										<label for="modal_data_mudanca_tipo" class="form-label">Data da mudanca de Tipo</label>
+										<input type="date" id="modal_data_mudanca_tipo" class="form-control" value="{% if request.POST.data_mudanca_tipo %}{{ request.POST.data_mudanca_tipo }}{% endif %}">
+									</div>
+									<div class="col-md-6">
+										<label for="modal_data_mudanca_status" class="form-label">Data da mudanca de Status</label>
+										<input type="date" id="modal_data_mudanca_status" class="form-control" value="{% if request.POST.data_mudanca_status %}{{ request.POST.data_mudanca_status }}{% endif %}">
+									</div>
+									<div class="col-12">
+										<label for="modal_motivo_transicao" class="form-label">Motivo da alteracao</label>
+										<textarea id="modal_motivo_transicao" rows="3" class="form-control" placeholder="Explique o motivo da alteracao.">{% if request.POST.motivo_transicao %}{{ request.POST.motivo_transicao }}{% endif %}</textarea>
+									</div>
+								</div>
+							</div>
+							<div class="modal-footer">
+								<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+								<button type="button" class="btn btn-primary" id="btn-save-transition-meta">Salvar dados da alteracao</button>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -90,12 +190,13 @@
 							{% if form.sub_status_inativo.help_text %}<small class="form-text text-muted">{{ form.sub_status_inativo.help_text }}</small>{% endif %}
 						</div>
 					</div>
+					</div>
 				</div>
 			</div>
 		</div>
 		<!-- IGREJA, TIPO ENTRADA, DATA ENTRADA -->
-		<div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Informações da Igreja">
-			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-igreja">
+		<div class="p-3 mb-4 bg-light rounded-3 premium-content-block" role="region" aria-label="Informações da Igreja">
+			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center premium-content-block-title" id="form-igreja">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
 				Informações da Igreja
 			</h5>
@@ -130,8 +231,8 @@
 			</div>
 		</div>
 		<!-- DADOS PESSOAIS -->
-		<div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Dados Pessoais">
-			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-dados-pessoais">
+		<div class="p-3 mb-4 bg-light rounded-3 premium-content-block" role="region" aria-label="Dados Pessoais">
+			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center premium-content-block-title" id="form-dados-pessoais">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
 				Dados Pessoais
 			</h5>
@@ -167,8 +268,8 @@
 			</div>
 		</div>
 		<!-- DOCUMENTOS -->
-		<div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Documentos">
-			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-documentos">
+		<div class="p-3 mb-4 bg-light rounded-3 premium-content-block" role="region" aria-label="Documentos">
+			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center premium-content-block-title" id="form-documentos">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
 				Documentos
 			</h5>
@@ -190,8 +291,8 @@
 			</div>
 		</div>
 		<!-- VIDA CIVIL E FAMILIAR -->
-		<div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Vida Civil e Familiar">
-			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-civil">
+		<div class="p-3 mb-4 bg-light rounded-3 premium-content-block" role="region" aria-label="Vida Civil e Familiar">
+			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center premium-content-block-title" id="form-civil">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
 				Vida Civil e Familiar
 			</h5>
@@ -203,14 +304,14 @@
 						{% if form.estado_civil.errors %}<div class="invalid-feedback d-block">{{ form.estado_civil.errors|striptags }}</div>{% endif %}
 					</div>
 				</div>
-				<div class="col-md-4">
+				<div class="col-md-4" id="row-conjuge-cadastro">
 					<div class="mb-3">
 						<label for="{{ form.conjuge.id_for_label }}" class="form-label">{{ form.conjuge.label }}:</label>
 						{{ form.conjuge }}
 						{% if form.conjuge.errors %}<div class="invalid-feedback d-block">{{ form.conjuge.errors|striptags }}</div>{% endif %}
 					</div>
 				</div>
-				<div class="col-md-4">
+				<div class="col-md-4" id="row-data-casamento-cadastro">
 					<div class="mb-3">
 						<label for="{{ form.data_casamento.id_for_label }}" class="form-label">{{ form.data_casamento.label }}:</label>
 						{{ form.data_casamento }}
@@ -236,8 +337,8 @@
 			</div>
 		</div>
 		<!-- FILIAÇÃO -->
-		<div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Filiação">
-			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-filiacao">
+		<div class="p-3 mb-4 bg-light rounded-3 premium-content-block" role="region" aria-label="Filiação">
+			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center premium-content-block-title" id="form-filiacao">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
 				Filiação
 			</h5>
@@ -258,9 +359,61 @@
 				</div>
 			</div>
 		</div>
+		<!-- DADOS ECLESIASTICOS E MINISTERIAIS (COMPAT CADASTRO PREMIUM) -->
+		<div class="p-3 mb-4 bg-light rounded-3 premium-content-block" role="region" aria-label="Dados Eclesiasticos e Ministeriais" id="bloco-premium-ministerio">
+			<div class="premium-ministerial-sticky-shell">
+				<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center justify-content-between premium-content-block-title" id="form-premium-ministerio">
+					<span class="d-inline-flex align-items-center">
+					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+					Dados Eclesiasticos e Ministeriais
+					</span>
+					<span class="premium-ministerial-state" id="premium-ministerial-state">Nao aplicavel</span>
+				</h5>
+				<div class="premium-ministerial-summary" id="premium-ministerial-summary" aria-live="polite">
+					<span id="premium-ministerial-summary-flow">Fluxo: Nao aplicavel</span>
+					<span id="premium-ministerial-summary-credencial">Credencial: --</span>
+					<span id="premium-ministerial-summary-convencao">Convencao: --</span>
+				</div>
+				<p class="text-muted mb-3 premium-ministerial-hint">Campos alinhados ao cadastro premium. Exibidos quando o Tipo de Pessoa for Membro.</p>
+			</div>
+			<div class="row premium-ministerial-grid g-3">
+				<div class="col-md-4">
+					<label for="{{ form.data_batismo.id_for_label }}" class="form-label">{{ form.data_batismo.label }}:</label>
+					{{ form.data_batismo }}
+					{% if form.data_batismo.errors %}<div class="invalid-feedback d-block">{{ form.data_batismo.errors|striptags }}</div>{% endif %}
+				</div>
+				<div class="col-md-8 d-flex align-items-end">
+					<small class="form-text text-muted">Data do batismo e dados ministeriais ficam registrados no bloco premium da observacao de acompanhamento.</small>
+				</div>
+			</div>
+			<div id="row-dados-ministeriais-premium" class="mt-2">
+				<div class="row premium-ministerial-grid g-3">
+					<div class="col-md-4">
+						<label for="{{ form.numero_credencial.id_for_label }}" class="form-label">{{ form.numero_credencial.label }}:</label>
+						{{ form.numero_credencial }}
+						{% if form.numero_credencial.errors %}<div class="invalid-feedback d-block">{{ form.numero_credencial.errors|striptags }}</div>{% endif %}
+					</div>
+					<div class="col-md-4">
+						<label for="{{ form.data_consagracao.id_for_label }}" class="form-label">{{ form.data_consagracao.label }}:</label>
+						{{ form.data_consagracao }}
+						{% if form.data_consagracao.errors %}<div class="invalid-feedback d-block">{{ form.data_consagracao.errors|striptags }}</div>{% endif %}
+					</div>
+					<div class="col-md-4">
+						<label for="{{ form.convencao.id_for_label }}" class="form-label">{{ form.convencao.label }}:</label>
+						{{ form.convencao }}
+						{% if form.convencao.errors %}<div class="invalid-feedback d-block">{{ form.convencao.errors|striptags }}</div>{% endif %}
+					</div>
+					<div class="col-12">
+						<label for="{{ form.observacoes_ministeriais.id_for_label }}" class="form-label">{{ form.observacoes_ministeriais.label }}:</label>
+						{{ form.observacoes_ministeriais }}
+						{% if form.observacoes_ministeriais.errors %}<div class="invalid-feedback d-block">{{ form.observacoes_ministeriais.errors|striptags }}</div>{% endif %}
+					</div>
+				</div>
+			</div>
+		</div>
 		<!-- ENDEREÇO E CONTATO -->
-		<div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Endereço e Contato" style="padding-bottom: 80px;">
-			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center" id="form-endereco">
+		<div class="p-3 mb-4 bg-light rounded-3 premium-content-block" role="region" aria-label="Endereço e Contato" style="padding-bottom: 80px;">
+			<h5 class="mt-4 mb-3 border-bottom pb-2 d-flex align-items-center premium-content-block-title" id="form-endereco">
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
 				Endereço e Contato
 			</h5>
@@ -371,11 +524,12 @@
 					{% endfor %}
 				];
 			</script>
-			<div class="mt-3 mb-4">
-				<button type="submit" name="submit_membro_form" value="_save_and_continue" class="btn btn-outline-primary"><i class="fas fa-sync-alt me-1"></i> Salvar e Continuar Editando</button>
-				<button type="submit" name="submit_membro_form" value="_save" class="btn btn-primary ms-2"><i class="fas fa-save me-1"></i> Salvar alterações</button>
-				   <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary ms-2">Cancelar</a>
-			</div>
+		</div>
+
+		<div class="mt-3 mb-4 premium-form-actions">
+			<button type="submit" name="submit_membro_form" value="_save_and_continue" class="btn btn-outline-primary"><i class="fas fa-sync-alt me-1"></i> Salvar e Continuar Editando</button>
+			<button type="submit" name="submit_membro_form" value="_save" class="btn btn-primary"><i class="fas fa-save me-1"></i> Salvar alterações</button>
+			<a href="{% url 'secretaria:lista_membros' %}" class="btn btn-secondary">Cancelar</a>
 		</div>
 	</div>
 </form>

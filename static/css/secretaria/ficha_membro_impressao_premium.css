@@ -1,0 +1,451 @@
+/* Ficha Cadastral Premium - tela e impressao */
+:root {
+    --fp-ink: #102f3a;
+    --fp-muted: #607681;
+    --fp-surface: #ffffff;
+    --fp-bg: #eef3f7;
+    --fp-line: #d5e1e8;
+    --fp-primary: #0d8281;
+    --fp-primary-dark: #085c5c;
+    --fp-radius: 14px;
+    --fp-shadow: 0 14px 34px rgba(10, 36, 50, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.fp-body {
+    margin: 0;
+    background: linear-gradient(180deg, #f4f8fb 0%, #e9eff5 100%);
+    color: var(--fp-ink);
+    font-family: "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif;
+}
+
+.fp-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 0.8rem;
+    backdrop-filter: blur(8px);
+    background: rgba(239, 245, 249, 0.88);
+    border-bottom: 1px solid rgba(14, 45, 62, 0.1);
+}
+
+.fp-toolbar-inner {
+    max-width: 210mm;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+.fp-sheet {
+    width: min(210mm, calc(100vw - 1.2rem));
+    margin: 1rem auto 1.2rem;
+    background: var(--fp-surface);
+    border: 1px solid var(--fp-line);
+    border-radius: 8px;
+    box-shadow: var(--fp-shadow);
+    padding: 9mm;
+}
+
+.fp-header {
+    border: 1px solid var(--fp-line);
+    border-radius: var(--fp-radius);
+    padding: 0.9rem 1rem;
+    background:
+        radial-gradient(65% 130% at 0% 0%, rgba(13, 130, 129, 0.18), transparent 70%),
+        radial-gradient(60% 130% at 100% 0%, rgba(8, 92, 92, 0.2), transparent 70%),
+        linear-gradient(180deg, #f7fbfd 0%, #edf5f8 100%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.fp-header-brand {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+}
+
+.fp-logo {
+    width: 70px;
+    height: 70px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid var(--fp-line);
+    padding: 0.3rem;
+}
+
+.fp-kicker {
+    margin: 0;
+    color: #225969;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+.fp-header h1 {
+    margin: 0.15rem 0 0;
+    font-size: 1.45rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.fp-header p {
+    margin: 0.18rem 0 0;
+    color: #365866;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.fp-header-badges {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.fp-badge {
+    border-radius: 999px;
+    border: 1px solid rgba(13, 130, 129, 0.25);
+    background: rgba(13, 130, 129, 0.1);
+    color: #0e5665;
+    font-size: 0.74rem;
+    padding: 0.25rem 0.65rem;
+    font-weight: 700;
+}
+
+.fp-card {
+    margin-top: 0.55rem;
+    border: 1px solid var(--fp-line);
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    background: #fff;
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+}
+
+.fp-card-splittable {
+    page-break-inside: auto;
+    break-inside: auto;
+}
+
+.fp-card h2 {
+    margin: 0 0 0.55rem;
+    font-size: 0.86rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #326476;
+    font-weight: 800;
+}
+
+.fp-identity {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 0.85rem;
+    align-items: start;
+}
+
+.fp-avatar-cell {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 0.15rem;
+}
+
+.fp-avatar-photo,
+#avatar-iniciais-svg-print svg {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 8px 18px rgba(12, 45, 60, 0.2);
+}
+
+.fp-identity-grid,
+.fp-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.45rem 0.75rem;
+}
+
+.fp-two-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+}
+
+.fp-field {
+    grid-column: span 4;
+    min-width: 0;
+}
+
+.fp-field.full {
+    grid-column: span 12;
+}
+
+.fp-field span {
+    display: block;
+    color: var(--fp-muted);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.08rem;
+    font-weight: 700;
+}
+
+.fp-field strong {
+    display: block;
+    color: var(--fp-ink);
+    font-size: 0.89rem;
+    line-height: 1.25;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.fp-tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.fp-tag {
+    border-radius: 999px;
+    background: #e7f2f7;
+    border: 1px solid #cadddf;
+    color: #204b59;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.fp-list {
+    margin: 0.2rem 0 0;
+    padding-left: 1rem;
+}
+
+.fp-list li {
+    margin-bottom: 0.15rem;
+    font-size: 0.86rem;
+}
+
+.fp-note {
+    border: 1px dashed #b8ccd6;
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
+    background: #f7fbfd;
+    font-size: 0.89rem;
+}
+
+.fp-footer {
+    margin-top: 0.85rem;
+    border-top: 1px solid var(--fp-line);
+    padding-top: 0.6rem;
+}
+
+.fp-signature {
+    text-align: center;
+    margin-bottom: 0.45rem;
+}
+
+.fp-signature-line {
+    width: 260px;
+    max-width: 80%;
+    margin: 0 auto 0.15rem;
+    border-top: 1px solid #2e4f5c;
+}
+
+.fp-signature p {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.fp-meta {
+    font-size: 0.72rem;
+    color: #51656f;
+    text-align: center;
+    line-height: 1.35;
+}
+
+@media (max-width: 860px) {
+    .fp-sheet {
+        width: calc(100vw - 1rem);
+        padding: 0.7rem;
+        margin-top: 0.65rem;
+    }
+
+    .fp-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .fp-header-badges {
+        justify-content: flex-start;
+    }
+
+    .fp-two-cols {
+        grid-template-columns: 1fr;
+    }
+
+    .fp-field {
+        grid-column: span 6;
+    }
+}
+
+@media (max-width: 560px) {
+    .fp-identity {
+        grid-template-columns: 1fr;
+    }
+
+    .fp-avatar-cell {
+        justify-content: flex-start;
+    }
+
+    .fp-field {
+        grid-column: span 12;
+    }
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 6mm;
+    }
+
+    html,
+    body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        color: #000;
+        font-size: 11.2px;
+        line-height: 1.2;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .fp-sheet {
+        width: 100%;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    .fp-header h1 {
+        font-size: 1.22rem;
+    }
+
+    .fp-header p {
+        font-size: 0.75rem;
+    }
+
+    .fp-badge {
+        font-size: 0.68rem;
+        padding: 0.18rem 0.52rem;
+    }
+
+    .fp-header {
+        break-inside: avoid;
+        border-color: #b6c8d2;
+        background: #eef5f8;
+        padding: 0.55rem 0.7rem;
+    }
+
+    .fp-card {
+        break-inside: avoid;
+        break-inside: avoid-page;
+        margin-top: 0.32rem;
+        border-color: #c4d4dc;
+        padding: 0.36rem 0.48rem;
+    }
+
+    .fp-card-splittable {
+        break-inside: auto;
+        page-break-inside: auto;
+    }
+
+    .fp-card h2 {
+        margin-bottom: 0.22rem;
+        font-size: 0.74rem;
+    }
+
+    .fp-two-cols {
+        gap: 0.34rem;
+    }
+
+    .fp-identity-grid,
+    .fp-compact-grid {
+        gap: 0.24rem 0.5rem;
+    }
+
+    .fp-avatar-photo,
+    #avatar-iniciais-svg-print svg {
+        width: 74px;
+        height: 74px;
+    }
+
+    .fp-field span {
+        color: #4f626c;
+        font-size: 0.56rem;
+        margin-bottom: 0.03rem;
+    }
+
+    .fp-field strong {
+        font-size: 0.78rem;
+        line-height: 1.15;
+    }
+
+    .fp-tag {
+        font-size: 0.66rem;
+        padding: 0.12rem 0.46rem;
+    }
+
+    .fp-list {
+        margin-top: 0.1rem;
+        margin-bottom: 0;
+    }
+
+    .fp-list li {
+        margin-bottom: 0.08rem;
+        font-size: 0.76rem;
+        line-height: 1.12;
+    }
+
+    .fp-note {
+        padding: 0.28rem 0.38rem;
+        font-size: 0.76rem;
+        line-height: 1.18;
+    }
+
+    .fp-meta {
+        color: #3f525b;
+        font-size: 0.62rem;
+        line-height: 1.16;
+    }
+
+    .fp-footer {
+        margin-top: 0.44rem;
+        padding-top: 0.32rem;
+    }
+
+    .fp-signature {
+        margin-bottom: 0.22rem;
+    }
+
+    .fp-signature-line {
+        width: 220px;
+    }
+}

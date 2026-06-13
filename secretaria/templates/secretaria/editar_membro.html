@@ -7,15 +7,71 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/secretaria/tab_fix.css' %}">
 <link rel="stylesheet" href="{% static 'css/secretaria/modern_selector.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/premium_sidebar_toggle.css' %}">
+<script>
+(function () {
+    try {
+        if (localStorage.getItem('secretaria.sidebar_visible') !== '1') {
+            document.documentElement.classList.add('sec-premium-fullwidth');
+        }
+    } catch (e) {
+        document.documentElement.classList.add('sec-premium-fullwidth');
+    }
+})();
+</script>
 <style>
 /* Mantém apenas UM bloco de ocultação das abas inativas, limpo e definitivo */
 .tab-pane:not(.show) {
     display: none !important;
 }
 
+.edit-premium-hero {
+    background: linear-gradient(120deg, var(--gi-color-brand-900), var(--gi-color-brand-700));
+    border-radius: 16px;
+    color: #fff;
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--gi-shadow-md);
+}
+
+.edit-premium-hero .title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.edit-premium-hero .subtitle {
+    margin: 0.3rem 0 0;
+    opacity: 0.92;
+}
+
+.edit-premium-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+}
+
+.edit-premium-meta .badge {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.card-premium {
+    border: 1px solid var(--gi-color-border);
+    border-radius: 14px;
+    box-shadow: var(--gi-shadow-sm);
+}
+
+.card-premium .card-body {
+    border-radius: 14px;
+}
+
 /* Harmoniza abas e breadcrumb com a paleta turquesa */
 #membroTab .nav-link {
     color: var(--gi-color-brand-700);
+    border-radius: 10px 10px 0 0;
+    font-weight: 600;
 }
 
 #membroTab .nav-link:hover,
@@ -37,6 +93,15 @@
 .breadcrumb .breadcrumb-item a:focus {
     color: var(--gi-color-brand-900);
 }
+
+@media (max-width: 768px) {
+    .edit-premium-hero {
+        padding: 0.9rem 1rem;
+    }
+    .edit-premium-hero .title {
+        font-size: 1.05rem;
+    }
+}
 </style>
 {% endblock %}
 
@@ -48,6 +113,21 @@
     <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_pessoas' %}">Lista de Pessoas</a></li>
     <li class="breadcrumb-item active">Editar: {{ form.instance.nome|default:"Pessoa" }}</li>
     </ol>
+
+    <section class="edit-premium-hero" aria-label="Resumo da pessoa em edicao">
+        <button class="sec-premium-menu-toggle" id="editar-premium-toggle-sidebar" type="button" title="Abrir/fechar menu lateral" aria-expanded="false">
+            <i class="fas fa-bars"></i>
+            <span data-fp-sidebar-label>Ocultar menu</span>
+        </button>
+        <h2 class="title">Edicao Premium de Pessoa</h2>
+        <p class="subtitle">Atualize os dados com seguranca, historico e rastreabilidade completa.</p>
+        <div class="edit-premium-meta">
+            <span class="badge bg-light text-dark"><i class="fas fa-user me-1"></i>{{ form.instance.nome|default:"Pessoa" }}</span>
+            {% if form.instance.tipo_pessoa %}<span class="badge bg-info text-dark"><i class="fas fa-layer-group me-1"></i>{{ form.instance.tipo_pessoa.nome }}</span>{% endif %}
+            {% if form.instance.status_pessoa %}<span class="badge bg-warning text-dark"><i class="fas fa-signal me-1"></i>{{ form.instance.status_pessoa.nome }}</span>{% endif %}
+            {% if form.instance.igreja %}<span class="badge bg-secondary"><i class="fas fa-church me-1"></i>{{ form.instance.igreja.nome_igreja }}</span>{% endif %}
+        </div>
+    </section>
 
 
 
@@ -89,22 +169,8 @@
             </div>
         </div>
     </div>
-    
-{% block extra_js %}
-<!-- Dependências: 
-    - jquery: base para plugins
-    - jquery.mask: máscaras de campos
-    - form_masks.js: máscaras customizadas
-    - form_tags.js: seleção de tags
-    - form_tags_debug.js: debug de tags
-    - cep_autocomplete.js: autocomplete de CEP
-    - autocomplete_nome.js: autocomplete de nomes
--->
-<script src="{% static 'secretaria/secretaria_navegacao.js' %}?v=2" defer></script>
-{% endblock %}
-
                                 {# ====== CARD PRINCIPAL COM ABAS ====== #}
-                                <div class="card mb-4">
+                                <div class="card card-premium mb-4">
                                     <div class="card-body">
                                         {# ====== NAVEGAÇÃO DE ABAS ====== #}
                                         <ul class="nav nav-tabs mb-3" id="membroTab" role="tablist">
@@ -157,4 +223,27 @@
                                         </div>
         </div>
     </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Dependências: 
+    - jquery: base para plugins
+    - jquery.mask: máscaras de campos
+    - form_masks.js: máscaras customizadas
+    - form_tags.js: seleção de tags
+    - form_tags_debug.js: debug de tags
+    - cep_autocomplete.js: autocomplete de CEP
+    - autocomplete_nome.js: autocomplete de nomes
+-->
+<script src="{% static 'js/dashboard-sidebar.js' %}"></script>
+<script>
+DashboardSidebar.init({
+    storageKey: 'secretaria.sidebar_visible',
+    toggleClass: 'sec-premium-fullwidth',
+    defaultVisible: false,
+    toggleIds: ['editar-premium-toggle-sidebar']
+});
+</script>
+<script src="{% static 'secretaria/secretaria_navegacao.js' %}?v=3" defer></script>
+<script src="{% static 'secretaria/editar_membro_premium.js' %}?v=20260613-3" defer></script>
 {% endblock %}

@@ -1,3 +1,52 @@
+## v1.13.16 — 13/06/2026
+🧭 **Secretaria Premium — Migracao definitiva de cadastro, modernizacao de telas e controle de edicao concorrente**
+
+### Entregas
+- Fluxo de cadastro legado da Secretaria descontinuado com compatibilidade preservada:
+  - `pessoas/cadastrar/` redirecionado para o fluxo premium;
+  - etapas antigas (`pre_cadastro`, `cadastro_detalhado`, `cadastro_complementar`) agora redirecionam para `cadastrar_membro_premium` com mensagem orientativa;
+  - limpeza de templates obsoletos de cadastro legado e backup antigo.
+- Novo fluxo **Cadastro Premium por Etapas** com view e template dedicados:
+  - nova rota `pessoas/cadastrar-premium/`;
+  - formulario multietapas orientado por tipo de pessoa/grau eclesiastico;
+  - metadados ministeriais (batismo, credencial, consagracao, convencao e observacoes) persistidos de forma estruturada.
+- Evolucao do `MembroForm` para padrao premium:
+  - suporte nativo aos campos ministeriais de etapas;
+  - parser/upsert de bloco de metadados premium em `observacoes_visita`;
+  - normalizacao profissional de nome e apelido;
+  - filtro de `TipoPessoa` removendo `Obreiro` em cadastro/listagens em massa.
+- Busca de pessoas/ac autocomplete reforcados com tolerancia a acentos:
+  - utilitarios centralizados para normalizacao e filtro de nome/apelido;
+  - aplicacao em lista, impressao de lista e endpoints AJAX de autocomplete.
+- Edicao de pessoa reforcada para governanca e integridade:
+  - protecao contra edicao concorrente por token de atualizacao (`_last_updated_epoch`);
+  - exigencia de motivo para alteracoes criticas (tipo/status/igreja/grau);
+  - melhoria de rastreabilidade no historico de transicoes, incluindo motivo e data final consistente.
+- Premium UI da Secretaria consolidada:
+  - redesign de `lista`, `detalhe`, `ficha de impressao` e `editar`;
+  - novo JS premium para navegacao/etapas/secoes do formulario;
+  - CSS premium dedicados por tela para padronizacao visual.
+- Sidebar colapsavel aplicada nas telas premium de Secretaria:
+  - lista de pessoas, cadastro premium e edicao de pessoa;
+  - estado persistido em `localStorage` com chave `secretaria.sidebar_visible`;
+  - alinhamento de posicao do botao para o mesmo padrao das demais paginas.
+
+### Qualidade
+- Novo teste de regressao para conflito de edicao concorrente em Secretaria:
+  - `tests/test_secretaria_edicao_concorrencia.py`.
+- Validacao local executada com `manage.py check` sem issues.
+
+### Migracoes
+- Nenhuma.
+
+### Impacto
+- Menor risco de inconsistencias cadastrais por concorrencia e por mudancas criticas sem justificativa.
+- UX premium mais uniforme e orientada a operacao no modulo Secretaria.
+- Compatibilidade preservada para links legados de cadastro sem quebrar navegacao antiga.
+- Sem breaking changes de API publica e sem alteracao de schema.
+
+---
+
 ## v1.13.15 — 08/06/2026
 🔐 **Secretaria por tipo de igreja + assinatura Stripe em producao com fallback resiliente**
 

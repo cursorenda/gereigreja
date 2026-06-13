@@ -105,6 +105,8 @@ from django.contrib.auth.models import User, Group
 from configuracao.models import Igreja, PerfilUsuario # Importar PerfilUsuario e Igreja
 from django.db.models import Q # Importar Q para consultas complexas
 from contas.constants import ADMIN_MINISTERIO, PASTOR_REGIONAL, SECRETARIO_LOCAL, TESOUREIRO, LIDERANCA_SECRETARIA
+import re
+import unicodedata
 
 
 def _hierarquia_grupos_permissoes():
@@ -193,6 +195,128 @@ def is_secretario(user):
     """Verifica se o usuário é Secretário."""
     return _user_has_permission_level_or_higher(user, SECRETARIO_LOCAL)
 
+
+_NOME_PARTICULAS_MINUSCULAS = {
+    'da', 'das', 'de', 'del', 'di', 'do', 'dos', 'du', 'e', 'la', 'le', 'van', 'von'
+}
+
+
+def normalize_text_for_search(value: str) -> str:
+    """Normaliza texto para busca: minúsculas, sem acentos e espaços colapsados."""
+    if not value:
+        return ''
+    text = str(value).strip().lower()
+    text = unicodedata.normalize('NFKD', text)
+    text = ''.join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+
+def normalize_person_name(value: str) -> str:
+    """Normaliza nome para persistência profissional (espaços e capitalização inteligente)."""
+    if not value:
+        return ''
+
+    text = re.sub(r'\s+', ' ', str(value).strip())
+
+    def _cap_piece(piece: str) -> str:
+        if not piece:
+            return piece
+        return piece[:1].upper() + piece[1:].lower()
+
+    def _cap_word(word: str) -> str:
+        hyphen_parts = []
+        for hy in word.split('-'):
+            apos_parts = [_cap_piece(p) for p in hy.split("'")]
+            hyphen_parts.append("'".join(apos_parts))
+        return '-'.join(hyphen_parts)
+
+    words = text.split(' ')
+    formatted = []
+    for idx, word in enumerate(words):
+        lower_word = word.lower()
+        if idx > 0 and lower_word in _NOME_PARTICULAS_MINUSCULAS:
+            formatted.append(lower_word)
+        else:
+            formatted.append(_cap_word(lower_word))
+
+    return ' '.join(formatted)
+
+
+def filter_queryset_name_search(queryset, term: str, fields=('nome', 'apelido'), startswith=False):
+    """
+    Busca por nome tolerante a acentos com fallback seguro para bancos sem unaccent.
+    """
+    if not term:
+        return queryset
+
+    lookup = 'istartswith' if startswith else 'icontains'
+
+    db_q = Q()
+    for field in fields:
+        db_q |= Q(**{f'{field}__unaccent__{lookup}': term})
+
+    try:
+        candidate = queryset.filter(db_q)
+        candidate.exists()
+        return candidate
+    except Exception:
+        normalized_term = normalize_text_for_search(term)
+        matched_ids = []
+        for obj in queryset.only('pk', *fields):
+            for field in fields:
+                raw_value = getattr(obj, field, '') or ''
+                normalized_value = normalize_text_for_search(raw_value)
+                if startswith:
+                    match = normalized_value.startswith(normalized_term)
+                else:
+                    match = normalized_term in normalized_value
+                if match:
+                    matched_ids.append(obj.pk)
+                    break
+        return queryset.filter(pk__in=matched_ids)
+
+
+def _normalize_name_for_search(value: str) -> str:
+    if not value:
+        return ''
+    value = unicodedata.normalize('NFD', str(value).strip().lower())
+    value = ''.join(ch for ch in value if not unicodedata.combining(ch))
+    value = re.sub(r'\s+', ' ', value)
+    return value.strip()
+
+
+def _build_accent_insensitive_regex(term: str) -> str:
+    term = _normalize_name_for_search(term)
+    if not term:
+        return ''
+
+    accent_groups = {
+        'a': '[aàáâãäå]',
+        'e': '[eèéêë]',
+        'i': '[iìíîï]',
+        'o': '[oòóôõö]',
+        'u': '[uùúûü]',
+        'c': '[cç]',
+        'n': '[nñ]',
+    }
+
+    pattern_parts = []
+    for ch in term:
+        if ch == ' ':
+            pattern_parts.append(r'\s+')
+        elif ch in accent_groups:
+            pattern_parts.append(accent_groups[ch])
+        else:
+            pattern_parts.append(re.escape(ch))
+
+    return '.*' + ''.join(pattern_parts) + '.*'
+
+
+def filter_people_by_name_or_nickname(queryset, term: str):
+    """Filtra queryset por nome/apelido com tolerância a acentos e fallback seguro."""
+    return filter_queryset_name_search(queryset, term, fields=('nome', 'apelido'), startswith=False)
+
 def is_lider_igreja(user):
     """Verifica se o usuário é Pastor Regional."""
     return _user_has_permission_level_or_higher(user, PASTOR_REGIONAL)
@@ -220,7 +344,6 @@ def has_membro_edit_permission(user):
 
 # --- Funções de agrupamento de GrupoCasa reutilizáveis (preview/apply) ---
 from .models import Pessoa, GrupoCasa
-import unicodedata, re
 
 def _normalize_text_for_group(s: str) -> str:
     if not s:

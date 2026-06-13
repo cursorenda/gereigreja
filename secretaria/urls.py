@@ -33,11 +33,11 @@ urlpatterns = [
     path('pessoas/cadastro-detalhado/<int:pessoa_id>/', views.cadastro_detalhado, name='cadastro_detalhado'),
     # Etapa 3: Cadastro complementar (histórico, tags, acompanhamento)
     path('pessoas/cadastro-complementar/<int:pessoa_id>/', views.cadastro_complementar, name='cadastro_complementar'),
-    # Cadastro antigo (pode ser removido após migração)
-    path('pessoas/cadastrar/', views.criar_membro, name='cadastrar_membro'),
+    # Cadastro antigo: mantido por compatibilidade e redirecionado para o fluxo premium
+    path('pessoas/cadastrar/', views.pre_cadastro, name='cadastrar_membro'),
+    path('pessoas/cadastrar-premium/', views.cadastro_premium_multietapas, name='cadastrar_membro_premium'),
     path('pessoas/<int:membro_id>/visualizar/', views.detalhe_membro, name='detalhe_membro'),
     path('pessoas/<int:membro_id>/editar/', views.editar_membro, name='editar_membro'),
-    # path('backup/', views.backup_page, name='backup_page'),  # Removido: backup antigo (SQLite)
     path('pessoas/<int:membro_id>/alternar-status/', views.alternar_status_membro, name='alternar_status_membro'),
     path('pessoas/<int:membro_id>/ficha-impressao/', views.ficha_membro_impressao, name='ficha_membro_impressao'), # NOVA URL
     path('painel-lideranca-secretaria/', views.painel_lideranca_secretaria, name='painel_lideranca_secretaria'),

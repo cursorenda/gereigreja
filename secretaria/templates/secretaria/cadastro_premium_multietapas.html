@@ -1,0 +1,581 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load sistema_imagens_tags %}
+{% load widget_tweaks %}
+
+{% block title %}Cadastro Premium por Etapas{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/secretaria/secretaria_pessoa.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/input_foto_colado.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/input_foto_compact.css' %}">
+<link rel="stylesheet" href="{% static 'css/secretaria/premium_sidebar_toggle.css' %}">
+<script>
+(function () {
+    try {
+        if (localStorage.getItem('secretaria.sidebar_visible') !== '1') {
+            document.documentElement.classList.add('sec-premium-fullwidth');
+        }
+    } catch (e) {
+        document.documentElement.classList.add('sec-premium-fullwidth');
+    }
+})();
+</script>
+<style>
+    .premium-shell {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1rem 1rem 2rem;
+    }
+    .premium-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 1rem;
+        align-items: start;
+    }
+    .premium-hero {
+        background: linear-gradient(135deg, var(--gi-color-brand-900), var(--gi-color-brand-700) 45%, var(--gi-color-brand-500) 100%);
+        border-radius: 20px;
+        color: #f8fafc;
+        padding: 1.5rem;
+        box-shadow: var(--gi-shadow-md);
+        margin-bottom: 1.25rem;
+    }
+    .premium-hero h2 {
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+    }
+    .premium-hero-head {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .premium-hero p {
+        margin: 0.5rem 0 0;
+        opacity: 0.95;
+    }
+    .premium-steps {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .premium-step-indicator {
+        background: var(--gi-color-surface-soft);
+        border: 0;
+        border-radius: 999px;
+        color: var(--gi-color-text-muted);
+        font-weight: 600;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.86rem;
+        transition: all 0.25s ease;
+    }
+    .premium-step-indicator.active {
+        background: var(--gi-color-brand-700);
+        color: #ffffff;
+        box-shadow: var(--gi-shadow-sm);
+    }
+    .premium-step-indicator.done {
+        background: var(--gi-color-brand-500);
+        color: #ffffff;
+    }
+    .premium-step-indicator.complete {
+        background: var(--gi-color-success);
+        color: #ffffff;
+        position: relative;
+    }
+    .premium-step-indicator.complete::after {
+        content: '✓';
+        display: inline-block;
+        margin-left: 0.45rem;
+        font-weight: 700;
+    }
+    .premium-progress-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .premium-progress {
+        position: relative;
+        flex: 1;
+        height: 10px;
+        background: var(--gi-color-surface-soft);
+        border: 1px solid var(--gi-color-border);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .premium-progress-fill {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--gi-color-brand-700), var(--gi-color-brand-500));
+        border-radius: 999px;
+        transition: width 0.28s ease;
+    }
+    .premium-progress-text {
+        font-size: 0.82rem;
+        color: var(--gi-color-text-muted);
+        white-space: nowrap;
+        min-width: 138px;
+        text-align: right;
+    }
+    .premium-progress-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.9rem;
+        font-size: 0.84rem;
+        color: var(--gi-color-text-muted);
+    }
+    .premium-progress-meta .status {
+        color: var(--gi-color-success);
+        font-weight: 600;
+    }
+    .premium-step-card {
+        background: var(--gi-color-surface);
+        border: 1px solid var(--gi-color-border);
+        border-radius: 16px;
+        padding: 1rem;
+        box-shadow: var(--gi-shadow-sm);
+        margin-bottom: 1rem;
+        animation: premiumFadeIn .28s ease;
+    }
+    .premium-step-card.step-complete {
+        border-color: color-mix(in srgb, var(--gi-color-success) 48%, var(--gi-color-border));
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--gi-color-success) 28%, transparent), var(--gi-shadow-sm);
+    }
+    @keyframes premiumFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .premium-step-card h4 {
+        font-size: 1.08rem;
+        margin-bottom: 0.9rem;
+        color: var(--gi-color-text);
+    }
+    .premium-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+    .premium-actions .right-actions {
+        display: flex;
+        gap: 0.6rem;
+    }
+    .btn-premium {
+        border: 0;
+        border-radius: 10px;
+        padding: 0.64rem 1rem;
+        font-weight: 600;
+    }
+    .btn-prev {
+        background: var(--gi-color-surface-soft);
+        color: var(--gi-color-text);
+    }
+    .btn-next {
+        background: var(--gi-color-info);
+        color: #ffffff;
+    }
+    .btn-submit {
+        background: var(--gi-color-success);
+        color: #ffffff;
+    }
+    .premium-hint {
+        background: var(--gi-color-brand-soft);
+        color: var(--gi-color-text);
+        border-left: 4px solid var(--gi-color-brand-700);
+        border-radius: 10px;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    .premium-photo-wrap {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.9rem;
+        border-radius: 14px;
+        background: linear-gradient(180deg, var(--gi-color-surface-soft), #eef2ff);
+        border: 1px solid var(--gi-color-border);
+        margin-bottom: 1rem;
+    }
+    .premium-photo {
+        width: 104px;
+        height: 104px;
+        object-fit: cover;
+        border-radius: 999px;
+        border: 3px solid #ffffff;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+        background: #ffffff;
+    }
+    .premium-autocomplete {
+        position: relative;
+    }
+    .premium-autocomplete-list {
+        position: absolute;
+        width: 100%;
+        z-index: 40;
+        display: none;
+        max-height: 240px;
+        overflow-y: auto;
+        border: 1px solid var(--gi-color-border);
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.14);
+        margin-top: 4px;
+    }
+    .premium-tags-wrap {
+        border: 1px solid var(--gi-color-border);
+        border-radius: 12px;
+        padding: 0.75rem;
+        background: var(--gi-color-surface-soft);
+    }
+    .tag-badge-select {
+        border: 0;
+        color: #ffffff;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 0.35rem 0.6rem;
+    }
+    .tag-badge-selected {
+        border-radius: 999px;
+        padding: 0.35rem 0.6rem;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+    }
+    .premium-summary {
+        position: sticky;
+        top: 16px;
+        background: var(--gi-color-surface);
+        border: 1px solid var(--gi-color-border);
+        border-radius: 14px;
+        padding: 0.9rem;
+        box-shadow: var(--gi-shadow-sm);
+    }
+    .premium-summary h5 {
+        margin: 0 0 0.5rem;
+        font-weight: 700;
+        color: var(--gi-color-text);
+    }
+    .premium-summary-list {
+        display: grid;
+        gap: 0.5rem;
+    }
+    .premium-summary-item {
+        background: var(--gi-color-surface-soft);
+        border: 1px solid var(--gi-color-border);
+        border-radius: 10px;
+        padding: 0.5rem 0.6rem;
+    }
+    .premium-summary-item .label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--gi-color-text-muted);
+        display: block;
+        letter-spacing: 0.4px;
+    }
+    .premium-summary-item .value {
+        color: var(--gi-color-text);
+        font-weight: 600;
+    }
+    .field-invalid {
+        border-color: #dc2626 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.12) !important;
+    }
+    .premium-step-alert {
+        display: none;
+        margin-bottom: 1rem;
+        border-radius: 10px;
+        border-left: 4px solid var(--gi-color-warning);
+        background: #fffbeb;
+        color: #7c2d12;
+        padding: 0.65rem 0.8rem;
+        font-size: 0.9rem;
+    }
+    .premium-step-alert.show {
+        display: block;
+        animation: premiumFadeIn .2s ease;
+    }
+    @media (max-width: 992px) {
+        .premium-grid {
+            grid-template-columns: 1fr;
+        }
+        .premium-steps {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    @media (max-width: 640px) {
+        .premium-steps {
+            display: flex;
+            overflow-x: auto;
+            gap: 0.5rem;
+            padding-bottom: 0.35rem;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+        .premium-step-indicator {
+            min-width: 190px;
+            flex: 0 0 auto;
+            text-align: left;
+            scroll-snap-align: start;
+        }
+        .premium-progress-meta {
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="premium-shell">
+    <div class="premium-hero">
+        <div class="premium-hero-head">
+            <button class="sec-premium-menu-toggle" id="cadastro-premium-toggle-sidebar" type="button" title="Abrir/fechar menu lateral" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+                <span data-fp-sidebar-label>Ocultar menu</span>
+            </button>
+            <h2>Cadastro Premium por Etapas</h2>
+        </div>
+        <p>Fluxo inteligente orientado por Tipo de Pessoa e Grau Eclesiastico.</p>
+    </div>
+
+    <div class="premium-hint">
+        Etapas 3, 4 e 5 sao liberadas dinamicamente de acordo com suas regras de negocio.
+    </div>
+
+    <form id="cadastro-premium-form" method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <div class="premium-steps" role="tablist" aria-label="Etapas do cadastro premium">
+            <button type="button" class="premium-step-indicator active" data-step="1" role="tab" aria-selected="true" aria-controls="premium-step-panel-1" id="premium-step-tab-1">1. Dados Pessoais</button>
+            <button type="button" class="premium-step-indicator" data-step="2" role="tab" aria-selected="false" aria-controls="premium-step-panel-2" id="premium-step-tab-2">2. Localizacao</button>
+            <button type="button" class="premium-step-indicator" data-step="3" id="step-gate-3" role="tab" aria-selected="false" aria-controls="premium-step-panel-3">3. Social e Familia</button>
+            <button type="button" class="premium-step-indicator" data-step="4" id="step-gate-4" role="tab" aria-selected="false" aria-controls="premium-step-panel-4">4. Membresia</button>
+            <button type="button" class="premium-step-indicator" data-step="5" id="step-gate-5" role="tab" aria-selected="false" aria-controls="premium-step-panel-5">5. Ministerio</button>
+        </div>
+
+        <div class="premium-progress-wrap" aria-live="polite">
+            <div class="premium-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="premium-progress">
+                <div class="premium-progress-fill" id="premium-progress-fill"></div>
+            </div>
+            <div class="premium-progress-text" id="premium-progress-text">0% concluido</div>
+        </div>
+        <div class="premium-progress-meta" aria-live="polite">
+            <div id="premium-progress-count">0 de 0 etapas concluidas</div>
+            <div id="premium-progress-status" class="status">Preencha a etapa atual para avancar.</div>
+        </div>
+
+        <div id="premium-step-alert" class="premium-step-alert" role="alert" aria-live="assertive"></div>
+        <div id="premium-a11y-status" class="visually-hidden" aria-live="polite"></div>
+
+        <div class="premium-grid">
+        <div>
+
+        <div class="premium-step-card" data-step="1" role="tabpanel" id="premium-step-panel-1" aria-labelledby="premium-step-tab-1">
+            <h4>Etapa 1: Dados Pessoais e Contato</h4>
+
+            <div class="premium-photo-wrap">
+                {% if form.instance.pk and form.instance.foto %}
+                <img id="premium-photo-preview" class="premium-photo" src="{{ form.instance.foto.url }}" alt="Foto da pessoa">
+                {% else %}
+                <img id="premium-photo-preview" class="premium-photo" src="{% sistema_imagem_url 'avatar_padrao' 'original' 'img/default_avatar.png' %}" alt="Sem foto">
+                {% endif %}
+                <div class="w-100">
+                    <label class="form-label">Foto da Pessoa</label>
+                    {{ form.foto|add_class:'input-foto-colado input-foto-compact' }}
+                    <small class="form-text text-muted d-block">A imagem sera exibida em preview em tempo real.</small>
+                    {% if form.foto.errors %}<div class="invalid-feedback d-block">{{ form.foto.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6 premium-autocomplete">
+                    <label class="form-label">Nome Completo</label>
+                    {{ form.nome }}
+                    <div id="autocomplete-nome-list" class="premium-autocomplete-list list-group"></div>
+                </div>
+                <div class="col-md-6"><label class="form-label">Apelido</label>{{ form.apelido }}</div>
+                <div class="col-md-4"><label class="form-label">Tipo de Pessoa</label>{{ form.tipo_pessoa }}</div>
+                <div class="col-md-4"><label class="form-label">Status</label>{{ form.status_pessoa }}</div>
+                <div class="col-md-4" id="row-grau-eclesiastico-premium" style="display:none;">
+                    <label class="form-label">Grau Eclesiastico</label>
+                    {{ form.grau_eclesiastico }}
+                    <small class="form-text text-muted d-block">Disponivel apenas quando o tipo da pessoa for Membro.</small>
+                </div>
+                <div class="col-md-4" id="row-sub-status-inativo-premium" style="display:none;">
+                    <label class="form-label">Sub status (se inativo)</label>
+                    {{ form.sub_status_inativo }}
+                    <small class="form-text text-muted d-block">Preencha apenas se o status for Inativo.</small>
+                </div>
+                <div class="col-md-4"><label class="form-label">Genero</label>{{ form.genero }}</div>
+                <div class="col-md-4"><label class="form-label">Data de Nascimento</label>{{ form.nascimento|attr:'type=text'|attr:'maxlength=10'|attr:'placeholder=dd/mm/aaaa' }}</div>
+                <div class="col-md-4"><label class="form-label">Estado Civil</label>{{ form.estado_civil }}</div>
+                <div class="col-md-4" id="row-conjuge-premium"><label class="form-label">Conjuge</label>{{ form.conjuge }}</div>
+                <div class="col-md-4" id="row-data-casamento-premium"><label class="form-label">Data de Casamento</label>{{ form.data_casamento|attr:'type=text'|attr:'maxlength=10'|attr:'placeholder=dd/mm/aaaa' }}</div>
+                <div class="col-md-4"><label class="form-label">CPF</label>{{ form.cpf }}</div>
+                <div class="col-md-4"><label class="form-label">RG</label>{{ form.rg }}</div>
+                <div class="col-md-4"><label class="form-label">Telefone</label>{{ form.telefone }}</div>
+                <div class="col-md-4"><label class="form-label">Celular</label>{{ form.celular }}</div>
+                <div class="col-md-4"><label class="form-label">E-mail</label>{{ form.email }}</div>
+            </div>
+        </div>
+
+        <div class="premium-step-card" data-step="2" style="display:none;" role="tabpanel" id="premium-step-panel-2" aria-labelledby="premium-step-tab-2" aria-hidden="true">
+            <h4>Etapa 2: Localizacao e Origem</h4>
+            <div class="row g-3">
+                <div class="col-md-3"><label class="form-label">CEP</label>{{ form.cep }}</div>
+                <div class="col-md-6"><label class="form-label">Rua</label>{{ form.rua }}</div>
+                <div class="col-md-3"><label class="form-label">Numero</label>{{ form.numero_casa }}</div>
+                <div class="col-md-4"><label class="form-label">Complemento</label>{{ form.complemento }}</div>
+                <div class="col-md-4"><label class="form-label">Bairro/Distrito</label>{{ form.bairro_distrito }}</div>
+                <div class="col-md-4"><label class="form-label">Cidade</label>{{ form.cidade }}</div>
+                <div class="col-md-4"><label class="form-label">Estado</label>{{ form.estado }}</div>
+                <div class="col-md-4"><label class="form-label">Pais</label>{{ form.pais|attr:'list=lista-paises' }}</div>
+                <div class="col-md-4"><label class="form-label">Nacionalidade</label>{{ form.nacionalidade }}</div>
+                <div class="col-md-4"><label class="form-label">Naturalidade</label>{{ form.naturalidade }}</div>
+                <div class="col-md-4"><label class="form-label">Igreja (Sede/Congregacao)</label>{{ form.igreja }}</div>
+                <div class="col-md-8">
+                    <label class="form-label">Tags</label>
+                    <div class="premium-tags-wrap">
+                        <label class="form-label">Disponiveis</label>
+                        <div id="tag-badges-list" class="d-flex flex-wrap gap-2 mb-2">
+                            {% for tag in form.fields.tags.queryset %}
+                                <button type="button" class="tag-badge-select" style="background-color:{{ tag.cor }};" data-tag-id="{{ tag.id }}">{{ tag.nome }}</button>
+                            {% endfor %}
+                        </div>
+                        <label class="form-label">Selecionadas</label>
+                        <div id="selected-tags-preview" class="d-flex flex-wrap gap-2"></div>
+                        <small class="form-text text-muted d-block mt-2">Clique para selecionar/remover tags.</small>
+                        <div style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">{{ form.tags }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <datalist id="lista-paises"></datalist>
+
+        <div class="premium-step-card" data-step="3" style="display:none;" role="tabpanel" id="premium-step-panel-3" aria-labelledby="step-gate-3" aria-hidden="true">
+            <h4>Etapa 3: Informacoes Sociais e Familia</h4>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label">Profissao</label>{{ form.profissao }}</div>
+                <div class="col-md-6"><label class="form-label">Escolaridade</label>{{ form.escolaridade }}</div>
+                <div class="col-md-6"><label class="form-label">Nome do Pai</label>{{ form.nome_pai }}</div>
+                <div class="col-md-6"><label class="form-label">Nome da Mae</label>{{ form.nome_mae }}</div>
+            </div>
+        </div>
+
+        <div class="premium-step-card" data-step="4" style="display:none;" role="tabpanel" id="premium-step-panel-4" aria-labelledby="step-gate-4" aria-hidden="true">
+            <h4>Etapa 4: Dados Estatutarios de Membresia</h4>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label">Tipo de Entrada</label>{{ form.tipo_entrada }}</div>
+                <div class="col-md-6"><label class="form-label">Data do Batismo</label>{{ form.data_batismo|attr:'type=text'|attr:'maxlength=10'|attr:'placeholder=dd/mm/aaaa' }}</div>
+            </div>
+        </div>
+
+        <div class="premium-step-card" data-step="5" style="display:none;" role="tabpanel" id="premium-step-panel-5" aria-labelledby="step-gate-5" aria-hidden="true">
+            <h4>Etapa 5: Ministerio e Oficialato</h4>
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label">N. da Credencial</label>{{ form.numero_credencial }}</div>
+                <div class="col-md-4"><label class="form-label">Data da Consagracao</label>{{ form.data_consagracao|attr:'type=text'|attr:'maxlength=10'|attr:'placeholder=dd/mm/aaaa' }}</div>
+                <div class="col-md-4"><label class="form-label">Convencao</label>{{ form.convencao }}</div>
+                <div class="col-12"><label class="form-label">Observacoes Ministeriais</label>{{ form.observacoes_ministeriais }}</div>
+            </div>
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger mt-2">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="premium-actions">
+            <a href="{% url 'secretaria:lista_membros' %}" class="btn btn-light">Cancelar</a>
+            <div class="right-actions">
+                <button type="button" id="btn-step-prev" class="btn-premium btn-prev" style="display:none;">Voltar</button>
+                <button type="button" id="btn-step-next" class="btn-premium btn-next">Avancar</button>
+                <button type="submit" id="btn-step-submit" class="btn-premium btn-submit" style="display:none;">Finalizar Cadastro</button>
+            </div>
+        </div>
+
+        </div>
+
+        <aside class="premium-summary">
+            <h5>Resumo do Cadastro</h5>
+            <div class="premium-summary-list">
+                <div class="premium-summary-item"><span class="label">Nome</span><span class="value" id="summary-nome">-</span></div>
+                <div class="premium-summary-item"><span class="label">Tipo</span><span class="value" id="summary-tipo">-</span></div>
+                <div class="premium-summary-item"><span class="label">Status</span><span class="value" id="summary-status">-</span></div>
+                <div class="premium-summary-item"><span class="label">Igreja</span><span class="value" id="summary-igreja">-</span></div>
+                <div class="premium-summary-item"><span class="label">Etapa Atual</span><span class="value" id="summary-step">1</span></div>
+                <div class="premium-summary-item"><span class="label">Fluxo</span><span class="value" id="summary-fluxo">Visitante ate Etapa 2</span></div>
+            </div>
+        </aside>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var toggleButton = document.getElementById('cadastro-premium-toggle-sidebar');
+    if (!toggleButton) return;
+
+    var sidebarLabel = toggleButton.querySelector('[data-fp-sidebar-label]');
+    var root = document.documentElement;
+    var body = document.body;
+
+    function isSidebarVisible() {
+        return !root.classList.contains('sec-premium-fullwidth');
+    }
+
+    function updateSidebarToggleUI() {
+        var visible = isSidebarVisible();
+        var actionLabel = visible ? 'Ocultar menu lateral' : 'Mostrar menu lateral';
+        toggleButton.setAttribute('aria-expanded', String(visible));
+        toggleButton.setAttribute('title', actionLabel);
+        toggleButton.setAttribute('aria-label', actionLabel);
+        if (sidebarLabel) {
+            sidebarLabel.textContent = visible ? 'Ocultar menu' : 'Abrir menu';
+        }
+    }
+
+    function setSidebarVisibility(visible) {
+        if (visible) {
+            root.classList.remove('sec-premium-fullwidth');
+            if (body) body.classList.remove('sec-premium-fullwidth');
+        } else {
+            root.classList.add('sec-premium-fullwidth');
+            if (body) body.classList.add('sec-premium-fullwidth');
+        }
+        try {
+            localStorage.setItem('secretaria.sidebar_visible', visible ? '1' : '0');
+        } catch (e) {}
+        updateSidebarToggleUI();
+    }
+
+    toggleButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        setSidebarVisibility(!isSidebarVisible());
+    });
+
+    updateSidebarToggleUI();
+})();
+</script>
+<script id="allTagsData">
+    var allTags = [
+        {% for tag in form.fields.tags.queryset %}
+            {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+</script>
+<script src="{% static 'secretaria/form_masks.js' %}?v=20260612-1" defer></script>
+<script src="{% static 'secretaria/form_date_masks.js' %}?v=20260612-2" defer></script>
+<script src="{% static 'secretaria/form_tags.js' %}?v=20260612-1" defer></script>
+<script src="{% static 'secretaria/cep_autocomplete.js' %}?v=20260612-1" defer></script>
+<script src="{% static 'secretaria/autocomplete_nome.js' %}?v=20260612-1" defer></script>
+<script src="{% static 'secretaria/cadastro_premium_multietapas.js' %}?v=20260612-4" defer></script>
+{% endblock %}

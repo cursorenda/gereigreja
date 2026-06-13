@@ -3,215 +3,197 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ titulo_pagina }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/secretaria/secretaria_pessoa.css' %}">
+    <link rel="stylesheet" href="{% static 'css/secretaria/ficha_membro_impressao_premium.css' %}">
 </head>
-<body>
-    <div class="text-center mb-3 no-print">
-        <button onclick="window.print();" class="btn btn-primary">Imprimir Ficha</button>
-        <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-secondary">Voltar para Lista</a>
+<body class="fp-body">
+    <div class="fp-toolbar no-print">
+        <div class="fp-toolbar-inner">
+            <button onclick="window.print();" class="btn btn-primary">Imprimir Ficha</button>
+            <a href="{% url 'secretaria:lista_pessoas' %}" class="btn btn-secondary">Voltar para Lista</a>
+        </div>
     </div>
 
-    <div class="ficha-container">
-        <div class="ficha-header">
-            <img src="{{ membro.igreja.logo1_url }}" alt="Logo da Igreja" class="logo">
-            <h1>{{ membro.igreja.nome_igreja|default:"Igreja" }}</h1>
-            <p class="mb-0">{{ membro.igreja.ministerio.nome_fantasia|default:"Ministério" }}</p>
-            <h2 class="mt-2">Ficha Cadastral de Membro</h2>
-        </div>
-
-
-        <!-- Bloco: Dados Pessoais e Foto -->
-        <div class="p-2 mb-2 bg-light rounded-3" role="region" aria-label="Dados Pessoais">
-            <table style="width:100%; border-collapse:collapse; font-size:0.97em;">
-                <tr>
-                    <td rowspan="5" style="width:90px; text-align:center; vertical-align:top;">
-                        {% if membro.foto %}
-                            <img src="{{ membro.foto.url }}" alt="Foto de perfil de {{ membro.nome }}" class="foto-membro rounded-circle" style="width: 70px; height: 70px; object-fit: cover; margin-bottom:2px;" aria-label="Foto de perfil de {{ membro.nome }}">
-                        {% else %}
-                            <span id="avatar-iniciais-svg-print" aria-label="Avatar com iniciais de {{ membro.nome }}" role="img"></span>
-                            <script>
-                            document.addEventListener('DOMContentLoaded', function() {
-                                var nome = "{{ membro.nome|default:'' }}".trim();
-                                var iniciais = '';
-                                if (nome.length > 0) {
-                                    var partes = nome.split(' ');
-                                    iniciais = partes[0][0] || '';
-                                    if (partes.length > 1) {
-                                        iniciais += partes[partes.length-1][0] || '';
-                                    }
-                                    iniciais = iniciais.toUpperCase();
-                                } else {
-                                    iniciais = '?';
-                                }
-                                var svg = `<svg width=\"70\" height=\"70\" xmlns=\"http://www.w3.org/2000/svg\" aria-label=\"Avatar com iniciais de {{ membro.nome }}\">\n                                    <circle cx=\"35\" cy=\"35\" r=\"35\" fill=\"#6c757d\" />\n                                    <text x=\"50%\" y=\"54%\" text-anchor=\"middle\" fill=\"#fff\" font-size=\"22\" font-family=\"Arial, sans-serif\" dy=\".3em\">${iniciais}</text>\n                                </svg>`;
-                                document.getElementById('avatar-iniciais-svg-print').innerHTML = svg;
-                            });
-                            </script>
-                        {% endif %}
-                    </td>
-                    <td style="font-weight:bold;">Nome:</td>
-                    <td>{{ membro.nome|default:"-" }}</td>
-                    <td style="font-weight:bold;">Apelido:</td>
-                    <td>{{ membro.apelido|default:"-" }}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight:bold;">Nasc.:</td>
-                    <td>{{ membro.nascimento|date:"d/m/Y"|default:"-" }}</td>
-                    <td style="font-weight:bold;">Gênero:</td>
-                    <td>{% if membro.genero == 'M' %}Masc.{% elif membro.genero == 'F' %}Fem.{% else %}-{% endif %}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight:bold;">Est. Civil:</td>
-                    <td>{{ membro.get_estado_civil_display|default:"-" }}</td>
-                    <td style="font-weight:bold;">Nacionalidade:</td>
-                    <td>{{ membro.nacionalidade|default:"-" }}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight:bold;">Naturalidade:</td>
-                    <td>{{ membro.naturalidade|default:"-" }}</td>
-                    <td style="font-weight:bold;">Profissão:</td>
-                    <td>{{ membro.profissao|default:"-" }}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight:bold;">Escolaridade:</td>
-                    <td>{{ membro.escolaridade|default:"-" }}</td>
-                    <td style="font-weight:bold;">Pai:</td>
-                    <td>{{ membro.nome_pai|default:"-" }}</td>
-                </tr>
-                <tr>
-                    <td colspan="2" style="font-weight:bold;">Mãe:</td>
-                    <td colspan="3">{{ membro.nome_mae|default:"-" }}</td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- Bloco: Documentos -->
-        <div class="p-2 mb-2 bg-light rounded-3" role="region" aria-label="Documentos">
-            <div class="row">
-                <div class="col-6 campo"><strong>CPF:</strong> {{ membro.cpf|default:"-" }}</div>
-                <div class="col-6 campo"><strong>RG:</strong> {{ membro.rg|default:"-" }}</div>
+    <main class="fp-sheet" role="main" aria-label="Ficha cadastral premium">
+        <header class="fp-header">
+            <div class="fp-header-brand">
+                <img src="{{ membro.igreja.logo1_url }}" alt="Logo da Igreja" class="fp-logo">
+                <div>
+                    <p class="fp-kicker">Ficha Cadastral Premium</p>
+                    <h1>{{ membro.igreja.nome_igreja|default:"Igreja" }}</h1>
+                    <p>{{ membro.igreja.ministerio.nome_fantasia|default:"Ministerio" }}</p>
+                </div>
             </div>
-        </div>
-
-        <!-- Bloco: Endereço e Contato -->
-        <div class="p-2 mb-2 bg-light rounded-3" role="region" aria-label="Endereço e Contato">
-            <div class="row">
-                <div class="col-4 campo"><strong>CEP:</strong> {{ membro.cep|default:"-" }}</div>
-                <div class="col-8 campo"><strong>Rua:</strong> {{ membro.rua|default:"-" }}</div>
-                <div class="col-3 campo"><strong>Número:</strong> {{ membro.numero_casa|default:"-" }}</div>
-                <div class="col-5 campo"><strong>Compl.:</strong> {{ membro.complemento|default:"-" }}</div>
-                <div class="col-4 campo"><strong>Bairro:</strong> {{ membro.bairro_distrito|default:"-" }}</div>
-                <div class="col-5 campo"><strong>Cidade:</strong> {{ membro.cidade|default:"-" }}</div>
-                <div class="col-3 campo"><strong>Estado:</strong> {{ membro.estado|default:"-" }}</div>
-                <div class="col-4 campo"><strong>País:</strong> {{ membro.pais|default:"-" }}</div>
-                <div class="col-8 campo"><strong>E-mail:</strong> {{ membro.email|default:"-" }}</div>
-                <div class="col-6 campo"><strong>Telefone:</strong> {{ membro.telefone|default:"-" }}</div>
-                <div class="col-6 campo"><strong>Celular:</strong> {{ membro.celular|default:"-" }}</div>
+            <div class="fp-header-badges">
+                <span class="fp-badge">Tipo: {{ membro.tipo_pessoa.nome|default:"-" }}</span>
+                <span class="fp-badge">Status: {{ membro.status_pessoa.nome|default:"-" }}</span>
             </div>
-        </div>
+        </header>
 
-
-        <!-- Bloco: Tags -->
-        {% if membro.tags.exists %}
-        <div class="p-3 mb-4 bg-light rounded-3 bloco-tags" role="region" aria-label="Tags">
-            <div class="secao secao-titulo">Tags</div>
-            <div class="campo">
-                {% for tag in membro.tags.all %}
-                    <span class="badge d-inline-block me-1" title="Tag: {{ tag.nome }}"><i class="fas fa-tag me-1"></i>{{ tag.nome }}</span>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="p-3 mb-4 bg-light rounded-3 bloco-info-contato" role="region" aria-label="Informações de Contato">
-            <div class="secao secao-titulo">Informações de Contato</div>
-            <div class="campo"><strong>Telefone:</strong> {{ membro.telefone|default:"-" }}</div>
-            {% with contato=membro.contatos_set.first %}
-                {% if contato %}
-                    <div class="campo"><strong>Telefone Alternativo:</strong> {{ contato.telefone_alternativo|default:"-" }}</div>
-                    <div class="campo"><strong>WhatsApp:</strong> {{ contato.whatsapp|default:"-" }}</div>
-                    <div class="campo"><strong>Email:</strong> {{ contato.email|default:"-" }}</div>
+        <section class="fp-card fp-identity" role="region" aria-label="Identificacao pessoal">
+            <div class="fp-avatar-cell">
+                {% if membro.foto %}
+                    <img src="{{ membro.foto.url }}" alt="Foto de perfil de {{ membro.nome }}" class="fp-avatar-photo">
+                {% else %}
+                    <span id="avatar-iniciais-svg-print" aria-label="Avatar com iniciais de {{ membro.nome }}" role="img"></span>
                 {% endif %}
-            {% endwith %}
-            <div class="campo"><strong>Endereço:</strong> {{ membro.rua|default:"" }}{% if membro.numero_casa %}, {{ membro.numero_casa }}{% endif %}{% if membro.complemento %} - {{ membro.complemento }}{% endif %}</div>
-            <div class="campo"><strong>Bairro:</strong> {{ membro.bairro_distrito|default:"-" }}</div>
-            <div class="campo"><strong>Cidade/Estado:</strong> {{ membro.cidade|default:"-" }} / {{ membro.estado|default:"-" }}</div>
-            <div class="campo"><strong>CEP:</strong> {{ membro.cep|default:"-" }}</div>
-        </div>
+            </div>
+            <div class="fp-identity-grid">
+                <div class="fp-field full"><span>Nome</span><strong>{{ membro.nome|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Apelido</span><strong>{{ membro.apelido|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Nascimento</span><strong>{{ membro.nascimento|date:"d/m/Y"|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Genero</span><strong>{% if membro.genero == 'M' %}Masculino{% elif membro.genero == 'F' %}Feminino{% else %}-{% endif %}</strong></div>
+                <div class="fp-field"><span>Estado civil</span><strong>{{ membro.get_estado_civil_display|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Nacionalidade</span><strong>{{ membro.nacionalidade|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Naturalidade</span><strong>{{ membro.naturalidade|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Profissao</span><strong>{{ membro.profissao|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Escolaridade</span><strong>{{ membro.escolaridade|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Pai</span><strong>{{ membro.nome_pai|default:"-" }}</strong></div>
+                <div class="fp-field full"><span>Mae</span><strong>{{ membro.nome_mae|default:"-" }}</strong></div>
+            </div>
+        </section>
+
+        <section class="fp-two-cols">
+            <article class="fp-card" role="region" aria-label="Documentos e contato principal">
+                <h2>Documentos e Contato</h2>
+                <div class="fp-compact-grid">
+                    <div class="fp-field"><span>CPF</span><strong>{{ membro.cpf|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>RG</span><strong>{{ membro.rg|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Email</span><strong>{{ membro.email|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Telefone</span><strong>{{ membro.telefone|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Celular</span><strong>{{ membro.celular|default:"-" }}</strong></div>
+                    {% with contato=membro.contatos_set.first %}
+                        {% if contato %}
+                        <div class="fp-field"><span>Telefone alternativo</span><strong>{{ contato.telefone_alternativo|default:"-" }}</strong></div>
+                        <div class="fp-field"><span>WhatsApp</span><strong>{{ contato.whatsapp|default:"-" }}</strong></div>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </article>
+
+            <article class="fp-card" role="region" aria-label="Endereco">
+                <h2>Endereco</h2>
+                <div class="fp-compact-grid">
+                    <div class="fp-field"><span>CEP</span><strong>{{ membro.cep|default:"-" }}</strong></div>
+                    <div class="fp-field full"><span>Rua</span><strong>{{ membro.rua|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Numero</span><strong>{{ membro.numero_casa|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Complemento</span><strong>{{ membro.complemento|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Bairro</span><strong>{{ membro.bairro_distrito|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Cidade</span><strong>{{ membro.cidade|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Estado</span><strong>{{ membro.estado|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Pais</span><strong>{{ membro.pais|default:"-" }}</strong></div>
+                </div>
+            </article>
+        </section>
 
         {% with info_ecl=membro.infoeclesiastica_set.first %}
-            {% if info_ecl %}
-            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Informações Eclesiásticas">
-                <div class="secao secao-titulo">Informações Eclesiásticas</div>
-                <div class="campo"><strong>Igreja Atual:</strong> {{ membro.igreja.nome_igreja|default:"-" }}</div>
-                <div class="campo"><strong>Tipo:</strong> {{ membro.tipo_pessoa.nome|default:"-" }}</div>
-                <div class="campo"><strong>Status:</strong> {{ membro.status_pessoa.nome|default:"-" }}</div>
-                <div class="campo"><strong>Data de Admissão na Igreja Atual:</strong> {{ membro.data_entrada|date:"d/m/Y"|default:"-" }}</div>
-                <div class="campo"><strong>Cargo(s):</strong> 
-                    {% for mc in membro.membrocargo_set.all %}
-                        {{ mc.cargo.nome }}{% if not forloop.last %}, {% endif %}
-                    {% empty %}
-                        -
-                    {% endfor %}
+            <section class="fp-card fp-card-splittable" role="region" aria-label="Informacoes eclesiasticas">
+                <h2>Informacoes Eclesiasticas</h2>
+                <div class="fp-compact-grid">
+                    <div class="fp-field"><span>Igreja atual</span><strong>{{ membro.igreja.nome_igreja|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Data de admissao</span><strong>{{ membro.data_entrada|date:"d/m/Y"|default:"-" }}</strong></div>
+                    <div class="fp-field"><span>Cargo(s)</span><strong>{% for mc in membro.membrocargo_set.all %}{{ mc.cargo.nome }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}</strong></div>
+                    <div class="fp-field"><span>Data de conversao</span><strong>{% if info_ecl %}{{ info_ecl.data_conversao|date:"d/m/Y"|default:"-" }}{% else %}-{% endif %}</strong></div>
+                    <div class="fp-field"><span>Data de batismo</span><strong>{% if info_ecl %}{{ info_ecl.data_batismo|date:"d/m/Y"|default:"-" }}{% else %}-{% endif %}</strong></div>
+                    <div class="fp-field"><span>Igreja de origem</span><strong>{% if info_ecl %}{{ info_ecl.igreja_origem|default:"-" }}{% else %}-{% endif %}</strong></div>
+                    <div class="fp-field"><span>Forma de admissao</span><strong>{% if info_ecl %}{{ info_ecl.forma_admissao|default:"-" }}{% else %}-{% endif %}</strong></div>
+                    <div class="fp-field full"><span>Ministerios</span><strong>{% if info_ecl %}{{ info_ecl.ministerios|default:"-" }}{% else %}-{% endif %}</strong></div>
+                    <div class="fp-field full"><span>Dons e talentos</span><strong>{% if info_ecl %}{{ info_ecl.dons_talentos|default:"-" }}{% else %}-{% endif %}</strong></div>
                 </div>
-                <div class="campo"><strong>Data de Conversão:</strong> {{ info_ecl.data_conversao|date:"d/m/Y"|default:"-" }}</div>
-                <div class="campo"><strong>Data de Batismo:</strong> {{ info_ecl.data_batismo|date:"d/m/Y"|default:"-" }}</div>
-                <div class="campo"><strong>Igreja de Origem (Batismo):</strong> {{ info_ecl.igreja_origem|default:"-" }}</div>
-                <div class="campo"><strong>Forma de Admissão:</strong> {{ info_ecl.forma_admissao|default:"-" }}</div>
-                <div class="campo"><strong>Ministérios que Participa:</strong> {{ info_ecl.ministerios|default:"-" }}</div>
-                <div class="campo"><strong>Dons e Talentos:</strong> {{ info_ecl.dons_talentos|default:"-" }}</div>
-            </div>
-            {% endif %}
+            </section>
         {% endwith %}
+
+        {% if membro.tags.exists %}
+        <section class="fp-card" role="region" aria-label="Tags">
+            <h2>Tags</h2>
+            <div class="fp-tag-row">
+                {% for tag in membro.tags.all %}
+                    <span class="fp-tag" title="Tag: {{ tag.nome }}">{{ tag.nome }}</span>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
         {% if membro.conjuge or membro.data_casamento or membro.filhos_set.exists %}
-            <div class="p-3 mb-4 bg-light rounded-3 bloco-info-familiares" role="region" aria-label="Informações Familiares">
-                <div class="secao secao-titulo">Informações Familiares</div>
+        <section class="fp-card fp-card-splittable" role="region" aria-label="Informacoes familiares">
+            <h2>Informacoes Familiares</h2>
+            <div class="fp-compact-grid">
                 {% if membro.conjuge or membro.data_casamento %}
-                    <div class="campo"><strong>Cônjuge:</strong> {{ membro.conjuge|default:"-" }}</div>
-                    <div class="campo"><strong>Data de Casamento:</strong> {{ membro.data_casamento|date:"d/m/Y"|default:"-" }}</div>
+                <div class="fp-field"><span>Conjuge</span><strong>{{ membro.conjuge|default:"-" }}</strong></div>
+                <div class="fp-field"><span>Data de casamento</span><strong>{{ membro.data_casamento|date:"d/m/Y"|default:"-" }}</strong></div>
                 {% endif %}
                 {% if membro.filhos_set.exists %}
-                    <div class="campo"><strong>Filho(s):</strong></div>
-                    <ul style="margin-bottom:2px;">
+                <div class="fp-field full"><span>Filhos</span>
+                    <ul class="fp-list">
                         {% for filho in membro.filhos_set.all %}
-                            <li style="font-size:0.95em; margin-bottom:1px;">{{ filho.nome }} (Nasc: {{ filho.data_nascimento|date:"d/m/Y"|default:"-" }})</li>
+                            <li>{{ filho.nome }} (Nasc: {{ filho.data_nascimento|date:"d/m/Y"|default:"-" }})</li>
                         {% endfor %}
                     </ul>
+                </div>
                 {% endif %}
             </div>
+        </section>
         {% endif %}
-        
+
         {% with obs=membro.observacoes_set.first %}
             {% if obs and obs.observacoes_gerais %}
-            <div class="p-3 mb-4 bg-light rounded-3" role="region" aria-label="Observações Gerais">
-                <div class="secao secao-titulo">Observações Gerais</div>
-                <div class="campo">{{ obs.observacoes_gerais|linebreaksbr }}</div>
-            </div>
+            <section class="fp-card fp-card-splittable" role="region" aria-label="Observacoes gerais">
+                <h2>Observacoes Gerais</h2>
+                <div class="fp-note">{{ obs.observacoes_gerais|linebreaksbr }}</div>
+            </section>
             {% endif %}
         {% endwith %}
 
-        <div class="assinatura">
-            <div class="assinatura-linha"></div>
-            <p>{{ membro.nome }}</p>
-        </div>
-
-        <div class="text-center small text-muted mt-5">
-            <div>Ficha gerada em: {% now "d/m/Y H:i" %} por Gereigreja</div>
-            {% if membro.criado_em or membro.atualizado_em %}
-            <div class="mt-2" style="font-size: 0.85em;">
-                {% if membro.criado_em %}
-                    Cadastrado em: {{ membro.criado_em|date:'d/m/Y H:i' }}
-                {% endif %}
-                {% if membro.atualizado_em %}
-                    {% if membro.criado_em %} | {% endif %}
-                    Última atualização: {{ membro.atualizado_em|date:'d/m/Y H:i' }}
+        <footer class="fp-footer">
+            <div class="fp-signature">
+                <div class="fp-signature-line"></div>
+                <p>{{ membro.nome }}</p>
+            </div>
+            <div class="fp-meta">
+                <div>Ficha gerada em: {% now "d/m/Y H:i" %} por Gereigreja</div>
+                {% if membro.criado_em or membro.atualizado_em %}
+                <div>
+                    {% if membro.criado_em %}
+                        Cadastrado em: {{ membro.criado_em|date:'d/m/Y H:i' }}
+                    {% endif %}
+                    {% if membro.atualizado_em %}
+                        {% if membro.criado_em %} | {% endif %}
+                        Ultima atualizacao: {{ membro.atualizado_em|date:'d/m/Y H:i' }}
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
-            {% endif %}
-        </div>
-    </div>
+        </footer>
+    </main>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var holder = document.getElementById('avatar-iniciais-svg-print');
+        if (!holder) {
+            return;
+        }
+        var nome = "{{ membro.nome|default:'' }}".trim();
+        var iniciais = '?';
+        if (nome.length > 0) {
+            var partes = nome.split(' ');
+            iniciais = (partes[0][0] || '').toUpperCase();
+            if (partes.length > 1) {
+                iniciais += (partes[partes.length - 1][0] || '').toUpperCase();
+            }
+        }
+        holder.innerHTML = `<svg viewBox="0 0 88 88" xmlns="http://www.w3.org/2000/svg" aria-label="Avatar com iniciais de {{ membro.nome }}">
+            <defs>
+                <linearGradient id="fpAvatarGradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#0d8281" />
+                    <stop offset="100%" stop-color="#074747" />
+                </linearGradient>
+            </defs>
+            <circle cx="44" cy="44" r="44" fill="url(#fpAvatarGradient)" />
+            <text x="50%" y="54%" text-anchor="middle" fill="#fff" font-size="29" font-family="Segoe UI, sans-serif" dy=".3em">${iniciais}</text>
+        </svg>`;
+    });
+    </script>
 </body>
 </html>

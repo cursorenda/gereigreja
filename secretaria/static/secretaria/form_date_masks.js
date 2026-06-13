@@ -17,7 +17,9 @@ document.addEventListener('DOMContentLoaded', function() {
         'id_data_entrada',
         'id_data_primeira_visita',
         'id_data_mudanca_tipo',
-        'id_data_mudanca_status'
+        'id_data_mudanca_status',
+        'id_data_batismo',
+        'id_data_consagracao'
     ];
     camposData.forEach(function(id) {
         const input = document.getElementById(id);

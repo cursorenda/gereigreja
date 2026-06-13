@@ -288,6 +288,7 @@ class Pessoa(models.Model):
         current_user = kwargs.pop('user', None) # Espera um 'user' opcional de kwargs
         data_mudanca_tipo = kwargs.pop('data_mudanca_tipo', None) # Data customizada para mudança de tipo
         data_mudanca_status = kwargs.pop('data_mudanca_status', None) # Data customizada para mudança de status
+        motivo_transicao = (kwargs.pop('motivo_transicao', '') or '').strip()
 
         tipo_nome_normalizado = ''
         if self.tipo_pessoa_id:
@@ -347,25 +348,32 @@ class Pessoa(models.Model):
                     observ_parts.append(f"Tipo de entrada alterado de '{old_entrada}' para '{new_entrada}'.")
 
             final_observacao = " ".join(observ_parts) if observ_parts else "Alteração registrada."
+            if motivo_transicao:
+                final_observacao = f"{final_observacao} Motivo informado: {motivo_transicao}"
 
             # Determina a data da transição
-            # Se houver apenas mudança de tipo, usa data_mudanca_tipo
-            # Se houver apenas mudança de status, usa data_mudanca_status
-            # Se houver ambas, prioriza a mais recente (ou usa timezone.now())
+            # - Se houver apenas mudança de tipo: usa data_mudanca_tipo
+            # - Se houver apenas mudança de status: usa data_mudanca_status
+            # - Se houver ambas e as duas datas existirem: usa a mais recente
             data_transicao_final = None
-            if changed_tipo and data_mudanca_tipo:
-                from datetime import datetime, time
-                # Converte date para datetime se necessário
-                if isinstance(data_mudanca_tipo, datetime):
-                    data_transicao_final = data_mudanca_tipo
-                else:
-                    data_transicao_final = datetime.combine(data_mudanca_tipo, time(12, 0))
-            elif changed_status and data_mudanca_status:
-                from datetime import datetime, time
-                if isinstance(data_mudanca_status, datetime):
-                    data_transicao_final = data_mudanca_status
-                else:
-                    data_transicao_final = datetime.combine(data_mudanca_status, time(12, 0))
+            from datetime import datetime, time
+
+            def _to_datetime(value):
+                if not value:
+                    return None
+                if isinstance(value, datetime):
+                    return value
+                return datetime.combine(value, time(12, 0))
+
+            dt_tipo = _to_datetime(data_mudanca_tipo) if changed_tipo else None
+            dt_status = _to_datetime(data_mudanca_status) if changed_status else None
+
+            if dt_tipo and dt_status:
+                data_transicao_final = dt_tipo if dt_tipo >= dt_status else dt_status
+            elif dt_tipo:
+                data_transicao_final = dt_tipo
+            elif dt_status:
+                data_transicao_final = dt_status
 
             try:
                 historico_kwargs = {
