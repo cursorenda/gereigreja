@@ -298,6 +298,9 @@ def configuracoes_ministerio(request):
     notificacoes_form = None
     ebd_form = None
     portal_form = None
+    carteirinha_form = None
+    url_personalizar_carteirinha = None
+    aba_ativa = request.POST.get('aba_ativa') or request.GET.get('aba') or 'fornecedores'
     if ministerio:
         from financeiro.models import CategoriaDespesa, Fornecedor, ContaBancaria
         from financeiro.utils import has_finance_edit_permission
@@ -310,8 +313,10 @@ def configuracoes_ministerio(request):
 
 
         import logging
-        from .forms import ConfiguracaoNotificacoesForm, ConfiguracaoEBDForm, ConfiguracaoPortalForm
+        from .forms import ConfiguracaoNotificacoesForm, ConfiguracaoEBDForm, ConfiguracaoPortalForm, MinisterioCarteirinhaPoliticaForm
         logger = logging.getLogger("django")
+        carteirinha_form = MinisterioCarteirinhaPoliticaForm(instance=ministerio)
+        url_personalizar_carteirinha = reverse('configuracao:carteirinha_ministerio')
         # Notificações
         if request.method == 'POST' and request.POST.get('aba_ativa') == 'notificacoes':
             logger.info(f"POST recebido: {request.POST}")
@@ -345,6 +350,15 @@ def configuracoes_ministerio(request):
         else:
             portal_form = ConfiguracaoPortalForm(instance=config)
 
+        # Carteirinha Premium (política de emissão)
+        if request.method == 'POST' and request.POST.get('aba_ativa') == 'carteirinha':
+            carteirinha_form = MinisterioCarteirinhaPoliticaForm(request.POST, instance=ministerio)
+            if carteirinha_form.is_valid():
+                carteirinha_form.save()
+                messages.success(request, "Política da carteirinha atualizada com sucesso!")
+            else:
+                messages.error(request, f"Erros ao salvar política da carteirinha: {carteirinha_form.errors}")
+
     context = {
         'categorias': categorias,
         'fornecedores': fornecedores,
@@ -354,6 +368,9 @@ def configuracoes_ministerio(request):
         'notificacoes_form': notificacoes_form,
         'ebd_form': ebd_form,
         'portal_form': portal_form,
+        'carteirinha_form': carteirinha_form,
+        'url_personalizar_carteirinha': url_personalizar_carteirinha,
+        'aba_ativa': aba_ativa,
     }
     return render(request, 'configuracao/configuracoes_sistema.html', context)
 
@@ -382,7 +399,7 @@ from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
 import django.db.utils # Import django utils
 from decimal import Decimal
-from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm # Adicionado IgrejaEditForm
+from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import reverse
@@ -616,9 +633,46 @@ def detalhes_ministerio(request):
     # e trata os casos de erro (não logado, superuser, sem perfil, sem org)
     ministerio = get_ministerio_or_error(request)
     try:
+        aba_ativa = request.POST.get('aba_ativa') or request.GET.get('aba') or 'dados'
+        can_edit_logos = is_admin_ministerio(request.user)
+        can_edit_carteirinha = is_admin_ministerio(request.user)
+        logos_form = MinisterioLogosForm(instance=ministerio)
+        carteirinha_form = MinisterioCarteirinhaPoliticaForm(instance=ministerio)
+
+        if request.method == 'POST' and request.POST.get('aba_ativa') == 'logos':
+            if not can_edit_logos:
+                messages.error(request, 'Você não tem permissão para alterar os logos do ministério.')
+                return redirect('configuracao:detalhes_ministerio')
+
+            logos_form = MinisterioLogosForm(request.POST, request.FILES, instance=ministerio)
+            if logos_form.is_valid():
+                logos_form.save()
+                messages.success(request, 'Logos de marketing atualizados com sucesso!')
+                return redirect('configuracao:detalhes_ministerio')
+            messages.error(request, 'Não foi possível salvar os logos. Revise os campos e tente novamente.')
+            aba_ativa = 'logos'
+
+        if request.method == 'POST' and request.POST.get('aba_ativa') == 'carteirinha':
+            if not can_edit_carteirinha:
+                messages.error(request, 'Você não tem permissão para alterar as políticas da carteirinha.')
+                return redirect('configuracao:detalhes_ministerio')
+
+            carteirinha_form = MinisterioCarteirinhaPoliticaForm(request.POST, instance=ministerio)
+            if carteirinha_form.is_valid():
+                carteirinha_form.save()
+                messages.success(request, 'Política de emissão da carteirinha atualizada com sucesso!')
+                return redirect('configuracao:detalhes_ministerio')
+            messages.error(request, 'Não foi possível salvar a política da carteirinha. Revise os campos e tente novamente.')
+            aba_ativa = 'carteirinha'
+
         context = {
             'ministerio': ministerio,
-            # Passar outros dados relacionados se necessário
+            'logos_form': logos_form,
+            'can_edit_logos': can_edit_logos,
+            'carteirinha_form': carteirinha_form,
+            'can_edit_carteirinha': can_edit_carteirinha,
+            'url_personalizar_carteirinha': reverse('configuracao:carteirinha_ministerio'),
+            'aba_ativa': aba_ativa,
         }
         return render(request, 'configuracao/ministerio/detalhes_ministerio.html', context)
     except Exception as e:
@@ -662,6 +716,166 @@ def editar_ministerio(request):
     # Criaremos um novo template para este formulário
     return render(request, 'configuracao/ministerio/form_ministerio.html', context)
 # --- FIM NOVA VIEW ---
+
+
+@login_required
+@verificar_assinatura_valida
+def carteirinha_ministerio(request):
+    from secretaria.views.carteirinha import _render_carteirinha_premium
+    from secretaria.utils import is_secretaria_leader
+
+    if not is_secretaria_leader(request.user):
+        messages.error(request, 'Apenas Presidencia ou Secretaria Ministerial podem personalizar carteirinhas.')
+        return redirect('secretaria:dashboard')
+
+    return _render_carteirinha_premium(request)
+
+
+@login_required
+@verificar_assinatura_valida
+def centro_ministerial(request):
+    """
+    Dashboard premium do ministério com visão consolidada para presidência/admin.
+    """
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    from secretaria.utils import is_secretaria_leader
+
+    if not (is_admin_ministerio(request.user) or is_secretaria_leader(request.user)):
+        messages.error(request, 'Acesso restrito a Presidencia, Secretaria Ministerial ou Admin do Ministerio.')
+        return redirect('secretaria:dashboard')
+
+    ministerio = get_ministerio_or_error(request)
+
+    from configuracao.models import Igreja
+    from secretaria.models import Membro
+    from financeiro.models import ContaPagar
+    from eventos.models import Evento
+    from contas.models import Convite
+
+    hoje = timezone.localdate()
+    agora = timezone.now()
+    em_7_dias = hoje + timedelta(days=7)
+
+    igrejas_qs = Igreja.objects.filter(ministerio=ministerio)
+    igrejas_total = igrejas_qs.count()
+    igrejas_por_tipo = {
+        item['tipo_igreja']: item['total']
+        for item in igrejas_qs.values('tipo_igreja').annotate(total=Count('id'))
+    }
+
+    membros_qs = Membro.objects.filter(igreja__ministerio=ministerio)
+    membros_total = membros_qs.count()
+    membros_ativos = membros_qs.filter(status_pessoa__nome__iexact='Ativo').count()
+    membros_inativos = max(membros_total - membros_ativos, 0)
+
+    contas_pagar_qs = ContaPagar.objects.filter(ministerio=ministerio)
+    contas_pendentes = contas_pagar_qs.filter(status='PEN').count()
+    contas_vencidas = contas_pagar_qs.filter(status='PEN', data_vencimento__lt=hoje).count()
+    contas_vencendo_7d = contas_pagar_qs.filter(
+        status='PEN',
+        data_vencimento__gte=hoje,
+        data_vencimento__lte=em_7_dias,
+    ).count()
+
+    eventos_proximos_qs = Evento.objects.filter(
+        igreja__ministerio=ministerio,
+        status_evento='ativo',
+        data_inicio__gte=agora,
+        data_inicio__lte=agora + timedelta(days=15),
+    ).select_related('igreja').order_by('data_inicio')
+
+    convites_pendentes = Convite.objects.filter(
+        ministerio=ministerio,
+        status='pendente',
+    ).count()
+
+    igrejas_sem_pastor_local = igrejas_qs.filter(
+        Q(pastor_local__isnull=True) | Q(pastor_local='')
+    ).count()
+    igrejas_sem_superior = igrejas_qs.filter(
+        tipo_igreja__in=['regional', 'congregacao'],
+        igreja_superior__isnull=True,
+    ).count()
+
+    ranking_igrejas = list(
+        igrejas_qs.annotate(total_membros=Count('membros', distinct=True))
+        .order_by('-total_membros', 'nome_igreja')[:8]
+    )
+
+    pendencias = []
+    if contas_vencidas > 0:
+        pendencias.append({
+            'nivel': 'critico',
+            'icone': 'fa-exclamation-triangle',
+            'titulo': 'Contas vencidas',
+            'descricao': f'{contas_vencidas} conta(s) pendente(s) com vencimento expirado.',
+            'acao_url': reverse('financeiro:lista_contas_pagar'),
+            'acao_texto': 'Regularizar contas',
+        })
+    if contas_vencendo_7d > 0:
+        pendencias.append({
+            'nivel': 'atencao',
+            'icone': 'fa-calendar-day',
+            'titulo': 'Vencimentos da semana',
+            'descricao': f'{contas_vencendo_7d} conta(s) vencem nos proximos 7 dias.',
+            'acao_url': reverse('financeiro:lista_contas_pagar'),
+            'acao_texto': 'Planejar pagamentos',
+        })
+    if igrejas_sem_pastor_local > 0:
+        pendencias.append({
+            'nivel': 'atencao',
+            'icone': 'fa-user-slash',
+            'titulo': 'Igrejas sem responsavel local',
+            'descricao': f'{igrejas_sem_pastor_local} igreja(s) sem Pastor Local informado.',
+            'acao_url': reverse('configuracao:lista_igrejas'),
+            'acao_texto': 'Atualizar estrutura',
+        })
+    if igrejas_sem_superior > 0:
+        pendencias.append({
+            'nivel': 'info',
+            'icone': 'fa-project-diagram',
+            'titulo': 'Estrutura hierarquica incompleta',
+            'descricao': f'{igrejas_sem_superior} regional/congregacao sem igreja superior definida.',
+            'acao_url': reverse('configuracao:lista_igrejas'),
+            'acao_texto': 'Ajustar hierarquia',
+        })
+    if convites_pendentes > 0:
+        pendencias.append({
+            'nivel': 'info',
+            'icone': 'fa-user-clock',
+            'titulo': 'Convites pendentes',
+            'descricao': f'{convites_pendentes} convite(s) aguardando aceite de usuario.',
+            'acao_url': reverse('contas:lista_usuarios'),
+            'acao_texto': 'Gerenciar convites',
+        })
+    if not pendencias:
+        pendencias.append({
+            'nivel': 'ok',
+            'icone': 'fa-check-circle',
+            'titulo': 'Operacao em dia',
+            'descricao': 'Nenhuma pendencia critica detectada no momento.',
+            'acao_url': reverse('secretaria:dashboard'),
+            'acao_texto': 'Abrir dashboard local',
+        })
+
+    context = {
+        'ministerio': ministerio,
+        'igrejas_total': igrejas_total,
+        'igrejas_por_tipo': igrejas_por_tipo,
+        'membros_total': membros_total,
+        'membros_ativos': membros_ativos,
+        'membros_inativos': membros_inativos,
+        'contas_pendentes': contas_pendentes,
+        'contas_vencidas': contas_vencidas,
+        'contas_vencendo_7d': contas_vencendo_7d,
+        'eventos_proximos': list(eventos_proximos_qs[:8]),
+        'convites_pendentes': convites_pendentes,
+        'ranking_igrejas': ranking_igrejas,
+        'pendencias': pendencias,
+        'atualizado_em': agora,
+    }
+    return render(request, 'configuracao/ministerio/centro_ministerial.html', context)
 
 #     ministerio = get_ministerio_or_error(request)
 #     # ... lógica GET/POST com MinisterioEditForm ...

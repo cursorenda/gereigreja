@@ -1,3 +1,41 @@
+## v1.13.17 — 16/06/2026
+🏛️ **Centro Ministerial Premium + Governança de Igrejas e Liderança Integrada**
+
+### Entregas
+- Novo **Centro Ministerial** como ponto único de gestão administrativa:
+  - rota dedicada em Configuração para visão central;
+  - agregação de indicadores de igrejas, membros, financeiro, eventos e convites;
+  - painel com pendências operacionais e atalhos de ação.
+- Navegação lateral simplificada e orientada ao Centro Ministerial:
+  - seção de menu ajustada para reduzir redundância de caminhos;
+  - acesso direto ao painel central no fluxo principal do sistema.
+- Premiumização das telas ministeriais e de liderança:
+  - detalhes do ministério (aba dados) em layout executivo;
+  - edição do ministério com organização por seções premium;
+  - painel de liderança da Secretaria com refinamento visual e KPIs;
+  - painel de liderança do Financeiro no mesmo padrão premium.
+- Premiumização completa do módulo de igrejas:
+  - lista de igrejas com coluna explícita de tipo da igreja;
+  - cadastro de igreja reestruturado por blocos funcionais;
+  - edição avançada por abas com casca visual premium;
+  - confirmação de exclusão com comunicação crítica consistente.
+- Correções funcionais no fluxo do Centro Ministerial:
+  - ajuste de import/modelo de convites para o domínio real (`Convite`);
+  - correção de relacionamento ORM para contagem de membros por igreja (`membros`);
+  - ajuste de reverse URL para rota existente em Contas.
+
+### Migrações
+- `configuracao/migrations/0029_ministerio_logo_grande_and_more.py`
+- `configuracao/migrations/0030_ministerio_carteirinha_permitir_secretaria_local.py`
+
+### Impacto
+- Administração ministerial mais centralizada, com menor fricção operacional.
+- Interface premium padronizada entre Configuração, Secretaria e Financeiro.
+- Melhoria de clareza de governança multi-igreja (tipo e hierarquia).
+- Mudança de schema controlada pelas migrações listadas, sem breaking changes de API pública.
+
+---
+
 ## v1.13.16 — 13/06/2026
 🧭 **Secretaria Premium — Migracao definitiva de cadastro, modernizacao de telas e controle de edicao concorrente**
 

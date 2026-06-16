@@ -302,6 +302,37 @@ class MinisterioEditForm(forms.ModelForm):
         self.fields['modelo_carta_recomendacao'].choices = choices
         self.initial.setdefault('modelo_carta_recomendacao', valor_atual)
 
+
+class MinisterioLogosForm(forms.ModelForm):
+    class Meta:
+        model = Ministerio
+        fields = [
+            'logo_png',
+            'logo_pequeno',
+            'logo_grande',
+            'logo_marketing_extra_1',
+            'logo_marketing_extra_2',
+        ]
+        widgets = {
+            'logo_png': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+            'logo_pequeno': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+            'logo_grande': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+            'logo_marketing_extra_1': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+            'logo_marketing_extra_2': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+        }
+
+
+class MinisterioCarteirinhaPoliticaForm(forms.ModelForm):
+    class Meta:
+        model = Ministerio
+        fields = ['carteirinha_permitir_secretaria_local']
+        widgets = {
+            'carteirinha_permitir_secretaria_local': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'carteirinha_permitir_secretaria_local': 'Permitir que secretarias locais gerem/imprimam carteirinhas',
+        }
+
 # Nota: A classe IgrejaEditForm abaixo parece ser uma duplicação de IgrejaForm.
 # Se a intenção é ter um formulário de edição com lógica diferente, certifique-se
 # de que as diferenças são intencionais. Caso contrário, você pode usar:

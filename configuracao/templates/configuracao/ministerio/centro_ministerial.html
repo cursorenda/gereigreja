@@ -1,0 +1,205 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Centro Ministerial | {{ ministerio.nome_fantasia }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Centro Ministerial</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Centro Ministerial</li>
+    </ol>
+
+    {% include 'partials/_messages.html' %}
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <i class="fas fa-sitemap me-1"></i>
+            {{ ministerio.nome_fantasia }}
+        </div>
+        <div class="card-body">
+            <p class="mb-2 text-muted">Painel executivo para presidência e administração do ministério.</p>
+            <small class="text-muted">Atualizado em {{ atualizado_em|date:'d/m/Y H:i' }}</small>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <a class="btn btn-primary btn-sm" href="{% url 'configuracao:lista_igrejas' %}">
+                    <i class="fas fa-church me-1"></i> Estrutura de Igrejas
+                </a>
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'contas:lista_usuarios' %}">
+                    <i class="fas fa-user-shield me-1"></i> Usuários e Permissões
+                </a>
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'configuracao:configuracoes_ministerio' %}">
+                    <i class="fas fa-sliders-h me-1"></i> Configurações Globais
+                </a>
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'configuracao:carteirinha_ministerio' %}">
+                    <i class="fas fa-id-card me-1"></i> Carteirinha Premium
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card h-100 border-primary">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Igrejas Ativas</h6>
+                    <h3 class="mb-1">{{ igrejas_total }}</h3>
+                    <small class="text-muted">Sede {{ igrejas_por_tipo.sede|default:0 }}, Regional {{ igrejas_por_tipo.regional|default:0 }}, Congregação {{ igrejas_por_tipo.congregacao|default:0 }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card h-100 border-success">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Membros</h6>
+                    <h3 class="mb-1">{{ membros_total }}</h3>
+                    <small class="text-muted">Ativos {{ membros_ativos }} | Inativos {{ membros_inativos }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card h-100 border-warning">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Financeiro Imediato</h6>
+                    <h3 class="mb-1">{{ contas_vencidas }}</h3>
+                    <small class="text-muted">Vencidas. {{ contas_vencendo_7d }} vencem em 7 dias.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card h-100 border-info">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Agenda e Equipe</h6>
+                    <h3 class="mb-1">{{ eventos_proximos|length }}</h3>
+                    <small class="text-muted">Eventos em 15 dias. Convites pendentes: {{ convites_pendentes }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-xl-7">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-clipboard-check me-1"></i>
+                    Pendências Operacionais
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for p in pendencias %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <div>
+                                {% if p.nivel == 'critico' %}
+                                <span class="badge bg-danger me-1">CRÍTICO</span>
+                                {% elif p.nivel == 'atencao' %}
+                                <span class="badge bg-warning text-dark me-1">ATENÇÃO</span>
+                                {% elif p.nivel == 'ok' %}
+                                <span class="badge bg-success me-1">OK</span>
+                                {% else %}
+                                <span class="badge bg-primary me-1">INFO</span>
+                                {% endif %}
+                                <i class="fas {{ p.icone }} me-1"></i>
+                                {{ p.titulo }}
+                                <div class="small text-muted mt-1">{{ p.descricao }}</div>
+                                </div>
+                                <a class="btn btn-outline-primary btn-sm" href="{{ p.acao_url }}">{{ p.acao_texto }}</a>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    Eventos Próximos (15 dias)
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for evento in eventos_proximos %}
+                        <li class="list-group-item">
+                            <strong>{{ evento.titulo }}</strong>
+                            <div class="small text-muted">
+                                {{ evento.data_inicio|date:'d/m/Y H:i' }}
+                                {% if evento.igreja %} | {{ evento.igreja.nome_igreja }}{% endif %}
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item">
+                            <div class="small text-muted">Sem eventos ativos programados para os próximos 15 dias.</div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-footer text-muted small">
+                    Dica: use a Agenda para distribuir responsabilidades por igreja com antecedência.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-7">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-1"></i>
+                    Top Igrejas por Volume de Membros
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Igreja</th>
+                                <th>Tipo</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for igreja in ranking_igrejas %}
+                            <tr>
+                                <td>{{ igreja.nome_igreja }}</td>
+                                <td>{{ igreja.get_tipo_igreja_display }}</td>
+                                <td class="text-end">{{ igreja.total_membros }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3">Sem dados para exibir ranking.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-link me-1"></i>
+                    Atalhos de Gestão
+                </div>
+                <div class="list-group list-group-flush">
+                    <a class="list-group-item list-group-item-action" href="{% url 'financeiro:painel_lideranca_financeiro' %}">
+                        <i class="fas fa-landmark me-2 text-primary"></i> Painel Financeiro Ministerial
+                    </a>
+                    <a class="list-group-item list-group-item-action" href="{% url 'secretaria:painel_lideranca_secretaria' %}">
+                        <i class="fas fa-users-cog me-2 text-primary"></i> Painel Secretaria Ministerial
+                    </a>
+                    <a class="list-group-item list-group-item-action" href="{% url 'configuracao:detalhes_ministerio' %}">
+                        <i class="fas fa-building me-2 text-primary"></i> Dados do Ministério
+                    </a>
+                    <a class="list-group-item list-group-item-action" href="{% url 'configuracao:gerenciar_assinatura' %}">
+                        <i class="fas fa-id-card me-2 text-primary"></i> Assinatura e Plano
+                    </a>
+                </div>
+                <div class="card-footer text-muted small">
+                    Este centro concentra decisão, políticas e governança. Operações locais continuam nos respectivos apps.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

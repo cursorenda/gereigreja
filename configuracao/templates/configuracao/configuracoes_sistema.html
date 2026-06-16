@@ -17,43 +17,49 @@
         <strong>EBD por igreja (recomendado):</strong> a configuração oficial da Escola Bíblica agora pode ser definida por igreja.
         Use <a href="{% url 'configuracao:lista_igrejas' %}" class="alert-link">Gerenciar Igrejas</a> para configurar período, dia e horário local.
     </div>
+    <div class="alert alert-primary mt-3" role="alert">
+        <strong>Novo:</strong> utilize o <a href="{% url 'configuracao:centro_ministerial' %}" class="alert-link">Centro Ministerial</a> para uma visao executiva unica do ministerio.
+    </div>
     <ul class="nav nav-tabs" id="configTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="fornecedores-tab" data-bs-toggle="tab" data-bs-target="#fornecedores" type="button" role="tab" aria-controls="fornecedores" aria-selected="true">Fornecedores</button>
+            <button class="nav-link {% if aba_ativa == 'fornecedores' %}active{% endif %}" id="fornecedores-tab" data-bs-toggle="tab" data-bs-target="#fornecedores" type="button" role="tab" aria-controls="fornecedores" aria-selected="{% if aba_ativa == 'fornecedores' %}true{% else %}false{% endif %}">Fornecedores</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="categorias-despesa-tab" data-bs-toggle="tab" data-bs-target="#categorias-despesa" type="button" role="tab" aria-controls="categorias-despesa" aria-selected="false">Categorias de Despesa</button>
+            <button class="nav-link {% if aba_ativa == 'categorias-despesa' %}active{% endif %}" id="categorias-despesa-tab" data-bs-toggle="tab" data-bs-target="#categorias-despesa" type="button" role="tab" aria-controls="categorias-despesa" aria-selected="{% if aba_ativa == 'categorias-despesa' %}true{% else %}false{% endif %}">Categorias de Despesa</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="categorias-receita-tab" data-bs-toggle="tab" data-bs-target="#categorias-receita" type="button" role="tab" aria-controls="categorias-receita" aria-selected="false">Categorias de Receita</button>
+            <button class="nav-link {% if aba_ativa == 'categorias-receita' %}active{% endif %}" id="categorias-receita-tab" data-bs-toggle="tab" data-bs-target="#categorias-receita" type="button" role="tab" aria-controls="categorias-receita" aria-selected="{% if aba_ativa == 'categorias-receita' %}true{% else %}false{% endif %}">Categorias de Receita</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="ebd-tab" data-bs-toggle="tab" data-bs-target="#ebd" type="button" role="tab" aria-controls="ebd" aria-selected="false">Escola Bíblica (legado)</button>
+            <button class="nav-link {% if aba_ativa == 'ebd' %}active{% endif %}" id="ebd-tab" data-bs-toggle="tab" data-bs-target="#ebd" type="button" role="tab" aria-controls="ebd" aria-selected="{% if aba_ativa == 'ebd' %}true{% else %}false{% endif %}">Escola Bíblica (legado)</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="notificacoes-tab" data-bs-toggle="tab" data-bs-target="#notificacoes" type="button" role="tab" aria-controls="notificacoes" aria-selected="false">Notificações</button>
+            <button class="nav-link {% if aba_ativa == 'notificacoes' %}active{% endif %}" id="notificacoes-tab" data-bs-toggle="tab" data-bs-target="#notificacoes" type="button" role="tab" aria-controls="notificacoes" aria-selected="{% if aba_ativa == 'notificacoes' %}true{% else %}false{% endif %}">Notificações</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="portal-tab" data-bs-toggle="tab" data-bs-target="#portal" type="button" role="tab" aria-controls="portal" aria-selected="false">Portal do Membro</button>
+            <button class="nav-link {% if aba_ativa == 'portal' %}active{% endif %}" id="portal-tab" data-bs-toggle="tab" data-bs-target="#portal" type="button" role="tab" aria-controls="portal" aria-selected="{% if aba_ativa == 'portal' %}true{% else %}false{% endif %}">Portal do Membro</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if aba_ativa == 'carteirinha' %}active{% endif %}" id="carteirinha-tab" data-bs-toggle="tab" data-bs-target="#carteirinha" type="button" role="tab" aria-controls="carteirinha" aria-selected="{% if aba_ativa == 'carteirinha' %}true{% else %}false{% endif %}">Carteirinha Premium</button>
         </li>
     </ul>
     <div class="tab-content mt-3" id="configTabsContent">
-        <div class="tab-pane fade show active" id="fornecedores" role="tabpanel" aria-labelledby="fornecedores-tab">
+        <div class="tab-pane fade {% if aba_ativa == 'fornecedores' %}show active{% endif %}" id="fornecedores" role="tabpanel" aria-labelledby="fornecedores-tab">
             {% include 'configuracao/partials/_fornecedores.html' %}
         </div>
-        <div class="tab-pane fade" id="categorias-despesa" role="tabpanel" aria-labelledby="categorias-despesa-tab">
+        <div class="tab-pane fade {% if aba_ativa == 'categorias-despesa' %}show active{% endif %}" id="categorias-despesa" role="tabpanel" aria-labelledby="categorias-despesa-tab">
             {% include 'configuracao/partials/_categorias.html' %}
         </div>
-        <div class="tab-pane fade" id="categorias-receita" role="tabpanel" aria-labelledby="categorias-receita-tab">
+        <div class="tab-pane fade {% if aba_ativa == 'categorias-receita' %}show active{% endif %}" id="categorias-receita" role="tabpanel" aria-labelledby="categorias-receita-tab">
             {% include 'configuracao/partials/_categorias_receita.html' %}
         </div>
-        <div class="tab-pane fade" id="ebd" role="tabpanel" aria-labelledby="ebd-tab">
+        <div class="tab-pane fade {% if aba_ativa == 'ebd' %}show active{% endif %}" id="ebd" role="tabpanel" aria-labelledby="ebd-tab">
             {% include 'configuracao/partials/_ebd.html' %}
         </div>
-        <div class="tab-pane fade" id="portal" role="tabpanel" aria-labelledby="portal-tab">
+        <div class="tab-pane fade {% if aba_ativa == 'portal' %}show active{% endif %}" id="portal" role="tabpanel" aria-labelledby="portal-tab">
             {% include 'configuracao/partials/_portal.html' %}
         </div>
-        <div class="tab-pane fade" id="notificacoes" role="tabpanel" aria-labelledby="notificacoes-tab">
+        <div class="tab-pane fade {% if aba_ativa == 'notificacoes' %}show active{% endif %}" id="notificacoes" role="tabpanel" aria-labelledby="notificacoes-tab">
             {% if notificacoes_form %}
             <form method="post" class="card p-4 shadow-sm" style="max-width: 500px;" autocomplete="off">
                 {% csrf_token %}
@@ -104,6 +110,39 @@
             </form>
             {% else %}
                 <div class="alert alert-warning">Configuração de notificações não disponível para este ministério.</div>
+            {% endif %}
+        </div>
+        <div class="tab-pane fade {% if aba_ativa == 'carteirinha' %}show active{% endif %}" id="carteirinha" role="tabpanel" aria-labelledby="carteirinha-tab">
+            {% if carteirinha_form %}
+            <div class="card p-4 shadow-sm mb-3" style="max-width: 760px;">
+                <h5 class="mb-3">Política de Emissão</h5>
+                <form method="post" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="aba_ativa" value="carteirinha">
+                    <div class="form-check mb-2">
+                        {{ carteirinha_form.carteirinha_permitir_secretaria_local }}
+                        <label class="form-check-label" for="{{ carteirinha_form.carteirinha_permitir_secretaria_local.id_for_label }}">
+                            {{ carteirinha_form.carteirinha_permitir_secretaria_local.label }}
+                        </label>
+                    </div>
+                    <div class="form-text mb-3">
+                        Desmarcado: somente Secretaria Ministerial/Presidência gera e imprime.<br>
+                        Marcado: secretarias locais podem gerar e imprimir em suas igrejas.
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar Política da Carteirinha</button>
+                </form>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_personalizar_carteirinha }}" class="btn btn-outline-primary" target="_blank">
+                    Abrir Personalizador da Carteirinha
+                </a>
+                <a href="{% url 'configuracao:detalhes_ministerio' %}?aba=carteirinha" class="btn btn-outline-secondary">
+                    Abrir Versão Completa em Meu Ministério
+                </a>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">Configuração da carteirinha não disponível para este ministério.</div>
             {% endif %}
         </div>
     </div>

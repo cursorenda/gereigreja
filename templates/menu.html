@@ -102,64 +102,11 @@
     {% if request.user.is_authenticated and not request.user.is_superuser and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.ativo %}
 
             {% if is_admin_ministerio or can_section_lideranca %}
-            <div class="sb-sidenav-menu-heading">Meu Ministério</div>
-            <a class="nav-link collapsed {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseMeuMinisterio" aria-expanded="{% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseMeuMinisterio">
+            <div class="sb-sidenav-menu-heading">Centro Ministerial</div>
+            <a class="nav-link {% if '/configuracao/meu-ministerio/centro/' in request.path %}active{% endif %}" href="{% url 'configuracao:centro_ministerial' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
-                Gestão Ministerial
-                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                Centro Ministerial
             </a>
-            <div class="collapse {% if '/configuracao/meu-ministerio/' in request.path or '/configuracao/igrejas/' in request.path or '/configuracao/assinatura/' in request.path or '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}show{% endif %}" id="collapseMeuMinisterio" aria-labelledby="headingMeuMinisterio" data-bs-parent="#sidenavAccordion">
-                <nav class="sb-sidenav-menu-nested nav">
-                    {% if is_admin_ministerio %}
-                    <a class="nav-link {% if '/configuracao/meu-ministerio/' in request.path and '/configuracao/meu-ministerio/configuracoes/' not in request.path %}active{% endif %}" href="{% url 'configuracao:detalhes_ministerio' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-building"></i></div>
-                        Dados do Ministério
-                    </a>
-                    <a class="nav-link {% if '/configuracao/igrejas/' in request.path %}active{% endif %}" href="{% url 'configuracao:lista_igrejas' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-church"></i></div>
-                        Igrejas e Estrutura
-                    </a>
-                    <a class="nav-link {% if '/contas/usuarios/' in request.path or '/contas/convidar/' in request.path or '/contas/convite/' in request.path or '/contas/convites/' in request.path %}active{% endif %}" href="{% url 'contas:lista_usuarios' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
-                        Usuários e Permissões
-                    </a>
-                    <a class="nav-link {% if '/configuracao/assinatura/' in request.path %}active{% endif %}" href="{% url 'configuracao:gerenciar_assinatura' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-id-card"></i></div>
-                        Assinatura e Plano
-                    </a>
-                    <a class="nav-link {% if '/configuracao/meu-ministerio/configuracoes/' in request.path or '/configuracao/configuracoes/' in request.path %}active{% endif %}" href="{% url 'configuracao:configuracoes_ministerio' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-sliders-h"></i></div>
-                        Configurações do Ministério
-                    </a>
-                    {% endif %}
-
-                    {% if can_section_lideranca and not is_admin_ministerio %}
-                        {% if can_see_lideranca_secretaria or can_see_lideranca_financeira %}
-                        <a class="nav-link collapsed {% if 'painel-lideranca' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLiderancaPaineis" aria-expanded="{% if 'painel-lideranca' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseLiderancaPaineis">
-                            <div class="sb-nav-link-icon"><i class="fas fa-user-tie"></i></div>
-                            Painéis Ministeriais
-                            <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
-                        </a>
-                        <div class="collapse {% if 'painel-lideranca' in request.path %}show{% endif %}" id="collapseLiderancaPaineis" aria-labelledby="headingLiderancaPaineis">
-                            <nav class="sb-sidenav-menu-nested nav">
-                                {% if can_see_lideranca_secretaria %}
-                                    <a class="nav-link {% if 'painel-lideranca-secretaria' in request.path %}active{% endif %}" href="{% url 'secretaria:painel_lideranca_secretaria' %}">
-                                        <div class="sb-nav-link-icon"><i class="fas fa-users-cog"></i></div>
-                                        Secretaria Ministerial
-                                    </a>
-                                {% endif %}
-                                {% if can_see_lideranca_financeira %}
-                                    <a class="nav-link {% if 'painel-lideranca-financeiro' in request.path %}active{% endif %}" href="{% url 'financeiro:painel_lideranca_financeiro' %}">
-                                        <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
-                                        Financeiro Ministerial
-                                    </a>
-                                {% endif %}
-                            </nav>
-                        </div>
-                        {% endif %}
-                    {% endif %}
-                </nav>
-            </div>
             {% endif %}
 
             {% if is_admin_ministerio and can_section_secretaria %}
@@ -181,12 +128,12 @@
             {% endif %}
             {% user_can_access request.user 'secretaria_relatorios' as can_secretaria_relatorios %}
             {% if can_dashboard_secretaria or can_secretaria_relatorios %}
-            <a class="nav-link collapsed {% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseDocumentosSecretaria" aria-expanded="{% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseDocumentosSecretaria">
+            <a class="nav-link collapsed {% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path or 'carteirinha' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseDocumentosSecretaria" aria-expanded="{% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path or 'carteirinha' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseDocumentosSecretaria">
                 <div class="sb-nav-link-icon"><i class="fas fa-folder-open"></i></div>
                 Documentos
                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
-            <div class="collapse {% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path %}show{% endif %}" id="collapseDocumentosSecretaria" aria-labelledby="headingDocumentosSecretaria" data-bs-parent="#sidenavAccordion">
+            <div class="collapse {% if '/secretaria/documentos/' in request.path or 'certificado-batismo' in request.path or 'certificado-apresentacao' in request.path or 'reuniao-membros' in request.path or 'carteirinha' in request.path %}show{% endif %}" id="collapseDocumentosSecretaria" aria-labelledby="headingDocumentosSecretaria" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
                     {% if can_dashboard_secretaria %}
                     {% comment %}Funcionalidade em desenvolvimento: manter oculto no deploy por enquanto.{% endcomment %}
@@ -213,6 +160,22 @@
                             <a class="nav-link {% if 'certificado-apresentacao' in request.path %}active{% endif %}" href="{% url 'secretaria:certificado_apresentacao' %}">
                                 <div class="sb-nav-link-icon"><i class="fas fa-baby"></i></div>
                                 Certificado de Apresentação
+                            </a>
+                        </nav>
+                    </div>
+                    {% endif %}
+
+                    {% if can_dashboard_secretaria and not can_see_lideranca_secretaria and request.user.perfil and request.user.perfil.ministerio and request.user.perfil.ministerio.carteirinha_permitir_secretaria_local %}
+                    <a class="nav-link collapsed {% if 'carteirinha' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseCarteirinhasSecretaria" aria-expanded="{% if 'carteirinha' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseCarteirinhasSecretaria">
+                        <div class="sb-nav-link-icon"><i class="fas fa-id-card"></i></div>
+                        Carteirinhas
+                        <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                    </a>
+                    <div class="collapse {% if 'carteirinha' in request.path %}show{% endif %}" id="collapseCarteirinhasSecretaria" aria-labelledby="headingCarteirinhasSecretaria">
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link {% if 'carteirinha/premium-1' in request.path %}active{% endif %}" href="{% url 'secretaria:carteirinha_premium_1' %}">
+                                <div class="sb-nav-link-icon"><i class="fas fa-print"></i></div>
+                                Gerar Carteirinha
                             </a>
                         </nav>
                     </div>

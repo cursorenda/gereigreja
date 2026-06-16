@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Validacao de Carteirinha{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-7">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <h1 class="h4 mb-3">Validacao de Carteirinha</h1>
+
+          {% if valido %}
+            <div class="alert alert-success" role="alert">
+              {{ mensagem }}
+            </div>
+            <dl class="row mb-0">
+              <dt class="col-sm-4">Membro</dt>
+              <dd class="col-sm-8">{{ membro.nome }}</dd>
+
+              <dt class="col-sm-4">ID</dt>
+              <dd class="col-sm-8">{{ membro.pk }}</dd>
+
+              <dt class="col-sm-4">CPF</dt>
+              <dd class="col-sm-8">{{ membro.cpf|default:'Nao informado' }}</dd>
+
+              <dt class="col-sm-4">Congregacao</dt>
+              <dd class="col-sm-8">{{ membro.igreja.nome_igreja|default:'Nao informado' }}</dd>
+
+              <dt class="col-sm-4">Data emissao</dt>
+              <dd class="col-sm-8">{{ data_emissao|default:'Nao informado' }}</dd>
+            </dl>
+          {% else %}
+            <div class="alert alert-danger" role="alert">
+              {{ mensagem }}
+            </div>
+            <p class="mb-0 text-muted">Se necessario, solicite uma nova carteirinha ao setor responsavel.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -4,6 +4,17 @@
 
 {% block content %}
 <div class="container-fluid px-4">
+    <style>
+        .del-header-card {
+            border: 0;
+            background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+            color: #fff;
+        }
+        .del-warning-card {
+            border: 1px solid rgba(220, 53, 69, .2);
+        }
+    </style>
+
     <h1 class="mt-4">Confirmar Exclusão</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
@@ -11,20 +22,34 @@
         <li class="breadcrumb-item active">Confirmar Exclusão</li>
     </ol>
 
-    <div class="alert alert-danger" role="alert">
-        <h4 class="alert-heading">Atenção! Exclusão Permanente!</h4>
-        <p>Você está prestes a excluir permanentemente a igreja:</p>
-        <p class="fs-5 fw-bold">"{{ igreja.nome_igreja }}"</p>
-        <hr>
-        <p class="mb-0">Esta ação não pode ser desfeita e só é permitida se não houver membros ou registros financeiros associados a esta igreja. Tem certeza que deseja continuar?</p>
+    <div class="card del-header-card mb-4">
+        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+            <div>
+                <h5 class="mb-1"><i class="fas fa-exclamation-triangle me-1"></i> Exclusão Permanente</h5>
+                <p class="mb-0 text-white-50">Revise os dados antes de confirmar. Esta ação é irreversível.</p>
+            </div>
+            <span class="badge bg-light text-danger">Igreja: {{ igreja.nome_igreja }}</span>
+        </div>
     </div>
 
-    <form method="post"> {# Action vazia submete para a mesma URL (excluir) #}
+    <div class="card del-warning-card mb-4">
+        <div class="card-body">
+            <div class="alert alert-danger mb-0" role="alert">
+                <h4 class="alert-heading">Atenção! Exclusão Permanente!</h4>
+                <p>Você está prestes a excluir permanentemente a igreja:</p>
+                <p class="fs-5 fw-bold">"{{ igreja.nome_igreja }}"</p>
+                <hr>
+                <p class="mb-0">Esta ação não pode ser desfeita e só é permitida se não houver membros ou registros financeiros associados a esta igreja. Tem certeza que deseja continuar?</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger">
             <i class="fas fa-trash-alt me-1"></i> Sim, Excluir Permanentemente
         </button>
-        <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-secondary">Cancelar</a>
+        <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-outline-secondary">Cancelar</a>
     </form>
 
 </div>

@@ -288,12 +288,52 @@ class Ministerio(models.Model):
         blank=True,
         verbose_name="Logo do Ministério"
     )
+    logo_png = models.ImageField(
+        upload_to=get_ministerio_logo_upload_path,
+        null=True,
+        blank=True,
+        verbose_name='Logo PNG (principal)',
+        help_text='Use este arquivo PNG para materiais de marketing e documentos visuais.'
+    )
+    logo_pequeno = models.ImageField(
+        upload_to=get_ministerio_logo_upload_path,
+        null=True,
+        blank=True,
+        verbose_name='Logo pequeno',
+        help_text='Versão reduzida para cartões, avatares e selos.'
+    )
+    logo_grande = models.ImageField(
+        upload_to=get_ministerio_logo_upload_path,
+        null=True,
+        blank=True,
+        verbose_name='Logo grande',
+        help_text='Versão em alta para banners, capas e peças grandes.'
+    )
+    logo_marketing_extra_1 = models.ImageField(
+        upload_to=get_ministerio_logo_upload_path,
+        null=True,
+        blank=True,
+        verbose_name='Logo extra 1',
+        help_text='Versão opcional para campanhas específicas.'
+    )
+    logo_marketing_extra_2 = models.ImageField(
+        upload_to=get_ministerio_logo_upload_path,
+        null=True,
+        blank=True,
+        verbose_name='Logo extra 2',
+        help_text='Versão opcional adicional para marketing.'
+    )
     modelo_carta_recomendacao = models.CharField(
         max_length=40,
         default='padrao',
         blank=True,
         verbose_name='Modelo da Carta de Recomendacao',
         help_text='Codigo do modelo selecionado para carta de recomendacao.'
+    )
+    carteirinha_permitir_secretaria_local = models.BooleanField(
+        default=False,
+        verbose_name='Permitir emissao da carteirinha pelas igrejas locais',
+        help_text='Se desmarcado, somente a secretaria ministerial/presidencia pode gerar e imprimir carteirinhas.'
     )
 
     # --- CAMPO PARA INTEGRAÇÃO COM GATEWAY DE PAGAMENTO ---

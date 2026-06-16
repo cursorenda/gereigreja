@@ -19,7 +19,9 @@ urlpatterns = [
     # URL Principal de Configuração (agora lista as igrejas)
     path('', views.configuracao_view, name='configuracao'), # Aponta para a view refatorada
     path('meu-ministerio/', views.detalhes_ministerio, name='detalhes_ministerio'),
+    path('meu-ministerio/centro/', views.centro_ministerial, name='centro_ministerial'),
     path('meu-ministerio/editar/', views.editar_ministerio, name='editar_ministerio'),
+    path('meu-ministerio/carteirinha/', views.carteirinha_ministerio, name='carteirinha_ministerio'),
     path('meu-ministerio/configuracoes/', views.configuracoes_ministerio, name='configuracoes_ministerio'),
  
     # URL para Gerenciar Assinatura

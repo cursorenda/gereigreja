@@ -1,13 +1,13 @@
 {% extends 'base_com_menu.html' %}
 
-{% block title %}Meu Ministério: {{ ministerio.nome_fantasia }}{% endblock %}
+{% block title %}Centro Ministerial: {{ ministerio.nome_fantasia }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">Meu Ministério</h1>
+    <h1 class="mt-4">Centro Ministerial</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Meu Ministério</li>
+        <li class="breadcrumb-item active">Centro Ministerial</li>
     </ol>
 
     {% include 'partials/_messages.html' %}
@@ -15,59 +15,287 @@
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-sitemap me-1"></i>
-            Detalhes da Ministério
+            Dados do Ministério
         </div>
         <div class="card-body">
-            <div class="row align-items-center mb-4">
-                <div class="col-12 col-md-4 text-center mb-3 mb-md-0">
-                    <img src="{{ ministerio.logo_url }}" alt="Logo de {{ ministerio.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 300px;">
+            <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if aba_ativa == 'dados' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#aba-dados" type="button" role="tab">
+                        <i class="fas fa-info-circle me-1"></i> Dados do Ministério
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if aba_ativa == 'logos' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#aba-logos" type="button" role="tab">
+                        <i class="fas fa-image me-1"></i> Logos e Imagens de Marketing
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if aba_ativa == 'carteirinha' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#aba-carteirinha" type="button" role="tab">
+                        <i class="fas fa-id-card me-1"></i> Carteirinha Premium
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade {% if aba_ativa == 'dados' %}show active{% endif %}" id="aba-dados" role="tabpanel">
+                    <div class="card border-0 bg-light mb-4">
+                        <div class="card-body">
+                            <div class="row align-items-center g-3">
+                                <div class="col-12 col-lg-3 text-center">
+                                    <img src="{{ ministerio.logo_url }}" alt="Logo de {{ ministerio.nome_fantasia }}" class="img-thumbnail" style="max-height: 150px; max-width: 280px;">
+                                </div>
+                                <div class="col-12 col-lg-9">
+                                    <h4 class="mb-2">{{ ministerio.nome_fantasia }}</h4>
+                                    <p class="text-muted mb-2">Resumo institucional do ministério para gestão executiva.</p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% if ministerio.ativo %}
+                                            <span class="badge bg-success">Ministério Ativo</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">Aguardando Aprovação</span>
+                                        {% endif %}
+                                        <span class="badge bg-primary">Criado em {{ ministerio.data_criacao|date:"d/m/Y" }}</span>
+                                        <span class="badge bg-dark">Admin: {{ ministerio.administrador_principal.get_full_name|default:ministerio.administrador_principal.username }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <small class="text-muted d-block">Nome Fantasia</small>
+                                    <div class="fw-semibold">{{ ministerio.nome_fantasia|default:"N/A" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="card h-100 border-info">
+                                <div class="card-body">
+                                    <small class="text-muted d-block">Razão Social</small>
+                                    <div class="fw-semibold">{{ ministerio.razao_social|default:"N/A" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="card h-100 border-warning">
+                                <div class="card-body">
+                                    <small class="text-muted d-block">CNPJ</small>
+                                    <div class="fw-semibold">{{ ministerio.cnpj|default:"N/A" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <div class="card h-100 border-secondary">
+                                <div class="card-body">
+                                    <small class="text-muted d-block">Administrador Principal</small>
+                                    <div class="fw-semibold">{{ ministerio.administrador_principal.get_full_name|default:ministerio.administrador_principal.username }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-6">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <i class="fas fa-building me-1"></i>
+                                    Identificação Institucional
+                                </div>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Nome Fantasia</span><span>{{ ministerio.nome_fantasia|default:"N/A" }}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Razão Social</span><span>{{ ministerio.razao_social|default:"N/A" }}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">CNPJ</span><span>{{ ministerio.cnpj|default:"N/A" }}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Status</span><span>{% if ministerio.ativo %}Ativo{% else %}Aguardando Aprovação{% endif %}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Data de Criação</span><span>{{ ministerio.data_criacao|date:"d/m/Y H:i" }}</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    Contato e Endereço
+                                </div>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Telefone</span><span>{{ ministerio.telefone|default:"N/A" }}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">E-mail</span><span>{{ ministerio.email|default:"N/A" }}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">CEP</span><span>{{ ministerio.cep|default:"N/A" }}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Rua / Número</span><span>{{ ministerio.rua|default:"N/A" }}{% if ministerio.numero %}, {{ ministerio.numero }}{% endif %}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Bairro</span><span>{{ ministerio.bairro|default:"N/A" }}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Cidade / Estado</span><span>{{ ministerio.cidade|default:"N/A" }}{% if ministerio.estado %} - {{ ministerio.get_estado_display|default:ministerio.estado }}{% endif %}</span></li>
+                                    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Complemento</span><span>{{ ministerio.complemento|default:"N/A" }}</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-12 col-md-8">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Nome Fantasia:</dt>
-                        <dd class="col-sm-8">{{ ministerio.nome_fantasia }}</dd>
-                        <dt class="col-sm-4">Razão Social:</dt>
-                        <dd class="col-sm-8">{{ ministerio.razao_social|default:"N/A" }}</dd>
-                        <dt class="col-sm-4">CNPJ:</dt>
-                        <dd class="col-sm-8">{{ ministerio.cnpj|default:"N/A" }}</dd>
-                        <dt class="col-sm-4">Data Criação:</dt>
-                        <dd class="col-sm-8">{{ ministerio.data_criacao|date:"d/m/Y H:i" }}</dd>
-                        <dt class="col-sm-4">Status:</dt>
-                        <dd class="col-sm-8">
-                            {% if ministerio.ativo %}
-                                <span class="badge bg-success">Ativa</span>
-                            {% else %}
-                                <span class="badge bg-warning text-dark">Aguardando Aprovação</span>
-                            {% endif %}
-                        </dd>
-                        <dt class="col-sm-4">Administrador Principal:</dt>
-                        <dd class="col-sm-8">{{ ministerio.administrador_principal.get_full_name|default:ministerio.administrador_principal.username }}</dd>
-                    </dl>
+
+                <div class="tab-pane fade {% if aba_ativa == 'logos' %}show active{% endif %}" id="aba-logos" role="tabpanel">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-bullhorn me-1"></i>
+                        Central de logos para marketing e documentos. A logo PNG principal poderá ser usada na carteirinha premium.
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-4">
+                            <div class="card h-100">
+                                <div class="card-header">Logo PNG (principal)</div>
+                                <div class="card-body text-center">
+                                    {% if ministerio.logo_png %}
+                                        <img src="{{ ministerio.logo_png.url }}" class="img-fluid img-thumbnail" alt="Logo PNG principal" style="max-height: 130px;">
+                                    {% else %}
+                                        <span class="text-muted">Sem imagem</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="card h-100">
+                                <div class="card-header">Logo pequeno</div>
+                                <div class="card-body text-center">
+                                    {% if ministerio.logo_pequeno %}
+                                        <img src="{{ ministerio.logo_pequeno.url }}" class="img-fluid img-thumbnail" alt="Logo pequeno" style="max-height: 130px;">
+                                    {% else %}
+                                        <span class="text-muted">Sem imagem</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="card h-100">
+                                <div class="card-header">Logo grande</div>
+                                <div class="card-body text-center">
+                                    {% if ministerio.logo_grande %}
+                                        <img src="{{ ministerio.logo_grande.url }}" class="img-fluid img-thumbnail" alt="Logo grande" style="max-height: 130px;">
+                                    {% else %}
+                                        <span class="text-muted">Sem imagem</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header">Logo extra 1</div>
+                                <div class="card-body text-center">
+                                    {% if ministerio.logo_marketing_extra_1 %}
+                                        <img src="{{ ministerio.logo_marketing_extra_1.url }}" class="img-fluid img-thumbnail" alt="Logo extra 1" style="max-height: 130px;">
+                                    {% else %}
+                                        <span class="text-muted">Sem imagem</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header">Logo extra 2</div>
+                                <div class="card-body text-center">
+                                    {% if ministerio.logo_marketing_extra_2 %}
+                                        <img src="{{ ministerio.logo_marketing_extra_2.url }}" class="img-fluid img-thumbnail" alt="Logo extra 2" style="max-height: 130px;">
+                                    {% else %}
+                                        <span class="text-muted">Sem imagem</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if can_edit_logos %}
+                        <form method="post" enctype="multipart/form-data" class="row g-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="aba_ativa" value="logos">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ logos_form.logo_png.id_for_label }}">{{ logos_form.logo_png.label }}</label>
+                                {{ logos_form.logo_png }}
+                                {% if logos_form.logo_png.help_text %}<div class="form-text">{{ logos_form.logo_png.help_text }}</div>{% endif %}
+                                {% if logos_form.logo_png.errors %}<div class="invalid-feedback d-block">{{ logos_form.logo_png.errors|striptags }}</div>{% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ logos_form.logo_pequeno.id_for_label }}">{{ logos_form.logo_pequeno.label }}</label>
+                                {{ logos_form.logo_pequeno }}
+                                {% if logos_form.logo_pequeno.help_text %}<div class="form-text">{{ logos_form.logo_pequeno.help_text }}</div>{% endif %}
+                                {% if logos_form.logo_pequeno.errors %}<div class="invalid-feedback d-block">{{ logos_form.logo_pequeno.errors|striptags }}</div>{% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ logos_form.logo_grande.id_for_label }}">{{ logos_form.logo_grande.label }}</label>
+                                {{ logos_form.logo_grande }}
+                                {% if logos_form.logo_grande.help_text %}<div class="form-text">{{ logos_form.logo_grande.help_text }}</div>{% endif %}
+                                {% if logos_form.logo_grande.errors %}<div class="invalid-feedback d-block">{{ logos_form.logo_grande.errors|striptags }}</div>{% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ logos_form.logo_marketing_extra_1.id_for_label }}">{{ logos_form.logo_marketing_extra_1.label }}</label>
+                                {{ logos_form.logo_marketing_extra_1 }}
+                                {% if logos_form.logo_marketing_extra_1.help_text %}<div class="form-text">{{ logos_form.logo_marketing_extra_1.help_text }}</div>{% endif %}
+                                {% if logos_form.logo_marketing_extra_1.errors %}<div class="invalid-feedback d-block">{{ logos_form.logo_marketing_extra_1.errors|striptags }}</div>{% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="{{ logos_form.logo_marketing_extra_2.id_for_label }}">{{ logos_form.logo_marketing_extra_2.label }}</label>
+                                {{ logos_form.logo_marketing_extra_2 }}
+                                {% if logos_form.logo_marketing_extra_2.help_text %}<div class="form-text">{{ logos_form.logo_marketing_extra_2.help_text }}</div>{% endif %}
+                                {% if logos_form.logo_marketing_extra_2.errors %}<div class="invalid-feedback d-block">{{ logos_form.logo_marketing_extra_2.errors|striptags }}</div>{% endif %}
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Salvar Logos de Marketing
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            Apenas usuários com perfil de administrador do ministério podem alterar esta aba.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="tab-pane fade {% if aba_ativa == 'carteirinha' %}show active{% endif %}" id="aba-carteirinha" role="tabpanel">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-id-card me-1"></i>
+                        A personalização abaixo reaproveita a mesma página premium da secretaria, agora centralizada na configuração do ministério.
+                    </div>
+
+                    {% if can_edit_carteirinha %}
+                        <form method="post" class="mb-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="aba_ativa" value="carteirinha">
+                            <div class="form-check mb-2">
+                                {{ carteirinha_form.carteirinha_permitir_secretaria_local }}
+                                <label class="form-check-label" for="{{ carteirinha_form.carteirinha_permitir_secretaria_local.id_for_label }}">
+                                    {{ carteirinha_form.carteirinha_permitir_secretaria_local.label }}
+                                </label>
+                            </div>
+                            <div class="form-text mb-3">
+                                Desmarcado: somente Secretaria Ministerial/Presidência gera e imprime.
+                                Marcado: secretarias locais podem gerar e imprimir em suas igrejas.
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar Política de Emissão
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            Apenas Administração do Ministério pode alterar a política de emissão da carteirinha.
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mb-3 flex-wrap">
+                        <a href="{% url 'configuracao:configuracoes_ministerio' %}?aba=carteirinha" class="btn btn-outline-primary">
+                            <i class="fas fa-cog me-1"></i> Abrir Politica em Configuracoes
+                        </a>
+                        <a href="{{ url_personalizar_carteirinha }}" target="_blank" class="btn btn-outline-secondary">
+                            <i class="fas fa-external-link-alt me-1"></i> Abrir Personalizador em Tela Cheia
+                        </a>
+                    </div>
+                    <div class="alert alert-secondary mb-0">
+                        A visualizacao embutida foi removida para evitar bloqueios do navegador. Use Configuracoes para politicas e o botao de tela cheia para editar o modelo oficial.
+                    </div>
                 </div>
             </div>
-            <hr>
-            <dl class="row">
-                <dt class="col-sm-3">Telefone:</dt>
-                <dd class="col-sm-9">{{ ministerio.telefone|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Email:</dt>
-                <dd class="col-sm-9">{{ ministerio.email|default:"N/A" }}</dd>
-                <dt class="col-sm-3">CEP:</dt>
-                <dd class="col-sm-9">{{ ministerio.cep|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Rua:</dt>
-                <dd class="col-sm-9">{{ ministerio.rua|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Número:</dt>
-                <dd class="col-sm-9">{{ ministerio.numero|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Complemento:</dt>
-                <dd class="col-sm-9">{{ ministerio.complemento|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Bairro:</dt>
-                <dd class="col-sm-9">{{ ministerio.bairro|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Cidade:</dt>
-                <dd class="col-sm-9">{{ ministerio.cidade|default:"N/A" }}</dd>
-                <dt class="col-sm-3">Estado:</dt>
-                <dd class="col-sm-9">{{ ministerio.get_estado_display|default:ministerio.estado|default:"N/A" }}</dd>
-            </dl>
         </div>
         <div class="card-footer">
+            <a href="{% url 'configuracao:centro_ministerial' %}" class="btn btn-dark">
+                <i class="fas fa-tachometer-alt"></i> Centro Ministerial
+            </a>
             <a href="{% url 'configuracao:editar_ministerio' %}" class="btn btn-primary">
                 <i class="fas fa-edit"></i> Editar Dados do Ministério
             </a>

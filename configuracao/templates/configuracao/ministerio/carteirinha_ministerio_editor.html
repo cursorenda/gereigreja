@@ -1,0 +1,1638 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+{% load sistema_imagens_tags %}
+{% load l10n %}
+
+{% block title %}Carteirinha Premium{% endblock %}
+
+{% block extra_css %}
+  <style>
+    :root {
+      --card-w: 85.6mm;
+      --card-h: 54mm;
+      --card-radius: 12px;
+      --accent: #3a3a3a;
+      --accent-font: #d7d7d7;
+      --accent-2: #2f2f2f;
+      --ink: #f7f9ff;
+      --muted: #c3cee9;
+      --panel-opacity: 82;
+      --bg-a: #050505;
+      --bg-b: #111111;
+      --bg-c: #1b1b1b;
+      --accent-soft-front: rgba(58, 58, 58, 0.35);
+      --accent-soft-back: rgba(58, 58, 58, 0.32);
+      --accent-2-soft: rgba(47, 47, 47, 0.27);
+      --accent-2-soft-back: rgba(47, 47, 47, 0.24);
+      --photo-bg: #181818;
+      --logo-bg: #242424;
+      --logo-scale: 1;
+      --logo-offset-y: 0px;
+      --card-gap: 16px;
+      --qr-size: 20mm;
+      --front-image: none;
+      --back-image: none;
+      --front-image-opacity: 1;
+      --back-image-opacity: 1;
+    }
+
+    * { box-sizing: border-box; }
+
+    .studio-shell {
+      font-family: "Manrope", "Inter", "Segoe UI", sans-serif;
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) minmax(340px, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .studio-panel {
+      display: grid;
+      gap: 14px;
+      position: sticky;
+      top: 78px;
+    }
+
+    .control-card {
+      border-radius: 14px;
+      border: 1px solid rgba(10, 34, 88, 0.16);
+      background: linear-gradient(160deg, #ffffff, #f4f8ff);
+      box-shadow: 0 10px 24px rgba(7, 18, 46, 0.12);
+      padding: 14px;
+    }
+
+    .control-card h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #0a2358;
+      letter-spacing: 0.1px;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      background: #eaf0ff;
+      border: 1px solid #d7e1fa;
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .mode-switch button {
+      border: 0;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: transparent;
+      color: #3257a9;
+      cursor: pointer;
+    }
+
+    .mode-switch button.active {
+      background: linear-gradient(140deg, #0f2b67, #1f4ea8);
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(15, 43, 103, 0.28);
+    }
+
+    .mode-panel { display: none; }
+    .mode-panel.active { display: block; }
+
+    .custom-cats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .custom-cat-btn {
+      border: 1px solid #cfdaf4;
+      border-radius: 8px;
+      padding: 7px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #23498f;
+      background: #f6f9ff;
+      cursor: pointer;
+    }
+
+    .custom-cat-btn.active {
+      background: linear-gradient(140deg, #183c84, #245bc4);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    .custom-cat-panel { display: none; }
+    .custom-cat-panel.active { display: grid; gap: 10px; }
+
+    .member-form,
+    .control-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #183c82;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      border: 1px solid #cfdbf4;
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      color: #0f2b61;
+      background: #fff;
+      outline: none;
+    }
+
+    .field input[type="range"] {
+      padding: 0;
+    }
+
+    .field input[type="color"] {
+      height: 38px;
+      padding: 4px;
+    }
+
+    .inline-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #14366f;
+    }
+
+    .inline-check input {
+      width: 15px;
+      height: 15px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #092253, #1750ba);
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(15, 45, 107, 0.25);
+    }
+
+    .btn-secondary {
+      background: #f0f4ff;
+      color: #1a428a;
+      border: 1px solid #d4e0fb;
+    }
+
+    .btn-row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .btn-export {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(135deg, #0f2a60, #2363d8);
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(11, 37, 84, 0.25);
+    }
+
+    .hint {
+      margin: 2px 0 0;
+      font-size: 11px;
+      color: #4f6698;
+      line-height: 1.35;
+    }
+
+    .preview-stage {
+      border-radius: 18px;
+      padding: 20px;
+      background:
+        radial-gradient(1200px 420px at -20% 10%, rgba(163, 188, 255, 0.45), transparent 40%),
+        radial-gradient(1200px 420px at 120% 90%, rgba(215, 180, 106, 0.25), transparent 42%),
+        linear-gradient(160deg, #edf3ff, #e6eefb);
+      border: 1px solid rgba(20, 53, 120, 0.14);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .card-stack {
+      display: grid;
+      gap: var(--card-gap);
+      justify-content: center;
+    }
+
+    .cartao {
+      width: var(--card-w);
+      height: var(--card-h);
+      border-radius: var(--card-radius);
+      position: relative;
+      overflow: hidden;
+      color: var(--ink);
+      border: 0.25mm solid rgba(255, 255, 255, 0.18);
+      background:
+        radial-gradient(110% 100% at 100% 0%, var(--accent-soft-front), transparent 44%),
+        radial-gradient(115% 110% at 0% 100%, var(--accent-2-soft), transparent 40%),
+        linear-gradient(150deg, var(--bg-a), var(--bg-b) 48%, var(--bg-c));
+      box-shadow: 0 16px 34px rgba(6, 13, 28, 0.42);
+    }
+
+    .cartao.frente {
+      background-image:
+        radial-gradient(110% 100% at 100% 0%, var(--accent-soft-front), transparent 44%),
+        radial-gradient(115% 110% at 0% 100%, var(--accent-2-soft), transparent 40%),
+        linear-gradient(150deg, var(--bg-a), var(--bg-b) 48%, var(--bg-c));
+      background-size: auto, auto, auto;
+      background-position: center, center, center;
+      background-repeat: no-repeat;
+    }
+
+    .cartao.verso {
+      background-image:
+        radial-gradient(110% 100% at 100% 0%, var(--accent-soft-back), transparent 45%),
+        radial-gradient(115% 110% at 0% 100%, var(--accent-2-soft-back), transparent 42%),
+        linear-gradient(150deg, var(--bg-a), var(--bg-b) 48%, var(--bg-c));
+      background-size: auto, auto, auto;
+      background-position: center, center, center;
+      background-repeat: no-repeat;
+    }
+
+    .bg-image-layer {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .bg-image-layer.front {
+      background-image: var(--front-image);
+      opacity: var(--front-image-opacity);
+    }
+
+    .bg-image-layer.back {
+      background-image: var(--back-image);
+      opacity: var(--back-image-opacity);
+    }
+
+    .cartao.frente .left-pane,
+    .cartao.frente .right-pane,
+    .cartao.verso .assinaturas,
+    .cartao.verso .verso-grid,
+    .cartao.verso .rodape {
+      z-index: 1;
+    }
+
+    .cartao::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-top: 0.2mm solid rgba(255, 255, 255, 0.2);
+      border-bottom: 0.2mm solid rgba(255, 255, 255, 0.12);
+      pointer-events: none;
+    }
+
+    .cartao::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 35% 70%, rgba(255, 255, 255, 0.06));
+      opacity: calc(var(--panel-opacity) / 100);
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+
+    .frente {
+      display: grid;
+      grid-template-columns: 35% 65%;
+      gap: 2.5mm;
+      padding: 3.2mm;
+      position: relative;
+    }
+
+    .identificacao-topo {
+      position: absolute;
+      top: 1.1mm;
+      left: 5%;
+      width: 90%;
+      text-align: center;
+      font-size: 2.25mm;
+      font-weight: 800;
+      letter-spacing: 0.35px;
+      text-transform: uppercase;
+      color: #e8efff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .left-pane {
+      min-height: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .foto {
+      width: 100%;
+      height: 31mm;
+      border-radius: 8px;
+      border: 0.3mm solid color-mix(in srgb, var(--accent) 82%, white 18%);
+      background:
+        linear-gradient(170deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.02)),
+        var(--photo-bg);
+      display: grid;
+      place-items: center;
+      font-size: 2.4mm;
+      font-weight: 700;
+      color: #d9e3ff;
+      overflow: hidden;
+    }
+
+    .right-pane {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 1.2mm;
+      min-width: 0;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 1.5mm;
+      min-width: 0;
+      color: var(--accent-font);
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      font-size: 2.75mm;
+      font-weight: 800;
+    }
+
+    .logo-mark {
+      width: 6.8mm;
+      height: 6.8mm;
+      border-radius: 1.7mm;
+      border: 0.25mm solid color-mix(in srgb, var(--accent) 75%, white 25%);
+      object-fit: cover;
+      background: linear-gradient(140deg, var(--logo-bg), var(--bg-b));
+      flex: 0 0 auto;
+    }
+
+    .brand span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .selo {
+      text-transform: uppercase;
+      color: var(--muted);
+      font-size: 2.25mm;
+      letter-spacing: 0.35px;
+      font-weight: 700;
+    }
+
+    .logo-centro {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 8.2mm;
+      margin-top: -0.3mm;
+      margin-bottom: 0.2mm;
+    }
+
+    .logo-centro img {
+      max-width: 24mm;
+      max-height: 8mm;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+      transform: translateY(var(--logo-offset-y)) scale(var(--logo-scale));
+      transform-origin: center;
+    }
+
+    .dados {
+      display: grid;
+      gap: 1.05mm;
+      align-content: start;
+      min-width: 0;
+      padding-top: 10.2mm;
+      padding-bottom: 5.8mm;
+    }
+
+    .linha-batismo {
+      margin-top: 1.9mm;
+    }
+
+    .linha {
+      display: grid;
+      grid-template-columns: 16.8mm 1fr;
+      gap: 1.4mm;
+      align-items: center;
+      font-size: 2.25mm;
+    }
+
+    .linha-dupla {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2mm;
+      align-items: center;
+    }
+
+    .mini-item {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .linha-titulo {
+      color: var(--accent-font);
+      font-weight: 800;
+      margin-right: 0.7mm;
+    }
+
+    .label {
+      color: var(--accent-font);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .valor {
+      color: var(--ink);
+      font-weight: 550;
+      overflow-wrap: anywhere;
+    }
+
+    .membro-rodape {
+      position: absolute;
+      left: 5%;
+      bottom: 2.1mm;
+      width: 90%;
+      text-align: center;
+      font-size: 3.05mm;
+      font-weight: 900;
+      letter-spacing: 0.35px;
+      color: var(--accent-font);
+      text-transform: uppercase;
+      border-top: 0.2mm solid rgba(255, 255, 255, 0.22);
+      padding: 1.05mm 1.2mm 0.5mm;
+      background: rgba(6, 18, 46, 0.56);
+      box-shadow: inset 0 0 0 0.18mm rgba(255, 255, 255, 0.16);
+      border-radius: 2mm;
+      backdrop-filter: blur(1.6px);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    body.export-solid .cartao::after {
+      opacity: 0 !important;
+      background: none !important;
+    }
+
+    body.export-solid .membro-rodape {
+      background: #0a1327 !important;
+      backdrop-filter: none !important;
+      border-top: 0.2mm solid rgba(255, 255, 255, 0.28) !important;
+    }
+
+    .verso {
+      padding: 3.2mm;
+      padding-bottom: 8.2mm;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      position: relative;
+    }
+
+    .assinaturas {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.2mm;
+      margin-top: 2.2mm;
+      margin-bottom: 0.4mm;
+    }
+
+    body.export-side-by-side #cardExportArea {
+      grid-template-columns: repeat(2, var(--card-w));
+      gap: 6mm;
+      align-items: start;
+      justify-content: center;
+    }
+
+    .assinatura-item {
+      display: grid;
+      gap: 0.65mm;
+      align-content: end;
+    }
+
+    .assinatura-linha {
+      height: 0;
+      border-top: 0.2mm solid rgba(255, 255, 255, 0.46);
+    }
+
+    .assinatura-label {
+      font-size: 1.68mm;
+      line-height: 1.2;
+      color: #d4def6;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .verso-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 2mm;
+      margin-bottom: 0;
+    }
+
+    .validacao {
+      font-size: 1.45mm;
+      line-height: 1.05;
+      color: #dde6ff;
+      max-width: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      align-self: end;
+      margin: 0;
+    }
+
+    .dados-verso {
+      margin-top: 0.9mm;
+      display: grid;
+      gap: 0.52mm;
+      font-size: 2.18mm;
+      color: #d9e3ff;
+      line-height: 1.1;
+    }
+
+    .dados-verso .linha-info {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dados-verso .linha-info strong {
+      color: #e8f0ff;
+      font-weight: 800;
+      margin-right: 0.6mm;
+    }
+
+    .qrcode {
+      width: var(--qr-size);
+      height: var(--qr-size);
+      border-radius: 1.2mm;
+      border: 0.35mm solid rgba(255, 255, 255, 0.92);
+      background: #ffffff;
+      box-sizing: border-box;
+      padding: 1.1mm;
+      box-shadow: 0 0 0 0.5mm rgba(255, 255, 255, 0.16);
+      justify-self: end;
+      transform: translateY(-8.4mm);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    .qrcode canvas,
+    .qrcode img {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    .qrcode-empty {
+      color: #0b0f1a;
+      font-size: 1.8mm;
+      font-weight: 700;
+    }
+
+    .rodape {
+      margin-top: 0;
+      padding-top: 1.3mm;
+      border-top: 0.2mm solid rgba(255, 255, 255, 0.2);
+      font-size: 1.95mm;
+      color: #c6d2f4;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      position: absolute;
+      left: 3.2mm;
+      right: 3.2mm;
+      bottom: 3.2mm;
+    }
+
+    @media (max-width: 1200px) {
+      .studio-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .studio-panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 650px) {
+      .preview-stage {
+        padding: 12px;
+      }
+
+      .cartao {
+        width: 100%;
+        max-width: var(--card-w);
+      }
+
+      .mode-switch {
+        width: 100%;
+      }
+
+      .mode-switch button {
+        flex: 1;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      body * {
+        visibility: hidden !important;
+      }
+
+      #cardExportArea,
+      #cardExportArea * {
+        visibility: visible !important;
+      }
+
+      #cardExportArea {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100%;
+        display: grid !important;
+        justify-content: center;
+        grid-template-columns: repeat(2, var(--card-w));
+        gap: 6mm;
+      }
+
+      #cardExportArea .cartao::after {
+        opacity: 0 !important;
+        background: none !important;
+      }
+
+      #cardExportArea .membro-rodape {
+        background: #0a1327 !important;
+        backdrop-filter: none !important;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+  <h1 class="mt-2">Documentos</h1>
+  <ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Carteirinha Premium</li>
+  </ol>
+
+  <div class="studio-shell">
+    <aside class="studio-panel">
+      <section class="control-card">
+        <div class="mode-switch" id="modeSwitch" role="tablist" aria-label="Alternar modo do studio">
+          <button type="button" class="active" data-mode="membro">Modo Selecionar Membro</button>
+          {% if can_personalizar_carteirinha %}
+          <button type="button" data-mode="personalizar">Modo Personalizar</button>
+          {% endif %}
+        </div>
+
+        <div class="mode-panel active" data-mode-panel="membro">
+          <h2>Escolher Membro</h2>
+          <form method="get" class="member-form">
+            <label class="field">
+              Membro para gerar a carteirinha
+              <select name="membro" required>
+                {% for pessoa in membros_disponiveis %}
+                  <option value="{{ pessoa.pk|unlocalize }}" {% if membro_selecionado_id == pessoa.pk|stringformat:'s' %}selected{% endif %}>
+                    {{ pessoa.nome }}{% if pessoa.igreja %} - {{ pessoa.igreja.nome_igreja }}{% endif %}
+                  </option>
+                {% empty %}
+                  <option value="">Nenhum membro disponivel no escopo</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button type="submit" class="btn-primary">Carregar Dados do Membro</button>
+
+            {% if not can_personalizar_carteirinha %}
+              <div class="alert alert-warning mt-1 mb-1" role="alert">
+                Modelo definido pelo Ministerio. Nesta igreja local voce pode apenas selecionar membros e gerar/imprimir.
+              </div>
+              <div class="btn-row">
+                <button type="button" class="btn-export" id="btn-export-png-local">Exportar PNG</button>
+                <button type="button" class="btn-export" id="btn-export-pdf-local">Exportar PDF</button>
+              </div>
+              <button type="button" class="btn-secondary" id="btn-print-card-local">Imprimir Carteirinha</button>
+            {% endif %}
+          </form>
+        </div>
+
+        {% if can_personalizar_carteirinha %}
+        <div class="mode-panel" data-mode-panel="personalizar">
+          <h2>Personalizacao Premium</h2>
+          <div class="control-grid" id="customizationControls">
+            <div class="alert alert-info mb-1">
+              Os dados da carteirinha sao lidos automaticamente do cadastro do membro selecionado.
+            </div>
+
+            <div class="custom-cats" role="tablist" aria-label="Categorias de personalizacao">
+              <button type="button" class="custom-cat-btn active" data-custom-cat="cores">Cores</button>
+              <button type="button" class="custom-cat-btn" data-custom-cat="layout">Layout</button>
+              <button type="button" class="custom-cat-btn" data-custom-cat="logo">Logo</button>
+              <button type="button" class="custom-cat-btn" data-custom-cat="fundos">Fundos</button>
+              <button type="button" class="custom-cat-btn" data-custom-cat="presets">Presets</button>
+              <button type="button" class="custom-cat-btn" data-custom-cat="exportar">Exportar</button>
+            </div>
+
+            <div class="custom-cat-panel active" data-custom-panel="cores">
+              <label class="field">
+                Cor da fonte de destaque
+                <input type="color" id="ctrl-accent-font" value="#d7d7d7" />
+              </label>
+              <label class="field">
+                Cor de destaque do cartao
+                <input type="color" id="ctrl-accent" value="#3a3a3a" />
+              </label>
+              <label class="field">
+                Cor secundaria
+                <input type="color" id="ctrl-accent2" value="#2f2f2f" />
+              </label>
+              <label class="field">
+                Intensidade de brilho
+                <input type="range" id="ctrl-overlay" min="65" max="95" value="82" />
+              </label>
+            </div>
+
+            <div class="custom-cat-panel" data-custom-panel="layout">
+              <label class="field">
+                Arredondamento do cartao
+                <input type="range" id="ctrl-radius" min="8" max="20" value="12" />
+              </label>
+              <label class="field">
+                Tamanho do QR Code
+                <input type="range" id="ctrl-qr" min="16" max="24" value="20" />
+              </label>
+              <label class="field">
+                Distancia frente e verso
+                <input type="range" id="ctrl-card-gap" min="0" max="42" value="16" />
+              </label>
+            </div>
+
+            <div class="custom-cat-panel" data-custom-panel="logo">
+              <label class="field">
+                Tamanho da logo
+                <input type="range" id="ctrl-logo-scale" min="40" max="260" value="100" />
+              </label>
+              <label class="field">
+                Posicao vertical da logo
+                <input type="range" id="ctrl-logo-y" min="-45" max="45" value="0" />
+              </label>
+            </div>
+
+            <div class="custom-cat-panel" data-custom-panel="fundos">
+              <label class="field">
+                Fundo personalizado (frente)
+                <input type="file" id="ctrl-bg-front" accept="image/*" />
+              </label>
+              <label class="field">
+                Transparencia do fundo (frente)
+                <input type="range" id="ctrl-bg-front-opacity" min="0" max="100" value="100" />
+              </label>
+              <label class="field">
+                Fundo personalizado (verso)
+                <input type="file" id="ctrl-bg-back" accept="image/*" />
+              </label>
+              <label class="field">
+                Transparencia do fundo (verso)
+                <input type="range" id="ctrl-bg-back-opacity" min="0" max="100" value="100" />
+              </label>
+            </div>
+
+            <div class="custom-cat-panel" data-custom-panel="presets">
+              <label class="field">
+                Presets salvos
+                <select id="preset-select">
+                  <option value="">Selecione um preset</option>
+                </select>
+              </label>
+              <div class="btn-row">
+                <button type="button" class="btn-secondary" id="btn-save-preset">Salvar preset</button>
+                <button type="button" class="btn-secondary" id="btn-apply-preset">Aplicar preset</button>
+              </div>
+              <button type="button" class="btn-secondary" id="btn-delete-preset">Excluir preset selecionado</button>
+              <button type="button" class="btn-secondary" id="btn-reset-theme">Restaurar tema original</button>
+              <p class="hint">Presets são salvos no navegador deste usuário.</p>
+            </div>
+
+            <div class="custom-cat-panel" data-custom-panel="exportar">
+              <div class="btn-row">
+                <button type="button" class="btn-export" id="btn-export-png">Exportar PNG</button>
+                <button type="button" class="btn-export" id="btn-export-pdf">Exportar PDF</button>
+              </div>
+              <button type="button" class="btn-secondary" id="btn-print-card">Imprimir Carteirinha</button>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </section>
+    </aside>
+
+    <section class="preview-stage">
+      <div class="card-stack" id="cardExportArea">
+        <div class="cartao frente" id="cardFrente">
+          <div class="bg-image-layer front" aria-hidden="true"></div>
+          <div class="identificacao-topo">CARTÃO DE MEMBRO</div>
+
+          <div class="left-pane">
+            <div class="foto">
+              {% if membro and membro.foto %}
+                <img src="{{ membro.foto.url }}" alt="Foto de {{ membro.nome }}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" />
+              {% else %}
+                Foto<br>Perfil
+              {% endif %}
+            </div>
+          </div>
+
+          <section class="right-pane">
+            <div class="dados">
+              <div class="logo-centro">
+                {% if logo_ministerio_url %}
+                  <img src="{{ logo_ministerio_url }}" alt="Logo do ministerio" />
+                {% else %}
+                  <img src="{% sistema_imagem_url 'padrao_ministerio' 'original' 'img/logo1.png' %}" alt="Logo do ministerio" />
+                {% endif %}
+              </div>
+
+              <div class="linha linha-batismo" id="linha-batismo">
+                <span class="label">Batismo:</span>
+                <span class="valor" id="preview-batismo">{{ data_batismo|default:'Nao informado' }}</span>
+              </div>
+
+              <div class="linha">
+                <span class="label">Data Nasc.:</span>
+                <span class="valor">{{ data_nascimento|default:'Nao informado' }}</span>
+              </div>
+
+              <div class="linha linha-dupla">
+                <span class="mini-item"><span class="linha-titulo">CPF:</span>{{ cpf_membro|default:'Nao informado' }}</span>
+                <span class="mini-item"><span class="linha-titulo">RG:</span>{{ rg_membro|default:'Nao informado' }}</span>
+              </div>
+
+              <div class="linha">
+                <span class="label">Data Emissao:</span>
+                <span class="valor">{{ data_emissao|default:'Nao informado' }}</span>
+              </div>
+            </div>
+
+            <div class="membro-rodape" id="preview-cpf">{{ nome_membro|default:'Selecione um membro' }}</div>
+          </section>
+        </div>
+
+        <div class="cartao verso" id="cardVerso">
+          <div class="bg-image-layer back" aria-hidden="true"></div>
+          <div class="assinaturas" aria-label="Assinaturas ministeriais">
+            <div class="assinatura-item">
+              <div class="assinatura-linha" aria-hidden="true"></div>
+              <div class="assinatura-label">Presidente do ministerio</div>
+            </div>
+            <div class="assinatura-item">
+              <div class="assinatura-linha" aria-hidden="true"></div>
+              <div class="assinatura-label">Secretario ministerial</div>
+            </div>
+          </div>
+          <div class="dados-verso" aria-label="Dados complementares do membro">
+            <div class="linha-info"><strong>Nome do pai:</strong>{{ nome_pai|default:'Nao informado' }}</div>
+            <div class="linha-info"><strong>Nome da mae:</strong>{{ nome_mae|default:'Nao informado' }}</div>
+            <div class="linha-info"><strong>Numero de ID:</strong>{{ numero_id_membro|default:'Nao informado' }}</div>
+            <div class="linha-info"><strong>Congregacao:</strong>{{ nome_congregacao|default:'Nao informado' }}</div>
+          </div>
+          <div class="verso-grid">
+            <p class="validacao">Validacao por QR Code. Documento nominal com dados do Ministerio e do membro.</p>
+            <div class="qrcode" id="qrcodeBox" aria-label="QR Code de validacao"></div>
+          </div>
+          <div class="rodape">Válido em todo território nacional</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var userId = '{{ request.user.id|default:"anon" }}';
+      var presetStorageKey = 'carteirinha-premium-presets-' + userId;
+      var customCatStorageKey = 'carteirinha-premium-custom-cat-' + userId;
+      var uploadedFrontImage = '';
+      var uploadedBackImage = '';
+
+      var modeButtons = document.querySelectorAll('#modeSwitch button[data-mode]');
+      var modePanels = document.querySelectorAll('[data-mode-panel]');
+      var customCatButtons = document.querySelectorAll('.custom-cat-btn[data-custom-cat]');
+      var customCatPanels = document.querySelectorAll('.custom-cat-panel[data-custom-panel]');
+
+      function normalizeHex(hex) {
+        if (!hex) {
+          return '#2f2f2f';
+        }
+        var value = String(hex).trim();
+        if (value.charAt(0) !== '#') {
+          value = '#' + value;
+        }
+        if (value.length === 4) {
+          value = '#' + value.charAt(1) + value.charAt(1) + value.charAt(2) + value.charAt(2) + value.charAt(3) + value.charAt(3);
+        }
+        if (value.length !== 7) {
+          return '#2f2f2f';
+        }
+        return value;
+      }
+
+      function hexToRgba(hex, alpha) {
+        var value = normalizeHex(hex);
+        var r = parseInt(value.slice(1, 3), 16);
+        var g = parseInt(value.slice(3, 5), 16);
+        var b = parseInt(value.slice(5, 7), 16);
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+      }
+
+      function shadeHex(hex, percent) {
+        var value = normalizeHex(hex);
+        var amt = Math.round(2.55 * percent);
+        var r = Math.min(255, Math.max(0, parseInt(value.slice(1, 3), 16) + amt));
+        var g = Math.min(255, Math.max(0, parseInt(value.slice(3, 5), 16) + amt));
+        var b = Math.min(255, Math.max(0, parseInt(value.slice(5, 7), 16) + amt));
+        return '#' + [r, g, b].map(function (n) {
+          var str = n.toString(16);
+          return str.length === 1 ? '0' + str : str;
+        }).join('');
+      }
+
+      function applySecondaryColor(hex) {
+        var color = normalizeHex(hex);
+        root.style.setProperty('--accent-2', color);
+        root.style.setProperty('--bg-b', shadeHex(color, -58));
+        root.style.setProperty('--bg-c', shadeHex(color, -34));
+        root.style.setProperty('--accent-2-soft', hexToRgba(color, 0.30));
+        root.style.setProperty('--accent-2-soft-back', hexToRgba(color, 0.24));
+        root.style.setProperty('--photo-bg', shadeHex(color, -48));
+        root.style.setProperty('--logo-bg', shadeHex(color, -42));
+      }
+
+      function applyAccentColor(hex) {
+        var color = normalizeHex(hex);
+        root.style.setProperty('--accent', color);
+        root.style.setProperty('--accent-soft-front', hexToRgba(color, 0.35));
+        root.style.setProperty('--accent-soft-back', hexToRgba(color, 0.32));
+      }
+
+      function setCustomCategory(category) {
+        customCatButtons.forEach(function (btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-custom-cat') === category);
+        });
+        customCatPanels.forEach(function (panel) {
+          panel.classList.toggle('active', panel.getAttribute('data-custom-panel') === category);
+        });
+        try {
+          localStorage.setItem(customCatStorageKey, category);
+        } catch (err) {
+        }
+      }
+
+      function setMode(mode) {
+        modeButtons.forEach(function (btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+        });
+        modePanels.forEach(function (panel) {
+          panel.classList.toggle('active', panel.getAttribute('data-mode-panel') === mode);
+        });
+      }
+
+      modeButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setMode(btn.getAttribute('data-mode'));
+        });
+      });
+
+      customCatButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setCustomCategory(btn.getAttribute('data-custom-cat'));
+        });
+      });
+
+      var textControls = document.querySelectorAll('#customizationControls input[data-target]');
+      textControls.forEach(function (input) {
+        input.addEventListener('input', function () {
+          var targetSelector = input.getAttribute('data-target');
+          var target = document.querySelector(targetSelector);
+          if (!target) {
+            return;
+          }
+          var base = input.getAttribute('data-base') || '';
+          var value = (input.value || '').trim();
+          target.textContent = value || base;
+        });
+      });
+
+      var accentInput = document.getElementById('ctrl-accent');
+      var accentFontInput = document.getElementById('ctrl-accent-font');
+      var accent2Input = document.getElementById('ctrl-accent2');
+      var radiusInput = document.getElementById('ctrl-radius');
+      var overlayInput = document.getElementById('ctrl-overlay');
+      var qrInput = document.getElementById('ctrl-qr');
+      var qrBox = document.getElementById('qrcodeBox');
+      var cardGapInput = document.getElementById('ctrl-card-gap');
+      var logoScaleInput = document.getElementById('ctrl-logo-scale');
+      var logoYInput = document.getElementById('ctrl-logo-y');
+      var bgFrontInput = document.getElementById('ctrl-bg-front');
+      var bgFrontOpacityInput = document.getElementById('ctrl-bg-front-opacity');
+      var bgBackInput = document.getElementById('ctrl-bg-back');
+      var bgBackOpacityInput = document.getElementById('ctrl-bg-back-opacity');
+      var presetSelect = document.getElementById('preset-select');
+      var savePresetButton = document.getElementById('btn-save-preset');
+      var applyPresetButton = document.getElementById('btn-apply-preset');
+      var deletePresetButton = document.getElementById('btn-delete-preset');
+      var exportPngButton = document.getElementById('btn-export-png');
+      var exportPdfButton = document.getElementById('btn-export-pdf');
+      var printButton = document.getElementById('btn-print-card');
+      var exportPngButtonLocal = document.getElementById('btn-export-png-local');
+      var exportPdfButtonLocal = document.getElementById('btn-export-pdf-local');
+      var printButtonLocal = document.getElementById('btn-print-card-local');
+      var exportArea = document.getElementById('cardExportArea');
+
+      function buildQrPayload() {
+        return '{{ qr_validation_url|default:""|escapejs }}' || 'GEREIJA';
+      }
+
+      function getQrPixelSize() {
+        if (!qrBox) {
+          return 128;
+        }
+        var style = window.getComputedStyle(qrBox);
+        var padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+        var padY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+        var width = (qrBox.clientWidth || 0) - padX;
+        var height = (qrBox.clientHeight || 0) - padY;
+        var size = Math.floor(Math.min(width, height));
+        if (!size || size < 64) {
+          return 128;
+        }
+        return size;
+      }
+
+      function renderQrCode() {
+        if (!qrBox) {
+          return;
+        }
+        qrBox.innerHTML = '';
+
+        if (!window.QRCode) {
+          qrBox.classList.add('qrcode-empty');
+          qrBox.textContent = 'QR indisponivel';
+          return;
+        }
+
+        qrBox.classList.remove('qrcode-empty');
+        var size = getQrPixelSize();
+        var target = document.createElement('div');
+        target.style.width = size + 'px';
+        target.style.height = size + 'px';
+        qrBox.appendChild(target);
+        new window.QRCode(target, {
+          text: buildQrPayload(),
+          width: size,
+          height: size,
+          colorDark: '#111111',
+          colorLight: '#ffffff',
+          correctLevel: window.QRCode.CorrectLevel.L
+        });
+      }
+
+      function setExportSolid(active) {
+        if (active) {
+          document.body.classList.add('export-solid');
+        } else {
+          document.body.classList.remove('export-solid');
+        }
+      }
+
+      function setExportSideBySide(active) {
+        if (active) {
+          document.body.classList.add('export-side-by-side');
+        } else {
+          document.body.classList.remove('export-side-by-side');
+        }
+      }
+
+      window.addEventListener('beforeprint', function () {
+        setExportSolid(true);
+        setExportSideBySide(true);
+      });
+
+      window.addEventListener('afterprint', function () {
+        setExportSolid(false);
+        setExportSideBySide(false);
+      });
+
+      function setFrontBackground(url) {
+        uploadedFrontImage = url || '';
+        root.style.setProperty('--front-image', uploadedFrontImage ? 'url("' + uploadedFrontImage + '")' : 'none');
+      }
+
+      function setBackBackground(url) {
+        uploadedBackImage = url || '';
+        root.style.setProperty('--back-image', uploadedBackImage ? 'url("' + uploadedBackImage + '")' : 'none');
+      }
+
+      function readAsDataUrl(file, callback) {
+        if (!file) {
+          callback('');
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+          callback(ev.target.result || '');
+        };
+        reader.readAsDataURL(file);
+      }
+
+      if (accentFontInput) {
+        accentFontInput.addEventListener('input', function () {
+          root.style.setProperty('--accent-font', accentFontInput.value);
+        });
+      }
+      if (accentInput) {
+        accentInput.addEventListener('input', function () {
+          applyAccentColor(accentInput.value);
+        });
+      }
+      if (accent2Input) {
+        accent2Input.addEventListener('input', function () {
+          applySecondaryColor(accent2Input.value);
+        });
+      }
+      if (radiusInput) {
+        radiusInput.addEventListener('input', function () {
+          root.style.setProperty('--card-radius', radiusInput.value + 'px');
+        });
+      }
+      if (overlayInput) {
+        overlayInput.addEventListener('input', function () {
+          root.style.setProperty('--panel-opacity', overlayInput.value);
+        });
+      }
+      if (qrInput) {
+        qrInput.addEventListener('input', function () {
+          root.style.setProperty('--qr-size', qrInput.value + 'mm');
+          requestAnimationFrame(function () {
+            renderQrCode();
+          });
+        });
+      }
+      if (cardGapInput) {
+        cardGapInput.addEventListener('input', function () {
+          root.style.setProperty('--card-gap', String(cardGapInput.value || 16) + 'px');
+        });
+      }
+      if (logoScaleInput) {
+        logoScaleInput.addEventListener('input', function () {
+          var scale = Number(logoScaleInput.value || 100) / 100;
+          root.style.setProperty('--logo-scale', String(scale));
+        });
+      }
+      if (logoYInput) {
+        logoYInput.addEventListener('input', function () {
+          root.style.setProperty('--logo-offset-y', String(logoYInput.value || 0) + 'px');
+        });
+      }
+      if (bgFrontInput) {
+        bgFrontInput.addEventListener('change', function () {
+          readAsDataUrl(bgFrontInput.files[0], setFrontBackground);
+        });
+      }
+      if (bgFrontOpacityInput) {
+        bgFrontOpacityInput.addEventListener('input', function () {
+          root.style.setProperty('--front-image-opacity', String(Number(bgFrontOpacityInput.value || 100) / 100));
+        });
+      }
+      if (bgBackInput) {
+        bgBackInput.addEventListener('change', function () {
+          readAsDataUrl(bgBackInput.files[0], setBackBackground);
+        });
+      }
+      if (bgBackOpacityInput) {
+        bgBackOpacityInput.addEventListener('input', function () {
+          root.style.setProperty('--back-image-opacity', String(Number(bgBackOpacityInput.value || 100) / 100));
+        });
+      }
+
+      function getPresets() {
+        try {
+          var raw = localStorage.getItem(presetStorageKey);
+          var parsed = raw ? JSON.parse(raw) : {};
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (err) {
+          return {};
+        }
+      }
+
+      function savePresets(presets) {
+        localStorage.setItem(presetStorageKey, JSON.stringify(presets));
+      }
+
+      function refreshPresetSelect() {
+        if (!presetSelect) {
+          return;
+        }
+        var presets = getPresets();
+        var selected = presetSelect.value;
+        presetSelect.innerHTML = '<option value="">Selecione um preset</option>';
+        Object.keys(presets).sort().forEach(function (name) {
+          var option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          presetSelect.appendChild(option);
+        });
+        if (selected && presets[selected]) {
+          presetSelect.value = selected;
+        }
+      }
+
+      function collectCurrentState() {
+        return {
+          accent: accentInput ? accentInput.value : '#3a3a3a',
+          accentFont: accentFontInput ? accentFontInput.value : '#d7d7d7',
+          accent2: accent2Input ? accent2Input.value : '#2f2f2f',
+          radius: radiusInput ? radiusInput.value : '12',
+          overlay: overlayInput ? overlayInput.value : '82',
+          qr: qrInput ? qrInput.value : '20',
+          cardGap: cardGapInput ? cardGapInput.value : '16',
+          logoScale: logoScaleInput ? logoScaleInput.value : '100',
+          logoY: logoYInput ? logoYInput.value : '0',
+          bgFrontOpacity: bgFrontOpacityInput ? bgFrontOpacityInput.value : '100',
+          bgBackOpacity: bgBackOpacityInput ? bgBackOpacityInput.value : '100',
+          frontImage: uploadedFrontImage || '',
+          backImage: uploadedBackImage || ''
+        };
+      }
+
+      function applyState(state) {
+        if (!state) {
+          return;
+        }
+        function setInput(id, value) {
+          var input = document.getElementById(id);
+          if (!input) {
+            return;
+          }
+          input.value = value || '';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        setInput('ctrl-accent-font', state.accentFont || '#d7d7d7');
+        setInput('ctrl-accent', state.accent || '#3a3a3a');
+        setInput('ctrl-accent2', state.accent2 || '#2f2f2f');
+        setInput('ctrl-radius', state.radius || '12');
+        setInput('ctrl-overlay', state.overlay || '82');
+        setInput('ctrl-qr', state.qr || '20');
+        setInput('ctrl-card-gap', state.cardGap || '16');
+        setInput('ctrl-logo-scale', state.logoScale || '100');
+        setInput('ctrl-logo-y', state.logoY || '0');
+        setInput('ctrl-bg-front-opacity', state.bgFrontOpacity || '100');
+        setInput('ctrl-bg-back-opacity', state.bgBackOpacity || '100');
+
+        setFrontBackground(state.frontImage || '');
+        setBackBackground(state.backImage || '');
+      }
+
+      if (savePresetButton) {
+        savePresetButton.addEventListener('click', function () {
+          var presetName = window.prompt('Nome do preset:');
+          if (!presetName) {
+            return;
+          }
+          var key = presetName.trim();
+          if (!key) {
+            return;
+          }
+          var presets = getPresets();
+          presets[key] = collectCurrentState();
+          savePresets(presets);
+          refreshPresetSelect();
+          if (presetSelect) {
+            presetSelect.value = key;
+          }
+        });
+      }
+
+      if (applyPresetButton) {
+        applyPresetButton.addEventListener('click', function () {
+          if (!presetSelect || !presetSelect.value) {
+            return;
+          }
+          var presets = getPresets();
+          applyState(presets[presetSelect.value]);
+        });
+      }
+
+      if (deletePresetButton) {
+        deletePresetButton.addEventListener('click', function () {
+          if (!presetSelect || !presetSelect.value) {
+            return;
+          }
+          var presets = getPresets();
+          delete presets[presetSelect.value];
+          savePresets(presets);
+          refreshPresetSelect();
+        });
+      }
+
+      async function captureAsCanvas() {
+        if (!window.html2canvas || !exportArea) {
+          throw new Error('html2canvas indisponivel.');
+        }
+        setExportSolid(true);
+        setExportSideBySide(true);
+        try {
+          await new Promise(function (resolve) {
+            requestAnimationFrame(function () {
+              requestAnimationFrame(resolve);
+            });
+          });
+          return window.html2canvas(exportArea, {
+            backgroundColor: '#0b1222',
+            scale: 3,
+            useCORS: true,
+            allowTaint: true,
+            logging: false
+          });
+        } finally {
+          setExportSolid(false);
+          setExportSideBySide(false);
+        }
+      }
+
+      if (exportPngButton) {
+        exportPngButton.addEventListener('click', async function () {
+          try {
+            var canvas = await captureAsCanvas();
+            var link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = 'carteirinha-premium.png';
+            link.click();
+          } catch (err) {
+            window.alert('Nao foi possivel exportar PNG agora. Tente novamente ou use Imprimir.');
+          }
+        });
+      }
+
+      if (exportPngButtonLocal) {
+        exportPngButtonLocal.addEventListener('click', async function () {
+          try {
+            var canvas = await captureAsCanvas();
+            var link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = 'carteirinha-premium.png';
+            link.click();
+          } catch (err) {
+            window.alert('Nao foi possivel exportar PNG agora. Tente novamente ou use Imprimir.');
+          }
+        });
+      }
+
+      if (exportPdfButton) {
+        exportPdfButton.addEventListener('click', async function () {
+          try {
+            var canvas = await captureAsCanvas();
+            var image = canvas.toDataURL('image/png');
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+              throw new Error('jsPDF indisponivel.');
+            }
+            var jsPDF = window.jspdf.jsPDF;
+            var pdf = new jsPDF('p', 'mm', 'a4');
+            var pageWidth = 210;
+            var margin = 10;
+            var targetWidth = pageWidth - (margin * 2);
+            var targetHeight = (canvas.height * targetWidth) / canvas.width;
+            pdf.addImage(image, 'PNG', margin, 15, targetWidth, targetHeight);
+            pdf.save('carteirinha-premium.pdf');
+          } catch (err) {
+            try {
+              if (printButton) {
+                printButton.click();
+                window.alert('Nao foi possivel gerar PDF direto. Abrimos a impressao da carteirinha para voce salvar como PDF.');
+                return;
+              }
+            } catch (fallbackErr) {
+            }
+            window.alert('Nao foi possivel exportar PDF agora. Use o botao Imprimir Carteirinha e escolha Salvar como PDF.');
+          }
+        });
+      }
+
+      if (exportPdfButtonLocal) {
+        exportPdfButtonLocal.addEventListener('click', async function () {
+          try {
+            var canvas = await captureAsCanvas();
+            var image = canvas.toDataURL('image/png');
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+              throw new Error('jsPDF indisponivel.');
+            }
+            var jsPDF = window.jspdf.jsPDF;
+            var pdf = new jsPDF('p', 'mm', 'a4');
+            var pageWidth = 210;
+            var margin = 10;
+            var targetWidth = pageWidth - (margin * 2);
+            var targetHeight = (canvas.height * targetWidth) / canvas.width;
+            pdf.addImage(image, 'PNG', margin, 15, targetWidth, targetHeight);
+            pdf.save('carteirinha-premium.pdf');
+          } catch (err) {
+            try {
+              if (printButtonLocal) {
+                printButtonLocal.click();
+                window.alert('Nao foi possivel gerar PDF direto. Abrimos a impressao da carteirinha para voce salvar como PDF.');
+                return;
+              }
+            } catch (fallbackErr) {
+            }
+            window.alert('Nao foi possivel exportar PDF agora. Use o botao Imprimir Carteirinha e escolha Salvar como PDF.');
+          }
+        });
+      }
+
+      if (printButton) {
+        printButton.addEventListener('click', function () {
+          try {
+            setExportSolid(true);
+            setExportSideBySide(true);
+            window.print();
+          } catch (err) {
+            if (exportPdfButton) {
+              exportPdfButton.click();
+            }
+          } finally {
+            setTimeout(function () {
+              setExportSolid(false);
+              setExportSideBySide(false);
+            }, 500);
+          }
+        });
+      }
+
+      if (printButtonLocal) {
+        printButtonLocal.addEventListener('click', function () {
+          try {
+            setExportSolid(true);
+            setExportSideBySide(true);
+            window.print();
+          } catch (err) {
+            if (exportPdfButtonLocal) {
+              exportPdfButtonLocal.click();
+            }
+          } finally {
+            setTimeout(function () {
+              setExportSolid(false);
+              setExportSideBySide(false);
+            }, 500);
+          }
+        });
+      }
+
+      refreshPresetSelect();
+
+      var resetButton = document.getElementById('btn-reset-theme');
+      if (resetButton) {
+        resetButton.addEventListener('click', function () {
+          if (accentFontInput) {
+            accentFontInput.value = '#d7d7d7';
+            root.style.setProperty('--accent-font', accentFontInput.value);
+          }
+          if (accentInput) {
+            accentInput.value = '#3a3a3a';
+            applyAccentColor(accentInput.value);
+          }
+          if (accent2Input) {
+            accent2Input.value = '#2f2f2f';
+            applySecondaryColor(accent2Input.value);
+          }
+          if (radiusInput) {
+            radiusInput.value = '12';
+            root.style.setProperty('--card-radius', '12px');
+          }
+          if (overlayInput) {
+            overlayInput.value = '82';
+            root.style.setProperty('--panel-opacity', '82');
+          }
+          if (qrInput) {
+            qrInput.value = '20';
+            root.style.setProperty('--qr-size', '20mm');
+          }
+          if (cardGapInput) {
+            cardGapInput.value = '16';
+            root.style.setProperty('--card-gap', '16px');
+          }
+          if (logoScaleInput) {
+            logoScaleInput.value = '100';
+            root.style.setProperty('--logo-scale', '1');
+          }
+          if (logoYInput) {
+            logoYInput.value = '0';
+            root.style.setProperty('--logo-offset-y', '0px');
+          }
+          if (bgFrontOpacityInput) {
+            bgFrontOpacityInput.value = '100';
+            root.style.setProperty('--front-image-opacity', '1');
+          }
+          if (bgBackOpacityInput) {
+            bgBackOpacityInput.value = '100';
+            root.style.setProperty('--back-image-opacity', '1');
+          }
+          setFrontBackground('');
+          setBackBackground('');
+        });
+      }
+
+      if (accent2Input) {
+        applySecondaryColor(accent2Input.value);
+      }
+      if (accentInput) {
+        applyAccentColor(accentInput.value);
+      }
+      if (logoScaleInput) {
+        root.style.setProperty('--logo-scale', String(Number(logoScaleInput.value || 100) / 100));
+      }
+      if (logoYInput) {
+        root.style.setProperty('--logo-offset-y', String(logoYInput.value || 0) + 'px');
+      }
+      if (cardGapInput) {
+        root.style.setProperty('--card-gap', String(cardGapInput.value || 16) + 'px');
+      }
+      if (bgFrontOpacityInput) {
+        root.style.setProperty('--front-image-opacity', String(Number(bgFrontOpacityInput.value || 100) / 100));
+      }
+      if (bgBackOpacityInput) {
+        root.style.setProperty('--back-image-opacity', String(Number(bgBackOpacityInput.value || 100) / 100));
+      }
+      var savedCat = '';
+      try {
+        savedCat = localStorage.getItem(customCatStorageKey) || '';
+      } catch (err) {
+        savedCat = '';
+      }
+      if (savedCat && document.querySelector('.custom-cat-btn[data-custom-cat="' + savedCat + '"]')) {
+        setCustomCategory(savedCat);
+      } else {
+        setCustomCategory('cores');
+      }
+
+      renderQrCode();
+      window.addEventListener('resize', function () {
+        renderQrCode();
+      });
+    })();
+  </script>
+{% endblock %}

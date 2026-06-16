@@ -68,6 +68,9 @@ from .certificado_batismo import (  # noqa: F401
 from .carta_recomendacao import (  # noqa: F401
     carta_recomendacao,
 )
+from .carteirinha import (  # noqa: F401
+    carteirinha_premium_1, validar_carteirinha_qr,
+)
 from .cadastro_premium import (  # noqa: F401
     cadastro_premium_multietapas,
 )
