@@ -2,182 +2,34 @@
 from django.contrib.auth.decorators import login_required
 from core.decorators import verificar_assinatura_valida, page_access_required
 from django.db import models
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from datetime import date, timedelta
-from .models import AgendaEvento
 from django.http import JsonResponse
-from django.urls import reverse
 from django.contrib import messages
-from .forms import AgendaEventoForm
 
 @login_required
 @page_access_required('agenda')
 def editar_evento(request, pk):
-	evento = get_object_or_404(AgendaEvento, pk=pk)
-	if request.method == 'POST':
-		form = AgendaEventoForm(request.POST, instance=evento, request=request)
-		
-		# Aplicar filtro de responsáveis
-		from django.contrib.auth import get_user_model
-		from secretaria.models import Membro
-		User = get_user_model()
-		
-		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			ministerio_ativo = request.igreja_ativa.ministerio
-		elif hasattr(request.user, 'perfil'):
-			ministerio_ativo = request.user.perfil.ministerio
-		
-		igreja_id = evento.igreja_id  # Usar igreja do evento sendo editado
-		
-		if ministerio_ativo and igreja_id:
-			membros_com_usuario = Membro.objects.filter(
-				igreja_id=igreja_id,
-				usuario__isnull=False
-			).values_list('usuario_id', flat=True)
-			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
-			usuarios_ministerio = User.objects.filter(
-				perfil__ministerio=ministerio_ativo
-			).values_list('id', flat=True)
-			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
-			form.fields['responsavel'].queryset = responsaveis_qs
-		else:
-			form.fields['responsavel'].queryset = User.objects.none()
-		
-		if form.is_valid():
-			form.save()
-			messages.success(request, 'Evento atualizado com sucesso!')
-			return redirect(reverse('agenda:detalhe_evento', args=[evento.pk]))
-	else:
-		form = AgendaEventoForm(instance=evento, request=request)
-		
-		# Aplicar filtro de responsáveis
-		from django.contrib.auth import get_user_model
-		from secretaria.models import Membro
-		
-		User = get_user_model()
-		
-		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			ministerio_ativo = request.igreja_ativa.ministerio
-		elif hasattr(request.user, 'perfil'):
-			ministerio_ativo = request.user.perfil.ministerio
-		
-		igreja_id = evento.igreja_id
-		
-		if ministerio_ativo and igreja_id:
-			# Triplo filtro: igreja + membro com usuário + ministério
-			membros_com_usuario = Membro.objects.filter(
-				igreja_id=igreja_id,
-				usuario__isnull=False
-			).values_list('usuario_id', flat=True)
-			
-			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
-			
-			usuarios_ministerio = User.objects.filter(
-				perfil__ministerio=ministerio_ativo
-			).values_list('id', flat=True)
-			
-			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
-			form.fields['responsavel'].queryset = responsaveis_qs
-		else:
-			form.fields['responsavel'].queryset = User.objects.none()
-	
-	return render(request, 'agenda/editar_evento.html', {'form': form, 'evento': evento})
+	messages.info(request, 'A edição de eventos foi centralizada no módulo Eventos.')
+	return redirect('eventos:lista_eventos')
 
 @login_required
 @page_access_required('agenda')
 def excluir_evento(request, pk):
-	evento = get_object_or_404(AgendaEvento, pk=pk)
-	if request.method == 'POST':
-		evento.delete()
-		messages.success(request, 'Evento excluído com sucesso!')
-		return redirect(reverse('agenda:agenda'))
-	return render(request, 'agenda/excluir_evento.html', {'evento': evento})
+	messages.info(request, 'A exclusão de eventos foi centralizada no módulo Eventos.')
+	return redirect('eventos:lista_eventos')
 
 @login_required
 @page_access_required('agenda')
 def detalhe_evento(request, pk):
-	evento = get_object_or_404(AgendaEvento, pk=pk)
-	return render(request, 'agenda/detalhe_evento.html', {'evento': evento})
+	messages.info(request, 'Os detalhes de eventos agora ficam no módulo Eventos.')
+	return redirect('eventos:lista_eventos')
 
 @login_required
 @page_access_required('agenda')
 def criar_evento(request):
-	if request.method == 'POST':
-		form = AgendaEventoForm(request.POST, request=request)
-		
-		# Aplicar filtro de responsáveis
-		from django.contrib.auth import get_user_model
-		from secretaria.models import Membro
-		User = get_user_model()
-		
-		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			ministerio_ativo = request.igreja_ativa.ministerio
-		elif hasattr(request.user, 'perfil'):
-			ministerio_ativo = request.user.perfil.ministerio
-		
-		igreja_id = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			igreja_id = request.igreja_ativa.pk
-		
-		if ministerio_ativo and igreja_id:
-			membros_com_usuario = Membro.objects.filter(
-				igreja_id=igreja_id,
-				usuario__isnull=False
-			).values_list('usuario_id', flat=True)
-			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
-			usuarios_ministerio = User.objects.filter(
-				perfil__ministerio=ministerio_ativo
-			).values_list('id', flat=True)
-			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
-			form.fields['responsavel'].queryset = responsaveis_qs
-		else:
-			form.fields['responsavel'].queryset = User.objects.none()
-		
-		if form.is_valid():
-			evento = form.save()
-			messages.success(request, 'Evento criado com sucesso!')
-			return redirect(reverse('agenda:agenda'))
-	else:
-		form = AgendaEventoForm(request=request)
-		
-		# Aplicar filtro de responsáveis
-		from django.contrib.auth import get_user_model
-		from secretaria.models import Membro
-		
-		User = get_user_model()
-		
-		ministerio_ativo = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			ministerio_ativo = request.igreja_ativa.ministerio
-		elif hasattr(request.user, 'perfil'):
-			ministerio_ativo = request.user.perfil.ministerio
-		
-		igreja_id = None
-		if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-			igreja_id = request.igreja_ativa.pk
-		
-		if ministerio_ativo and igreja_id:
-			# Triplo filtro: igreja + membro com usuário + ministério
-			membros_com_usuario = Membro.objects.filter(
-				igreja_id=igreja_id,
-				usuario__isnull=False
-			).values_list('usuario_id', flat=True)
-			
-			responsaveis_qs = User.objects.filter(id__in=membros_com_usuario)
-			
-			usuarios_ministerio = User.objects.filter(
-				perfil__ministerio=ministerio_ativo
-			).values_list('id', flat=True)
-			
-			responsaveis_qs = responsaveis_qs.filter(id__in=usuarios_ministerio)
-			form.fields['responsavel'].queryset = responsaveis_qs
-		else:
-			form.fields['responsavel'].queryset = User.objects.none()
-	
-	return render(request, 'agenda/criar_evento.html', {'form': form})
+	messages.info(request, 'A criação de eventos foi centralizada no módulo Eventos.')
+	return redirect('eventos:criar_evento')
 
 @login_required
 def agenda_eventos_json(request):
@@ -185,7 +37,6 @@ def agenda_eventos_json(request):
 	from django.utils import timezone
 	from datetime import date, timedelta
 	from eventos.models import Evento
-	from configuracao.models import Igreja
 	ministerio = getattr(getattr(request.user, 'perfil', None), 'ministerio', None)
 	eventos = Evento.objects.none()
 	if ministerio:
@@ -288,17 +139,16 @@ def agenda_eventos_json(request):
 @page_access_required('agenda')
 def agenda_view(request):
 	# Exibe eventos do mês atual
+	from eventos.models import Evento
 	hoje = date.today()
 	primeiro_dia = hoje.replace(day=1)
 	if primeiro_dia.month == 12:
 		proximo_mes = primeiro_dia.replace(year=primeiro_dia.year+1, month=1, day=1)
 	else:
 		proximo_mes = primeiro_dia.replace(month=primeiro_dia.month+1, day=1)
-	from configuracao.models import Igreja
-	ministerio = getattr(getattr(request.user, 'perfil', None), 'ministerio', None)
-	eventos = AgendaEvento.objects.none()
+	eventos = Evento.objects.none()
 	if hasattr(request, 'igreja_ativa') and request.igreja_ativa:
-		eventos = AgendaEvento.objects.filter(
+		eventos = Evento.objects.filter(
 			igreja=request.igreja_ativa,
 			data_inicio__date__gte=primeiro_dia,
 			data_inicio__date__lt=proximo_mes
@@ -398,6 +248,7 @@ def importar_feriados_view(request):
 	from django.utils import timezone
 	from datetime import datetime, time
 	import holidays
+	from eventos.models import Evento
 	
 	if request.method != 'POST':
 		return JsonResponse({'sucesso': False, 'erro': 'Método não permitido'}, status=405)
@@ -435,7 +286,7 @@ def importar_feriados_view(request):
 	
 	for data, nome in sorted(br_holidays.items()):
 		# Verificar se já existe evento de feriado nesta data para esta igreja
-		if AgendaEvento.objects.filter(
+		if Evento.objects.filter(
 			igreja=igreja,
 			tipo='feriado',
 			data_inicio__date=data
@@ -447,12 +298,13 @@ def importar_feriados_view(request):
 		data_inicio = timezone.make_aware(datetime.combine(data, time(0, 0)))
 		data_fim = timezone.make_aware(datetime.combine(data, time(23, 59)))
 		
-		evento = AgendaEvento.objects.create(
+		evento = Evento.objects.create(
 			titulo=nome,
 			tipo='feriado',
 			data_inicio=data_inicio,
 			data_fim=data_fim,
 			igreja=igreja,
+			criado_por=request.user,
 			descricao=f'Feriado {"nacional" if not estado else "nacional/estadual"} importado automaticamente'
 		)
 		eventos_criados += 1

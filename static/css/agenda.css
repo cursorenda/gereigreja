@@ -2,6 +2,22 @@
    AGENDA DE EVENTOS - ESTILOS CUSTOMIZADOS
    ============================================ */
 
+.agenda-top-spacer {
+    height: 16px;
+}
+
+.agenda-header-premium {
+    background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%);
+    color: #fff;
+    border-radius: 12px 12px 0 0;
+    padding-left: 2rem;
+}
+
+.agenda-header-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
 /* ========== LEGENDA INTERATIVA ========== */
 .legenda-tipos-evento {
     margin-bottom: 1.25rem;
@@ -14,28 +30,46 @@
     margin-bottom: 1rem;
 }
 
+#cards-tipos-evento {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+}
+
+#cards-tipos-evento > .col {
+    min-width: 154px;
+}
+
+#cards-tipos-evento::-webkit-scrollbar {
+    height: 7px;
+}
+
+#cards-tipos-evento::-webkit-scrollbar-thumb {
+    background: rgba(10, 102, 101, 0.35);
+    border-radius: 999px;
+}
+
 .card-tipo-evento {
     background: #fff;
-    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    gap: 12px;
     border: 2px solid transparent;
     position: relative;
     overflow: hidden;
     animation: fadeIn 0.5s ease-out backwards;
+    min-height: 58px;
 }
 
-.card-tipo-evento:nth-child(1) { animation-delay: 0.05s; }
 .card-tipo-evento:nth-child(2) { animation-delay: 0.1s; }
 .card-tipo-evento:nth-child(3) { animation-delay: 0.15s; }
 .card-tipo-evento:nth-child(4) { animation-delay: 0.2s; }
-.card-tipo-evento:nth-child(5) { animation-delay: 0.25s; }
-.card-tipo-evento:nth-child(6) { animation-delay: 0.3s; }
-
 
 .card-tipo-evento::before {
     content: '';
@@ -43,14 +77,13 @@
     left: 0;
     top: 0;
     bottom: 0;
-    width: 4px;
+    width: 3px;
     transition: width 0.3s ease;
 }
 
 .card-tipo-evento:hover {
     transform: translateY(-4px);
     box-shadow: 0 6px 16px rgba(0,0,0,0.12) !important;
-    border-color: rgba(0,0,0,0.08);
 }
 
 .card-tipo-evento:hover::before {
@@ -70,15 +103,25 @@
 }
 
 .card-tipo-evento i {
-    font-size: 22px;
-    min-width: 28px;
+    font-size: 0.9rem;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef8f8;
     text-align: center;
 }
 
 .tipo-nome {
     flex: 1;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.84rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tipo-contador {
@@ -116,6 +159,26 @@
 
 .card-tipo-evento[data-tipo="outro"]::before {
     background: #64748b;
+}
+
+@media (max-width: 767.98px) {
+    #cards-tipos-evento {
+        flex-wrap: wrap;
+        overflow-x: visible;
+    }
+
+    #cards-tipos-evento > .col {
+        min-width: 0;
+    }
+
+    .card-tipo-evento {
+        min-height: 54px;
+        padding: 9px 11px;
+    }
+
+    .tipo-nome {
+        font-size: 0.8rem;
+    }
 }
 
 /* Badge de Participantes nos Eventos */
@@ -191,6 +254,15 @@ body.ocultar-participantes .badge-participantes {
     border: 1px solid #dee2e6;
 }
 
+@media (min-width: 769px) {
+    .filtros-container .form-control,
+    .filtros-container .form-select {
+        min-height: 36px;
+        padding: 0.34rem 0.55rem;
+        font-size: 0.84rem;
+    }
+}
+
 .filtros-container .form-control:focus,
 .filtros-container .form-select:focus {
     border-color: #2aa5a4;
@@ -206,6 +278,15 @@ body.ocultar-participantes .badge-participantes {
     font-weight: 500;
 }
 
+@media (min-width: 769px) {
+    .filtros-container .btn {
+        min-height: 34px;
+        padding: 0.32rem 0.62rem;
+        font-size: 0.8rem;
+        line-height: 1.15;
+    }
+}
+
 .filtros-container .btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -213,6 +294,47 @@ body.ocultar-participantes .badge-participantes {
 
 .filtros-container .btn:active {
     transform: translateY(0);
+}
+
+#acoes-filtros-agenda {
+    align-items: flex-end;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+}
+
+#acoes-filtros-agenda .btn {
+    flex: 0 0 auto;
+}
+
+#acoes-filtros-agenda::-webkit-scrollbar {
+    height: 6px;
+}
+
+#acoes-filtros-agenda::-webkit-scrollbar-thumb {
+    background: rgba(10, 102, 101, 0.28);
+    border-radius: 999px;
+}
+
+@media (min-width: 769px) {
+    #acoes-filtros-agenda {
+        column-gap: 0.45rem;
+    }
+}
+
+@media (max-width: 1399.98px) {
+    #acoes-filtros-agenda {
+        justify-content: flex-start !important;
+    }
+
+    #btn-buscar-agenda { order: 1; }
+    #limpar-filtros { order: 2; }
+    #btn-toggle-view { order: 3; }
+    #toggle-participantes { order: 4; }
+    #exportar-ics { order: 5; }
+    #btn-importar-feriados { order: 6; }
+    #btn-fullscreen { order: 7; }
 }
 
 #contador-resultados {
@@ -236,6 +358,104 @@ body.ocultar-participantes .badge-participantes {
 .fc .fc-toolbar-title {
     color: #0a6665;
     font-weight: 700;
+}
+
+/* Evento premium: hora na primeira linha, titulo na segunda */
+.fc .fc-event {
+    border-radius: 8px;
+}
+
+.fc .fc-daygrid-event-harness,
+.fc .fc-daygrid-event-harness-abs,
+.fc .fc-daygrid-block-event,
+.fc .fc-h-event .fc-event-main {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.agenda-evento-premium {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.15;
+    width: 100%;
+    min-width: 0;
+}
+
+.agenda-evento-premium-hora {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    opacity: 0.9;
+}
+
+.agenda-evento-premium-ponto {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+    display: inline-block;
+}
+
+.agenda-evento-premium-titulo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    width: 100%;
+    min-width: 0;
+}
+
+.agenda-evento-premium-titulo i {
+    font-size: 0.78rem;
+    flex: 0 0 auto;
+}
+
+.agenda-evento-premium-titulo span {
+    display: block;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Variação premium por tipo de evento */
+.fc .fc-event.agenda-evento-tipo-culto {
+    border-left: 3px solid #0d8281;
+    background: linear-gradient(90deg, rgba(13, 130, 129, 0.15), rgba(13, 130, 129, 0.04));
+}
+
+.fc .fc-event.agenda-evento-tipo-reuniao {
+    border-left: 3px solid #0f766e;
+    background: linear-gradient(90deg, rgba(15, 118, 110, 0.15), rgba(15, 118, 110, 0.04));
+}
+
+.fc .fc-event.agenda-evento-tipo-festa {
+    border-left: 3px solid #2aa5a4;
+    background: linear-gradient(90deg, rgba(42, 165, 164, 0.16), rgba(42, 165, 164, 0.05));
+}
+
+.fc .fc-event.agenda-evento-tipo-feriado {
+    border-left: 3px solid #155e75;
+    background: linear-gradient(90deg, rgba(21, 94, 117, 0.16), rgba(21, 94, 117, 0.05));
+}
+
+.fc .fc-event.agenda-evento-tipo-estudo {
+    border-left: 3px solid #0a6665;
+    background: linear-gradient(90deg, rgba(10, 102, 101, 0.16), rgba(10, 102, 101, 0.05));
+}
+
+.fc .fc-event.agenda-evento-tipo-escola_dominical {
+    border-left: 3px solid #0d8281;
+    background: linear-gradient(90deg, rgba(13, 130, 129, 0.18), rgba(13, 130, 129, 0.06));
+}
+
+.fc .fc-event.agenda-evento-tipo-outro {
+    border-left: 3px solid #64748b;
+    background: linear-gradient(90deg, rgba(100, 116, 139, 0.17), rgba(100, 116, 139, 0.05));
 }
 
 .fc .fc-button-primary {
@@ -458,36 +678,6 @@ body.ocultar-participantes .badge-participantes {
     padding: 1rem 1.5rem;
 }
 
-/* ========== BOTÃO FAB (Floating Action Button) ========== */
-.btn-fab {
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
-    width: 64px;
-    height: 64px;
-    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    color: #fff;
-    z-index: 1000;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-decoration: none;
-    box-shadow: 0 4px 12px rgba(13, 130, 129, 0.35);
-}
-
-.btn-fab:hover {
-    transform: scale(1.12) rotate(90deg);
-    box-shadow: 0 8px 28px rgba(13, 130, 129, 0.46);
-    color: #fff;
-}
-
-.btn-fab:active {
-    transform: scale(1.05) rotate(90deg);
-}
-
 /* ========== LOADING OVERLAY ========== */
 #loading-overlay {
     position: fixed;
@@ -495,13 +685,14 @@ body.ocultar-participantes .badge-participantes {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.72);
     display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 9999;
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(2px);
+    pointer-events: none;
 }
 
 #loading-overlay .spinner-border {
@@ -611,15 +802,6 @@ body.ocultar-participantes .badge-participantes {
     .modal-content {
         height: 100%;
         border-radius: 0 !important;
-    }
-    
-    /* FAB menor em mobile */
-    .btn-fab {
-        width: 56px;
-        height: 56px;
-        bottom: 24px;
-        right: 24px;
-        font-size: 22px;
     }
     
     /* Calendário compacto */

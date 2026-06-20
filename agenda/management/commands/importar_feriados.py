@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from datetime import datetime, time
 import holidays
-from agenda.models import AgendaEvento
+from eventos.models import Evento
 from configuracao.models import Igreja
 
 
@@ -66,7 +66,7 @@ class Command(BaseCommand):
 
         for data, nome in sorted(br_holidays.items()):
             # Verificar se já existe evento de feriado nesta data para esta igreja
-            if AgendaEvento.objects.filter(
+            if Evento.objects.filter(
                 igreja=igreja,
                 tipo='feriado',
                 data_inicio__date=data
@@ -79,12 +79,13 @@ class Command(BaseCommand):
             data_inicio = timezone.make_aware(datetime.combine(data, time(0, 0)))
             data_fim = timezone.make_aware(datetime.combine(data, time(23, 59)))
 
-            evento = AgendaEvento.objects.create(
+            evento = Evento.objects.create(
                 titulo=nome,
                 tipo='feriado',
                 data_inicio=data_inicio,
                 data_fim=data_fim,
                 igreja=igreja,
+                criado_por=None,
                 descricao=f'Feriado nacional importado automaticamente'
             )
             eventos_criados += 1

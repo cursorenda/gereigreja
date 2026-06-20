@@ -1,46 +1,50 @@
-{% extends 'base_com_menu.html' %}
-<div class="row g-2 mb-3">
-  <div class="col-12">
-    <div class="card mb-2 p-2 bg-light" style="border-left: 4px solid #0d8281;">
-      <div class="fw-bold mb-1" style="color: #0d8281;">Indicadores de participação por tipo de pessoa (ativos):</div>
-      <div class="text-muted mb-2" style="font-size: 0.95em;">
-        Os indicadores abaixo mostram a presença de membros e congregados ativos em relação ao total esperado e também a composição dos presentes.
-      </div>
-      <ul class="mb-0">
-        <li><strong>Membros ativos presentes:</strong> {{ estatisticas.membros_presentes }} de {{ estatisticas.membros_ativos }} ({{ estatisticas.perc_membros_ativos_participantes|floatformat:1 }}%)</li>
-        <li><strong>Congregados ativos presentes:</strong> {{ estatisticas.congregados_presentes }} de {{ estatisticas.congregados_ativos }} ({{ estatisticas.perc_congregados_ativos_participantes|floatformat:1 }}%)</li>
-        <li><strong>Entre os presentes, % que são membros ativos:</strong> {{ estatisticas.perc_participantes_membros_ativos|floatformat:1 }}%</li>
-        <li><strong>Entre os presentes, % que são congregados ativos:</strong> {{ estatisticas.perc_participantes_congregados_ativos|floatformat:1 }}%</li>
-      </ul>
-    </div>
+{% extends 'base_com_sistema.html' %}
+{% load static %}
+
+{% block title %}Detalhes do Evento{% endblock %}
+{% block nome_departamento %}Eventos{% endblock %}
+
+{% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+  <li class="breadcrumb-item active">Detalhes do Evento</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+  <div class="d-flex align-items-center">
+    <i class="fas fa-calendar-check me-2"></i>
+    <span class="eventos-header-title">Detalhes do Evento</span>
   </div>
 </div>
-{% block title %}Detalhes do Evento{% endblock %}
-{% block content %}
-<div class="container-fluid px-4">
-  <h1 class="mt-4">{{ evento.titulo }}</h1>
-  <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
-    <li class="breadcrumb-item active">Detalhes do Evento</li>
-  </ol>
-  <div class="card mb-4">
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
+<div class="container-fluid px-3 px-md-4">
+  <div class="card eventos-section-card mb-4">
     <div class="card-header d-flex align-items-center">
       <i class="fas fa-calendar-alt me-1"></i>
       <div class="d-flex align-items-center">
         <span class="me-2">{{ evento.titulo }}</span>
         {% if sessoes and sessoes|length > 1 and sessao %}
-          <span class="badge" style="background-color: #0d8281; color: #fff;">Sessão {{ sessao.numero }} — {{ sessao.data_inicio|date:'d/m/Y' }}</span>
+          <span class="badge eventos-badge-sessao">Sessão {{ sessao.numero }} - {{ sessao.data_inicio|date:'d/m/Y' }}</span>
         {% endif %}
       </div>
     </div>
     <div class="card-body">
-  <div class="row mb-2">
+      <div class="row mb-2">
         {% if evento.capa %}
         <div class="col-md-3 text-center d-flex align-items-start justify-content-center">
-          <img src="{{ evento.capa.url }}" alt="Capa do Evento" class="img-fluid rounded shadow mb-2" style="max-height: 180px; max-width: 100%;">
+          <img src="{{ evento.capa.url }}" alt="Capa do Evento" class="img-fluid rounded shadow mb-2 eventos-capa-img">
         </div>
         {% endif %}
-        <div class="col-md-9">
+        <div class="{% if evento.capa %}col-md-9{% else %}col-12{% endif %}">
           <div class="row">
             <div class="col-md-7">
               <div class="mb-1"><strong>Título:</strong> {{ evento.titulo }}</div>
@@ -80,9 +84,9 @@
           <!-- Indicadores avançados de participação -->
           <div class="row g-2 mb-3">
             <div class="col-12">
-              <div class="card mb-2 p-2 bg-light" style="border-left: 4px solid #0d8281;">
-                <div class="fw-bold mb-1" style="color: #0d8281;">Indicadores de participação por tipo de pessoa (ativos):</div>
-                <div class="text-muted mb-2" style="font-size: 0.95em;">
+              <div class="card mb-2 p-2 bg-light eventos-stats-highlight">
+                <div class="fw-bold mb-1 eventos-stats-highlight-title">Indicadores de participação por tipo de pessoa (ativos):</div>
+                <div class="text-muted mb-2 eventos-stats-highlight-desc">
                   Os indicadores abaixo mostram a presença de membros e congregados ativos em relação ao total esperado e também a composição dos presentes.
                 </div>
                 <ul class="mb-0">
@@ -97,16 +101,16 @@
           <!-- Cards de totais -->
           <div class="row g-2 mb-3">
             <div class="col-md-3 col-6">
-              <div class="card text-center mb-2" style="border-left: 4px solid #0d8281;"><div class="card-body p-2"><div class="fw-bold" style="color: #0d8281;">Esperados</div><div class="fs-5">{{ estatisticas.total_esperados }}</div></div></div>
+              <div class="card text-center mb-2 eventos-kpi-card eventos-kpi-teal"><div class="card-body p-2"><div class="fw-bold eventos-kpi-title">Esperados</div><div class="fs-5">{{ estatisticas.total_esperados }}</div></div></div>
             </div>
             <div class="col-md-3 col-6">
-              <div class="card text-center mb-2" style="border-left: 4px solid #0d8281;"><div class="card-body p-2"><div class="fw-bold" style="color: #0d8281;">Presentes</div><div class="fs-5">{{ estatisticas.total_presentes }}</div><div class="small">({{ estatisticas.percentual_presenca|floatformat:1 }}%)</div></div></div>
+              <div class="card text-center mb-2 eventos-kpi-card eventos-kpi-teal"><div class="card-body p-2"><div class="fw-bold eventos-kpi-title">Presentes</div><div class="fs-5">{{ estatisticas.total_presentes }}</div><div class="small">({{ estatisticas.percentual_presenca|floatformat:1 }}%)</div></div></div>
             </div>
             <div class="col-md-3 col-6">
-              <div class="card text-center mb-2" style="border-left: 4px solid #dc3545;"><div class="card-body p-2"><div class="fw-bold" style="color: #dc3545;">Ausentes</div><div class="fs-5">{{ estatisticas.total_ausentes }}</div><div class="small">({{ estatisticas.percentual_ausencia|floatformat:1 }}%)</div></div></div>
+              <div class="card text-center mb-2 eventos-kpi-card eventos-kpi-danger"><div class="card-body p-2"><div class="fw-bold eventos-kpi-title">Ausentes</div><div class="fs-5">{{ estatisticas.total_ausentes }}</div><div class="small">({{ estatisticas.percentual_ausencia|floatformat:1 }}%)</div></div></div>
             </div>
             <div class="col-md-3 col-6">
-              <div class="card text-center mb-2" style="border-left: 4px solid #ffc107;"><div class="card-body p-2"><div class="fw-bold" style="color: #ff9800;">Justificados</div><div class="fs-5">{{ estatisticas.total_justificados }}</div><div class="small">({{ estatisticas.percentual_justificados|floatformat:1 }}%)</div></div></div>
+              <div class="card text-center mb-2 eventos-kpi-card eventos-kpi-warning"><div class="card-body p-2"><div class="fw-bold eventos-kpi-title">Justificados</div><div class="fs-5">{{ estatisticas.total_justificados }}</div><div class="small">({{ estatisticas.percentual_justificados|floatformat:1 }}%)</div></div></div>
             </div>
           </div>
           <div class="row g-2 mb-3">
@@ -144,7 +148,7 @@
               <div class="mb-3">
                 <form method="get" class="d-inline-block me-2">
                   <label class="me-2">Sessão:</label>
-                  <select name="sessao" onchange="this.form.submit()" class="form-select d-inline-block" style="width:auto; display:inline-block;">
+                  <select name="sessao" onchange="this.form.submit()" class="form-select d-inline-block eventos-sessao-select">
                     {% for s in sessoes %}
                       <option value="{{ s.pk }}" {% if sessao and s.pk == sessao.pk %}selected{% endif %}>Dia {{ s.numero }} - {{ s.data_inicio|date:'d/m/Y' }}</option>
                     {% endfor %}
@@ -176,7 +180,7 @@
                 <input type="hidden" name="sessao" value="{{ sessao.pk }}">
               {% endif %}
               <div class="table-responsive">
-                <table class="table table-sm table-bordered align-middle">
+                <table class="table table-sm table-bordered align-middle eventos-participantes-table">
                   <thead>
                     <tr>
                       <th>Nome</th>
@@ -229,10 +233,10 @@
       <div class="row mb-4">
         <div class="col-12">
           <h5 class="mb-2 border-bottom pb-1">Anexos</h5>
-          <ul class="list-unstyled">
+          <ul class="list-unstyled eventos-anexos-lista">
             {% for anexo in evento.anexos.all %}
               <li class="mb-1">
-                <a href="{{ anexo.arquivo.url }}" target="_blank">
+                <a href="{{ anexo.arquivo.url }}" target="_blank" class="eventos-anexo-link">
                   <i class="fas fa-paperclip me-1"></i>{{ anexo.arquivo.name|cut:'eventos/anexos/' }}
                 </a>
               </li>
@@ -243,11 +247,13 @@
         </div>
       </div>
       {% endif %}
-  <a href="{% url 'eventos:marcar_presenca' evento.pk %}" class="btn btn-primary">Marcar Presença</a>
-  <a href="{% url 'eventos:exportar_participantes_excel' evento.pk %}" class="btn btn-primary">Exportar para Excel</a>
-  <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-primary">Editar</a>
-  <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger">Excluir</a>
-  <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-secondary">Voltar</a>
+      </div>
+      <div class="col-12 d-flex flex-column flex-md-row gap-2 eventos-actions">
+        <a href="{% url 'eventos:marcar_presenca' evento.pk %}" class="btn btn-primary eventos-action-primary w-100 w-md-auto">Marcar Presença</a>
+        <a href="{% url 'eventos:exportar_participantes_excel' evento.pk %}" class="btn btn-outline-primary eventos-action-secondary w-100 w-md-auto">Exportar para Excel</a>
+        <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-outline-primary eventos-action-secondary w-100 w-md-auto">Editar</a>
+        <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-outline-danger eventos-action-danger w-100 w-md-auto">Excluir</a>
+        <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-outline-secondary eventos-action-secondary w-100 w-md-auto">Voltar</a>
       </div>
     </div>
   </div>

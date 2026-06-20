@@ -15,6 +15,46 @@ DESCRICAO_EVENTO_EBD = (
 )
 
 
+def _get_dia_semana_ebd(igreja):
+    """Resolve dia da semana da EBD com fallback igreja -> ministerio -> domingo."""
+    if igreja is not None and getattr(igreja, 'ebd_dia_semana', None) is not None:
+        return igreja.ebd_dia_semana
+
+    if igreja is not None and getattr(igreja, 'ministerio', None) is not None:
+        config = ConfiguracaoSistema.objects.filter(ministerio=igreja.ministerio).only('ebd_dia_semana').first()
+        if config is not None and config.ebd_dia_semana is not None:
+            return config.ebd_dia_semana
+
+    return 6
+
+
+def _proxima_data_para_dia_semana(dia_semana):
+    """Retorna a próxima data para um weekday Python (0=seg, 6=dom), incluindo hoje."""
+    hoje = timezone.localdate()
+    delta = (dia_semana - hoje.weekday()) % 7
+    return hoje + timedelta(days=delta)
+
+
+def _igreja_tem_estrutura_ebd(igreja):
+    """Evita poluir agenda em igrejas sem estrutura EBD."""
+    from .models import Turma
+
+    return Turma.objects.filter(igreja=igreja).exists() or Turma.objects.filter(classe__igreja=igreja).exists()
+
+
+def sync_evento_padrao_ebd_por_igreja(igreja):
+    """
+    Garante ao menos a próxima ocorrência da EBD na agenda para a igreja,
+    mesmo quando ainda não existem lições cadastradas.
+    """
+    if igreja is None or not _igreja_tem_estrutura_ebd(igreja):
+        return
+
+    dia_semana = _get_dia_semana_ebd(igreja)
+    proxima_data = _proxima_data_para_dia_semana(dia_semana)
+    _upsert_evento_escola_dominical(igreja=igreja, data_aula=proxima_data)
+
+
 def _resolver_igreja_turma(turma):
     igreja = getattr(turma, 'igreja', None)
     if igreja is not None:
@@ -167,6 +207,12 @@ def sync_eventos_ebd_por_ministerio(ministerio):
         sync_licao_evento_agenda(licao)
     for licao in licoes_sem_igreja_turma:
         sync_licao_evento_agenda(licao)
+
+    # Garante visibilidade mínima da EBD na agenda após configuração
+    # mesmo sem lições já cadastradas para a igreja.
+    for igreja_id in igrejas_ids:
+        igreja = Igreja.objects.filter(pk=igreja_id).first()
+        sync_evento_padrao_ebd_por_igreja(igreja)
 
     eventos = Evento.objects.filter(igreja_id__in=igrejas_ids, tipo='escola_dominical').order_by('id')
     for evento in eventos:

@@ -67,6 +67,14 @@ class Evento(models.Model):
 	data_inicio = models.DateTimeField()
 	data_fim = models.DateTimeField(blank=True, null=True)
 	hora_termino = models.TimeField('Hora de término', blank=True, null=True)
+	programacao_padrao = models.ForeignKey(
+		'configuracao.ProgramacaoPadraoIgreja',
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name='eventos_gerados',
+		verbose_name='Programação padrão de origem',
+	)
 
 	# Recorrência
 	recorrente = models.BooleanField(default=False)

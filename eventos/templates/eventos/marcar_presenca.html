@@ -1,20 +1,40 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
+{% load static %}
+
 {% block title %}Marcar Presença{% endblock %}
-{% block content %}
-<div class="container-fluid px-4">
-  <h1 class="mt-4">Marcar Presença - {{ evento.titulo }}</h1>
-  <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'eventos:detalhe_evento' evento.pk %}">Detalhes do Evento</a></li>
-    <li class="breadcrumb-item active">Marcar Presença</li>
-  </ol>
-  <div class="card mb-4">
-    <div class="card-body">
-      <form method="post">
-        {% csrf_token %}
+{% block nome_departamento %}Eventos{% endblock %}
+
+{% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'eventos:detalhe_evento' evento.pk %}">Detalhes do Evento</a></li>
+  <li class="breadcrumb-item active">Marcar Presença</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+  <div class="d-flex align-items-center">
+    <i class="fas fa-user-check me-2"></i>
+    <span class="eventos-header-title">Marcar Presença - {{ evento.titulo }}</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
+<div class="card eventos-section-card mb-4">
+  <div class="card-body">
+    <form method="post" id="form-presenca" class="eventos-form-grid">
+      {% csrf_token %}
+      <div class="eventos-presenca-topline mb-3">
         {% if sessoes %}
-        <div class="mb-3">
-          <label class="form-label">Dia:</label>
+        <div class="eventos-presenca-dia-wrap">
+          <label class="form-label mb-1">Dia:</label>
           <select name="sessao" class="form-select" onchange="this.form.submit()">
             {% for s in sessoes %}
               <option value="{{ s.pk }}" {% if sessao and s.pk == sessao.pk %}selected{% endif %}>Dia {{ s.numero }} - {{ s.data_inicio|date:'d/m/Y' }}</option>
@@ -22,61 +42,97 @@
           </select>
         </div>
         {% endif %}
-        <div class="table-responsive">
-          <table class="table table-bordered table-hover align-middle">
-            <thead>
-              <tr>
-                <th>Presente</th>
-                <th>Nome</th>
-                <th>Status</th>
-                <th>Papel</th>
-                <th>Justificativa de Falta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in participacoes %}
-              <tr>
-                <td class="text-center">
+
+        <div class="eventos-presenca-busca-wrap">
+          <label for="presenca-filtro-nome" class="form-label mb-1">Buscar participante</label>
+          <input id="presenca-filtro-nome" type="text" class="form-control" placeholder="Digite o nome para filtrar...">
+        </div>
+
+        <div class="eventos-presenca-acoes-wrap">
+          <button type="button" id="btn-marcar-visiveis" class="btn btn-outline-primary btn-sm">Marcar visiveis</button>
+          <button type="button" id="btn-desmarcar-visiveis" class="btn btn-outline-secondary btn-sm">Desmarcar visiveis</button>
+          <small id="presenca-resumo" class="text-muted">0 visiveis · 0 marcados</small>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table id="tabela-presenca" class="table table-bordered table-hover align-middle eventos-participantes-table">
+          <thead>
+            <tr>
+              <th>Presente</th>
+              <th class="eventos-sortable" data-sort-index="1" aria-sort="none">Nome <span class="eventos-sort-indicator">↕</span></th>
+              <th class="eventos-sortable" data-sort-index="2" aria-sort="none">Status <span class="eventos-sort-indicator">↕</span></th>
+              <th class="eventos-sortable" data-sort-index="3" aria-sort="none">Papel <span class="eventos-sort-indicator">↕</span></th>
+              <th class="eventos-sortable" data-sort-index="4" aria-sort="none">Justificativa de Falta <span class="eventos-sort-indicator">↕</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in participacoes %}
+            <tr>
+              <td class="text-center">
+                {% if p.membro %}
                   <input type="checkbox" name="presentes" value="{{ p.membro.chave }}" {% if p.status == 'PRESENTE' %}checked{% endif %}>
-                </td>
-                <td>{{ p.membro.nome }}</td>
-                <td>
-                  {% if p.status == 'PRESENTE' %}
-                    <span class="badge bg-success">Presente</span>
-                  {% elif p.status == 'AUSENTE' %}
-                    <span class="badge bg-danger">Ausente</span>
-                  {% else %}
-                    <span class="badge bg-secondary">{{ p.get_status_display }}</span>
-                  {% endif %}
-                </td>
-                <td>{{ p.get_papel_display }}</td>
-                <td>
-                  {% if p.status == 'AUSENTE' or p.status != 'PRESENTE' %}
-                    <select name="justificativa_sel_{{ p.pk }}" class="form-select form-select-sm justificativa-select" data-pk="{{ p.pk }}">
-                      <option value="">Selecione...</option>
-                      <option value="Motivo de saúde" {% if p.justificativa_falta == 'Motivo de saúde' %}selected{% endif %}>Motivo de saúde</option>
-                      <option value="Trabalho/Compromissos profissionais" {% if p.justificativa_falta == 'Trabalho/Compromissos profissionais' %}selected{% endif %}>Trabalho/Compromissos profissionais</option>
-                      <option value="Viagem" {% if p.justificativa_falta == 'Viagem' %}selected{% endif %}>Viagem</option>
-                      <option value="Compromissos familiares" {% if p.justificativa_falta == 'Compromissos familiares' %}selected{% endif %}>Compromissos familiares</option>
-                      <option value="Falecimento na família" {% if p.justificativa_falta == 'Falecimento na família' %}selected{% endif %}>Falecimento na família</option>
-                      <option value="Problemas de transporte" {% if p.justificativa_falta == 'Problemas de transporte' %}selected{% endif %}>Problemas de transporte</option>
-                      <option value="Estudo/Prova" {% if p.justificativa_falta == 'Estudo/Prova' %}selected{% endif %}>Estudo/Prova</option>
-                      <option value="Esquecimento" {% if p.justificativa_falta == 'Esquecimento' %}selected{% endif %}>Esquecimento</option>
-                      <option value="Motivo pessoal" {% if p.justificativa_falta == 'Motivo pessoal' %}selected{% endif %}>Motivo pessoal</option>
-                      <option value="Outro" {% if p.justificativa_falta and p.justificativa_falta|slice:"0:5" == 'Outro' %}selected{% endif %}>Outro</option>
-                    </select>
-                    <input type="text" name="justificativa_outro_{{ p.pk }}" class="form-control form-control-sm mt-1 justificativa-outro" style="display: none;" value="{% if p.justificativa_falta and p.justificativa_falta|slice:'0:5' == 'Outro' %}{{ p.justificativa_falta|cut:'Outro: ' }}{% endif %}" placeholder="Descreva o motivo...">
-                  {% else %}
-                    <span class="text-muted">-</span>
-                  {% endif %}
-                </td>
-{% block extra_js %}
+                {% elif p.convidado_email %}
+                  <input type="checkbox" name="presentes" value="email:{{ p.convidado_email }}" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                {% endif %}
+              </td>
+              <td>{% if p.membro %}{{ p.membro.nome }}{% else %}{{ p.convidado_nome|default:p.convidado_email }}{% endif %}</td>
+              <td>
+                {% if p.status == 'PRESENTE' %}
+                  <span class="badge bg-success">Presente</span>
+                {% elif p.status == 'AUSENTE' %}
+                  <span class="badge bg-danger">Ausente</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ p.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td>{{ p.get_papel_display }}</td>
+              <td>
+                {% if p.status == 'AUSENTE' or p.status != 'PRESENTE' %}
+                  <select name="justificativa_sel_{{ p.pk }}" class="form-select form-select-sm justificativa-select" data-pk="{{ p.pk }}">
+                    <option value="">Selecione...</option>
+                    <option value="Motivo de saúde" {% if p.justificativa_falta == 'Motivo de saúde' %}selected{% endif %}>Motivo de saúde</option>
+                    <option value="Trabalho/Compromissos profissionais" {% if p.justificativa_falta == 'Trabalho/Compromissos profissionais' %}selected{% endif %}>Trabalho/Compromissos profissionais</option>
+                    <option value="Viagem" {% if p.justificativa_falta == 'Viagem' %}selected{% endif %}>Viagem</option>
+                    <option value="Compromissos familiares" {% if p.justificativa_falta == 'Compromissos familiares' %}selected{% endif %}>Compromissos familiares</option>
+                    <option value="Falecimento na família" {% if p.justificativa_falta == 'Falecimento na família' %}selected{% endif %}>Falecimento na família</option>
+                    <option value="Problemas de transporte" {% if p.justificativa_falta == 'Problemas de transporte' %}selected{% endif %}>Problemas de transporte</option>
+                    <option value="Estudo/Prova" {% if p.justificativa_falta == 'Estudo/Prova' %}selected{% endif %}>Estudo/Prova</option>
+                    <option value="Esquecimento" {% if p.justificativa_falta == 'Esquecimento' %}selected{% endif %}>Esquecimento</option>
+                    <option value="Motivo pessoal" {% if p.justificativa_falta == 'Motivo pessoal' %}selected{% endif %}>Motivo pessoal</option>
+                    <option value="Outro" {% if p.justificativa_falta and p.justificativa_falta|slice:"0:5" == 'Outro' %}selected{% endif %}>Outro</option>
+                  </select>
+                  <input type="text" name="justificativa_outro_{{ p.pk }}" class="form-control form-control-sm mt-1 justificativa-outro eventos-hidden" value="{% if p.justificativa_falta and p.justificativa_falta|slice:'0:5' == 'Outro' %}{{ p.justificativa_falta|cut:'Outro: ' }}{% endif %}" placeholder="Descreva o motivo...">
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted">Nenhum participante esperado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="col-12 d-flex flex-column flex-md-row gap-2 eventos-actions">
+        <button type="submit" class="btn btn-primary w-100 w-md-auto">Salvar Presenças</button>
+        <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-outline-secondary w-100 w-md-auto">Voltar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.justificativa-select').forEach(function(select) {
     const pk = select.getAttribute('data-pk');
     const outroInput = document.querySelector('input[name="justificativa_outro_' + pk + '"]');
+
     function toggleOutro() {
+      if (!outroInput) {
+        return;
+      }
       if (select.value === 'Outro') {
         outroInput.style.display = '';
       } else {
@@ -84,26 +140,161 @@ document.addEventListener('DOMContentLoaded', function() {
         outroInput.value = '';
       }
     }
+
     select.addEventListener('change', toggleOutro);
-    // Inicializa ao carregar
     toggleOutro();
   });
+
+  const tabela = document.getElementById('tabela-presenca');
+  if (!tabela) {
+    return;
+  }
+
+  const tbody = tabela.querySelector('tbody');
+  const headers = tabela.querySelectorAll('th.eventos-sortable');
+  const filtroNomeInput = document.getElementById('presenca-filtro-nome');
+  const btnMarcarVisiveis = document.getElementById('btn-marcar-visiveis');
+  const btnDesmarcarVisiveis = document.getElementById('btn-desmarcar-visiveis');
+  const resumo = document.getElementById('presenca-resumo');
+  const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' });
+  let sortState = { index: null, direction: 'asc' };
+
+  function linhasDados() {
+    return Array.from(tbody.querySelectorAll('tr')).filter(function(row) {
+      return !row.querySelector('td[colspan]');
+    });
+  }
+
+  function linhaVisivel(row) {
+    return row.style.display !== 'none';
+  }
+
+  function atualizarResumo() {
+    if (!resumo) {
+      return;
+    }
+    const rows = linhasDados();
+    const visiveis = rows.filter(linhaVisivel);
+    const marcados = visiveis.filter(function(row) {
+      const checkbox = row.querySelector('input[type="checkbox"][name="presentes"]');
+      return checkbox && checkbox.checked;
+    });
+    resumo.textContent = visiveis.length + ' visiveis · ' + marcados.length + ' marcados';
+  }
+
+  function aplicarFiltroNome() {
+    const termo = (filtroNomeInput ? filtroNomeInput.value : '').trim().toLocaleLowerCase('pt-BR');
+    linhasDados().forEach(function(row) {
+      const nomeCell = row.cells[1];
+      const nome = nomeCell ? nomeCell.textContent.toLocaleLowerCase('pt-BR') : '';
+      row.style.display = !termo || nome.indexOf(termo) !== -1 ? '' : 'none';
+    });
+    atualizarResumo();
+  }
+
+  function marcarDesmarcarVisiveis(marcar) {
+    linhasDados().forEach(function(row) {
+      if (!linhaVisivel(row)) {
+        return;
+      }
+      const checkbox = row.querySelector('input[type="checkbox"][name="presentes"]');
+      if (checkbox) {
+        checkbox.checked = marcar;
+      }
+    });
+    atualizarResumo();
+  }
+
+  function valorCelula(row, index) {
+    const cell = row.cells[index];
+    if (!cell) {
+      return '';
+    }
+
+    if (index === 4) {
+      const select = cell.querySelector('select');
+      if (select) {
+        return (select.options[select.selectedIndex] || {}).text || '';
+      }
+      const input = cell.querySelector('input');
+      if (input && input.value) {
+        return input.value;
+      }
+    }
+
+    return cell.textContent.trim();
+  }
+
+  function atualizarIndicadores(headerAtivo, direction) {
+    headers.forEach(function(th) {
+      const indicator = th.querySelector('.eventos-sort-indicator');
+      if (indicator) {
+        indicator.textContent = '↕';
+      }
+      th.setAttribute('aria-sort', 'none');
+    });
+
+    if (!headerAtivo) {
+      return;
+    }
+
+    const indicator = headerAtivo.querySelector('.eventos-sort-indicator');
+    if (indicator) {
+      indicator.textContent = direction === 'asc' ? '↑' : '↓';
+    }
+    headerAtivo.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : 'descending');
+  }
+
+  headers.forEach(function(th) {
+    th.addEventListener('click', function() {
+      const index = parseInt(th.getAttribute('data-sort-index'), 10);
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+
+      if (!rows.length || (rows.length === 1 && rows[0].querySelector('td[colspan]'))) {
+        return;
+      }
+
+      const direction = (sortState.index === index && sortState.direction === 'asc') ? 'desc' : 'asc';
+      sortState = { index: index, direction: direction };
+
+      rows.sort(function(a, b) {
+        const av = valorCelula(a, index);
+        const bv = valorCelula(b, index);
+        return direction === 'asc' ? collator.compare(av, bv) : collator.compare(bv, av);
+      });
+
+      rows.forEach(function(row) {
+        tbody.appendChild(row);
+      });
+
+      atualizarIndicadores(th, direction);
+      atualizarResumo();
+    });
+  });
+
+  if (filtroNomeInput) {
+    filtroNomeInput.addEventListener('input', aplicarFiltroNome);
+  }
+
+  if (btnMarcarVisiveis) {
+    btnMarcarVisiveis.addEventListener('click', function() {
+      marcarDesmarcarVisiveis(true);
+    });
+  }
+
+  if (btnDesmarcarVisiveis) {
+    btnDesmarcarVisiveis.addEventListener('click', function() {
+      marcarDesmarcarVisiveis(false);
+    });
+  }
+
+  tbody.addEventListener('change', function(event) {
+    if (event.target && event.target.matches('input[type="checkbox"][name="presentes"]')) {
+      atualizarResumo();
+    }
+  });
+
+  atualizarResumo();
 });
 </script>
-{% endblock %}
-              </tr>
-              {% empty %}
-              <tr><td colspan="4" class="text-center text-muted">Nenhum participante esperado.</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <div class="mt-4">
-          <button type="submit" class="btn btn-primary">Salvar Presenças</button>
-          <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-secondary">Voltar</a>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 {% endblock %}

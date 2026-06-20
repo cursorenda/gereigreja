@@ -16,6 +16,23 @@
             border-radius: .5rem;
             background: #fff;
         }
+        .pg-flow-card {
+            border: 1px solid rgba(13, 110, 253, .18);
+            border-radius: .75rem;
+            background: linear-gradient(180deg, #f7fbff 0%, #eef5ff 100%);
+        }
+        .pg-flow-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            border-radius: 999px;
+            padding: .2rem .6rem;
+            font-size: .75rem;
+            font-weight: 600;
+            color: #0b5ed7;
+            background: rgba(13, 110, 253, .1);
+            border: 1px solid rgba(13, 110, 253, .18);
+        }
     </style>
 
     <h1 class="mt-4">{{ titulo_pagina }}</h1>
@@ -66,6 +83,9 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="aba-ebd-tab" data-bs-toggle="tab" data-bs-target="#aba-ebd" type="button" role="tab" aria-controls="aba-ebd" aria-selected="false">EBD</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aba-programacoes-tab" data-bs-toggle="tab" data-bs-target="#aba-programacoes" type="button" role="tab" aria-controls="aba-programacoes" aria-selected="false">Programações Padrão</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="aba-outros-tab" data-bs-toggle="tab" data-bs-target="#aba-outros" type="button" role="tab" aria-controls="aba-outros" aria-selected="false">Outros</button>
@@ -413,6 +433,198 @@
                         {% endif %}
                     </div>
 
+                    <div class="tab-pane fade" id="aba-programacoes" role="tabpanel" aria-labelledby="aba-programacoes-tab" tabindex="0">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="mb-1">Dias de Culto e Estudos Padrão</h5>
+                                <p class="text-muted mb-0 small">Cadastre rotinas semanais ou mensais por ocorrência (ex: 1º domingo, 2º domingo). O sistema cria os eventos automaticamente na agenda.</p>
+                            </div>
+                            <form method="post" action="{% url 'configuracao:sincronizar_programacoes_padrao_igreja' igreja.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-primary btn-sm">Sincronizar agora</button>
+                            </form>
+                        </div>
+
+                        <div class="pg-flow-card p-3 mb-3">
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <span class="pg-flow-chip"><i class="fas fa-sparkles"></i> Fluxo inteligente</span>
+                                        <span class="pg-flow-chip"><i class="fas fa-shield-alt"></i> Menos erros</span>
+                                    </div>
+                                    <p class="mb-0 small text-muted">Os campos mudam conforme a recorrência escolhida para facilitar o preenchimento. No modo anual, preencha ocorrência + mês.</p>
+                                </div>
+                                <div id="programacao-resumo" class="alert alert-primary py-2 px-3 mb-0 small" role="status" style="min-width: 280px;">
+                                    Defina a recorrência para ver o resumo automático da programação.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border mb-4">
+                            <div class="card-header">Nova Programação</div>
+                            <div class="card-body">
+                                <form method="post" action="{% url 'configuracao:adicionar_programacao_padrao_igreja' igreja.id %}">
+                                    {% csrf_token %}
+                                    {% if programacao_form.errors %}
+                                    <div class="alert alert-danger py-2" role="alert">
+                                        <strong>Não foi possível salvar. Corrija os campos abaixo:</strong>
+                                        <ul class="mb-0 mt-2">
+                                            {% for field in programacao_form %}
+                                                {% for error in field.errors %}
+                                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                                {% endfor %}
+                                            {% endfor %}
+                                            {% for error in programacao_form.non_field_errors %}
+                                            <li>{{ error }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="{{ programacao_form.nome.id_for_label }}">{{ programacao_form.nome.label }}</label>
+                                            {{ programacao_form.nome }}
+                                            {% if programacao_form.nome.errors %}<div class="invalid-feedback d-block">{{ programacao_form.nome.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="{{ programacao_form.tipo_evento.id_for_label }}">{{ programacao_form.tipo_evento.label }}</label>
+                                            {{ programacao_form.tipo_evento }}
+                                            {% if programacao_form.bloquear_escola_dominical_programacao %}
+                                            <div id="alerta-anti-duplicidade-ebd" class="alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                                <strong>Fluxo inteligente ativo:</strong> Escola Dominical está sendo gerenciada pela aba EBD desta igreja para evitar eventos duplicados na agenda.
+                                            </div>
+                                            {% endif %}
+                                            {% if programacao_form.tipo_evento.help_text %}
+                                            <small class="text-muted d-block">{{ programacao_form.tipo_evento.help_text }}</small>
+                                            {% endif %}
+                                            {% if programacao_form.tipo_evento.errors %}<div class="invalid-feedback d-block">{{ programacao_form.tipo_evento.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label" for="{{ programacao_form.frequencia.id_for_label }}">Tipo de recorrência</label>
+                                            {{ programacao_form.frequencia }}
+                                            <small class="text-muted d-block" id="programacao-frequencia-hint">Selecione a frequência para ver apenas os campos necessários.</small>
+                                            {% if programacao_form.frequencia.errors %}<div class="invalid-feedback d-block">{{ programacao_form.frequencia.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label" for="{{ programacao_form.dia_semana.id_for_label }}">Dia da semana</label>
+                                            {{ programacao_form.dia_semana }}
+                                            {% if programacao_form.dia_semana.errors %}<div class="invalid-feedback d-block">{{ programacao_form.dia_semana.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-3" id="grupo-ocorrencia-mensal">
+                                            <label class="form-label" for="{{ programacao_form.ocorrencia_mensal.id_for_label }}">Qual ocorrência no mês?</label>
+                                            {{ programacao_form.ocorrencia_mensal }}
+                                            <small class="text-muted d-block" id="ajuda-ocorrencia-mensal">Use para mensal por ocorrência (ex: 1º domingo).</small>
+                                            {% if programacao_form.ocorrencia_mensal.errors %}<div class="invalid-feedback d-block">{{ programacao_form.ocorrencia_mensal.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-2" id="grupo-mes-anual">
+                                            <label class="form-label" for="{{ programacao_form.mes_ano.id_for_label }}">Em qual mês do ano?</label>
+                                            {{ programacao_form.mes_ano }}
+                                            <small class="text-muted d-block">Exemplo: Maio para Dia das Mães.</small>
+                                            {% if programacao_form.mes_ano.errors %}<div class="invalid-feedback d-block">{{ programacao_form.mes_ano.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-2" id="grupo-intervalo-semanas">
+                                            <label class="form-label" for="{{ programacao_form.intervalo_semanas.id_for_label }}">Repetição em semanas</label>
+                                            {{ programacao_form.intervalo_semanas }}
+                                            <small class="text-muted d-block">1 = toda semana, 2 = quinzenal.</small>
+                                            {% if programacao_form.intervalo_semanas.errors %}<div class="invalid-feedback d-block">{{ programacao_form.intervalo_semanas.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label" for="{{ programacao_form.hora_inicio.id_for_label }}">Hora</label>
+                                            {{ programacao_form.hora_inicio }}
+                                            {% if programacao_form.hora_inicio.errors %}<div class="invalid-feedback d-block">{{ programacao_form.hora_inicio.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label" for="{{ programacao_form.hora_termino.id_for_label }}">Término</label>
+                                            {{ programacao_form.hora_termino }}
+                                            {% if programacao_form.hora_termino.errors %}<div class="invalid-feedback d-block">{{ programacao_form.hora_termino.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="{{ programacao_form.local.id_for_label }}">{{ programacao_form.local.label }}</label>
+                                            {{ programacao_form.local }}
+                                            {% if programacao_form.local.errors %}<div class="invalid-feedback d-block">{{ programacao_form.local.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label" for="{{ programacao_form.descricao.id_for_label }}">{{ programacao_form.descricao.label }}</label>
+                                            {{ programacao_form.descricao }}
+                                            {% if programacao_form.descricao.errors %}<div class="invalid-feedback d-block">{{ programacao_form.descricao.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label" for="{{ programacao_form.datas_excecao.id_for_label }}">Datas de exceção</label>
+                                            {{ programacao_form.datas_excecao }}
+                                            <small class="text-muted d-block">Uma por linha para pular datas específicas (feriados/agenda especial).</small>
+                                            {% if programacao_form.datas_excecao.errors %}<div class="invalid-feedback d-block">{{ programacao_form.datas_excecao.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="form-label" for="{{ programacao_form.ordem.id_for_label }}">{{ programacao_form.ordem.label }}</label>
+                                            {{ programacao_form.ordem }}
+                                            {% if programacao_form.ordem.errors %}<div class="invalid-feedback d-block">{{ programacao_form.ordem.errors|join:", " }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <div class="form-check mb-2">
+                                                {{ programacao_form.ativo }}
+                                                <label class="form-check-label" for="{{ programacao_form.ativo.id_for_label }}">Ativo</label>
+                                                {% if programacao_form.ativo.errors %}<div class="invalid-feedback d-block">{{ programacao_form.ativo.errors|join:", " }}</div>{% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm mt-3">Adicionar Programação</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Tipo</th>
+                                        <th>Frequência</th>
+                                        <th>Dia</th>
+                                        <th>Ocorrência</th>
+                                        <th>Mês</th>
+                                        <th>Intervalo</th>
+                                        <th>Início</th>
+                                        <th>Término</th>
+                                        <th>Status</th>
+                                        <th style="width: 1%; white-space: nowrap;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in programacoes_padrao %}
+                                    <tr>
+                                        <td>{{ p.nome }}</td>
+                                        <td>{{ p.get_tipo_evento_display }}</td>
+                                        <td>{{ p.get_frequencia_display }}</td>
+                                        <td>{{ p.get_dia_semana_display }}</td>
+                                        <td>{% if p.ocorrencia_mensal %}{{ p.get_ocorrencia_mensal_display }}{% else %}-{% endif %}</td>
+                                        <td>{% if p.mes_ano %}{{ p.mes_ano }}{% else %}-{% endif %}</td>
+                                        <td>{{ p.intervalo_semanas }} sem.</td>
+                                        <td>{{ p.hora_inicio|time:'H:i' }}</td>
+                                        <td>{{ p.hora_termino_calculada|time:'H:i' }}</td>
+                                        <td>
+                                            {% if p.ativo %}
+                                                <span class="badge text-bg-success">Ativo</span>
+                                            {% else %}
+                                                <span class="badge text-bg-secondary">Inativo</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <form method="post" action="{% url 'configuracao:excluir_programacao_padrao_igreja' igreja.id p.id %}" onsubmit="return confirm('Excluir esta programação padrão?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-outline-danger btn-sm">Excluir</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="11" class="text-center text-muted py-3">Nenhuma programação padrão cadastrada.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <div class="tab-pane fade" id="aba-outros" role="tabpanel" aria-labelledby="aba-outros-tab" tabindex="0">
                         <h5 class="mb-3">Outras Informações</h5>
                         <div class="mb-3">
@@ -489,7 +701,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    var firstError = document.querySelector('.tab-pane .invalid-feedback.d-block');
+    var firstError = document.querySelector('#aba-programacoes .invalid-feedback.d-block') || document.querySelector('.tab-pane .invalid-feedback.d-block');
     if (firstError) {
         var pane = firstError.closest('.tab-pane');
         if (pane) {
@@ -502,12 +714,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    var savedTabTarget = localStorage.getItem(storageKey);
-    if (savedTabTarget) {
+    var urlParams = new URLSearchParams(window.location.search);
+    var tabParam = urlParams.get('aba');
+    var tabMap = {
+        'geral': '#aba-geral',
+        'endereco': '#aba-endereco',
+        'contato': '#aba-contato',
+        'responsaveis': '#aba-responsaveis',
+        'financeiro': '#aba-financeiro',
+        'ebd': '#aba-ebd',
+        'programacoes': '#aba-programacoes',
+        'outros': '#aba-outros'
+    };
+    var targetByParam = tabMap[tabParam];
+
+    if (targetByParam) {
+        var paramTrigger = document.querySelector('#igrejaConfigTabs button[data-bs-target="' + targetByParam + '"]');
+        if (paramTrigger && window.bootstrap && window.bootstrap.Tab) {
+            new bootstrap.Tab(paramTrigger).show();
+        }
+    } else {
+        var savedTabTarget = localStorage.getItem(storageKey);
+        if (savedTabTarget) {
         var savedTrigger = document.querySelector('#igrejaConfigTabs button[data-bs-target="' + savedTabTarget + '"]');
         if (savedTrigger && window.bootstrap && window.bootstrap.Tab) {
             var savedTabObj = new bootstrap.Tab(savedTrigger);
             savedTabObj.show();
+        }
         }
     }
 
@@ -552,6 +785,140 @@ document.addEventListener('DOMContentLoaded', function() {
         atualizarAvisoAcessoSecretaria();
         tipoIgrejaSelect.addEventListener('change', atualizarAvisoAcessoSecretaria);
     }
+
+    var frequenciaProgramacao = document.getElementById('{{ programacao_form.frequencia.id_for_label }}');
+    var grupoOcorrenciaMensal = document.getElementById('grupo-ocorrencia-mensal');
+    var grupoMesAnual = document.getElementById('grupo-mes-anual');
+    var grupoIntervaloSemanas = document.getElementById('grupo-intervalo-semanas');
+    var ajudaOcorrenciaMensal = document.getElementById('ajuda-ocorrencia-mensal');
+    var frequenciaHint = document.getElementById('programacao-frequencia-hint');
+    var resumoProgramacao = document.getElementById('programacao-resumo');
+    var diaSemanaProgramacao = document.getElementById('{{ programacao_form.dia_semana.id_for_label }}');
+    var ocorrenciaMensalProgramacao = document.getElementById('{{ programacao_form.ocorrencia_mensal.id_for_label }}');
+    var mesAnualProgramacao = document.getElementById('{{ programacao_form.mes_ano.id_for_label }}');
+    var horaInicioProgramacao = document.getElementById('{{ programacao_form.hora_inicio.id_for_label }}');
+    var tipoEventoProgramacao = document.getElementById('{{ programacao_form.tipo_evento.id_for_label }}');
+    var ebdControlaAgenda = {% if programacao_form.bloquear_escola_dominical_programacao %}true{% else %}false{% endif %};
+
+    function aplicarBloqueioEscolaDominicalNoFront() {
+        if (!tipoEventoProgramacao || !ebdControlaAgenda) return;
+
+        var optionEscolaDominical = tipoEventoProgramacao.querySelector('option[value="escola_dominical"]');
+        if (optionEscolaDominical) {
+            optionEscolaDominical.disabled = true;
+            optionEscolaDominical.textContent = optionEscolaDominical.textContent + ' (gerenciado pela EBD)';
+        }
+
+        if (tipoEventoProgramacao.value === 'escola_dominical') {
+            var primeiraOpcaoValida = tipoEventoProgramacao.querySelector('option[value]:not([value="escola_dominical"])');
+            if (primeiraOpcaoValida) {
+                tipoEventoProgramacao.value = primeiraOpcaoValida.value;
+            }
+        }
+    }
+
+    function toggleGrupoCampo(grupo, mostrar) {
+        if (!grupo) return;
+        grupo.classList.toggle('d-none', !mostrar);
+        var campos = grupo.querySelectorAll('input, select, textarea');
+        campos.forEach(function(campo) {
+            campo.disabled = !mostrar;
+        });
+    }
+
+    function atualizarCamposCondicionaisProgramacao() {
+        if (!frequenciaProgramacao) return;
+        var valor = (frequenciaProgramacao.value || '').trim();
+        var usaOcorrencia = valor === 'mensal_por_ocorrencia' || valor === 'anual_por_ocorrencia';
+        var usaMesAnual = valor === 'anual_por_ocorrencia';
+        var usaIntervalo = valor === 'semanal';
+
+        toggleGrupoCampo(grupoOcorrenciaMensal, usaOcorrencia);
+        toggleGrupoCampo(grupoMesAnual, usaMesAnual);
+        toggleGrupoCampo(grupoIntervaloSemanas, usaIntervalo);
+
+        if (ajudaOcorrenciaMensal) {
+            ajudaOcorrenciaMensal.textContent = usaMesAnual
+                ? 'Obrigatório para anual por ocorrência (ex: 2º domingo de maio).'
+                : 'Use para mensal por ocorrência (ex: 1º domingo).';
+        }
+
+        if (frequenciaHint) {
+            if (valor === 'semanal') {
+                frequenciaHint.textContent = 'Recorrência semanal/quinzenal: ajuste o intervalo semanal.';
+            } else if (valor === 'mensal_por_ocorrencia') {
+                frequenciaHint.textContent = 'Recorrência mensal: escolha a ocorrência (1º, 2º, último...).';
+            } else if (valor === 'anual_por_ocorrencia') {
+                frequenciaHint.textContent = 'Recorrência anual: escolha ocorrência + mês (ex: 2º domingo de maio).';
+            } else {
+                frequenciaHint.textContent = 'Selecione a frequência para ver apenas os campos necessários.';
+            }
+        }
+
+        atualizarResumoProgramacao();
+    }
+
+    function textoOpcaoSelecionada(selectEl, fallback) {
+        if (!selectEl || !selectEl.options || selectEl.selectedIndex < 0) return fallback || '';
+        var texto = (selectEl.options[selectEl.selectedIndex].text || '').trim();
+        return texto || (fallback || '');
+    }
+
+    function formatarOcorrenciaResumo(ocorrencia) {
+        var texto = (ocorrencia || '').toLowerCase().trim();
+        if (!texto) return 'ocorrência';
+
+        if (texto.indexOf('última') >= 0 || texto.indexOf('ultima') >= 0) {
+            return 'último';
+        }
+
+        var numero = texto.match(/(\d+)/);
+        if (numero && numero[1]) {
+            return numero[1] + 'º';
+        }
+
+        return texto;
+    }
+
+    function atualizarResumoProgramacao() {
+        if (!resumoProgramacao || !frequenciaProgramacao) return;
+
+        var freq = (frequenciaProgramacao.value || '').trim();
+        var diaSemana = textoOpcaoSelecionada(diaSemanaProgramacao, 'dia da semana');
+        var ocorrencia = textoOpcaoSelecionada(ocorrenciaMensalProgramacao, 'ocorrência');
+        var ocorrenciaResumo = formatarOcorrenciaResumo(ocorrencia);
+        var mes = textoOpcaoSelecionada(mesAnualProgramacao, 'mês');
+        var hora = (horaInicioProgramacao && horaInicioProgramacao.value) ? horaInicioProgramacao.value : '--:--';
+
+        if (freq === 'semanal') {
+            resumoProgramacao.textContent = 'Resumo: Toda ' + diaSemana.toLowerCase() + ' às ' + hora + ' (intervalo em semanas configurável).';
+            return;
+        }
+        if (freq === 'mensal_por_ocorrencia') {
+            resumoProgramacao.textContent = 'Resumo: No ' + ocorrenciaResumo + ' ' + diaSemana.toLowerCase() + ' de cada mês, às ' + hora + '.';
+            return;
+        }
+        if (freq === 'anual_por_ocorrencia') {
+            resumoProgramacao.textContent = 'Resumo: No ' + ocorrenciaResumo + ' ' + diaSemana.toLowerCase() + ' de ' + mes + ', às ' + hora + '.';
+            return;
+        }
+
+        resumoProgramacao.textContent = 'Defina a recorrência para ver o resumo automático da programação.';
+    }
+
+    if (frequenciaProgramacao) {
+        atualizarCamposCondicionaisProgramacao();
+        frequenciaProgramacao.addEventListener('change', atualizarCamposCondicionaisProgramacao);
+    }
+
+    aplicarBloqueioEscolaDominicalNoFront();
+
+    [diaSemanaProgramacao, ocorrenciaMensalProgramacao, mesAnualProgramacao, horaInicioProgramacao].forEach(function(campo) {
+        if (campo) {
+            campo.addEventListener('change', atualizarResumoProgramacao);
+            campo.addEventListener('input', atualizarResumoProgramacao);
+        }
+    });
 });
 </script>
 {% endblock %}

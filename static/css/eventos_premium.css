@@ -1,0 +1,356 @@
+/* ==================================================
+   EVENTOS - PAGES PREMIUM (CRIAR/EDITAR/DETALHE/EXCLUIR)
+   ================================================== */
+
+.eventos-top-spacer {
+    height: 14px;
+}
+
+.eventos-section-card {
+    border: 1px solid rgba(13, 130, 129, 0.16);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.eventos-section-card .card-header {
+    background: linear-gradient(180deg, #f5fbfb 0%, #eef7f7 100%);
+    border-bottom: 1px solid rgba(13, 130, 129, 0.12);
+    font-weight: 700;
+    color: #0a6665;
+}
+
+.eventos-header-premium {
+    background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%);
+    color: #fff;
+    border-radius: 12px 12px 0 0;
+    padding-left: 2rem;
+}
+
+.eventos-header-title {
+    font-size: 1.08rem;
+    font-weight: 700;
+}
+
+.eventos-form-grid .form-label {
+    font-weight: 600;
+    color: #355168;
+    margin-bottom: 0.35rem;
+}
+
+.eventos-form-grid .form-control,
+.eventos-form-grid .form-select,
+.eventos-form-grid textarea {
+    border-radius: 10px;
+    border: 1px solid #d8e3e8;
+}
+
+.eventos-form-grid .form-control:focus,
+.eventos-form-grid .form-select:focus,
+.eventos-form-grid textarea:focus {
+    border-color: #0d8281;
+    box-shadow: 0 0 0 0.2rem rgba(13, 130, 129, 0.15);
+}
+
+.eventos-actions {
+    border-top: 1px dashed #d7e5e7;
+    padding-top: 1rem;
+    margin-top: 0.75rem;
+}
+
+.eventos-detail-list dt {
+    color: #355168;
+    font-weight: 700;
+}
+
+.eventos-detail-list dd {
+    color: #1c2f44;
+}
+
+.evento-titulo-principal {
+    font-weight: 700;
+    color: #0a6665;
+}
+
+.eventos-danger-zone {
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fff7f8 0%, #fff 100%);
+}
+
+.eventos-badge-sessao {
+    background: #0d8281;
+    color: #fff;
+    font-weight: 600;
+}
+
+.eventos-capa-img {
+    max-height: 180px;
+    max-width: 100%;
+    object-fit: cover;
+}
+
+.eventos-stats-highlight {
+    border-left: 4px solid #0d8281;
+    border-color: rgba(13, 130, 129, 0.2);
+    border-radius: 10px;
+}
+
+.eventos-stats-highlight-title {
+    color: #0d8281;
+}
+
+.eventos-stats-highlight-desc {
+    font-size: 0.95rem;
+}
+
+.eventos-kpi-card {
+    border-radius: 10px;
+    border: 1px solid #e1eaee;
+    box-shadow: 0 1px 6px rgba(10, 26, 35, 0.05);
+}
+
+.eventos-kpi-title {
+    font-size: 0.9rem;
+}
+
+.eventos-kpi-teal {
+    border-left: 4px solid #0d8281;
+}
+
+.eventos-kpi-teal .eventos-kpi-title {
+    color: #0d8281;
+}
+
+.eventos-kpi-danger {
+    border-left: 4px solid #dc3545;
+}
+
+.eventos-kpi-danger .eventos-kpi-title {
+    color: #dc3545;
+}
+
+.eventos-kpi-warning {
+    border-left: 4px solid #ffc107;
+}
+
+.eventos-kpi-warning .eventos-kpi-title {
+    color: #ff9800;
+}
+
+.eventos-sessao-select {
+    width: auto;
+    display: inline-block;
+    min-width: 240px;
+}
+
+.eventos-participantes-table thead th {
+    background: #f4f9fa;
+    color: #355168;
+    font-weight: 700;
+}
+
+.eventos-anexos-lista {
+    margin-bottom: 0;
+}
+
+.eventos-anexo-link {
+    color: #0a6665;
+    text-decoration: none;
+}
+
+.eventos-anexo-link:hover {
+    color: #0d8281;
+    text-decoration: underline;
+}
+
+.eventos-hidden {
+    display: none;
+}
+
+.eventos-scroll-150 {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.eventos-scroll-400 {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.eventos-clickable {
+    cursor: pointer;
+}
+
+.eventos-toast-wrapper {
+    z-index: 9999;
+}
+
+.eventos-capa-thumb {
+    max-height: 180px;
+}
+
+.eventos-scroll-200 {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.eventos-highlight-teal {
+    border-left: 4px solid #0d8281;
+    background-color: rgba(13, 130, 129, 0.08);
+}
+
+.eventos-text-teal {
+    color: #0d8281;
+}
+
+.eventos-header-teal {
+    background-color: #0d8281;
+    color: #fff;
+}
+
+.eventos-badge-teal {
+    background-color: #0d8281;
+    color: #fff;
+}
+
+.eventos-preview-capa-img {
+    max-height: 200px;
+    object-fit: cover;
+}
+
+.eventos-sticky-actions {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 15px 24px;
+    margin-left: -24px;
+    margin-right: -24px;
+}
+
+.eventos-action-compact {
+    min-width: 120px;
+    height: 40px;
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+th.eventos-sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+th.eventos-sortable:hover {
+    background: #eaf4f6;
+}
+
+.eventos-sort-indicator {
+    font-size: 0.85em;
+    color: #6b7b88;
+    margin-left: 0.2rem;
+}
+
+.eventos-actions .btn {
+    min-height: 38px;
+    font-weight: 600;
+}
+
+.eventos-action-primary {
+    box-shadow: 0 6px 14px rgba(13, 130, 129, 0.2);
+}
+
+.eventos-action-primary:hover {
+    transform: translateY(-1px);
+}
+
+.eventos-action-secondary {
+    border-width: 1px;
+}
+
+.eventos-action-danger {
+    border-width: 1px;
+}
+
+.eventos-presenca-toolbar {
+    display: flex;
+    align-items: end;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.eventos-presenca-topline {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+}
+
+.eventos-presenca-dia-wrap {
+    flex: 0 0 320px;
+    min-width: 280px;
+}
+
+.eventos-presenca-busca-wrap {
+    flex: 1 1 auto;
+    min-width: 260px;
+}
+
+.eventos-presenca-acoes-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    margin-bottom: 2px;
+}
+
+.eventos-presenca-acoes-wrap .btn {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .eventos-header-premium {
+        padding-left: 1rem;
+    }
+
+    .eventos-sessao-select {
+        min-width: 100%;
+        width: 100%;
+        display: block;
+        margin-top: 0.5rem;
+    }
+
+    .eventos-sticky-actions {
+        padding: 10px 24px;
+    }
+
+    .eventos-action-compact {
+        min-width: 100px;
+        height: 36px;
+    }
+
+    .eventos-presenca-toolbar-left {
+        flex-basis: 100%;
+        min-width: 100%;
+    }
+
+    .eventos-presenca-topline {
+        flex-direction: column;
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .eventos-presenca-dia-wrap,
+    .eventos-presenca-busca-wrap {
+        min-width: 100%;
+        flex-basis: 100%;
+    }
+
+    .eventos-presenca-acoes-wrap {
+        flex-wrap: wrap;
+        margin-bottom: 0;
+    }
+}

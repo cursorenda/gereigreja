@@ -1,19 +1,36 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
+{% load static %}
 {% block title %}Detalhes do Evento - Agenda{% endblock %}
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Detalhes do Evento</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
-        <li class="breadcrumb-item active">Detalhes do Evento</li>
-    </ol>
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-calendar-alt me-1"></i>
-            {{ evento.titulo }}
-        </div>
-        <div class="card-body">
-            <dl class="row">
+{% block nome_departamento %}Agenda{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
+    <li class="breadcrumb-item active">Detalhes do Evento</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-calendar-check me-2"></i>
+        <span class="eventos-header-title">Detalhes do Evento</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
+<div class="card eventos-section-card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="evento-titulo-principal"><i class="fas fa-calendar-alt me-1"></i>{{ evento.titulo }}</span>
+        <span class="badge text-bg-light border">{{ evento.get_tipo_display }}</span>
+    </div>
+    <div class="card-body">
+        <dl class="row eventos-detail-list">
                 <dt class="col-sm-3">Tipo</dt>
                 <dd class="col-sm-9">{{ evento.get_tipo_display }}</dd>
                 <dt class="col-sm-3">Descrição</dt>
@@ -43,18 +60,11 @@
                 <dd class="col-sm-9">{{ evento.data_fim_recorrencia|date:'d/m/Y' }}</dd>
                 {% endif %}
             </dl>
-            <div class="d-flex flex-column flex-md-row gap-2 mt-3">
+            <div class="d-flex flex-column flex-md-row gap-2 eventos-actions">
                 <a href="{% url 'agenda:editar_evento' evento.pk %}" class="btn btn-outline-primary btn-sm w-100 w-md-auto mb-2 mb-md-0" aria-label="Editar evento"><i class="fas fa-edit"></i> Editar</a>
                 <a href="{% url 'agenda:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm w-100 w-md-auto mb-2 mb-md-0" aria-label="Excluir evento"><i class="fas fa-trash"></i> Excluir</a>
                 <a href="{% url 'agenda:agenda' %}" class="btn btn-secondary btn-sm w-100 w-md-auto" aria-label="Voltar para agenda">Voltar</a>
             </div>
-<style>
-    @media (max-width: 600px) {
-        .dl-horizontal dt { font-size: 0.98rem; }
-        .dl-horizontal dd { font-size: 1rem; }
-    }
-</style>
-        </div>
     </div>
 </div>
 {% endblock %}

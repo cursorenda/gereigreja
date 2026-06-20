@@ -394,12 +394,12 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseRedirect
 from django.db.models import Q # Para buscas
 import logging
-from .models import Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionado Plano e AssinaturaMinisterio
+from .models import Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
 from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
 import django.db.utils # Import django utils
 from decimal import Decimal
-from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm # Adicionado IgrejaEditForm
+from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm, ProgramacaoPadraoIgrejaForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import reverse
@@ -890,23 +890,18 @@ def centro_ministerial(request):
 
 @login_required
 @user_passes_test_or_403(pode_editar_configuracao_org) # Proteja a view
-def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito com outras views editar_igreja
-    ministerio = get_ministerio_or_error(request) # Usar a função auxiliar
-    # Garante que a igreja a ser editada pertence à ministério do usuário
-    igreja = get_object_or_404(Igreja, pk=igreja_id, ministerio=ministerio)
-
-    if request.method == 'POST':
-        form = IgrejaEditForm(request.POST, request.FILES, instance=igreja, ministerio=ministerio)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Dados da igreja '{igreja.nome_igreja}' atualizados com sucesso!")
-            return redirect('configuracao:lista_igrejas') # Ou para onde você quiser redirecionar
-        else:
-            messages.error(request, "Erro ao atualizar os dados da igreja. Verifique os campos.")
-            # print("ERROS NO FORMULÁRIO IgrejaEditForm:", form.errors.as_json()) # Removido para produção
-
-    else:
+def _render_editar_igreja_config_page(
+    request,
+    ministerio,
+    igreja,
+    form=None,
+    programacao_form=None,
+    status_code=200,
+):
+    if form is None:
         form = IgrejaEditForm(instance=igreja, ministerio=ministerio)
+    if programacao_form is None:
+        programacao_form = ProgramacaoPadraoIgrejaForm(igreja=igreja)
 
     from django.db.models import Count, Exists, OuterRef, Q
     from django.utils import timezone
@@ -938,6 +933,8 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
         'igreja': igreja,
         'titulo_pagina': f"Editar Igreja: {igreja.nome_igreja}",
         'cnpj_ministerio': ministerio.cnpj if hasattr(ministerio, 'cnpj') and ministerio.cnpj else '',
+        'programacao_form': programacao_form,
+        'programacoes_padrao': ProgramacaoPadraoIgreja.objects.filter(igreja=igreja).order_by('ordem', 'dia_semana', 'hora_inicio'),
         'ebd_classes_igreja': ebd_classes_igreja[:8],
         'ebd_classes_total': ebd_classes_igreja.count(),
         'ebd_turmas_igreja': ebd_turmas_igreja[:8],
@@ -945,7 +942,97 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
         'ebd_turmas_com_chamada_hoje': ebd_turmas_com_chamada_hoje,
         'ebd_turmas_pendentes_hoje': ebd_turmas_pendentes_hoje,
     }
-    return render(request, 'configuracao/igrejas/editar_igreja_config.html', context) # Ajustado para 'igrejas' no plural
+    return render(request, 'configuracao/igrejas/editar_igreja_config.html', context, status=status_code)
+
+
+@login_required
+@user_passes_test_or_403(pode_editar_configuracao_org) # Proteja a view
+def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito com outras views editar_igreja
+    ministerio = get_ministerio_or_error(request) # Usar a função auxiliar
+    # Garante que a igreja a ser editada pertence à ministério do usuário
+    igreja = get_object_or_404(Igreja, pk=igreja_id, ministerio=ministerio)
+
+    if request.method == 'POST':
+        form = IgrejaEditForm(request.POST, request.FILES, instance=igreja, ministerio=ministerio)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Dados da igreja '{igreja.nome_igreja}' atualizados com sucesso!")
+            return redirect('configuracao:lista_igrejas') # Ou para onde você quiser redirecionar
+
+        messages.error(request, "Erro ao atualizar os dados da igreja. Verifique os campos.")
+        return _render_editar_igreja_config_page(request, ministerio, igreja, form=form, status_code=400)
+
+    return _render_editar_igreja_config_page(request, ministerio, igreja)
+
+
+@login_required
+@user_passes_test_or_403(pode_editar_configuracao_org)
+def adicionar_programacao_padrao_igreja(request, igreja_id):
+    ministerio = get_ministerio_or_error(request)
+    igreja = get_object_or_404(Igreja, pk=igreja_id, ministerio=ministerio)
+
+    if request.method != 'POST':
+        return redirect('configuracao:editar_igreja_config', igreja_id=igreja.id)
+
+    form = ProgramacaoPadraoIgrejaForm(request.POST, igreja=igreja)
+    if form.is_valid():
+        programacao = form.save(commit=False)
+        programacao.igreja = igreja
+        programacao.save()
+
+        from configuracao.services_programacao import sync_programacao_padrao
+        sync_programacao_padrao(programacao)
+
+        messages.success(request, 'Programação padrão cadastrada e sincronizada na agenda.')
+        return redirect(f"{reverse('configuracao:editar_igreja_config', args=[igreja.id])}?aba=programacoes")
+
+    messages.error(request, 'Não foi possível salvar a programação padrão. Veja abaixo os campos que precisam de ajuste.')
+    form_igreja = IgrejaEditForm(instance=igreja, ministerio=ministerio)
+    return _render_editar_igreja_config_page(
+        request,
+        ministerio,
+        igreja,
+        form=form_igreja,
+        programacao_form=form,
+        status_code=400,
+    )
+
+
+@login_required
+@user_passes_test_or_403(pode_editar_configuracao_org)
+def excluir_programacao_padrao_igreja(request, igreja_id, programacao_id):
+    ministerio = get_ministerio_or_error(request)
+    igreja = get_object_or_404(Igreja, pk=igreja_id, ministerio=ministerio)
+    programacao = get_object_or_404(ProgramacaoPadraoIgreja, pk=programacao_id, igreja=igreja)
+
+    if request.method == 'POST':
+        from eventos.models import Evento
+
+        Evento.objects.filter(
+            igreja=igreja,
+            programacao_padrao=programacao,
+            data_inicio__date__gte=timezone.localdate(),
+            status_evento='ativo',
+        ).delete()
+        programacao.delete()
+        messages.success(request, 'Programação padrão removida com sucesso.')
+
+    return redirect(f"{reverse('configuracao:editar_igreja_config', args=[igreja.id])}?aba=programacoes")
+
+
+@login_required
+@user_passes_test_or_403(pode_editar_configuracao_org)
+def sincronizar_programacoes_padrao_igreja(request, igreja_id):
+    ministerio = get_ministerio_or_error(request)
+    igreja = get_object_or_404(Igreja, pk=igreja_id, ministerio=ministerio)
+
+    if request.method == 'POST':
+        from configuracao.services_programacao import sync_programacoes_igreja
+
+        total = sync_programacoes_igreja(igreja)
+        messages.success(request, f'Sincronização concluída. {total} programação(ões) processada(s).')
+
+    return redirect(f"{reverse('configuracao:editar_igreja_config', args=[igreja.id])}?aba=programacoes")
 
 
 # Adicione esta view ao seu c:\Gereigreja\configuracao\views.py

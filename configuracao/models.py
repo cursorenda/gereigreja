@@ -1,5 +1,8 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils.dateparse import parse_date
+from datetime import datetime, timedelta
 # Importa o modelo de onboarding para registro no app
 from .models_onboarding import OnboardingStatus
 # --- Configurações Globais do Sistema (Notificações, etc) ---
@@ -619,6 +622,173 @@ class Igreja(models.Model):
         verbose_name_plural = "Igrejas"
         ordering = ['ministerio', 'nome_igreja']
         unique_together = ('ministerio', 'nome_igreja')
+
+
+class ProgramacaoPadraoIgreja(models.Model):
+    """Programacoes recorrentes da igreja para gerar agenda automaticamente."""
+
+    TIPO_EVENTO_CHOICES = [
+        ('culto', 'Culto'),
+        ('estudo', 'Estudo'),
+        ('reuniao', 'Reunião'),
+        ('escola_dominical', 'Escola Dominical'),
+        ('outro', 'Outro'),
+    ]
+
+    FREQUENCIA_CHOICES = [
+        ('semanal', 'Semanal'),
+        ('mensal_por_ocorrencia', 'Mensal por ocorrência'),
+        ('anual_por_ocorrencia', 'Anual por ocorrência'),
+    ]
+
+    OCORRENCIA_MENSAL_CHOICES = [
+        (1, '1ª ocorrência do mês'),
+        (2, '2ª ocorrência do mês'),
+        (3, '3ª ocorrência do mês'),
+        (4, '4ª ocorrência do mês'),
+        (-1, 'Última ocorrência do mês'),
+    ]
+
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.CASCADE,
+        related_name='programacoes_padrao',
+        verbose_name='Igreja',
+    )
+    nome = models.CharField(max_length=120, verbose_name='Nome da programação')
+    tipo_evento = models.CharField(
+        max_length=20,
+        choices=TIPO_EVENTO_CHOICES,
+        default='culto',
+        verbose_name='Tipo de evento',
+    )
+    frequencia = models.CharField(
+        max_length=30,
+        choices=FREQUENCIA_CHOICES,
+        default='semanal',
+        verbose_name='Frequência',
+    )
+    dia_semana = models.IntegerField(
+        choices=ConfiguracaoSistema.DIAS_SEMANA,
+        verbose_name='Dia da semana',
+    )
+    ocorrencia_mensal = models.IntegerField(
+        choices=OCORRENCIA_MENSAL_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name='Ocorrência mensal',
+        help_text='Usado quando frequência é mensal por ocorrência (ex: 1º domingo, 2º domingo, último domingo).',
+    )
+    intervalo_semanas = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(8)],
+        verbose_name='Intervalo em semanas',
+        help_text='Use 1 para semanal, 2 para quinzenal, etc. Válido para frequência semanal.',
+    )
+    mes_ano = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        verbose_name='Mês do ano',
+        help_text='Usado em recorrência anual por ocorrência (1=Jan ... 12=Dez).',
+    )
+    hora_inicio = models.TimeField(verbose_name='Hora de início')
+    hora_termino = models.TimeField(
+        blank=True,
+        null=True,
+        verbose_name='Hora de término',
+        help_text='Preferencial para configurar o fim do culto/reunião. A duração será calculada automaticamente.',
+    )
+    duracao_minutos = models.PositiveIntegerField(
+        default=90,
+        validators=[MinValueValidator(30), MaxValueValidator(360)],
+        verbose_name='Duração (minutos)',
+    )
+    local = models.CharField(max_length=200, blank=True, null=True, verbose_name='Local')
+    descricao = models.TextField(blank=True, null=True, verbose_name='Descrição')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    datas_excecao = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Datas de exceção',
+        help_text='Uma data por linha (YYYY-MM-DD ou DD/MM/YYYY) para pular ocorrências específicas.',
+    )
+    ordem = models.PositiveSmallIntegerField(default=0, verbose_name='Ordem')
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Programação Padrão da Igreja'
+        verbose_name_plural = 'Programações Padrão das Igrejas'
+        ordering = ['ordem', 'dia_semana', 'hora_inicio', 'nome']
+        unique_together = ('igreja', 'nome', 'dia_semana', 'hora_inicio')
+
+    def __str__(self):
+        return f"{self.nome} ({self.get_dia_semana_display()} {self.hora_inicio:%H:%M})"
+
+    def clean(self):
+        super().clean()
+        if self.frequencia in ('mensal_por_ocorrencia', 'anual_por_ocorrencia') and self.ocorrencia_mensal is None:
+            raise ValidationError({'ocorrencia_mensal': 'Informe a ocorrência mensal para frequência mensal.'})
+
+        if self.frequencia == 'anual_por_ocorrencia' and self.mes_ano is None:
+            raise ValidationError({'mes_ano': 'Informe o mês do ano para frequência anual por ocorrência.'})
+
+        if self.frequencia == 'semanal':
+            self.ocorrencia_mensal = None
+            self.mes_ano = None
+
+        if self.frequencia == 'mensal_por_ocorrencia':
+            self.mes_ano = None
+
+        if self.hora_termino:
+            dt_inicio = datetime.combine(datetime.today().date(), self.hora_inicio)
+            dt_fim = datetime.combine(datetime.today().date(), self.hora_termino)
+            if dt_fim <= dt_inicio:
+                raise ValidationError({'hora_termino': 'A hora de término deve ser maior que a hora de início.'})
+            self.duracao_minutos = int((dt_fim - dt_inicio).total_seconds() // 60)
+        elif not self.duracao_minutos:
+            self.duracao_minutos = 90
+
+        if self.datas_excecao:
+            for linha in self.datas_excecao.splitlines():
+                valor = (linha or '').strip()
+                if not valor:
+                    continue
+                data = parse_date(valor)
+                if data is None and '/' in valor:
+                    partes = valor.split('/')
+                    if len(partes) == 3:
+                        data = parse_date(f"{partes[2]}-{partes[1]}-{partes[0]}")
+                if data is None:
+                    raise ValidationError({'datas_excecao': f'Data inválida nas exceções: {valor}'})
+
+    def get_datas_excecao_set(self):
+        """Retorna conjunto de datas de exceção normalizadas."""
+        resultado = set()
+        if not self.datas_excecao:
+            return resultado
+
+        for linha in self.datas_excecao.splitlines():
+            valor = (linha or '').strip()
+            if not valor:
+                continue
+            data = parse_date(valor)
+            if data is None and '/' in valor:
+                partes = valor.split('/')
+                if len(partes) == 3:
+                    data = parse_date(f"{partes[2]}-{partes[1]}-{partes[0]}")
+            if data is not None:
+                resultado.add(data)
+        return resultado
+
+    @property
+    def hora_termino_calculada(self):
+        if self.hora_termino:
+            return self.hora_termino
+        dt_inicio = datetime.combine(datetime.today().date(), self.hora_inicio)
+        dt_fim = dt_inicio + timedelta(minutes=self.duracao_minutos or 90)
+        return dt_fim.time()
 
 # --- NOVOS MODELOS PARA PLANOS E ASSINATURAS ---
 

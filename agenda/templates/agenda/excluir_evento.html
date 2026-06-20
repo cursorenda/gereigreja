@@ -1,34 +1,43 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
+{% load static %}
 {% block title %}Excluir Evento - Agenda{% endblock %}
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Excluir Evento</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
-        <li class="breadcrumb-item active">Excluir Evento</li>
-    </ol>
+{% block nome_departamento %}Agenda{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
+    <li class="breadcrumb-item active">Excluir Evento</li>
+{% endblock %}
 
-    <div class="card mb-4">
-        <div class="card-header bg-danger text-white">
-            <i class="fas fa-trash me-1"></i>
-            Confirmar Exclusão
-        </div>
-        <div class="card-body">
-            <p>Tem certeza que deseja excluir o evento <strong>{{ evento.titulo }}</strong>?</p>
-            <form method="post">
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-trash me-2"></i>
+        <span class="eventos-header-title">Excluir Evento</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
+<div class="card eventos-danger-zone mb-4">
+    <div class="card-header bg-danger text-white">
+        <i class="fas fa-triangle-exclamation me-1"></i>
+        Confirmar Exclusão
+    </div>
+    <div class="card-body">
+        <p class="mb-0">Tem certeza que deseja excluir o evento <strong>{{ evento.titulo }}</strong>?</p>
+        <form method="post">
                 {% csrf_token %}
-                <div class="d-flex flex-column flex-md-row gap-2 mt-3">
+                <div class="d-flex flex-column flex-md-row gap-2 eventos-actions">
                     <button type="submit" class="btn btn-danger w-100 w-md-auto mb-2 mb-md-0" aria-label="Excluir evento"><i class="fas fa-trash"></i> Excluir</button>
                     <a href="{% url 'agenda:detalhe_evento' evento.pk %}" class="btn btn-secondary w-100 w-md-auto" aria-label="Cancelar e voltar">Cancelar</a>
                 </div>
-<style>
-    @media (max-width: 600px) {
-        .form-label { font-size: 0.98rem; }
-        .form-control, .form-select { font-size: 1rem; }
-    }
-</style>
-            </form>
-        </div>
+        </form>
     </div>
 </div>
 {% endblock %}

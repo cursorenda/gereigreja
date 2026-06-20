@@ -1,25 +1,37 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% load static %}
 
 {% block title %}Novo Evento - Agenda{% endblock %}
+{% block nome_departamento %}Agenda{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
+    <li class="breadcrumb-item active">Novo Evento</li>
+{% endblock %}
 
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Novo Evento</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'agenda:agenda' %}">Agenda</a></li>
-        <li class="breadcrumb-item active">Novo Evento</li>
-    </ol>
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
 
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-calendar-plus me-2"></i>
+        <span class="eventos-header-title">Novo Evento</span>
+    </div>
+</div>
+{% endblock %}
 
-
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-calendar-plus me-1"></i>
-            Cadastro de Evento
-        </div>
-        <div class="card-body">
-            <form method="post" class="row g-3">
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
+<div class="card eventos-section-card mb-4">
+    <div class="card-header">
+        <i class="fas fa-pen-to-square me-1"></i>
+        Cadastro de Evento
+    </div>
+    <div class="card-body">
+        <form method="post" class="row g-3 eventos-form-grid">
                 {% csrf_token %}
                 {{ form.igreja }}
                 <div class="col-md-6">
@@ -80,27 +92,11 @@
                     <label for="id_data_fim_recorrencia" class="form-label">Data Fim Recorrência</label>
                     {{ form.data_fim_recorrencia }}
                 </div>
-                <div class="col-12 d-flex flex-column flex-md-row gap-2 mt-3">
+                <div class="col-12 d-flex flex-column flex-md-row gap-2 eventos-actions">
                     <button type="submit" class="btn btn-primary w-100 w-md-auto mb-2 mb-md-0" aria-label="Salvar evento"><i class="fas fa-save"></i> Salvar</button>
                     <a href="{% url 'agenda:agenda' %}" class="btn btn-secondary w-100 w-md-auto" aria-label="Cancelar e voltar">Cancelar</a>
                 </div>
-<style>
-    @media (max-width: 600px) {
-        .form-label { font-size: 0.98rem; }
-        .form-control, .form-select { font-size: 1rem; }
-        .col-md-6, .col-md-4, .col-md-12, .col-12 { flex: 0 0 100%; max-width: 100%; }
-    }
-</style>
-            </form>
-        </div>
+        </form>
     </div>
-    
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            // Campo responsavel já vem filtrado pela view, mas se implementar seleção de igreja
-            // dinâmica no futuro, adicionar AJAX aqui similar ao módulo eventos
-        });
-    </script>
 </div>
 {% endblock %}

@@ -94,7 +94,7 @@ class ConfiguracaoPortalForm(forms.ModelForm):
 # c:\Gereigreja\configuracao\forms.py
 from django import forms
 from .models import ESTADO_CHOICES 
-from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ModeloCartaRecomendacao
+from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ModeloCartaRecomendacao, ProgramacaoPadraoIgreja
 
 from django.contrib.auth.models import User # Modelo de usuário padrão
 from financeiro.models import ContaBancaria # Importar ContaBancaria
@@ -242,6 +242,131 @@ class IgrejaForm(forms.ModelForm):
             if igreja_superior is not None:
                 cleaned_data['igreja_superior'] = None
                 # Opcional: self.add_error('igreja_superior', 'Igrejas Sede/Independente não têm Igreja Superior.')
+        return cleaned_data
+
+
+class ProgramacaoPadraoIgrejaForm(forms.ModelForm):
+    MESES_ANO_CHOICES = [
+        ('', 'Selecione o mês'),
+        (1, 'Janeiro'),
+        (2, 'Fevereiro'),
+        (3, 'Março'),
+        (4, 'Abril'),
+        (5, 'Maio'),
+        (6, 'Junho'),
+        (7, 'Julho'),
+        (8, 'Agosto'),
+        (9, 'Setembro'),
+        (10, 'Outubro'),
+        (11, 'Novembro'),
+        (12, 'Dezembro'),
+    ]
+
+    class Meta:
+        model = ProgramacaoPadraoIgreja
+        fields = [
+            'nome',
+            'tipo_evento',
+            'frequencia',
+            'dia_semana',
+            'ocorrencia_mensal',
+            'mes_ano',
+            'intervalo_semanas',
+            'hora_inicio',
+            'hora_termino',
+            'local',
+            'descricao',
+            'datas_excecao',
+            'ativo',
+            'ordem',
+        ]
+        widgets = {
+            'nome': forms.TextInput(attrs={'class': 'form-control'}),
+            'tipo_evento': forms.Select(attrs={'class': 'form-select'}),
+            'frequencia': forms.Select(attrs={'class': 'form-select'}),
+            'dia_semana': forms.Select(attrs={'class': 'form-select'}),
+            'ocorrencia_mensal': forms.Select(attrs={'class': 'form-select'}),
+            'mes_ano': forms.Select(attrs={'class': 'form-select'}),
+            'intervalo_semanas': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '8'}),
+            'hora_inicio': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'hora_termino': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'local': forms.TextInput(attrs={'class': 'form-control'}),
+            'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'datas_excecao': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': '2026-12-25\n05/01/2027'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ordem': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.igreja = kwargs.pop('igreja', None)
+        super().__init__(*args, **kwargs)
+
+        self.bloquear_escola_dominical_programacao = False
+        if self.igreja is not None:
+            from escola_biblica.models import Turma
+
+            tem_estrutura_ebd = Turma.objects.filter(igreja=self.igreja).exists() or Turma.objects.filter(classe__igreja=self.igreja).exists()
+            self.bloquear_escola_dominical_programacao = tem_estrutura_ebd
+
+        self.fields['frequencia'].label = 'Tipo de recorrência'
+        self.fields['dia_semana'].label = 'Dia da semana'
+        self.fields['ocorrencia_mensal'].label = 'Qual ocorrência no mês?'
+        self.fields['mes_ano'].label = 'Em qual mês do ano?'
+        self.fields['intervalo_semanas'].label = 'Repetição em semanas'
+
+        if self.bloquear_escola_dominical_programacao:
+            self.fields['tipo_evento'].help_text = (
+                'Escola Dominical já é gerenciada automaticamente pela aba EBD para esta igreja. '
+                'Use outros tipos aqui para evitar duplicidade de eventos.'
+            )
+
+        self.fields['mes_ano'].widget.choices = self.MESES_ANO_CHOICES
+        self.fields['intervalo_semanas'].widget.attrs['placeholder'] = '1 = toda semana, 2 = quinzenal'
+        self.fields['intervalo_semanas'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        frequencia = cleaned_data.get('frequencia')
+        tipo_evento = cleaned_data.get('tipo_evento')
+        ocorrencia = cleaned_data.get('ocorrencia_mensal')
+        mes_ano = cleaned_data.get('mes_ano')
+        intervalo_semanas = cleaned_data.get('intervalo_semanas')
+        hora_inicio = cleaned_data.get('hora_inicio')
+        hora_termino = cleaned_data.get('hora_termino')
+
+        if self.bloquear_escola_dominical_programacao and tipo_evento == 'escola_dominical':
+            self.add_error(
+                'tipo_evento',
+                'Escola Dominical já é controlada pela aba EBD desta igreja. Para evitar duplicidade, configure por lá.'
+            )
+
+        if frequencia == 'mensal_por_ocorrencia' and ocorrencia is None:
+            self.add_error('ocorrencia_mensal', 'Selecione a ocorrência mensal para este tipo de agendamento.')
+
+        if frequencia == 'anual_por_ocorrencia':
+            if ocorrencia is None:
+                self.add_error('ocorrencia_mensal', 'Selecione a ocorrência para recorrência anual.')
+            if mes_ano is None:
+                self.add_error('mes_ano', 'Selecione o mês para recorrência anual.')
+
+        if frequencia == 'semanal':
+            cleaned_data['ocorrencia_mensal'] = None
+            cleaned_data['mes_ano'] = None
+            cleaned_data['intervalo_semanas'] = intervalo_semanas or 1
+
+        if frequencia == 'mensal_por_ocorrencia':
+            cleaned_data['mes_ano'] = None
+            cleaned_data['intervalo_semanas'] = 1
+
+        if frequencia == 'anual_por_ocorrencia':
+            cleaned_data['intervalo_semanas'] = 1
+
+        if cleaned_data.get('intervalo_semanas') is None:
+            cleaned_data['intervalo_semanas'] = 1
+
+        if hora_inicio and hora_termino and hora_termino <= hora_inicio:
+            self.add_error('hora_termino', 'A hora de término deve ser maior que a hora de início.')
+
         return cleaned_data
 
 # --- FORMULÁRIO PARA EDITAR DADOS DA MINISTÉRIO (PELO ADMIN DA ORG) ---

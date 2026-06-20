@@ -3,6 +3,7 @@
 {% block title %}Agenda{% endblock %}
 {% block nome_departamento %}Agenda{% endblock %}
 {% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="/">Inicial</a></li>
     <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
     <li class="breadcrumb-item active">Agenda</li>
 {% endblock %}
@@ -14,16 +15,16 @@
 {% endblock %}
 
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3 agenda-header-premium">
     <div class="d-flex align-items-center">
         <i class="fas fa-calendar-alt me-2"></i>
-        <span style="font-size:1.1rem; font-weight:600;">Agenda de Eventos</span>
+        <span class="agenda-header-title">Agenda de Eventos</span>
     </div>
 </div>
 {% endblock %}
 
 {% block conteudo_principal %}
-    <div style="height:16px;"></div>
+    <div class="agenda-top-spacer"></div>
     
     <!-- Legenda Interativa com Contadores -->
     <div class="legenda-tipos-evento">
@@ -31,55 +32,55 @@
             <h6 class="fw-bold text-muted mb-0">
                 <i class="fas fa-palette me-2"></i>Tipos de Evento
             </h6>
-            <span id="contador-resultados" class="badge bg-primary" style="font-size: 0.9rem; padding: 8px 16px;">
+            <span id="contador-resultados" class="badge bg-primary">
                 <i class="fas fa-calendar-check me-1"></i>
                 <span id="total-eventos">...</span>
             </span>
         </div>
         <div class="row g-2" id="cards-tipos-evento">
-            <div class="col-6 col-md-2">
+            <div class="col">
                 <div class="card-tipo-evento shadow-sm" data-tipo="culto">
                     <i class="fas fa-cross text-primary"></i>
                     <span class="tipo-nome">Culto</span>
                     <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col">
                 <div class="card-tipo-evento shadow-sm" data-tipo="reuniao">
                     <i class="fas fa-users text-primary"></i>
                     <span class="tipo-nome">Reunião</span>
                     <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col">
                 <div class="card-tipo-evento shadow-sm" data-tipo="festa">
                     <i class="fas fa-cake-candles text-primary"></i>
                     <span class="tipo-nome">Festa</span>
                     <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col">
                 <div class="card-tipo-evento shadow-sm" data-tipo="feriado">
                     <i class="fas fa-umbrella-beach text-primary"></i>
                     <span class="tipo-nome">Feriado</span>
                     <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col">
                 <div class="card-tipo-evento shadow-sm" data-tipo="estudo">
                     <i class="fas fa-book text-primary"></i>
                     <span class="tipo-nome">Estudo</span>
                     <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col">
                 <div class="card-tipo-evento shadow-sm" data-tipo="escola_dominical">
                     <i class="fas fa-school text-primary"></i>
                     <span class="tipo-nome">Escola Dominical</span>
                     <span class="badge bg-primary tipo-contador">0</span>
                 </div>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col">
                 <div class="card-tipo-evento shadow-sm" data-tipo="outro">
                     <i class="fas fa-calendar text-primary"></i>
                     <span class="tipo-nome">Outro</span>
@@ -92,26 +93,26 @@
     <!-- Filtros de Busca -->
     <div class="filtros-container mb-4">
         <form id="filtros-agenda" class="row g-3 align-items-end">
-                <div class="col-md-2">
-                    <label for="filtro_inicio" class="form-label">
-                        <i class="fas fa-calendar-day me-1"></i>Data Início
+                <div class="col-12 col-sm-6 col-xl-1">
+                    <label for="filtro_inicio" class="form-label text-nowrap">
+                        <i class="fas fa-calendar-day me-1"></i>Início
                     </label>
                     <input type="date" id="filtro_inicio" name="inicio" class="form-control">
                 </div>
-                <div class="col-md-2">
-                    <label for="filtro_fim" class="form-label">
-                        <i class="fas fa-calendar-day me-1"></i>Data Fim
+                <div class="col-12 col-sm-6 col-xl-1">
+                    <label for="filtro_fim" class="form-label text-nowrap">
+                        <i class="fas fa-calendar-day me-1"></i>Fim
                     </label>
                     <input type="date" id="filtro_fim" name="fim" class="form-control">
                 </div>
-                <div class="col-md-4">
-                    <label for="filtro_busca" class="form-label">
-                        <i class="fas fa-search me-1"></i>Buscar por Título ou Descrição
+                <div class="col-12 col-xl-2">
+                    <label for="filtro_busca" class="form-label text-nowrap">
+                        <i class="fas fa-search me-1"></i>Buscar título/descrição
                     </label>
                     <input type="text" id="filtro_busca" name="busca" class="form-control" placeholder="Digite para buscar...">
                 </div>
-                <div class="col-md-4 d-flex gap-2 justify-content-end">
-                    <button type="submit" class="btn btn-primary shadow">
+                <div class="col-12 col-xl-8 d-flex gap-2 justify-content-xl-end flex-nowrap" id="acoes-filtros-agenda">
+                    <button type="submit" class="btn btn-primary shadow" id="btn-buscar-agenda">
                         <i class="fas fa-search me-1"></i>Buscar
                     </button>
                     <button type="button" class="btn btn-primary shadow" id="exportar-ics">
@@ -190,6 +191,8 @@
             var loadingOverlay = document.getElementById('loading-overlay');
             var eventosCache = [];
             var tipoSelecionado = ''; // Tipo selecionado via cards
+            var loadingShowTimer = null;
+            var loadingSafetyTimer = null;
             
             // Tipos de evento com suas configurações
             const tiposConfig = {
@@ -205,9 +208,44 @@
             // Função para mostrar/esconder loading
             function toggleLoading(show) {
                 if (show) {
-                    loadingOverlay.style.display = 'flex';
+                    clearTimeout(loadingShowTimer);
+                    clearTimeout(loadingSafetyTimer);
+
+                    // Evita "flash" em carregamentos muito rápidos.
+                    loadingShowTimer = setTimeout(function() {
+                        loadingOverlay.style.display = 'flex';
+                    }, 180);
+
+                    // Proteção para não deixar a UI eternamente em loading.
+                    loadingSafetyTimer = setTimeout(function() {
+                        loadingOverlay.style.display = 'none';
+                        exibirAvisoCarregamentoLento();
+                    }, 12000);
                 } else {
+                    clearTimeout(loadingShowTimer);
+                    clearTimeout(loadingSafetyTimer);
                     loadingOverlay.style.display = 'none';
+                }
+            }
+
+            function exibirAvisoCarregamentoLento() {
+                if (document.getElementById('alerta-carregamento-agenda')) return;
+
+                var alert = document.createElement('div');
+                alert.id = 'alerta-carregamento-agenda';
+                alert.className = 'alert alert-warning py-2 px-3 small mb-3';
+                alert.innerHTML = '<strong>Carregamento mais lento que o normal.</strong> A agenda continua tentando buscar os eventos em segundo plano.';
+
+                var filtrosContainer = document.querySelector('.filtros-container');
+                if (filtrosContainer && filtrosContainer.parentNode) {
+                    filtrosContainer.parentNode.insertBefore(alert, filtrosContainer);
+                }
+            }
+
+            function removerAvisoCarregamentoLento() {
+                var alert = document.getElementById('alerta-carregamento-agenda');
+                if (alert) {
+                    alert.remove();
                 }
             }
             
@@ -259,7 +297,7 @@
                     alert.innerHTML = `
                         <i class="fas fa-info-circle d-block"></i>
                         <strong>Nenhum evento encontrado</strong>
-                        <p class="mb-0 mt-2">Tente ajustar os filtros ou criar um novo evento.</p>
+                        <p class="mb-0 mt-2">Tente ajustar os filtros ou acesse o módulo Eventos para novos cadastros.</p>
                     `;
                     calendarEl.insertAdjacentElement('beforebegin', alert);
                 }
@@ -303,13 +341,14 @@
                     if (inicio) params.append('inicio', inicio);
                     if (fim) params.append('fim', fim);
                     if (busca) params.append('busca', busca);
-                    
+
                     fetch('{% url "agenda:agenda_eventos_json" %}?' + params.toString())
                         .then(response => response.json())
                         .then(data => {
                             eventosCache = data;
                             atualizarContadores(data);
                             verificarEventosVazios(data);
+                            removerAvisoCarregamentoLento();
                             successCallback(data);
                             toggleLoading(false);
                         })
@@ -317,10 +356,56 @@
                             console.error('Erro ao carregar eventos:', error);
                             failureCallback(error);
                             toggleLoading(false);
+                            exibirAvisoCarregamentoLento();
                         });
+                },
+                eventContent: function(arg) {
+                    var props = arg.event.extendedProps || {};
+                    var iconClass = props.icon || 'fas fa-calendar';
+                    var timeText = arg.timeText;
+                    var tituloCompleto = arg.event.title || '';
+                    var tituloExibicao = tituloCompleto;
+
+                    if (window.innerWidth <= 1440 && tituloExibicao.length > 24) {
+                        tituloExibicao = tituloExibicao.slice(0, 21) + '...';
+                    }
+                    if (window.innerWidth <= 1200 && tituloExibicao.length > 20) {
+                        tituloExibicao = tituloExibicao.slice(0, 17) + '...';
+                    }
+                    if (window.innerWidth <= 992 && tituloExibicao.length > 16) {
+                        tituloExibicao = tituloExibicao.slice(0, 13) + '...';
+                    }
+
+                    if (!timeText && arg.event.start) {
+                        try {
+                            timeText = arg.event.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        } catch (e) {
+                            timeText = '';
+                        }
+                    }
+
+                    var container = document.createElement('div');
+                    container.className = 'agenda-evento-premium';
+
+                    if (timeText) {
+                        var linhaHora = document.createElement('div');
+                        linhaHora.className = 'agenda-evento-premium-hora';
+                        linhaHora.innerHTML = '<span class="agenda-evento-premium-ponto"></span><span>' + timeText + '</span>';
+                        container.appendChild(linhaHora);
+                    }
+
+                    var linhaTitulo = document.createElement('div');
+                    linhaTitulo.className = 'agenda-evento-premium-titulo';
+                    linhaTitulo.innerHTML = '<i class="' + iconClass + '"></i><span title="' + tituloCompleto.replace(/"/g, '&quot;') + '">' + tituloExibicao + '</span>';
+                    container.appendChild(linhaTitulo);
+
+                    return { domNodes: [container] };
                 },
                 eventDidMount: function(info) {
                     const props = info.event.extendedProps || {};
+                    const tipoEvento = props.tipo || 'Outro';
+                    const tipoKey = (tiposConfig[tipoEvento] && tiposConfig[tipoEvento].key) ? tiposConfig[tipoEvento].key : 'outro';
+                    info.el.classList.add('agenda-evento-tipo-' + tipoKey);
                     
                     // Adicionar animação fade-in
                     info.el.classList.add('evento-fade-in');
@@ -351,16 +436,6 @@
                         info.el.classList.add('evento-semana-atual');
                     } else if (eventoData < hoje) {
                         info.el.classList.add('evento-passado');
-                    }
-                    
-                    // Adicionar ícone
-                    if (props.icon) {
-                        var iconElem = document.createElement('i');
-                        iconElem.className = props.icon + ' me-1';
-                        var titleElem = info.el.querySelector('.fc-event-title') || info.el;
-                        if (titleElem && !titleElem.querySelector('i')) {
-                            titleElem.prepend(iconElem);
-                        }
                     }
                     
                     // Adicionar badge de participantes
@@ -1084,13 +1159,4 @@
         </div>
     </div>
     
-    <!-- Botão FAB para Criar Evento -->
-    <a href="{% url 'eventos:criar_evento' %}" 
-       class="btn-fab shadow-lg" 
-       title="Criar Novo Evento"
-       data-bs-toggle="tooltip"
-       data-bs-placement="left">
-        <i class="fas fa-plus"></i>
-    </a>
-
 {% endblock %}

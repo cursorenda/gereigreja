@@ -1,3 +1,44 @@
+## v1.13.18 — 19/06/2026
+🎨 **Agenda e Eventos Premium — Consolidação de fluxo, recorrência avançada e operação de presença otimizada**
+
+### Entregas
+- Consolidação funcional entre Agenda e Eventos para reduzir duplicidade de domínio:
+  - CRUD legado de evento em Agenda redirecionado para o módulo Eventos;
+  - importação de feriados alinhada para persistir no modelo `Evento` (web e comando);
+  - visão mensal da Agenda alinhada à mesma fonte de dados do módulo Eventos.
+- Evolução de Programações padrão da igreja com regras de recorrência avançadas:
+  - suporte a hora de término e cálculo de duração;
+  - melhorias de validação e preenchimento condicional por frequência;
+  - prevenção de conflito com programação de Escola Bíblica Dominical.
+- Premiumização completa das páginas do módulo Eventos:
+  - lista, criar, editar, detalhe, excluir e marcar presença padronizadas em `base_com_sistema`;
+  - cabeçalhos, breadcrumbs, áreas de ação e componentes visuais unificados;
+  - remoção de estilos inline e centralização de padrões em CSS compartilhado.
+- Agenda premium com UX refinada no calendário:
+  - chips de evento aprimorados (hora e título em duas linhas);
+  - cards de tipo, filtros e responsividade revisados;
+  - remoção de elementos conflitantes de criação rápida.
+- Operação de presença evoluída em Eventos:
+  - ordenação A-Z/Z-A nas colunas textuais da tabela;
+  - busca em tempo real por participante;
+  - ações em massa para marcar/desmarcar visíveis;
+  - alinhamento de filtros e ações na mesma linha para ganho de espaço.
+
+### Migrações
+- `configuracao/migrations/0031_programacaopadraoigreja.py`
+- `configuracao/migrations/0032_programacaopadraoigreja_regras_recorrencia.py`
+- `configuracao/migrations/0033_programacaopadraoigreja_frequencia_avancada.py`
+- `configuracao/migrations/0034_programacaopadraoigreja_hora_termino.py`
+- `eventos/migrations/0015_evento_programacao_padrao.py`
+
+### Impacto
+- Menor risco de inconsistência por duplicidade entre Agenda e Eventos.
+- Melhor experiência operacional para cadastro, edição e presença de eventos.
+- Padrão premium visual mais consistente em todas as telas críticas do fluxo de eventos.
+- Mudança de schema controlada pelas migrações listadas, sem breaking changes de API pública.
+
+---
+
 ## v1.13.17 — 16/06/2026
 🏛️ **Centro Ministerial Premium + Governança de Igrejas e Liderança Integrada**
 

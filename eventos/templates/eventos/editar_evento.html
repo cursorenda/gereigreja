@@ -1,57 +1,39 @@
-<script>
-function atualizarDataFim() {
-  const dataInicioInput = document.getElementById('id_data_inicio');
-  const qtdDiasInput = document.getElementById('id_quantidade_dias');
-  const horaTerminoInput = document.getElementById('id_hora_termino');
-  const dataFimInput = document.querySelector('input[readonly][class*="form-control"]');
-  if (!dataInicioInput || !qtdDiasInput || !dataFimInput) return;
-  const dataInicioStr = dataInicioInput.value;
-  const qtdDias = parseInt(qtdDiasInput.value);
-  const horaTerminoStr = horaTerminoInput ? horaTerminoInput.value : null;
-  if (dataInicioStr && qtdDias && qtdDias > 0) {
-    const dataInicio = new Date(dataInicioStr);
-    if (!isNaN(dataInicio.getTime())) {
-      // Adiciona qtdDias-1 dias
-      dataInicio.setDate(dataInicio.getDate() + (qtdDias - 1));
-      if (horaTerminoStr) {
-        const [h, m] = horaTerminoStr.split(":");
-        dataInicio.setHours(parseInt(h), parseInt(m));
-      }
-      // Formata para dd/mm/yyyy hh:mm
-      const dia = String(dataInicio.getDate()).padStart(2, '0');
-      const mes = String(dataInicio.getMonth() + 1).padStart(2, '0');
-      const ano = dataInicio.getFullYear();
-      const hora = String(dataInicio.getHours()).padStart(2, '0');
-      const min = String(dataInicio.getMinutes()).padStart(2, '0');
-      dataFimInput.value = `${dia}/${mes}/${ano} ${hora}:${min}`;
-    }
-  } else {
-    dataFimInput.value = '';
-  }
-}
-document.addEventListener('DOMContentLoaded', function() {
-  const dataInicioInput = document.getElementById('id_data_inicio');
-  const qtdDiasInput = document.getElementById('id_quantidade_dias');
-  const horaTerminoInput = document.getElementById('id_hora_termino');
-  if (dataInicioInput) dataInicioInput.addEventListener('change', atualizarDataFim);
-  if (qtdDiasInput) qtdDiasInput.addEventListener('input', atualizarDataFim);
-  if (horaTerminoInput) horaTerminoInput.addEventListener('input', atualizarDataFim);
-  atualizarDataFim();
-});
-</script>
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
+{% load static %}
 {% load eventos_extras %}
+
 {% block title %}Editar Evento{% endblock %}
-{% block content %}
-<div class="container-fluid px-4">
-  <h1 class="mt-4">Editar Evento</h1>
-  <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
-    <li class="breadcrumb-item active">Editar Evento</li>
-  </ol>
-  <div class="card mb-4">
+{% block nome_departamento %}Eventos{% endblock %}
+
+{% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+  <li class="breadcrumb-item active">Editar Evento</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+  <div class="d-flex align-items-center">
+    <i class="fas fa-pen-to-square me-2"></i>
+    <span class="eventos-header-title">Editar Evento</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
+<div class="card eventos-section-card mb-4">
+  <div class="card-header">
+    <i class="fas fa-edit me-1"></i>
+    Editar Evento: {{ evento.titulo }}
+  </div>
     <div class="card-body">
-      <form method="post">
+      <form method="post" enctype="multipart/form-data" class="eventos-form-grid">
         {% csrf_token %}
         <!-- Grid alinhado e aproveitamento total do espaço -->
         <div class="mb-4">
@@ -62,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="card border-light shadow-sm mb-4">
             <div class="card-body">
               <!-- Campo hidden que armazena os IDs selecionados -->
-              <div style="display: none;">
+              <div class="eventos-hidden">
                 {{ form.convidados }}
               </div>
 
@@ -75,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
 
               <!-- Preview dos selecionados -->
-              <div id="previewParticipantesEditar" style="display: none;">
+              <div id="previewParticipantesEditar" class="eventos-hidden">
                 <div class="alert alert-info mb-0">
                   <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -83,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-check-circle me-2"></i>
                         <strong id="contadorParticipantesEditar">0</strong> participantes selecionados
                       </h6>
-                      <div id="listaParticipantesEditar" class="small" style="max-height: 150px; overflow-y: auto;"></div>
+                      <div id="listaParticipantesEditar" class="small eventos-scroll-150"></div>
                     </div>
                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalParticipantesEditar">
                       <i class="fas fa-edit"></i> Editar
@@ -254,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <label for="id_capa" class="form-label">Capa do Evento:</label>
               {% if evento.capa %}
                 <div class="mb-2">
-                  <img src="{{ evento.capa.url }}" alt="Capa atual" class="img-thumbnail" style="max-height: 180px;">
+                  <img src="{{ evento.capa.url }}" alt="Capa atual" class="img-thumbnail eventos-capa-thumb">
                   <div><small class="text-muted">Capa atual</small></div>
                 </div>
               {% endif %}
@@ -278,9 +260,9 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           </div>
         </div>
-        <div class="mt-4">
-          <button type="submit" class="btn btn-primary">Salvar</button>
-          <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-secondary">Cancelar</a>
+        <div class="mt-4 d-flex flex-column flex-md-row gap-2 eventos-actions">
+          <button type="submit" class="btn btn-primary w-100 w-md-auto">Salvar</button>
+          <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-outline-secondary w-100 w-md-auto">Cancelar</a>
         </div>
       </form>
     </div>
@@ -404,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <select id="filtro_convidados_modal_editar" class="form-select">
                   <option value="membro_obreiro">Apenas Membros/Obreiros</option>
                   <option value="cooperadores">Cooperadores (quem tem cargo)</option>
-                  <option value="todos">Todas as pessoas da igreja <small style="font-size: 0.75em;">(exceto visitantes)</small></option>
+                  <option value="todos">Todas as pessoas da igreja (exceto visitantes)</option>
                 </select>
               </div>
               <div class="col-md-6">
@@ -451,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
 
           <!-- Lista de participantes com checkboxes -->
-          <div id="listaParticipantesModalEditar" style="max-height: 400px; overflow-y: auto;">
+          <div id="listaParticipantesModalEditar" class="eventos-scroll-400">
             <div class="text-center text-muted py-4">
               <div class="spinner-border" role="status">
                 <span class="visually-hidden">Carregando...</span>
@@ -562,10 +544,10 @@ document.addEventListener('DOMContentLoaded', function() {
       participantesFiltrados.forEach(participante => {
         const checked = participantesSelecionadosEditar.includes(participante.id) ? 'checked' : '';
         html += `
-          <label class="list-group-item list-group-item-action d-flex align-items-center" style="cursor: pointer;">
+          <label class="list-group-item list-group-item-action d-flex align-items-center eventos-clickable">
             <input type="checkbox" class="form-check-input me-3" value="${participante.id}" ${checked} 
                    onchange="toggleParticipanteEditar('${participante.id}', '${participante.nome.replace(/'/g, "\\'")}')"
-                   style="cursor: pointer;">
+                   class="eventos-clickable">
             <div>
               <div class="fw-bold">${participante.nome}</div>
               ${participante.info ? `<small class="text-muted">${participante.info}</small>` : ''}
@@ -621,7 +603,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function mostrarToastEditar(mensagem, tipo = 'success') {
       const bgClass = tipo === 'success' ? 'bg-success' : tipo === 'info' ? 'bg-info' : 'bg-warning';
       const toastHTML = `
-        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        <div class="position-fixed top-0 end-0 p-3 eventos-toast-wrapper">
           <div class="toast show ${bgClass} text-white" role="alert">
             <div class="toast-body">
               <i class="fas fa-info-circle me-2"></i>${mensagem}
@@ -654,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Toast de sucesso
       const toastHTML = `
-        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        <div class="position-fixed top-0 end-0 p-3 eventos-toast-wrapper">
           <div class="toast show bg-success text-white" role="alert">
             <div class="toast-body">
               <i class="fas fa-check-circle me-2"></i>
@@ -740,5 +722,61 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   </script>
-</div>
+
+  <script>
+    function atualizarDataFim() {
+      const dataInicioInput = document.getElementById('id_data_inicio');
+      const qtdDiasInput = document.getElementById('id_quantidade_dias');
+      const horaTerminoInput = document.getElementById('id_hora_termino');
+      const dataFimInput = document.querySelector('input[readonly][class*="form-control"]');
+
+      if (!dataInicioInput || !qtdDiasInput || !dataFimInput) {
+        return;
+      }
+
+      const dataInicioStr = dataInicioInput.value;
+      const qtdDias = parseInt(qtdDiasInput.value, 10);
+      const horaTerminoStr = horaTerminoInput ? horaTerminoInput.value : null;
+
+      if (dataInicioStr && qtdDias && qtdDias > 0) {
+        const dataInicio = new Date(dataInicioStr);
+        if (!isNaN(dataInicio.getTime())) {
+          dataInicio.setDate(dataInicio.getDate() + (qtdDias - 1));
+
+          if (horaTerminoStr) {
+            const [h, m] = horaTerminoStr.split(':');
+            dataInicio.setHours(parseInt(h, 10), parseInt(m, 10));
+          }
+
+          const dia = String(dataInicio.getDate()).padStart(2, '0');
+          const mes = String(dataInicio.getMonth() + 1).padStart(2, '0');
+          const ano = dataInicio.getFullYear();
+          const hora = String(dataInicio.getHours()).padStart(2, '0');
+          const min = String(dataInicio.getMinutes()).padStart(2, '0');
+          dataFimInput.value = `${dia}/${mes}/${ano} ${hora}:${min}`;
+          return;
+        }
+      }
+
+      dataFimInput.value = '';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const dataInicioInput = document.getElementById('id_data_inicio');
+      const qtdDiasInput = document.getElementById('id_quantidade_dias');
+      const horaTerminoInput = document.getElementById('id_hora_termino');
+
+      if (dataInicioInput) {
+        dataInicioInput.addEventListener('change', atualizarDataFim);
+      }
+      if (qtdDiasInput) {
+        qtdDiasInput.addEventListener('input', atualizarDataFim);
+      }
+      if (horaTerminoInput) {
+        horaTerminoInput.addEventListener('input', atualizarDataFim);
+      }
+
+      atualizarDataFim();
+    });
+  </script>
 {% endblock %}

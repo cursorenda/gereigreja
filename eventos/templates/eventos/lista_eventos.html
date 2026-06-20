@@ -1,74 +1,96 @@
 {% extends 'base_com_sistema.html' %}
-{% block title %}Eventos{% endblock %}
+{% load static %}
 {% load eventos_extras %}
 
+{% block title %}Eventos{% endblock %}
 {% block nome_departamento %}Eventos{% endblock %}
 
 {% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="/">Inicial</a></li>
   <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
   <li class="breadcrumb-item active">Lista de Eventos</li>
 {% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+<link rel="stylesheet" href="{% static 'css/eventos_lista_premium.css' %}">
+{% endblock %}
+
 {% block card_header_gradiente %}
-<div class="card-header py-3" style="background: linear-gradient(90deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+<div class="card-header py-3 eventos-header-premium">
   <div class="d-flex align-items-center">
     <i class="fas fa-calendar-alt me-2"></i>
-    <span style="font-size:1.1rem; font-weight:600;">Eventos</span>
+    <span class="eventos-header-title">Eventos</span>
   </div>
 </div>
 {% endblock %}
 
 {% block conteudo_principal %}
-  <!-- Banner explicativo sobre registro de presença -->
-  <div class="alert shadow-sm d-flex align-items-center p-3 mb-4" role="alert" style="border-left: 6px solid #0d8281; background: rgba(13, 130, 129, 0.08);">
-    <i class="fas fa-info-circle fa-2x" style="color: #0d8281;" me-3"></i>
-    <div>
-      <strong style="color: #0d8281;">Como registrar presença:</strong><br>
-      <span class="fw-normal">Use <b>Registrar presença</b> para vincular visitantes a um evento específico.<br>
-      Para registro geral e rápido de visitantes, acesse <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}" class="fw-bold" style="color: #0d8281;">Recepção de Evento</a>.</span>
-    </div>
+<div class="eventos-top-spacer"></div>
+
+<div class="alert eventos-info-banner d-flex align-items-start p-3 mb-4" role="alert">
+  <i class="fas fa-info-circle me-2 mt-1"></i>
+  <div>
+    <strong>Como registrar presença:</strong><br>
+    <span class="fw-normal">
+      Use <b>Registrar presença</b> para vincular visitantes a um evento específico.<br>
+      Para registro geral e rápido de visitantes, acesse
+      <a href="{% url 'secretaria:registrar_presenca_visitante_evento' %}" class="fw-bold">Recepção de Evento</a>.
+    </span>
   </div>
-  <div style="height:16px;"></div>
+</div>
+
+<div class="card eventos-section-card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span><i class="fas fa-filter me-1"></i>Filtros</span>
+    <a href="{% url 'eventos:criar_evento' %}" class="btn btn-sm btn-primary eventos-btn-primary">
+      <i class="fas fa-plus me-1"></i>Novo Evento
+    </a>
+  </div>
   <div class="card-body">
-    <form method="get" class="row g-3 mb-4 align-items-end">
-        <style>
-        .card { border-radius: 0 !important; }
-        </style>
-        <div class="col-md-3">
-          <label for="tipo" class="form-label mb-0">Tipo</label>
-          <select name="tipo" id="tipo" class="form-select">
-            <option value="">Todos</option>
-            <option value="culto" {% if request.GET.tipo == 'culto' %}selected{% endif %}>Culto</option>
-            <option value="reuniao" {% if request.GET.tipo == 'reuniao' %}selected{% endif %}>Reunião</option>
-            <option value="festa" {% if request.GET.tipo == 'festa' %}selected{% endif %}>Festa</option>
-            <option value="feriado" {% if request.GET.tipo == 'feriado' %}selected{% endif %}>Feriado</option>
-            <option value="estudo" {% if request.GET.tipo == 'estudo' %}selected{% endif %}>Estudo</option>
-            <option value="outro" {% if request.GET.tipo == 'outro' %}selected{% endif %}>Outro</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <label for="status" class="form-label mb-0">Status</label>
-          <select name="status" id="status" class="form-select">
-            <option value="">Todos</option>
-            <option value="aguardando" {% if request.GET.status == 'aguardando' or request.GET.status == None %}selected{% endif %}>Aguardando</option>
-            <option value="parcial" {% if request.GET.status == 'parcial' %}selected{% endif %}>Parcial</option>
-            <option value="finalizada" {% if request.GET.status == 'finalizada' %}selected{% endif %}>Finalizada</option>
-          </select>
-        </div>
-        <!-- Filtro de igreja removido: igreja é definida globalmente pelo seletor do topo -->
-        <div class="col-md-2">
-          <label for="data_inicio" class="form-label mb-0">Início após</label>
-          <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request.GET.data_inicio|default:data_inicio }}">
-        </div>
-        <div class="col-md-2">
-          <label for="data_fim" class="form-label mb-0">Início até</label>
-          <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim|default:data_fim }}">
-        </div>
-        <div class="col-md-2 d-flex align-items-end gap-2">
-          <button type="submit" class="btn btn-primary shadow" style="height:40px; min-width:110px; font-weight:600;"><i class="fas fa-search"></i> Buscar</button>
-          <a href="{% url 'eventos:criar_evento' %}" class="btn btn-primary btn-sm shadow" style="height:40px; min-width:120px; font-weight:600;"><i class="fas fa-plus"></i> Novo Evento</a>
-        </div>
-      </form>
-      <table class="table table-striped">
+    <form method="get" class="row g-3 align-items-end eventos-filtros-grid">
+      <div class="col-12 col-md-3">
+        <label for="tipo" class="form-label mb-0">Tipo</label>
+        <select name="tipo" id="tipo" class="form-select">
+          <option value="">Todos</option>
+          <option value="culto" {% if request.GET.tipo == 'culto' %}selected{% endif %}>Culto</option>
+          <option value="reuniao" {% if request.GET.tipo == 'reuniao' %}selected{% endif %}>Reunião</option>
+          <option value="festa" {% if request.GET.tipo == 'festa' %}selected{% endif %}>Festa</option>
+          <option value="feriado" {% if request.GET.tipo == 'feriado' %}selected{% endif %}>Feriado</option>
+          <option value="estudo" {% if request.GET.tipo == 'estudo' %}selected{% endif %}>Estudo</option>
+          <option value="outro" {% if request.GET.tipo == 'outro' %}selected{% endif %}>Outro</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label for="status" class="form-label mb-0">Status</label>
+        <select name="status" id="status" class="form-select">
+          <option value="">Todos</option>
+          <option value="aguardando" {% if request.GET.status == 'aguardando' or request.GET.status == None %}selected{% endif %}>Aguardando</option>
+          <option value="parcial" {% if request.GET.status == 'parcial' %}selected{% endif %}>Parcial</option>
+          <option value="finalizada" {% if request.GET.status == 'finalizada' %}selected{% endif %}>Finalizada</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label for="data_inicio" class="form-label mb-0">Início após</label>
+        <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request.GET.data_inicio|default:data_inicio }}">
+      </div>
+      <div class="col-12 col-md-2">
+        <label for="data_fim" class="form-label mb-0">Início até</label>
+        <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim|default:data_fim }}">
+      </div>
+      <div class="col-12 col-md-3 d-flex align-items-end gap-2 eventos-filtros-acoes">
+        <button type="submit" class="btn btn-primary eventos-btn-primary">
+          <i class="fas fa-search me-1"></i>Buscar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card eventos-section-card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-striped table-hover align-middle eventos-list-table">
         <thead>
           <tr>
             <th>Título</th>
@@ -87,7 +109,10 @@
           {% else %}
           <tr>
           {% endif %}
-            <td><a href="{% url 'eventos:detalhe_evento' evento.pk %}">{{ evento.titulo }}</a>{% if evento.data_inicio.date == today %} <span class="badge bg-success ms-2">Hoje</span>{% endif %}</td>
+            <td>
+              <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="eventos-link-titulo">{{ evento.titulo }}</a>
+              {% if evento.data_inicio.date == today %}<span class="badge bg-success ms-2">Hoje</span>{% endif %}
+            </td>
             <td>{{ evento.data_inicio|date:'d/m/Y H:i' }}</td>
             <td>{{ evento.data_fim|date:'d/m/Y H:i' }}</td>
             {% if mostrar_coluna_igreja %}<td>{{ evento.igreja.nome_igreja }}</td>{% endif %}
@@ -106,37 +131,45 @@
             </td>
             <td>{{ evento.criado_por }}</td>
             <td>
-              <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Editar evento"><i class="fas fa-edit me-1"></i> Editar</a>
-              <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-danger btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Excluir evento"><i class="fas fa-trash me-1"></i> Excluir</a>
-              <button type="button" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center registrar-presenca-btn" style="min-width:140px; height:40px; font-weight:600; border-radius:8px;" data-evento="{{ evento.pk }}" title="Registrar presença neste evento">
-                <i class="fas fa-user-check me-1"></i> Registrar Presença
-              </button>
+              <div class="eventos-acoes-wrap">
+                <a href="{% url 'eventos:editar_evento' evento.pk %}" class="btn btn-sm btn-primary eventos-btn-primary" title="Editar evento">
+                  <i class="fas fa-edit me-1"></i>Editar
+                </a>
+                <a href="{% url 'eventos:excluir_evento' evento.pk %}" class="btn btn-sm btn-danger" title="Excluir evento">
+                  <i class="fas fa-trash me-1"></i>Excluir
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-primary registrar-presenca-btn" data-evento="{{ evento.pk }}" title="Registrar presença neste evento">
+                  <i class="fas fa-user-check me-1"></i>Registrar Presença
+                </button>
+              </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="6" class="text-center">Nenhum evento cadastrado.</td></tr>
+          <tr>
+            <td colspan="{% if mostrar_coluna_igreja %}7{% else %}6{% endif %}" class="text-center text-muted py-4">Nenhum evento cadastrado.</td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
-      <nav class="mt-4">
-        <div class="d-flex justify-content-center">
-          <ul class="pagination">
-            {% if page_obj.has_previous %}
-              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
-            {% endif %}
-            <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
-            {% if page_obj.has_next %}
-              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a></li>
-            {% endif %}
-          </ul>
-        </div>
-      </nav>
     </div>
+
+    <nav class="mt-4">
+      <div class="d-flex justify-content-center">
+        <ul class="pagination mb-0">
+          {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+          {% endif %}
+          <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+          {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </nav>
   </div>
 </div>
-  {# Include reception modal partial and static JS init #}
-  {% include 'secretaria/partials/_modal_criar_visitante_presenca.html' %}
-  {% load static %}
-  <script src="{% static 'secretaria/recepcao.js' %}"></script>
-  <script>document.addEventListener('DOMContentLoaded', function(){ if(window.initRecepcaoModal) window.initRecepcaoModal(); });</script>
+
+{% include 'secretaria/partials/_modal_criar_visitante_presenca.html' %}
+<script src="{% static 'secretaria/recepcao.js' %}"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ if(window.initRecepcaoModal) window.initRecepcaoModal(); });</script>
 {% endblock %}

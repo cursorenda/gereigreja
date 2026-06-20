@@ -1,22 +1,44 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
+{% load static %}
+
 {% block title %}Excluir Evento{% endblock %}
-{% block content %}
+{% block nome_departamento %}Eventos{% endblock %}
+
+{% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+  <li class="breadcrumb-item active">Excluir Evento</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+  <div class="d-flex align-items-center">
+    <i class="fas fa-trash-can me-2"></i>
+    <span class="eventos-header-title">Excluir Evento</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
 <div class="container-fluid px-4">
-  <h1 class="mt-4">Excluir Evento</h1>
-  <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
-    <li class="breadcrumb-item active">Excluir Evento</li>
-  </ol>
-  <div class="card mb-4">
-    <div class="card-header bg-danger text-white">
+  <div class="card eventos-section-card mb-4 eventos-danger-zone">
+    <div class="card-header text-danger">
       <i class="fas fa-exclamation-triangle me-1"></i> Confirmação de Exclusão
     </div>
     <div class="card-body">
       <p>Tem certeza que deseja excluir o evento <strong>{{ evento.titulo }}</strong>?</p>
       <form method="post">
         {% csrf_token %}
-        <button type="submit" class="btn btn-danger">Sim, excluir</button>
-        <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-secondary">Cancelar</a>
+        <div class="d-flex flex-column flex-md-row gap-2 eventos-actions">
+          <button type="submit" class="btn btn-danger w-100 w-md-auto">Sim, excluir</button>
+          <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="btn btn-outline-secondary w-100 w-md-auto">Cancelar</a>
+        </div>
       </form>
     </div>
   </div>

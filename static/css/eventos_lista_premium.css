@@ -1,0 +1,74 @@
+/* ==================================================
+   EVENTOS - LISTA PREMIUM
+   ================================================== */
+
+.eventos-info-banner {
+    border-left: 6px solid #0d8281;
+    background: rgba(13, 130, 129, 0.08);
+    border-radius: 10px;
+}
+
+.eventos-info-banner i {
+    color: #0d8281;
+    font-size: 1.35rem;
+}
+
+.eventos-info-banner strong,
+.eventos-info-banner a {
+    color: #0a6665;
+}
+
+.eventos-filtros-grid .form-label {
+    font-weight: 600;
+    color: #355168;
+}
+
+.eventos-filtros-grid .form-control,
+.eventos-filtros-grid .form-select {
+    border-radius: 10px;
+    border: 1px solid #d8e3e8;
+}
+
+.eventos-filtros-grid .form-control:focus,
+.eventos-filtros-grid .form-select:focus {
+    border-color: #0d8281;
+    box-shadow: 0 0 0 0.2rem rgba(13, 130, 129, 0.14);
+}
+
+.eventos-filtros-acoes .btn {
+    min-width: 110px;
+}
+
+.eventos-btn-primary {
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+.eventos-list-table thead th {
+    white-space: nowrap;
+    color: #355168;
+    font-weight: 700;
+}
+
+.eventos-link-titulo {
+    color: #0a6665;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.eventos-link-titulo:hover {
+    color: #0d8281;
+    text-decoration: underline;
+}
+
+.eventos-acoes-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+@media (max-width: 992px) {
+    .eventos-filtros-acoes {
+        justify-content: flex-start;
+    }
+}

@@ -149,26 +149,40 @@ document.addEventListener('DOMContentLoaded', function() {
   atualizarDataFim();
 });
 </script>
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% load static %}
 {% load eventos_extras %}
 
 {% block title %}Novo Evento{% endblock %}
+{% block nome_departamento %}Eventos{% endblock %}
 
-{% block content %}
+{% block breadcrumb_items %}
+  <li class="breadcrumb-item"><a href="/">Inicial</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+  <li class="breadcrumb-item active">Novo Evento</li>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3 eventos-header-premium">
+  <div class="d-flex align-items-center">
+    <i class="fas fa-calendar-plus me-2"></i>
+    <span class="eventos-header-title">Novo Evento</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div class="eventos-top-spacer"></div>
 <div class="container-fluid px-4">
-  <h1 class="mt-4">Novo Evento</h1>
-  <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
-    <li class="breadcrumb-item active">Novo Evento</li>
-  </ol>
 
-
-
-  <div class="card mb-4">
+  <div class="card eventos-section-card mb-4">
     <div class="card-header">
-  <i class="fas fa-calendar-plus me-1"></i>
-  Dados do Novo Evento
+      <i class="fas fa-calendar-plus me-1"></i>
       Dados do Novo Evento
     </div>
     <div class="card-body">
@@ -365,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </p>
 
                 <!-- Campos originais (hidden) -->
-                <div style="display: none;">
+                <div class="eventos-hidden">
                   {{ form.tipos_participantes }}
                   {{ form.status_participantes }}
                 </div>
@@ -382,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-times"></i> Limpar
                       </button>
                     </div>
-                    <div class="border rounded p-2" id="checkboxesTipos" style="max-height: 200px; overflow-y: auto;">
+                    <div class="border rounded p-2 eventos-scroll-200" id="checkboxesTipos">
                       <div class="text-muted text-center py-2">
                         <small>Carregando...</small>
                       </div>
@@ -403,7 +417,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-times"></i> Limpar
                       </button>
                     </div>
-                    <div class="border rounded p-2" id="checkboxesStatus" style="max-height: 200px; overflow-y: auto;">
+                    <div class="border rounded p-2 eventos-scroll-200" id="checkboxesStatus">
                       <div class="text-muted text-center py-2">
                         <small>Carregando...</small>
                       </div>
@@ -415,10 +429,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
 
                 <!-- Preview Dinâmico -->
-                <div class="alert mb-0" id="previewCriterios" style="border-left: 4px solid #0d8281; background-color: rgba(13, 130, 129, 0.08);">
+                <div class="alert mb-0 eventos-highlight-teal" id="previewCriterios">
                   <div class="d-flex align-items-center">
                     <div class="me-3">
-                      <i class="fas fa-users fa-2x" style="color: #0d8281;"></i>
+                      <i class="fas fa-users fa-2x eventos-text-teal"></i>
                     </div>
                     <div class="flex-grow-1">
                       <h6 class="mb-1">
@@ -438,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <!-- Ajustes Manuais -->
             <div class="card border-primary shadow-sm mt-3">
-              <div class="card-header" style="background-color: #0d8281; color: #fff;">
+              <div class="card-header eventos-header-teal">
                 <i class="fas fa-user-edit me-2"></i>Ajustes Manuais (Exceções)
                 <span class="badge bg-dark ms-2">Opcional</span>
               </div>
@@ -475,17 +489,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
 
                 <!-- Preview Final -->
-                <div class="alert mb-0 mt-3" id="previewFinal" style="border-left: 4px solid #0d8281; background-color: rgba(13, 130, 129, 0.08);">
-                  <h6 class="mb-2" style="color: #0d8281;">
+                <div class="alert mb-0 mt-3 eventos-highlight-teal" id="previewFinal">
+                  <h6 class="mb-2 eventos-text-teal">
                     <i class="fas fa-calculator me-2"></i>Total de Participantes Esperados:
                   </h6>
                   <div class="d-flex gap-3">
                     <div>
-                      <span class="badge" style="background-color: #0d8281; color: #fff;" id="badgeCriterios">--</span>
+                      <span class="badge eventos-badge-teal" id="badgeCriterios">--</span>
                       <small>Por critério</small>
                     </div>
                     <div>
-                      <span class="badge" style="background-color: #0d8281; color: #fff;" id="badgeAdicionados">0</span>
+                      <span class="badge eventos-badge-teal" id="badgeAdicionados">0</span>
                       <small>Adicionados</small>
                     </div>
                     <div>
@@ -493,7 +507,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       <small>Removidos</small>
                     </div>
                     <div class="ms-auto">
-                      <strong class="fs-5" style="color: #0d8281;" id="totalFinal">-- pessoas</strong>
+                      <strong class="fs-5 eventos-text-teal" id="totalFinal">-- pessoas</strong>
                     </div>
                   </div>
                 </div>
@@ -558,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
         <!-- Preview de Recorrência -->
-        <div class="row mb-3" id="previewRecorrencia" style="display:none;">
+        <div class="row mb-3 eventos-hidden" id="previewRecorrencia">
           <div class="col-12">
             <div class="alert alert-success">
               <i class="fas fa-sync-alt me-2"></i>
@@ -671,9 +685,9 @@ document.addEventListener('DOMContentLoaded', function() {
               <small class="text-muted">Formatos: JPG, PNG, GIF (máx. 5MB)</small>
               
               <!-- Preview da capa -->
-              <div id="previewCapaContainer" class="mt-3" style="display:none;">
+              <div id="previewCapaContainer" class="mt-3 eventos-hidden">
                 <div class="card">
-                  <img id="previewCapaImg" src="" class="card-img-top" style="max-height: 200px; object-fit: cover;">
+                  <img id="previewCapaImg" src="" class="card-img-top eventos-preview-capa-img">
                   <div class="card-body p-2">
                     <small class="text-muted" id="capaInfo"></small>
                     <button type="button" class="btn btn-sm btn-danger float-end" onclick="removerCapa()">
@@ -698,11 +712,11 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
 
         <!-- Barra de Botões Sticky -->
-        <div id="barraAcoes" class="bg-white border-top shadow-sm" style="position: sticky; bottom: 0; left: 0; right: 0; z-index: 1000; padding: 15px 0; margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px;">
-          <button type="submit" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center" style="min-width:120px; height:40px; font-weight:600; border-radius:8px;" title="Salvar evento">
+        <div id="barraAcoes" class="bg-white border-top shadow-sm eventos-sticky-actions">
+          <button type="submit" class="btn btn-primary btn-sm shadow d-inline-flex align-items-center eventos-action-compact" title="Salvar evento">
             <i class="fas fa-save me-1"></i> Salvar
           </button>
-          <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-cancel btn-sm shadow d-inline-flex align-items-center" style="min-width:110px; height:40px; font-weight:600; border-radius:8px;" title="Cancelar e voltar">
+          <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-outline-secondary btn-sm shadow d-inline-flex align-items-center eventos-action-compact" title="Cancelar e voltar">
             <i class="fas fa-times me-1"></i> Cancelar
           </a>
         </div>
@@ -727,7 +741,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div class="row g-3">
                 <!-- Template: Culto Dominical -->
                 <div class="col-md-6">
-                  <div class="card h-100 border-primary hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('culto_dominical')" data-bs-dismiss="modal">
+                  <div class="card h-100 border-primary hover-shadow eventos-clickable" onclick="aplicarTemplate('culto_dominical')" data-bs-dismiss="modal">
                     <div class="card-body">
                       <h5 class="card-title">
                         <i class="fas fa-pray text-primary me-2"></i>
@@ -746,7 +760,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <!-- Template: EBD -->
                 <div class="col-md-6">
-                  <div class="card h-100 border-success hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('ebd')" data-bs-dismiss="modal">
+                  <div class="card h-100 border-success hover-shadow eventos-clickable" onclick="aplicarTemplate('ebd')" data-bs-dismiss="modal">
                     <div class="card-body">
                       <h5 class="card-title">
                         <i class="fas fa-book-open text-success me-2"></i>
@@ -765,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <!-- Template: Reunião de Membros -->
                 <div class="col-md-6">
-                  <div class="card h-100 border-warning hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('obreiros')" data-bs-dismiss="modal">
+                  <div class="card h-100 border-warning hover-shadow eventos-clickable" onclick="aplicarTemplate('obreiros')" data-bs-dismiss="modal">
                     <div class="card-body">
                       <h5 class="card-title">
                         <i class="fas fa-users text-warning me-2"></i>
@@ -784,7 +798,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <!-- Template: Culto de Oração -->
                 <div class="col-md-6">
-                  <div class="card h-100 border-info hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('oracao')" data-bs-dismiss="modal">
+                  <div class="card h-100 border-info hover-shadow eventos-clickable" onclick="aplicarTemplate('oracao')" data-bs-dismiss="modal">
                     <div class="card-body">
                       <h5 class="card-title">
                         <i class="fas fa-hands text-primary me-2"></i>
@@ -803,7 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <!-- Template: Ensaio de Louvor -->
                 <div class="col-md-6">
-                  <div class="card h-100 border-danger hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('ensaio')" data-bs-dismiss="modal">
+                  <div class="card h-100 border-danger hover-shadow eventos-clickable" onclick="aplicarTemplate('ensaio')" data-bs-dismiss="modal">
                     <div class="card-body">
                       <h5 class="card-title">
                         <i class="fas fa-music text-danger me-2"></i>
@@ -822,7 +836,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 <!-- Template: Estudo Bíblico -->
                 <div class="col-md-6">
-                  <div class="card h-100 border-secondary hover-shadow" style="cursor: pointer;" onclick="aplicarTemplate('personalizado')" data-bs-dismiss="modal">
+                  <div class="card h-100 border-secondary hover-shadow eventos-clickable" onclick="aplicarTemplate('personalizado')" data-bs-dismiss="modal">
                     <div class="card-body">
                       <h5 class="card-title">
                         <i class="fas fa-book-open text-secondary me-2"></i>
@@ -1426,7 +1440,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Toast de sucesso
       const toastHTML = `
-        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        <div class="position-fixed top-0 end-0 p-3 eventos-toast-wrapper">
           <div class="toast show bg-success text-white" role="alert">
             <div class="toast-body">
               <i class="fas fa-check-circle me-2"></i>${msg}
@@ -1473,7 +1487,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
 
           <!-- Lista -->
-          <div id="listaParaAdicionar" style="max-height: 400px; overflow-y: auto;">
+          <div id="listaParaAdicionar" class="eventos-scroll-400">
             <div class="text-center text-muted py-4">
               <div class="spinner-border" role="status"></div>
               <p class="mt-2">Carregando pessoas...</p>
@@ -1516,7 +1530,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
 
           <!-- Lista -->
-          <div id="listaParaRemover" style="max-height: 400px; overflow-y: auto;">
+          <div id="listaParaRemover" class="eventos-scroll-400">
             <div class="text-center text-muted py-4">
               <div class="spinner-border" role="status"></div>
               <p class="mt-2">Carregando pessoas que atendem critérios...</p>
@@ -1814,7 +1828,7 @@ document.addEventListener('DOMContentLoaded', function() {
       filtrados.forEach(pessoa => {
         const checked = pessoasAdicionarSelecionadas.includes(pessoa.id) ? 'checked' : '';
         html += `
-          <label class="list-group-item list-group-item-action" style="cursor: pointer;">
+          <label class="list-group-item list-group-item-action eventos-clickable">
             <input type="checkbox" class="form-check-input me-3" value="${pessoa.id}" ${checked}
                    onchange="togglePessoaAdicionar('${pessoa.id}', '${pessoa.nome.replace(/'/g, "\\'")}', '${pessoa.info || ''}')">
             <div>
@@ -1875,7 +1889,7 @@ document.addEventListener('DOMContentLoaded', function() {
         html += `
           <div class="badge bg-success me-2 mb-2">
             ${pessoa.nome} 
-            <i class="fas fa-times ms-1" style="cursor: pointer;" 
+            <i class="fas fa-times ms-1 eventos-clickable" 
                onclick="removerDoAdicionados('${pessoa.id}')" title="Remover"></i>
           </div>
         `;
@@ -1993,7 +2007,7 @@ document.addEventListener('DOMContentLoaded', function() {
       filtrados.forEach(pessoa => {
         const checked = pessoasRemoverSelecionadas.includes(pessoa.id) ? 'checked' : '';
         html += `
-          <label class="list-group-item list-group-item-action" style="cursor: pointer;">
+          <label class="list-group-item list-group-item-action eventos-clickable">
             <input type="checkbox" class="form-check-input me-3" value="${pessoa.id}" ${checked}
                    onchange="togglePessoaRemover('${pessoa.id}', '${pessoa.nome.replace(/'/g, "\\'")}', '${pessoa.info || ''}')">
             <div>
@@ -2054,7 +2068,7 @@ document.addEventListener('DOMContentLoaded', function() {
         html += `
           <div class="badge bg-danger me-2 mb-2">
             ${pessoa.nome} 
-            <i class="fas fa-times ms-1" style="cursor: pointer;" 
+            <i class="fas fa-times ms-1 eventos-clickable" 
                onclick="restaurarDoRemovidos('${pessoa.id}')" title="Restaurar"></i>
           </div>
         `;
@@ -2077,7 +2091,7 @@ document.addEventListener('DOMContentLoaded', function() {
                       tipo === 'danger' ? 'bg-danger' : 'bg-info';
       
       const toastHTML = `
-        <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        <div class="position-fixed top-0 end-0 p-3 eventos-toast-wrapper">
           <div class="toast show ${bgClass} text-white" role="alert">
             <div class="toast-body">
               <i class="fas fa-info-circle me-2"></i>${mensagem}
