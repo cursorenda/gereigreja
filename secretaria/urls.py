@@ -10,6 +10,7 @@ urlpatterns = [
     path('acompanhamento-visita/<int:acompanhamento_id>/ver/', views.ver_acompanhamento_visita, name='ver_acompanhamento_visita'),
     path('acompanhamento-visita/<int:acompanhamento_id>/editar/', views.editar_acompanhamento_visita, name='editar_acompanhamento_visita'),
     path('acompanhamento-visita/<int:acompanhamento_id>/excluir/', views.excluir_acompanhamento_visita, name='excluir_acompanhamento_visita'),
+    path('visitacao/', views.central_visitacao, name='central_visitacao'),
     path('acompanhamentos-visita/escolher-pessoa/', views.escolher_pessoa_para_acompanhamento, name='escolher_pessoa_para_acompanhamento'),
     path('autocomplete_nome/', views.autocomplete_nome, name='autocomplete_nome'),
     # Página geral de acompanhamentos de visita
@@ -74,6 +75,7 @@ urlpatterns = [
     # URLs para Grupos/Casas
     path('grupos-casa/', views.lista_grupos_casa, name='lista_grupos_casa'),
     path('grupos-casa/limpar-vazios/', views.limpar_grupos_casa_vazios, name='limpar_grupos_casa_vazios'),
+    path('grupos-casa/ajax/buscar-pessoas/', views.buscar_pessoas_grupo_casa, name='buscar_pessoas_grupo_casa'),
     path('grupos-casa/criar/', views.criar_grupo_casa, name='criar_grupo_casa'),
     path('grupos-casa/<int:grupo_id>/editar/', views.editar_grupo_casa, name='editar_grupo_casa'),
     path('grupos-casa/<int:grupo_id>/', views.detalhe_grupo_casa, name='detalhe_grupo_casa'),

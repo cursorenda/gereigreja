@@ -212,14 +212,14 @@
             {% if can_secretaria_grupos %}
             <a class="nav-link {% if '/secretaria/grupos-casa/' in request.path %}active{% endif %}" href="{% url 'secretaria:lista_grupos_casa' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-house-user"></i></div>
-                Grupos / Casas
+                Casas e Grupos
             </a>
             {% endif %}
             {% user_can_access request.user 'secretaria_acompanhamentos' as can_secretaria_acompanhamentos %}
             {% if can_secretaria_acompanhamentos %}
-            <a class="nav-link {% if 'acompanhamentos' in request.path %}active{% endif %}" href="{% url 'secretaria:acompanhamentos_visita' %}">
+            <a class="nav-link {% if '/secretaria/visitacao/' in request.path or 'acompanhamentos' in request.path %}active{% endif %}" href="{% url 'secretaria:central_visitacao' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
-                Visitas Individuais
+                Central de Visitacao
             </a>
             {% endif %}
             {% user_can_access request.user 'secretaria_tags' as can_secretaria_tags %}

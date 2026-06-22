@@ -1,82 +1,200 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% load static %}
 
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina|default:'Novo Grupo / Casa' }}</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_grupos_casa' %}">Grupos / Casas</a></li>
-        <li class="breadcrumb-item active">{{ titulo_pagina|default:'Novo Grupo / Casa' }}</li>
-    </ol>
-    
-    <div class="card mb-4">
-    <div class="card-header">
-      <i class="fas fa-home me-1"></i>
-      <span class="fw-bold">{{ titulo_pagina|default:'Novo Grupo / Casa' }}</span>
+{% block title %}{{ titulo_pagina|default:'Novo Grupo / Casa' }}{% endblock %}
+{% block nome_departamento %}Casas e Grupos{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_grupos_casa' %}">Grupos / Casas</a></li>
+    <li class="breadcrumb-item active">{{ titulo_pagina|default:'Novo Grupo / Casa' }}</li>
+{% endblock %}
+
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <i class="fas fa-home me-1"></i>
+            {{ titulo_pagina|default:'Novo Grupo / Casa' }}
+        </div>
     </div>
-        <div class="card-body">
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .gc-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 1rem;
+  }
+  .gc-panel {
+    border: 1px solid #dde7ee;
+    border-radius: 12px;
+    padding: 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  }
+  .gc-list {
+    border: 1px solid #d7e3ea;
+    border-radius: 10px;
+    max-height: 360px;
+    overflow: auto;
+    background: #fff;
+  }
+  .gc-row {
+    display: flex;
+    align-items: start;
+    gap: .6rem;
+    padding: .55rem .7rem;
+    border-bottom: 1px solid #eef3f6;
+  }
+  .gc-row:last-child { border-bottom: 0; }
+  .gc-empty {
+    padding: .9rem;
+    color: #6c757d;
+    font-size: .92rem;
+  }
+  .gc-selected {
+    border: 1px dashed #c4d6e2;
+    border-radius: 10px;
+    min-height: 56px;
+    padding: .55rem;
+    background: #fff;
+  }
+  .gc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin: .2rem;
+    padding: .25rem .55rem;
+    border-radius: 999px;
+    border: 1px solid #b7d6e8;
+    background: #eef8ff;
+    color: #10445e;
+    font-size: .85rem;
+  }
+  .gc-chip button {
+    border: 0;
+    background: transparent;
+    color: #0d5d85;
+    line-height: 1;
+  }
+  @media (max-width: 991px) {
+    .gc-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div style="height: 20px;"></div>
+<div class="card mb-4">
+    <div class="card-header">
+      <i class="fas fa-layer-group me-1"></i>
+      <span class="fw-bold">Dados da Casa / Grupo</span>
+    </div>
+    <div class="card-body">
 
       <form method="post" novalidate class="compact-form">
         {% csrf_token %}
 
-        <div class="row">
-          <div class="col-12 mb-2">
-            <label class="form-label" for="id_nome">{{ form.nome.label }}</label>
-            {{ form.nome }}
-            {% if form.nome.help_text %}<div class="form-text">{{ form.nome.help_text }}</div>{% endif %}
-            {% for error in form.nome.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-        </div>
+        <div class="gc-grid">
+          <section class="gc-panel">
+            <div class="row">
+              <div class="col-12 mb-2">
+                <label class="form-label" for="id_nome">{{ form.nome.label }}</label>
+                {{ form.nome }}
+                {% if form.nome.help_text %}<div class="form-text">{{ form.nome.help_text }}</div>{% endif %}
+                {% for error in form.nome.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
 
-        <div class="row">
-          <div class="col-md-2 col-6 mb-2">
-            <label class="form-label" for="id_cep">{{ form.cep.label }}</label>
-            {{ form.cep }}
-            {% for error in form.cep.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="col-md-5 col-12 mb-2">
-            <label class="form-label" for="id_rua">{{ form.rua.label }}</label>
-            {{ form.rua }}
-            {% for error in form.rua.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="col-md-2 col-6 mb-2">
-            <label class="form-label" for="id_numero">{{ form.numero.label }}</label>
-            {{ form.numero }}
-            {% for error in form.numero.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="col-md-3 col-6 mb-2">
-            <label class="form-label" for="id_complemento">{{ form.complemento.label }}</label>
-            {{ form.complemento }}
-            {% for error in form.complemento.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-        </div>
+            <div class="row">
+              <div class="col-md-3 col-6 mb-2">
+                <label class="form-label" for="id_cep">{{ form.cep.label }}</label>
+                {{ form.cep }}
+                {% for error in form.cep.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-5 col-12 mb-2">
+                <label class="form-label" for="id_rua">{{ form.rua.label }}</label>
+                {{ form.rua }}
+                {% for error in form.rua.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-2 col-6 mb-2">
+                <label class="form-label" for="id_numero">{{ form.numero.label }}</label>
+                {{ form.numero }}
+                {% for error in form.numero.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-2 col-6 mb-2">
+                <label class="form-label" for="id_complemento">{{ form.complemento.label }}</label>
+                {{ form.complemento }}
+                {% for error in form.complemento.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
 
-        <div class="row">
-          <div class="col-md-4 col-6 mb-2">
-            <label class="form-label" for="id_bairro">{{ form.bairro.label }}</label>
-            {{ form.bairro }}
-            {% for error in form.bairro.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="col-md-4 col-6 mb-2">
-            <label class="form-label" for="id_cidade">{{ form.cidade.label }}</label>
-            {{ form.cidade }}
-            {% for error in form.cidade.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="col-md-2 col-6 mb-2">
-            <label class="form-label" for="id_estado">{{ form.estado.label }}</label>
-            {{ form.estado }}
-            {% for error in form.estado.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
-        </div>
+            <div class="row">
+              <div class="col-md-4 col-6 mb-2">
+                <label class="form-label" for="id_bairro">{{ form.bairro.label }}</label>
+                {{ form.bairro }}
+                {% for error in form.bairro.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4 col-6 mb-2">
+                <label class="form-label" for="id_cidade">{{ form.cidade.label }}</label>
+                {{ form.cidade }}
+                {% for error in form.cidade.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4 col-6 mb-2">
+                <label class="form-label" for="id_estado">{{ form.estado.label }}</label>
+                {{ form.estado }}
+                {% for error in form.estado.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
 
-        <div class="row">
-          <div class="col-12 mb-2">
-            <label class="form-label" for="id_referencia">{{ form.referencia.label }}</label>
-            {{ form.referencia }}
-            {% if form.referencia.help_text %}<div class="form-text">{{ form.referencia.help_text }}</div>{% endif %}
-            {% for error in form.referencia.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-          </div>
+            <div class="row">
+              <div class="col-12 mb-2">
+                <label class="form-label" for="id_referencia">{{ form.referencia.label }}</label>
+                {{ form.referencia }}
+                {% if form.referencia.help_text %}<div class="form-text">{{ form.referencia.help_text }}</div>{% endif %}
+                {% for error in form.referencia.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          </section>
+
+        {% if modo_vincular_pessoas %}
+          <section class="gc-panel">
+            <div class="mb-2">
+              <h6 class="mb-1">Vincular Pessoas ao Grupo/Casa</h6>
+              <small class="text-muted">Busca por nome/apelido com paginação. Escopo respeita igreja ativa e permissões.</small>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-12">
+                <input
+                  type="text"
+                  id="pessoaBuscaGrupo"
+                  class="form-control form-control-sm"
+                  placeholder="Digite para buscar pessoas..."
+                  autocomplete="off"
+                >
+              </div>
+              <div class="col-12 d-flex justify-content-between align-items-center">
+                <small id="pessoasResumoBusca" class="text-muted">Digite para buscar.</small>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Paginação pessoas">
+                  <button type="button" class="btn btn-outline-secondary" id="pessoasPrevBtn">Anterior</button>
+                  <button type="button" class="btn btn-outline-secondary" id="pessoasNextBtn">Próxima</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="gc-list mb-2" id="pessoasResultados"></div>
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong class="small">Selecionadas</strong>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="limparSelecionadasBtn">Limpar seleção</button>
+            </div>
+            <div id="pessoasSelecionadas" class="gc-selected"></div>
+            <small class="text-muted" id="contador_pessoas_selecionadas">0 pessoa(s) selecionada(s).</small>
+
+            <div id="pessoasHiddenInputs"></div>
+          </section>
+        {% endif %}
         </div>
 
         <div class="mt-2">
@@ -91,9 +209,224 @@
 
       </form>
     </div>
-  </div>
 </div>
 {% endblock %}
 {% block extra_js %}
 <script src="{% static 'secretaria/cep_autocomplete.js' %}"></script>
+{{ selected_people_seed|json_script:"selected-people-seed" }}
+<script>
+(function () {
+  var buscaInput = document.getElementById('pessoaBuscaGrupo');
+  var resultadosEl = document.getElementById('pessoasResultados');
+  var selecionadasEl = document.getElementById('pessoasSelecionadas');
+  var hiddenInputsEl = document.getElementById('pessoasHiddenInputs');
+  var prevBtn = document.getElementById('pessoasPrevBtn');
+  var nextBtn = document.getElementById('pessoasNextBtn');
+  var limparSelecionadasBtn = document.getElementById('limparSelecionadasBtn');
+  var resumoBuscaEl = document.getElementById('pessoasResumoBusca');
+  var contador = document.getElementById('contador_pessoas_selecionadas');
+  var grupoId = '{% if grupo %}{{ grupo.id }}{% endif %}';
+  var endpoint = "{% url 'secretaria:buscar_pessoas_grupo_casa' %}";
+
+  if (!buscaInput || !resultadosEl || !selecionadasEl || !hiddenInputsEl) {
+    return;
+  }
+
+  var seed = [];
+  try {
+    seed = JSON.parse(document.getElementById('selected-people-seed').textContent || '[]');
+  } catch (e) {
+    seed = [];
+  }
+
+  var selectedMap = new Map();
+  seed.forEach(function (p) {
+    if (!p || !p.id) return;
+    selectedMap.set(String(p.id), {
+      id: String(p.id),
+      nome: p.nome || '',
+      extra: p.extra || ''
+    });
+  });
+
+  var page = 1;
+  var hasPrev = false;
+  var hasNext = false;
+  var total = 0;
+  var debounceHandle = null;
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function updateCounter() {
+    if (contador) {
+      contador.textContent = selectedMap.size + ' pessoa(s) selecionada(s).';
+    }
+  }
+
+  function renderHiddenInputs() {
+    var html = '';
+    selectedMap.forEach(function (p) {
+      html += '<input type="hidden" name="pessoas_ids" value="' + escapeHtml(p.id) + '">';
+    });
+    hiddenInputsEl.innerHTML = html;
+  }
+
+  function renderSelected() {
+    if (!selectedMap.size) {
+      selecionadasEl.innerHTML = '<div class="gc-empty">Nenhuma pessoa selecionada.</div>';
+      updateCounter();
+      renderHiddenInputs();
+      return;
+    }
+
+    var html = '';
+    selectedMap.forEach(function (p) {
+      var label = escapeHtml(p.nome || 'Sem nome');
+      if (p.extra) {
+        label += ' <small class="text-muted">(' + escapeHtml(p.extra) + ')</small>';
+      }
+      html += '<span class="gc-chip" data-id="' + escapeHtml(p.id) + '">' +
+        '<span>' + label + '</span>' +
+        '<button type="button" class="gc-remove" data-id="' + escapeHtml(p.id) + '" aria-label="Remover">&times;</button>' +
+      '</span>';
+    });
+
+    selecionadasEl.innerHTML = html;
+    updateCounter();
+    renderHiddenInputs();
+  }
+
+  function renderResults(data) {
+    var rows = data.results || [];
+    total = data.pagination ? (data.pagination.total || 0) : 0;
+    hasPrev = data.pagination ? !!data.pagination.has_prev : false;
+    hasNext = data.pagination ? !!data.pagination.has_next : false;
+
+    if (!rows.length) {
+      resultadosEl.innerHTML = '<div class="gc-empty">Nenhum resultado para esta busca.</div>';
+    } else {
+      var html = '';
+      rows.forEach(function (row) {
+        var id = String(row.id);
+        var checked = selectedMap.has(id) || !!row.checked;
+        html += '<label class="gc-row">' +
+          '<input type="checkbox" class="form-check-input pessoa-result-cb" data-id="' + escapeHtml(id) + '" ' + (checked ? 'checked' : '') + '>' +
+          '<span>' +
+            '<strong>' + escapeHtml(row.nome || 'Sem nome') + '</strong>' +
+            (row.extra ? '<br><small class="text-muted">' + escapeHtml(row.extra) + '</small>' : '') +
+          '</span>' +
+        '</label>';
+      });
+      resultadosEl.innerHTML = html;
+    }
+
+    if (prevBtn) prevBtn.disabled = !hasPrev;
+    if (nextBtn) nextBtn.disabled = !hasNext;
+    if (resumoBuscaEl) {
+      resumoBuscaEl.textContent = total + ' resultado(s) encontrado(s). Página ' + page + '.';
+    }
+  }
+
+  function buildQuery() {
+    var url = new URL(endpoint, window.location.origin);
+    var term = (buscaInput.value || '').trim();
+    url.searchParams.set('q', term);
+    url.searchParams.set('page', String(page));
+    if (grupoId) {
+      url.searchParams.set('grupo_id', grupoId);
+    }
+    selectedMap.forEach(function (p) {
+      url.searchParams.append('selected_ids', p.id);
+    });
+    return url.toString();
+  }
+
+  function fetchResults() {
+    resultadosEl.innerHTML = '<div class="gc-empty">Carregando...</div>';
+    fetch(buildQuery(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (response) { return response.json(); })
+      .then(renderResults)
+      .catch(function () {
+        resultadosEl.innerHTML = '<div class="gc-empty text-danger">Erro ao carregar pessoas.</div>';
+      });
+  }
+
+  buscaInput.addEventListener('input', function () {
+    clearTimeout(debounceHandle);
+    debounceHandle = setTimeout(function () {
+      page = 1;
+      fetchResults();
+    }, 280);
+  });
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', function () {
+      if (!hasPrev) return;
+      page -= 1;
+      fetchResults();
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function () {
+      if (!hasNext) return;
+      page += 1;
+      fetchResults();
+    });
+  }
+
+  if (limparSelecionadasBtn) {
+    limparSelecionadasBtn.addEventListener('click', function () {
+      selectedMap.clear();
+      renderSelected();
+      fetchResults();
+    });
+  }
+
+  resultadosEl.addEventListener('change', function (event) {
+    var target = event.target;
+    if (!target || !target.classList.contains('pessoa-result-cb')) return;
+
+    var id = String(target.getAttribute('data-id') || '');
+    if (!id) return;
+
+    var rowEl = target.closest('.gc-row');
+    var nomeEl = rowEl ? rowEl.querySelector('strong') : null;
+    var extraEl = rowEl ? rowEl.querySelector('small') : null;
+
+    if (target.checked) {
+      selectedMap.set(id, {
+        id: id,
+        nome: nomeEl ? nomeEl.textContent : 'Sem nome',
+        extra: extraEl ? extraEl.textContent : ''
+      });
+    } else {
+      selectedMap.delete(id);
+    }
+
+    renderSelected();
+  });
+
+  selecionadasEl.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.classList.contains('gc-remove')) return;
+
+    var id = String(target.getAttribute('data-id') || '');
+    if (!id) return;
+    selectedMap.delete(id);
+    renderSelected();
+    fetchResults();
+  });
+
+  renderSelected();
+  fetchResults();
+})();
+</script>
 {% endblock %}

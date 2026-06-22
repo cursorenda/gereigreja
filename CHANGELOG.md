@@ -1,3 +1,34 @@
+## v1.13.21 — 22/06/2026
+🏠 **Secretaria Premium — Central de Visitação unificada, inteligência pastoral e fluxo escalável de Grupos/Casas**
+
+### Entregas
+- Nova Central de Visitação com formulário único para operação diária:
+  - alternância entre Visita Particular e Visita Familiar no mesmo fluxo;
+  - registro consistente de visita familiar com seleção manual de moradores;
+  - reforço de robustez no parsing de IDs de pessoas/moradores (incluindo entradas com formatação local).
+- Inteligência Pastoral de Visitação consolidada em Central e Dashboard:
+  - indicadores de cobertura (visitadas vs não visitadas), famílias visitadas e famílias sem visita;
+  - filtros padronizados por período em meses (1m, 3m, 6m, 12m);
+  - melhoria semântica dos KPIs para priorizar eventos reais de visita.
+- Evolução de Casas e Grupos com foco premium e escala:
+  - formulário de criação/edição migrado para layout premium;
+  - vínculo de pessoas via busca server-side paginada (sem lista fixa local);
+  - preservação de selecionados entre paginações e envio consistente no POST.
+- Consistência de escopo e governança:
+  - unificação de regras de status operacional entre fluxos de visitação e grupos/casas;
+  - manutenção do escopo por igreja ativa e permissões em buscas e seleções.
+
+### Migrações
+- Nenhuma.
+
+### Impacto
+- Reduz ambiguidade operacional entre visita individual e familiar.
+- Melhora confiabilidade do registro pastoral e leitura dos indicadores.
+- Aumenta escalabilidade na gestão de moradores em grupos/casas com grandes bases.
+- Sem breaking changes de API pública e sem alteração de schema.
+
+---
+
 ## v1.13.20 — 22/06/2026
 🔎 **SEO Técnico no Blog — Melhorias para indexação e descoberta orgânica**
 

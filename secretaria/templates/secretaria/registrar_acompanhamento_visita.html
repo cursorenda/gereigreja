@@ -1,94 +1,109 @@
 
-{% extends 'base_com_menu.html' %}
-{% block content %}
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Acompanhamento de Visita - {{ membro.nome }}</h1>
-    <ol class="breadcrumb mb-4">
+{% extends 'base_com_sistema.html' %}
+{% block title %}Registrar Visita Individual{% endblock %}
+{% block nome_departamento %}Visitacao{% endblock %}
+{% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'secretaria:acompanhamentos_visita' %}">Lista de Visitas</a></li>
-    <li class="breadcrumb-item active">Acompanhamento de Visita</li>
-    </ol>
-    <div class="card mb-4">
-        <div class="card-header">
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:central_visitacao' %}">Central de Visitacao</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:acompanhamentos_visita' %}">Visitas Individuais</a></li>
+    <li class="breadcrumb-item active">{{ membro.nome }}</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
             <i class="fas fa-user-check me-1"></i>
-            Registrar Acompanhamento
+            Registrar Visita Individual - {{ membro.nome }}
         </div>
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
-                {% include "partials/_form_errors.html" with form=form %}
-                {% for hidden_field in form.hidden_fields %}
-                    {% if hidden_field.errors %}
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            Erros no campo oculto {{ hidden_field.name }}:
-                            {% for error in hidden_field.errors %}<br>{{ error }}{% endfor %}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.data.id_for_label }}" class="form-label">{{ form.data.label }}:</label>
-                            {{ form.data }}
-                            {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ form.tipo_contato.id_for_label }}" class="form-label">{{ form.tipo_contato.label }}:</label>
-                            {{ form.tipo_contato }}
-                            {% if form.tipo_contato.errors %}<div class="invalid-feedback d-block">{{ form.tipo_contato.errors|striptags }}</div>{% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ form.resultado.id_for_label }}" class="form-label">{{ form.resultado.label }}:</label>
-                            {{ form.resultado }}
-                            {% if form.resultado.errors %}<div class="invalid-feedback d-block">{{ form.resultado.errors|striptags }}</div>{% endif %}
-                        </div>
+        <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+</div>
+{% endblock %}
+{% block conteudo_principal %}
+<div style="height: 20px;"></div>
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-plus me-1"></i>
+        Novo Registro
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% include "partials/_form_errors.html" with form=form %}
+            {% for hidden_field in form.hidden_fields %}
+                {% if hidden_field.errors %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        Erros no campo oculto {{ hidden_field.name }}:
+                        {% for error in hidden_field.errors %}<br>{{ error }}{% endfor %}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="{{ form.observacao.id_for_label }}" class="form-label">{{ form.observacao.label }}:</label>
-                            {{ form.observacao }}
-                            {% if form.observacao.errors %}<div class="invalid-feedback d-block">{{ form.observacao.errors|striptags }}</div>{% endif %}
-                        </div>
+                {% endif %}
+            {% endfor %}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.data.id_for_label }}" class="form-label">{{ form.data.label }}:</label>
+                        {{ form.data }}
+                        {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.tipo_contato.id_for_label }}" class="form-label">{{ form.tipo_contato.label }}:</label>
+                        {{ form.tipo_contato }}
+                        {% if form.tipo_contato.errors %}<div class="invalid-feedback d-block">{{ form.tipo_contato.errors|striptags }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.resultado.id_for_label }}" class="form-label">{{ form.resultado.label }}:</label>
+                        {{ form.resultado }}
+                        {% if form.resultado.errors %}<div class="invalid-feedback d-block">{{ form.resultado.errors|striptags }}</div>{% endif %}
                     </div>
                 </div>
-                <hr>
-                <button type="submit" class="btn btn-primary" name="submit_acompanhamento_form"><i class="fas fa-save me-1"></i> Registrar Acompanhamento</button>
-                <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-cancel ms-2">Voltar para Lista de Visitas</a>
-            </form>
-        </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.observacao.id_for_label }}" class="form-label">{{ form.observacao.label }}:</label>
+                        {{ form.observacao }}
+                        {% if form.observacao.errors %}<div class="invalid-feedback d-block">{{ form.observacao.errors|striptags }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <button type="submit" class="btn btn-primary" name="submit_acompanhamento_form"><i class="fas fa-save me-1"></i> Salvar registro</button>
+            <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-cancel ms-2">Cancelar</a>
+        </form>
     </div>
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-history me-1"></i>
-            Histórico de Acompanhamentos
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Responsável</th>
-                        <th>Tipo de Contato</th>
-                        <th>Resultado</th>
-                        <th>Observação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for acompanhamento in acompanhamentos %}
-                    <tr>
-                        <td>{{ acompanhamento.data|date:'d/m/Y H:i' }}</td>
-                        <td>{{ acompanhamento.responsavel.get_full_name|default:acompanhamento.responsavel.username }}</td>
-                        <td>{{ acompanhamento.get_tipo_contato_display }}</td>
-                        <td>{{ acompanhamento.resultado }}</td>
-                        <td>{{ acompanhamento.observacao }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="text-center">Nenhum acompanhamento registrado.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-history me-1"></i>
+        Historico de Acompanhamentos
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Responsavel</th>
+                    <th>Tipo de Contato</th>
+                    <th>Resultado</th>
+                    <th>Observacao</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for acompanhamento in acompanhamentos %}
+                <tr>
+                    <td>{{ acompanhamento.data|date:'d/m/Y H:i' }}</td>
+                    <td>{{ acompanhamento.responsavel.get_full_name|default:acompanhamento.responsavel.username }}</td>
+                    <td>{{ acompanhamento.get_tipo_contato_display }}</td>
+                    <td>{{ acompanhamento.resultado }}</td>
+                    <td>{{ acompanhamento.observacao }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center">Nenhum acompanhamento registrado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

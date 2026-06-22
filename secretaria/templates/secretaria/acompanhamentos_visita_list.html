@@ -1,22 +1,29 @@
 
 {% extends 'base_com_sistema.html' %}
-{% block title %}Acompanhamentos de Visita{% endblock %}
-{% block nome_departamento %}Visita Residencial{% endblock %}
+{% block title %}Visitas Individuais{% endblock %}
+{% block nome_departamento %}Visitacao{% endblock %}
 {% block breadcrumb_items %}
     <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Acompanhamentos de Visita</li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:central_visitacao' %}">Central de Visitacao</a></li>
+    <li class="breadcrumb-item active">Visitas Individuais</li>
 {% endblock %}
 {% block card_header_gradiente %}
 <div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
     <div class="d-flex align-items-center justify-content-between">
         <div>
             <i class="fas fa-user-check me-1"></i>
-            Acompanhamentos de Visita ({{ acompanhamentos|length }})
+            Visitas Individuais ({{ acompanhamentos|length }})
         </div>
-        <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-primary d-flex align-items-center gap-2" id="btn-novo-acompanhamento">
-            <i class="fas fa-plus"></i>
-            <span>Registrar novo acompanhamento</span>
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'secretaria:central_visitacao' %}" class="btn btn-outline-light d-flex align-items-center gap-2">
+                <i class="fas fa-arrow-left"></i>
+                <span>Central</span>
+            </a>
+            <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-primary d-flex align-items-center gap-2" id="btn-novo-acompanhamento">
+                <i class="fas fa-plus"></i>
+                <span>Novo registro individual</span>
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}

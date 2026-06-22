@@ -3,14 +3,16 @@ secretaria/views/grupos_casa.py
 Views para grupos/casas: listagem, detalhe, criação, edição, agrupamento automático.
 """
 import logging
+import re
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_GET
 
 from core.decorators import page_access_required
 from core.utils import get_ministerio_or_error
@@ -19,14 +21,121 @@ from secretaria.models import AcompanhamentoVisita, GrupoCasa, Membro
 from secretaria.utils import (
     agrupar_apply_from_preview,
     agrupar_preview_for_queryset,
+    filter_people_by_name_or_nickname,
     get_allowed_churches_for_membros,
     has_membro_edit_permission,
     is_admin_org,
 )
 
-from secretaria.views._helpers import is_admin_or_pastor, is_admin_or_pastor_local
+from secretaria.views._helpers import is_admin_or_pastor, is_admin_or_pastor_local, get_request_scoped_churches
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_people_ids(raw_values):
+    """Normaliza IDs vindos do POST aceitando separadores de locale (ex.: 1.120)."""
+    ids = []
+    for raw in raw_values:
+        text = str(raw or '').strip()
+        if not text:
+            continue
+        if not re.fullmatch(r'[0-9\.,\s-]+', text):
+            continue
+        digits = re.sub(r'\D', '', text)
+        if digits:
+            ids.append(digits)
+    return list(dict.fromkeys(ids))
+
+
+def _serialize_selected_people(people_qs):
+    data = []
+    for p in people_qs:
+        tipo_nome = p.tipo_pessoa.nome if getattr(p, 'tipo_pessoa', None) else ''
+        igreja_nome = p.igreja.nome_igreja if getattr(p, 'igreja', None) else ''
+        extra = ' - '.join([x for x in [tipo_nome, igreja_nome] if x])
+        data.append({
+            'id': str(p.pk),
+            'nome': p.nome,
+            'extra': extra,
+        })
+    return data
+
+
+@login_required
+@page_access_required('secretaria_grupos_casa')
+@require_GET
+def buscar_pessoas_grupo_casa(request):
+    """Busca paginada de pessoas para vincular em Grupo/Casa, respeitando escopo do usuário."""
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    scoped_churches = get_request_scoped_churches(request, allowed_churches)
+
+    grupo_id = request.GET.get('grupo_id')
+    status_permitidos = ['Ativo', 'Desligado', 'Em Disciplina']
+
+    if grupo_id:
+        grupo = get_object_or_404(GrupoCasa, pk=grupo_id)
+        try:
+            if not (request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists()) and allowed_churches.exists():
+                if not allowed_churches.filter(pk=grupo.igreja_id).exists() and not is_admin_org(request.user):
+                    raise PermissionDenied('Sem permissão para buscar pessoas deste grupo')
+        except PermissionDenied:
+            raise Http404()
+
+        base_qs = Membro.objects.filter(
+            igreja_id=grupo.igreja_id,
+            status_pessoa__nome__in=status_permitidos,
+        )
+    else:
+        base_qs = Membro.objects.filter(
+            igreja__in=scoped_churches,
+            status_pessoa__nome__in=status_permitidos,
+        )
+
+    termo = (request.GET.get('q') or '').strip()
+    if termo:
+        base_qs = filter_people_by_name_or_nickname(base_qs, termo)
+
+    try:
+        page = max(int(request.GET.get('page', 1)), 1)
+    except (TypeError, ValueError):
+        page = 1
+
+    page_size = 25
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    selected_ids = set(_normalize_people_ids(request.GET.getlist('selected_ids')))
+
+    total = base_qs.count()
+    rows = list(
+        base_qs
+        .select_related('tipo_pessoa', 'igreja')
+        .order_by('nome')[start:end]
+    )
+
+    results = []
+    for p in rows:
+        tipo_nome = p.tipo_pessoa.nome if getattr(p, 'tipo_pessoa', None) else ''
+        igreja_nome = p.igreja.nome_igreja if getattr(p, 'igreja', None) else ''
+        extra = ' - '.join([x for x in [tipo_nome, igreja_nome] if x])
+        results.append({
+            'id': str(p.pk),
+            'nome': p.nome,
+            'extra': extra,
+            'checked': str(p.pk) in selected_ids,
+        })
+
+    return JsonResponse({
+        'results': results,
+        'pagination': {
+            'page': page,
+            'page_size': page_size,
+            'total': total,
+            'has_prev': page > 1,
+            'has_next': end < total,
+        },
+    })
 
 
 @login_required
@@ -258,25 +367,47 @@ def criar_grupo_casa(request):
     """Cria um novo GrupoCasa. Se houver `request.igreja_ativa`, vincula automaticamente."""
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    scoped_churches = get_request_scoped_churches(request, allowed_churches)
+
+    pessoas_ids_selecionadas = request.POST.getlist('pessoas_ids') if request.method == 'POST' else []
+    pessoas_ids_selecionadas = _normalize_people_ids(pessoas_ids_selecionadas)
+
+    pessoas_selecionadas_qs = Membro.objects.filter(
+        pk__in=pessoas_ids_selecionadas,
+        igreja__in=scoped_churches,
+    ).select_related('tipo_pessoa', 'igreja').order_by('nome')
 
     if request.method == 'POST':
         form = GrupoCasaForm(request.POST)
         if form.is_valid():
             grupo = form.save(commit=False)
-            if hasattr(request, 'igreja_ativa') and request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
+            if hasattr(request, 'igreja_ativa') and request.igreja_ativa and scoped_churches.filter(pk=request.igreja_ativa.pk).exists():
                 grupo.igreja = request.igreja_ativa
             else:
                 try:
-                    if getattr(allowed_churches, 'count', None) and allowed_churches.count() == 1:
-                        grupo.igreja = allowed_churches.first()
+                    if getattr(scoped_churches, 'count', None) and scoped_churches.count() == 1:
+                        grupo.igreja = scoped_churches.first()
                 except Exception as exc:
                     logger.warning('criar_grupo_casa: falha ao inferir igreja única permitida: %s', exc)
             grupo.responsavel = request.user
             if not getattr(grupo, 'igreja', None):
                 messages.error(request, 'Não foi possível determinar a igreja para o novo grupo. Verifique sua seleção de igreja/permissões.')
             else:
-                grupo.save()
-                messages.success(request, 'Grupo/Casa criado com sucesso!')
+                from django.db import transaction
+
+                with transaction.atomic():
+                    grupo.save()
+                    if pessoas_ids_selecionadas:
+                        pessoas_para_vincular = Membro.objects.filter(
+                            pk__in=pessoas_ids_selecionadas,
+                            igreja_id=grupo.igreja_id,
+                        )
+                        pessoas_para_vincular.update(grupo_casa=grupo)
+
+                if pessoas_ids_selecionadas:
+                    messages.success(request, f'Grupo/Casa criado e {len(pessoas_ids_selecionadas)} pessoa(s) vinculada(s) com sucesso!')
+                else:
+                    messages.success(request, 'Grupo/Casa criado com sucesso!')
                 return redirect('secretaria:detalhe_grupo_casa', grupo_id=grupo.id)
     else:
         form = GrupoCasaForm()
@@ -285,6 +416,9 @@ def criar_grupo_casa(request):
         'form': form,
         'titulo_pagina': 'Criar Novo Grupo / Casa',
         'ministerio': ministerio,
+        'pessoas_ids_selecionadas': pessoas_ids_selecionadas,
+        'selected_people_seed': _serialize_selected_people(pessoas_selecionadas_qs),
+        'modo_vincular_pessoas': True,
     }
     return render(request, 'secretaria/grupocasa_form.html', context)
 
@@ -295,6 +429,7 @@ def editar_grupo_casa(request, grupo_id):
     """Editar um GrupoCasa existente."""
     ministerio = get_ministerio_or_error(request)
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    scoped_churches = get_request_scoped_churches(request, allowed_churches)
     grupo = get_object_or_404(GrupoCasa, pk=grupo_id)
 
     try:
@@ -304,16 +439,44 @@ def editar_grupo_casa(request, grupo_id):
     except PermissionDenied:
         raise Http404()
 
+    pessoas_ids_selecionadas = request.POST.getlist('pessoas_ids') if request.method == 'POST' else [
+        str(pk) for pk in grupo.pessoas.values_list('pk', flat=True)
+    ]
+    pessoas_ids_selecionadas = _normalize_people_ids(pessoas_ids_selecionadas)
+
+    pessoas_selecionadas_qs = Membro.objects.filter(
+        pk__in=pessoas_ids_selecionadas,
+        igreja_id=grupo.igreja_id,
+    ).select_related('tipo_pessoa', 'igreja').order_by('nome')
+
     if request.method == 'POST':
         form = GrupoCasaForm(request.POST, instance=grupo)
         if form.is_valid():
             grupo_editado = form.save(commit=False)
             try:
-                if not is_admin_org(request.user) and getattr(grupo_editado, 'igreja', None) and not allowed_churches.filter(pk=grupo_editado.igreja_id).exists():
+                if not is_admin_org(request.user) and getattr(grupo_editado, 'igreja', None) and not scoped_churches.filter(pk=grupo_editado.igreja_id).exists():
                     messages.error(request, 'Igreja selecionada inválida para sua permissão.')
                 else:
-                    grupo_editado.save()
-                    messages.success(request, 'Grupo/Casa atualizado com sucesso!')
+                    from django.db import transaction
+
+                    with transaction.atomic():
+                        grupo_editado.save()
+
+                        ids_selecionados = pessoas_ids_selecionadas
+                        pessoas_selecionadas_qs = Membro.objects.filter(
+                            pk__in=ids_selecionados,
+                            igreja_id=grupo_editado.igreja_id,
+                        )
+
+                        # Remove vínculos antigos não selecionados
+                        Membro.objects.filter(grupo_casa=grupo_editado).exclude(
+                            pk__in=pessoas_selecionadas_qs.values_list('pk', flat=True)
+                        ).update(grupo_casa=None)
+
+                        # Aplica vínculos selecionados
+                        pessoas_selecionadas_qs.update(grupo_casa=grupo_editado)
+
+                    messages.success(request, 'Grupo/Casa e vínculo de pessoas atualizados com sucesso!')
                     return redirect('secretaria:detalhe_grupo_casa', grupo_id=grupo.id)
             except Exception as e:
                 logger.exception('Erro ao salvar grupo: %s', e)
@@ -326,5 +489,8 @@ def editar_grupo_casa(request, grupo_id):
         'titulo_pagina': f'Editar Grupo / Casa: {grupo.nome or grupo.rua}',
         'ministerio': ministerio,
         'grupo': grupo,
+        'pessoas_ids_selecionadas': pessoas_ids_selecionadas,
+        'selected_people_seed': _serialize_selected_people(pessoas_selecionadas_qs),
+        'modo_vincular_pessoas': True,
     }
     return render(request, 'secretaria/grupocasa_form.html', context)

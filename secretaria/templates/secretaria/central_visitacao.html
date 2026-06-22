@@ -1,0 +1,336 @@
+{% extends 'base_com_sistema.html' %}
+{% load l10n %}
+{% block title %}Central de Visitacao{% endblock %}
+{% block nome_departamento %}Visitacao{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Central de Visitacao</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <i class="fas fa-route me-1"></i>
+            Central de Visitacao
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block conteudo_principal %}
+<div style="height: 20px;"></div>
+
+<div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <div><i class="fas fa-clipboard-check me-1"></i> Formulario Unico de Visitacao</div>
+        <small class="text-muted">Visita Particular ou Visita Familiar</small>
+    </div>
+    <div class="card-body">
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-4">
+                <label class="form-label">Tipo de Visita</label>
+                <select class="form-select" name="tipo_visita" id="tipoVisitaSelect" onchange="window.toggleTipoVisita && window.toggleTipoVisita()">
+                    <option value="particular" {% if tipo_visita == 'particular' %}selected{% endif %}>Visita Particular</option>
+                    <option value="familiar" {% if tipo_visita == 'familiar' %}selected{% endif %}>Visita Familiar</option>
+                </select>
+            </div>
+
+            <div id="blocoVisitaParticular" class="{% if tipo_visita != 'particular' %}d-none{% endif %}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Pessoa</label>
+                        <select name="membro_id" class="form-select">
+                            <option value="">Selecione...</option>
+                            {% for p in pessoas_qs %}
+                                <option value="{{ p.pk }}" {% if membro_selecionado_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.nome }}{% if p.tipo_pessoa %} - {{ p.tipo_pessoa.nome }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="{{ acompanhamento_form.data.id_for_label }}">{{ acompanhamento_form.data.label }}</label>
+                        {{ acompanhamento_form.data }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="{{ acompanhamento_form.tipo_contato.id_for_label }}">{{ acompanhamento_form.tipo_contato.label }}</label>
+                        {{ acompanhamento_form.tipo_contato }}
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label" for="{{ acompanhamento_form.resultado.id_for_label }}">{{ acompanhamento_form.resultado.label }}</label>
+                        {{ acompanhamento_form.resultado }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="{{ acompanhamento_form.observacao.id_for_label }}">{{ acompanhamento_form.observacao.label }}</label>
+                        {{ acompanhamento_form.observacao }}
+                    </div>
+                </div>
+            </div>
+
+            <div id="blocoVisitaFamiliar" class="{% if tipo_visita != 'familiar' %}d-none{% endif %}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Buscar Casa / Grupo</label>
+                        <input type="text" id="grupoCasaBusca" class="form-control" placeholder="Digite para filtrar grupos/casas...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Casa / Grupo</label>
+                        <select name="grupo_casa_id" id="grupoCasaSelect" class="form-select" onchange="window.autoCarregarMoradores && window.autoCarregarMoradores()">
+                            <option value="">Selecione...</option>
+                            {% for g in grupos_qs %}
+                                <option value="{{ g.pk }}" {% if grupo_selecionado_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.nome|default:'Grupo sem nome' }}{% if g.rua %} - {{ g.rua }}{% if g.numero %}, {{ g.numero }}{% endif %}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="{{ visita_familiar_form.data.id_for_label }}">{{ visita_familiar_form.data.label }}</label>
+                        {{ visita_familiar_form.data }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="{{ visita_familiar_form.tipo.id_for_label }}">{{ visita_familiar_form.tipo.label }}</label>
+                        {{ visita_familiar_form.tipo }}
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label" for="{{ visita_familiar_form.resultado.id_for_label }}">{{ visita_familiar_form.resultado.label }}</label>
+                        {{ visita_familiar_form.resultado }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="{{ visita_familiar_form.observacao.id_for_label }}">{{ visita_familiar_form.observacao.label }}</label>
+                        {{ visita_familiar_form.observacao }}
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            {{ visita_familiar_form.marcar_todos }}
+                            <label class="form-check-label" for="{{ visita_familiar_form.marcar_todos.id_for_label }}">{{ visita_familiar_form.marcar_todos.label }}</label>
+                        </div>
+                    </div>
+                    {% if membros_grupo_selecionado %}
+                    <div class="col-12">
+                        <label class="form-label mb-1">Moradores visitados</label>
+                        <div class="border rounded p-2" style="max-height: 240px; overflow: auto;">
+                            {% for morador in membros_grupo_selecionado %}
+                            <div class="form-check">
+                                <input class="form-check-input morador-visita-checkbox" type="checkbox" name="membros_visitados" value="{{ morador.pk|unlocalize }}" id="morador_{{ morador.pk|unlocalize }}" {% if morador.pk|stringformat:'s' in membros_visitados_ids or visita_familiar_form.marcar_todos.value %}checked{% endif %}>
+                                <label class="form-check-label" for="morador_{{ morador.pk|unlocalize }}">
+                                    {{ morador.nome }}{% if morador.tipo_pessoa %} - {{ morador.tipo_pessoa.nome }}{% endif %}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">Desmarque "Marcar todos" para selecionar manualmente apenas os moradores atendidos.</small>
+                    </div>
+                    {% elif grupo_selecionado_id %}
+                    <div class="col-12">
+                        <div class="alert alert-warning mb-0">Nenhum morador ativo encontrado para esta casa/grupo.</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-12">
+                <button type="submit" name="acao_visita" value="salvar" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Salvar visita
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <div><i class="fas fa-chart-pie me-1"></i> Cobertura de Visitacao</div>
+        <form method="get" class="d-flex align-items-center gap-2">
+            <select name="periodo_visitacao" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="1m" {% if visitacao_metrics.periodo_key == '1m' %}selected{% endif %}>1 mês</option>
+                <option value="3m" {% if visitacao_metrics.periodo_key == '3m' %}selected{% endif %}>3 meses</option>
+                <option value="6m" {% if visitacao_metrics.periodo_key == '6m' %}selected{% endif %}>6 meses</option>
+                <option value="12m" {% if visitacao_metrics.periodo_key == '12m' %}selected{% endif %}>12 meses</option>
+            </select>
+            <select name="familias_sem_visita_meses" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="2" {% if visitacao_metrics.familias_sem_visita_meses == 2 %}selected{% endif %}>Sem visita: 2 meses</option>
+                <option value="3" {% if visitacao_metrics.familias_sem_visita_meses == 3 %}selected{% endif %}>Sem visita: 3 meses</option>
+                <option value="6" {% if visitacao_metrics.familias_sem_visita_meses == 6 %}selected{% endif %}>Sem visita: 6 meses</option>
+            </select>
+        </form>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3"><div class="p-3 bg-light rounded"><small class="text-muted d-block">Pessoas visitadas</small><strong>{{ visitacao_metrics.pessoas_visitadas }}</strong></div></div>
+            <div class="col-md-3"><div class="p-3 bg-light rounded"><small class="text-muted d-block">Nao visitadas</small><strong>{{ visitacao_metrics.pessoas_nao_visitadas }}</strong></div></div>
+            <div class="col-md-3"><div class="p-3 bg-light rounded"><small class="text-muted d-block">Familias visitadas</small><strong>{{ visitacao_metrics.familias_visitadas_periodo }}</strong></div></div>
+            <div class="col-md-3"><div class="p-3 bg-light rounded"><small class="text-muted d-block">Familias sem visita</small><strong>{{ visitacao_metrics.familias_sem_visita_total }}</strong></div></div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-5">
+                <div style="height:300px;"><canvas id="graficoVisitacaoCentral"></canvas></div>
+            </div>
+            <div class="col-lg-7">
+                <h6>Familias sem visita ha {{ visitacao_metrics.familias_sem_visita_meses }} mes(es)</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead><tr><th>Familia/Casa</th><th>Ultima visita</th><th>Acao</th></tr></thead>
+                        <tbody>
+                            {% for familia in visitacao_metrics.familias_sem_visita_lista %}
+                            <tr>
+                                <td>
+                                    <strong>{{ familia.nome }}</strong><br>
+                                    <small class="text-muted">{{ familia.endereco_curto }}</small>
+                                </td>
+                                <td>
+                                    {% if familia.ultima_visita %}
+                                        {{ familia.ultima_visita|date:'d/m/Y H:i' }}
+                                    {% else %}
+                                        <span class="text-muted">Nunca visitada</span>
+                                    {% endif %}
+                                </td>
+                                <td><a class="btn btn-outline-primary btn-sm" href="{% url 'secretaria:detalhe_grupo_casa' familia.id %}">Abrir</a></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-muted">Nenhuma familia pendente neste criterio.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% if can_acompanhamentos %}
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-user-check text-primary me-2"></i>
+                    <h5 class="mb-0">Visitas Individuais</h5>
+                </div>
+                <p class="text-muted mb-3">
+                    Registre contato de uma pessoa especifica e mantenha o historico completo de acompanhamento.
+                </p>
+                <div class="mb-3">
+                    <span class="badge bg-light text-dark">{{ total_acompanhamentos }} acompanhamentos</span>
+                </div>
+                <div class="mt-auto d-flex gap-2 flex-wrap">
+                    <a href="{% url 'secretaria:acompanhamentos_visita' %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-list me-1"></i> Abrir lista
+                    </a>
+                    <a href="{% url 'secretaria:escolher_pessoa_para_acompanhamento' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Novo registro
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if can_grupos_casa %}
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-house-user text-primary me-2"></i>
+                    <h5 class="mb-0">Visitas Residenciais</h5>
+                </div>
+                <p class="text-muted mb-3">
+                    Registre visitas por casa ou grupo, com selecao de moradores atendidos e historico consolidado.
+                </p>
+                <div class="mb-3">
+                    <span class="badge bg-light text-dark">{{ total_grupos }} grupos/casas</span>
+                </div>
+                <div class="mt-auto d-flex gap-2 flex-wrap">
+                    <a href="{% url 'secretaria:lista_grupos_casa' %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-list me-1"></i> Abrir grupos/casas
+                    </a>
+                    <a href="{% url 'secretaria:criar_grupo_casa' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Novo grupo/casa
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ visitacao_metrics.visitacao_pizza_labels|default:'[]'|json_script:"visitacao-central-labels" }}
+{{ visitacao_metrics.visitacao_pizza_values|default:'[]'|json_script:"visitacao-central-values" }}
+<script>
+window.toggleTipoVisita = function () {
+    var seletor = document.getElementById('tipoVisitaSelect');
+    var blocoParticular = document.getElementById('blocoVisitaParticular');
+    var blocoFamiliar = document.getElementById('blocoVisitaFamiliar');
+    if (!seletor || !blocoParticular || !blocoFamiliar) return;
+    var tipo = seletor.value;
+    blocoParticular.classList.toggle('d-none', tipo !== 'particular');
+    blocoFamiliar.classList.toggle('d-none', tipo !== 'familiar');
+};
+
+window.autoCarregarMoradores = function () {
+    var seletor = document.getElementById('grupoCasaSelect');
+    if (!seletor) return;
+    var grupoId = (seletor.value || '').trim();
+    var params = new URLSearchParams(window.location.search || '');
+    params.set('tipo_visita', 'familiar');
+    if (grupoId) {
+        params.set('grupo_casa_id', grupoId);
+    } else {
+        params.delete('grupo_casa_id');
+    }
+    window.location.search = params.toString();
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    window.toggleTipoVisita && window.toggleTipoVisita();
+
+    var campoBuscaGrupo = document.getElementById('grupoCasaBusca');
+    var selectGrupo = document.getElementById('grupoCasaSelect');
+    if (campoBuscaGrupo && selectGrupo) {
+        campoBuscaGrupo.addEventListener('input', function () {
+            var termo = (campoBuscaGrupo.value || '').toLowerCase().trim();
+            var opcoes = selectGrupo.querySelectorAll('option');
+            opcoes.forEach(function (opt, idx) {
+                if (idx === 0) return;
+                var texto = (opt.textContent || '').toLowerCase();
+                opt.hidden = termo && texto.indexOf(termo) === -1;
+            });
+        });
+    }
+
+    var marcarTodos = document.getElementById('{{ visita_familiar_form.marcar_todos.id_for_label }}');
+    function syncMoradoresCheckboxes() {
+        if (!marcarTodos) return;
+        var checks = document.querySelectorAll('.morador-visita-checkbox');
+        checks.forEach(function (cb) {
+            cb.checked = !!marcarTodos.checked;
+        });
+    }
+    if (marcarTodos) {
+        marcarTodos.addEventListener('change', syncMoradoresCheckboxes);
+    }
+
+    var labelsEl = document.getElementById('visitacao-central-labels');
+    var valuesEl = document.getElementById('visitacao-central-values');
+    var canvas = document.getElementById('graficoVisitacaoCentral');
+    if (!labelsEl || !valuesEl || !canvas || typeof Chart === 'undefined') return;
+
+    var labels = JSON.parse(labelsEl.textContent || '[]');
+    var values = JSON.parse(valuesEl.textContent || '[]');
+    new Chart(canvas.getContext('2d'), {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: ['rgba(25,135,84,.78)', 'rgba(220,53,69,.72)'],
+                borderColor: 'rgba(255,255,255,.9)',
+                borderWidth: 2
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+});
+</script>
+{% endblock %}

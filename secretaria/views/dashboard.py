@@ -39,6 +39,7 @@ from secretaria.views._helpers import (
     get_request_scoped_churches,
     is_admin_or_pastor,
 )
+from secretaria.views.visitacao_metrics import build_visitacao_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -804,7 +805,7 @@ def salvar_nota_usuario(request):
 @login_required
 @page_access_required('dashboard_secretaria')
 def dashboard(request):
-    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, user_tem_grupo
+    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, PASTOR_LOCAL, user_tem_grupo
     if request.user.is_superuser:
         return redirect('admin:index')
     if (user_tem_grupo(request.user, MEMBRO_COMUM)
@@ -997,6 +998,20 @@ def dashboard(request):
     )
 
     dashboard_visibility = _dashboard_visibility_flags(request)
+    is_pastor_dashboard = _user_has_permission_level_or_higher(request.user, PASTOR_LOCAL)
+
+    periodo_visitacao_dashboard = (request.GET.get('periodo_visitacao_dashboard') or '3m').strip().lower()
+    try:
+        familias_sem_visita_dashboard_meses = int(request.GET.get('familias_sem_visita_dashboard_meses', 3))
+    except (TypeError, ValueError):
+        familias_sem_visita_dashboard_meses = 3
+
+    visitacao_metrics_dashboard = build_visitacao_metrics(
+        igrejas_filtro,
+        periodo_key=periodo_visitacao_dashboard,
+        familias_sem_visita_meses=familias_sem_visita_dashboard_meses,
+        limite_familias=12,
+    )
 
     context = {
         'status_data_json': json.dumps(status_data_list),
@@ -1048,6 +1063,8 @@ def dashboard(request):
         'comparativo_periodo_cards': comparativo_periodo_cards,
         'periodo_anterior_label': f"{periodo_anterior_inicio.strftime('%d/%m/%Y')} a {periodo_anterior_fim.strftime('%d/%m/%Y')}",
         'dashboard_visibility': dashboard_visibility,
+        'is_pastor_dashboard': is_pastor_dashboard,
+        'visitacao_metrics_dashboard': visitacao_metrics_dashboard,
         # Compatibilidade temporaria para evitar quebra em templates/partials legados.
         'pode_ver_alerta_financeiro': dashboard_visibility['alertas']['financeiro'],
         'pode_ver_alerta_assinatura': dashboard_visibility['alertas']['assinatura'],

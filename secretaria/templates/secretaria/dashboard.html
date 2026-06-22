@@ -368,6 +368,95 @@
     </div>
   </section>
 
+  {% if is_pastor_dashboard %}
+  <section class="secdash-section secdash-secondary-section" aria-label="Inteligencia Pastoral de Visitacao">
+    <div class="secdash-section-head">
+      <h2>Inteligência Pastoral de Visitação</h2>
+      <p>Cobertura de pessoas visitadas no período e famílias sem visita recente.</p>
+      <form method="get" class="d-flex gap-2">
+        <input type="hidden" name="periodo" value="{{ periodo_filtro }}">
+        <input type="hidden" name="data_inicio" value="{{ periodo_data_inicio }}">
+        <input type="hidden" name="data_fim" value="{{ periodo_data_fim }}">
+        <select name="periodo_visitacao_dashboard" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="1m" {% if visitacao_metrics_dashboard.periodo_key == '1m' %}selected{% endif %}>1 mês</option>
+          <option value="3m" {% if visitacao_metrics_dashboard.periodo_key == '3m' %}selected{% endif %}>3 meses</option>
+          <option value="6m" {% if visitacao_metrics_dashboard.periodo_key == '6m' %}selected{% endif %}>6 meses</option>
+          <option value="12m" {% if visitacao_metrics_dashboard.periodo_key == '12m' %}selected{% endif %}>12 meses</option>
+        </select>
+        <select name="familias_sem_visita_dashboard_meses" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="2" {% if visitacao_metrics_dashboard.familias_sem_visita_meses == 2 %}selected{% endif %}>Sem visita: 2 meses</option>
+          <option value="3" {% if visitacao_metrics_dashboard.familias_sem_visita_meses == 3 %}selected{% endif %}>Sem visita: 3 meses</option>
+          <option value="6" {% if visitacao_metrics_dashboard.familias_sem_visita_meses == 6 %}selected{% endif %}>Sem visita: 6 meses</option>
+        </select>
+      </form>
+    </div>
+
+    <div class="secdash-kpi-strip secdash-support-strip mb-3">
+      <article class="secdash-kpi-card">
+        <div class="label">Pessoas visitadas</div>
+        <div class="value">{{ visitacao_metrics_dashboard.pessoas_visitadas }}</div>
+      </article>
+      <article class="secdash-kpi-card">
+        <div class="label">Não visitadas</div>
+        <div class="value">{{ visitacao_metrics_dashboard.pessoas_nao_visitadas }}</div>
+      </article>
+      <article class="secdash-kpi-card">
+        <div class="label">Famílias visitadas</div>
+        <div class="value">{{ visitacao_metrics_dashboard.familias_visitadas_periodo }}</div>
+      </article>
+      <article class="secdash-kpi-card emphasis">
+        <div class="label">Famílias sem visita</div>
+        <div class="value">{{ visitacao_metrics_dashboard.familias_sem_visita_total }}</div>
+      </article>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <article class="secdash-chart-card" data-chart-card>
+          <header><i class="fas fa-chart-pie"></i> Visitadas x Não visitadas</header>
+          <div class="canvas-wrap"><canvas id="graficoVisitacaoPastoral"></canvas></div>
+        </article>
+      </div>
+      <div class="col-lg-8">
+        <article class="secdash-chart-card" data-chart-card>
+          <header><i class="fas fa-house-user"></i> Famílias sem visita recente</header>
+          <div class="table-responsive p-2">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr>
+                  <th>Família/Casa</th>
+                  <th>Última visita</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for familia in visitacao_metrics_dashboard.familias_sem_visita_lista %}
+                <tr>
+                  <td>
+                    <strong>{{ familia.nome }}</strong><br>
+                    <small class="text-muted">{{ familia.endereco_curto }}</small>
+                  </td>
+                  <td>
+                    {% if familia.ultima_visita %}
+                      {{ familia.ultima_visita|date:'d/m/Y H:i' }}
+                    {% else %}
+                      <span class="text-muted">Nunca visitada</span>
+                    {% endif %}
+                  </td>
+                  <td><a class="btn btn-outline-primary btn-sm" href="{% url 'secretaria:detalhe_grupo_casa' familia.id %}">Abrir</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-muted">Nenhuma família pendente neste critério.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
   <aside class="secdash-birthdays" id="cardAniversariantes" hidden>
     <div class="card shadow-sm">
       <div class="card-header d-flex align-items-center justify-content-between">
@@ -410,6 +499,8 @@
 {{ evolucao_congregados_json|default:'[]'|json_script:"evolucao-congregados" }}
 {{ evolucao_novos_convertidos_json|default:'[]'|json_script:"evolucao-novos-convertidos" }}
 {{ evolucao_visitantes_json|default:'[]'|json_script:"evolucao-visitantes" }}
+{{ visitacao_metrics_dashboard.visitacao_pizza_labels|default:'[]'|json_script:"visitacao-dashboard-labels" }}
+{{ visitacao_metrics_dashboard.visitacao_pizza_values|default:'[]'|json_script:"visitacao-dashboard-values" }}
 
 <script>
   (function () {
@@ -466,4 +557,36 @@
 </script>
 
 <script src="{% static 'js/secretaria_dashboard_premium.js' %}"></script>
+<script>
+  (function () {
+    var labelsEl = document.getElementById('visitacao-dashboard-labels');
+    var valuesEl = document.getElementById('visitacao-dashboard-values');
+    var canvas = document.getElementById('graficoVisitacaoPastoral');
+    if (!labelsEl || !valuesEl || !canvas || typeof Chart === 'undefined') {
+      return;
+    }
+
+    var labels = JSON.parse(labelsEl.textContent || '[]');
+    var values = JSON.parse(valuesEl.textContent || '[]');
+    new Chart(canvas.getContext('2d'), {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: ['rgba(25,135,84,.78)', 'rgba(220,53,69,.72)'],
+          borderColor: 'rgba(255,255,255,.9)',
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+        },
+      },
+    });
+  })();
+</script>
 {% endblock %}

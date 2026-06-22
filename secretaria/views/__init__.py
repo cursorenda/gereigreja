@@ -38,6 +38,7 @@ from .visitantes import (  # noqa: F401
     lista_visitantes, buscar_visitantes, registrar_presenca_visitante_evento,
     ajax_registrar_presenca_evento, ajax_get_presencas_evento,
     cadastrar_visitante, criar_visitante_parcial, registrar_acompanhamento_visita,
+    central_visitacao,
 )
 from .cargos import (  # noqa: F401
     gerenciar_ocupantes, excluir_cargo, criar_cargo, editar_cargo, lista_cargos,
@@ -45,7 +46,7 @@ from .cargos import (  # noqa: F401
 from .grupos_casa import (  # noqa: F401
     limpar_grupos_casa_vazios, lista_grupos_casa, agrupar_grupos_preview,
     agrupar_grupos_apply, reagrupar_grupo_casa, detalhe_grupo_casa,
-    criar_grupo_casa, editar_grupo_casa,
+    criar_grupo_casa, editar_grupo_casa, buscar_pessoas_grupo_casa,
 )
 from .dashboard import (  # noqa: F401
     index, salvar_nota_usuario, dashboard, exportar_dashboard_csv,

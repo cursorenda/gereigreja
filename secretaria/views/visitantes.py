@@ -3,6 +3,7 @@ secretaria/views/visitantes.py
 Views de listagem, cadastro, presença e acompanhamento de visitantes.
 """
 import logging
+import re
 import unicodedata
 import uuid
 
@@ -26,14 +27,215 @@ from eventos.models import Evento
 from secretaria.forms import MembroForm
 from secretaria.forms_acompanhamento import AcompanhamentoVisitaForm
 from secretaria.forms_presenca_visitante_evento import PresencaVisitanteEventoForm
+from secretaria.forms_grupocasa import VisitaGrupoCasaForm
 from secretaria.models import (
-    AcompanhamentoVisita, Membro, PresencaVisitanteEvento, StatusPessoa, TipoPessoa,
+    AcompanhamentoVisita, GrupoCasa, Membro, PresencaVisitanteEvento, StatusPessoa, TipoPessoa,
 )
 from secretaria.utils import get_allowed_churches_for_membros, is_admin_org
+from secretaria.views.visitacao_metrics import build_visitacao_metrics
 
-from secretaria.views._helpers import _membros_queryset_por_escopo
+from secretaria.views._helpers import _membros_queryset_por_escopo, get_request_scoped_churches
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_posted_ids(raw_values):
+    """Normaliza IDs vindos do POST, aceitando formatos localizados (ex.: 1.120)."""
+    ids = []
+    for raw in raw_values:
+        text = str(raw or '').strip()
+        if not text:
+            continue
+        # Aceita apenas dígitos com separadores comuns de locale.
+        if not re.fullmatch(r'[0-9\.,\s-]+', text):
+            continue
+        digits = re.sub(r'\D', '', text)
+        if digits:
+            ids.append(digits)
+    return list(dict.fromkeys(ids))
+
+
+@login_required
+@verificar_assinatura_valida
+def central_visitacao(request):
+    """Hub da area de visitacao com entrada clara para trilhas individual e residencial."""
+    from contas.page_permissions import user_can_access_page
+
+    can_acompanhamentos = user_can_access_page(request.user, 'secretaria_acompanhamentos', request=request)
+    can_grupos_casa = user_can_access_page(request.user, 'secretaria_grupos_casa', request=request)
+
+    if not (can_acompanhamentos or can_grupos_casa):
+        messages.error(request, 'Voce nao possui permissao para acessar a Central de Visitacao.')
+        return redirect('secretaria:dashboard')
+
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
+    scoped_churches = get_request_scoped_churches(request, allowed_churches)
+
+    total_acompanhamentos = 0
+    total_grupos = 0
+    try:
+        total_acompanhamentos = AcompanhamentoVisita.objects.filter(
+            membro__igreja__in=scoped_churches
+        ).count()
+    except Exception:
+        logger.exception('Falha ao contar acompanhamentos na central de visitacao')
+
+    try:
+        total_grupos = GrupoCasa.objects.filter(igreja__in=scoped_churches).count()
+    except Exception:
+        logger.exception('Falha ao contar grupos/casas na central de visitacao')
+
+    periodo_visitacao = (request.GET.get('periodo_visitacao') or '3m').strip().lower()
+    try:
+        familias_sem_visita_meses = int(request.GET.get('familias_sem_visita_meses', 3))
+    except (TypeError, ValueError):
+        familias_sem_visita_meses = 3
+
+    visitacao_metrics = build_visitacao_metrics(
+        scoped_churches,
+        periodo_key=periodo_visitacao,
+        familias_sem_visita_meses=familias_sem_visita_meses,
+        limite_familias=20,
+    )
+
+    # Formulario unico: particular (pessoa) ou familiar (grupo/casa)
+    tipo_visita = (request.POST.get('tipo_visita') or request.GET.get('tipo_visita') or 'particular').strip().lower()
+    if tipo_visita not in {'particular', 'familiar'}:
+        tipo_visita = 'particular'
+
+    pessoas_qs = Membro.objects.filter(igreja__in=scoped_churches).select_related('tipo_pessoa').order_by('nome')[:150]
+    grupos_qs = GrupoCasa.objects.filter(igreja__in=scoped_churches).order_by('nome', 'rua')[:150]
+    membros_grupo_selecionado = Membro.objects.none()
+
+    acompanhamento_form = AcompanhamentoVisitaForm(prefix='particular')
+    visita_familiar_form = VisitaGrupoCasaForm(prefix='familiar')
+    membro_selecionado_id = ''
+    grupo_selecionado_id = ''
+    membros_visitados_ids = []
+
+    if tipo_visita == 'familiar':
+        grupo_selecionado_id = (request.GET.get('grupo_casa_id') or '').strip()
+        if grupo_selecionado_id:
+            membros_grupo_selecionado = Membro.objects.filter(
+                grupo_casa_id=grupo_selecionado_id,
+                igreja__in=scoped_churches,
+                status_pessoa__nome__in=['Ativo', 'Desligado', 'Em Disciplina'],
+            ).order_by('nome')
+
+    if request.method == 'POST':
+        tipo_visita = (request.POST.get('tipo_visita') or 'particular').strip().lower()
+        if tipo_visita == 'particular' and can_acompanhamentos:
+            membro_selecionado_id = (request.POST.get('membro_id') or '').strip()
+            acompanhamento_form = AcompanhamentoVisitaForm(request.POST, prefix='particular')
+            if not membro_selecionado_id:
+                messages.error(request, 'Selecione uma pessoa para registrar visita particular.')
+            elif acompanhamento_form.is_valid():
+                membro = Membro.objects.filter(pk=membro_selecionado_id, igreja__in=scoped_churches).first()
+                if not membro:
+                    messages.error(request, 'Pessoa selecionada inválida para seu escopo.')
+                else:
+                    acompanhamento = acompanhamento_form.save(commit=False)
+                    acompanhamento.membro = membro
+                    acompanhamento.responsavel = request.user
+                    acompanhamento.save()
+                    messages.success(request, f'Visita particular registrada para {membro.nome}.')
+                    return redirect('secretaria:central_visitacao')
+
+        elif tipo_visita == 'familiar' and can_grupos_casa:
+            grupo_selecionado_id = (request.POST.get('grupo_casa_id') or '').strip()
+            membros_visitados_ids = _normalize_posted_ids(request.POST.getlist('membros_visitados'))
+            visita_familiar_form = VisitaGrupoCasaForm(request.POST, prefix='familiar')
+            acao_visita = (request.POST.get('acao_visita') or '').strip().lower()
+            if not grupo_selecionado_id:
+                messages.error(request, 'Selecione um grupo/casa para registrar visita familiar.')
+            elif acao_visita == 'carregar_moradores':
+                grupo = GrupoCasa.objects.filter(pk=grupo_selecionado_id, igreja__in=scoped_churches).first()
+                if not grupo:
+                    messages.error(request, 'Grupo/casa selecionado inválido para seu escopo.')
+                else:
+                    membros_grupo_selecionado = grupo.pessoas.filter(
+                        status_pessoa__nome__in=['Ativo', 'Desligado', 'Em Disciplina']
+                    ).order_by('nome')
+                    messages.info(request, 'Moradores carregados. Selecione quem foi visitado e salve.')
+            elif visita_familiar_form.is_valid():
+                grupo = GrupoCasa.objects.filter(pk=grupo_selecionado_id, igreja__in=scoped_churches).first()
+                if not grupo:
+                    messages.error(request, 'Grupo/casa selecionado inválido para seu escopo.')
+                else:
+                    from django.db import transaction
+
+                    membros_qs = grupo.pessoas.filter(status_pessoa__nome__in=['Ativo', 'Desligado', 'Em Disciplina']).order_by('nome')
+                    membros_grupo_selecionado = membros_qs
+                    membros_ids_manual = _normalize_posted_ids(request.POST.getlist('membros_visitados'))
+
+                    if visita_familiar_form.cleaned_data.get('marcar_todos'):
+                        membros_familia = list(membros_qs)
+                    else:
+                        membros_familia = list(membros_qs.filter(pk__in=membros_ids_manual))
+
+                    if not membros_familia:
+                        messages.error(request, 'Selecione pelo menos um morador visitado ou marque a opção para incluir todos.')
+                        context = {
+                            'titulo_pagina': 'Central de Visitacao',
+                            'can_acompanhamentos': can_acompanhamentos,
+                            'can_grupos_casa': can_grupos_casa,
+                            'total_acompanhamentos': total_acompanhamentos,
+                            'total_grupos': total_grupos,
+                            'tipo_visita': tipo_visita,
+                            'acompanhamento_form': acompanhamento_form,
+                            'visita_familiar_form': visita_familiar_form,
+                            'pessoas_qs': pessoas_qs,
+                            'grupos_qs': grupos_qs,
+                            'membro_selecionado_id': membro_selecionado_id,
+                            'grupo_selecionado_id': grupo_selecionado_id,
+                            'membros_grupo_selecionado': membros_grupo_selecionado,
+                            'membros_visitados_ids': membros_visitados_ids,
+                            'visitacao_metrics': visitacao_metrics,
+                        }
+                        return render(request, 'secretaria/central_visitacao.html', context)
+
+                    with transaction.atomic():
+                        visita = visita_familiar_form.save(commit=False)
+                        visita.grupo_casa = grupo
+                        visita.responsavel = request.user
+                        visita.num_membros = len(membros_familia)
+                        visita.save()
+
+                        if membros_familia:
+                            acompanhamentos = [
+                                AcompanhamentoVisita(
+                                    membro=p,
+                                    responsavel=request.user,
+                                    visita_grupo_casa=visita,
+                                    tipo_contato='visita',
+                                    resultado=visita_familiar_form.cleaned_data.get('resultado') or '',
+                                    observacao=visita_familiar_form.cleaned_data.get('observacao') or '',
+                                )
+                                for p in membros_familia
+                            ]
+                            AcompanhamentoVisita.objects.bulk_create(acompanhamentos)
+                    messages.success(request, f'Visita familiar registrada para {grupo.nome or "grupo/casa"}.')
+                    return redirect('secretaria:central_visitacao')
+
+    context = {
+        'titulo_pagina': 'Central de Visitacao',
+        'can_acompanhamentos': can_acompanhamentos,
+        'can_grupos_casa': can_grupos_casa,
+        'total_acompanhamentos': total_acompanhamentos,
+        'total_grupos': total_grupos,
+        'tipo_visita': tipo_visita,
+        'acompanhamento_form': acompanhamento_form,
+        'visita_familiar_form': visita_familiar_form,
+        'pessoas_qs': pessoas_qs,
+        'grupos_qs': grupos_qs,
+        'membro_selecionado_id': membro_selecionado_id,
+        'grupo_selecionado_id': grupo_selecionado_id,
+        'membros_grupo_selecionado': membros_grupo_selecionado,
+        'membros_visitados_ids': membros_visitados_ids,
+        'visitacao_metrics': visitacao_metrics,
+    }
+    return render(request, 'secretaria/central_visitacao.html', context)
 
 
 # ---------------------------------------------------------------------------

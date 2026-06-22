@@ -1,16 +1,29 @@
-{% extends 'base_com_menu.html' %}
+{% extends 'base_com_sistema.html' %}
 {% load static %}
 
 {% block title %}{{ titulo_pagina }} - {{ ministerio.nome_fantasia|default:'Ministério' }}{% endblock %}
-
-{% block content %}
-    <div class="container-fluid px-4">
-        <h1 class="mt-4">{{ titulo_pagina }}</h1>
-        <ol class="breadcrumb mb-4">
-            <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_grupos_casa' %}">Grupos / Casas</a></li>
-            <li class="breadcrumb-item active">Detalhe</li>
-        </ol>
+{% block nome_departamento %}Visitacao{% endblock %}
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:central_visitacao' %}">Central de Visitacao</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'secretaria:lista_grupos_casa' %}">Casas e Grupos</a></li>
+    <li class="breadcrumb-item active">Detalhe</li>
+{% endblock %}
+{% block card_header_gradiente %}
+<div class="card-header py-3" style="background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%); color: #fff; border-radius:12px 12px 0 0; padding-left:2rem;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <i class="fas fa-house-user me-1"></i>
+            {{ titulo_pagina }}
+        </div>
+        <a href="{% url 'secretaria:lista_grupos_casa' %}" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+</div>
+{% endblock %}
+{% block conteudo_principal %}
+    <div style="height:20px;"></div>
 
         <div class="row">
             <div class="col-lg-6">
@@ -91,5 +104,4 @@
                 </div>
             </div>
         </div>
-    </div>
 {% endblock %}
