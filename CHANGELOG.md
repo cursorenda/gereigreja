@@ -1,3 +1,29 @@
+## v1.13.20 — 22/06/2026
+🔎 **SEO Técnico no Blog — Melhorias para indexação e descoberta orgânica**
+
+### Entregas
+- Reforço de sinais SEO no detalhe de posts:
+  - padronização de `meta_description` e `meta_keywords` via blocos do template base;
+  - remoção de duplicidade de meta tags no head;
+  - inclusão de `article:modified_time` para sinal de atualização.
+- Dados estruturados para buscadores:
+  - adição de schema `Article` em páginas de post;
+  - adição de schema `BreadcrumbList` no detalhe;
+  - adição de schema `ItemList` na listagem de blog.
+- Consistência de indexação e rastreabilidade:
+  - canonical mantido por URL absoluta do post;
+  - reforço de contexto semântico para reduzir casos de "Detectada, mas não indexada no momento".
+
+### Migrações
+- Nenhuma.
+
+### Impacto
+- Melhora da qualidade técnica de SEO on-page no blog.
+- Maior clareza para o Google entender tipo, hierarquia e atualização dos conteúdos.
+- Sem breaking changes de API pública e sem alteração de schema.
+
+---
+
 ## v1.13.19 — 22/06/2026
 ✅ **Eventos — Correção definitiva de persistência na marcação de presença**
 

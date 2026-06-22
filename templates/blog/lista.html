@@ -2,12 +2,11 @@
 {% load static sistema_imagens_tags %}
 
 {% block title %}Blog — Gereigreja{% endblock %}
+{% block meta_description %}Artigos práticos sobre gestão de igrejas, secretaria, financeiro, liderança e atualizações do Gereigreja.{% endblock %}
+{% block meta_keywords %}{% if categoria_ativa and categoria_ativa.palavras_chave %}{{ categoria_ativa.palavras_chave }}{% else %}blog para igrejas, gestao eclesiastica, secretaria de igreja, financeiro de igreja, gereigreja{% endif %}{% endblock %}
 {% block canonical_path %}/blog/{% endblock %}
 
 {% block extra_css %}
-{% if categoria_ativa and categoria_ativa.palavras_chave %}
-<meta name="keywords" content="{{ categoria_ativa.palavras_chave }}">
-{% endif %}
 <style>
   /* ---- Blog: variáveis de cor (consistente com landing) ---- */
   :root {
@@ -159,6 +158,26 @@
 {% endblock %}
 
 {% block content %}
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Blog Gereigreja",
+  "itemListOrder": "https://schema.org/ItemListOrderDescending",
+  "numberOfItems": {{ posts|length }},
+  "itemListElement": [
+    {% for post in posts %}
+    {
+      "@type": "ListItem",
+      "position": {{ forloop.counter }},
+      "url": "https://gereigreja.site{{ post.get_absolute_url }}",
+      "name": "{{ post.titulo|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
 
 <!-- Navbar -->
 <nav class="blog-navbar">
