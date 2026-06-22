@@ -1,3 +1,27 @@
+## v1.13.19 — 22/06/2026
+✅ **Eventos — Correção definitiva de persistência na marcação de presença**
+
+### Entregas
+- Correção do fluxo de gravação de presença no módulo de Eventos:
+  - checkboxes agora enviados com identificador direto da participação (`presentes=[pk,...]`);
+  - inclusão de fallback por payload JSON (`presentes_json`) para cenários com interferência de scripts globais;
+  - parser de POST robusto no backend com leitura priorizada do JSON e fallback para envio padrão.
+- Ajustes de UX e estabilidade na tela de presença:
+  - troca de sessão (dia) via navegação GET, evitando submit acidental do formulário de presença;
+  - sincronização contínua do estado de presença no frontend (mudança individual, ações em massa e submit).
+- Observabilidade do fluxo:
+  - log técnico estruturado para confirmar quantidade de presença recebida e volume processado por sessão.
+
+### Migrações
+- Nenhuma.
+
+### Impacto
+- Elimina inconsistência de "marquei e não salvou" na operação de presença.
+- Maior previsibilidade para eventos com grande volume de participantes.
+- Sem breaking changes de API pública e sem alteração de schema.
+
+---
+
 ## v1.13.18 — 19/06/2026
 🎨 **Agenda e Eventos Premium — Consolidação de fluxo, recorrência avançada e operação de presença otimizada**
 

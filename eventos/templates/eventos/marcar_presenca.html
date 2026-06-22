@@ -31,11 +31,12 @@
   <div class="card-body">
     <form method="post" id="form-presenca" class="eventos-form-grid">
       {% csrf_token %}
+      <input type="hidden" name="presentes_json" id="presentes-json" value="[]">
       <div class="eventos-presenca-topline mb-3">
         {% if sessoes %}
         <div class="eventos-presenca-dia-wrap">
           <label class="form-label mb-1">Dia:</label>
-          <select name="sessao" class="form-select" onchange="this.form.submit()">
+          <select name="sessao" id="presenca-sessao-select" class="form-select">
             {% for s in sessoes %}
               <option value="{{ s.pk }}" {% if sessao and s.pk == sessao.pk %}selected{% endif %}>Dia {{ s.numero }} - {{ s.data_inicio|date:'d/m/Y' }}</option>
             {% endfor %}
@@ -71,9 +72,9 @@
             <tr>
               <td class="text-center">
                 {% if p.membro %}
-                  <input type="checkbox" name="presentes" value="{{ p.membro.chave }}" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="checkbox" name="presentes" value="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
                 {% elif p.convidado_email %}
-                  <input type="checkbox" name="presentes" value="email:{{ p.convidado_email }}" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="checkbox" name="presentes" value="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
                 {% endif %}
               </td>
               <td>{% if p.membro %}{{ p.membro.nome }}{% else %}{{ p.convidado_nome|default:p.convidado_email }}{% endif %}</td>
@@ -156,6 +157,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const btnMarcarVisiveis = document.getElementById('btn-marcar-visiveis');
   const btnDesmarcarVisiveis = document.getElementById('btn-desmarcar-visiveis');
   const resumo = document.getElementById('presenca-resumo');
+  const selectSessao = document.getElementById('presenca-sessao-select');
+  const formPresenca = document.getElementById('form-presenca');
+  const presentesJsonInput = document.getElementById('presentes-json');
   const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' });
   let sortState = { index: null, direction: 'asc' };
 
@@ -176,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const rows = linhasDados();
     const visiveis = rows.filter(linhaVisivel);
     const marcados = visiveis.filter(function(row) {
-      const checkbox = row.querySelector('input[type="checkbox"][name="presentes"]');
+      const checkbox = row.querySelector('input.js-presenca-checkbox');
       return checkbox && checkbox.checked;
     });
     resumo.textContent = visiveis.length + ' visiveis · ' + marcados.length + ' marcados';
@@ -197,12 +201,26 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!linhaVisivel(row)) {
         return;
       }
-      const checkbox = row.querySelector('input[type="checkbox"][name="presentes"]');
+      const checkbox = row.querySelector('input.js-presenca-checkbox');
       if (checkbox) {
         checkbox.checked = marcar;
       }
     });
+    syncPresentesJson();
     atualizarResumo();
+  }
+
+  function syncPresentesJson() {
+    if (!presentesJsonInput) {
+      return;
+    }
+    const presentesPks = linhasDados().map(function(row) {
+      const checkbox = row.querySelector('input.js-presenca-checkbox');
+      return checkbox && checkbox.checked ? checkbox.value : null;
+    }).filter(function(v) {
+      return !!v;
+    });
+    presentesJsonInput.value = JSON.stringify(presentesPks);
   }
 
   function valorCelula(row, index) {
@@ -288,12 +306,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  if (selectSessao) {
+    selectSessao.addEventListener('change', function() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('sessao', selectSessao.value);
+      window.location.href = url.toString();
+    });
+  }
+
+  if (formPresenca && presentesJsonInput) {
+    formPresenca.addEventListener('submit', function() {
+      syncPresentesJson();
+    });
+  }
+
   tbody.addEventListener('change', function(event) {
-    if (event.target && event.target.matches('input[type="checkbox"][name="presentes"]')) {
+    if (event.target && event.target.matches('input.js-presenca-checkbox')) {
+      syncPresentesJson();
       atualizarResumo();
     }
   });
 
+  syncPresentesJson();
   atualizarResumo();
 });
 </script>

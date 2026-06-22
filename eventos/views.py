@@ -736,9 +736,35 @@ def marcar_presenca_evento(request, pk):
 		participacoes = ParticipacaoEvento.objects.filter(evento=evento, sessao=sessao, membro__status_pessoa__in=status_ids).select_related('membro')
 
 	if request.method == 'POST':
-		presentes_ids = request.POST.getlist('presentes')
-		# Normalize presentes_ids to strings
-		presentes_ids = [str(p) for p in presentes_ids]
+		presentes_pks = set()
+		import json
+		presentes_json = request.POST.get('presentes_json', '').strip()
+		if presentes_json:
+			try:
+				for value in json.loads(presentes_json):
+					presentes_pks.add(int(value))
+			except (ValueError, TypeError, json.JSONDecodeError):
+				presentes_pks = set()
+
+		# Fallback para submissão padrão de checkboxes.
+		if not presentes_pks:
+			for value in request.POST.getlist('presentes'):
+				try:
+					presentes_pks.add(int(value))
+				except (TypeError, ValueError):
+					continue
+
+		import logging
+		logger = logging.getLogger('django.request')
+		logger.info(
+			"[PRESENCA_EVENTO] evento=%s sessao=%s presentes_recebidos=%s presentes_post=%s json_len=%s participacoes_carregadas=%s",
+			evento.pk,
+			sessao.pk if sessao else None,
+			len(presentes_pks),
+			len(request.POST.getlist('presentes')),
+			len(presentes_json),
+			participacoes.count()
+		)
 
 		# Atualiza participações existentes (membros e convidados por email)
 		for participacao in participacoes:
@@ -749,13 +775,8 @@ def marcar_presenca_evento(request, pk):
 			else:
 				justificativa = justificativa_sel
 
-			marcado_presente = False
-			# Caso seja membro, identificador esperado é a chave do membro
-			if participacao.membro and str(participacao.membro.chave) in presentes_ids:
-				marcado_presente = True
-			# Caso seja convidado por email, a UI envia tokens como 'email:addr@ex.com'
-			if not marcado_presente and participacao.convidado_email and f'email:{participacao.convidado_email}' in presentes_ids:
-				marcado_presente = True
+			# Mapeamento por conjunto de PKs marcadas no POST.
+			marcado_presente = participacao.pk in presentes_pks
 
 			if marcado_presente:
 				if participacao.status != 'PRESENTE' or participacao.justificativa_falta:
@@ -767,20 +788,6 @@ def marcar_presenca_evento(request, pk):
 					participacao.status = 'AUSENTE'
 					participacao.justificativa_falta = justificativa
 					participacao.save(update_fields=['status', 'justificativa_falta'])
-
-		# Se houver emails marcados como presentes que não possuem participação
-		# criada para esta sessão, cria-las como PRESENTE (convidado)
-		emails_marcados = [p.split(':', 1)[1] for p in presentes_ids if str(p).startswith('email:')]
-		for email in emails_marcados:
-			exists = ParticipacaoEvento.objects.filter(evento=evento, sessao=sessao, convidado_email__iexact=email).exists()
-			if not exists:
-				ParticipacaoEvento.objects.create(
-					evento=evento,
-					sessao=sessao,
-					convidado_email=email,
-					papel='CONVIDADO',
-					status='PRESENTE'
-				)
 		messages.success(request, 'Presenças e justificativas atualizadas com sucesso!')
 		return redirect(reverse('eventos:detalhe_evento', args=[evento.pk]))
 
