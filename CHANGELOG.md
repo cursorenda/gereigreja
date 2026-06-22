@@ -1,3 +1,25 @@
+## v1.13.22 — 22/06/2026
+🛡️ **Secretaria — Proteção de Grupos/Casas manuais contra sobrescrita por agrupamento automático**
+
+### Entregas
+- Correção de segurança no agrupamento automático de Grupos/Casas:
+  - preserva vínculos de pessoas que já estavam em grupo/casa definido manualmente;
+  - passa a vincular automaticamente apenas pessoas sem grupo (ou já no mesmo grupo alvo);
+  - impede perda de organização manual quando o usuário executa atualização automática.
+- Evolução de feedback operacional na interface:
+  - mensagens de retorno agora informam quantos vínculos manuais foram preservados;
+  - maior transparência para auditoria de ações de reagrupamento.
+
+### Migrações
+- Nenhuma.
+
+### Impacto
+- Elimina risco de desfazer trabalho manual ao usar agrupamento automático.
+- Mantém coexistência segura entre fluxo manual e fluxo automático.
+- Sem breaking changes de API pública e sem alteração de schema.
+
+---
+
 ## v1.13.21 — 22/06/2026
 🏠 **Secretaria Premium — Central de Visitação unificada, inteligência pastoral e fluxo escalável de Grupos/Casas**
 

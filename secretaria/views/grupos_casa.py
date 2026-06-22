@@ -257,10 +257,17 @@ def agrupar_grupos_apply(request):
     rows = agrupar_preview_for_queryset(people_qs)
     to_apply = [r for r in rows if r.get('count', 0) >= 2]
 
-    result = {'created': 0, 'updated': 0}
+    result = {'created': 0, 'updated': 0, 'skipped_existing': 0}
     if to_apply:
         result = agrupar_apply_from_preview(to_apply)
-        messages.success(request, f"Agrupamento aplicado: {result.get('created', 0)} grupos criados, {result.get('updated', 0)} pessoas atualizadas.")
+        messages.success(
+            request,
+            (
+                f"Agrupamento aplicado: {result.get('created', 0)} grupos criados, "
+                f"{result.get('updated', 0)} pessoas atualizadas e "
+                f"{result.get('skipped_existing', 0)} vínculo(s) manual(is) preservado(s)."
+            )
+        )
     else:
         messages.info(request, 'Nenhum agrupamento com 2+ pessoas detectado; nada foi aplicado.')
 
@@ -290,7 +297,14 @@ def reagrupar_grupo_casa(request, grupo_id):
 
     if to_apply:
         result = agrupar_apply_from_preview(to_apply)
-        messages.success(request, f"Reagrupamento aplicado: {result.get('created',0)} grupos criados, {result.get('updated',0)} pessoas atualizadas.")
+        messages.success(
+            request,
+            (
+                f"Reagrupamento aplicado: {result.get('created',0)} grupos criados, "
+                f"{result.get('updated',0)} pessoas atualizadas e "
+                f"{result.get('skipped_existing', 0)} vínculo(s) manual(is) preservado(s)."
+            )
+        )
     else:
         messages.info(request, 'Nenhum agrupamento com 2+ pessoas detectado para este grupo; nada foi aplicado.')
 

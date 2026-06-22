@@ -1,14 +1,15 @@
 # Função utilitária para aplicar agrupamento de grupos/casas a partir do preview
 from django.db import transaction
-def agrupar_apply_from_preview(rows):
+def agrupar_apply_from_preview(rows, preserve_existing_links=True):
     """
     Aplica agrupamento de grupos/casas a partir de uma lista de dicts (como gerado por agrupar_preview_for_queryset).
     Cria GrupoCasa e associa pessoas conforme necessário.
-    Retorna {'created': X, 'updated': Y}
+    Retorna {'created': X, 'updated': Y, 'skipped_existing': Z}
     """
     from .models import Pessoa, GrupoCasa
     created = 0
     updated = 0
+    skipped_existing = 0
     def _pretty_address(rua_val, numero_val, complemento_val, cep_val):
         parts = []
         try:
@@ -94,12 +95,20 @@ def agrupar_apply_from_preview(rows):
                         pass
 
             for p in persons_qs:
-                if p.grupo_casa_id != group.id:
-                    p.grupo_casa = group
-                    p.save()
-                    updated += 1
+                if p.grupo_casa_id == group.id:
+                    continue
 
-    return {'created': created, 'updated': updated}
+                # Segurança: não desfazer agrupamentos já definidos manualmente.
+                # O agrupamento automático só deve completar vínculos ausentes.
+                if preserve_existing_links and p.grupo_casa_id:
+                    skipped_existing += 1
+                    continue
+
+                p.grupo_casa = group
+                p.save()
+                updated += 1
+
+    return {'created': created, 'updated': updated, 'skipped_existing': skipped_existing}
 # c:\Gereigreja\secretaria\utils.py
 from django.contrib.auth.models import User, Group
 from configuracao.models import Igreja, PerfilUsuario # Importar PerfilUsuario e Igreja
