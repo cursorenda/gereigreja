@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 
 from core.admin_mixins import ReadOnlyAdminMixin, DateHierarchyMixin
-from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
+from .models import AccessDeniedLog, AuditPageView, AuditSession, PermissionChangeLog
 
 
 # NOTE: Estas classes são usadas por auditoria_admin_site (admin_site.py).
@@ -82,6 +82,30 @@ class AuditSessionAdmin(ReadOnlyAdminMixin, DateHierarchyMixin, admin.ModelAdmin
         return str(obj.duracao)
 
     duracao_display.short_description = 'Duracao'
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
+class AuditPageViewAdmin(ReadOnlyAdminMixin, DateHierarchyMixin, admin.ModelAdmin):
+    date_hierarchy = 'criado_em'
+    list_display = ('criado_em', 'usuario', 'metodo_http', 'path', 'status_code', 'ip_address', 'duracao_ms')
+    list_filter = ('metodo_http', 'status_code', 'criado_em', 'ministerio')
+    search_fields = ('usuario__username', 'path', 'query_string', 'ip_address', 'referer')
+    readonly_fields = (
+        'criado_em',
+        'usuario',
+        'sessao',
+        'ministerio',
+        'ip_address',
+        'user_agent',
+        'referer',
+        'metodo_http',
+        'path',
+        'query_string',
+        'status_code',
+        'duracao_ms',
+    )
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser

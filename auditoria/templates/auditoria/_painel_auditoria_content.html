@@ -1,0 +1,153 @@
+<div class="p-3">
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto">
+            <label for="dias" class="form-label mb-0">Periodo (dias)</label>
+            <input id="dias" type="number" name="dias" class="form-control form-control-sm" value="{{ dias }}" min="1" max="365">
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <button type="submit" class="btn btn-sm btn-primary">Atualizar</button>
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'auditoria:exportar_logs_csv' %}?tipo=alteracoes&dias={{ dias }}">Exportar alteracoes (CSV)</a>
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'auditoria:exportar_logs_csv' %}?tipo=acessos_negados&dias={{ dias }}">Exportar acessos negados (CSV)</a>
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'auditoria:exportar_logs_csv' %}?tipo=navegacao&dias={{ dias }}">Exportar navegacao (CSV)</a>
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-warning" href="{% url 'auditoria:analise_atividades_suspeitas' %}">Analise de atividades suspeitas</a>
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-warning" href="{% url 'auditoria:acumulacao_permissoes' %}">Acumulacao de permissoes</a>
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'auditoria:auditar_permissoes' %}">Auditar permissoes</a>
+        </div>
+        {% if request.user.is_superuser %}
+        <div class="col-auto d-flex align-items-end">
+            <a class="btn btn-sm btn-outline-danger" href="{% url 'auditoria:alternar_modo_auditoria' %}">Alternar modo auditoria</a>
+        </div>
+        {% endif %}
+    </form>
+
+    {% if stats.usuarios_alto_risco > 0 %}
+    <div class="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
+        <span><strong>Atencao:</strong> {{ stats.usuarios_alto_risco }} usuario(s) com risco ALTO de acumulacao de permissoes.</span>
+        <a class="btn btn-sm btn-light" href="{% url 'auditoria:acumulacao_permissoes' %}">Ver detalhes</a>
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Alteracoes</strong><br>{{ stats.total_alteracoes }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Acessos Negados</strong><br>{{ stats.total_acessos_negados }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Usuarios Afetados</strong><br>{{ stats.usuarios_afetados }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Sessoes Ativas</strong><br>{{ stats.sessoes_ativas }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>Pageviews</strong><br>{{ stats.total_pageviews }}</div></div></div>
+        <div class="col-md-6 col-xl-2"><div class="card"><div class="card-body"><strong>IPs Unicos</strong><br>{{ stats.ips_unicos }}</div></div></div>
+        <div class="col-md-12 col-xl-2"><div class="card border-danger"><div class="card-body"><strong>Usuarios Alto Risco</strong><br>{{ stats.usuarios_alto_risco }}</div></div></div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-8">
+            <div class="card h-100">
+                <div class="card-header"><strong>Evolucao diaria (Alteracoes x Acessos Negados)</strong></div>
+                <div class="card-body">
+                    <div style="position:relative;height:280px;">
+                        <canvas id="graficoSerieAuditoria"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>Distribuicao de Acoes</strong></div>
+                <div class="card-body">
+                    <div style="position:relative;height:280px;">
+                        <canvas id="graficoDistribuicaoAcoes"></canvas>
+                    </div>
+                    <ul class="mt-3 mb-0" id="listaDistribuicaoAcoes">
+                        {% for item in distribuicao_acoes %}
+                        <li>{{ item.acao }}: {{ item.total }}</li>
+                        {% empty %}
+                        <li>Sem dados no periodo.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <h5>Ultimas Alteracoes</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead><tr><th>Data</th><th>Usuario</th><th>Acao</th><th>Grupo</th></tr></thead>
+                    <tbody>
+                        {% for log in logs_alteracoes_recentes %}
+                        <tr>
+                            <td>{{ log.data_hora|date:'d/m/Y H:i' }}</td>
+                            <td>{{ log.usuario_afetado }}</td>
+                            <td>{{ log.acao }}</td>
+                            <td>{{ log.grupo|default:'-' }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4">Sem alteracoes.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <a href="{% url 'auditoria:logs_alteracoes' %}">Ver todos os logs de alteracoes</a>
+        </div>
+
+        <div class="col-lg-6">
+            <h5>Ultimos Acessos Negados</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead><tr><th>Data</th><th>Usuario</th><th>Tipo</th><th>Recurso</th></tr></thead>
+                    <tbody>
+                        {% for log in logs_negados_recentes %}
+                        <tr>
+                            <td>{{ log.data_hora|date:'d/m/Y H:i' }}</td>
+                            <td>{{ log.usuario }}</td>
+                            <td>{{ log.tipo_acesso }}</td>
+                            <td>{{ log.recurso }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4">Sem acessos negados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <a href="{% url 'auditoria:logs_acessos_negados' %}">Ver todos os acessos negados</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <h5>Ultima Navegacao de Usuarios</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead><tr><th>Data</th><th>Usuario</th><th>Metodo</th><th>Path</th><th>Status</th><th>IP</th><th>Duracao</th></tr></thead>
+                    <tbody>
+                        {% for item in navegacao_recente %}
+                        <tr>
+                            <td>{{ item.criado_em|date:'d/m/Y H:i:s' }}</td>
+                            <td>{{ item.usuario }}</td>
+                            <td>{{ item.metodo_http }}</td>
+                            <td>{{ item.path }}</td>
+                            <td>{{ item.status_code }}</td>
+                            <td>{{ item.ip_address|default:'-' }}</td>
+                            <td>{{ item.duracao_ms|default:'-' }} ms</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7">Sem navegacao registrada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

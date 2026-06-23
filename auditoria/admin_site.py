@@ -4,8 +4,8 @@ from django.contrib.auth.models import User
 from django.urls import path
 
 from . import views
-from .admin import AccessDeniedLogAdmin, AuditSessionAdmin, PermissionChangeLogAdmin, UserAuditAdmin
-from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
+from .admin import AccessDeniedLogAdmin, AuditPageViewAdmin, AuditSessionAdmin, PermissionChangeLogAdmin, UserAuditAdmin
+from .models import AccessDeniedLog, AuditPageView, AuditSession, PermissionChangeLog
 
 
 class AuditoriaAdminSite(admin.AdminSite):
@@ -31,6 +31,7 @@ for model, model_admin in [
     (PermissionChangeLog, PermissionChangeLogAdmin),
     (AccessDeniedLog, AccessDeniedLogAdmin),
     (AuditSession, AuditSessionAdmin),
+    (AuditPageView, AuditPageViewAdmin),
 ]:
     try:
         auditoria_admin_site.register(model, model_admin)

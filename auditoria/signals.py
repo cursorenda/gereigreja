@@ -7,7 +7,7 @@ from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 from django.utils import timezone
 
-from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
+from .models import AccessDeniedLog, AuditPageView, AuditSession, PermissionChangeLog
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -127,6 +127,41 @@ def incrementar_contador_paginas(usuario):
             sessao.save(update_fields=['paginas_visitadas'])
     except Exception:
         logger.exception('Erro ao incrementar contador de paginas')
+
+
+def registrar_pageview_usuario(usuario, request, response, duracao_ms=None):
+    try:
+        if not request or not response:
+            return
+
+        if request.path.startswith('/static/') or request.path.startswith('/media/'):
+            return
+
+        if getattr(response, 'status_code', 0) < 200 or getattr(response, 'status_code', 0) >= 400:
+            return
+
+        sessao = AuditSession.objects.filter(
+            usuario=usuario,
+            logout_data_hora__isnull=True,
+        ).order_by('-login_data_hora').first()
+
+        query_string = (request.META.get('QUERY_STRING', '') or '')[:1000]
+
+        AuditPageView.objects.create(
+            usuario=usuario,
+            sessao=sessao,
+            ministerio=_obter_ministerio_usuario(usuario),
+            ip_address=obter_ip_do_usuario(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+            referer=request.META.get('HTTP_REFERER', '')[:500],
+            metodo_http=(request.method or 'GET')[:10],
+            path=(request.path or '')[:500],
+            query_string=query_string,
+            status_code=int(getattr(response, 'status_code', 200) or 200),
+            duracao_ms=duracao_ms,
+        )
+    except Exception:
+        logger.exception('Erro ao registrar pageview de auditoria')
 
 
 @receiver(user_logged_out)

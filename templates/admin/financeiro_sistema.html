@@ -1,0 +1,255 @@
+{% extends 'admin/base_site.html' %}
+{% load humanize %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .fs-wrap { padding: 18px; background: #f3f6fb; border-radius: 14px; border: 1px solid #dbe5ef; }
+    .fs-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .fs-head h1 { margin: 0; font-size: 1.8rem; color: #1f2f3d; }
+    .fs-sub { color: #607489; font-size: .95rem; }
+    .fs-nav { display: flex; gap: 8px; align-items: center; }
+    .fs-btn {
+        display: inline-block; padding: 6px 12px; border-radius: 9px; border: 1px solid #b9ccdd;
+        background: #fff; color: #1f5f8d; text-decoration: none; font-weight: 600; font-size: .82rem;
+    }
+    .fs-btn:hover { background: #f5fafe; }
+
+    .fs-kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .fs-kpi { background: #fff; border: 1px solid #dce7f1; border-radius: 12px; padding: 12px; }
+    .fs-kpi .label { color: #607489; text-transform: uppercase; font-size: .72rem; letter-spacing: .04em; }
+    .fs-kpi .val { margin-top: 4px; font-size: 1.3rem; font-weight: 700; color: #1f2f3d; }
+    .fs-kpi.negative .val { color: #a22d3b; }
+    .fs-kpi.positive .val { color: #0f7b5b; }
+
+    .fs-main-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; margin-bottom: 14px; }
+    .fs-panel { background: #fff; border: 1px solid #dce7f1; border-radius: 12px; overflow: hidden; }
+    .fs-panel .title { padding: 10px 12px; background: #f8fbfe; border-bottom: 1px solid #e5eef7; font-size: .84rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .fs-panel .body { padding: 12px; }
+    .chart-box { height: 320px; }
+
+    .fs-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .fs-field { display: flex; flex-direction: column; gap: 4px; }
+    .fs-field label { font-size: .78rem; color: #607489; text-transform: uppercase; letter-spacing: .04em; }
+    .fs-field input, .fs-field textarea, .fs-field select {
+        border: 1px solid #c8d6e4; border-radius: 8px; min-height: 36px; padding: 6px 8px; font-size: .9rem;
+    }
+    .fs-form-grid .full { grid-column: 1 / -1; }
+    .fs-submit { margin-top: 10px; }
+    .fs-submit button {
+        border: none; border-radius: 9px; padding: 9px 14px;
+        background: linear-gradient(135deg, #1f6fa8, #378ecb); color: #fff; font-weight: 700; cursor: pointer;
+    }
+
+    .fs-table-wrap { overflow-x: auto; }
+    .fs-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .fs-table th, .fs-table td { padding: 7px 8px; border-bottom: 1px solid #edf3f9; text-align: left; }
+    .fs-table th { background: #fbfdff; color: #617486; text-transform: uppercase; letter-spacing: .03em; font-size: .72rem; }
+
+    @media (max-width: 1200px) {
+        .fs-kpi-grid { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
+    }
+    @media (max-width: 980px) {
+        .fs-main-grid { grid-template-columns: 1fr; }
+        .fs-form-grid { grid-template-columns: 1fr; }
+        .fs-kpi-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="/admin/">Inicio</a> &rsaquo; Financeiro do Sistema
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="fs-wrap">
+    <div class="fs-head">
+        <div>
+            <h1>Financeiro do Sistema</h1>
+            <div class="fs-sub">Controle interno de entradas (automático via assinaturas) e gastos operacionais.</div>
+        </div>
+        <div class="fs-nav">
+            <a class="fs-btn" href="?mes={{ mes_anterior_str }}">Mes anterior</a>
+            <span class="fs-btn" style="background:#f7fbff">{{ mes_referencia|date:'m/Y' }}</span>
+            <a class="fs-btn" href="?mes={{ mes_posterior_str }}">Proximo mes</a>
+        </div>
+    </div>
+
+    <div class="fs-kpi-grid">
+        <div class="fs-kpi positive"><div class="label">Entradas do mes</div><div class="val">R$ {{ total_receitas_mes|floatformat:2|intcomma }}</div></div>
+        <div class="fs-kpi"><div class="label">Gastos do mes</div><div class="val">R$ {{ total_gastos_mes|floatformat:2|intcomma }}</div></div>
+        <div class="fs-kpi {% if liquido_mes < 0 %}negative{% else %}positive{% endif %}"><div class="label">Liquido do mes</div><div class="val">R$ {{ liquido_mes|floatformat:2|intcomma }}</div></div>
+        <div class="fs-kpi"><div class="label">Receita acumulada</div><div class="val">R$ {{ total_receitas_geral|floatformat:2|intcomma }}</div></div>
+        <div class="fs-kpi {% if acumulado < 0 %}negative{% else %}positive{% endif %}"><div class="label">Resultado acumulado</div><div class="val">R$ {{ acumulado|floatformat:2|intcomma }}</div></div>
+    </div>
+
+    <div class="fs-main-grid">
+        <section class="fs-panel">
+            <div class="title">Serie de 12 meses</div>
+            <div class="body">
+                <div class="chart-box"><canvas id="chartFinanceiro"></canvas></div>
+            </div>
+        </section>
+
+        <section class="fs-panel">
+            <div class="title">Lancar gasto manual</div>
+            <div class="body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="fs-form-grid">
+                        <div class="fs-field">
+                            <label for="{{ form_gasto.categoria.id_for_label }}">Categoria</label>
+                            {{ form_gasto.categoria }}
+                        </div>
+                        <div class="fs-field">
+                            <label for="{{ form_gasto.valor.id_for_label }}">Valor</label>
+                            {{ form_gasto.valor }}
+                        </div>
+                        <div class="fs-field full">
+                            <label for="{{ form_gasto.descricao.id_for_label }}">Descricao</label>
+                            {{ form_gasto.descricao }}
+                        </div>
+                        <div class="fs-field">
+                            <label for="{{ form_gasto.data_competencia.id_for_label }}">Competencia</label>
+                            {{ form_gasto.data_competencia }}
+                        </div>
+                        <div class="fs-field">
+                            <label for="{{ form_gasto.data_pagamento.id_for_label }}">Data pagamento</label>
+                            {{ form_gasto.data_pagamento }}
+                        </div>
+                        <div class="fs-field full">
+                            <label for="{{ form_gasto.observacao.id_for_label }}">Observacao</label>
+                            {{ form_gasto.observacao }}
+                        </div>
+                    </div>
+                    <div class="fs-submit"><button type="submit">Salvar gasto</button></div>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <div class="fs-main-grid">
+        <section class="fs-panel">
+            <div class="title">Recebimentos recentes (automatico)</div>
+            <div class="body fs-table-wrap">
+                <table class="fs-table">
+                    <thead><tr><th>Data</th><th>Ministerio</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for r in recebimentos_recentes %}
+                        <tr>
+                            <td>{{ r.data_inicio|date:'d/m/Y H:i' }}</td>
+                            <td>{{ r.ministerio.nome_fantasia|default:'-' }}</td>
+                            <td>{{ r.plano.get_nome_display|default:'-' }}</td>
+                            <td>R$ {{ r.valor|floatformat:2|intcomma }}</td>
+                            <td>{{ r.get_status_display }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5">Sem recebimentos registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="fs-panel">
+            <div class="title">Gastos recentes e categorias</div>
+            <div class="body">
+                <div class="fs-table-wrap" style="margin-bottom: 10px;">
+                    <table class="fs-table">
+                        <thead><tr><th>Competencia</th><th>Categoria</th><th>Descricao</th><th>Valor</th></tr></thead>
+                        <tbody>
+                            {% for g in gastos_recentes %}
+                            <tr>
+                                <td>{{ g.data_competencia|date:'d/m/Y' }}</td>
+                                <td>{{ g.categoria.nome }}</td>
+                                <td>{{ g.descricao }}</td>
+                                <td>R$ {{ g.valor|floatformat:2|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4">Sem gastos registrados.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <table class="fs-table">
+                    <thead><tr><th>Categoria (mes)</th><th>Total</th></tr></thead>
+                    <tbody>
+                        {% for item in categorias_breakdown %}
+                        <tr>
+                            <td>{{ item.categoria__nome|default:'Sem categoria' }}</td>
+                            <td>R$ {{ item.total|floatformat:2|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2">Sem gastos no mes selecionado.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+(function () {
+    const labels = {{ chart_labels_json|safe }};
+    const receitas = {{ chart_receitas_json|safe }};
+    const gastos = {{ chart_gastos_json|safe }};
+    const liquido = {{ chart_liquido_json|safe }};
+
+    const ctx = document.getElementById('chartFinanceiro');
+    if (!ctx) return;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Entradas',
+                    data: receitas,
+                    backgroundColor: 'rgba(31, 111, 168, 0.7)',
+                },
+                {
+                    type: 'bar',
+                    label: 'Gastos',
+                    data: gastos,
+                    backgroundColor: 'rgba(201, 72, 93, 0.7)',
+                },
+                {
+                    type: 'line',
+                    label: 'Liquido',
+                    data: liquido,
+                    borderColor: '#0f8a7b',
+                    backgroundColor: 'rgba(15, 138, 123, 0.15)',
+                    tension: 0.25,
+                    fill: false,
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(v) { return 'R$ ' + v; }
+                    }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

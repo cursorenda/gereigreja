@@ -1913,8 +1913,12 @@ def abrir_billing_portal(request):
 @csrf_exempt
 def stripe_webhook(request):
     payload = request.body
-    sig_header = request.META['HTTP_STRIPE_SIGNATURE']
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
     event = None
+
+    if not sig_header:
+        logger.warning('Webhook Stripe recebido sem header de assinatura.')
+        return HttpResponse(status=400)
 
     try:
         event = stripe.Webhook.construct_event(
@@ -2144,6 +2148,20 @@ def stripe_webhook(request):
                             data_fim=data_fim_hist,
                             observacao=observacao,
                         )
+
+                        from configuracao.services_assinatura import registrar_evento_funil
+                        registrar_evento_funil(
+                            'pagamento_confirmado',
+                            ministerio=ministerio,
+                            plano=assinatura.plano,
+                            ciclo_pagamento=assinatura.ciclo_pagamento,
+                            valor=valor_pago,
+                            extra={
+                                'invoice_id': invoice.get('id') or '',
+                                'subscription_id': stripe_subscription_id or '',
+                                'billing_reason': invoice.get('billing_reason') or '',
+                            },
+                        )
             except Ministerio.DoesNotExist:
                 logger.warning(f"invoice.paid: customer {stripe_customer_id} não encontrado no banco.")
             except Exception as e:
@@ -2213,6 +2231,7 @@ def stripe_webhook(request):
                     ministerio = Ministerio.objects.get(stripe_customer_id=stripe_customer_id)
                     assinatura = AssinaturaMinisterio.objects.filter(ministerio=ministerio).first()
                     if assinatura:
+                        status_anterior = assinatura.status
                         plano_anterior = assinatura.plano
                         ciclo_anterior = assinatura.ciclo_pagamento
 

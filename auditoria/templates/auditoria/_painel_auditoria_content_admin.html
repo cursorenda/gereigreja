@@ -1,0 +1,137 @@
+<form method="get" class="audit-toolbar">
+    <div class="audit-filter">
+        <label for="dias">Periodo (dias)</label>
+        <input id="dias" type="number" name="dias" value="{{ dias }}" min="1" max="365">
+    </div>
+    <div class="audit-actions">
+        <button type="submit" class="audit-btn primary">Atualizar</button>
+        <a class="audit-btn" href="{% url 'auditoria:exportar_logs_csv' %}?tipo=alteracoes&dias={{ dias }}">Exportar alteracoes (CSV)</a>
+        <a class="audit-btn" href="{% url 'auditoria:exportar_logs_csv' %}?tipo=acessos_negados&dias={{ dias }}">Exportar acessos negados (CSV)</a>
+        <a class="audit-btn" href="{% url 'auditoria:exportar_logs_csv' %}?tipo=navegacao&dias={{ dias }}">Exportar navegacao (CSV)</a>
+        <a class="audit-btn warning" href="{% url 'auditoria:analise_atividades_suspeitas' %}">Analise de atividades suspeitas</a>
+        <a class="audit-btn warning" href="{% url 'auditoria:acumulacao_permissoes' %}">Acumulacao de permissoes</a>
+        <a class="audit-btn" href="{% url 'auditoria:auditar_permissoes' %}">Auditar permissoes</a>
+        {% if request.user.is_superuser %}
+        <a class="audit-btn danger" href="{% url 'auditoria:alternar_modo_auditoria' %}">Alternar modo auditoria</a>
+        {% endif %}
+    </div>
+</form>
+
+{% if stats.usuarios_alto_risco > 0 %}
+<div class="audit-alert">
+    <span><strong>Atencao:</strong> {{ stats.usuarios_alto_risco }} usuario(s) com risco ALTO de acumulacao de permissoes.</span>
+    <a class="audit-btn detail" href="{% url 'auditoria:acumulacao_permissoes' %}">Ver detalhes</a>
+</div>
+{% endif %}
+
+<div class="audit-kpis">
+    <div class="audit-kpi"><div class="label">Alteracoes</div><div class="value">{{ stats.total_alteracoes }}</div></div>
+    <div class="audit-kpi"><div class="label">Acessos Negados</div><div class="value">{{ stats.total_acessos_negados }}</div></div>
+    <div class="audit-kpi"><div class="label">Usuarios Afetados</div><div class="value">{{ stats.usuarios_afetados }}</div></div>
+    <div class="audit-kpi"><div class="label">Sessoes Ativas</div><div class="value">{{ stats.sessoes_ativas }}</div></div>
+    <div class="audit-kpi"><div class="label">Pageviews</div><div class="value">{{ stats.total_pageviews }}</div></div>
+    <div class="audit-kpi"><div class="label">IPs Unicos</div><div class="value">{{ stats.ips_unicos }}</div></div>
+    <div class="audit-kpi risk"><div class="label">Usuarios Alto Risco</div><div class="value">{{ stats.usuarios_alto_risco }}</div></div>
+</div>
+
+<div class="audit-charts">
+    <section class="audit-panel">
+        <div class="title">Evolucao diaria (Alteracoes x Acessos Negados)</div>
+        <div class="body">
+            <div class="chart-box">
+                <canvas id="graficoSerieAuditoria"></canvas>
+            </div>
+        </div>
+    </section>
+    <section class="audit-panel">
+        <div class="title">Distribuicao de Acoes</div>
+        <div class="body">
+            <div class="chart-box">
+                <canvas id="graficoDistribuicaoAcoes"></canvas>
+            </div>
+            <ul id="listaDistribuicaoAcoes">
+                {% for item in distribuicao_acoes %}
+                <li>{{ item.acao }}: {{ item.total }}</li>
+                {% empty %}
+                <li>Sem dados no periodo.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+</div>
+
+<div class="audit-tables">
+    <section class="audit-panel">
+        <div class="title">Ultimas Alteracoes</div>
+        <div class="body">
+            <div class="audit-table-wrap">
+                <table class="audit-table">
+                    <thead><tr><th>Data</th><th>Usuario</th><th>Acao</th><th>Grupo</th></tr></thead>
+                    <tbody>
+                        {% for log in logs_alteracoes_recentes %}
+                        <tr>
+                            <td>{{ log.data_hora|date:'d/m/Y H:i' }}</td>
+                            <td>{{ log.usuario_afetado }}</td>
+                            <td>{{ log.acao }}</td>
+                            <td>{{ log.grupo|default:'-' }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4">Sem alteracoes.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <a href="{% url 'auditoria:logs_alteracoes' %}">Ver todos os logs de alteracoes</a>
+        </div>
+    </section>
+
+    <section class="audit-panel">
+        <div class="title">Ultimos Acessos Negados</div>
+        <div class="body">
+            <div class="audit-table-wrap">
+                <table class="audit-table">
+                    <thead><tr><th>Data</th><th>Usuario</th><th>Tipo</th><th>Recurso</th></tr></thead>
+                    <tbody>
+                        {% for log in logs_negados_recentes %}
+                        <tr>
+                            <td>{{ log.data_hora|date:'d/m/Y H:i' }}</td>
+                            <td>{{ log.usuario }}</td>
+                            <td>{{ log.tipo_acesso }}</td>
+                            <td>{{ log.recurso }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4">Sem acessos negados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <a href="{% url 'auditoria:logs_acessos_negados' %}">Ver todos os acessos negados</a>
+        </div>
+    </section>
+</div>
+
+<section class="audit-panel">
+    <div class="title">Ultima Navegacao de Usuarios</div>
+    <div class="body">
+        <div class="audit-table-wrap">
+            <table class="audit-table">
+                <thead><tr><th>Data</th><th>Usuario</th><th>Metodo</th><th>Path</th><th>Status</th><th>IP</th><th>Duracao</th></tr></thead>
+                <tbody>
+                    {% for item in navegacao_recente %}
+                    <tr>
+                        <td>{{ item.criado_em|date:'d/m/Y H:i:s' }}</td>
+                        <td>{{ item.usuario }}</td>
+                        <td>{{ item.metodo_http }}</td>
+                        <td>{{ item.path }}</td>
+                        <td>{{ item.status_code }}</td>
+                        <td>{{ item.ip_address|default:'-' }}</td>
+                        <td>{{ item.duracao_ms|default:'-' }} ms</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7">Sem navegacao registrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

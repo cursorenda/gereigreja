@@ -1,6 +1,8 @@
+import time
+
 from django.http import HttpResponseForbidden
 
-from .signals import incrementar_contador_paginas, registrar_acesso_negado, registrar_login_usuario
+from .signals import incrementar_contador_paginas, registrar_acesso_negado, registrar_login_usuario, registrar_pageview_usuario
 from .utils import modo_auditoria_ativo
 
 
@@ -26,6 +28,8 @@ class RegistrarAuditoriaMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        started_at = time.perf_counter()
+
         if request.user.is_authenticated:
             if not request.session.get('auditoria_login_registrado'):
                 registrar_login_usuario(request.user, request)
@@ -35,7 +39,13 @@ class RegistrarAuditoriaMiddleware:
             if request.method == 'GET' and not request.path.startswith('/static/') and not request.path.startswith('/media/'):
                 incrementar_contador_paginas(request.user)
 
-        return self.get_response(request)
+        response = self.get_response(request)
+
+        if request.user.is_authenticated:
+            duracao_ms = int((time.perf_counter() - started_at) * 1000)
+            registrar_pageview_usuario(request.user, request, response, duracao_ms=duracao_ms)
+
+        return response
 
 
 class CapturarAcessoNegadoMiddleware:

@@ -1,0 +1,352 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+<style>
+    :root {
+        --audit-bg: #f2f5fa;
+        --audit-card: #ffffff;
+        --audit-line: #d6e0ea;
+        --audit-text: #1f2f3d;
+        --audit-sub: #627487;
+        --audit-accent: #1f6fa8;
+        --audit-accent-2: #0f8a7b;
+    }
+    #content {
+        background: var(--audit-bg);
+    }
+    .auditoria-panel-shell {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 18px;
+        align-items: start;
+    }
+    @media (max-width: 1100px) {
+        .auditoria-panel-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+    .auditoria-content-wrap {
+        min-width: 0;
+    }
+    .auditoria-content-wrap .module {
+        border-radius: 14px;
+        border: 1px solid var(--audit-line);
+        background: var(--audit-card);
+        box-shadow: 0 10px 28px rgba(33, 58, 89, 0.08);
+    }
+    .auditoria-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 0 0 14px;
+        gap: 12px;
+    }
+    .auditoria-header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        color: var(--audit-text);
+    }
+    .auditoria-header .sub {
+        color: var(--audit-sub);
+        font-size: 0.92rem;
+    }
+
+    .dashboard-sidebar .module {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 8px 18px rgba(27, 45, 68, 0.06);
+    }
+    .dashboard-sidebar caption {
+        background: linear-gradient(90deg, #2a6f92, #3e88ae);
+        color: #fff;
+        padding: 9px 12px;
+    }
+
+    .audit-toolbar {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+        align-items: end;
+    }
+    @media (max-width: 980px) {
+        .audit-toolbar {
+            grid-template-columns: 1fr;
+        }
+    }
+    .audit-filter {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .audit-filter label {
+        font-size: 0.78rem;
+        color: var(--audit-sub);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .audit-filter input {
+        border: 1px solid var(--audit-line);
+        border-radius: 9px;
+        height: 38px;
+        padding: 0 10px;
+        font-size: 0.95rem;
+        background: #fff;
+    }
+    .audit-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .audit-btn {
+        display: inline-block;
+        border-radius: 10px;
+        border: 1px solid var(--audit-line);
+        padding: 7px 12px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: #224766;
+        background: #fff;
+        transition: all .15s ease;
+    }
+    .audit-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(26, 59, 98, 0.1);
+        background: #f8fbff;
+    }
+    .audit-btn.primary {
+        background: linear-gradient(135deg, var(--audit-accent), #2f87c8);
+        border-color: transparent;
+        color: #fff;
+    }
+    .audit-btn.warning {
+        background: #fffaee;
+        border-color: #f5da8a;
+        color: #8a6500;
+    }
+    .audit-btn.danger {
+        background: #fff4f5;
+        border-color: #f4c1c7;
+        color: #a32a3d;
+    }
+
+    .audit-alert {
+        margin: 0 0 14px;
+        border: 1px solid #efc9ce;
+        background: #fff4f6;
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: #8a2d3b;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+    .audit-alert .detail {
+        white-space: nowrap;
+    }
+
+    .audit-kpis {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .audit-kpi {
+        border: 1px solid var(--audit-line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff, #f9fbfe);
+        padding: 10px 12px;
+        min-height: 78px;
+    }
+    .audit-kpi .label {
+        color: var(--audit-sub);
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+    }
+    .audit-kpi .value {
+        margin-top: 4px;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--audit-text);
+    }
+    .audit-kpi.risk {
+        border-color: #f1c3cb;
+        background: linear-gradient(180deg, #fff8f9, #fff2f4);
+    }
+
+    .audit-charts {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .audit-panel {
+        border: 1px solid var(--audit-line);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+    }
+    .audit-panel .title {
+        font-size: 0.86rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #3a4f63;
+        padding: 10px 12px;
+        border-bottom: 1px solid #e4ecf3;
+        background: #f9fcff;
+        font-weight: 700;
+    }
+    .audit-panel .body {
+        padding: 10px 12px;
+    }
+    .chart-box {
+        position: relative;
+        min-height: 300px;
+        height: 300px;
+    }
+
+    .audit-tables {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .audit-table-wrap {
+        overflow-x: auto;
+    }
+    .audit-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+    }
+    .audit-table th,
+    .audit-table td {
+        padding: 7px 8px;
+        border-bottom: 1px solid #edf2f7;
+        text-align: left;
+        vertical-align: top;
+    }
+    .audit-table th {
+        color: #5f7285;
+        font-size: 0.72rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        background: #fbfdff;
+    }
+
+    @media (max-width: 1280px) {
+        .audit-kpis {
+            grid-template-columns: repeat(3, minmax(140px, 1fr));
+        }
+    }
+    @media (max-width: 980px) {
+        .audit-charts,
+        .audit-tables {
+            grid-template-columns: 1fr;
+        }
+        .audit-kpis {
+            grid-template-columns: repeat(2, minmax(140px, 1fr));
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% include 'auditoria/_painel_auditoria_scripts.html' %}
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="/admin/">Inicio</a> &rsaquo; Auditoria
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="auditoria-panel-shell">
+    <div class="dashboard-sidebar">
+        <div class="app-operacao module">
+            <table>
+                <caption><a href="#" class="section" title="Operacao Diaria">Operacao Diaria</a></caption>
+                <tbody>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin:configuracao_ministerio_changelist' %}">Ministerios</a></th>
+                        <td class="admin-cell-meta">Gerenciar clientes</td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin:suporte_ticket_changelist' %}">Tickets</a></th>
+                        <td class="admin-cell-meta">Suporte aos clientes</td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin:configuracao_assinaturaministerio_changelist' %}">Assinaturas</a></th>
+                        <td class="admin-cell-meta">Planos ativos</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="app-monitoramento module">
+            <table>
+                <caption><a href="#" class="section" title="Monitoramento">Monitoramento</a></caption>
+                <tbody>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin:configuracao_dashboard_sistema' %}">Dashboard Sistema</a></th>
+                        <td class="admin-cell-meta">Saude do servidor</td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin:configuracao_dashboard_funil' %}">Funil de Vendas</a></th>
+                        <td class="admin-cell-meta">Metricas de conversao</td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin_metricas_produto' %}">API de Metricas</a></th>
+                        <td class="admin-cell-meta">Dados do painel</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="app-engenharia module">
+            <table>
+                <caption><a href="#" class="section" title="Engenharia">Engenharia</a></caption>
+                <tbody>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin:deploy_deployhistorico_changelist' %}">Deploy</a></th>
+                        <td class="admin-cell-meta">Historico de versoes</td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><a href="{% url 'backup_json' %}">Backup JSON</a></th>
+                        <td class="admin-cell-success">Producao</td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><a href="{% url 'admin:blog_post_changelist' %}">Blog</a></th>
+                        <td class="admin-cell-meta">Conteudo</td>
+                    </tr>
+                    <tr class="model-auditoria">
+                        <th scope="row"><a href="/admin/auditoria/painel/">Auditoria</a></th>
+                        <td class="admin-cell-meta">Logs de acesso</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="content-main" class="auditoria-content-wrap">
+        <div class="module" style="padding: 16px;">
+            <div class="auditoria-header">
+                <div>
+                    <h1>Painel de Auditoria</h1>
+                    <div class="sub">Observabilidade de acessos, risco de permissões e trilha de navegação.</div>
+                </div>
+            </div>
+            {% include 'auditoria/_painel_auditoria_content_admin.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}

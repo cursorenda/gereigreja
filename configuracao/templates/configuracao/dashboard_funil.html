@@ -176,8 +176,8 @@
             <div class="kpi-rate">{{ taxas.cadastros_para_checkout }}% de cadastros</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">Checkout completo (pago)</div>
-            <div class="kpi-num">{{ contagem.checkout_completo }}</div>
+            <div class="kpi-label">Pagamentos confirmados</div>
+            <div class="kpi-num">{{ contagem.pagamento_confirmado }}</div>
             <div class="kpi-rate">{{ taxas.checkout_para_pago }}% de checkout &nbsp;|&nbsp; {{ taxas.visita_para_pago }}% visita→pago</div>
         </div>
     </div>
@@ -224,6 +224,34 @@
 
     {# ── CONVERSÃO POR ORIGEM / COHORT ── #}
     <div class="mid-grid">
+        <div class="panel">
+            <h2>Reconciliacao Financeira</h2>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Eventos de pagamento (funil)</td>
+                        <td class="text-right fw-bold">{{ reconciliacao.eventos_pagamento }}</td>
+                    </tr>
+                    <tr>
+                        <td>Pagamentos no historico</td>
+                        <td class="text-right fw-bold">{{ reconciliacao.historico_pagamentos }}</td>
+                    </tr>
+                    <tr>
+                        <td>Delta de pagamentos</td>
+                        <td class="text-right {% if reconciliacao.delta_pagamentos == 0 %}text-muted{% else %}fw-bold{% endif %}">{{ reconciliacao.delta_pagamentos }}</td>
+                    </tr>
+                    <tr>
+                        <td>Receita no historico</td>
+                        <td class="text-right">R$ {{ reconciliacao.historico_receita|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td>Delta de receita</td>
+                        <td class="text-right {% if reconciliacao.delta_receita == 0 %}text-muted{% else %}fw-bold{% endif %}">R$ {{ reconciliacao.delta_receita|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
         <div class="panel">
             <h2>Conversão por Origem</h2>
             <table>
@@ -292,7 +320,7 @@
             <div class="cac-results">
                 <div class="cac-kpi">
                     <div class="label">Clientes pagantes</div>
-                    <div class="val" id="cac-pagantes">{{ contagem.checkout_completo }}</div>
+                    <div class="val" id="cac-pagantes">{{ contagem.pagamento_confirmado }}</div>
                 </div>
                 <div class="cac-kpi">
                     <div class="label">Ticket médio</div>
@@ -312,7 +340,7 @@
     </div>
 
     <script>
-    const pagantes = {{ contagem.checkout_completo }};
+    const pagantes = {{ contagem.pagamento_confirmado }};
     const ticketMedio = {{ ticket_medio }};
     function calcCAC() {
         const invest = parseFloat(document.getElementById('cac-invest').value) || 0;

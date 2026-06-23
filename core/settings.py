@@ -281,6 +281,11 @@ if DEBUG:
     LOGGING['loggers']['financeiro']['handlers'].append('file')
     LOGGING['loggers']['django']['handlers'].append('file')
 
+
+DEV_FINANCEIRO_USERNAMES = [
+    u.strip() for u in os.environ.get('DEV_FINANCEIRO_USERNAMES', '').split(',') if u.strip()
+]
+
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/secretaria/'
 LOGOUT_REDIRECT_URL = '/'

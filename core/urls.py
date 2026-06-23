@@ -18,8 +18,10 @@ from core.views_teste_permissao import view_livre, view_admin_ministerio
 from painel_desenvolvedor.admin import painel_pytest_view
 from configuracao.admin_dashboard import dashboard_desenvolvedor, executar_comando
 from configuracao.admin_metrics import metricas_produto
+from configuracao.views_financeiro_sistema import financeiro_sistema_admin
 from django.contrib.admin.views.decorators import staff_member_required
 from auditoria.admin_site import auditoria_admin_site
+from auditoria import views as auditoria_views
 from secretaria import views as secretaria_views
 
 
@@ -44,11 +46,16 @@ urlpatterns = [
     path('admin/api/metricas-produto/', staff_member_required(metricas_produto), name='admin_metricas_produto'),
     # Painel de testes de permissoes/hierarquias
     path('admin/painel-permissoes/', staff_member_required(painel_permissoes_view), name='admin_painel_permissoes'),
+    path('admin/financeiro-sistema/', financeiro_sistema_admin, name='admin_financeiro_sistema'),
     # Painel de testes unitários (pytest)
     path('admin/painel-desenvolvedor/pytest/', admin.site.admin_view(painel_pytest_view), name='admin_painel_pytest'),
     # Galeria de imagens do sistema (admin desenvolvedor)
     path('admin/painel-desenvolvedor/', include('painel_desenvolvedor.urls')),
-    path('admin-auditoria/', auditoria_admin_site.urls),
+    # Painel operacional de auditoria dentro do namespace /admin/
+    path('admin/auditoria/painel/', staff_member_required(auditoria_views.painel_auditoria), name='admin_auditoria_painel'),
+    path('admin/auditoria/', auditoria_admin_site.urls),
+    # Alias legado
+    path('admin-auditoria/', RedirectView.as_view(url='/admin/auditoria/', permanent=False)),
     # Rotas de teste de permissao
     path('teste-permissao/livre/', view_livre, name='teste_permissao_livre'),
     path('teste-permissao/admin-ministerio/', view_admin_ministerio, name='teste_permissao_admin_ministerio'),

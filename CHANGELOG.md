@@ -1,3 +1,37 @@
+## v1.13.23 — 22/06/2026
+💼 **Admin Dev Premium — Observabilidade avançada, reconciliação de faturamento e novo Financeiro do Sistema**
+
+### Entregas
+- Auditoria avançada no ambiente administrativo:
+  - painel de auditoria consolidado em `/admin/auditoria/painel/`;
+  - trilha completa de navegação por usuário (`AuditPageView`) com path, método, status, IP, referer e duração;
+  - visão por usuário com timeline de páginas acessadas e exportação CSV de navegação.
+- Robustez no pipeline Stripe/funil:
+  - webhook endurecido para requests sem assinatura (`HTTP_STRIPE_SIGNATURE`);
+  - correção de fluxo em `customer.subscription.updated` para estado anterior de assinatura;
+  - novo evento de funil `pagamento_confirmado` registrado em `invoice.paid`;
+  - dashboard de funil migrado para leitura financeira reconciliada (eventos x histórico de mensalidades pagas), com indicadores de delta.
+- Nova área **Financeiro do Sistema** no Admin Django:
+  - página dedicada em `/admin/financeiro-sistema/` para controle interno do SaaS;
+  - entradas automáticas por vendas pagas via `HistoricoAssinatura` (`mensalidade`, `paga`);
+  - lançamentos manuais de gastos com categorias (Hospedagens, Domínios, IA, Outros);
+  - KPIs de entradas, gastos, líquido mensal e acumulado, além de gráfico de série de 12 meses.
+- Governança e segurança para acesso de desenvolvedor:
+  - acesso restrito por `superuser` + whitelist configurável em `DEV_FINANCEIRO_USERNAMES`.
+
+### Migrações
+- `auditoria/migrations/0003_auditpageview.py`
+- `configuracao/migrations/0035_alter_eventofunil_tipo.py`
+- `configuracao/migrations/0036_categoriagastosistema_gastosistema.py`
+
+### Impacto
+- Aumenta significativamente a visibilidade operacional e de segurança no admin técnico.
+- Eleva confiabilidade dos números de conversão/receita no funil de vendas.
+- Introduz controle financeiro executivo do produto dentro do próprio Admin Django.
+- Mudança de schema controlada pelas migrações listadas, sem breaking changes de API pública.
+
+---
+
 ## v1.13.22 — 22/06/2026
 🛡️ **Secretaria — Proteção de Grupos/Casas manuais contra sobrescrita por agrupamento automático**
 

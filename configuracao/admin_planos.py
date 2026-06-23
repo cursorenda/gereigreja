@@ -7,8 +7,9 @@ from django.db.models import Count, Exists, OuterRef, Sum
 from django.db.models.functions import TruncMonth
 from django.shortcuts import render
 from django.urls import path
+from django.utils import timezone
 
-from .models import AssinaturaMinisterio, CodigoPromocional, EventoFunil, LiberacaoPlanoMinisterio, Plano
+from .models import AssinaturaMinisterio, CodigoPromocional, EventoFunil, HistoricoAssinatura, LiberacaoPlanoMinisterio, Plano
 
 
 @admin.register(Plano)
@@ -74,8 +75,12 @@ class PlanoAdmin(admin.ModelAdmin):
             dias = 30
         if dias not in (7, 30, 90):
             dias = 30
-        data_inicio = datetime.now() - timedelta(days=dias)
+        data_inicio = timezone.now() - timedelta(days=dias)
         eventos = EventoFunil.objects.filter(criado_em__gte=data_inicio)
+
+        total_pagamentos_confirmados = eventos.filter(tipo='pagamento_confirmado').count()
+        if total_pagamentos_confirmados == 0:
+            total_pagamentos_confirmados = eventos.filter(tipo='checkout_completo').count()
 
         contagem = {
             'visita_landing': eventos.filter(tipo='visita_landing').count(),
@@ -83,6 +88,7 @@ class PlanoAdmin(admin.ModelAdmin):
             'cadastro': eventos.filter(tipo='cadastro').count(),
             'checkout_iniciado': eventos.filter(tipo='checkout_iniciado').count(),
             'checkout_completo': eventos.filter(tipo='checkout_completo').count(),
+            'pagamento_confirmado': total_pagamentos_confirmados,
         }
         visitas = contagem['visita_landing']
 
@@ -93,22 +99,31 @@ class PlanoAdmin(admin.ModelAdmin):
             'visitas_para_cliques': _pct(visitas, contagem['clique_cta']),
             'cliques_para_cadastros': _pct(contagem['clique_cta'], contagem['cadastro']),
             'cadastros_para_checkout': _pct(contagem['cadastro'], contagem['checkout_iniciado']),
-            'checkout_para_pago': _pct(contagem['checkout_iniciado'], contagem['checkout_completo']),
-            'visita_para_pago': _pct(visitas, contagem['checkout_completo']),
+            'checkout_para_pago': _pct(contagem['checkout_iniciado'], contagem['pagamento_confirmado']),
+            'visita_para_pago': _pct(visitas, contagem['pagamento_confirmado']),
         }
 
         por_plano = list(
-            eventos.filter(tipo='checkout_completo', plano__isnull=False)
+            eventos.filter(tipo='pagamento_confirmado', plano__isnull=False)
             .values('plano__nome')
             .annotate(total=Count('id'), receita=Sum('valor'))
             .order_by('-total')
         )
-        receita_total = (
-            eventos.filter(tipo='checkout_completo').aggregate(total=Sum('valor')).get('total') or 0
-        )
+        if not por_plano:
+            por_plano = list(
+                eventos.filter(tipo='checkout_completo', plano__isnull=False)
+                .values('plano__nome')
+                .annotate(total=Count('id'), receita=Sum('valor'))
+                .order_by('-total')
+            )
+
+        receita_total = eventos.filter(tipo='pagamento_confirmado').aggregate(total=Sum('valor')).get('total') or 0
+        if not receita_total:
+            receita_total = eventos.filter(tipo='checkout_completo').aggregate(total=Sum('valor')).get('total') or 0
+
         ticket_medio = (
-            round(float(receita_total) / contagem['checkout_completo'], 2)
-            if contagem['checkout_completo'] else 0
+            round(float(receita_total) / contagem['pagamento_confirmado'], 2)
+            if contagem['pagamento_confirmado'] else 0
         )
 
         cliques_map = dict(
@@ -137,7 +152,7 @@ class PlanoAdmin(admin.ModelAdmin):
         por_origem.sort(key=lambda x: x['cliques'], reverse=True)
 
         pagou_subq = EventoFunil.objects.filter(
-            tipo='checkout_completo',
+            tipo='pagamento_confirmado',
             ministerio=OuterRef('ministerio'),
         )
         cohort_raw = (
@@ -167,6 +182,21 @@ class PlanoAdmin(admin.ModelAdmin):
                 'taxa': round((conv / total) * 100, 1) if total else 0,
             })
 
+        historico_pago_qs = HistoricoAssinatura.objects.filter(
+            tipo='mensalidade',
+            status='paga',
+            data_inicio__gte=data_inicio,
+        )
+        historico_pagamentos = historico_pago_qs.count()
+        historico_receita = historico_pago_qs.aggregate(total=Sum('valor')).get('total') or 0
+        reconciliacao = {
+            'eventos_pagamento': contagem['pagamento_confirmado'],
+            'historico_pagamentos': historico_pagamentos,
+            'delta_pagamentos': contagem['pagamento_confirmado'] - historico_pagamentos,
+            'historico_receita': historico_receita,
+            'delta_receita': receita_total - historico_receita,
+        }
+
         ultimos_eventos = eventos.select_related('ministerio', 'plano')[:20]
 
         context = {
@@ -181,6 +211,7 @@ class PlanoAdmin(admin.ModelAdmin):
             'ticket_medio': ticket_medio,
             'por_origem': por_origem,
             'cohort': cohort,
+            'reconciliacao': reconciliacao,
             'ultimos_eventos': ultimos_eventos,
         }
         return render(request, 'configuracao/dashboard_funil.html', context)

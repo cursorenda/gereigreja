@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from contas.constants import user_has_permission_level_or_higher, ADMIN_MINISTERIO
 
-from .models import AccessDeniedLog, AuditSession, PermissionChangeLog
+from .models import AccessDeniedLog, AuditPageView, AuditSession, PermissionChangeLog
 from .utils import rodar_auditoria_permissoes
 
 User = get_user_model()
@@ -62,9 +62,11 @@ def painel_auditoria(request):
     logs_alteracoes_qs = _scope_queryset_by_ministerio(PermissionChangeLog.objects.all(), request.user)
     logs_negados_qs = _scope_queryset_by_ministerio(AccessDeniedLog.objects.all(), request.user)
     sessoes_qs = _scope_queryset_by_ministerio(AuditSession.objects.all(), request.user)
+    navegacao_qs = _scope_queryset_by_ministerio(AuditPageView.objects.all(), request.user)
 
     logs_alteracoes_periodo = logs_alteracoes_qs.filter(data_hora__gte=data_inicio)
     logs_negados_periodo = logs_negados_qs.filter(data_hora__gte=data_inicio)
+    navegacao_periodo = navegacao_qs.filter(criado_em__gte=data_inicio)
 
     ministerio = _get_user_ministerio(request.user)
     if ministerio and not request.user.is_superuser:
@@ -82,6 +84,8 @@ def painel_auditoria(request):
         'usuarios_afetados': logs_alteracoes_periodo.values('usuario_afetado').distinct().count(),
         'sessoes_ativas': sessoes_qs.filter(logout_data_hora__isnull=True).count(),
         'usuarios_alto_risco': usuarios_alto_risco,
+        'total_pageviews': navegacao_periodo.count(),
+        'ips_unicos': navegacao_periodo.exclude(ip_address__isnull=True).exclude(ip_address='').values('ip_address').distinct().count(),
     }
 
     distribuicao_acoes = logs_alteracoes_periodo.values('acao').annotate(total=Count('id')).order_by('-total')
@@ -92,8 +96,12 @@ def painel_auditoria(request):
         'distribuicao_acoes': distribuicao_acoes,
         'logs_alteracoes_recentes': logs_alteracoes_qs.select_related('usuario_afetado', 'grupo', 'usuario_executor')[:15],
         'logs_negados_recentes': logs_negados_qs.select_related('usuario', 'igreja_tentada')[:15],
+        'navegacao_recente': navegacao_qs.select_related('usuario').only(
+            'criado_em', 'usuario__username', 'metodo_http', 'path', 'ip_address', 'status_code', 'duracao_ms'
+        )[:20],
     }
-    return render(request, 'auditoria/painel_auditoria.html', context)
+    template_name = 'admin/auditoria_painel.html' if request.path.startswith('/admin/') else 'auditoria/painel_auditoria.html'
+    return render(request, template_name, context)
 
 
 @login_required
@@ -250,6 +258,30 @@ def exportar_logs_csv(request):
             ])
         return response
 
+    if tipo == 'navegacao':
+        logs = _scope_queryset_by_ministerio(
+            AuditPageView.objects.select_related('usuario', 'ministerio').filter(criado_em__gte=data_inicio),
+            request.user,
+        )
+        writer.writerow([
+            'criado_em', 'usuario', 'metodo_http', 'path', 'query_string', 'status_code',
+            'ip', 'referer', 'duracao_ms', 'ministerio'
+        ])
+        for log in logs.iterator():
+            writer.writerow([
+                log.criado_em.strftime('%Y-%m-%d %H:%M:%S'),
+                log.usuario.username,
+                log.metodo_http,
+                log.path,
+                log.query_string,
+                log.status_code,
+                log.ip_address or '',
+                log.referer or '',
+                log.duracao_ms or '',
+                getattr(log.ministerio, 'nome_fantasia', ''),
+            ])
+        return response
+
     logs = _scope_queryset_by_ministerio(
         PermissionChangeLog.objects.select_related('usuario_afetado', 'usuario_executor', 'grupo', 'ministerio').filter(
             data_hora__gte=data_inicio
@@ -327,6 +359,10 @@ def detalhes_usuario_auditoria(request, user_id):
         AuditSession.objects.filter(usuario=usuario).select_related('ministerio', 'igreja_ativa'),
         request.user,
     )[:20]
+    navegacao = _scope_queryset_by_ministerio(
+        AuditPageView.objects.filter(usuario=usuario).select_related('sessao'),
+        request.user,
+    )[:80]
 
     stats = {
         'total_alteracoes': _scope_queryset_by_ministerio(
@@ -338,6 +374,13 @@ def detalhes_usuario_auditoria(request, user_id):
         'total_sessoes': _scope_queryset_by_ministerio(
             AuditSession.objects.filter(usuario=usuario), request.user
         ).count(),
+        'total_pageviews': _scope_queryset_by_ministerio(
+            AuditPageView.objects.filter(usuario=usuario), request.user
+        ).count(),
+        'ips_distintos': _scope_queryset_by_ministerio(
+            AuditPageView.objects.filter(usuario=usuario).exclude(ip_address__isnull=True).exclude(ip_address=''),
+            request.user,
+        ).values('ip_address').distinct().count(),
         'grupos_atuais': usuario.groups.all(),
     }
 
@@ -346,6 +389,7 @@ def detalhes_usuario_auditoria(request, user_id):
         'alteracoes': alteracoes,
         'acessos_negados': acessos_negados,
         'sessoes': sessoes,
+        'navegacao': navegacao,
         'stats': stats,
     }
     return render(request, 'auditoria/detalhes_usuario.html', context)

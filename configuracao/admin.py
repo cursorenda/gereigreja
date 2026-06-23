@@ -27,3 +27,7 @@ from .admin_sistema import (  # noqa: F401
     ValidacaoImagens,
     ValidacaoImagensAdmin,
 )
+from .admin_financeiro_sistema import (  # noqa: F401
+    CategoriaGastoSistemaAdmin,
+    GastoSistemaAdmin,
+)

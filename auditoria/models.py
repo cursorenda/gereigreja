@@ -242,3 +242,85 @@ class AuditSession(models.Model):
     @property
     def ativa(self):
         return self.logout_data_hora is None
+
+
+class AuditPageView(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='pageviews_auditoria',
+        verbose_name='Usuario',
+    )
+    sessao = models.ForeignKey(
+        AuditSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pageviews',
+        verbose_name='Sessao de Auditoria',
+    )
+    ministerio = models.ForeignKey(
+        'configuracao.Ministerio',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name='Ministerio',
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name='IP',
+    )
+    user_agent = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='User Agent',
+    )
+    referer = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='Referer',
+    )
+    metodo_http = models.CharField(
+        max_length=10,
+        default='GET',
+        verbose_name='Metodo HTTP',
+    )
+    path = models.CharField(
+        max_length=500,
+        verbose_name='Path',
+    )
+    query_string = models.CharField(
+        max_length=1000,
+        blank=True,
+        verbose_name='Query String',
+    )
+    status_code = models.PositiveSmallIntegerField(
+        default=200,
+        verbose_name='Status HTTP',
+    )
+    duracao_ms = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Duracao (ms)',
+    )
+    criado_em = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name='Data/Hora',
+    )
+
+    class Meta:
+        ordering = ['-criado_em']
+        verbose_name = 'Navegacao de Usuario'
+        verbose_name_plural = 'Navegacao de Usuarios'
+        indexes = [
+            models.Index(fields=['-criado_em', 'usuario']),
+            models.Index(fields=['ministerio', '-criado_em']),
+            models.Index(fields=['path', '-criado_em']),
+            models.Index(fields=['status_code', '-criado_em']),
+        ]
+
+    def __str__(self):
+        data_hora = self.criado_em.strftime('%d/%m/%Y %H:%M')
+        return f'{self.usuario} {self.metodo_http} {self.path} ({self.status_code}) - {data_hora}'

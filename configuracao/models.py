@@ -1031,6 +1031,7 @@ class EventoFunil(models.Model):
         ('primeiro_login', 'Primeiro Login'),
         ('checkout_iniciado', 'Checkout Iniciado'),
         ('checkout_completo', 'Checkout Completo (Pago)'),
+        ('pagamento_confirmado', 'Pagamento Confirmado (Invoice Paid)'),
         ('plano_cancelado', 'Plano Cancelado'),
         ('upgrade', 'Upgrade de Plano'),
     ]
@@ -1134,3 +1135,54 @@ class CodigoPromocional(models.Model):
         if self.usos_restantes is not None:
             self.usos_restantes -= 1
         self.save(update_fields=['vezes_usado', 'usos_restantes'])
+
+
+class CategoriaGastoSistema(models.Model):
+    nome = models.CharField(max_length=80, unique=True, verbose_name='Categoria')
+    slug = models.SlugField(max_length=80, unique=True, verbose_name='Slug')
+    ordem = models.PositiveIntegerField(default=100, verbose_name='Ordem')
+    ativo = models.BooleanField(default=True, verbose_name='Ativa')
+
+    class Meta:
+        verbose_name = 'Categoria de Gasto do Sistema'
+        verbose_name_plural = 'Categorias de Gastos do Sistema'
+        ordering = ['ordem', 'nome']
+
+    def __str__(self):
+        return self.nome
+
+
+class GastoSistema(models.Model):
+    categoria = models.ForeignKey(
+        CategoriaGastoSistema,
+        on_delete=models.PROTECT,
+        related_name='gastos',
+        verbose_name='Categoria',
+    )
+    descricao = models.CharField(max_length=255, verbose_name='Descricao')
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Valor')
+    data_competencia = models.DateField(verbose_name='Competencia')
+    data_pagamento = models.DateField(null=True, blank=True, verbose_name='Data do pagamento')
+    observacao = models.TextField(blank=True, verbose_name='Observacao')
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='gastos_sistema_criados',
+        verbose_name='Criado por',
+    )
+    criado_em = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+    atualizado_em = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+
+    class Meta:
+        verbose_name = 'Gasto do Sistema'
+        verbose_name_plural = 'Gastos do Sistema'
+        ordering = ['-data_competencia', '-id']
+        indexes = [
+            models.Index(fields=['-data_competencia']),
+            models.Index(fields=['categoria', '-data_competencia']),
+        ]
+
+    def __str__(self):
+        return f"{self.data_competencia:%m/%Y} - {self.descricao}"
