@@ -1,3 +1,29 @@
+## v1.13.24 — 01/07/2026
+🧭 **Onboarding premium — redirecionamento da igreja automática e ajuste de aprovação**
+
+### Entregas
+- Novo pacote de documentação SEO premium em `docs/seo-premium/`:
+  - manifesto de posicionamento e missão;
+  - estratégia geral e arquitetura do site;
+  - páginas pilares;
+  - mapa mestre de palavras-chave para orientar conteúdo, clusters e conversão.
+- Correção do fluxo de cadastro de usuário e ministério:
+  - após o registro e ativação no plano pioneiro, o usuário passa a ser redirecionado para a edição da igreja criada automaticamente;
+  - o sistema deixa de mandar o novo usuário para a tela de criar igreja, evitando duplicidade de passo no onboarding.
+- Ajuste do fluxo de aguardando aprovação:
+  - quando o ministério já está ativo, a tela de aprovação passa a levar para a edição da igreja principal;
+  - fallback seguro mantido para a home da secretaria caso não exista igreja encontrada.
+- Robustez adicional no fluxo de cadastro:
+  - import explícito de `Igreja` em `contas/views.py` para o redirecionamento não cair em fallback indevido;
+  - teste de regressão cobrindo o redirect da igreja auto-criada.
+
+### Impacto
+- Torna o onboarding mais coerente com a automação já existente no sistema.
+- Reduz confusão do usuário no primeiro acesso após o cadastro.
+- Mantém o fluxo profissional e alinhado ao conceito de igreja auto-criada pelo ministério.
+
+---
+
 ## v1.13.23 — 22/06/2026
 💼 **Admin Dev Premium — Observabilidade avançada, reconciliação de faturamento e novo Financeiro do Sistema**
 

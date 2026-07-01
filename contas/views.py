@@ -34,7 +34,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # Models e Forms
 
-from configuracao.models import Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio # Adicionar Plano e AssinaturaMinisterio
+from configuracao.models import Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, Igreja # Adicionar Plano, AssinaturaMinisterio e Igreja
 from secretaria.models import Membro # Importar Membro
 from contas.constants import (
     ADMIN_MINISTERIO,
@@ -393,8 +393,16 @@ def registrar_usuario_e_org(request):
                                 plano=plano_pioneiro,
                                 extra={'email': email, 'origem': origem or ''},
                             )
-                            messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o do ministério "{nome_fantasia_org}" foram concluídos e ativados.\n\nAgora cadastre a primeira igreja do seu ministério para começar a usar o sistema.')
-                            return redirect('configuracao:adicionar_igreja')
+                            igreja_destino = Igreja.objects.filter(ministerio=nova_ministerio).order_by('id').first()
+                            if igreja_destino:
+                                messages.success(
+                                    request,
+                                    f'Bem-vindo, {primeiro_nome}! Seu registro e o do ministério "{nome_fantasia_org}" foram concluídos e ativados.\n\nAgora complete os dados da igreja criada automaticamente para começar a usar o sistema.'
+                                )
+                                return redirect('configuracao:editar_igreja_config', igreja_id=igreja_destino.id)
+
+                            messages.success(request, f'Bem-vindo, {primeiro_nome}! Seu registro e o do ministério "{nome_fantasia_org}" foram concluídos e ativados.')
+                            return redirect('configuracao:lista_igrejas')
                         else:
                             # Opcional: Criar uma assinatura pendente para um plano padrão ou deixar sem assinatura
                             logger.info(f"Ministério '{nome_fantasia_org}' não elegível para plano Pioneiro no momento do registro.")
@@ -853,13 +861,16 @@ def aguardando_aprovacao(request):
     
     if not ministerio_usuario:
         # Isso não deveria acontecer se o registro foi bem-sucedido
-        messages.error(request, "Não foi possível identificar sua ministério. Por favor, contate o suporte.")
+        messages.error(request, "Não foi possível identificar seu ministério. Por favor, contate o suporte.")
         return redirect('login') 
 
-    # Verificar se a ministério já foi ativada, e se sim, redirecionar para o dashboard
+    # Verificar se a ministério já foi ativada, e se sim, levar para configurar a igreja principal.
     if ministerio_usuario.ativo:
-        messages.info(request, f"Sua ministério '{ministerio_usuario.nome_fantasia}' já está ativa!")
-        return redirect('secretaria:index') # Ou a página principal após ativação
+        messages.info(request, f"Seu ministério '{ministerio_usuario.nome_fantasia}' já está ativa!")
+        igreja_destino = Igreja.objects.filter(ministerio=ministerio_usuario).order_by('id').first()
+        if igreja_destino:
+            return redirect('configuracao:editar_igreja_config', igreja_id=igreja_destino.id)
+        return redirect('secretaria:index') # fallback seguro
 
     context = {
         'ministerio': ministerio_usuario,

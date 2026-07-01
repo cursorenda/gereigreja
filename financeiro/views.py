@@ -1091,7 +1091,7 @@ def cadastrar_receita(request): # noqa: E302
                     messages.error(request, "Erro: Igreja selecionada inválida.")
                 # Validar membro (se selecionado) - form já deve filtrar
                 elif nova_receita.membro and nova_receita.membro.igreja.ministerio != ministerio:
-                    messages.error(request, "Erro: Membro selecionado não pertence à sua ministério.")
+                    messages.error(request, "Erro: Membro selecionado não pertence à seu ministério.")
                 else:
                     # O método save da Receita agora atualiza o saldo
                     nova_receita.save()
@@ -1143,7 +1143,7 @@ def editar_receita(request, pk): # noqa: E302
                 if not is_admin_org(request.user) and receita_editada.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida.")
                 elif receita_editada.membro and receita_editada.membro.igreja.ministerio != ministerio:
-                    messages.error(request, "Erro: Membro selecionado não pertence à sua ministério.")
+                    messages.error(request, "Erro: Membro selecionado não pertence à seu ministério.")
                 else:
                     receita_editada.save()
                     messages.success(request, 'Receita atualizada com sucesso!')
@@ -2718,7 +2718,7 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
     # Verifica se o campo conta_debito tem opções disponíveis
     # Se o queryset estiver vazio, significa que não há contas bancárias cadastradas para a ministério
     if not form.fields['conta_debito'].queryset.exists():
-        messages.warning(request, "Não há contas bancárias/caixas cadastradas para a sua ministério. Cadastre uma conta para registrar pagamentos.")
+        messages.warning(request, "Não há contas bancárias/caixas cadastradas para a seu ministério. Cadastre uma conta para registrar pagamentos.")
         # Opcional: Redirecionar para a página de cadastro de contas bancárias se ela existir
     context = {
         'form': form,
