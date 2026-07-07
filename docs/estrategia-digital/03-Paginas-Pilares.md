@@ -94,3 +94,29 @@ Novos artigos, funcionalidades e materiais deverão ser incorporados para manter
 Uma Página Pilar nunca será considerada concluída.
 
 Ela deverá evoluir continuamente, acompanhando o crescimento do GereIgreja e as necessidades das igrejas.
+
+
+# Plano de Execução das Páginas Pilares
+
+Prioridade 1
+✔ Sistema para Igrejas
+
+Status:
+[ ] Estrutura criada
+[ ] Conteúdo escrito
+[ ] SEO implementado
+[ ] FAQ
+[ ] Schema
+[ ] CTA
+[ ] Links internos
+[ ] Publicado
+[ ] Indexado
+
+Prioridade 2
+
+Gestão de Igrejas
+
+Prioridade 3
+
+Gestão Financeira
+

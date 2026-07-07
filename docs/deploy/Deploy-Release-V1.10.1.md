@@ -41,7 +41,7 @@ python manage.py collectstatic --noinput
 ### 3. Git Commit & Push
 
 ```bash
-git add CHANGELOG.md docs/WHATSAPP_BULK_CELULAR_EDIT.md README.md
+git add CHANGELOG.md docs/automacao/WhatsApp-Bulk-Celular-Edit.md README.md
 git commit -m "v1.10.1: WhatsApp Bulk Celular Edit com filtros avançados"
 git push origin main
 ```
