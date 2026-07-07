@@ -1,3 +1,5 @@
+import hashlib
+
 # Função utilitária para aplicar agrupamento de grupos/casas a partir do preview
 from django.db import transaction
 def agrupar_apply_from_preview(rows, preserve_existing_links=True):
@@ -66,14 +68,29 @@ def agrupar_apply_from_preview(rows, preserve_existing_links=True):
             if estado_val:
                 defaults['estado'] = estado_val
 
-            group, created_flag = GrupoCasa.objects.get_or_create(
-                igreja_id=igreja_id,
-                rua=rua,
-                numero=numero,
-                complemento=complemento,
-                cep=cep,
-                defaults=defaults
-            )
+            target_group_id = r.get('target_group_id') or None
+            if target_group_id:
+                try:
+                    group = GrupoCasa.objects.get(pk=target_group_id, igreja_id=igreja_id)
+                    created_flag = False
+                except GrupoCasa.DoesNotExist:
+                    group, created_flag = GrupoCasa.objects.get_or_create(
+                        igreja_id=igreja_id,
+                        rua=rua,
+                        numero=numero,
+                        complemento=complemento,
+                        cep=cep,
+                        defaults=defaults
+                    )
+            else:
+                group, created_flag = GrupoCasa.objects.get_or_create(
+                    igreja_id=igreja_id,
+                    rua=rua,
+                    numero=numero,
+                    complemento=complemento,
+                    cep=cep,
+                    defaults=defaults
+                )
 
             if created_flag:
                 created += 1
@@ -271,17 +288,25 @@ def filter_queryset_name_search(queryset, term: str, fields=('nome', 'apelido'),
         return candidate
     except Exception:
         normalized_term = normalize_text_for_search(term)
+        if not normalized_term:
+            return queryset
+
         matched_ids = []
-        for obj in queryset.only('pk', *fields):
-            for field in fields:
-                raw_value = getattr(obj, field, '') or ''
+        # Usa values_list para evitar instanciar modelos com campos deferidos,
+        # o que pode disparar refresh_from_db recursivo em __init__ customizado.
+        value_fields = ['pk', *fields]
+        for row in queryset.values_list(*value_fields):
+            obj_pk = row[0]
+            field_values = row[1:]
+            for raw_value in field_values:
+                raw_value = raw_value or ''
                 normalized_value = normalize_text_for_search(raw_value)
                 if startswith:
                     match = normalized_value.startswith(normalized_term)
                 else:
                     match = normalized_term in normalized_value
                 if match:
-                    matched_ids.append(obj.pk)
+                    matched_ids.append(obj_pk)
                     break
         return queryset.filter(pk__in=matched_ids)
 
@@ -386,7 +411,60 @@ def agrupar_preview_for_queryset(person_qs):
         igreja_id, cep, rua, numero, complemento = key
         ids = [p.pk for p in plist]
         nomes = [p.nome for p in plist]
+        linked_people = [p for p in plist if getattr(p, 'grupo_casa_id', None)]
+        unlinked_people = [p for p in plist if not getattr(p, 'grupo_casa_id', None)]
+        unlinked_people_data = [
+            {
+                'id': p.pk,
+                'name': p.nome,
+            }
+            for p in unlinked_people
+        ]
+        existing_groups = []
+        seen_group_ids = set()
+        for p in linked_people:
+            group_id = getattr(p, 'grupo_casa_id', None)
+            if not group_id or group_id in seen_group_ids:
+                continue
+            seen_group_ids.add(group_id)
+            group = getattr(p, 'grupo_casa', None)
+            group_name = ''
+            if group:
+                group_name = (group.nome or '').strip() or f'{group.rua or "Endereço"}, {group.numero or "s/n"}'
+            existing_groups.append({
+                'id': group_id,
+                'name': group_name,
+            })
+
+        target_group_id = None
+        suggested_action = 'none'
+        suggested_label = 'Sem ação'
+        is_actionable = False
+
+        if len(unlinked_people) >= 2 and not existing_groups:
+            suggested_action = 'create_new'
+            suggested_label = 'Criar novo grupo'
+            is_actionable = True
+        elif len(unlinked_people) >= 1 and len(existing_groups) == 1:
+            suggested_action = 'complete_existing'
+            suggested_label = 'Completar grupo existente'
+            is_actionable = True
+            target_group_id = existing_groups[0]['id']
+        elif len(unlinked_people) == 0 and existing_groups:
+            suggested_action = 'already_resolved'
+            suggested_label = 'Já resolvido'
+        elif len(existing_groups) > 1:
+            suggested_action = 'conflict_multiple_groups'
+            suggested_label = 'Revisão manual'
+        elif len(unlinked_people) == 1 and not existing_groups:
+            suggested_action = 'insufficient_people'
+            suggested_label = 'Apenas 1 pessoa'
+
+        row_key_src = f'{igreja_id}|{cep}|{rua}|{numero}|{complemento}'
+        row_key = hashlib.md5(row_key_src.encode('utf-8')).hexdigest()
+
         rows.append({
+            'row_key': row_key,
             'igreja_id': igreja_id,
             'cep': cep,
             'rua': rua,
@@ -395,6 +473,15 @@ def agrupar_preview_for_queryset(person_qs):
             'pessoas_ids': ids,
             'pessoas_nomes': nomes,
             'count': len(plist),
+            'linked_count': len(linked_people),
+            'unlinked_count': len(unlinked_people),
+            'unlinked_people': unlinked_people_data,
+            'existing_group_count': len(existing_groups),
+            'existing_groups': existing_groups,
+            'target_group_id': target_group_id,
+            'is_actionable': is_actionable,
+            'suggested_action': suggested_action,
+            'suggested_label': suggested_label,
         })
     # ordenar por rua/numero para apresentação
     rows.sort(key=lambda r: (r.get('rua') or '', r.get('numero') or ''))

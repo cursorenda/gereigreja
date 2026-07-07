@@ -242,7 +242,8 @@ class Pessoa(models.Model):
         default=None,
         blank=True,
         null=True,
-        verbose_name='Grau Eclesiástico'
+        verbose_name='Grau Eclesiástico',
+        help_text='Auto-atribuído como "Membro Comum" quando Tipo é Membro. Para outros tipos de pessoa, permanece vazio.'
     )
     
     # --- CAMPOS DE AUDITORIA ---

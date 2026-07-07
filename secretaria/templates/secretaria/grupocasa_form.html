@@ -41,13 +41,60 @@
     background: #fff;
   }
   .gc-row {
-    display: flex;
-    align-items: start;
-    gap: .6rem;
+    display: grid;
+    grid-template-columns: 22px 1fr 98px;
+    align-items: center;
+    gap: .5rem;
     padding: .55rem .7rem;
     border-bottom: 1px solid #eef3f6;
   }
   .gc-row:last-child { border-bottom: 0; }
+  .gc-row .form-check-input { margin-top: 0; }
+  .gc-status-col {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .gc-status-pill {
+    display: inline-block;
+    width: auto;
+    text-align: center;
+    border-radius: 999px;
+    padding: .1rem .5rem;
+    font-size: .66rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65);
+  }
+  .gc-status-livre {
+    background: #eefaf4;
+    color: #18764d;
+    border-color: #b9e5ca;
+  }
+  .gc-status-atual {
+    background: #edf4fe;
+    color: #185ec2;
+    border-color: #bed2f8;
+  }
+  .gc-status-outro {
+    background: #fff7ec;
+    color: #9f5b1f;
+    border-color: #f3d2a9;
+  }
+  .gc-main-col {
+    min-width: 0;
+  }
+  .gc-main-col strong {
+    display: block;
+    line-height: 1.15;
+    font-size: .84rem;
+  }
+  .gc-main-col small {
+    display: block;
+    line-height: 1.2;
+  }
   .gc-empty {
     padding: .9rem;
     color: #6c757d;
@@ -181,6 +228,12 @@
                   <button type="button" class="btn btn-outline-secondary" id="pessoasNextBtn">Próxima</button>
                 </div>
               </div>
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="somenteSemVinculoSwitch">
+                  <label class="form-check-label small" for="somenteSemVinculoSwitch">Mostrar apenas pessoas sem vínculo com Grupo/Casa</label>
+                </div>
+              </div>
             </div>
 
             <div class="gc-list mb-2" id="pessoasResultados"></div>
@@ -225,6 +278,7 @@
   var limparSelecionadasBtn = document.getElementById('limparSelecionadasBtn');
   var resumoBuscaEl = document.getElementById('pessoasResumoBusca');
   var contador = document.getElementById('contador_pessoas_selecionadas');
+  var somenteSemVinculoSwitch = document.getElementById('somenteSemVinculoSwitch');
   var grupoId = '{% if grupo %}{{ grupo.id }}{% endif %}';
   var endpoint = "{% url 'secretaria:buscar_pessoas_grupo_casa' %}";
 
@@ -316,11 +370,27 @@
       rows.forEach(function (row) {
         var id = String(row.id);
         var checked = selectedMap.has(id) || !!row.checked;
+        var statusClass = 'gc-status-livre';
+        var statusText = 'Sem vínculo';
+        if (row.possui_vinculo && row.vinculo_atual) {
+          statusClass = 'gc-status-atual';
+          statusText = 'Neste grupo';
+        } else if (row.possui_vinculo) {
+          statusClass = 'gc-status-outro';
+          statusText = 'Outro grupo';
+        }
+
         html += '<label class="gc-row">' +
           '<input type="checkbox" class="form-check-input pessoa-result-cb" data-id="' + escapeHtml(id) + '" ' + (checked ? 'checked' : '') + '>' +
-          '<span>' +
+          '<span class="gc-main-col">' +
             '<strong>' + escapeHtml(row.nome || 'Sem nome') + '</strong>' +
             (row.extra ? '<br><small class="text-muted">' + escapeHtml(row.extra) + '</small>' : '') +
+            (row.possui_vinculo && !row.vinculo_atual
+              ? '<small class="text-muted">' + escapeHtml(row.vinculo_texto || '') + '</small>'
+              : '') +
+          '</span>' +
+          '<span class="gc-status-col">' +
+            '<span class="gc-status-pill ' + statusClass + '">' + escapeHtml(statusText) + '</span>' +
           '</span>' +
         '</label>';
       });
@@ -341,6 +411,9 @@
     url.searchParams.set('page', String(page));
     if (grupoId) {
       url.searchParams.set('grupo_id', grupoId);
+    }
+    if (somenteSemVinculoSwitch && somenteSemVinculoSwitch.checked) {
+      url.searchParams.set('somente_sem_vinculo', '1');
     }
     selectedMap.forEach(function (p) {
       url.searchParams.append('selected_ids', p.id);
@@ -386,6 +459,13 @@
     limparSelecionadasBtn.addEventListener('click', function () {
       selectedMap.clear();
       renderSelected();
+      fetchResults();
+    });
+  }
+
+  if (somenteSemVinculoSwitch) {
+    somenteSemVinculoSwitch.addEventListener('change', function () {
+      page = 1;
       fetchResults();
     });
   }

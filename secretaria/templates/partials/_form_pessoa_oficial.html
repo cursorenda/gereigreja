@@ -88,7 +88,7 @@
 							<div class="premium-transition-select-wrap">
 								{{ form.grau_eclesiastico }}
 							</div>
-							<small class="form-text text-muted">Disponível apenas quando o tipo da pessoa for Membro.</small>
+							<small class="form-text text-muted"><i class="fas fa-check-circle me-1"></i>Auto-atribuído como "Membro Comum" quando Tipo é Membro. Altere se tiver cargo eclesiástico específico.</small>
 							{% if form.grau_eclesiastico.errors %}<div class="invalid-feedback d-block">{{ form.grau_eclesiastico.errors|striptags }}</div>{% endif %}
 						</div>
 

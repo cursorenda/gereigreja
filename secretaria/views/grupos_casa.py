@@ -96,6 +96,10 @@ def buscar_pessoas_grupo_casa(request):
     if termo:
         base_qs = filter_people_by_name_or_nickname(base_qs, termo)
 
+    somente_sem_vinculo = str(request.GET.get('somente_sem_vinculo', '')).strip().lower() in {'1', 'true', 'on', 'yes'}
+    if somente_sem_vinculo:
+        base_qs = base_qs.filter(grupo_casa__isnull=True)
+
     try:
         page = max(int(request.GET.get('page', 1)), 1)
     except (TypeError, ValueError):
@@ -110,7 +114,7 @@ def buscar_pessoas_grupo_casa(request):
     total = base_qs.count()
     rows = list(
         base_qs
-        .select_related('tipo_pessoa', 'igreja')
+        .select_related('tipo_pessoa', 'igreja', 'grupo_casa')
         .order_by('nome')[start:end]
     )
 
@@ -119,10 +123,24 @@ def buscar_pessoas_grupo_casa(request):
         tipo_nome = p.tipo_pessoa.nome if getattr(p, 'tipo_pessoa', None) else ''
         igreja_nome = p.igreja.nome_igreja if getattr(p, 'igreja', None) else ''
         extra = ' - '.join([x for x in [tipo_nome, igreja_nome] if x])
+        grupo_vinculado = getattr(p, 'grupo_casa', None)
+        possui_vinculo = bool(grupo_vinculado)
+        vinculo_atual = bool(grupo_vinculado and grupo_id and str(grupo_vinculado.pk) == str(grupo_id))
+
+        if possui_vinculo:
+            grupo_nome = (grupo_vinculado.nome or '').strip() if grupo_vinculado else ''
+            grupo_ref = grupo_nome or f'Rua {grupo_vinculado.rua}, {grupo_vinculado.numero}'
+            vinculo_texto = f'Vinculado: {grupo_ref}'
+        else:
+            vinculo_texto = 'Sem vínculo'
+
         results.append({
             'id': str(p.pk),
             'nome': p.nome,
             'extra': extra,
+            'possui_vinculo': possui_vinculo,
+            'vinculo_atual': vinculo_atual,
+            'vinculo_texto': vinculo_texto,
             'checked': str(p.pk) in selected_ids,
         })
 
@@ -226,12 +244,25 @@ def agrupar_grupos_preview(request):
     people_qs = people_qs.filter(status_pessoa__nome__in=status_permitidos)
     people_qs = people_qs.filter(Q(rua__isnull=False) | Q(cep__isnull=False)).order_by('rua', 'numero_casa')
 
-    rows = agrupar_preview_for_queryset(people_qs)
-    to_apply = [r for r in rows if r.get('count', 0) >= 2]
+    rows = agrupar_preview_for_queryset(people_qs.select_related('grupo_casa'))
+    actionable_rows = [r for r in rows if r.get('is_actionable')]
+    resolved_rows = [r for r in rows if r.get('suggested_action') == 'already_resolved']
+    conflict_rows = [r for r in rows if r.get('suggested_action') == 'conflict_multiple_groups']
+    ignored_rows = [
+        r for r in rows
+        if not r.get('is_actionable') and r.get('suggested_action') not in {'already_resolved', 'conflict_multiple_groups'}
+    ]
 
     context = {
-        'rows': rows,
-        'to_apply_count': len(to_apply),
+        'rows': actionable_rows,
+        'resolved_rows': resolved_rows,
+        'conflict_rows': conflict_rows,
+        'ignored_rows': ignored_rows,
+        'all_rows_count': len(rows),
+        'to_apply_count': len(actionable_rows),
+        'resolved_count': len(resolved_rows),
+        'conflict_count': len(conflict_rows),
+        'ignored_count': len(ignored_rows),
         'titulo_pagina': 'Preview: Agrupar Grupos / Casas por Endereço',
     }
     return render(request, 'secretaria/agrupar_grupos_preview.html', context)
@@ -254,8 +285,13 @@ def agrupar_grupos_apply(request):
         people_qs = Membro.objects.none()
 
     people_qs = people_qs.filter(Q(rua__isnull=False) | Q(cep__isnull=False)).order_by('rua', 'numero_casa')
-    rows = agrupar_preview_for_queryset(people_qs)
-    to_apply = [r for r in rows if r.get('count', 0) >= 2]
+    rows = agrupar_preview_for_queryset(people_qs.select_related('grupo_casa'))
+    actionable_rows = [r for r in rows if r.get('is_actionable')]
+    selected_row_keys = set(request.POST.getlist('selected_rows')) if request.method == 'POST' else set()
+    if selected_row_keys:
+        to_apply = [r for r in actionable_rows if r.get('row_key') in selected_row_keys]
+    else:
+        to_apply = actionable_rows
 
     result = {'created': 0, 'updated': 0, 'skipped_existing': 0}
     if to_apply:
@@ -263,7 +299,7 @@ def agrupar_grupos_apply(request):
         messages.success(
             request,
             (
-                f"Agrupamento aplicado: {result.get('created', 0)} grupos criados, "
+                f"Agrupamento aplicado em {len(to_apply)} endereço(s): {result.get('created', 0)} grupos criados, "
                 f"{result.get('updated', 0)} pessoas atualizadas e "
                 f"{result.get('skipped_existing', 0)} vínculo(s) manual(is) preservado(s)."
             )
@@ -383,7 +419,15 @@ def criar_grupo_casa(request):
     allowed_churches = get_allowed_churches_for_membros(request.user, ministerio)
     scoped_churches = get_request_scoped_churches(request, allowed_churches)
 
-    pessoas_ids_selecionadas = request.POST.getlist('pessoas_ids') if request.method == 'POST' else []
+    if request.method == 'POST':
+        pessoas_ids_raw = request.POST.getlist('pessoas_ids')
+    else:
+        pessoas_ids_raw = request.GET.getlist('pessoas_ids')
+        pessoa_id_single = (request.GET.get('pessoa_id') or '').strip()
+        if pessoa_id_single:
+            pessoas_ids_raw.append(pessoa_id_single)
+
+    pessoas_ids_selecionadas = pessoas_ids_raw
     pessoas_ids_selecionadas = _normalize_people_ids(pessoas_ids_selecionadas)
 
     pessoas_selecionadas_qs = Membro.objects.filter(
@@ -424,7 +468,57 @@ def criar_grupo_casa(request):
                     messages.success(request, 'Grupo/Casa criado com sucesso!')
                 return redirect('secretaria:detalhe_grupo_casa', grupo_id=grupo.id)
     else:
-        form = GrupoCasaForm()
+        initial_data = {}
+
+        # Permite sobrescrever por query string quando necessário.
+        query_initial_map = {
+            'nome': 'nome',
+            'rua': 'rua',
+            'numero': 'numero',
+            'complemento': 'complemento',
+            'bairro': 'bairro',
+            'cidade': 'cidade',
+            'estado': 'estado',
+            'cep': 'cep',
+            'referencia': 'referencia',
+        }
+        for query_key, form_key in query_initial_map.items():
+            value = (request.GET.get(query_key) or '').strip()
+            if value:
+                initial_data[form_key] = value
+
+        # Se veio de "Corrigir vínculo" com pessoa(s) pré-selecionada(s),
+        # pré-preenche o endereço com base no primeiro cadastro disponível.
+        if pessoas_selecionadas_qs.exists():
+            pessoa_ref = pessoas_selecionadas_qs.first()
+            auto_initial = {
+                'rua': (getattr(pessoa_ref, 'rua', None) or '').strip(),
+                'numero': (getattr(pessoa_ref, 'numero_casa', None) or '').strip(),
+                'complemento': (getattr(pessoa_ref, 'complemento', None) or '').strip(),
+                'bairro': (getattr(pessoa_ref, 'bairro_distrito', None) or '').strip(),
+                'cidade': (getattr(pessoa_ref, 'cidade', None) or '').strip(),
+                'estado': (getattr(pessoa_ref, 'estado', None) or '').strip(),
+                'cep': (getattr(pessoa_ref, 'cep', None) or '').strip(),
+            }
+            for key, value in auto_initial.items():
+                if value and not initial_data.get(key):
+                    initial_data[key] = value
+
+            # Sugere nome premium e legível quando vier de vínculo individual.
+            if not initial_data.get('nome'):
+                nome_ref = (getattr(pessoa_ref, 'nome', None) or '').strip()
+                primeiro_nome = nome_ref.split(' ')[0] if nome_ref else 'Responsável'
+                rua_ref = auto_initial.get('rua', '')
+                numero_ref = auto_initial.get('numero', '')
+                if rua_ref:
+                    endereco_curto = rua_ref.title()
+                    if numero_ref:
+                        endereco_curto = f"{endereco_curto}, {numero_ref}"
+                    initial_data['nome'] = f"Casa do {primeiro_nome} — {endereco_curto}"
+                else:
+                    initial_data['nome'] = f"Casa do {primeiro_nome}"
+
+        form = GrupoCasaForm(initial=initial_data)
 
     context = {
         'form': form,

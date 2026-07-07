@@ -1,6 +1,78 @@
 {% extends 'base_com_menu.html' %}
 {% block title %}{{ titulo_pagina }}{% endblock %}
 
+{% block extra_css %}
+<style>
+  .gc-preview-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .9rem;
+    margin-bottom: 1rem;
+  }
+  .gc-preview-card {
+    border: 1px solid #dce8ef;
+    border-radius: 14px;
+    padding: .9rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  }
+  .gc-preview-card strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.1;
+    color: #11344a;
+  }
+  .gc-preview-card span {
+    display: block;
+    font-size: .82rem;
+    color: #5f7280;
+    margin-top: .15rem;
+  }
+  .gc-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: .14rem .52rem;
+    font-size: .72rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .gc-badge-create { background: #e9f7ef; color: #17633f; border-color: #bfe6cc; }
+  .gc-badge-complete { background: #edf4fe; color: #1b5fc4; border-color: #bfd4f7; }
+  .gc-badge-resolved { background: #f3f5f7; color: #60707d; border-color: #d8e0e6; }
+  .gc-address-note { color: #617481; font-size: .8rem; }
+  .gc-existing-list { margin: 0; padding-left: 1rem; color: #5d6972; font-size: .81rem; }
+  .gc-table td, .gc-table th { vertical-align: top; }
+  .gc-section {
+    border: 1px solid #dce7ee;
+    border-radius: 12px;
+    padding: .85rem .95rem;
+    margin-top: 1rem;
+    background: #fff;
+  }
+  .gc-section h6 {
+    margin-bottom: .65rem;
+    font-weight: 700;
+    color: #103247;
+  }
+  .gc-list-item {
+    border-top: 1px dashed #e2eaf0;
+    padding-top: .55rem;
+    margin-top: .55rem;
+  }
+  .gc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    margin-top: .4rem;
+  }
+  @media (max-width: 991px) {
+    .gc-preview-summary { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
   <div class="container-fluid px-4">
     <h1 class="mt-4">{{ titulo_pagina }}</h1>
@@ -12,45 +84,174 @@
 
     <div class="card">
       <div class="card-body">
-        <p>Foram detectados <strong>{{ rows|length }}</strong> combinações de endereço. Destes, <strong>{{ to_apply_count }}</strong> têm 2 ou mais pessoas e são candidatos a criação de Grupo/Casa.</p>
+        <p>O sistema analisou <strong>{{ all_rows_count }}</strong> combinações de endereço e exibiu apenas os casos realmente acionáveis. Endereços já resolvidos manualmente não entram mais como sugestão de aplicação.</p>
+
+        <div class="gc-preview-summary">
+          <div class="gc-preview-card">
+            <strong>{{ to_apply_count }}</strong>
+            <span>Candidatos acionáveis</span>
+          </div>
+          <div class="gc-preview-card">
+            <strong>{{ resolved_count }}</strong>
+            <span>Já resolvidos manualmente</span>
+          </div>
+          <div class="gc-preview-card">
+            <strong>{{ conflict_count }}</strong>
+            <span>Precisam revisão manual</span>
+          </div>
+          <div class="gc-preview-card">
+            <strong>{{ ignored_count }}</strong>
+            <span>Ignorados pelo automátco</span>
+          </div>
+        </div>
 
         {% if rows %}
-          <div class="table-responsive">
-            <table class="table table-sm table-striped">
+          <form method="post" action="{% url 'secretaria:agrupar_grupos_apply' %}">
+            {% csrf_token %}
+            <div class="table-responsive">
+            <table class="table table-sm table-striped gc-table">
               <thead>
                 <tr>
+                  <th class="text-center" style="width: 56px;">
+                    <input type="checkbox" class="form-check-input" id="toggle-all-rows" checked>
+                  </th>
                   <th>Endereço (rua / número / complemento)</th>
+                  <th>Ação sugerida</th>
                   <th>CEP</th>
                   <th>Pessoas (ex.)</th>
+                  <th>Contexto atual</th>
                   <th class="text-center">Qtd</th>
                 </tr>
               </thead>
               <tbody>
                 {% for r in rows %}
                 <tr>
+                  <td class="text-center">
+                    <input type="checkbox" class="form-check-input apply-row-checkbox" name="selected_rows" value="{{ r.row_key }}" {% if r.is_actionable %}checked{% else %}disabled{% endif %}>
+                  </td>
                   <td>{{ r.rua }} {% if r.numero %}, {{ r.numero }}{% endif %} {% if r.complemento %}- {{ r.complemento }}{% endif %}</td>
+                  <td>
+                    {% if r.suggested_action == 'create_new' %}
+                      <span class="gc-badge gc-badge-create">Criar novo grupo</span>
+                    {% elif r.suggested_action == 'complete_existing' %}
+                      <span class="gc-badge gc-badge-complete">Completar existente</span>
+                    {% else %}
+                      <span class="gc-badge gc-badge-resolved">{{ r.suggested_label }}</span>
+                    {% endif %}
+                    <div class="gc-address-note mt-1">{{ r.unlinked_count }} sem vínculo, {{ r.linked_count }} já vinculada(s)</div>
+                  </td>
                   <td>{{ r.cep }}</td>
                   <td>{{ r.pessoas_nomes|slice:":3"|join:", " }}{% if r.count > 3 %} (+{{ r.count|add:"-3" }}){% endif %}</td>
+                  <td>
+                    {% if r.existing_groups %}
+                      <ul class="gc-existing-list">
+                        {% for group in r.existing_groups %}
+                          <li>{{ group.name }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <span class="gc-address-note">Nenhum grupo existente neste endereço.</span>
+                    {% endif %}
+                  </td>
                   <td class="text-center">{{ r.count }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
-          </div>
+            </div>
+
+            <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+              <button class="btn btn-primary" type="submit" {% if to_apply_count == 0 %}disabled{% endif %}>
+                Aplicar agrupamento selecionado
+              </button>
+              <a class="btn btn-secondary" href="{% url 'secretaria:lista_grupos_casa' %}">Voltar</a>
+            </div>
+          </form>
         {% else %}
-          <p>Nenhum endereço com dados suficientes encontrado.</p>
+          <p>Nenhum endereço acionável encontrado. Os casos restantes já estão resolvidos ou precisam revisão manual.</p>
         {% endif %}
 
-        <div class="mt-3">
-          <form method="post" action="{% url 'secretaria:agrupar_grupos_apply' %}">{% csrf_token %}
-            <button class="btn btn-primary" type="submit" {% if to_apply_count == 0 %}disabled{% endif %}>
-              Aplicar agrupamento (criar grupos e associar pessoas)
-            </button>
-            <a class="btn btn-secondary ms-2" href="{% url 'secretaria:lista_grupos_casa' %}">Voltar</a>
-          </form>
-        </div>
+        {% if resolved_rows %}
+          <section class="gc-section">
+            <h6>Já resolvidos manualmente ({{ resolved_rows|length }})</h6>
+            <p class="gc-address-note mb-2">Esses endereços já estão vinculados e por isso não entram no agrupamento automático.</p>
+            {% for r in resolved_rows %}
+              <div class="gc-list-item">
+                <div><strong>{{ r.rua }}{% if r.numero %}, {{ r.numero }}{% endif %}</strong> {% if r.cep %}<span class="gc-address-note">- CEP {{ r.cep }}</span>{% endif %}</div>
+                <div class="gc-address-note">{{ r.count }} pessoa(s), {{ r.linked_count }} vinculada(s), {{ r.unlinked_count }} sem vínculo</div>
+                {% if r.existing_groups %}
+                  <ul class="gc-existing-list">
+                    {% for group in r.existing_groups %}
+                      <li>{{ group.name }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </section>
+        {% endif %}
+
+        {% if conflict_rows %}
+          <section class="gc-section">
+            <h6>Precisam revisão manual ({{ conflict_rows|length }})</h6>
+            <p class="gc-address-note mb-2">Foram encontrados múltiplos grupos no mesmo endereço. Recomendado revisar e consolidar manualmente.</p>
+            {% for r in conflict_rows %}
+              <div class="gc-list-item">
+                <div><strong>{{ r.rua }}{% if r.numero %}, {{ r.numero }}{% endif %}</strong> {% if r.cep %}<span class="gc-address-note">- CEP {{ r.cep }}</span>{% endif %}</div>
+                <div class="gc-address-note">{{ r.count }} pessoa(s), {{ r.linked_count }} vinculada(s), {{ r.unlinked_count }} sem vínculo</div>
+                {% if r.existing_groups %}
+                  <ul class="gc-existing-list">
+                    {% for group in r.existing_groups %}
+                      <li>{{ group.name }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+                <div class="gc-actions">
+                  {% for group in r.existing_groups %}
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'secretaria:editar_grupo_casa' group.id %}" target="_blank" rel="noopener noreferrer">Editar {{ group.name|truncatechars:24 }}</a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </section>
+        {% endif %}
+
+        {% if ignored_rows %}
+          <section class="gc-section">
+            <h6>Ignorados pelo automático ({{ ignored_rows|length }})</h6>
+            <p class="gc-address-note mb-2">Normalmente são endereços com apenas 1 pessoa sem vínculo. Você pode corrigir manualmente quando desejar.</p>
+            {% for r in ignored_rows %}
+              <div class="gc-list-item">
+                <div><strong>{{ r.rua }}{% if r.numero %}, {{ r.numero }}{% endif %}</strong> {% if r.cep %}<span class="gc-address-note">- CEP {{ r.cep }}</span>{% endif %}</div>
+                <div class="gc-address-note">{{ r.suggested_label }} • {{ r.count }} pessoa(s), {{ r.unlinked_count }} sem vínculo</div>
+                <div class="gc-address-note">Pessoas: {{ r.pessoas_nomes|slice:":4"|join:", " }}{% if r.count > 4 %} (+{{ r.count|add:"-4" }}){% endif %}</div>
+                <div class="gc-actions">
+                  <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:criar_grupo_casa' %}" target="_blank" rel="noopener noreferrer">Criar grupo manualmente</a>
+                  {% for p in r.unlinked_people %}
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'secretaria:criar_grupo_casa' %}?pessoas_ids={{ p.id }}" target="_blank" rel="noopener noreferrer">Corrigir vínculo: {{ p.name|truncatechars:20 }}</a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </section>
+        {% endif %}
 
       </div>
     </div>
   </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var toggleAll = document.getElementById('toggle-all-rows');
+  if (!toggleAll) return;
+
+  toggleAll.addEventListener('change', function () {
+    document.querySelectorAll('.apply-row-checkbox:not(:disabled)').forEach(function (el) {
+      el.checked = toggleAll.checked;
+    });
+  });
+})();
+</script>
 {% endblock %}
