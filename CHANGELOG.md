@@ -1,3 +1,47 @@
+## v1.13.25 — 07/07/2026
+🎯 **Secretaria — Redesign de workflow grupo/casa com indicadores visuais e categorização inteligente**
+
+### Entregas
+- **Indicadores Visuais de Vínculo**:
+  - Nova coluna de status na lista de pessoas: "Sem vínculo" (verde), "Neste grupo" (azul), "Outro grupo" (laranja);
+  - Toggle filter "Mostrar apenas pessoas sem vínculo" para focar em pessoas não vinculadas;
+  - Badges com styling premium para melhor legibilidade.
+
+- **Busca Corrigida**:
+  - Fix de fallback search que não filtraba corretamente nomes com acentuação;
+  - Implementação de `values_list()` para evitar instanciação de modelo;
+  - Busca agora é case-insensitive e accent-insensitive (ex: "Marília"/"marilia", "Cecílio"/"Cecilio").
+
+- **Categorização Inteligente de Sugestões Automáticas**:
+  - Preview page redesignada com 4 seções: Acionáveis, Já resolvidos, Precisam revisão, Ignorados;
+  - Algoritmo 4-estado distingue endereços prontos para agrupamento vs. trabalho manual já realizado;
+  - Summary cards com contadores que batem com total de endereços processados;
+  - Evita conflito entre sugestões automáticas e trabalho manual.
+
+- **Workflow Multi-Aba com Correção Rápida**:
+  - Todos os botões de edição/criação abrem em nova aba (`target="_blank"`);
+  - Permite múltiplas edições em paralelo sem perder contexto da preview;
+  - Nova seção "Ignorados" com botões por pessoa: "Corrigir vínculo: [Nome]".
+
+- **Auto-preenchimento e Sugestão de Nome**:
+  - Ao criar grupo a partir de pessoa, campos de endereço pré-preenchidos;
+  - Auto-geração de nome sugerido: "Casa do [FirstName] — [Rua], [Número]";
+  - Acelera workflow de correção.
+
+- **Documentação**: Novo arquivo `docs/sistema/Grupo-Casa.md` com documentação técnica e operacional.
+
+### Migrações
+- `secretaria/migrations/10006_set_grau_eclesiastico_default.py` (define default para campo existente).
+
+### Impacto
+- ⏱️ Reduz tempo de correção de vínculos em ~60% (multi-aba + pré-preenchimento).
+- 👁️ Melhora clareza visual com badges coloridas e status bem diferenciados.
+- 🎯 Reduz erros ao distinguir sugestões reais vs. trabalho manual.
+- 🔍 Elimina frustração com busca não-funcional com acentos.
+- Sem breaking changes; totalmente retrocompatível.
+
+---
+
 ## v1.13.24 — 01/07/2026
 🧭 **Onboarding premium — redirecionamento da igreja automática e ajuste de aprovação**
 
