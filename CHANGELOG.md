@@ -1,3 +1,52 @@
+## v1.14.0 — 07/07/2026
+📚 **Knowledge Base Completa — Documentação estruturada, categorizada e centralizada**
+
+### Entregas
+- **Documentação Reorganizada em 15 Domínios**:
+  - **arquitetura/**: Plataforma, backend, frontend, banco de dados (5 docs + README)
+  - **api/**: Especificações e integrações
+  - **desenvolvimento/**: Setup local, testes, contributing
+  - **design/**: Sistema de design, brand, componentes
+  - **estrategia-digital/**: SEO, roadmap, estratégia de conteúdo (13 docs)
+  - **governanca/**: Manifestos, padrões de Django, políticas (15 docs)
+  - **infraestrutura/**: Deployment, CI/CD, monitoramento
+  - **marketing/**: Go-to-market, messaging
+  - **operacoes/**: SOPs, runbooks, relatórios operacionais
+  - **produto/**: Specs, PRDs, roadmap
+  - **qualidade/**: Estratégia de testes, QA, code quality
+  - **seguranca/**: Políticas, compliance, incident response
+  - **ui/**: Design system, componentes, acessibilidade
+  - **usuario/**: User guides, FAQs, best practices
+  - **ai/**: Integração com IA, prompts
+
+- **Índices e Navegação**:
+  - Root `docs/README.md` com mapa visual completo
+  - README.md em cada domínio com índice e links cruzados
+  - Estrutura consistente e explorável
+
+- **Reorganização de Arquivos Existentes**:
+  - Migração de `docs/seo-premium/` para `docs/estrategia-digital/` com expansão
+  - Deploy guides em `docs/deploy/`
+  - Automação em `docs/automacao/`
+  - Relatórios operacionais em `docs/relatorios/`
+  - Sistema docs em `docs/sistema/` (ex: Grupo-Casa.md)
+
+### Impacto
+- 📚 Base de conhecimento centralizada para toda organização
+- 🔍 Descoberta facilitada por domínio vs. busca em arquivo único
+- 👥 Seções dedicadas para produto, design, marketing, engenharia, operações
+- 🛡️ Documentação de segurança, compliance e auditoria bem organizada
+- ✅ Padrões de desenvolvimento centralizados para melhor code review
+- 🚀 Estrutura escalável para crescimento sem degradação
+
+### Observações
+- Zero breaking changes (apenas reorganização)
+- Todos os arquivos históricos preservados
+- Links internos atualizados
+- Pronto para integração com wiki/search tool
+
+---
+
 ## v1.13.25 — 07/07/2026
 🎯 **Secretaria — Redesign de workflow grupo/casa com indicadores visuais e categorização inteligente**
 
