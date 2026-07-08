@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from django import forms
@@ -43,6 +43,18 @@ def _shift_month(base_date, offset):
         month += 12
         year -= 1
     return date(year, month, 1)
+
+
+def _normalize_month_bucket(value):
+    """Normaliza bucket mensal para date no primeiro dia do mes.
+
+    TruncMonth pode retornar date ou datetime dependendo do backend/tipo de campo.
+    """
+    if isinstance(value, datetime):
+        value = value.date()
+    if isinstance(value, date):
+        return date(value.year, value.month, 1)
+    return value
 
 
 def _garantir_categorias_padrao():
@@ -120,11 +132,11 @@ def financeiro_sistema_admin(request):
     acumulado = total_receitas_geral - total_gastos_geral
 
     recebimentos_por_mes = {
-        row['mes'].date(): row['total']
+        _normalize_month_bucket(row['mes']): row['total']
         for row in recebimentos_qs.annotate(mes=TruncMonth('data_inicio')).values('mes').annotate(total=Sum('valor'))
     }
     gastos_por_mes = {
-        row['mes'].date(): row['total']
+        _normalize_month_bucket(row['mes']): row['total']
         for row in gastos_qs.annotate(mes=TruncMonth('data_competencia')).values('mes').annotate(total=Sum('valor'))
     }
 

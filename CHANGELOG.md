@@ -1,3 +1,21 @@
+## v1.14.1 — 08/07/2026
+🩹 **Hotfix Financeiro do Sistema — correção de erro em agregação mensal no Admin**
+
+### Entregas
+- Correção do erro `AttributeError: 'datetime.date' object has no attribute 'date'` em `/admin/financeiro-sistema/`.
+- Ajuste na normalização dos buckets de mês gerados por `TruncMonth`, com suporte consistente para retornos `date` e `datetime`.
+- Inclusão de função utilitária para padronizar a chave mensal no formato de primeiro dia do mês.
+
+### Impacto
+- Restaura o acesso à página **Financeiro do Sistema** no Admin sem exceção em produção.
+- Mantém compatibilidade entre variações de retorno do ORM/backend para truncamento mensal.
+- Sem alteração de schema de banco e sem migrações.
+
+### Validação
+- `python manage.py check` executado com sucesso (0 issues).
+
+---
+
 ## v1.14.0 — 07/07/2026
 📚 **Knowledge Base Completa — Documentação estruturada, categorizada e centralizada**
 
