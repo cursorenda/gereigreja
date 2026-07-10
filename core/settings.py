@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     'notificacoes',
     'demo',
     'blog',
+    'hinario.apps.HinarioConfig',
 ]
 
 MIDDLEWARE = [

@@ -101,6 +101,7 @@ urlpatterns = [
 
     # Escola Bíblica Dominical
     path('escola_biblica/', include(('escola_biblica.urls', 'escola_biblica'), namespace='escola_biblica')),
+    path('portal/hinario/', include(('hinario.urls', 'hinario'), namespace='hinario')),
     path('auditoria/', include(('auditoria.urls', 'auditoria'), namespace='auditoria')),
     # URLs de backup
     *backup_urls,

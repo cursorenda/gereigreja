@@ -16,6 +16,7 @@ from pathlib import Path
 import os
 import subprocess
 from deploy.models import BackupHistorico
+from hinario.models import HinoGlobal, HinoDaIgreja, HinoAuditLog
 
 
 @staff_member_required
@@ -28,6 +29,8 @@ def dashboard_desenvolvedor(request):
         'database': obter_info_database(),
         'logs': obter_logs_recentes(),
         'backups': obter_info_backups(),
+        'hinario_compliance': obter_info_hinario_compliance(),
+        'hinario_liberados_recentes': obter_hinarios_liberados_recentes(),
         'scripts': obter_scripts_disponiveis(),
     }
     
@@ -278,4 +281,55 @@ def obter_scripts_disponiveis():
             'icone': 'fas fa-database'
         },
     ]
+
+
+def obter_info_hinario_compliance():
+    """Obtém indicadores da fila de compliance de hinos."""
+    status_pendentes = ['pending_review', 'unknown', 'restricted']
+
+    pendentes_global = HinoGlobal.objects.filter(
+        blocked_for_public_use=True,
+        license_status__in=status_pendentes,
+    ).count()
+
+    pendentes_igreja = HinoDaIgreja.objects.filter(
+        blocked_for_public_use=True,
+        license_status__in=status_pendentes,
+    ).count()
+
+    return {
+        'pendentes_global': pendentes_global,
+        'pendentes_igreja': pendentes_igreja,
+        'pendentes_total': pendentes_global + pendentes_igreja,
+    }
+
+
+def obter_hinarios_liberados_recentes(limite=5):
+    """Retorna os hinos mais recentemente liberados na auditoria."""
+    eventos = (
+        HinoAuditLog.objects.filter(action='unblocked')
+        .select_related('actor_user', 'tenant_igreja')
+        .order_by('-created_at')[:limite]
+    )
+
+    itens = []
+    for evento in eventos:
+        dados_after = evento.after_json or {}
+        colecao = dados_after.get('colecao', '-')
+        numero = dados_after.get('numero', '-')
+        titulo = dados_after.get('titulo', '-')
+        igreja_nome = getattr(evento.tenant_igreja, 'nome', None)
+
+        itens.append({
+            'id': evento.id,
+            'target_type': evento.target_type,
+            'colecao': colecao,
+            'numero': numero,
+            'titulo': titulo,
+            'igreja_nome': igreja_nome,
+            'actor': getattr(evento.actor_user, 'username', None) or '-',
+            'data': timezone.localtime(evento.created_at).strftime('%d/%m/%Y %H:%M'),
+        })
+
+    return itens
 

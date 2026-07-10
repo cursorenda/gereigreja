@@ -4436,6 +4436,7 @@ def adicionar_historico_status_manual(request, membro_id=None): # noqa: E302
 def portal_membro(request):
     """Portal do membro com visão consolidada e atalhos úteis."""
     from django.db.models import Sum
+    from django.urls import reverse
     from comunicacao.models import Aviso
     from eventos.models import Evento, ParticipacaoEvento
     from notificacoes.models import Notificacao
@@ -4451,7 +4452,7 @@ def portal_membro(request):
     # Lê configurações do ministério (URLs devocionais, etc.)
     _config = ConfiguracaoSistema.objects.filter(ministerio=ministerio).first()
     _biblia_url = (_config.url_biblia_online if _config and _config.url_biblia_online else 'https://www.bibliaonline.com.br/')
-    _harpa_url = (_config.url_harpa_crista if _config and _config.url_harpa_crista else 'https://www.harpa-crista.com/')
+    _harpa_url = reverse('hinario:lista')
 
     # Prioriza vínculo direto com Pessoa/Membro para evitar ambiguidade por e-mail.
     membro_vinculado = getattr(request.user, 'membro_secretaria', None)

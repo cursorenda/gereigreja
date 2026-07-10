@@ -107,6 +107,29 @@
         display: block;
         margin-bottom: 10px;
     }
+
+    .compliance-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .compliance-link {
+        display: inline-block;
+        text-decoration: none;
+        border: 1px solid #417690;
+        color: #417690;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .compliance-link:hover {
+        background: #417690;
+        color: #fff;
+    }
     
     .log-entry {
         padding: 8px 12px;
@@ -298,6 +321,57 @@
             <p><strong>Arquivo:</strong> <code>{{ backups.ultimo.arquivo }}</code> ({{ backups.ultimo.tamanho }})</p>
         {% else %}
             <p style="color: #999;">Nenhum backup encontrado</p>
+        {% endif %}
+    </div>
+
+    <!-- Compliance de Hinos -->
+    <div class="section-card">
+        <h2>🎼 Compliance de Hinos</h2>
+        <p><strong>Pendentes totais:</strong> {{ hinario_compliance.pendentes_total }}</p>
+        <p><strong>Globais:</strong> {{ hinario_compliance.pendentes_global }} | <strong>Da Igreja:</strong> {{ hinario_compliance.pendentes_igreja }}</p>
+        <div class="compliance-actions">
+            <a class="compliance-link" href="{% url 'painel_desenvolvedor:fila_compliance_hinos' %}?tipo=global">Abrir fila global</a>
+            <a class="compliance-link" href="{% url 'painel_desenvolvedor:fila_compliance_hinos' %}?tipo=igreja">Abrir fila da igreja</a>
+        </div>
+    </div>
+
+    <!-- Últimos Hinos Liberados -->
+    <div class="section-card">
+        <h2>✅ Últimos Hinos Liberados</h2>
+        {% if hinario_liberados_recentes %}
+            <div class="table-container">
+                <table class="info-table">
+                    <thead>
+                        <tr>
+                            <th>Hino</th>
+                            <th>Tipo</th>
+                            <th>Liberação</th>
+                            <th>Por</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in hinario_liberados_recentes %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.colecao }} #{{ item.numero }}</strong><br>
+                                <small>{{ item.titulo }}</small>
+                            </td>
+                            <td>
+                                {% if item.target_type == 'igreja' %}
+                                    Igreja{% if item.igreja_nome %} - {{ item.igreja_nome }}{% endif %}
+                                {% else %}
+                                    Global
+                                {% endif %}
+                            </td>
+                            <td>{{ item.data }}</td>
+                            <td>{{ item.actor }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p style="color: #999; margin-bottom: 0;">Nenhum hino liberado ainda.</p>
         {% endif %}
     </div>
     
