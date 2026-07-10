@@ -1,0 +1,531 @@
+{% extends 'admin/base_site.html' %}
+
+{% block title %}Fila de Compliance de Hinos | Painel Desenvolvedor{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .compliance-wrap {
+    max-width: 1200px;
+  }
+  .compliance-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .compliance-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .compliance-title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+  }
+  .compliance-subtitle {
+    color: #666;
+    margin: 4px 0 0;
+  }
+  .compliance-count {
+    font-size: 28px;
+    font-weight: 700;
+    color: #417690;
+  }
+  .compliance-form-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 10px;
+    align-items: end;
+  }
+  .col-3 { grid-column: span 3; }
+  .col-4 { grid-column: span 4; }
+  .col-6 { grid-column: span 6; }
+  .col-12 { grid-column: span 12; }
+  .compliance-card label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .compliance-card input,
+  .compliance-card select,
+  .compliance-card textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  .domain-readonly {
+    background: #f5f5f5;
+    color: #555;
+  }
+  .compliance-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .badge-pill {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .badge-danger { background: #f8d7da; color: #721c24; }
+  .badge-success { background: #d4edda; color: #155724; }
+  .hino-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .hino-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .hino-meta {
+    margin: 6px 0;
+    color: #666;
+  }
+  .selection-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .info-line {
+    background: #eef6fb;
+    border: 1px solid #c8deed;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .selection-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .selection-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .button-linkish {
+    border: 1px solid #c8deed;
+    background: #fff;
+    color: #417690;
+    border-radius: 6px;
+    padding: 7px 10px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .selection-summary {
+    font-size: 13px;
+    color: #555;
+  }
+  .tema-list {
+    margin-top: 8px;
+    color: #666;
+    font-size: 13px;
+  }
+  .tema-chip {
+    display: inline-block;
+    margin: 4px 6px 0 0;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #eef6fb;
+    color: #2f5f77;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .pagination-wrap {
+    margin-top: 16px;
+  }
+  .pagination-wrap a {
+    margin-right: 6px;
+  }
+  @media (max-width: 900px) {
+    .col-3, .col-4, .col-6 { grid-column: span 12; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="compliance-wrap">
+  <div class="compliance-card">
+    <div class="compliance-header">
+      <div>
+        <h1 class="compliance-title">Fila de Compliance de Hinos</h1>
+        <p class="compliance-subtitle">Analise base legal e libere somente com evidencia registrada.</p>
+      </div>
+      <div>
+        <div class="compliance-count">{{ total }}</div>
+        <small class="text-muted">pendentes</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="compliance-card">
+    <form method="get" class="compliance-form-grid">
+      <div class="col-3">
+        <label for="id_tipo">Escopo</label>
+        <select name="tipo" id="id_tipo">
+          <option value="global" {% if tipo == 'global' %}selected{% endif %}>Hino Global</option>
+          <option value="igreja" {% if tipo == 'igreja' %}selected{% endif %}>Hino da Igreja</option>
+        </select>
+      </div>
+      <div class="col-3">
+        <label for="id_status">Status</label>
+        <select name="status" id="id_status">
+          {% for value, label in status_opcoes %}
+            <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-4">
+        <label for="id_q">Busca</label>
+        <input type="text" name="q" id="id_q" value="{{ busca }}" placeholder="Titulo, numero, colecao e igreja">
+      </div>
+      <div class="col-2">
+        <button type="submit" class="default">Filtrar</button>
+      </div>
+    </form>
+  </div>
+
+  {% if hinos %}
+    <div class="info-line">
+      Exibindo <strong>{{ status }}</strong> para <strong>{{ tipo }}</strong>.
+    </div>
+
+    <div class="compliance-card">
+      <div class="selection-toolbar">
+        <div class="selection-actions">
+          <button type="button" class="button-linkish" data-select-mode="page">Selecionar todos da página</button>
+          <button type="button" class="button-linkish" data-select-mode="clear">Limpar seleção</button>
+          <button type="button" class="button-linkish" data-target-form="lote-form" data-apply-scope="filtered">Usar todos os filtrados na liberação</button>
+          <button type="button" class="button-linkish" data-target-form="tema-lote-form" data-apply-scope="filtered">Usar todos os filtrados na classificação</button>
+        </div>
+        <div class="selection-summary" data-selection-summary>
+          Nenhum hino selecionado nesta página.
+        </div>
+      </div>
+    </div>
+
+    <div class="compliance-card">
+      <h2 style="margin-top: 0;">Liberação em lote</h2>
+      <p class="help">Selecione os hinos abaixo e aplique a mesma base legal para todos os selecionados.</p>
+
+      <form id="lote-form" method="post" action="{% url 'painel_desenvolvedor:aprovar_liberar_hino_lote' %}" class="compliance-form-grid js-compliance-form" data-form-kind="lote">
+        {% csrf_token %}
+        <input type="hidden" name="tipo" value="{{ tipo }}">
+        <input type="hidden" name="tipo_retorno" value="{{ tipo }}">
+        <input type="hidden" name="status_retorno" value="{{ status }}">
+        <input type="hidden" name="busca_retorno" value="{{ busca }}">
+        <input type="hidden" name="page_retorno" value="{{ page_obj.number }}">
+        <input type="hidden" name="selection_mode" value="selected" data-selection-mode-input>
+        <input type="hidden" name="selected_hino_ids" value="" data-selected-ids-input>
+
+        <div class="col-3">
+          <label>Status para liberar</label>
+          <select name="license_status" required>
+            <option value="">Selecione...</option>
+            <option value="public_domain">Dominio publico</option>
+            <option value="licensed">Licenciado</option>
+          </select>
+        </div>
+        <div class="col-3">
+          <label>Detentor de direitos</label>
+          <input type="text" name="rights_holder" required>
+        </div>
+        <div class="col-6">
+          <label>Referencia legal/licenca</label>
+          <input type="text" name="license_reference" placeholder="URL, ID do contrato, protocolo" required>
+        </div>
+        <div class="col-12">
+          <label>Notas legais da analise</label>
+          <textarea name="legal_notes" rows="3" placeholder="Resumo da analise juridica/editorial" required></textarea>
+        </div>
+        <div class="col-12 compliance-actions">
+          <button type="submit" class="default">Aprovar e liberar selecionados</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="compliance-card">
+      <h2 style="margin-top: 0;">Classificação em lote por tema</h2>
+      <p class="help">Aplique o mesmo tema aos hinos selecionados ou a todos os resultados filtrados.</p>
+
+      <form id="tema-lote-form" method="post" action="{% url 'painel_desenvolvedor:classificar_tema_hino_lote' %}" class="compliance-form-grid">
+        {% csrf_token %}
+        <input type="hidden" name="tipo" value="{{ tipo }}">
+        <input type="hidden" name="tipo_retorno" value="{{ tipo }}">
+        <input type="hidden" name="status_retorno" value="{{ status }}">
+        <input type="hidden" name="busca_retorno" value="{{ busca }}">
+        <input type="hidden" name="page_retorno" value="{{ page_obj.number }}">
+        <input type="hidden" name="selection_mode" value="selected" data-selection-mode-input>
+        <input type="hidden" name="selected_hino_ids" value="" data-selected-ids-input>
+
+        <div class="col-6">
+          <label>Tema para aplicar</label>
+          <select name="tema_id" required>
+            <option value="">Selecione um tema...</option>
+            {% for tema in temas_disponiveis %}
+              <option value="{{ tema.id }}">{{ tema.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 compliance-actions">
+          <button type="submit" class="default">Aplicar tema nos selecionados</button>
+        </div>
+      </form>
+    </div>
+
+    {% for hino in hinos %}
+      <div class="compliance-card">
+        <div class="hino-row-top">
+          <div>
+            <h2 class="hino-title">{{ hino.colecao }} #{{ hino.numero }} - {{ hino.titulo }}</h2>
+            <p class="hino-meta">
+              {% if tipo == 'igreja' %}
+                Igreja: {{ hino.igreja.nome }}
+              {% else %}
+                Catalogo global
+              {% endif %}
+            </p>
+            <p class="hino-meta">Status atual: <strong>{{ hino.get_license_status_display }}</strong></p>
+            {% if hino.temas.all %}
+              <div class="tema-list">
+                {% for tema in hino.temas.all %}
+                  <span class="tema-chip">{{ tema.nome }}</span>
+                {% empty %}
+                  <span>Sem temas atribuídos.</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div>
+            {% if hino.blocked_for_public_use %}
+              <span class="badge-pill badge-danger">Bloqueado</span>
+            {% else %}
+              <span class="badge-pill badge-success">Liberado</span>
+            {% endif %}
+            <div class="selection-box" style="margin-top: 8px;">
+              <input type="checkbox" name="hino_ids" value="{{ hino.id }}" id="select-{{ hino.id }}" data-batch-checkbox>
+              <label for="select-{{ hino.id }}" style="margin: 0;">Selecionar para lote</label>
+            </div>
+          </div>
+        </div>
+        <details style="margin-top: 12px;">
+          <summary>Liberar somente este hino</summary>
+          <form method="post" action="{% url 'painel_desenvolvedor:aprovar_liberar_hino' %}" class="compliance-form-grid js-compliance-form" data-form-kind="individual" style="margin-top: 10px;">
+                {% csrf_token %}
+                <input type="hidden" name="tipo" value="{{ tipo }}">
+                <input type="hidden" name="hino_id" value="{{ hino.id }}">
+                <input type="hidden" name="tipo_retorno" value="{{ tipo }}">
+                <input type="hidden" name="status_retorno" value="{{ status }}">
+                <input type="hidden" name="busca_retorno" value="{{ busca }}">
+                <input type="hidden" name="page_retorno" value="{{ page_obj.number }}">
+
+                <div class="col-3">
+                  <label>Status para liberar</label>
+                  <select name="license_status" required>
+                    <option value="">Selecione...</option>
+                    <option value="public_domain">Dominio publico</option>
+                    <option value="licensed">Licenciado</option>
+                  </select>
+                </div>
+
+                <div class="col-3">
+                  <label>Detentor de direitos</label>
+                  <input type="text" name="rights_holder" required>
+                </div>
+
+                <div class="col-6">
+                  <label>Referencia legal/licenca</label>
+                  <input type="text" name="license_reference" placeholder="URL, ID do contrato, protocolo" required>
+                </div>
+
+                <div class="col-12">
+                  <label>Notas legais da analise</label>
+                  <textarea name="legal_notes" rows="3" placeholder="Resumo da analise juridica/editorial" required></textarea>
+                </div>
+
+                <div class="col-12 compliance-actions">
+                  <button type="submit" class="default">Aprovar e liberar este hino</button>
+                </div>
+              </form>
+        </details>
+      </div>
+    {% endfor %}
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+      <div class="pagination-wrap">
+          {% if page_obj.has_previous %}
+            <a href="?tipo={{ tipo }}&status={{ status }}&q={{ busca }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+          {% else %}
+            <span>Anterior</span>
+          {% endif %}
+
+          <span>Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+
+          {% if page_obj.has_next %}
+            <a href="?tipo={{ tipo }}&status={{ status }}&q={{ busca }}&page={{ page_obj.next_page_number }}">Proxima</a>
+          {% else %}
+            <span>Proxima</span>
+          {% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="compliance-card">
+      <p style="margin: 0;">Nao ha hinos pendentes para o filtro selecionado.</p>
+    </div>
+  {% endif %}
+</div>
+<script>
+  (function () {
+    const PUBLIC_DOMAIN = 'public_domain';
+    const PUBLIC_DOMAIN_LABEL = 'Dominio Publico';
+    const PUBLIC_DOMAIN_REFERENCE = 'Obra em dominio publico. Base: verificar autor falecido ha mais de 70 anos e registrar a fonte consultada.';
+    const PUBLIC_DOMAIN_NOTES = 'Analise preliminar indica dominio publico, condicionada a conferencia da autoria, data de falecimento e fonte utilizada para validacao.';
+    const batchCheckboxes = Array.from(document.querySelectorAll('[data-batch-checkbox]'));
+    const selectionSummary = document.querySelector('[data-selection-summary]');
+
+    function getSelectedIds() {
+      return batchCheckboxes.filter(function (checkbox) {
+        return checkbox.checked;
+      }).map(function (checkbox) {
+        return checkbox.value;
+      });
+    }
+
+    function updateSelectionSummary() {
+      if (!selectionSummary) {
+        return;
+      }
+      var count = getSelectedIds().length;
+      selectionSummary.textContent = count ? count + ' hino(s) selecionado(s) nesta página.' : 'Nenhum hino selecionado nesta página.';
+    }
+
+    function syncBatchForms(selectionMode) {
+      var selectedIds = getSelectedIds().join(',');
+      document.querySelectorAll('[data-selected-ids-input]').forEach(function (input) {
+        input.value = selectedIds;
+      });
+      document.querySelectorAll('[data-selection-mode-input]').forEach(function (input) {
+        input.value = selectionMode || 'selected';
+      });
+      updateSelectionSummary();
+    }
+
+    batchCheckboxes.forEach(function (checkbox) {
+      checkbox.addEventListener('change', function () {
+        syncBatchForms('selected');
+      });
+    });
+
+    document.querySelectorAll('[data-select-mode="page"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        batchCheckboxes.forEach(function (checkbox) {
+          checkbox.checked = true;
+        });
+        syncBatchForms('selected');
+      });
+    });
+
+    document.querySelectorAll('[data-select-mode="clear"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        batchCheckboxes.forEach(function (checkbox) {
+          checkbox.checked = false;
+        });
+        syncBatchForms('selected');
+      });
+    });
+
+    document.querySelectorAll('[data-apply-scope="filtered"]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var targetForm = document.getElementById(button.getAttribute('data-target-form'));
+        if (!targetForm) {
+          return;
+        }
+        var modeInput = targetForm.querySelector('[data-selection-mode-input]');
+        var idsInput = targetForm.querySelector('[data-selected-ids-input]');
+        if (modeInput) {
+          modeInput.value = 'filtered';
+        }
+        if (idsInput) {
+          idsInput.value = '';
+        }
+        if (selectionSummary) {
+          selectionSummary.textContent = 'A próxima ação usará todos os hinos do filtro atual.';
+        }
+      });
+    });
+
+    document.querySelectorAll('#lote-form, #tema-lote-form').forEach(function (form) {
+      form.addEventListener('submit', function () {
+        var modeInput = form.querySelector('[data-selection-mode-input]');
+        if (modeInput && modeInput.value !== 'filtered') {
+          syncBatchForms('selected');
+        }
+      });
+    });
+
+    function bindFormAutoFill(form) {
+      const statusField = form.querySelector('select[name="license_status"]');
+      const rightsHolderField = form.querySelector('input[name="rights_holder"]');
+      const licenseReferenceField = form.querySelector('input[name="license_reference"]');
+      const legalNotesField = form.querySelector('textarea[name="legal_notes"]');
+      if (!statusField || !rightsHolderField || !licenseReferenceField || !legalNotesField) {
+        return;
+      }
+
+      function syncRightsHolderFieldState() {
+        if (statusField.value !== PUBLIC_DOMAIN) {
+          rightsHolderField.removeAttribute('readonly');
+          rightsHolderField.classList.remove('domain-readonly');
+          return;
+        }
+
+        const current = (rightsHolderField.value || '').trim().toLowerCase();
+        if (!current) {
+          rightsHolderField.value = PUBLIC_DOMAIN_LABEL;
+        } else if (current === 'dominio publico' || current === 'domínio público') {
+          rightsHolderField.value = PUBLIC_DOMAIN_LABEL;
+        }
+
+        rightsHolderField.setAttribute('readonly', 'readonly');
+        rightsHolderField.classList.add('domain-readonly');
+
+        const currentReference = (licenseReferenceField.value || '').trim().toLowerCase();
+        if (!currentReference) {
+          licenseReferenceField.value = PUBLIC_DOMAIN_REFERENCE;
+        } else if (currentReference === PUBLIC_DOMAIN_REFERENCE.toLowerCase()) {
+          licenseReferenceField.value = PUBLIC_DOMAIN_REFERENCE;
+        }
+
+        const currentNotes = (legalNotesField.value || '').trim().toLowerCase();
+        if (!currentNotes) {
+          legalNotesField.value = PUBLIC_DOMAIN_NOTES;
+        } else if (currentNotes === PUBLIC_DOMAIN_NOTES.toLowerCase()) {
+          legalNotesField.value = PUBLIC_DOMAIN_NOTES;
+        }
+      }
+
+      statusField.addEventListener('change', syncRightsHolderFieldState);
+      syncRightsHolderFieldState();
+    }
+
+    document.querySelectorAll('.js-compliance-form').forEach(bindFormAutoFill);
+    syncBatchForms('selected');
+  })();
+</script>
+{% endblock %}

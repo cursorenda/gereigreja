@@ -1,3 +1,26 @@
+# v1.14.2 — 10/07/2026
+🎵 **Hinário Premium — catálogo interno, compliance jurídico, temas e UX otimizada**
+
+### Entregas
+- Novo Hinário premium no portal do membro com catálogo, detalhe do hino e navegação interna.
+- Governança jurídica com bloqueio por padrão, campos de referência legal e revisão pelo painel do desenvolvedor.
+- Fila de compliance com liberação individual e em lote, incluindo seleção de itens filtrados e da página.
+- Classificação em lote por tema e taxonomia de temas de hino com filtro no catálogo.
+- Exibição de temas em cards e na página de detalhe do hino.
+- Ajuste visual no catálogo e no detalhe para priorizar a letra do hino e reduzir ruído visual.
+
+### Impacto
+- Melhora a experiência de leitura e localização de hinos.
+- Reduz risco operacional ao manter revisão jurídica explícita antes da liberação pública.
+- Estrutura base pronta para ampliar a taxonomia temática conforme uso real.
+
+### Validação
+- `python manage.py makemigrations hinario --check --dry-run` executado com sucesso.
+- `python manage.py check` executado com sucesso.
+- Migração `hinario.0002_hinotema_hino_temas` aplicada com sucesso.
+
+---
+
 ## v1.14.1 — 08/07/2026
 🩹 **Hotfix Financeiro do Sistema — correção de erro em agregação mensal no Admin**
 

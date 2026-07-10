@@ -1,0 +1,371 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}{{ hino.colecao }} #{{ hino.numero }} | Hinário{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
+<script>
+(function () {
+  var storageKey = 'hinario.sidebar_visible';
+  try {
+    if (localStorage.getItem(storageKey) !== '1') {
+      document.documentElement.classList.add('dash-fullwidth');
+    }
+  } catch (e) {
+    document.documentElement.classList.add('dash-fullwidth');
+  }
+})();
+</script>
+<style>
+  .hinario-detail-topbar {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+  }
+  .hinario-detail-shell {
+    padding: 18px 0 28px;
+  }
+  .detail-hero {
+    border-radius: 28px;
+    padding: 22px 26px;
+    color: #fff;
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 48%, #083f44 100%);
+    box-shadow: 0 18px 45px rgba(10, 102, 101, 0.22);
+    margin-bottom: 16px;
+  }
+  .detail-crumbs {
+    color: rgba(255,255,255,.82);
+    font-size: .84rem;
+  }
+  .detail-title {
+    font-size: clamp(1.5rem, 3vw, 2.35rem);
+    font-weight: 800;
+    margin: 8px 0 6px;
+  }
+  .detail-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .detail-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,.12);
+    font-size: .8rem;
+    font-weight: 700;
+  }
+  .detail-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: minmax(0, 1.95fr) minmax(260px, .72fr);
+  }
+  .detail-card {
+    background: #fff;
+    border-radius: 24px;
+    border: 1px solid rgba(13,130,129,.12);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+    padding: 18px;
+  }
+  .detail-card-summary {
+    background: #fcfefe;
+    border-color: rgba(13,130,129,.08);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .035);
+  }
+  .summary-toggle {
+    border: 1px solid rgba(13,130,129,.14);
+    border-radius: 18px;
+    background: #fcfefe;
+    padding: 0;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .03);
+  }
+  .summary-toggle > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    font-size: .92rem;
+    font-weight: 800;
+    color: #295b60;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .summary-toggle > summary::-webkit-details-marker {
+    display: none;
+  }
+  .summary-toggle > summary::after {
+    content: 'Abrir';
+    font-size: .72rem;
+    font-weight: 700;
+    color: #5a7d80;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(13,130,129,.08);
+  }
+  .summary-toggle[open] > summary::after {
+    content: 'Fechar';
+  }
+  .summary-toggle .summary-body {
+    padding: 0 16px 16px;
+  }
+  .section-title {
+    font-size: .94rem;
+    font-weight: 800;
+    color: #083f44;
+    margin-bottom: 10px;
+  }
+  .detail-card-summary .section-title {
+    color: #295b60;
+  }
+  .lyrics-block {
+    white-space: pre-wrap;
+    font-family: inherit;
+    background: linear-gradient(180deg, #f8fcfc 0%, #ffffff 100%);
+    border: 1px solid #d6e5e4;
+    border-radius: 20px;
+    padding: 18px 20px;
+    line-height: 1.72;
+    color: #0f172a;
+    margin-bottom: 0;
+    font-size: 1rem;
+  }
+  .notice-lock {
+    border-radius: 20px;
+    border: 1px solid rgba(220, 53, 69, .14);
+    background: #fff7f7;
+    color: #7a1f2c;
+    padding: 14px;
+  }
+  .meta-list {
+    display: grid;
+    gap: 10px;
+  }
+  .meta-item {
+    border-radius: 18px;
+    border: 1px solid #e6eceb;
+    padding: 10px 12px;
+    background: #ffffff;
+  }
+  .meta-item .label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #6b7280;
+  }
+  .meta-item .value {
+    margin-top: 3px;
+    font-weight: 600;
+    color: #0f172a;
+    font-size: .88rem;
+  }
+  .btn-hinario {
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
+    border: none;
+    color: #fff;
+    border-radius: 14px;
+    font-weight: 700;
+  }
+  .btn-outline-hinario {
+    border-radius: 14px;
+    border-color: rgba(255,255,255,.4);
+    color: #fff;
+    font-weight: 700;
+    padding: 6px 10px;
+    font-size: .82rem;
+  }
+  .btn-outline-hinario:hover { background: rgba(255,255,255,.14); color: #fff; }
+  @media (max-width: 991px) {
+    .detail-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container hinario-detail-shell">
+  <div class="hinario-detail-topbar">
+    <button class="fp-menu-toggle" id="fp-toggle-sidebar" type="button" title="Abrir ou ocultar menu lateral" aria-expanded="false">
+      <i class="fas fa-bars"></i>
+      <span data-fp-sidebar-label>Abrir menu</span>
+    </button>
+  </div>
+  <section class="detail-hero">
+    <div class="detail-crumbs mb-2">
+      <a href="{% url 'hinario:lista' %}" class="text-white text-decoration-none"><i class="fas fa-arrow-left me-2"></i>Voltar ao catálogo</a>
+    </div>
+    <div class="detail-title">{{ hino.colecao }} #{{ hino.numero }} - {{ hino.titulo }}</div>
+    <div class="detail-badges">
+      <span class="detail-badge"><i class="fas fa-music"></i>{{ hino.license_status_display }}</span>
+      <span class="detail-badge"><i class="fas fa-shield-halved"></i>{% if bloqueado %}Bloqueado{% else %}Liberado{% endif %}</span>
+      <span class="detail-badge"><i class="fas fa-layer-group"></i>{{ hino.origem_tipo|title }}</span>
+      {% for tema in hino.temas %}
+        <span class="detail-badge"><i class="fas fa-tag"></i>{{ tema.nome }}</span>
+      {% endfor %}
+      {% if igreja_contexto %}
+        <span class="detail-badge"><i class="fas fa-church"></i>{{ igreja_contexto.nome_igreja }}</span>
+      {% endif %}
+      <button type="button" id="detailFavoriteToggle" class="btn btn-outline-hinario" data-hino-key="{{ hino.colecao }}::{{ hino.numero }}">
+        <i class="far fa-star me-2"></i><span>Favoritar</span>
+      </button>
+    </div>
+  </section>
+
+  <div class="detail-grid">
+    <section class="detail-card">
+      <div class="section-title">Letra</div>
+      {% if tem_texto_publico %}
+        <pre class="lyrics-block">{{ hino.letra }}</pre>
+      {% else %}
+        <div class="notice-lock">
+          <div class="fw-bold mb-1"><i class="fas fa-lock me-2"></i>Conteúdo em revisão</div>
+          <p class="mb-0">{{ motivo_bloqueio }}</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <aside class="detail-card detail-card-summary">
+      <details class="summary-toggle">
+        <summary>Resumo do hino</summary>
+        <div class="summary-body">
+          <div class="meta-list">
+            <div class="meta-item">
+              <div class="label">Status</div>
+              <div class="value">{{ hino.license_status_display }}</div>
+            </div>
+            <div class="meta-item">
+              <div class="label">Licença / Referência</div>
+              <div class="value">{{ hino.license_reference|default:'Não informada' }}</div>
+            </div>
+            <div class="meta-item">
+              <div class="label">Titular / Detentor</div>
+              <div class="value">{{ hino.rights_holder|default:'Não informado' }}</div>
+            </div>
+            <div class="meta-item">
+              <div class="label">Revisado em</div>
+              <div class="value">{{ hino.reviewed_at|default:'Pendente' }}</div>
+            </div>
+            <div class="meta-item">
+              <div class="label">Temas</div>
+              <div class="value">
+                {% if hino.temas %}
+                  {% for tema in hino.temas %}
+                    {{ tema.nome }}{% if not forloop.last %}, {% endif %}
+                  {% endfor %}
+                {% else %}
+                  Não classificado
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          {% if hino.cifra %}
+            <div class="section-title mt-3">Cifra</div>
+            {% if tem_texto_publico %}
+              <pre class="lyrics-block">{{ hino.cifra }}</pre>
+            {% else %}
+              <div class="notice-lock">A cifra segue a mesma política de bloqueio do texto principal.</div>
+            {% endif %}
+          {% endif %}
+
+          <div class="d-grid gap-2 mt-3">
+            <a href="{% url 'hinario:lista' %}" class="btn btn-outline-secondary">Voltar para o catálogo</a>
+          </div>
+        </div>
+      </details>
+    </aside>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var sidebarStorageKey = 'hinario.sidebar_visible';
+    var usageStorageKey = 'hinario.usage.v1';
+    var favoritesStorageKey = 'hinario.favorites.v1';
+    var hinoKey = '{{ hino.colecao }}::{{ hino.numero }}';
+    var favoriteButton = document.getElementById('detailFavoriteToggle');
+
+    function applySidebarState(visible) {
+      document.documentElement.classList.toggle('dash-fullwidth', !visible);
+      document.body.classList.toggle('dash-fullwidth', !visible);
+      var button = document.getElementById('fp-toggle-sidebar');
+      if (!button) {
+        return;
+      }
+      button.setAttribute('aria-expanded', visible ? 'true' : 'false');
+      var label = button.querySelector('[data-fp-sidebar-label]');
+      if (label) {
+        label.textContent = visible ? 'Ocultar menu' : 'Abrir menu';
+      }
+    }
+
+    function loadJson(key) {
+      try {
+        var raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveJson(key, payload) {
+      try {
+        localStorage.setItem(key, JSON.stringify(payload));
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    var sidebarToggle = document.getElementById('fp-toggle-sidebar');
+    if (sidebarToggle) {
+      sidebarToggle.addEventListener('click', function () {
+        var hidden = document.documentElement.classList.contains('dash-fullwidth') || document.body.classList.contains('dash-fullwidth');
+        var visible = hidden;
+        applySidebarState(visible);
+        try {
+          localStorage.setItem(sidebarStorageKey, visible ? '1' : '0');
+        } catch (e) {
+          // ignore storage failures
+        }
+      });
+    }
+
+    try {
+      applySidebarState(localStorage.getItem(sidebarStorageKey) === '1');
+    } catch (e) {
+      applySidebarState(false);
+    }
+
+    var usage = loadJson(usageStorageKey);
+    usage[hinoKey] = Number(usage[hinoKey] || 0) + 1;
+    saveJson(usageStorageKey, usage);
+
+    if (!favoriteButton) {
+      return;
+    }
+
+    function renderFavoriteState(isFavorite) {
+      var icon = favoriteButton.querySelector('i');
+      var label = favoriteButton.querySelector('span');
+      icon.className = isFavorite ? 'fas fa-star me-2' : 'far fa-star me-2';
+      label.textContent = isFavorite ? 'Favorito' : 'Favoritar';
+    }
+
+    var favorites = loadJson(favoritesStorageKey);
+    renderFavoriteState(Boolean(favorites[hinoKey]));
+
+    favoriteButton.addEventListener('click', function () {
+      favorites[hinoKey] = !favorites[hinoKey];
+      if (!favorites[hinoKey]) {
+        delete favorites[hinoKey];
+      }
+      saveJson(favoritesStorageKey, favorites);
+      renderFavoriteState(Boolean(favorites[hinoKey]));
+    });
+  })();
+</script>
+{% endblock %}

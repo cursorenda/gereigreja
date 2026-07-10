@@ -7,6 +7,12 @@ from . import views
 app_name = 'painel_desenvolvedor'
 
 urlpatterns = [
+    # Compliance de hinos
+    path('hinario-compliance/', views.fila_compliance_hinos, name='fila_compliance_hinos'),
+    path('hinario-compliance/aprovar-liberar/', views.aprovar_liberar_hino, name='aprovar_liberar_hino'),
+    path('hinario-compliance/aprovar-liberar-lote/', views.aprovar_liberar_hino_lote, name='aprovar_liberar_hino_lote'),
+    path('hinario-compliance/classificar-tema-lote/', views.classificar_tema_hino_lote, name='classificar_tema_hino_lote'),
+
     # Galeria
     path('galeria-imagens/', views.galeria_imagens, name='galeria_imagens'),
     path('galeria-imagens/criar/', views.criar_imagem, name='criar_imagem'),

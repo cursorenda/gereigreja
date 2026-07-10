@@ -1,0 +1,538 @@
+{% extends 'base_com_menu.html' %}
+{% load static %}
+
+{% block title %}Hinário | Meu Portal{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/dashboard-base.css' %}">
+<script>
+(function () {
+  var storageKey = 'hinario.sidebar_visible';
+  try {
+    if (localStorage.getItem(storageKey) !== '1') {
+      document.documentElement.classList.add('dash-fullwidth');
+    }
+  } catch (e) {
+    document.documentElement.classList.add('dash-fullwidth');
+  }
+})();
+</script>
+<style>
+  .hinario-topbar {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 16px;
+  }
+  .hinario-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    padding: 26px 30px;
+    color: #fff;
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 55%, #083f44 100%);
+    box-shadow: 0 18px 45px rgba(10, 102, 101, 0.22);
+    margin-bottom: 18px;
+  }
+  .hinario-hero::after {
+    content: '';
+    position: absolute;
+    inset: auto -70px -90px auto;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    filter: blur(4px);
+  }
+  .hinario-kicker {
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    font-size: .72rem;
+    opacity: .9;
+  }
+  .hinario-title {
+    font-size: clamp(1.65rem, 3vw, 2.45rem);
+    font-weight: 800;
+    margin: 8px 0 6px;
+    line-height: 1.05;
+  }
+  .hinario-pillbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .hinario-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.12);
+    backdrop-filter: blur(8px);
+    font-size: .84rem;
+  }
+  .hinario-shell {
+    display: grid;
+    gap: 24px;
+  }
+  .hinario-card, .hinario-stats, .hinario-filters {
+    background: #fff;
+    border-radius: 24px;
+    border: 1px solid rgba(13,130,129,.12);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+  }
+  .hinario-stats {
+    padding: 14px;
+  }
+  .hinario-stat {
+    border-radius: 18px;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, #f8fcfc 0%, #ffffff 100%);
+    border: 1px solid rgba(13,130,129,.09);
+    min-height: 86px;
+  }
+  .hinario-stat .label { color: #6b7280; font-size: .76rem; text-transform: uppercase; letter-spacing: .08em; }
+  .hinario-stat .value { font-size: 1.35rem; font-weight: 800; color: #083f44; margin-top: 2px; line-height: 1.1; }
+  .hinario-stat .text-muted.small { font-size: .73rem; line-height: 1.25; }
+  .hinario-filters {
+    padding: 14px 16px;
+  }
+  .hinario-input, .hinario-select {
+    border-radius: 14px;
+    border-color: #d7e6e5;
+    min-height: 40px;
+  }
+  .btn-hinario {
+    background: linear-gradient(135deg, #0d8281 0%, #0a6665 100%);
+    border: none;
+    color: #fff;
+    border-radius: 14px;
+    font-weight: 700;
+    min-height: 40px;
+  }
+  .btn-hinario:hover { color: #fff; filter: brightness(.98); }
+  .hinario-filters .form-label {
+    font-size: .8rem;
+    margin-bottom: 4px;
+  }
+  .catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+  }
+  .hino-card {
+    position: relative;
+    overflow: hidden;
+    padding: 20px;
+    border-radius: 22px;
+    background: #fff;
+    border: 1px solid rgba(13,130,129,.12);
+    box-shadow: 0 8px 26px rgba(15, 23, 42, .05);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .hino-card.is-favorite {
+    border-color: rgba(212, 167, 60, .55);
+    box-shadow: 0 16px 35px rgba(154, 107, 0, .14);
+  }
+  .hino-card.is-hidden-local {
+    display: none;
+  }
+  .hinario-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .hinario-quick-btn {
+    border: 1px solid #d6e5e4;
+    background: #fff;
+    color: #0a6665;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: .8rem;
+    padding: 6px 12px;
+  }
+  .hinario-quick-btn.active {
+    background: #0d8281;
+    border-color: #0d8281;
+    color: #fff;
+  }
+  .hino-favorite {
+    border: 0;
+    background: rgba(255,255,255,.9);
+    color: #b45309;
+    border-radius: 999px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hino-favorite.is-active {
+    background: rgba(212, 167, 60, .2);
+    color: #9a6b00;
+  }
+  .hino-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .09);
+  }
+  .hino-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: .77rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .hino-chip.global { background: rgba(13,130,129,.10); color: #0a6665; }
+  .hino-chip.igreja { background: rgba(212,167,60,.15); color: #9a6b00; }
+  .hino-title { font-size: 1.2rem; font-weight: 800; color: #0f172a; margin: 14px 0 8px; }
+  .hino-meta { color: #6b7280; font-size: .92rem; }
+  .hino-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .topic-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: .72rem;
+    font-weight: 700;
+    background: rgba(8, 63, 68, .09);
+    color: #0a6665;
+  }
+  .hino-preview {
+    margin: 14px 0 18px;
+    color: #475569;
+    line-height: 1.55;
+    min-height: 70px;
+  }
+  .hino-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    color: #0a6665;
+  }
+  .hinario-empty {
+    padding: 30px;
+    text-align: center;
+    color: #64748b;
+  }
+  .pagination .page-link {
+    border-radius: 12px;
+    color: #0a6665;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5">
+  <div class="hinario-topbar">
+    <button class="fp-menu-toggle" id="fp-toggle-sidebar" type="button" title="Abrir ou ocultar menu lateral" aria-expanded="false">
+      <i class="fas fa-bars"></i>
+      <span data-fp-sidebar-label>Abrir menu</span>
+    </button>
+  </div>
+  <section class="hinario-hero">
+    <div class="position-relative" style="z-index: 1;">
+      <div class="hinario-kicker">Recursos Devocionais</div>
+      <h1 class="hinario-title">Hinário do Membro</h1>
+      <div class="hinario-pillbar">
+        <span class="hinario-pill"><i class="fas fa-music"></i>{{ total_hinos }} hinos disponíveis</span>
+        <span class="hinario-pill"><i class="fas fa-shield-halved"></i>Controle de compliance ativo</span>
+        {% if igreja_contexto %}
+          <span class="hinario-pill"><i class="fas fa-church"></i>{{ igreja_contexto.nome_igreja }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="hinario-stats mb-4">
+    <div class="row g-3">
+      <div class="col-12 col-md-4">
+        <div class="hinario-stat">
+          <div class="label">Coleções</div>
+          <div class="value">{{ resumo.colecoes|length }}</div>
+          <div class="text-muted small">Disponíveis para navegação</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="hinario-stat">
+          <div class="label">Globais</div>
+          <div class="value">{{ resumo.total_globais }}</div>
+          <div class="text-muted small">Publicados no catálogo</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="hinario-stat">
+          <div class="label">Da Igreja</div>
+          <div class="value">{{ resumo.total_igreja }}</div>
+          <div class="text-muted small">Customizações liberadas</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hinario-filters mb-4">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-12 col-md-3">
+        <label class="form-label fw-semibold text-secondary">Buscar</label>
+        <input type="text" name="q" value="{{ busca }}" class="form-control hinario-input" placeholder="Título, número ou coleção">
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label fw-semibold text-secondary">Coleção</label>
+        <select name="colecao" class="form-select hinario-select">
+          <option value="">Todas as coleções</option>
+          {% for colecao in colecoes_disponiveis %}
+            <option value="{{ colecao }}" {% if colecao_selecionada == colecao %}selected{% endif %}>{{ colecao }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label fw-semibold text-secondary">Tema</label>
+        <select name="tema" class="form-select hinario-select">
+          <option value="">Todos os temas</option>
+          {% for tema in temas_disponiveis %}
+            <option value="{{ tema.slug }}" {% if tema_selecionado == tema.slug %}selected{% endif %}>{{ tema.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label fw-semibold text-secondary">Ordenar</label>
+        <select name="ordem" class="form-select hinario-select">
+          <option value="numero_asc" {% if ordem == 'numero_asc' %}selected{% endif %}>Número crescente</option>
+          <option value="numero_desc" {% if ordem == 'numero_desc' %}selected{% endif %}>Número decrescente</option>
+          <option value="titulo_asc" {% if ordem == 'titulo_asc' %}selected{% endif %}>Título A-Z</option>
+          <option value="titulo_desc" {% if ordem == 'titulo_desc' %}selected{% endif %}>Título Z-A</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2 d-grid">
+        <button class="btn btn-hinario" type="submit">Explorar hinos</button>
+      </div>
+    </form>
+    <div class="hinario-quick-actions" data-hinario-quick-actions>
+      <button type="button" class="hinario-quick-btn active" data-mode="all">Todos</button>
+      <button type="button" class="hinario-quick-btn" data-mode="favorites">Favoritos</button>
+      <button type="button" class="hinario-quick-btn" data-mode="most-used">Mais acessados por você</button>
+    </div>
+  </section>
+
+  {% if hinos %}
+    <section class="catalog-grid" data-catalog-grid>
+      {% for hino in hinos %}
+        <article class="hino-card" data-hino-key="{{ hino.colecao }}::{{ hino.numero }}" data-hino-title="{{ hino.titulo|lower }}" data-hino-numero="{{ hino.numero }}">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <span class="hino-chip {% if hino.origem_tipo == 'igreja' %}igreja{% else %}global{% endif %}">
+              {% if hino.origem_tipo == 'igreja' %}
+                <i class="fas fa-building-columns"></i> Igreja
+              {% else %}
+                <i class="fas fa-globe"></i> Global
+              {% endif %}
+            </span>
+            <div class="d-flex align-items-center gap-2">
+              {% if hino.can_render_public_text %}
+                <span class="hino-chip global"><i class="fas fa-unlock"></i> Liberado</span>
+              {% else %}
+                <span class="hino-chip igreja"><i class="fas fa-lock"></i> Em revisão</span>
+              {% endif %}
+              <button type="button" class="hino-favorite" data-favorite-toggle data-hino-key="{{ hino.colecao }}::{{ hino.numero }}" aria-label="Favoritar hino">
+                <i class="far fa-star"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="hino-title">{{ hino.colecao }} #{{ hino.numero }} - {{ hino.titulo }}</div>
+          <div class="hino-meta">Status: {{ hino.license_status_display }}</div>
+          {% if hino.temas %}
+            <div class="hino-topics">
+              {% for tema in hino.temas %}
+                <span class="topic-chip"><i class="fas fa-tag"></i>{{ tema.nome }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="hino-preview">
+            {% if hino.can_render_public_text %}
+              {% if hino.letra %}
+                {{ hino.letra|truncatechars:180|linebreaksbr }}
+              {% else %}
+                Texto não disponível.
+              {% endif %}
+            {% else %}
+              Conteúdo em análise jurídica. A publicação do texto será liberada somente após validação.
+            {% endif %}
+          </div>
+
+          <a href="{% url 'hinario:detalhe' colecao=hino.colecao numero=hino.numero %}" class="hino-link" data-hino-link data-hino-key="{{ hino.colecao }}::{{ hino.numero }}">
+            Abrir hino <i class="fas fa-arrow-right"></i>
+          </a>
+        </article>
+      {% endfor %}
+    </section>
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+      <nav class="mt-4" aria-label="Paginação do hinário">
+        <ul class="pagination justify-content-center gap-2 flex-wrap">
+          {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busca %}&q={{ busca }}{% endif %}{% if colecao_selecionada %}&colecao={{ colecao_selecionada }}{% endif %}{% if tema_selecionado %}&tema={{ tema_selecionado }}{% endif %}{% if ordem %}&ordem={{ ordem }}{% endif %}">Anterior</a></li>
+          {% endif %}
+          <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+          {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busca %}&q={{ busca }}{% endif %}{% if colecao_selecionada %}&colecao={{ colecao_selecionada }}{% endif %}{% if tema_selecionado %}&tema={{ tema_selecionado }}{% endif %}{% if ordem %}&ordem={{ ordem }}{% endif %}">Próxima</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="hinario-card hinario-empty">
+      <i class="fas fa-book-open fa-2x mb-3" style="color:#0d8281;"></i>
+      <h2 class="h5 fw-bold">Nenhum hino disponível no momento</h2>
+      <p class="mb-0">Se o seu contexto não tiver hinos publicados ainda, a equipe pode liberar conteúdos pela fila de compliance do Admin do Desenvolvedor.</p>
+    </div>
+  {% endif %}
+</div>
+
+<script>
+  (function () {
+    var sidebarStorageKey = 'hinario.sidebar_visible';
+    var storageFavoritesKey = 'hinario.favorites.v1';
+    var storageUsageKey = 'hinario.usage.v1';
+    var grid = document.querySelector('[data-catalog-grid]');
+    var quickActions = document.querySelector('[data-hinario-quick-actions]');
+
+    function applySidebarState(visible) {
+      document.documentElement.classList.toggle('dash-fullwidth', !visible);
+      document.body.classList.toggle('dash-fullwidth', !visible);
+      var button = document.getElementById('fp-toggle-sidebar');
+      if (!button) {
+        return;
+      }
+      button.setAttribute('aria-expanded', visible ? 'true' : 'false');
+      var label = button.querySelector('[data-fp-sidebar-label]');
+      if (label) {
+        label.textContent = visible ? 'Ocultar menu' : 'Abrir menu';
+      }
+    }
+
+    function loadJson(key) {
+      try {
+        var raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveJson(key, payload) {
+      try {
+        localStorage.setItem(key, JSON.stringify(payload));
+      } catch (e) {
+        // ignore storage failures
+      }
+    }
+
+    var sidebarToggle = document.getElementById('fp-toggle-sidebar');
+    if (sidebarToggle) {
+      sidebarToggle.addEventListener('click', function () {
+        var hidden = document.documentElement.classList.contains('dash-fullwidth') || document.body.classList.contains('dash-fullwidth');
+        var visible = hidden;
+        applySidebarState(visible);
+        try {
+          localStorage.setItem(sidebarStorageKey, visible ? '1' : '0');
+        } catch (e) {
+          // ignore storage failures
+        }
+      });
+    }
+
+    try {
+      applySidebarState(localStorage.getItem(sidebarStorageKey) === '1');
+    } catch (e) {
+      applySidebarState(false);
+    }
+
+    if (!grid || !quickActions) {
+      return;
+    }
+
+    var favorites = loadJson(storageFavoritesKey);
+    var usage = loadJson(storageUsageKey);
+    var cards = Array.prototype.slice.call(grid.querySelectorAll('.hino-card'));
+
+    function applyFavoriteUI() {
+      cards.forEach(function (card) {
+        var key = card.getAttribute('data-hino-key');
+        var button = card.querySelector('[data-favorite-toggle]');
+        var icon = button ? button.querySelector('i') : null;
+        var isFavorite = Boolean(favorites[key]);
+
+        card.classList.toggle('is-favorite', isFavorite);
+        if (!button || !icon) {
+          return;
+        }
+        button.classList.toggle('is-active', isFavorite);
+        icon.className = isFavorite ? 'fas fa-star' : 'far fa-star';
+      });
+    }
+
+    function applyFilterMode(mode) {
+      cards.forEach(function (card) {
+        card.classList.remove('is-hidden-local');
+        var key = card.getAttribute('data-hino-key');
+        var count = Number(usage[key] || 0);
+
+        if (mode === 'favorites' && !favorites[key]) {
+          card.classList.add('is-hidden-local');
+        }
+
+        if (mode === 'most-used' && count < 2) {
+          card.classList.add('is-hidden-local');
+        }
+      });
+    }
+
+    grid.addEventListener('click', function (event) {
+      var toggle = event.target.closest('[data-favorite-toggle]');
+      if (!toggle) {
+        return;
+      }
+
+      var key = toggle.getAttribute('data-hino-key');
+      favorites[key] = !favorites[key];
+      if (!favorites[key]) {
+        delete favorites[key];
+      }
+      saveJson(storageFavoritesKey, favorites);
+      applyFavoriteUI();
+
+      var activeMode = quickActions.querySelector('.hinario-quick-btn.active');
+      applyFilterMode(activeMode ? activeMode.getAttribute('data-mode') : 'all');
+    });
+
+    quickActions.addEventListener('click', function (event) {
+      var button = event.target.closest('.hinario-quick-btn');
+      if (!button) {
+        return;
+      }
+      quickActions.querySelectorAll('.hinario-quick-btn').forEach(function (btn) {
+        btn.classList.remove('active');
+      });
+      button.classList.add('active');
+      applyFilterMode(button.getAttribute('data-mode'));
+    });
+
+    applyFavoriteUI();
+    applyFilterMode('all');
+  })();
+</script>
+{% endblock %}
