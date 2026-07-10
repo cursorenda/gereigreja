@@ -1,3 +1,23 @@
+# v1.14.3 — 10/07/2026
+📘 **Padronização Documental — Backend, Frameworks, Arquitetura e Produto**
+
+### Entregas
+- Novo pacote de documentação técnica em `docs/backend/` (GBE-01 a GBE-09), cobrindo estrutura, core, apps, models, services, selectors, managers, views e forms.
+- Consolidação de frameworks oficiais em `docs/frameworks/` para design, autenticação, segurança, qualidade, documentação e operações.
+- Expansão arquitetural em `docs/arquitetura/` com documentos complementares de APIs, segurança, multi-tenant e core.
+- Documentação de produto do Hinário organizada em `docs/produto/` com base jurídica, especificação e visão de portal.
+- Release summary e guia de deploy documental da versão criados.
+
+### Impacto
+- Aumenta consistência entre decisões técnicas e implementação.
+- Reduz ambiguidades no desenvolvimento e no code review.
+- Acelera onboarding e manutenção de longo prazo.
+
+### Escopo
+- Mudanças documentais (sem alteração de schema e sem migrações nesta release).
+
+---
+
 # v1.14.2 — 10/07/2026
 🎵 **Hinário Premium — catálogo interno, compliance jurídico, temas e UX otimizada**
 
