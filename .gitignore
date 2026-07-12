@@ -106,6 +106,7 @@ notes/
 
 # --- Project-specific files you likely don't want versioned ---
 logs/
+.continue/
 contexto_gereigreja.md
 CHAT_RESPOSTAS.md
 docs/ANALISE_SISTEMA_DEPLOY.md
