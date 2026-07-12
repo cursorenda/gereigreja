@@ -1,20 +1,110 @@
 {% extends 'base_com_menu.html' %}
-{% block title %}Templates de E-mail{% endblock %}
+{% load static %}
+
+{% block title %}Templates - Comunicação{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h2>Templates de E-mail</h2>
-    <p>Aqui voce pode visualizar os modelos de e-mail e acessar os recursos de WhatsApp do modulo de comunicacao.</p>
-    <ul class="list-group mb-4">
-        <li class="list-group-item">
-            <strong>E-mail em Massa</strong><br>
-            <a href="{% url 'comunicacao:visualizar_template_email_massa' %}" target="_blank">Visualizar Template</a>
-        </li>
-        <li class="list-group-item">
-            <strong>Redefinição de Senha</strong><br>
-            <a href="{% url 'comunicacao:visualizar_template_password_reset' %}" target="_blank">Visualizar Template</a>
-        </li>
-        <!-- Adicione outros templates conforme necessário -->
-    </ul>
-    <!-- Edição de templates via web pode ser implementada futuramente para administradores. -->
+<div class="container-fluid px-4">
+    {# Hero Section #}
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-sidebar-proxy>
+                        <i class="fas fa-bars me-1"></i>
+                        <span class="d-none d-md-inline" data-sidebar-label>Ocultar menu</span>
+                    </button>
+                    <h1 class="h3 d-inline-flex align-items-center mb-0">
+                        <i class="fas fa-envelope-open-text text-primary me-2"></i>
+                        Templates de E-mail
+                    </h1>
+                </div>
+                <p class="text-muted mt-2">Visualize e gerencie os modelos de e-mail da plataforma</p>
+            </div>
+        </div>
+    </div>
+
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:home' %}">Comunicação</a></li>
+        <li class="breadcrumb-item active">Templates de E-mail</li>
+    </ol>
+
+    <div class="row">
+        {# E-mail em Massa #}
+        <div class="col-md-6 col-lg-5 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-envelope text-primary me-2"></i>
+                        E-mail em Massa
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted">
+                        Template utilizado para campanhas de e-mail em massa enviadas para membros da sua comunidade.
+                    </p>
+                    <div class="bg-light p-2 rounded small mb-3" style="font-family: monospace; max-height: 150px; overflow-y: auto;">
+                        <strong>Variáveis disponíveis:</strong><br>
+                        • {nome} - Nome do membro<br>
+                        • {email} - E-mail do membro<br>
+                        • {igreja} - Nome da Igreja<br>
+                        • {ministerio} - Nome do Ministério
+                    </div>
+                </div>
+                <div class="card-footer bg-white text-end">
+                    <a href="{% url 'comunicacao:visualizar_template_email_massa' %}" target="_blank" class="btn btn-sm btn-primary">
+                        <i class="fas fa-eye me-1"></i> Visualizar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {# Redefinição de Senha #}
+        <div class="col-md-6 col-lg-5 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-key text-warning me-2"></i>
+                        Redefinição de Senha
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted">
+                        Template para e-mails de recuperação de senha. Enviado automaticamente quando um usuário solicita redefinição.
+                    </p>
+                    <div class="bg-light p-2 rounded small mb-3" style="font-family: monospace; max-height: 150px; overflow-y: auto;">
+                        <strong>Variáveis disponíveis:</strong><br>
+                        • {protocol} - Protocolo (http/https)<br>
+                        • {domain} - Domínio<br>
+                        • {uid} - ID do usuário<br>
+                        • {token} - Token de validação
+                    </div>
+                </div>
+                <div class="card-footer bg-white text-end">
+                    <a href="{% url 'comunicacao:visualizar_template_password_reset' %}" target="_blank" class="btn btn-sm btn-warning">
+                        <i class="fas fa-eye me-1"></i> Visualizar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Informações Gerais #}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Dica:</strong> Os templates de e-mail são mantidos pelo sistema. Para customizações específicas da sua instituição, entre em contato com nosso suporte.
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .page-header {
+        padding: 2rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+</style>
 {% endblock %}

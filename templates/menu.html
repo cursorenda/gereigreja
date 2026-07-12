@@ -382,42 +382,60 @@
                 Auditoria de Permissões
             </a>
             {% endif %}
-            {# --- NOVO LINK PARA MURAL DE AVISOS --- #}
-            {% if can_comunicacao_massa %}
+            {# --- SECAO COMUNICACAO: HOME, CAMPANHAS, CONFIGURACAO E RELATORIOS --- #}
+            {% if can_comunicacao_massa or can_mural_avisos %}
             <div class="sb-sidenav-menu-heading">Comunicação</div>
-            <a class="nav-link collapsed {% if '/comunicacao/' in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseComunicacao" aria-expanded="{% if '/comunicacao/' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseComunicacao">
+            <a class="nav-link collapsed {% if 'comunicacao' in request.path and 'home' not in request.path and 'email-massa' not in request.path and 'whatsapp' not in request.path and 'avisos' not in request.path and 'templates-email' not in request.path %}active{% endif %}" href="#" data-bs-toggle="collapse" data-bs-target="#collapseComunicacao" aria-expanded="{% if 'comunicacao' in request.path %}true{% else %}false{% endif %}" aria-controls="collapseComunicacao">
                 <div class="sb-nav-link-icon"><i class="fas fa-comments"></i></div>
                 Comunicação
                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
             </a>
-            <div class="collapse {% if '/comunicacao/' in request.path %}show{% endif %}" id="collapseComunicacao" aria-labelledby="headingComunicacao" data-bs-parent="#sidenavAccordion">
+            <div class="collapse {% if 'comunicacao' in request.path %}show{% endif %}" id="collapseComunicacao" aria-labelledby="headingComunicacao" data-bs-parent="#sidenavAccordion">
                 <nav class="sb-sidenav-menu-nested nav">
+                    {# Home da Comunicacao #}
+                    <a class="nav-link {% if '/comunicacao/home' in request.path or '/comunicacao/' == request.path %}active{% endif %}" href="{% url 'comunicacao:home' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-home"></i></div>
+                        Visão Geral
+                    </a>
+                    
+                    {# Campanhas e Mensagens #}
                     {% if can_comunicacao_massa %}
-                    <a class="nav-link {% if 'enviar-email' in request.path %}active{% endif %}" href="{% url 'comunicacao:enviar_email_massa' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-paper-plane"></i></div>
-                        Enviar E-mail em Massa
+                    <div class="sb-nav-text text-muted small ps-3 pt-2 pb-1">Campanhas</div>
+                    <a class="nav-link {% if 'email-massa' in request.path %}active{% endif %}" href="{% url 'comunicacao:enviar_email_massa' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-envelope"></i></div>
+                        E-mail em Massa
                     </a>
-                    <a class="nav-link {% if 'enviar-whatsapp' in request.path %}active{% endif %}" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">
+                    <a class="nav-link {% if 'whatsapp/massa' in request.path %}active{% endif %}" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">
                         <div class="sb-nav-link-icon"><i class="fab fa-whatsapp"></i></div>
-                        Enviar WhatsApp em Massa
+                        WhatsApp em Massa
                     </a>
-                    <a class="nav-link {% if 'configurar-whatsapp' in request.path %}active{% endif %}" href="{% url 'comunicacao:configurar_whatsapp' %}">
+                    {% endif %}
+                    
+                    {# Mural #}
+                    {% if can_mural_avisos %}
+                    <a class="nav-link {% if 'mural' in request.path or 'avisos' in request.path %}active{% endif %}" href="{% url 'comunicacao:lista_avisos' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                        Mural de Avisos
+                    </a>
+                    {% endif %}
+                    
+                    {# Configuracao e Templates #}
+                    {% if can_comunicacao_massa %}
+                    <div class="sb-nav-text text-muted small ps-3 pt-3 pb-1">Configuração</div>
+                    <a class="nav-link {% if 'whatsapp/configuracao' in request.path or 'whatsapp/qr' in request.path %}active{% endif %}" href="{% url 'comunicacao:configurar_whatsapp' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-cog"></i></div>
                         Configurar WhatsApp
-                    </a>
-                    <a class="nav-link {% if 'logs-whatsapp' in request.path %}active{% endif %}" href="{% url 'comunicacao:logs_whatsapp' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-list"></i></div>
-                        Logs WhatsApp
                     </a>
                     <a class="nav-link {% if 'templates-email' in request.path %}active{% endif %}" href="{% url 'comunicacao:templates_email' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-envelope-open-text"></i></div>
                         Templates de E-mail
                     </a>
-                    {% endif %}
-                    {% if can_mural_avisos %}
-                    <a class="nav-link {% if 'avisos' in request.path %}active{% endif %}" href="{% url 'comunicacao:lista_avisos' %}">
-                        <div class="sb-nav-link-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-                        Mural de Avisos
+                    
+                    {# Relatorios #}
+                    <div class="sb-nav-text text-muted small ps-3 pt-3 pb-1">Relatórios</div>
+                    <a class="nav-link {% if 'whatsapp/logs' in request.path %}active{% endif %}" href="{% url 'comunicacao:logs_whatsapp' %}">
+                        <div class="sb-nav-link-icon"><i class="fas fa-chart-line"></i></div>
+                        Histórico de Envios
                     </a>
                     {% endif %}
                 </nav>

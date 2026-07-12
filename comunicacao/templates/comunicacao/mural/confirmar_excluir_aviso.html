@@ -7,7 +7,8 @@
 <div class="container-fluid px-4">
     <h1 class="mt-4">{{ titulo_pagina|default:"Confirmar Exclusão de Aviso" }}</h1>
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:home' %}">Comunicação</a></li>
         <li class="breadcrumb-item"><a href="{% url 'comunicacao:lista_avisos' %}">Mural de Avisos</a></li>
         <li class="breadcrumb-item"><a href="{% url 'comunicacao:detalhe_aviso' pk=aviso.pk %}">{{ aviso.titulo|truncatechars:30 }}</a></li>
         <li class="breadcrumb-item active">Confirmar Exclusão</li>

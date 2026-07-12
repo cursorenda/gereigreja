@@ -4,23 +4,45 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    {# Hero Section #}
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-sidebar-proxy>
+                        <i class="fas fa-bars me-1"></i>
+                        <span class="d-none d-md-inline" data-sidebar-label>Ocultar menu</span>
+                    </button>
+                    <h1 class="h3 d-inline-flex align-items-center mb-0">
+                        <i class="fab fa-whatsapp text-success me-2"></i>
+                        Enviar WhatsApp em Massa
+                    </h1>
+                </div>
+                <p class="text-muted mt-2">Crie e envie campanhas de WhatsApp para membros selecionados</p>
+            </div>
+        </div>
+    </div>
+
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:home' %}">Comunicação</a></li>
         <li class="breadcrumb-item active">WhatsApp em Massa</li>
     </ol>
 
     <div class="card mb-4">
-        <div class="card-header">
-            <i class="fab fa-whatsapp me-1"></i>
-            Compor mensagem
+        <div class="card-header bg-light">
+            <h6 class="mb-0">
+                <i class="fas fa-compose me-1"></i>
+                Compor Mensagem
+            </h6>
         </div>
         <div class="card-body">
             {% if request.igreja_ativa %}
-            <div class="alert alert-info py-2">
+            <div class="alert alert-info py-2 mb-3">
                 <i class="fas fa-church me-2"></i> Envio para: <strong>{{ request.igreja_ativa.nome_igreja }}</strong>
             </div>
             {% endif %}
+            
             <form method="post">
                 {% csrf_token %}
                 {% include "partials/_form_errors.html" with form=form %}
@@ -29,6 +51,10 @@
                     <label class="form-label" for="{{ form.mensagem.id_for_label }}">{{ form.mensagem.label }}</label>
                     {{ form.mensagem }}
                     {% if form.mensagem.help_text %}<div class="form-text">{{ form.mensagem.help_text }}</div>{% endif %}
+                </div>
+
+                <div class="card-divider my-4">
+                    <h6 class="text-muted text-uppercase small fw-bold mb-0">Critérios de Destinatários</h6>
                 </div>
 
                 <div class="row">
@@ -54,54 +80,84 @@
                 </div>
 
                 <div class="card border mt-3 mb-3" id="preview-card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>Previa dos destinatarios</span>
-                        <div>
-                            <a href="{% url 'comunicacao:editar_celulares_whatsapp_massa' %}" class="btn btn-sm btn-outline-primary" id="btn-bulk-celular">Editar celulares em massa</a>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-select-all">Selecionar habilitados</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-clear-selection">Limpar selecao</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-preview-refresh">Atualizar previa</button>
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span class="fw-bold">Previa dos Destinatarios</span>
+                        <div class="btn-group btn-group-sm flex-wrap" role="group">
+                            <a href="{% url 'comunicacao:editar_celulares_whatsapp_massa' %}" class="btn btn-outline-primary" id="btn-bulk-celular">
+                                <i class="fas fa-edit me-1"></i> Editar em Massa
+                            </a>
+                            <button type="button" class="btn btn-outline-secondary" id="btn-select-all">
+                                <i class="fas fa-check me-1"></i> Selecionar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="btn-clear-selection">
+                                <i class="fas fa-times me-1"></i> Limpar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="btn-preview-refresh">
+                                <i class="fas fa-sync me-1"></i> Atualizar
+                            </button>
                         </div>
                     </div>
                     <div class="card-body">
-                        <div id="preview-loading" class="text-muted d-none">Carregando previa...</div>
-                        <div id="preview-summary" class="mb-2 text-muted">Selecione os filtros para ver quem recebera a mensagem.</div>
-                        <div id="preview-selected" class="mb-2 text-primary"></div>
+                        <div id="preview-loading" class="text-muted text-center py-2 d-none">
+                            <i class="fas fa-spinner fa-spin me-1"></i> Carregando previa...
+                        </div>
+                        <div id="preview-summary" class="mb-2 text-muted small">Selecione os filtros para ver quem recebera a mensagem.</div>
+                        <div id="preview-selected" class="mb-2 text-primary small fw-bold"></div>
                         <div id="preview-warning" class="small text-warning mb-2"></div>
-                        <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                        <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
                             <table class="table table-sm align-middle mb-0" id="preview-table">
-                                <thead>
+                                <thead class="table-light">
                                     <tr>
-                                        <th style="width: 70px;">Enviar</th>
+                                        <th style="width: 50px;">
+                                            <input type="checkbox" class="form-check-input" title="Selecionar todos os habilitados">
+                                        </th>
                                         <th>Nome</th>
                                         <th>Igreja</th>
                                         <th>Celular</th>
-                                        <th>Status para envio</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="preview-body">
-                                    <tr><td colspan="5" class="text-muted">Nenhum destinatario em previa.</td></tr>
+                                    <tr><td colspan="5" class="text-muted text-center py-2">Nenhum destinatario em previa.</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
+                <div class="card-divider my-4"></div>
+
                 <div class="d-flex gap-2 flex-wrap">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-success">
                         <i class="fab fa-whatsapp me-1"></i> Enviar WhatsApp
                     </button>
                     <button type="button" class="btn btn-outline-info" id="btn-test-waha">
-                        <i class="fas fa-heartbeat me-1"></i> Testar servidor WAHA
+                        <i class="fas fa-heartbeat me-1"></i> Testar WAHA
                     </button>
-                    <a href="{% url 'comunicacao:logs_whatsapp' %}" class="btn btn-outline-secondary">Ver logs</a>
-                    <a href="{% url 'comunicacao:configurar_whatsapp' %}" class="btn btn-outline-primary">Configurar WAHA</a>
+                    <a href="{% url 'comunicacao:logs_whatsapp' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-history me-1"></i> Ver Logs
+                    </a>
+                    <a href="{% url 'comunicacao:configurar_whatsapp' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-cog me-1"></i> Configurar
+                    </a>
                 </div>
                 <div id="test-waha-result" class="mt-2 d-none"></div>
             </form>
         </div>
     </div>
 </div>
+
+<style>
+    .page-header {
+        padding: 2rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+
+    .card-divider {
+        padding-top: 1rem;
+        border-top: 1px solid #e3e6f0;
+    }
+</style>
 
 <script>
 (function () {
@@ -176,13 +232,15 @@
 
     function updateSelectedText() {
         if (!selectedEl) return;
-        selectedEl.textContent = `${selectedIds.size} destinatario(s) selecionado(s) para envio.`;
+        selectedEl.textContent = selectedIds.size > 0 
+            ? `✓ ${selectedIds.size} destinatario(s) selecionado(s) para envio.`
+            : '';
     }
 
     function renderRows(pessoas) {
         if (!bodyEl) return;
         if (!pessoas || !pessoas.length) {
-            bodyEl.innerHTML = '<tr><td colspan="5" class="text-muted">Nenhum destinatario encontrado com os filtros atuais.</td></tr>';
+            bodyEl.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-2">Nenhum destinatario encontrado com os filtros atuais.</td></tr>';
             selectedIds.clear();
             updateSelectedText();
             return;
@@ -208,23 +266,26 @@
 
             const tdNome = document.createElement('td');
             tdNome.textContent = pessoa.nome || '-';
+            tdNome.className = 'small';
             tr.appendChild(tdNome);
 
             const tdIgreja = document.createElement('td');
             tdIgreja.textContent = pessoa.igreja || '-';
+            tdIgreja.className = 'small';
             tr.appendChild(tdIgreja);
 
             const tdCelular = document.createElement('td');
             tdCelular.textContent = pessoa.celular || '-';
+            tdCelular.className = 'small text-muted';
             tr.appendChild(tdCelular);
 
             const tdStatus = document.createElement('td');
             if (pessoa.habilitado) {
-                tdStatus.innerHTML = '<span class="badge bg-success">Habilitado para receber msg</span>';
+                tdStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check me-1"></i>OK</span>';
             } else if (!pessoa.tem_celular) {
                 tdStatus.innerHTML = '<span class="badge bg-secondary">Sem celular</span>';
             } else {
-                tdStatus.innerHTML = '<span class="badge bg-warning text-dark">Sem configuracao WA</span>';
+                tdStatus.innerHTML = '<span class="badge bg-warning text-dark">Sem config</span>';
             }
             tr.appendChild(tdStatus);
 
@@ -381,7 +442,7 @@
                 })
                 .finally(() => {
                     testBtn.disabled = false;
-                    testBtn.innerHTML = '<i class="fas fa-heartbeat me-1"></i> Testar servidor WAHA';
+                    testBtn.innerHTML = '<i class="fas fa-heartbeat me-1"></i> Testar WAHA';
                 });
         });
     }

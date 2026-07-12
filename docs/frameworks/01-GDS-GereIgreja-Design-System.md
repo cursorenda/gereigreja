@@ -216,6 +216,12 @@ Rodapé (quando aplicável)
 
 Essa organização facilita navegação e aprendizado da plataforma.
 
+Requisitos obrigatórios para telas internas:
+
+- exibir trilha de navegação (breadcrumb) no padrão Home > Módulo > Página;
+- quando houver menu lateral, oferecer controle visível para mostrar/ocultar menu;
+- manter o controle de menu próximo ao título da página para facilitar descoberta.
+
 ---
 
 # 11. Responsividade
@@ -289,7 +295,9 @@ Antes da publicação de qualquer interface verificar:
 - possui responsividade;
 - atende aos critérios de acessibilidade;
 - evita CSS inline;
-- segue os padrões de layout.
+- segue os padrões de layout;
+- possui breadcrumb no padrão Home > Módulo > Página em páginas internas;
+- possui controle mostrar/ocultar menu quando usa sidebar.
 
 ---
 

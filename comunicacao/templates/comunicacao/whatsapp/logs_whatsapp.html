@@ -4,52 +4,93 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina }}</h1>
+    {# Hero Section #}
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-sidebar-proxy>
+                        <i class="fas fa-bars me-1"></i>
+                        <span class="d-none d-md-inline" data-sidebar-label>Ocultar menu</span>
+                    </button>
+                    <h1 class="h3 d-inline-flex align-items-center mb-0">
+                        <i class="fas fa-history text-success me-2"></i>
+                        Histórico de Envios
+                    </h1>
+                </div>
+                <p class="text-muted mt-2">Acompanhe o histórico de todas as mensagens WhatsApp enviadas</p>
+            </div>
+            <div class="col-auto">
+                <a class="btn btn-success" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">
+                    <i class="fas fa-paper-plane me-1"></i> Novo Envio
+                </a>
+            </div>
+        </div>
+    </div>
+
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Logs WhatsApp</li>
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:home' %}">Comunicação</a></li>
+        <li class="breadcrumb-item active">Histórico de Envios</li>
     </ol>
 
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="fas fa-list me-1"></i> Ultimos envios</span>
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'comunicacao:enviar_whatsapp_massa' %}">Novo envio</a>
+    <div class="card">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">
+                <i class="fas fa-list me-2"></i> Ultimos Envios
+            </h6>
         </div>
-        <div class="card-body table-responsive">
-            <table class="table table-striped table-hover align-middle">
-                <thead>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 small">
+                <thead class="table-light">
                     <tr>
-                        <th>Data</th>
+                        <th>Data/Hora</th>
                         <th>Tipo</th>
                         <th>Status</th>
                         <th>Igreja</th>
-                        <th>Destino</th>
-                        <th>Membro</th>
+                        <th>Destinatário</th>
                         <th>Mensagem</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in logs %}
                     <tr>
-                        <td>{{ item.criado_em|date:'d/m/Y H:i' }}</td>
-                        <td>{{ item.get_tipo_display }}</td>
+                        <td>
+                            <small class="text-muted">
+                                {{ item.criado_em|date:'d/m/Y H:i' }}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark">{{ item.get_tipo_display }}</span>
+                        </td>
                         <td>
                             {% if item.status == 'sucesso' %}
-                            <span class="badge bg-success">Sucesso</span>
+                            <span class="badge bg-success">✓ Entregue</span>
                             {% elif item.status == 'erro' %}
-                            <span class="badge bg-danger">Erro</span>
+                            <span class="badge bg-danger">✗ Erro</span>
+                            {% elif item.status == 'recebido' %}
+                            <span class="badge bg-info">↓ Recebido</span>
                             {% else %}
                             <span class="badge bg-secondary">{{ item.get_status_display }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ item.igreja.nome_igreja|default:'-' }}</td>
-                        <td>{{ item.telefone_destino }}</td>
-                        <td>{{ item.membro.nome|default:'-' }}</td>
-                        <td style="max-width: 420px; white-space: normal;">{{ item.mensagem|truncatechars:140 }}</td>
+                        <td>
+                            <small>{{ item.igreja.nome_igreja|default:'-' }}</small>
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                {{ item.numero_destino|default:item.telefone_destino|default:'-' }}
+                            </small>
+                        </td>
+                        <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <small>{{ item.mensagem|truncatechars:80 }}</small>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted">Nenhum log encontrado.</td>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox me-2"></i> Nenhum log encontrado
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -57,4 +98,11 @@
         </div>
     </div>
 </div>
+
+<style>
+    .page-header {
+        padding: 2rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+</style>
 {% endblock %}

@@ -4,18 +4,60 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Abrir o offcanvas ao clicar no botão do menu no mobile
     var sidebarToggle = document.getElementById('sidebarToggle');
+    var sidebarProxyButtons = document.querySelectorAll('[data-sidebar-proxy]');
+    var DESKTOP_BREAKPOINT = 992;
+
+    function toggleSidebarVisibility() {
+        if (window.innerWidth < DESKTOP_BREAKPOINT) {
+            var offcanvasSidebar = document.getElementById('offcanvasSidebar');
+            if (offcanvasSidebar) {
+                var bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasSidebar);
+                bsOffcanvas.toggle();
+            }
+            return;
+        }
+
+        document.body.classList.toggle('sb-sidenav-toggled');
+        localStorage.setItem('sb|sidebar-toggle', document.body.classList.contains('sb-sidenav-toggled'));
+    }
+
+    function syncSidebarProxyButtons() {
+        var sidebarVisivel = !document.body.classList.contains('sb-sidenav-toggled');
+        sidebarProxyButtons.forEach(function(btn) {
+            var label = btn.querySelector('[data-sidebar-label]');
+            if (label) {
+                label.textContent = sidebarVisivel ? 'Ocultar menu' : 'Mostrar menu';
+            }
+            btn.setAttribute('title', sidebarVisivel ? 'Ocultar menu lateral' : 'Mostrar menu lateral');
+            btn.setAttribute('aria-label', sidebarVisivel ? 'Ocultar menu lateral' : 'Mostrar menu lateral');
+            btn.setAttribute('aria-expanded', sidebarVisivel ? 'true' : 'false');
+        });
+    }
+
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', function(e) {
-            if (window.innerWidth < 992) { // lg breakpoint
+            if (window.innerWidth < DESKTOP_BREAKPOINT) { // lg breakpoint
                 e.preventDefault();
                 var offcanvasSidebar = document.getElementById('offcanvasSidebar');
                 if (offcanvasSidebar) {
-                    var bsOffcanvas = new bootstrap.Offcanvas(offcanvasSidebar);
+                    var bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasSidebar);
                     bsOffcanvas.toggle();
                 }
             }
+
+            setTimeout(syncSidebarProxyButtons, 0);
         });
     }
+
+    sidebarProxyButtons.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleSidebarVisibility();
+            syncSidebarProxyButtons();
+        });
+    });
+
+    syncSidebarProxyButtons();
 
     // Seletor de tamanho de fonte/tela (Acessibilidade)
     var body = document.body;

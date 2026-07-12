@@ -6,8 +6,9 @@
 <div class="container-fluid px-4">
     <h1 class="mt-4">{{ titulo_pagina }}</h1>
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="{% url "secretaria:dashboard" %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url "comunicacao:configurar_whatsapp" %}">WhatsApp</a></li>
+        <li class="breadcrumb-item"><a href="{% url "secretaria:dashboard" %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url "comunicacao:home" %}">Comunicação</a></li>
+        <li class="breadcrumb-item"><a href="{% url "comunicacao:configurar_whatsapp" %}">Configuração WhatsApp</a></li>
         <li class="breadcrumb-item active">Ativar WhatsApp</li>
     </ol>
 
