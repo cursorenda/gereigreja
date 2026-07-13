@@ -58,8 +58,6 @@ PROJECT_TEST_MIGRATION_DISABLE = [
     'agenda',
     'escola_biblica',
     'contas',
-    'configuracao',
-    'comunicacao',
     'suporte',
     'auditoria',
 ]
