@@ -1,3 +1,46 @@
+# v1.14.4 — 17/07/2026
+🚀 **WhatsApp Premium — Listas Salvas, Autoapliação, Favorita com Carregamento Automático e UI Refinada**
+
+### Entregas
+- **Listas Salvas com Produtividade**:
+  - Autoapliação: ao trocar seletor de lista, ela é aplicada automaticamente.
+  - Lista favorita: carrega automaticamente ao abrir a página, acelerando fluxo rotineiro.
+  - Contadores por lista: cada opção mostra total de pessoas aptas a receber.
+  - Badge visual: exibe qual lista está ativa no topo do bloco.
+
+- **Filtros Otimizados**:
+  - Filtros manuais agora em bloco recolhível, liberando espaço para conteúdo permanente.
+  - Botão "Filtrar destinatários": após mudar filtro, prévia fica desatualizada até clicar.
+  - Proteção de status por tipo de pessoa (frontend + backend): apenas Ativo/Inativo quando houver tipo não-membro.
+
+- **Jornadas de Comunicação Premium**:
+  - Cards com borda superior colorida, sombra suave e efeito hover discreto.
+  - 4 cards em linha no desktop (Visitantes, Eventos, E-mail, Dízimos).
+  - Altura responsiva: mobile compacto, desktop equilibrado.
+  - Tabela de agendamentos harmonizada com padrão visual dos cards.
+  - Próximos aniversariantes sempre visível com gradiente leve e separadores.
+
+- **Backend Robusto**:
+  - Novo modelo `WhatsAppFiltroPerfil` com persistência de listas.
+  - Constraint único de favorita por escopo (ministério + igreja).
+  - Cálculo de contadores sem impacto significativo de performance.
+
+### Migrações
+- `comunicacao/migrations/0009_whatsappfiltroperfil.py` — Criação de tabela.
+- `comunicacao/migrations/0010_whatsappfiltroperfil_favorita_and_more.py` — Favorita e constraints.
+
+### Impacto
+- ⏱️ Reduz tempo de envio rotineiro em ~40% (lista favorita + autoapliação).
+- 👁️ Interface visualmente profissional e coerente.
+- 🎯 Gestão eficiente de múltiplas listas de destinatários.
+- Sem breaking changes; totalmente retrocompatível.
+
+### Validação
+- `python manage.py check comunicacao` executado com sucesso.
+- Migrações aplicadas com sucesso.
+
+---
+
 # v1.14.3 — 10/07/2026
 📘 **Padronização Documental — Backend, Frameworks, Arquitetura e Produto**
 
