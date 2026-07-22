@@ -37,30 +37,62 @@ README.md
 
 INDEX.md
 
-governanca/
-
 arquitetura/
 
-produto/
+backend/
 
-design/
+frontend/
 
-api/
+apps/
 
-infraestrutura/
-
-seguranca/
-
-qualidade/
+frameworks/
 
 operacoes/
 
-ia/
+qualidade/
+
+api/
+
+seo/
 
 marketing/
 
-usuario/
+deploy/
+
+contribuicao/
+
+adr/
 ```
+
+## Estrutura Definitiva (Regra de Governança)
+
+A organização oficial de `docs/` passa a seguir esta regra:
+
+- `docs/backend/`: padrões de engenharia (como construir);
+- `docs/apps/`: catálogo por módulo (o que existe em cada app);
+- `docs/arquitetura/`: decisões e visão sistêmica;
+- `docs/operacoes/`: execução operacional e runbooks;
+- `docs/qualidade/`: critérios, gates e checklists de validação.
+
+Princípio obrigatório: documentos de `docs/apps/` não duplicam conteúdo normativo de `docs/backend/`; apenas referenciam os padrões quando necessário.
+
+## Regra de Leitura (Obrigatória)
+
+Backend
+↓
+Como construir.
+
+Apps
+↓
+O que foi construído.
+
+INDEX
+↓
+O mapa.
+
+README
+↓
+A apresentação.
 
 ---
 
@@ -72,15 +104,15 @@ Para novos colaboradores recomendamos a seguinte sequência.
 
 2. docs/README.md
 
-3. governanca/README.md
+3. docs/arquitetura/README.md
 
-4. Manifesto da Engenharia
+4. docs/backend/README.md
 
-5. Arquitetura Geral
+5. docs/apps/README.md
 
-6. Arquitetura dos Módulos
+6. docs/operacoes/README.md
 
-7. Demais padrões
+7. docs/qualidade/README.md
 
 ---
 

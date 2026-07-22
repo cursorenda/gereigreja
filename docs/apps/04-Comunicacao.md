@@ -1,14 +1,14 @@
 Pasta:
-docs/backend/
+docs/apps/
 
 Arquivo:
-10-Comunicacao.md
+04-Comunicacao.md
 
 Documento:
-GBE-10
+GAP-04
 
 Seção:
-Backend
+Apps
 
 Versão:
 1.0
@@ -22,7 +22,7 @@ Equipe de Engenharia
 Última atualização:
 Julho de 2026
 
-# 10 - Comunicação
+# 04 - Comunicação
 
 > "Comunicação é um domínio de negócio orientado a campanhas, avisos e canais externos; a interface coordena, a regra de negócio vive nos Services e a leitura vive nos Selectors."
 
@@ -66,6 +66,7 @@ O app Comunicação atende quatro frentes principais:
 O domínio também inclui:
 
 - previews de templates de e-mail;
+- automacao de aniversariantes para WhatsApp e e-mail;
 - configuração de WhatsApp por congregação;
 - configuração global do WAHA;
 - logs operacionais de WhatsApp;
@@ -115,7 +116,9 @@ Fluxos cobertos:
 
 - visualização de templates;
 - envio de e-mail em massa;
+- configuracao da automacao de aniversariantes;
 - prévia do template de e-mail em massa;
+- prévia do template de e-mail de aniversario;
 - prévia do template de redefinição de senha.
 
 ## WhatsApp
@@ -125,6 +128,7 @@ Fluxos cobertos:
 - configuração por congregação;
 - configuração global;
 - envio em massa;
+- envio automatico para aniversariantes;
 - prévia de destinatários;
 - edição em massa de celulares;
 - teste de saúde do WAHA;
@@ -215,6 +219,8 @@ O módulo já possui testes básicos em:
 - [comunicacao/tests/test_urls.py](../../comunicacao/tests/test_urls.py)
 - [comunicacao/tests/test_views_imports.py](../../comunicacao/tests/test_views_imports.py)
 - [comunicacao/tests/test_access_flow.py](../../comunicacao/tests/test_access_flow.py)
+- [comunicacao/tests/test_functional_flows.py](../../comunicacao/tests/test_functional_flows.py)
+- [comunicacao/tests/test_services.py](../../comunicacao/tests/test_services.py)
 
 ---
 
@@ -236,13 +242,15 @@ Antes de considerar o app Comunicação concluído, validar:
 
 # 10. Documentos Relacionados
 
-- [03 - Arquitetura dos Apps](03-Arquitetura-dos-Apps.md)
-- [05 - Services](05-Services.md)
-- [06 - Selectors](06-Selectors.md)
-- [08 - Views](08-Views.md)
+- [03 - Arquitetura dos Apps](../backend/03-Arquitetura-dos-Apps.md)
+- [05 - Services](../backend/05-Services.md)
+- [06 - Selectors](../backend/06-Selectors.md)
+- [08 - Views](../backend/08-Views.md)
 - [01 - GereIgreja Design System](../frameworks/01-GDS-GereIgreja-Design-System.md)
 - [04 - GereIgreja Quality Framework](../frameworks/04-GQF-GereIgreja-Quality-Framework.md)
 - [05 - GereIgreja Documentation Framework](../frameworks/05-GDF-GereIgreja-Documentation-Framework.md)
+- [Runbook WAHA - Comunicação](../operacoes/COMUNICACAO_WAHA_RUNBOOK.md)
+- [Checklist de Release WAHA - Comunicação](../qualidade/COMUNICACAO_CHECKLIST_RELEASE_WAHA.md)
 
 ---
 

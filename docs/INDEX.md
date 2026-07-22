@@ -8,10 +8,21 @@
 
 ## 🎯 Documentação Principal
 
+Regra de interpretação deste documento:
+
+- `INDEX.md` é o mapa de navegação.
+- `README.md` de cada pasta é a apresentação daquele domínio.
+
 | Documento | Descrição | Última Atualização |
 |-----------|-----------|-------------------|
 | [../README.md](../README.md) | README principal do projeto | — |
 | [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 02/06/2026 |
+| [README.md](README.md) | Diretriz oficial da documentação em `docs/` | — |
+| [arquitetura/README.md](arquitetura/README.md) | Guia da documentação arquitetural | — |
+| [backend/README.md](backend/README.md) | Guia dos padrões de engenharia do backend | — |
+| [apps/README.md](apps/README.md) | Guia da documentação por módulo de negócio | — |
+| [operacoes/README.md](operacoes/README.md) | Guia operacional (runbooks e checklists) | — |
+| [qualidade/README.md](qualidade/README.md) | Guia de qualidade e gates de release | — |
 
 ---
 
@@ -103,11 +114,31 @@
 ---
 
 
+## 🧩 Apps (Módulos)
+
+| Documento | Descrição |
+|-----------|-----------|
+| [apps/README.md](apps/README.md) | Índice e padrão dos documentos por módulo |
+| [apps/04-Comunicacao.md](apps/04-Comunicacao.md) | Arquitetura e operação do módulo Comunicação |
+
+---
+
+
 ## 🚀 Deploy & Infraestrutura
 
 | Documento | Descrição |
 |-----------|-----------|
 | [deploy/ANALISE_SISTEMA_DEPLOY.md](deploy/ANALISE_SISTEMA_DEPLOY.md) | Análise completa do sistema de deploy |
+
+---
+
+
+## 🛠️ Operações & Qualidade (Comunicação)
+
+| Documento | Descrição |
+|-----------|-----------|
+| [operacoes/COMUNICACAO_WAHA_RUNBOOK.md](operacoes/COMUNICACAO_WAHA_RUNBOOK.md) | Runbook operacional da integração WAHA no módulo Comunicação |
+| [qualidade/COMUNICACAO_CHECKLIST_RELEASE_WAHA.md](qualidade/COMUNICACAO_CHECKLIST_RELEASE_WAHA.md) | Checklist de release para mudanças de Comunicação com impacto em WAHA |
 
 ---
 
