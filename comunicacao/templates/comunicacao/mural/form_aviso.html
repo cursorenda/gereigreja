@@ -5,7 +5,23 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina|default:"Gerenciar Aviso" }}</h1>
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-sidebar-proxy>
+                        <i class="fas fa-bars me-1"></i>
+                        <span class="d-none d-md-inline" data-sidebar-label>Ocultar menu</span>
+                    </button>
+                    <h1 class="h3 d-inline-flex align-items-center mb-0">
+                        <i class="fas fa-bullhorn text-primary me-2"></i>
+                        {{ titulo_pagina|default:"Gerenciar Aviso" }}
+                    </h1>
+                </div>
+                <p class="text-muted mt-2 mb-0">Defina conteúdo, prazo e público do aviso para publicação segura.</p>
+            </div>
+        </div>
+    </div>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Home</a></li>
         <li class="breadcrumb-item"><a href="{% url 'comunicacao:home' %}">Comunicação</a></li>
@@ -21,6 +37,11 @@
             {{ aviso.pk|yesno:"Editar Aviso,Criar Novo Aviso" }}
         </div>
         <div class="card-body">
+            <div class="alert alert-info py-2 mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                Se nenhuma congregação for selecionada em <strong>Igrejas de Destino</strong>, o aviso será publicado para todo o ministério.
+            </div>
+
             <form method="POST" novalidate>
                 {% csrf_token %}
 
@@ -99,4 +120,13 @@
 <script>
     // Adicionar JS específico se necessário, por exemplo, para um editor de texto rico para o campo 'conteudo'.
 </script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        padding: 2rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+</style>
 {% endblock %}

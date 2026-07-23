@@ -6,13 +6,55 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    <h1 class="mt-4">{{ titulo_pagina|default:"Mural de Avisos" }}</h1>
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-sidebar-proxy>
+                        <i class="fas fa-bars me-1"></i>
+                        <span class="d-none d-md-inline" data-sidebar-label>Ocultar menu</span>
+                    </button>
+                    <h1 class="h3 d-inline-flex align-items-center mb-0">
+                        <i class="fas fa-bullhorn text-primary me-2"></i>
+                        {{ titulo_pagina|default:"Mural de Avisos" }}
+                    </h1>
+                </div>
+                <p class="text-muted mt-2 mb-0">Acompanhe comunicados ativos e priorize o que expira em breve.</p>
+            </div>
+        </div>
+    </div>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Home</a></li>
         <li class="breadcrumb-item"><a href="{% url 'comunicacao:home' %}">Comunicação</a></li>
         <li class="breadcrumb-item active">Mural de Avisos</li>
     </ol>
 
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="small text-muted">Avisos visíveis</div>
+                    <div class="h4 mb-0">{{ total_avisos }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="small text-muted">Expiram em até 7 dias</div>
+                    <div class="h4 mb-0 text-warning">{{ total_expira_7_dias }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="small text-muted">Sem expiração</div>
+                    <div class="h4 mb-0 text-success">{{ total_sem_expiracao }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
     <div class="card mb-4">
@@ -28,13 +70,22 @@
         </div>
         <div class="card-body">
             <form method="GET" action="{% url 'comunicacao:lista_avisos' %}" class="row g-3 mb-4 align-items-center">
-                <div class="col-auto flex-grow-1">
+                <div class="col-md-6">
                     <label for="searchQueryAvisos" class="visually-hidden">Buscar Avisos</label>
                     <input type="text" class="form-control form-control-sm" id="searchQueryAvisos" placeholder="Buscar por título..." name="q" value="{{ query|default:'' }}">
                 </div>
-                <div class="col-auto">
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" name="escopo">
+                        <option value="todos" {% if escopo == 'todos' %}selected{% endif %}>Escopo: Todos</option>
+                        <option value="ministerio" {% if escopo == 'ministerio' %}selected{% endif %}>Somente ministério</option>
+                        {% if request.igreja_ativa %}
+                        <option value="congregacao" {% if escopo == 'congregacao' %}selected{% endif %}>Somente congregação ativa</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-search"></i> Buscar</button>
-                    {% if query %}
+                    {% if query or escopo != 'todos' %}
                         <a href="{% url 'comunicacao:lista_avisos' %}" class="btn btn-outline-secondary btn-sm ms-1" title="Limpar Busca"><i class="fas fa-eraser"></i></a>
                     {% endif %}
                 </div>
@@ -98,4 +149,13 @@
 
 {% block extra_js %}
 {# Adicionar JS específico se necessário #}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        padding: 2rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+</style>
 {% endblock %}

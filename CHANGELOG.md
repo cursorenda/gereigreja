@@ -1,3 +1,26 @@
+# v1.14.5 — 22/07/2026
+📣 **Comunicação — automações diárias, novos comandos operacionais e evolução dos fluxos WhatsApp/E-mail**
+
+### Entregas
+- **Automações de comunicação ampliadas**:
+  - Novos comandos para orquestração diária e processamento de envios agendados.
+  - Inclusão de fluxo de envio automático de e-mail em paralelo às rotinas de WhatsApp.
+  - Consolidação de rotinas de execução para operações recorrentes do módulo Comunicação.
+
+- **Evolução funcional no app Comunicação**:
+  - Ajustes em models, services, selectors, forms, urls e views para suportar os novos fluxos.
+  - Refinamentos de interface nas telas de home, mural, e-mail e WhatsApp.
+  - Atualização das regras de sinais e serviços de entrega de mensagens.
+
+- **Qualidade e cobertura**:
+  - Ampliação da suíte de testes do módulo com cenários de acesso, serviços, fluxos funcionais e integração.
+  - Migrações do app Comunicação incluídas para suportar as novas capacidades.
+
+### Escopo
+- Release focada no app `comunicacao` e seus artefatos diretos.
+
+---
+
 # v1.14.4 — 17/07/2026
 🚀 **WhatsApp Premium — Listas Salvas, Autoapliação, Favorita com Carregamento Automático e UI Refinada**
 

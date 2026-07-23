@@ -38,8 +38,17 @@ def _resolve_session_name(configuracao):
 
     try:
         resp = requests.get(f"{base_url}/api/sessions/{session}", headers=headers, timeout=5)
+        if resp.status_code == 200:
+            return session
         if _is_core_default_only_response(resp):
             return 'default'
+        # Em algumas instalacoes (ou configuracoes atuais) apenas a sessao
+        # 'default' existe; quando a sessao por congregacao retorna 404,
+        # usamos 'default' se ela estiver disponivel.
+        if resp.status_code == 404:
+            default_resp = requests.get(f"{base_url}/api/sessions/default", headers=headers, timeout=5)
+            if default_resp.status_code == 200:
+                return 'default'
     except Exception:
         pass
     return session
@@ -54,12 +63,81 @@ def normalize_phone_to_chat_id(phone_raw):
     return digits, f'{digits}@c.us'
 
 
+def _resolve_chat_id_for_send(base_url, headers, session, numero_normalizado):
+    """Resolve chatId canônico via WAHA (LID), com fallback para c.us."""
+    fallback_chat_id = f'{numero_normalizado}@c.us'
+    try:
+        resp = requests.get(
+            f"{base_url}/api/contacts/check-exists",
+            headers=headers,
+            params={"session": session, "phone": numero_normalizado},
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            data = resp.json() if resp.content else {}
+            number_exists = data.get('numberExists')
+            if number_exists is False:
+                return None, 'Numero sem conta WhatsApp ativa ou invalido.'
+            chat_id = data.get('chatId')
+            if chat_id:
+                return chat_id, None
+    except Exception:
+        pass
+
+    return fallback_chat_id, None
+
+
 def _waha_headers(configuracao):
     headers = {'Content-Type': 'application/json'}
     key = configuracao.waha_key_efetiva
     if key:
         headers['X-Api-Key'] = key
     return headers
+
+
+def _start_waha_session(base_url, headers, session):
+    start_resp = requests.post(
+        f"{base_url}/api/sessions/start",
+        json={"name": session},
+        headers=headers,
+        timeout=8,
+    )
+    if start_resp.status_code in (404, 405):
+        start_resp = requests.post(
+            f"{base_url}/api/sessions/{session}/start",
+            json={},
+            headers=headers,
+            timeout=8,
+        )
+    return start_resp
+
+
+def _recover_failed_session(base_url, headers, session):
+    """Tenta recuperar sessao WAHA em FAILED com stop + start."""
+    try:
+        requests.post(
+            f"{base_url}/api/sessions/stop",
+            json={"name": session},
+            headers=headers,
+            timeout=8,
+        )
+    except Exception:
+        pass
+
+    try:
+        requests.post(
+            f"{base_url}/api/sessions/{session}/stop",
+            json={},
+            headers=headers,
+            timeout=8,
+        )
+    except Exception:
+        pass
+
+    try:
+        _start_waha_session(base_url, headers, session)
+    except Exception:
+        pass
 
 
 def _format_http_error(response):
@@ -70,11 +148,21 @@ def _format_http_error(response):
     body = ''
     try:
         data = response.json()
-        body = data.get('message') or data.get('error') or str(data)
+        body = (
+            data.get('message')
+            or data.get('error')
+            or (data.get('exception') or {}).get('message')
+            or str(data)
+        )
     except Exception:
         body = (response.text or '').strip()
 
     if body:
+        if 'no lid for user' in body.lower():
+            return (
+                'Numero de destino invalido ou sem WhatsApp ativo para esta sessao. '
+                'Confirme o celular com DDD e WhatsApp ativo.'
+            )
         # Detectar erro de sessão desconectada do Chromium/Puppeteer
         if 'protocol error' in body.lower() or 'runtime.callfunctionon' in body.lower():
             return (
@@ -96,6 +184,18 @@ def send_whatsapp_text(configuracao, phone, text, *, tipo='outro', ministerio=No
     payload = {'session': session, 'chatId': chat_id, 'text': text}
     headers = _waha_headers(configuracao)
     base_url = configuracao.waha_url_efetiva.rstrip('/')
+
+    resolved_chat_id, resolve_error = _resolve_chat_id_for_send(
+        base_url,
+        headers,
+        session,
+        numero_normalizado,
+    )
+    if resolve_error:
+        raise WhatsAppSendError(resolve_error)
+    if resolved_chat_id:
+        chat_id = resolved_chat_id
+        payload['chatId'] = chat_id
 
     try:
         max_tentativas = 3
@@ -193,23 +293,33 @@ def get_waha_qr_code(configuracao):
     base_url = configuracao.waha_url_efetiva.rstrip('/')
     headers = _waha_headers(configuracao)
 
-    # Tenta iniciar a sessao. No WAHA Core, a sessao default precisa ser criada/iniciada pelo endpoint legado.
+    # Se a sessao ficou em FAILED, forca ciclo de recuperacao antes do QR.
     try:
-        if session == 'default':
-            create_resp = requests.post(
-                f"{base_url}/api/sessions/start",
-                json={"name": "default"},
-                headers=headers,
-                timeout=8,
-            )
-        else:
+        sess_resp = requests.get(f"{base_url}/api/sessions/{session}", headers=headers, timeout=8)
+        if sess_resp.status_code == 200:
+            status = (sess_resp.json().get('status') or '').upper()
+            if status == 'FAILED':
+                _recover_failed_session(base_url, headers, session)
+    except Exception:
+        pass
+
+    # Tenta iniciar a sessao antes de solicitar o QR.
+    # Em muitas instalacoes, sessao STOPPED so passa a expor QR depois de start.
+    try:
+        start_resp = _start_waha_session(base_url, headers, session)
+
+        # Se a sessao ainda nao existir, cria e tenta iniciar novamente.
+        if start_resp.status_code == 404 and session != 'default':
             create_resp = requests.post(
                 f"{base_url}/api/sessions",
                 json={"name": session},
                 headers=headers,
                 timeout=8,
             )
-        if _is_core_default_only_response(create_resp):
+            if create_resp.status_code in (200, 201, 409):
+                _start_waha_session(base_url, headers, session)
+
+        if _is_core_default_only_response(start_resp):
             session = 'default'
             requests.post(
                 f"{base_url}/api/sessions/start",
@@ -222,11 +332,11 @@ def get_waha_qr_code(configuracao):
 
     # Busca o QR code
     try:
-        resp = requests.get(
-            f"{base_url}/api/{session}/auth/qr",
-            headers=headers,
-            timeout=10,
-        )
+        resp = requests.get(f"{base_url}/api/{session}/auth/qr", headers=headers, timeout=10)
+        if resp.status_code != 200:
+            # Nova tentativa apos pequena pausa para dar tempo do WAHA concluir STARTING.
+            time.sleep(1)
+            resp = requests.get(f"{base_url}/api/{session}/auth/qr", headers=headers, timeout=10)
         if _is_core_default_only_response(resp):
             session = 'default'
             resp = requests.get(
@@ -234,6 +344,16 @@ def get_waha_qr_code(configuracao):
                 headers=headers,
                 timeout=10,
             )
+        if resp.status_code != 200 and session != 'default':
+            # Alguns ambientes mantem apenas o QR no endpoint da sessao default.
+            fallback_resp = requests.get(
+                f"{base_url}/api/default/auth/qr",
+                headers=headers,
+                timeout=10,
+            )
+            if fallback_resp.status_code == 200:
+                resp = fallback_resp
+
         if resp.status_code != 200:
             return None
         content_type = resp.headers.get('content-type', '')

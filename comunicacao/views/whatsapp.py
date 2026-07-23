@@ -4,8 +4,11 @@ import re
 import time
 
 import requests
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import ReadTimeout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -21,17 +24,122 @@ from ..forms import (
     WhatsAppConfiguracaoSimplificadaForm,
     WhatsAppMassaForm,
 )
-from ..models import WhatsAppConfiguracao, WhatsAppConfiguracaoGlobal, WhatsAppMensagemLog
+from ..models import (
+    WhatsAppConfiguracao,
+    WhatsAppConfiguracaoGlobal,
+    WhatsAppFiltroPerfil,
+    WhatsAppMensagemLog,
+)
 from ..selectors import (
     build_whatsapp_filtros_querystring,
     build_whatsapp_preview_data,
+    filtrar_status_whatsapp_para_tipos,
     filtrar_membros_whatsapp_destino,
+    listar_agendamentos_aniversariantes,
+    listar_proximos_aniversariantes,
+    obter_automacao_aniversariantes,
     parse_whatsapp_filtros,
 )
 from ..services import enviar_whatsapp_massa as enviar_whatsapp_massa_service
 from ..services_whatsapp import get_waha_qr_code, get_waha_session_status
 
 logger = logging.getLogger(__name__)
+
+
+def _queryset_perfis_whatsapp_massa(*, ministerio, igreja_ativa):
+    qs = WhatsAppFiltroPerfil.objects.filter(ministerio=ministerio)
+    if igreja_ativa:
+        qs = qs.filter(Q(igreja=igreja_ativa) | Q(igreja__isnull=True))
+    else:
+        qs = qs.filter(igreja__isnull=True)
+    return qs.select_related('igreja').order_by('nome', 'pk')
+
+
+def _desmarcar_outras_listas_favoritas(*, ministerio, igreja_ativa, perfil_id):
+    WhatsAppFiltroPerfil.objects.filter(
+        ministerio=ministerio,
+        igreja=igreja_ativa,
+        favorita=True,
+    ).exclude(pk=perfil_id).update(favorita=False)
+
+
+def _carregar_perfil_whatsapp_massa(*, ministerio, igreja_ativa, perfil_id):
+    if not str(perfil_id).isdigit():
+        return None
+    return _queryset_perfis_whatsapp_massa(ministerio=ministerio, igreja_ativa=igreja_ativa).filter(
+        pk=int(perfil_id)
+    ).first()
+
+
+def _filtros_iniciais_por_perfil(perfil):
+    filtros = (perfil.filtros or {}) if perfil else {}
+    return {
+        'tipos_pessoa': filtros.get('tipos_pessoa_ids', []),
+        'status_pessoa': filtros.get('status_pessoa_ids', []),
+        'graus_eclesiasticos': filtros.get('graus_eclesiasticos', []),
+        'aniversariantes_do_mes': bool(filtros.get('aniversariantes_do_mes')),
+        'somente_com_celular': bool(filtros.get('somente_com_celular', True)),
+    }
+
+
+def _montar_filtros_para_perfil(*, request, tipos_pessoa_ids, status_pessoa_ids, graus_eclesiasticos, aniversariantes_do_mes, somente_com_celular):
+    tipos_qs = TipoPessoa.objects.filter(pk__in=tipos_pessoa_ids)
+    status_qs = StatusPessoa.objects.filter(pk__in=status_pessoa_ids)
+    status_qs = filtrar_status_whatsapp_para_tipos(status_qs, tipos_qs)
+
+    return {
+        'tipos_pessoa_ids': list(tipos_qs.values_list('pk', flat=True)),
+        'status_pessoa_ids': list(status_qs.values_list('pk', flat=True)),
+        'graus_eclesiasticos': list(graus_eclesiasticos),
+        'aniversariantes_do_mes': bool(aniversariantes_do_mes),
+        'somente_com_celular': bool(somente_com_celular),
+        'salvo_por_user_id': getattr(request.user, 'id', None),
+    }
+
+
+def _calcular_totais_lista_salva(*, ministerio, igreja_ativa, filtros):
+    tipos_ids = [int(v) for v in (filtros or {}).get('tipos_pessoa_ids', []) if str(v).isdigit()]
+    status_ids = [int(v) for v in (filtros or {}).get('status_pessoa_ids', []) if str(v).isdigit()]
+    graus = [v for v in (filtros or {}).get('graus_eclesiasticos', []) if v]
+    aniversariantes = bool((filtros or {}).get('aniversariantes_do_mes'))
+    somente_com_celular = bool((filtros or {}).get('somente_com_celular', True))
+
+    tipos_qs = TipoPessoa.objects.filter(pk__in=tipos_ids) if tipos_ids else TipoPessoa.objects.none()
+    status_qs = StatusPessoa.objects.filter(pk__in=status_ids) if status_ids else StatusPessoa.objects.none()
+    status_qs = filtrar_status_whatsapp_para_tipos(status_qs, tipos_qs)
+
+    membros_qs = filtrar_membros_whatsapp_destino(
+        ministerio=ministerio,
+        igreja_ativa=igreja_ativa,
+        tipos_pessoa=tipos_qs,
+        graus_eclesiasticos=graus,
+        status_pessoa=status_qs,
+        aniversariantes_do_mes=aniversariantes,
+        somente_com_celular=somente_com_celular,
+    )
+    preview = build_whatsapp_preview_data(ministerio=ministerio, membros_qs=membros_qs, limite_nomes=1)
+    return preview['total_filtrados'], preview['total_aptos']
+
+
+def _montar_resumo_listas_salvas(*, ministerio, igreja_ativa, perfis):
+    resumo = []
+    for perfil in perfis:
+        total_filtrados, total_aptos = _calcular_totais_lista_salva(
+            ministerio=ministerio,
+            igreja_ativa=igreja_ativa,
+            filtros=perfil.filtros,
+        )
+        resumo.append(
+            {
+                'id': perfil.pk,
+                'nome': perfil.nome,
+                'igreja_nome': perfil.igreja.nome_igreja if perfil.igreja else 'Ministerio',
+                'favorita': bool(perfil.favorita),
+                'total_filtrados': total_filtrados,
+                'total_aptos': total_aptos,
+            }
+        )
+    return resumo
 
 
 @login_required
@@ -116,9 +224,9 @@ def qr_code_whatsapp(request, pk):
     config = get_object_or_404(WhatsAppConfiguracao, pk=pk, ministerio=ministerio)
     status = get_waha_session_status(config)
     qr_data = None
-    if status in ('SCAN_QR_CODE', 'STOPPED', 'OFFLINE', 'UNKNOWN', None):
+    if status in ('SCAN_QR_CODE', 'STOPPED', 'OFFLINE', 'UNKNOWN', 'FAILED', None):
         qr_data = get_waha_qr_code(config)
-        if qr_data and status in ('STOPPED', 'UNKNOWN', None):
+        if qr_data and status in ('STOPPED', 'UNKNOWN', 'FAILED', None):
             status = 'SCAN_QR_CODE'
     return JsonResponse({'status': status, 'qr': qr_data})
 
@@ -143,11 +251,13 @@ def preview_whatsapp_destinatarios(request):
             if filtros['status_pessoa_ids']
             else StatusPessoa.objects.none()
         )
+        status_pessoa = filtrar_status_whatsapp_para_tipos(status_pessoa, tipos_pessoa)
 
         membros_qs = filtrar_membros_whatsapp_destino(
             ministerio=ministerio,
             igreja_ativa=igreja_ativa,
             tipos_pessoa=tipos_pessoa,
+            graus_eclesiasticos=filtros['graus_eclesiasticos'],
             status_pessoa=status_pessoa,
             aniversariantes_do_mes=filtros['aniversariantes_do_mes'],
             somente_com_celular=filtros['somente_com_celular'],
@@ -189,15 +299,21 @@ def editar_celulares_whatsapp_massa(request):
         if filtros['status_pessoa_ids']
         else StatusPessoa.objects.none()
     )
+    status_pessoa = filtrar_status_whatsapp_para_tipos(status_pessoa, tipos_pessoa)
 
     membros_qs = filtrar_membros_whatsapp_destino(
         ministerio=ministerio,
         igreja_ativa=igreja_ativa,
         tipos_pessoa=tipos_pessoa,
+        graus_eclesiasticos=filtros['graus_eclesiasticos'],
         status_pessoa=status_pessoa,
         aniversariantes_do_mes=filtros['aniversariantes_do_mes'],
         somente_com_celular=False,
     ).order_by('nome', 'pk')
+
+    total_membros = membros_qs.count()
+    total_com_celular = membros_qs.exclude(celular__isnull=True).exclude(celular__exact='').count()
+    total_sem_celular = max(total_membros - total_com_celular, 0)
 
     if request.method == 'POST':
         post_celular_keys = [k for k in request.POST.keys() if k.startswith('celular_')]
@@ -338,6 +454,9 @@ def editar_celulares_whatsapp_massa(request):
             'membros': list(membros_qs),
             'filtros': filtros,
             'querystring': querystring,
+            'total_membros': total_membros,
+            'total_com_celular': total_com_celular,
+            'total_sem_celular': total_sem_celular,
             'titulo_pagina': 'Editar Celulares em Massa',
         },
     )
@@ -349,12 +468,51 @@ def editar_celulares_whatsapp_massa(request):
 def enviar_whatsapp_massa(request):
     ministerio = get_ministerio_or_error(request)
     igreja_ativa = request.igreja_ativa
+    automacao_aniversarios = obter_automacao_aniversariantes(ministerio=ministerio)
+    agendamentos_aniversario = listar_agendamentos_aniversariantes(ministerio=ministerio)
+    proximos_aniversariantes = listar_proximos_aniversariantes(
+        ministerio=ministerio,
+        igreja=igreja_ativa,
+    )
+    config_global_ativa = WhatsAppConfiguracaoGlobal.objects.filter(
+        ministerio=ministerio,
+        ativo=True,
+    ).exists()
+    perfis_filtro = _queryset_perfis_whatsapp_massa(ministerio=ministerio, igreja_ativa=igreja_ativa)
+    perfil_id = request.GET.get('perfil_id')
+    perfil_selecionado = _carregar_perfil_whatsapp_massa(
+        ministerio=ministerio,
+        igreja_ativa=igreja_ativa,
+        perfil_id=perfil_id,
+    )
+    if not perfil_id:
+        perfil_selecionado = perfis_filtro.filter(favorita=True).first()
+    perfis_filtro_resumo = _montar_resumo_listas_salvas(
+        ministerio=ministerio,
+        igreja_ativa=igreja_ativa,
+        perfis=perfis_filtro,
+    )
+
+    if request.method == 'POST' and request.POST.get('acao') == 'aplicar_perfil':
+        perfil_id_post = request.POST.get('perfil_id')
+        if not perfil_id_post:
+            return redirect('comunicacao:enviar_whatsapp_massa')
+        perfil = _carregar_perfil_whatsapp_massa(
+            ministerio=ministerio,
+            igreja_ativa=igreja_ativa,
+            perfil_id=perfil_id_post,
+        )
+        if not perfil:
+            messages.warning(request, 'Selecione uma lista valida para aplicar.')
+            return redirect('comunicacao:enviar_whatsapp_massa')
+        return redirect(f"{reverse('comunicacao:enviar_whatsapp_massa')}?perfil_id={perfil.pk}")
 
     if request.method == 'POST':
         form = WhatsAppMassaForm(request.POST, ministerio=ministerio)
         if form.is_valid():
             mensagem = form.cleaned_data['mensagem']
             tipos_pessoa = form.cleaned_data['tipos_pessoa']
+            graus_eclesiasticos = form.cleaned_data['graus_eclesiasticos']
             status_pessoa = form.cleaned_data['status_pessoa']
             aniversariantes_do_mes = form.cleaned_data['aniversariantes_do_mes']
             somente_com_celular = form.cleaned_data['somente_com_celular']
@@ -363,6 +521,7 @@ def enviar_whatsapp_massa(request):
                 ministerio=ministerio,
                 igreja_ativa=igreja_ativa,
                 tipos_pessoa=tipos_pessoa,
+                graus_eclesiasticos=graus_eclesiasticos,
                 status_pessoa=status_pessoa,
                 aniversariantes_do_mes=aniversariantes_do_mes,
                 somente_com_celular=somente_com_celular,
@@ -409,7 +568,10 @@ def enviar_whatsapp_massa(request):
             return redirect('comunicacao:enviar_whatsapp_massa')
         messages.error(request, 'Corrija os erros do formulario de envio WhatsApp.')
     else:
-        form = WhatsAppMassaForm(ministerio=ministerio)
+        form = WhatsAppMassaForm(
+            ministerio=ministerio,
+            initial=_filtros_iniciais_por_perfil(perfil_selecionado),
+        )
 
     return render(
         request,
@@ -417,9 +579,92 @@ def enviar_whatsapp_massa(request):
         {
             'form': form,
             'ministerio': ministerio,
+            'igreja_ativa': igreja_ativa,
+            'automacao_aniversarios': automacao_aniversarios,
+            'agendamentos_aniversario': agendamentos_aniversario,
+            'proximos_aniversariantes': proximos_aniversariantes,
+            'config_global_ativa': config_global_ativa,
+            'perfis_filtro_resumo': perfis_filtro_resumo,
+            'perfil_selecionado': perfil_selecionado,
             'titulo_pagina': 'Enviar WhatsApp em Massa',
         },
     )
+
+
+@login_required
+@verificar_assinatura_valida
+@page_access_required('comunicacao')
+@require_POST
+def salvar_perfil_filtro_whatsapp_massa(request):
+    ministerio = get_ministerio_or_error(request)
+    igreja_ativa = request.igreja_ativa
+    nome = (request.POST.get('perfil_nome') or '').strip()
+
+    if not nome:
+        messages.warning(request, 'Informe um nome para salvar a lista.')
+        return redirect('comunicacao:enviar_whatsapp_massa')
+
+    marcar_favorita = request.POST.get('lista_favorita') in ('on', 'true', '1')
+
+    filtros = _montar_filtros_para_perfil(
+        request=request,
+        tipos_pessoa_ids=[int(v) for v in request.POST.getlist('tipos_pessoa') if str(v).isdigit()],
+        status_pessoa_ids=[int(v) for v in request.POST.getlist('status_pessoa') if str(v).isdigit()],
+        graus_eclesiasticos=[v for v in request.POST.getlist('graus_eclesiasticos') if v],
+        aniversariantes_do_mes=request.POST.get('aniversariantes_do_mes') in ('on', 'true', '1'),
+        somente_com_celular=request.POST.get('somente_com_celular') in ('on', 'true', '1'),
+    )
+
+    perfil, criado = WhatsAppFiltroPerfil.objects.update_or_create(
+        ministerio=ministerio,
+        igreja=igreja_ativa,
+        nome=nome,
+        defaults={
+            'filtros': filtros,
+            'favorita': marcar_favorita,
+            'criado_por': request.user,
+        },
+    )
+
+    if marcar_favorita:
+        _desmarcar_outras_listas_favoritas(
+            ministerio=ministerio,
+            igreja_ativa=igreja_ativa,
+            perfil_id=perfil.pk,
+        )
+
+    if criado:
+        messages.success(request, f'Lista "{perfil.nome}" salva com sucesso.')
+    else:
+        messages.success(request, f'Lista "{perfil.nome}" atualizada com sucesso.')
+
+    if marcar_favorita:
+        messages.info(request, f'Lista "{perfil.nome}" definida como favorita.')
+
+    return redirect(f"{reverse('comunicacao:enviar_whatsapp_massa')}?perfil_id={perfil.pk}")
+
+
+@login_required
+@verificar_assinatura_valida
+@page_access_required('comunicacao')
+@require_POST
+def excluir_perfil_filtro_whatsapp_massa(request):
+    ministerio = get_ministerio_or_error(request)
+    igreja_ativa = request.igreja_ativa
+
+    perfil = _carregar_perfil_whatsapp_massa(
+        ministerio=ministerio,
+        igreja_ativa=igreja_ativa,
+        perfil_id=request.POST.get('perfil_id'),
+    )
+    if not perfil:
+        messages.warning(request, 'Lista salva nao encontrada para exclusao.')
+        return redirect('comunicacao:enviar_whatsapp_massa')
+
+    nome = perfil.nome
+    perfil.delete()
+    messages.success(request, f'Lista "{nome}" removida com sucesso.')
+    return redirect('comunicacao:enviar_whatsapp_massa')
 
 
 @login_required
@@ -446,22 +691,76 @@ def test_waha_health(request):
         if config.waha_key_efetiva:
             headers['X-Api-Key'] = config.waha_key_efetiva
 
+        endpoint = f"{base_url}/api/sessions/default"
         start = time.time()
-        resp = requests.get(f"{base_url}/api/sessions/default", headers=headers, timeout=(5, 10))
+        resp = requests.get(endpoint, headers=headers, timeout=(5, 10))
         elapsed = (time.time() - start) * 1000
+
+        if resp.status_code >= 400:
+            detalhe = (resp.text or '').strip()[:180]
+            return JsonResponse(
+                {
+                    'ok': False,
+                    'status': resp.status_code,
+                    'tempo_ms': round(elapsed, 2),
+                    'error': (
+                        f'WAHA respondeu com HTTP {resp.status_code} em {elapsed:.0f}ms '
+                        f'na URL {endpoint}. {detalhe}'
+                    ),
+                    'base_url': base_url,
+                }
+            )
 
         return JsonResponse(
             {
                 'ok': True,
                 'status': resp.status_code,
                 'tempo_ms': round(elapsed, 2),
-                'mensagem': f'WAHA respondeu em {elapsed:.0f}ms - Status: {resp.status_code}',
+                'mensagem': f'WAHA respondeu em {elapsed:.0f}ms - Status: {resp.status_code} ({base_url})',
+                'base_url': base_url,
+            }
+        )
+    except RequestsConnectionError:
+        elapsed = (time.time() - start) * 1000 if 'start' in locals() else None
+        tempo_info = f' ({elapsed:.0f}ms)' if elapsed else ''
+        base_url = locals().get('base_url', 'N/D')
+        if 'localhost' in (base_url or '') or '127.0.0.1' in (base_url or ''):
+            msg = (
+                f'Falha ao conectar WAHA{tempo_info}: nenhum servidor encontrado em {base_url}. '
+                'Ajuste a variável de ambiente WAHA_BASE_URL para a URL real do servidor WAHA '
+                '(ou configure via painel técnico/admin avançado).'
+            )
+        else:
+            msg = (
+                f'Falha ao conectar WAHA{tempo_info} em {base_url}. '
+                'Verifique se o servidor WAHA está online e acessível a partir da aplicação.'
+            )
+        return JsonResponse({'ok': False, 'error': msg, 'base_url': base_url})
+    except ReadTimeout:
+        elapsed = (time.time() - start) * 1000 if 'start' in locals() else None
+        tempo_info = f' ({elapsed:.0f}ms)' if elapsed else ''
+        base_url = locals().get('base_url', 'N/D')
+        return JsonResponse(
+            {
+                'ok': False,
+                'error': (
+                    f'Timeout ao conectar WAHA{tempo_info} em {base_url}. '
+                    'O servidor pode estar frio/lento ou indisponível temporariamente.'
+                ),
+                'base_url': base_url,
             }
         )
     except Exception as exc:
         elapsed = (time.time() - start) * 1000 if 'start' in locals() else None
         tempo_info = f' ({elapsed:.0f}ms)' if elapsed else ''
-        return JsonResponse({'ok': False, 'error': f'Falha ao conectar WAHA{tempo_info}: {str(exc)[:200]}'})
+        base_url = locals().get('base_url', 'N/D')
+        return JsonResponse(
+            {
+                'ok': False,
+                'error': f'Falha ao conectar WAHA{tempo_info} em {base_url}: {str(exc)[:200]}',
+                'base_url': base_url,
+            }
+        )
 
 
 @csrf_exempt

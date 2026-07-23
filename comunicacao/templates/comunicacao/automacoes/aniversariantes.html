@@ -1,0 +1,245 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-sidebar-proxy>
+                        <i class="fas fa-bars me-1"></i>
+                        <span class="d-none d-md-inline" data-sidebar-label>Ocultar menu</span>
+                    </button>
+                    <h1 class="h3 d-inline-flex align-items-center mb-0">
+                        <i class="fas fa-cake-candles text-success me-2"></i>
+                        Automações da Comunicação
+                    </h1>
+                </div>
+                <p class="text-muted mt-2">Configure aniversariantes, novos membros, visitantes e lembretes de eventos.</p>
+            </div>
+        </div>
+    </div>
+
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{% url 'secretaria:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'comunicacao:home' %}">Comunicação</a></li>
+        <li class="breadcrumb-item active">Automações da Comunicação</li>
+    </ol>
+
+    <div class="alert alert-info d-flex align-items-start gap-2" role="alert">
+        <i class="fas fa-info-circle mt-1"></i>
+        <div>
+            Para processamento automatico diario, agende o comando <strong>manage.py rodar_automacoes_comunicacao_diarias</strong>
+            no agendador do servidor. O sistema evita reenvio duplicado no mesmo dia por ministerio/canal.
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-xl-7">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-sliders-h me-1"></i> Configurações de automação</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% include 'partials/_form_errors.html' with form=form %}
+
+                        <div class="card border-success-subtle mb-4">
+                            <div class="card-header bg-success-subtle">
+                                <strong>WhatsApp</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    {{ form.whatsapp_ativo }}
+                                    <label class="form-check-label" for="{{ form.whatsapp_ativo.id_for_label }}">{{ form.whatsapp_ativo.label }}</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="{{ form.whatsapp_horario_envio.id_for_label }}">{{ form.whatsapp_horario_envio.label }}</label>
+                                    {{ form.whatsapp_horario_envio }}
+                                </div>
+                                <div>
+                                    <label class="form-label" for="{{ form.whatsapp_template.id_for_label }}">{{ form.whatsapp_template.label }}</label>
+                                    {{ form.whatsapp_template }}
+                                    <div class="form-text">{{ form.whatsapp_template.help_text }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border-primary-subtle mb-4">
+                            <div class="card-header bg-primary-subtle">
+                                <strong>E-mail</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    {{ form.email_ativo }}
+                                    <label class="form-check-label" for="{{ form.email_ativo.id_for_label }}">{{ form.email_ativo.label }}</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="{{ form.email_horario_envio.id_for_label }}">{{ form.email_horario_envio.label }}</label>
+                                    {{ form.email_horario_envio }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="{{ form.email_assunto_template.id_for_label }}">{{ form.email_assunto_template.label }}</label>
+                                    {{ form.email_assunto_template }}
+                                    <div class="form-text">{{ form.email_assunto_template.help_text }}</div>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="{{ form.email_mensagem_template.id_for_label }}">{{ form.email_mensagem_template.label }}</label>
+                                    {{ form.email_mensagem_template }}
+                                    <div class="form-text">{{ form.email_mensagem_template.help_text }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border-warning-subtle mb-4">
+                            <div class="card-header bg-warning-subtle">
+                                <strong>WhatsApp - Follow-up de Visitantes</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    {{ form.followup_visitantes_ativo }}
+                                    <label class="form-check-label" for="{{ form.followup_visitantes_ativo.id_for_label }}">{{ form.followup_visitantes_ativo.label }}</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="{{ form.followup_visitantes_dias_apos.id_for_label }}">{{ form.followup_visitantes_dias_apos.label }}</label>
+                                    {{ form.followup_visitantes_dias_apos }}
+                                    <div class="form-text">{{ form.followup_visitantes_dias_apos.help_text }}</div>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="{{ form.followup_visitantes_template.id_for_label }}">{{ form.followup_visitantes_template.label }}</label>
+                                    {{ form.followup_visitantes_template }}
+                                    <div class="form-text">{{ form.followup_visitantes_template.help_text }}</div>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-reset-followup-template">
+                                        <i class="fas fa-undo me-1"></i> Restaurar template padrão
+                                    </button>
+                                </div>
+                                <div class="alert alert-light border mt-3 mb-0">
+                                    <div class="small text-muted fw-semibold mb-1">Previa da mensagem</div>
+                                    <div id="preview-followup-text" class="small"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border-info-subtle mb-4">
+                            <div class="card-header bg-info-subtle">
+                                <strong>WhatsApp - Lembrete de Eventos</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    {{ form.lembrete_eventos_ativo }}
+                                    <label class="form-check-label" for="{{ form.lembrete_eventos_ativo.id_for_label }}">{{ form.lembrete_eventos_ativo.label }}</label>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="{{ form.lembrete_eventos_template.id_for_label }}">{{ form.lembrete_eventos_template.label }}</label>
+                                    {{ form.lembrete_eventos_template }}
+                                    <div class="form-text">{{ form.lembrete_eventos_template.help_text }}</div>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-reset-evento-template">
+                                        <i class="fas fa-undo me-1"></i> Restaurar template padrão
+                                    </button>
+                                </div>
+                                <div class="alert alert-light border mt-3 mb-0">
+                                    <div class="small text-muted fw-semibold mb-1">Previa da mensagem</div>
+                                    <div id="preview-evento-text" class="small"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar automação
+                            </button>
+                            <a href="{% url 'comunicacao:visualizar_template_email_aniversario' %}" target="_blank" class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i> Prévia do e-mail
+                            </a>
+                            <a href="{% url 'comunicacao:enviar_whatsapp_massa' %}" class="btn btn-outline-secondary">
+                                <i class="fab fa-whatsapp me-1"></i> Voltar ao WhatsApp
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+            {% include 'comunicacao/partials/_automacao_aniversariantes_card.html' with canal='painel' automacao=automacao agendamentos=agendamentos_aniversario aniversariantes=proximos_aniversariantes igreja_ativa=None %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .page-header {
+        padding: 2rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+</style>
+
+<script>
+(function () {
+    const followupField = document.getElementById('{{ form.followup_visitantes_template.id_for_label }}');
+    const eventoField = document.getElementById('{{ form.lembrete_eventos_template.id_for_label }}');
+    const followupPreview = document.getElementById('preview-followup-text');
+    const eventoPreview = document.getElementById('preview-evento-text');
+    const resetFollowupBtn = document.getElementById('btn-reset-followup-template');
+    const resetEventoBtn = document.getElementById('btn-reset-evento-template');
+    const defaultFollowupTemplate = 'Ola {primeiro_nome}, foi uma alegria receber voce na {igreja}! Esperamos voce novamente no proximo encontro. Com carinho, equipe pastoral do {ministerio}.';
+    const defaultEventoTemplate = '{quando} teremos "{evento}" as {hora} na {igreja}. Esperamos voce!';
+
+    function safeText(v) {
+        return (v || '').trim();
+    }
+
+    function updateFollowupPreview() {
+        if (!followupField || !followupPreview) return;
+        const raw = safeText(followupField.value);
+        const text = raw
+            .replaceAll('{nome}', 'Maria de Souza')
+            .replaceAll('{primeiro_nome}', 'Maria')
+            .replaceAll('{igreja}', 'Congregacao Central')
+            .replaceAll('{ministerio}', '{{ ministerio.nome_fantasia|default:"Ministerio"|escapejs }}');
+        followupPreview.textContent = text || 'Digite um template para visualizar.';
+    }
+
+    function updateEventoPreview() {
+        if (!eventoField || !eventoPreview) return;
+        const raw = safeText(eventoField.value);
+        const text = raw
+            .replaceAll('{quando}', 'Amanha')
+            .replaceAll('{evento}', 'Culto de Jovens')
+            .replaceAll('{hora}', '19:30')
+            .replaceAll('{igreja}', 'Congregacao Central')
+            .replaceAll('{ministerio}', '{{ ministerio.nome_fantasia|default:"Ministerio"|escapejs }}');
+        eventoPreview.textContent = text || 'Digite um template para visualizar.';
+    }
+
+    if (followupField) {
+        followupField.addEventListener('input', updateFollowupPreview);
+        updateFollowupPreview();
+    }
+    if (eventoField) {
+        eventoField.addEventListener('input', updateEventoPreview);
+        updateEventoPreview();
+    }
+
+    if (resetFollowupBtn && followupField) {
+        resetFollowupBtn.addEventListener('click', function () {
+            followupField.value = defaultFollowupTemplate;
+            updateFollowupPreview();
+        });
+    }
+
+    if (resetEventoBtn && eventoField) {
+        resetEventoBtn.addEventListener('click', function () {
+            eventoField.value = defaultEventoTemplate;
+            updateEventoPreview();
+        });
+    }
+})();
+</script>
+{% endblock %}

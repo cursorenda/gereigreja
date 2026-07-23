@@ -19,10 +19,9 @@ from ..utils import can_manage_avisos
 def lista_avisos(request):
 	ministerio = get_ministerio_or_error(request)
 	avisos_qs = Aviso.objects.filter(ministerio=ministerio, publicado=True)
+	hoje = timezone.now().date()
 
-	avisos_qs = avisos_qs.filter(
-		Q(data_expiracao__isnull=True) | Q(data_expiracao__gte=timezone.now().date())
-	)
+	avisos_qs = avisos_qs.filter(Q(data_expiracao__isnull=True) | Q(data_expiracao__gte=hoje))
 
 	if request.igreja_ativa:
 		avisos_qs = avisos_qs.filter(
@@ -31,9 +30,19 @@ def lista_avisos(request):
 	else:
 		avisos_qs = avisos_qs.filter(igrejas_destino__isnull=True).distinct()
 
+	escopo = (request.GET.get('escopo') or 'todos').strip()
+	if escopo == 'ministerio':
+		avisos_qs = avisos_qs.filter(igrejas_destino__isnull=True)
+	elif escopo == 'congregacao' and request.igreja_ativa:
+		avisos_qs = avisos_qs.filter(igrejas_destino=request.igreja_ativa)
+
 	query = request.GET.get('q')
 	if query:
 		avisos_qs = avisos_qs.filter(titulo__icontains=query)
+
+	total_avisos = avisos_qs.count()
+	total_sem_expiracao = avisos_qs.filter(data_expiracao__isnull=True).count()
+	total_expira_7_dias = avisos_qs.filter(data_expiracao__isnull=False, data_expiracao__lte=hoje + timezone.timedelta(days=7)).count()
 
 	context = {
 		'avisos': avisos_qs.order_by('-data_publicacao'),
@@ -41,6 +50,10 @@ def lista_avisos(request):
 		'titulo_pagina': 'Mural de Avisos',
 		'can_manage': can_manage_avisos(request.user),
 		'query': query,
+		'escopo': escopo,
+		'total_avisos': total_avisos,
+		'total_sem_expiracao': total_sem_expiracao,
+		'total_expira_7_dias': total_expira_7_dias,
 	}
 	return render(request, 'comunicacao/mural/lista_avisos.html', context)
 

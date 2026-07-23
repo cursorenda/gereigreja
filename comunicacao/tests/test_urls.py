@@ -7,7 +7,12 @@ class ComunicacaoUrlsTests(SimpleTestCase):
         esperadas = {
             'comunicacao:home': '/comunicacao/home/',
             'comunicacao:enviar_email_massa': '/comunicacao/email-massa/',
+            'comunicacao:preview_email_destinatarios': '/comunicacao/email-massa/preview/',
+            'comunicacao:configurar_automacao_aniversariantes': '/comunicacao/automacoes/aniversariantes/',
             'comunicacao:templates_email': '/comunicacao/templates-email/',
+            'comunicacao:visualizar_template_email_aniversario': '/comunicacao/templates-email/aniversario/',
+            'comunicacao:visualizar_template_email_massa': '/comunicacao/templates-email/email-massa/',
+            'comunicacao:visualizar_template_password_reset': '/comunicacao/templates-email/password-reset/',
             'comunicacao:configurar_whatsapp': '/comunicacao/whatsapp/configuracao/',
             'comunicacao:enviar_whatsapp_massa': '/comunicacao/whatsapp/massa/',
             'comunicacao:preview_whatsapp_destinatarios': '/comunicacao/whatsapp/massa/preview/',

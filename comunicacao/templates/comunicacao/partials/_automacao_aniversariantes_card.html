@@ -1,0 +1,213 @@
+<div class="card border mb-3">
+    <div class="card-body">
+        <div>
+            <span class="fw-bold">Jornadas automáticas da Comunicação</span>
+            <div class="small text-muted">
+                {% if igreja_ativa %}
+                Escopo atual: {{ igreja_ativa.nome_igreja }}
+                {% else %}
+                Escopo atual: ministério inteiro
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Jornadas -->
+        <div class="row g-2 mt-2 mb-3 jornada-grid">
+            <!-- Visitantes -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="jornada-card jornada-card-warning h-100">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                        <div class="small text-uppercase fw-bold jornada-title">Visitantes</div>
+                        <span class="badge rounded-pill {% if automacao.followup_visitantes_ativo %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                            {% if automacao.followup_visitantes_ativo %}Ativo{% else %}Inativo{% endif %}
+                        </span>
+                    </div>
+                    <div class="small text-muted jornada-meta">Follow-up em D+{{ automacao.followup_visitantes_dias_apos }}</div>
+                </div>
+            </div>
+
+            <!-- Eventos -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="jornada-card jornada-card-info h-100">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                        <div class="small text-uppercase fw-bold jornada-title">Eventos</div>
+                        <span class="badge rounded-pill {% if automacao.lembrete_eventos_ativo %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                            {% if automacao.lembrete_eventos_ativo %}Ativo{% else %}Inativo{% endif %}
+                        </span>
+                    </div>
+                    <div class="small text-muted jornada-meta">Lembretes em D-1 e no dia do evento</div>
+                </div>
+            </div>
+
+            <!-- E-mail -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="jornada-card jornada-card-primary h-100">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                        <div class="small text-uppercase fw-bold jornada-title">E-mail</div>
+                        <span class="badge rounded-pill {% if automacao.email_ativo %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                            {% if automacao.email_ativo %}Ativo{% else %}Inativo{% endif %}
+                        </span>
+                    </div>
+                    <div class="small text-muted jornada-meta">Envio diario as {{ automacao.email_horario_envio|time:'H:i' }}</div>
+                </div>
+            </div>
+
+            <!-- Dízimos -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="jornada-card jornada-card-secondary h-100">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                        <div class="small text-uppercase fw-bold jornada-title">Dízimos</div>
+                        <span class="badge rounded-pill text-bg-dark">Automático</span>
+                    </div>
+                    <div class="small fw-semibold">Fechamento do caixa</div>
+                    <div class="small text-muted jornada-meta">Agradecimento personalizado com valor do dízimo</div>
+                </div>
+            </div>
+        </div>
+
+        {% if agendamentos %}
+        <div class="table-responsive mb-3 jornada-table-wrap">
+            <table class="table table-sm align-middle mb-0 jornada-table">
+                <thead>
+                    <tr>
+                        <th>Canal</th>
+                        <th>Próxima execução</th>
+                        <th>Última</th>
+                        <th>Resumo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in agendamentos %}
+                    <tr>
+                        <td><span class="badge rounded-pill {% if item.canal == 'WhatsApp' %}text-bg-success{% elif item.canal == 'Dízimos' %}text-bg-dark{% else %}text-bg-primary{% endif %}">{{ item.canal }}</span></td>
+                        <td>{% if item.proxima_execucao %}{{ item.proxima_execucao|date:'d/m/Y H:i' }}{% else %}{{ item.horario }}{% endif %}</td>
+                        <td>{% if item.ultima_execucao %}{{ item.ultima_execucao|date:'d/m/Y' }}{% else %}<span class="text-muted">Ainda não executado</span>{% endif %}</td>
+                        <td class="small text-muted">{{ item.resumo }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-warning py-2" role="alert">
+            Nenhum disparo automático está ativo no momento. Ative ao menos um canal para enviar mensagens automáticas.
+        </div>
+        {% endif %}
+
+        <div class="rounded border p-3 bg-light jornada-proximos-wrap">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <strong>Próximos aniversariantes</strong>
+                <span class="small text-muted">Janela de 7 dias</span>
+            </div>
+            {% if aniversariantes %}
+            <div class="list-group list-group-flush">
+                {% for pessoa in aniversariantes %}
+                <div class="list-group-item px-0 bg-transparent d-flex justify-content-between align-items-center gap-2 flex-wrap jornada-proximos-item">
+                    <div>
+                        <div class="fw-semibold">{{ pessoa.nome }}</div>
+                        <div class="small text-muted">{{ pessoa.igreja }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small fw-semibold">{{ pessoa.data|date:'d/m' }}</div>
+                        <div class="small text-muted">
+                            {% if pessoa.dias_restantes == 0 %}
+                            hoje
+                            {% elif pessoa.dias_restantes == 1 %}
+                            amanhã
+                            {% else %}
+                            em {{ pessoa.dias_restantes }} dias
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="small text-muted">Nenhum aniversariante previsto para os próximos 7 dias neste escopo.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .jornada-card {
+        border: 1px solid #d7e2ea;
+        border-radius: 0.75rem;
+        padding: 0.8rem 0.9rem;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+        transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    .jornada-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+    }
+
+    .jornada-title {
+        letter-spacing: 0.02em;
+    }
+
+    .jornada-meta {
+        font-size: 0.78rem;
+        line-height: 1.35;
+    }
+
+    .jornada-card-warning {
+        border-top: 3px solid #f4b400;
+    }
+
+    .jornada-card-info {
+        border-top: 3px solid #0b7285;
+    }
+
+    .jornada-card-primary {
+        border-top: 3px solid #0d6efd;
+    }
+
+    .jornada-card-secondary {
+        border-top: 3px solid #6c757d;
+    }
+
+    .jornada-table-wrap {
+        border: 1px solid #d7e2ea;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    .jornada-table thead th {
+        background: #f4f7fa;
+        color: #344054;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        border-bottom: 1px solid #e4e7ec;
+        white-space: nowrap;
+    }
+
+    .jornada-table tbody td {
+        border-color: #eef2f6;
+    }
+
+    .jornada-proximos-wrap {
+        border-color: #d7e2ea !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    .jornada-proximos-item {
+        border-bottom: 1px dashed #e4e7ec;
+    }
+
+    .jornada-proximos-item:last-child {
+        border-bottom: 0;
+    }
+
+    @media (min-width: 992px) {
+        .jornada-card {
+            padding: 0.9rem 1rem;
+        }
+    }
+</style>

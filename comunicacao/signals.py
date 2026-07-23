@@ -5,8 +5,6 @@ from .models import Aviso
 from notificacoes.models import Notificacao
 from configuracao.models import PerfilUsuario # Para pegar todos os usuários do ministério
 from django.urls import reverse # Para gerar a URL da notificação
-from .models import WhatsAppConfiguracao
-from .services_whatsapp import send_whatsapp_text, WhatsAppSendError
 
 @receiver(post_save, sender=Aviso)
 def create_aviso_notification(sender, instance, created, **kwargs):
@@ -70,35 +68,5 @@ def enviar_whatsapp_novo_membro(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender='financeiro.Receitas')
 def enviar_whatsapp_agradecimento_dizimo(sender, instance, created, **kwargs):
-    if not created or not instance.igreja_id:
-        return
-    if instance.categoria != 'dizimo' or not instance.membro:
-        return
-
-    membro = instance.membro
-    if not membro.celular:
-        return
-
-    config = WhatsAppConfiguracao.objects.filter(
-        igreja=instance.igreja,
-        ministerio=instance.igreja.ministerio,
-        ativo=True,
-        auto_contribuicoes=True,
-    ).first()
-    if not config:
-        return
-
-    valor = f"R$ {instance.valor:.2f}" if instance.valor is not None else 'sua contribuicao'
-    mensagem = f"Obrigado, {membro.nome}, por sua fidelidade no dizimo ({valor}). Deus abencoe sua vida."
-    try:
-        send_whatsapp_text(
-            config,
-            membro.celular,
-            mensagem,
-            tipo='dizimo',
-            ministerio=instance.igreja.ministerio,
-            igreja=instance.igreja,
-            membro=membro,
-        )
-    except WhatsAppSendError:
-        return
+    # O agradecimento de dízimo passou a ser agendado no fechamento de caixa.
+    return

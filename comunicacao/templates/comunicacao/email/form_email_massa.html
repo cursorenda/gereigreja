@@ -9,7 +9,7 @@
     <div class="page-header mb-4">
         <div class="row align-items-center">
             <div class="col">
-                <div class="d-flex align-items-center gap-2 mb-1">
+                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                     <button class="btn btn-outline-primary btn-sm" type="button" data-sidebar-proxy>
                         <i class="fas fa-bars me-1"></i>
                         <span class="d-none d-md-inline" data-sidebar-label>Ocultar menu</span>
@@ -38,6 +38,14 @@
             </h6>
         </div>
         <div class="card-body">
+            {% if igreja_ativa %}
+            <div class="alert alert-info py-2 mb-3">
+                <i class="fas fa-church me-2"></i>
+                Escopo atual: <strong>{{ igreja_ativa.nome_igreja }}</strong>.
+                O envio sera limitado automaticamente a esta congregacao definida no seletor global.
+            </div>
+            {% endif %}
+
             <form method="POST">
                 {% csrf_token %}
 
@@ -60,47 +68,74 @@
                     <h6 class="text-muted text-uppercase small fw-bold mb-0">Critérios de Destinatários</h6>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
+                {% if not igreja_ativa %}
+                <div class="row g-3">
+                    <div class="col-12 col-xl-4">
                         <label for="{{ form.igrejas_destino.id_for_label }}" class="form-label">{{ form.igrejas_destino.label }}:</label>
                         {{ form.igrejas_destino }}
                         {% if form.igrejas_destino.errors %}<div class="invalid-feedback d-block">{{ form.igrejas_destino.errors|striptags }}</div>{% endif %}
                         {% if form.igrejas_destino.help_text %}<div class="form-text">{{ form.igrejas_destino.help_text|safe }}</div>{% endif %}
                     </div>
-                    <div class="col-md-6 mb-3">
+                </div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-12 col-lg-4">
                         <label for="{{ form.tipos_pessoa.id_for_label }}" class="form-label">{{ form.tipos_pessoa.label }}:</label>
                         {{ form.tipos_pessoa }}
                         {% if form.tipos_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.tipos_pessoa.errors|striptags }}</div>{% endif %}
                         {% if form.tipos_pessoa.help_text %}<div class="form-text">{{ form.tipos_pessoa.help_text|safe }}</div>{% endif %}
                     </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-12 col-lg-4">
+                        <label for="{{ form.graus_eclesiasticos.id_for_label }}" class="form-label">{{ form.graus_eclesiasticos.label }}:</label>
+                        {{ form.graus_eclesiasticos }}
+                        {% if form.graus_eclesiasticos.errors %}<div class="invalid-feedback d-block">{{ form.graus_eclesiasticos.errors|striptags }}</div>{% endif %}
+                        {% if form.graus_eclesiasticos.help_text %}<div class="form-text">{{ form.graus_eclesiasticos.help_text|safe }}</div>{% endif %}
+                    </div>
+                    <div class="col-12 col-lg-4">
                         <label for="{{ form.status_pessoa.id_for_label }}" class="form-label">{{ form.status_pessoa.label }}:</label>
                         {{ form.status_pessoa }}
                         {% if form.status_pessoa.errors %}<div class="invalid-feedback d-block">{{ form.status_pessoa.errors|striptags }}</div>{% endif %}
                         {% if form.status_pessoa.help_text %}<div class="form-text">{{ form.status_pessoa.help_text|safe }}</div>{% endif %}
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3 form-check">
-                            {{ form.apenas_ativos_para_relatorios }}
-                            <label class="form-check-label" for="{{ form.apenas_ativos_para_relatorios.id_for_label }}">{{ form.apenas_ativos_para_relatorios.label }}</label>
-                            {% if form.apenas_ativos_para_relatorios.errors %}<div class="invalid-feedback d-block">{{ form.apenas_ativos_para_relatorios.errors|striptags }}</div>{% endif %}
-                            {% if form.apenas_ativos_para_relatorios.help_text %}<div class="form-text">{{ form.apenas_ativos_para_relatorios.help_text|safe }}</div>{% endif %}
+                </div>
+
+                {% include 'comunicacao/partials/_automacao_aniversariantes_card.html' with canal='email' automacao=automacao_aniversarios agendamentos=agendamentos_aniversario aniversariantes=proximos_aniversariantes igreja_ativa=igreja_ativa %}
+
+                <div class="card border mt-3 mb-3" id="preview-email-card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span class="fw-bold">Prévia dos Destinatários</span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-preview-email-refresh">
+                            <i class="fas fa-sync me-1"></i> Atualizar
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="preview-email-loading" class="text-muted text-center py-2 d-none">
+                            <i class="fas fa-spinner fa-spin me-1"></i> Carregando prévia...
                         </div>
-                        <div class="mb-3 form-check">
-                            {{ form.aniversariantes_do_mes }}
-                            <label class="form-check-label" for="{{ form.aniversariantes_do_mes.id_for_label }}">{{ form.aniversariantes_do_mes.label }}</label>
-                            {% if form.aniversariantes_do_mes.errors %}<div class="invalid-feedback d-block">{{ form.aniversariantes_do_mes.errors|striptags }}</div>{% endif %}
-                            {% if form.aniversariantes_do_mes.help_text %}<div class="form-text">{{ form.aniversariantes_do_mes.help_text|safe }}</div>{% endif %}
+                        <div id="preview-email-summary" class="mb-2 text-muted small">Selecione os filtros para visualizar os destinatários aptos.</div>
+                        <div id="preview-email-warning" class="small text-warning mb-2"></div>
+                        <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                            <table class="table table-sm align-middle mb-0" id="preview-email-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Igreja</th>
+                                        <th>E-mail</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="preview-email-body">
+                                    <tr><td colspan="4" class="text-muted text-center py-2">Nenhum destinatário em prévia.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
 
                 <div class="card-divider my-4"></div>
 
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between gap-2 flex-wrap">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-paper-plane me-1"></i> Enviar E-mail
                     </button>
@@ -123,11 +158,151 @@
         padding-top: 1rem;
         border-top: 1px solid #e3e6f0;
     }
+
+    select.form-select[multiple] {
+        min-height: 4.25rem;
+    }
+
+    @media (min-width: 992px) {
+        select.form-select[multiple] {
+            min-height: 5.5rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .page-header h1 {
+            font-size: 1.25rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Adicionar JS específico se necessário, por exemplo, para um editor de texto rico para o campo 'mensagem'.
+(() => {
+    const form = document.querySelector('form[method="POST"], form[method="post"]');
+    if (!form) return;
+
+    const previewUrl = "{% url 'comunicacao:preview_email_destinatarios' %}";
+    const loadingEl = document.getElementById('preview-email-loading');
+    const summaryEl = document.getElementById('preview-email-summary');
+    const warningEl = document.getElementById('preview-email-warning');
+    const bodyEl = document.getElementById('preview-email-body');
+    const refreshBtn = document.getElementById('btn-preview-email-refresh');
+
+    let debounceTimer = null;
+
+    function setLoading(isLoading) {
+        if (!loadingEl) return;
+        loadingEl.classList.toggle('d-none', !isLoading);
+    }
+
+    function buildQueryString() {
+        const params = new URLSearchParams();
+
+        ['igrejas_destino', 'tipos_pessoa', 'graus_eclesiasticos', 'status_pessoa'].forEach((name) => {
+            const field = form.querySelector(`[name="${name}"]`);
+            if (!field) return;
+            Array.from(field.selectedOptions || []).forEach((opt) => {
+                if (opt.value) params.append(name, opt.value);
+            });
+        });
+
+        return params.toString();
+    }
+
+    function renderRows(pessoas) {
+        if (!bodyEl) return;
+        if (!pessoas || !pessoas.length) {
+            bodyEl.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-2">Nenhum destinatário encontrado com os filtros atuais.</td></tr>';
+            return;
+        }
+
+        bodyEl.innerHTML = '';
+        pessoas.forEach((pessoa) => {
+            const tr = document.createElement('tr');
+
+            const tdNome = document.createElement('td');
+            tdNome.textContent = pessoa.nome || '-';
+            tdNome.className = 'small';
+            tr.appendChild(tdNome);
+
+            const tdIgreja = document.createElement('td');
+            tdIgreja.textContent = pessoa.igreja || '-';
+            tdIgreja.className = 'small';
+            tr.appendChild(tdIgreja);
+
+            const tdEmail = document.createElement('td');
+            tdEmail.textContent = pessoa.email || '-';
+            tdEmail.className = 'small text-muted';
+            tr.appendChild(tdEmail);
+
+            const tdStatus = document.createElement('td');
+            tdStatus.innerHTML = pessoa.habilitado
+                ? '<span class="badge bg-success">OK</span>'
+                : '<span class="badge bg-secondary">Sem e-mail</span>';
+            tr.appendChild(tdStatus);
+
+            bodyEl.appendChild(tr);
+        });
+    }
+
+    function atualizarPrevia() {
+        setLoading(true);
+        warningEl.textContent = '';
+
+        fetch(`${previewUrl}?${buildQueryString()}`, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(async (response) => {
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const msg = payload && payload.error ? `Falha ao carregar prévia: ${payload.error}` : 'Falha ao carregar prévia.';
+                    throw new Error(msg);
+                }
+                return payload;
+            })
+            .then((data) => {
+                if (!data.ok) {
+                    summaryEl.textContent = 'Não foi possível calcular a prévia com os filtros atuais.';
+                    renderRows([]);
+                    return;
+                }
+
+                summaryEl.textContent = `Aptos para envio: ${data.total_aptos} de ${data.total_filtrados} pessoa(s) filtrada(s).`;
+                renderRows(data.pessoas || []);
+
+                const avisos = [];
+                if (data.sem_email_total) {
+                    avisos.push(`${data.sem_email_total} sem e-mail preenchido.`);
+                }
+                if (data.total_aptos > (data.limite_nomes || 100)) {
+                    avisos.push(`Mostrando apenas os primeiros ${data.limite_nomes} nomes.`);
+                }
+                warningEl.textContent = avisos.join(' ');
+            })
+            .catch((error) => {
+                summaryEl.textContent = error.message || 'Erro ao carregar prévia dos destinatários.';
+                renderRows([]);
+            })
+            .finally(() => setLoading(false));
+    }
+
+    function schedulePreview() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(atualizarPrevia, 300);
+    }
+
+    form.querySelectorAll('select, input[type="checkbox"]').forEach((field) => {
+        field.addEventListener('change', schedulePreview);
+    });
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', atualizarPrevia);
+    }
+
+    atualizarPrevia();
+})();
 </script>
 {% endblock %}

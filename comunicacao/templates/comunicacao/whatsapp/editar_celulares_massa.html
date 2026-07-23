@@ -25,7 +25,12 @@
             </div>
             {% endif %}
 
-            <p class="text-muted mb-3">Resultado filtrado: <strong>{{ membros|length }}</strong> pessoa(s).</p>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <span class="badge bg-primary">Filtrados: {{ total_membros }}</span>
+                <span class="badge bg-success">Com celular: {{ total_com_celular }}</span>
+                <span class="badge bg-secondary">Sem celular: {{ total_sem_celular }}</span>
+            </div>
+            <p class="text-muted mb-3">Edite os números e salve tudo em uma única ação.</p>
 
             <form method="post" id="bulk-celulares-form" autocomplete="off" action="{% url 'comunicacao:editar_celulares_whatsapp_massa' %}">
                 {% csrf_token %}
@@ -35,6 +40,9 @@
                 {% endfor %}
                 {% for status_id in filtros.status_pessoa_ids %}
                 <input type="hidden" name="status_pessoa" value="{{ status_id }}">
+                {% endfor %}
+                {% for grau in filtros.graus_eclesiasticos %}
+                <input type="hidden" name="graus_eclesiasticos" value="{{ grau }}">
                 {% endfor %}
                 {% if filtros.aniversariantes_do_mes %}
                 <input type="hidden" name="aniversariantes_do_mes" value="on">

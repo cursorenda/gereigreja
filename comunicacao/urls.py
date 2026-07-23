@@ -1,7 +1,10 @@
 from django.urls import path
 from .views.email import (
+    configurar_automacao_aniversariantes,
     enviar_email_massa,
+    preview_email_destinatarios,
     templates_email,
+    visualizar_template_email_aniversario,
     visualizar_template_email_massa,
     visualizar_template_password_reset,
 )
@@ -11,10 +14,12 @@ from .views.mural import criar_aviso, detalhe_aviso, editar_aviso, excluir_aviso
 from .views.whatsapp import (
     configurar_whatsapp,
     configurar_whatsapp_global,
+    excluir_perfil_filtro_whatsapp_massa,
     editar_celulares_whatsapp_massa,
     enviar_whatsapp_massa,
     preview_whatsapp_destinatarios,
     qr_code_whatsapp,
+    salvar_perfil_filtro_whatsapp_massa,
     test_waha_health,
     waha_webhook,
 )
@@ -35,14 +40,27 @@ urlpatterns = [
 
     # E-mail em Massa
     path('email-massa/', enviar_email_massa, name='enviar_email_massa'),
+    path('email-massa/preview/', preview_email_destinatarios, name='preview_email_destinatarios'),
+    path('automacoes/aniversariantes/', configurar_automacao_aniversariantes, name='configurar_automacao_aniversariantes'),
     # Templates de E-mail
     path('templates-email/', templates_email, name='templates_email'),
     path('templates-email/email-massa/', visualizar_template_email_massa, name='visualizar_template_email_massa'),
+    path('templates-email/aniversario/', visualizar_template_email_aniversario, name='visualizar_template_email_aniversario'),
     path('templates-email/password-reset/', visualizar_template_password_reset, name='visualizar_template_password_reset'),
 
     # WhatsApp (WAHA)
     path('whatsapp/configuracao/', configurar_whatsapp, name='configurar_whatsapp'),
     path('whatsapp/massa/', enviar_whatsapp_massa, name='enviar_whatsapp_massa'),
+    path(
+        'whatsapp/massa/perfis/salvar/',
+        salvar_perfil_filtro_whatsapp_massa,
+        name='salvar_perfil_filtro_whatsapp_massa',
+    ),
+    path(
+        'whatsapp/massa/perfis/excluir/',
+        excluir_perfil_filtro_whatsapp_massa,
+        name='excluir_perfil_filtro_whatsapp_massa',
+    ),
     path('whatsapp/massa/preview/', preview_whatsapp_destinatarios, name='preview_whatsapp_destinatarios'),
     path('whatsapp/massa/editar-celulares/', editar_celulares_whatsapp_massa, name='editar_celulares_whatsapp_massa'),
     path('whatsapp/massa/test-health/', test_waha_health, name='test_waha_health'),

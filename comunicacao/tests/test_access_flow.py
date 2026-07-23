@@ -7,7 +7,12 @@ class ComunicacaoAccessFlowTests(SimpleTestCase):
         rotas = [
             reverse('comunicacao:home'),
             reverse('comunicacao:enviar_email_massa'),
+            reverse('comunicacao:preview_email_destinatarios'),
+            reverse('comunicacao:configurar_automacao_aniversariantes'),
             reverse('comunicacao:templates_email'),
+            reverse('comunicacao:visualizar_template_email_aniversario'),
+            reverse('comunicacao:visualizar_template_email_massa'),
+            reverse('comunicacao:visualizar_template_password_reset'),
             reverse('comunicacao:configurar_whatsapp'),
             reverse('comunicacao:enviar_whatsapp_massa'),
             reverse('comunicacao:preview_whatsapp_destinatarios'),

@@ -8,5 +8,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write('Iniciando rotina diaria de WhatsApp...')
         call_command('enviar_whatsapp_automatico', tipo='aniversariantes')
+        call_command('enviar_whatsapp_automatico', tipo='novos_membros')
+        call_command('enviar_whatsapp_automatico', tipo='followup_visitantes')
         call_command('enviar_whatsapp_automatico', tipo='lembrete_eventos')
+        call_command('processar_whatsapp_agendados')
         self.stdout.write(self.style.SUCCESS('Rotina diaria de WhatsApp concluida.'))

@@ -66,6 +66,11 @@
 								{{ form.auto_contribuicoes }}
 								<label class="form-check-label" for="{{ form.auto_contribuicoes.id_for_label }}">{{ form.auto_contribuicoes.label }}</label>
 							</div>
+							<div class="col-12 mt-2">
+								<label class="form-label" for="{{ form.auto_contribuicoes_template.id_for_label }}">{{ form.auto_contribuicoes_template.label|default:'Template agradecimento dizimo' }}</label>
+								{{ form.auto_contribuicoes_template }}
+								{% if form.auto_contribuicoes_template.help_text %}<div class="form-text">{{ form.auto_contribuicoes_template.help_text }}</div>{% endif %}
+							</div>
 							<div class="col-6 form-check ms-2">
 								{{ form.auto_lembrete_eventos }}
 								<label class="form-check-label" for="{{ form.auto_lembrete_eventos.id_for_label }}">{{ form.auto_lembrete_eventos.label }}</label>
@@ -157,6 +162,8 @@ function carregarQR(manual = false) {
 				img.src = data.qr;
 				img.classList.remove('d-none');
 				if (hint) hint.textContent = 'QR atualizado. Escaneie agora (expira rapido).';
+			} else if (data.status === 'FAILED' && hint) {
+				hint.textContent = 'Sessao com falha. Tentando reiniciar automaticamente para gerar novo QR...';
 			}
 			if (data.status === 'WORKING') {
 				statusBadge.innerHTML = '<span class="badge bg-success fs-6"><i class="fas fa-check-circle me-1"></i> Conectado</span>';
@@ -168,7 +175,7 @@ function carregarQR(manual = false) {
 				}
 			} else if (data.status) {
 				statusBadge.innerHTML = '<span class="badge bg-warning text-dark fs-6"><i class="fas fa-qrcode me-1"></i> ' + data.status + '</span>';
-				if (['SCAN_QR_CODE', 'STARTING', 'UNKNOWN'].includes(data.status) && !qrAutoTimer) {
+				if (['SCAN_QR_CODE', 'STARTING', 'UNKNOWN', 'FAILED'].includes(data.status) && !qrAutoTimer) {
 					qrAutoTimer = setInterval(() => carregarQR(false), 15000);
 				}
 			}

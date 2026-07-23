@@ -40,6 +40,47 @@
                 <i class="fas fa-list me-2"></i> Ultimos Envios
             </h6>
         </div>
+        <div class="card-body border-bottom bg-light-subtle">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Status</label>
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="sucesso" {% if filtros.status == 'sucesso' %}selected{% endif %}>Sucesso</option>
+                        <option value="erro" {% if filtros.status == 'erro' %}selected{% endif %}>Erro</option>
+                        <option value="recebido" {% if filtros.status == 'recebido' %}selected{% endif %}>Recebido</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Tipo</label>
+                    <select name="tipo" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="manual" {% if filtros.tipo == 'manual' %}selected{% endif %}>Manual</option>
+                        <option value="aniversario" {% if filtros.tipo == 'aniversario' %}selected{% endif %}>Aniversário</option>
+                        <option value="novo_membro" {% if filtros.tipo == 'novo_membro' %}selected{% endif %}>Novo membro</option>
+                        <option value="dizimo" {% if filtros.tipo == 'dizimo' %}selected{% endif %}>Dízimo</option>
+                        <option value="evento" {% if filtros.tipo == 'evento' %}selected{% endif %}>Evento</option>
+                        <option value="webhook" {% if filtros.tipo == 'webhook' %}selected{% endif %}>Webhook</option>
+                        <option value="outro" {% if filtros.tipo == 'outro' %}selected{% endif %}>Outro</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Buscar</label>
+                    <input type="text" class="form-control form-control-sm" name="q" value="{{ filtros.q }}" placeholder="Telefone, igreja, mensagem ou erro">
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">Filtrar</button>
+                    <a href="{% url 'comunicacao:logs_whatsapp' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+                </div>
+            </form>
+
+            <div class="d-flex flex-wrap gap-2 mt-3 small">
+                <span class="badge bg-primary">Total: {{ resumo.total }}</span>
+                <span class="badge bg-success">Sucesso: {{ resumo.sucesso }}</span>
+                <span class="badge bg-danger">Erro: {{ resumo.erro }}</span>
+                <span class="badge bg-info text-dark">Recebido: {{ resumo.recebido }}</span>
+            </div>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0 small">
                 <thead class="table-light">
@@ -84,6 +125,11 @@
                         </td>
                         <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             <small>{{ item.mensagem|truncatechars:80 }}</small>
+                            {% if item.erro %}
+                            <div class="text-danger mt-1">
+                                <small><strong>Erro:</strong> {{ item.erro|truncatechars:120 }}</small>
+                            </div>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

@@ -1,6 +1,8 @@
 from .email import (
+    configurar_automacao_aniversariantes,
     enviar_email_massa,
     templates_email,
+    visualizar_template_email_aniversario,
     visualizar_template_email_massa,
     visualizar_template_password_reset,
 )
