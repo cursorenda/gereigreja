@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,7 +14,8 @@ from django.urls import reverse
 
 from .forms import SistemaImagemForm
 from .models import SistemaImagem
-from .views import galeria_imagens
+from .services_custo_risco import railway_status
+from .views import calcular_risco_custo_whatsapp, galeria_imagens
 
 
 def gerar_png_upload(nome: str = 'logo.png', tamanho: tuple[int, int] = (32, 32)) -> SimpleUploadedFile:
@@ -56,6 +58,60 @@ class DummyQuerySet(list):
 
     def distinct(self):
         return self
+
+
+class DashboardCustoRiscoTests(SimpleTestCase):
+    def test_calcular_risco_custo_whatsapp_classifica_alto(self):
+        risco = calcular_risco_custo_whatsapp(
+            custo_mensal=Decimal('150.00'),
+            receita_mensal=Decimal('500.00'),
+            margem=Decimal('0.35'),
+        )
+
+        self.assertEqual(risco['nivel'], 'alto')
+        self.assertGreater(risco['percentual_custo_receita'], Decimal('0.25'))
+
+    def test_share_custo_receita_calculado_corretamente(self):
+        risco = calcular_risco_custo_whatsapp(
+            custo_mensal=Decimal('25.00'),
+            receita_mensal=Decimal('100.00'),
+            margem=Decimal('0.75'),
+        )
+
+        self.assertEqual(risco['percentual_custo_receita'], Decimal('0.25'))
+        self.assertEqual(risco['nivel'], 'alto')
+
+    def test_receita_zero_e_custo_zero_retorna_indefinido(self):
+        risco = calcular_risco_custo_whatsapp(
+            custo_mensal=Decimal('0.00'),
+            receita_mensal=Decimal('0.00'),
+            margem=Decimal('0.00'),
+        )
+
+        self.assertEqual(risco['percentual_custo_receita'], Decimal('0.00'))
+        self.assertEqual(risco['nivel'], 'indefinido')
+
+    def test_receita_zero_com_custo_retorna_alto(self):
+        risco = calcular_risco_custo_whatsapp(
+            custo_mensal=Decimal('10.00'),
+            receita_mensal=Decimal('0.00'),
+            margem=Decimal('0.00'),
+        )
+
+        self.assertEqual(risco['percentual_custo_receita'], Decimal('1.00'))
+        self.assertEqual(risco['nivel'], 'alto')
+
+
+class RailwayStatusTests(SimpleTestCase):
+    def test_status_railway_mostra_custo_real_quando_houver_valor(self):
+        status = railway_status(Decimal('12.50'), [])
+        self.assertEqual(status['nivel'], 'ok')
+        self.assertEqual(status['label'], 'Custo real')
+
+    def test_status_railway_mostra_uso_estimado_quando_nao_houver_custo(self):
+        status = railway_status(None, [{'measurement': 'CPU_USAGE', 'estimatedValue': 10}])
+        self.assertEqual(status['nivel'], 'info')
+        self.assertEqual(status['label'], 'Uso estimado')
 
 
 class SistemaImagemTests(SimpleTestCase):

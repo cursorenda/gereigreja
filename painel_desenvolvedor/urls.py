@@ -7,6 +7,9 @@ from . import views
 app_name = 'painel_desenvolvedor'
 
 urlpatterns = [
+    # Dashboard de custo e risco
+    path('custo-risco/', views.dashboard_custo_risco, name='dashboard_custo_risco'),
+
     # Compliance de hinos
     path('hinario-compliance/', views.fila_compliance_hinos, name='fila_compliance_hinos'),
     path('hinario-compliance/aprovar-liberar/', views.aprovar_liberar_hino, name='aprovar_liberar_hino'),

@@ -4,6 +4,8 @@ Views para gerenciamento de ativos do sistema (galeria de imagens).
 Fornece visualização e edição centralizada de logos, favicons e outras
 imagens utilizadas no sistema.
 """
+from decimal import Decimal
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -11,12 +13,32 @@ from django.http import JsonResponse
 from django.http import HttpResponseBadRequest
 from django.views.decorators.http import require_http_methods
 from django.db.models import Q
+from django.db.models import Count
 from django.core.paginator import Paginator
 from django.urls import reverse
 from django.utils import timezone
 
 from .models import SistemaImagem
 from .forms import SistemaImagemForm
+from .services_custo_risco import (
+    analisar_risco_whatsapp_assinaturas,
+    buscar_custo_agentusage_railway,
+    buscar_cotacao_usd_brl,
+    converter_usd_para_brl,
+    listar_ciclos_custo_railway,
+    buscar_periodo_fechamento_railway,
+    buscar_custos_railway,
+    buscar_uso_estimado_railway,
+    calcular_risco_custo_whatsapp,
+    extrair_custo_mensal_railway,
+    parse_iso_datetime,
+    formatar_data_iso_ptbr,
+    missing_railway_keys,
+    railway_status,
+    resumir_risco_global,
+)
+from configuracao.models import AssinaturaMinisterio, Plano
+from comunicacao.models import WhatsAppMensagemLog
 from hinario.models import HinoGlobal, HinoDaIgreja, HinoTema
 
 
@@ -108,6 +130,101 @@ def eh_desenvolvedor(user):
         bool: True se superusuário
     """
     return user.is_superuser or user.is_staff
+
+
+@login_required
+@user_passes_test(eh_desenvolvedor)
+def dashboard_custo_risco(request):
+    """Exibe um painel simples de risco de custo e consumo para o WhatsApp."""
+    ciclo_selecionado = (request.GET.get('ciclo') or 'current').strip()
+    ciclos_railway = listar_ciclos_custo_railway()
+
+    ciclo_ativo = None
+    for ciclo in ciclos_railway:
+        if ciclo.get('key') == ciclo_selecionado:
+            ciclo_ativo = ciclo
+            break
+    if ciclo_ativo is None and ciclos_railway:
+        ciclo_ativo = ciclos_railway[0]
+    if ciclo_ativo is not None:
+        ciclo_selecionado = ciclo_ativo.get('key', 'current')
+
+    custos_railway = buscar_custos_railway()
+    uso_estimado_railway = buscar_uso_estimado_railway()
+    railway_missing_keys = missing_railway_keys()
+    # Prioriza ciclo selecionado quando disponível; fallback para custo atual.
+    if ciclo_ativo is not None:
+        custo_total_railway = ciclo_ativo.get('custo')
+        periodo_fechamento_iso = ciclo_ativo.get('period_end')
+        periodo_inicio_iso = ciclo_ativo.get('period_start')
+        periodo_label = ciclo_ativo.get('period_label')
+    else:
+        custo_total_railway = buscar_custo_agentusage_railway() or extrair_custo_mensal_railway(custos_railway)
+        periodo_fechamento_iso = buscar_periodo_fechamento_railway()
+        periodo_inicio_iso = None
+        periodo_label = None
+
+    railway_status_data = railway_status(custo_total_railway, uso_estimado_railway)
+    cotacao_info = buscar_cotacao_usd_brl()
+    cotacao_usd_brl = cotacao_info.get('rate')
+    custo_total_railway_brl = converter_usd_para_brl(custo_total_railway, cotacao_usd_brl)
+    # Rateio e share devem usar a mesma moeda da receita (R$) para evitar distorção.
+    custo_total_para_analise = custo_total_railway_brl if custo_total_railway_brl is not None else custo_total_railway
+
+    assinaturas = list(AssinaturaMinisterio.objects.select_related('ministerio', 'plano').all())
+    logs_queryset = WhatsAppMensagemLog.objects.all()
+    data_inicio = parse_iso_datetime(periodo_inicio_iso)
+    data_fim = parse_iso_datetime(periodo_fechamento_iso)
+    if data_inicio is not None:
+        logs_queryset = logs_queryset.filter(criado_em__gte=data_inicio)
+    if data_fim is not None:
+        logs_queryset = logs_queryset.filter(criado_em__lte=data_fim)
+
+    logs_por_ministerio = {
+        item['ministerio_id']: int(item['total'])
+        for item in logs_queryset.values('ministerio_id').annotate(total=Count('id'))
+    }
+
+    analise = analisar_risco_whatsapp_assinaturas(
+        assinaturas=assinaturas,
+        logs_por_ministerio=logs_por_ministerio,
+        custo_total_railway=custo_total_para_analise,
+    )
+    dados = analise['dados']
+    resumo = analise['resumo']
+
+    contexto = {
+        'dados': dados,
+        'total_custos': resumo['total_custos'],
+        'total_receitas': resumo['total_receitas'],
+        'total_logs': resumo['total_logs'],
+        'total_ministerios': len(dados),
+        'risco_alto': resumo['risco_alto'],
+        'risco_medio': resumo['risco_medio'],
+        'risco_baixo': resumo['risco_baixo'],
+        'risco_indefinido': resumo['risco_indefinido'],
+        'share_total': resumo['share_total'],
+        'margem_total': resumo['margem_total'],
+        'risco_global': resumo['risco_global'],
+        'custo_railway_disponivel': custo_total_railway is not None,
+        'custo_total_railway_usd': custo_total_railway,
+        'custo_total_railway': analise['custo_total_railway'],
+        'origem_custo': analise['origem_custo'],
+        'railway_missing_keys': railway_missing_keys,
+        'railway_status_label': railway_status_data['label'],
+        'railway_status_detail': railway_status_data['detail'],
+        'railway_status_kind': railway_status_data['nivel'],
+        'railway_uso_estimado': railway_status_data['uso_estimado'],
+        'railway_precisa_account_token': railway_status_data['precisa_account_token'],
+        'railway_periodo_fechamento': formatar_data_iso_ptbr(periodo_fechamento_iso),
+        'railway_periodo_label': periodo_label,
+        'railway_ciclos': ciclos_railway,
+        'railway_ciclo_selecionado': ciclo_selecionado,
+        'cotacao_usd_brl': cotacao_usd_brl,
+        'cotacao_usd_brl_fonte': cotacao_info.get('source'),
+        'custo_total_railway_brl': custo_total_railway_brl,
+    }
+    return render(request, 'painel_desenvolvedor/dashboard_custo_risco.html', contexto)
 
 
 @login_required
