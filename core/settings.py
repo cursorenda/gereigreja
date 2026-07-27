@@ -310,6 +310,16 @@ SITE_ID = 2
 WAHA_BASE_URL = os.environ.get('WAHA_BASE_URL', 'http://localhost:3000')
 WAHA_API_KEY = os.environ.get('WAHA_API_KEY', '')
 
+# --- Railway (custo/monitoramento WAHA) ---
+# Alias suportados para facilitar compatibilidade entre ambientes.
+RAILWAY_API_TOKEN = os.environ.get('RAILWAY_API_TOKEN', os.environ.get('RAILWAY_TOKEN', ''))
+RAILWAY_PROJECT_ID = os.environ.get('RAILWAY_PROJECT_ID', os.environ.get('RAILWAY_PROJECT', ''))
+RAILWAY_WAHA_SERVICE_ID = os.environ.get('RAILWAY_WAHA_SERVICE_ID', os.environ.get('RAILWAY_SERVICE_ID', ''))
+RAILWAY_API_URL = os.environ.get('RAILWAY_API_URL', 'https://backboard.railway.com/graphql/v2')
+# Workspace ID é descoberto automaticamente via me.workspaces quando o Account Token está ativo.
+# Defina manualmente para acelerar a consulta e evitar a chamada extra à API.
+RAILWAY_WORKSPACE_ID = os.environ.get('RAILWAY_WORKSPACE_ID', '')
+
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
