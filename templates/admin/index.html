@@ -5,7 +5,7 @@
 
 {% block extrastyle %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}?v=20260727a">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 {% endblock %}
 
@@ -70,6 +70,12 @@
                         <a href="{% url 'admin_metricas_produto' %}" class="admin-link-metricas">📉 API de Métricas</a>
                     </th>
                     <td class="admin-cell-meta">Dados do painel</td>
+                </tr>
+                <tr class="model-custo-risco">
+                    <th scope="row">
+                        <a href="{% url 'painel_desenvolvedor:dashboard_custo_risco' %}" class="admin-link-custo-risco">📈 Custo e Risco WhatsApp</a>
+                    </th>
+                    <td class="admin-cell-meta">Margem e risco operacional</td>
                 </tr>
             </tbody>
         </table>
@@ -221,8 +227,47 @@
             <a href="{% url 'admin:suporte_ticket_changelist' %}">🎫 Ir para Tickets</a>
             <a href="{% url 'admin:deploy_deployhistorico_changelist' %}">🚀 Histórico de Deploy</a>
             <a href="{% url 'admin_dashboard_desenvolvedor' %}">⚙️ Dashboard Dev</a>
+            <a href="{% url 'painel_desenvolvedor:dashboard_custo_risco' %}">📈 Custo e Risco WhatsApp</a>
             <a href="{% url 'backup_central' %}">💾 Central de Backups</a>
             <a href="{% url 'admin_painel_pytest' %}">🧪 Painel de Testes</a>
+        </div>
+
+        <div class="risk-hero" id="risk-hero-card">
+            <div class="risk-hero-head">
+                <div>
+                    <div class="risk-hero-eyebrow">Painel Executivo</div>
+                    <div class="risk-hero-title">Resumo rápido de risco</div>
+                    <div class="risk-hero-subtitle">Semáforo conservador para decisão imediata na operação</div>
+                </div>
+                <a class="risk-hero-link" href="{% url 'painel_desenvolvedor:dashboard_custo_risco' %}">Abrir painel completo</a>
+            </div>
+            <div class="risk-hero-status-row">
+                <div class="risk-hero-status-label">Status atual</div>
+                <div class="risk-hero-status-value" id="risk-hero-level">--</div>
+                <div class="risk-hero-dots" aria-hidden="true">
+                    <span class="risk-dot bad"></span>
+                    <span class="risk-dot mid"></span>
+                    <span class="risk-dot good"></span>
+                </div>
+            </div>
+            <div class="risk-hero-grid">
+                <div class="risk-pill">
+                    <div class="risk-pill-label">Retenção 30d</div>
+                    <div class="risk-pill-value" id="risk-hero-retencao">--</div>
+                </div>
+                <div class="risk-pill">
+                    <div class="risk-pill-label">Sem acesso 30d</div>
+                    <div class="risk-pill-value" id="risk-hero-sem-acesso">--</div>
+                </div>
+                <div class="risk-pill">
+                    <div class="risk-pill-label">Ativos 7d</div>
+                    <div class="risk-pill-value" id="risk-hero-ativos7">--</div>
+                </div>
+                <div class="risk-pill">
+                    <div class="risk-pill-label">Risco de churn</div>
+                    <div class="risk-pill-value" id="ops-risco-value-espelho">--</div>
+                </div>
+            </div>
         </div>
 
         {% include "admin/custom_dashboard_panel.html" with ultimos_ministerios=ultimos_ministerios ultimas_igrejas=ultimas_igrejas ultimos_membros=ultimos_membros %}
@@ -490,6 +535,50 @@ fetch('/admin/api/metricas-produto/')
         document.getElementById('ops-ativos7-value').textContent = data.acessos.usuarios_7d;
         document.getElementById('ops-risco-value').textContent = data.ministerios.sem_acesso_30d;
 
+        // ===== RESUMO RAPIDO DE RISCO =====
+        const riscoDistribuicao = data.risco_whatsapp || {};
+        const riscoGlobal = String(riscoDistribuicao.risco_global || 'indefinido');
+        const totalReceitas = Number(riscoDistribuicao.total_receitas || 0);
+        const totalCustos = Number(riscoDistribuicao.total_custos || 0);
+        const margemTotal = totalReceitas > 0 ? (totalReceitas - totalCustos) / totalReceitas : 0;
+        const shareTotal = totalReceitas > 0 ? totalCustos / totalReceitas : 0;
+
+        const nivelMapa = {
+            alto: 'Alto',
+            medio: 'Médio',
+            baixo: 'Baixo',
+            indefinido: 'Indefinido',
+        };
+
+        const classeMapa = {
+            alto: 'risk-hero-alto',
+            medio: 'risk-hero-medio',
+            baixo: 'risk-hero-baixo',
+            indefinido: 'risk-hero-indefinido',
+        };
+
+        const riskHero = document.getElementById('risk-hero-card');
+        riskHero.classList.remove('risk-hero-baixo', 'risk-hero-medio', 'risk-hero-alto', 'risk-hero-indefinido');
+        riskHero.classList.add(classeMapa[riscoGlobal] || 'risk-hero-indefinido');
+
+        document.getElementById('risk-hero-level').textContent = nivelMapa[riscoGlobal] || 'Indefinido';
+        document.getElementById('risk-hero-retencao').textContent = (Number(data.acessos.taxa_retencao || 0)).toFixed(1) + '%';
+        document.getElementById('risk-hero-sem-acesso').textContent = Number(data.ministerios.sem_acesso_30d || 0);
+        document.getElementById('risk-hero-ativos7').textContent = Number(data.acessos.usuarios_7d || 0);
+        document.getElementById('ops-risco-value-espelho').textContent = riskHero.querySelector('#risk-hero-level').textContent;
+
+        if (riscoGlobal === 'alto') {
+            document.getElementById('ops-risco-card').style.borderColor = 'rgba(239, 68, 68, 0.7)';
+        } else if (riscoGlobal === 'medio') {
+            document.getElementById('ops-risco-card').style.borderColor = 'rgba(251, 146, 60, 0.7)';
+        } else if (riscoGlobal === 'indefinido') {
+            document.getElementById('ops-risco-card').style.borderColor = 'rgba(148, 163, 184, 0.6)';
+        } else {
+            document.getElementById('ops-risco-card').style.borderColor = 'rgba(34, 197, 94, 0.7)';
+        }
+
+        document.getElementById('risk-hero-card').setAttribute('title', 'Share ' + shareTotal.toFixed(2) + ' | Margem ' + margemTotal.toFixed(2));
+
         if (data.tickets.pendentes > 10 || data.tickets.bugs > 0) {
             document.getElementById('ops-tickets-card').style.borderColor = 'rgba(239, 68, 68, 0.55)';
         }
@@ -499,9 +588,7 @@ fetch('/admin/api/metricas-produto/')
         if (data.acessos.taxa_retencao < 70) {
             document.getElementById('ops-retencao-card').style.borderColor = 'rgba(251, 146, 60, 0.55)';
         }
-        if (data.ministerios.sem_acesso_30d > 0) {
-            document.getElementById('ops-risco-card').style.borderColor = 'rgba(251, 146, 60, 0.55)';
-        }
+        // O risco de churn resumido acima agora segue o mesmo motor do painel dedicado.
         
         // ===== CARDS PRINCIPAIS =====
         document.getElementById('membros-total').textContent = data.membros.total;

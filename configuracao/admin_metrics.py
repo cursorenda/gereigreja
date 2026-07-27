@@ -9,6 +9,16 @@ from django.db.models import Count, Avg, Q, Sum
 from django.utils import timezone
 from datetime import datetime, timedelta
 from notificacoes.models import Notificacao, NotificacaoEnviada
+from painel_desenvolvedor.services_custo_risco import (
+    analisar_risco_whatsapp_assinaturas,
+    buscar_custo_agentusage_railway,
+    buscar_cotacao_usd_brl,
+    buscar_custos_railway,
+    converter_usd_para_brl,
+    extrair_custo_mensal_railway,
+)
+from configuracao.models import AssinaturaMinisterio
+from comunicacao.models import WhatsAppMensagemLog
 
 
 def _calcular_saude_admin(tickets_data, acessos_data, membros_data, financeiro_data, sistema_data):
@@ -482,6 +492,52 @@ def metricas_produto(request):
         'storage_gb': storage_usado
     }
     
+    # ===== CUSTO/RISCO WHATSAPP (MESMO MOTOR DA TELA DEDICADA) =====
+    try:
+        assinaturas = list(AssinaturaMinisterio.objects.select_related('ministerio', 'plano').all())
+        logs_por_ministerio = {
+            item['ministerio_id']: int(item['total'])
+            for item in WhatsAppMensagemLog.objects.values('ministerio_id').annotate(total=Count('id'))
+        }
+        custos_railway = buscar_custos_railway()
+        custo_total_railway = buscar_custo_agentusage_railway() or extrair_custo_mensal_railway(custos_railway)
+        cotacao_info = buscar_cotacao_usd_brl()
+        custo_total_railway_brl = converter_usd_para_brl(custo_total_railway, cotacao_info.get('rate'))
+        custo_total_para_analise = custo_total_railway_brl if custo_total_railway_brl is not None else custo_total_railway
+        analise_risco = analisar_risco_whatsapp_assinaturas(
+            assinaturas=assinaturas,
+            logs_por_ministerio=logs_por_ministerio,
+            custo_total_railway=custo_total_para_analise,
+        )
+        resumo_risco = analise_risco['resumo']
+        risco_whatsapp_data = {
+            'risco_global': resumo_risco['risco_global'],
+            'risco_alto': resumo_risco['risco_alto'],
+            'risco_medio': resumo_risco['risco_medio'],
+            'risco_baixo': resumo_risco['risco_baixo'],
+            'risco_indefinido': resumo_risco['risco_indefinido'],
+            'total_custos': float(resumo_risco['total_custos']),
+            'total_receitas': float(resumo_risco['total_receitas']),
+            'share_total': float(resumo_risco['share_total']),
+            'margem_total': float(resumo_risco['margem_total']),
+            'origem_custo': analise_risco['origem_custo'],
+            'custo_railway_disponivel': custo_total_railway is not None,
+        }
+    except Exception:
+        risco_whatsapp_data = {
+            'risco_global': 'indefinido',
+            'risco_alto': 0,
+            'risco_medio': 0,
+            'risco_baixo': 0,
+            'risco_indefinido': 0,
+            'total_custos': 0.0,
+            'total_receitas': 0.0,
+            'share_total': 0.0,
+            'margem_total': 0.0,
+            'origem_custo': 'erro_analise',
+            'custo_railway_disponivel': False,
+        }
+
     admin_hub_data = _calcular_saude_admin(
         tickets_data=tickets_data,
         acessos_data=acessos_data,
@@ -499,6 +555,7 @@ def metricas_produto(request):
         'acessos': acessos_data,
         'crescimento': crescimento_membros,
         'ministerios': ministerios_data,
+        'risco_whatsapp': risco_whatsapp_data,
         'sistema': sistema_data,
         'admin_hub': admin_hub_data,
         'timestamp': timezone.now().isoformat()
