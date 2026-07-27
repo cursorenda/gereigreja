@@ -1,3 +1,28 @@
+# v1.14.7 — 27/07/2026
+🎯 **Painel do Desenvolvedor — Fase 2 com Prioridades do Dia e Estados Operacionais**
+
+### Entregas
+- **Fase 2 implementada no Dashboard Dev**:
+  - Nova seção de **Prioridades do Dia** com foco em ações imediatas de operação.
+  - Nova seção de **Estados Operacionais** com visão consolidada por domínio.
+  - Painel-resumo com panorama geral (`ok`, `alerta`, `critico`) e contadores por status.
+
+- **Inteligência operacional com dados reais**:
+  - Priorização automática baseada em backup, infraestrutura (CPU/RAM), erros de aplicação, compliance e custo WhatsApp.
+  - Ordenação das prioridades por severidade para orientar decisão rápida.
+  - Fallback seguro para indisponibilidade de análise externa.
+
+- **UX e responsividade da nova área**:
+  - Cards operacionais com chips visuais por status.
+  - Layout em duas colunas no desktop e coluna única em telas menores.
+
+### Impacto
+- Reduz carga cognitiva do time técnico ao destacar o que precisa de ação no dia.
+- Melhora governança operacional com leitura imediata do estado do sistema.
+- Estabelece base funcional para evoluções da Fase 2.
+
+---
+
 # v1.14.6 — 27/07/2026
 🚀 **Painel do Desenvolvedor — Fase 1 concluída com dashboard premium, custo/risco Railway e layout responsivo**
 

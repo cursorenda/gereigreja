@@ -191,6 +191,97 @@
         background: #f8d7da;
         color: #721c24;
     }
+
+    .ops-overview {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 16px;
+    }
+
+    .ops-card {
+        border: 1px solid #e3e8ef;
+        border-radius: 10px;
+        padding: 14px;
+        background: #fafcff;
+    }
+
+    .ops-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 10px;
+    }
+
+    .ops-item {
+        border: 1px solid #e4e7ee;
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #fff;
+    }
+
+    .ops-item strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #25324a;
+    }
+
+    .ops-item p {
+        margin: 0;
+        color: #5d6b84;
+        font-size: 12px;
+    }
+
+    .ops-chip {
+        display: inline-block;
+        margin-bottom: 6px;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .ops-chip-ok {
+        background: #dbf5e5;
+        color: #146c38;
+        border: 1px solid #a7dfbf;
+    }
+
+    .ops-chip-alerta {
+        background: #fff0d6;
+        color: #8a5200;
+        border: 1px solid #ffd28a;
+    }
+
+    .ops-chip-critico {
+        background: #fde0e2;
+        color: #8a1c25;
+        border: 1px solid #f7b5bc;
+    }
+
+    .ops-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .ops-summary span {
+        font-size: 12px;
+        color: #44516b;
+        border: 1px solid #dce4f2;
+        border-radius: 999px;
+        padding: 4px 9px;
+        background: #f7faff;
+    }
+
+    @media (max-width: 980px) {
+        .ops-overview {
+            grid-template-columns: 1fr;
+        }
+    }
     
     .output-modal {
         display: none;
@@ -322,6 +413,53 @@
         {% else %}
             <p style="color: #999;">Nenhum backup encontrado</p>
         {% endif %}
+    </div>
+
+    <!-- Custos e risco -->
+    <div class="section-card">
+        <h2>📈 Custos e Risco</h2>
+        <p>Acompanhe o custo do WhatsApp/WAHA, a margem estimada e os pontos de risco do negócio.</p>
+        <div class="compliance-actions">
+            <a class="compliance-link" href="{% url 'painel_desenvolvedor:dashboard_custo_risco' %}">Abrir painel de custo e risco</a>
+        </div>
+    </div>
+
+    <!-- Fase 2 - foco operacional -->
+    <div class="section-card">
+        <h2>🎯 Fase 2 — Prioridades do Dia e Estados Operacionais</h2>
+        <div class="ops-overview">
+            <div class="ops-card">
+                <h3 style="margin: 0 0 12px; font-size: 14px;">Prioridades do Dia</h3>
+                <ul class="ops-list">
+                    {% for item in foco_operacional.prioridades %}
+                    <li class="ops-item">
+                        <span class="ops-chip ops-chip-{{ item.status }}">{{ item.status }}</span>
+                        <strong>{{ item.titulo }}</strong>
+                        <p>{{ item.detalhe }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="ops-card">
+                <h3 style="margin: 0 0 12px; font-size: 14px;">Estados Operacionais</h3>
+                <ul class="ops-list">
+                    {% for estado in foco_operacional.estados %}
+                    <li class="ops-item">
+                        <span class="ops-chip ops-chip-{{ estado.status }}">{{ estado.status }}</span>
+                        <strong>{{ estado.nome }}</strong>
+                        <p>{{ estado.detalhe }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="ops-summary">
+                    <span>Panorama: <strong>{{ foco_operacional.resumo.panorama }}</strong></span>
+                    <span>Crítico: <strong>{{ foco_operacional.resumo.critico }}</strong></span>
+                    <span>Alerta: <strong>{{ foco_operacional.resumo.alerta }}</strong></span>
+                    <span>OK: <strong>{{ foco_operacional.resumo.ok }}</strong></span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Compliance de Hinos -->

@@ -17,21 +17,28 @@ import os
 import subprocess
 from deploy.models import BackupHistorico
 from hinario.models import HinoGlobal, HinoDaIgreja, HinoAuditLog
+from painel_desenvolvedor.services_custo_risco import analisar_risco_whatsapp_assinaturas
 
 
 @staff_member_required
 def dashboard_desenvolvedor(request):
     """Dashboard principal do desenvolvedor"""
+    metricas = obter_metricas_sistema()
+    logs = obter_logs_recentes()
+    backups = obter_info_backups()
+    hinario_compliance = obter_info_hinario_compliance()
+    foco_operacional = obter_foco_operacional(metricas, logs, backups, hinario_compliance)
     
     context = {
         'title': 'Dashboard do Desenvolvedor',
-        'metricas': obter_metricas_sistema(),
+        'metricas': metricas,
         'database': obter_info_database(),
-        'logs': obter_logs_recentes(),
-        'backups': obter_info_backups(),
-        'hinario_compliance': obter_info_hinario_compliance(),
+        'logs': logs,
+        'backups': backups,
+        'hinario_compliance': hinario_compliance,
         'hinario_liberados_recentes': obter_hinarios_liberados_recentes(),
         'scripts': obter_scripts_disponiveis(),
+        'foco_operacional': foco_operacional,
     }
     
     return render(request, 'admin/dashboard_desenvolvedor.html', context)
@@ -332,4 +339,166 @@ def obter_hinarios_liberados_recentes(limite=5):
         })
 
     return itens
+
+
+def obter_foco_operacional(metricas, logs, backups, hinario_compliance):
+    """Consolida prioridades do dia e estado operacional para o dashboard dev."""
+    prioridades = []
+    estados = []
+
+    # 1) Backup
+    backup_dias_atras = 999
+    if backups.get('ultimo'):
+        backup_dias_atras = backups['ultimo'].get('dias_atras', 999) or 999
+    if backup_dias_atras <= 1:
+        backup_status = 'ok'
+        backup_texto = 'Backup recente em dia.'
+    elif backup_dias_atras <= 3:
+        backup_status = 'alerta'
+        backup_texto = f'Ultimo backup ha {backup_dias_atras} dia(s).'
+    else:
+        backup_status = 'critico'
+        backup_texto = f'Backup atrasado ha {backup_dias_atras} dia(s).'
+
+    estados.append({
+        'nome': 'Backups',
+        'status': backup_status,
+        'detalhe': backup_texto,
+    })
+    if backup_status != 'ok':
+        prioridades.append({
+            'titulo': 'Revisar rotina de backup',
+            'detalhe': backup_texto,
+            'status': backup_status,
+        })
+
+    # 2) Infra (CPU e memoria)
+    cpu = float(metricas.get('cpu', {}).get('percent', 0) or 0)
+    memoria = float(metricas.get('memoria', {}).get('percent', 0) or 0)
+    if cpu >= 90 or memoria >= 90:
+        infra_status = 'critico'
+    elif cpu >= 75 or memoria >= 80:
+        infra_status = 'alerta'
+    else:
+        infra_status = 'ok'
+    estados.append({
+        'nome': 'Infra',
+        'status': infra_status,
+        'detalhe': f'CPU {cpu}% | RAM {memoria}%',
+    })
+    if infra_status != 'ok':
+        prioridades.append({
+            'titulo': 'Monitorar recursos do servidor',
+            'detalhe': f'CPU em {cpu}% e RAM em {memoria}%.',
+            'status': infra_status,
+        })
+
+    # 3) Logs
+    erros_logs = len([l for l in logs if l.get('nivel') == 'error'])
+    if erros_logs == 0:
+        logs_status = 'ok'
+        logs_texto = 'Sem erros recentes no log.'
+    elif erros_logs <= 5:
+        logs_status = 'alerta'
+        logs_texto = f'{erros_logs} erro(s) recente(s) no log.'
+    else:
+        logs_status = 'critico'
+        logs_texto = f'{erros_logs} erros recentes no log.'
+    estados.append({
+        'nome': 'Aplicacao',
+        'status': logs_status,
+        'detalhe': logs_texto,
+    })
+    if logs_status != 'ok':
+        prioridades.append({
+            'titulo': 'Investigar erros de aplicacao',
+            'detalhe': logs_texto,
+            'status': logs_status,
+        })
+
+    # 4) Compliance de hinos
+    pendentes_hinario = int(hinario_compliance.get('pendentes_total', 0) or 0)
+    if pendentes_hinario == 0:
+        compliance_status = 'ok'
+        compliance_texto = 'Sem pendencias de compliance.'
+    elif pendentes_hinario <= 20:
+        compliance_status = 'alerta'
+        compliance_texto = f'{pendentes_hinario} pendencia(s) de compliance.'
+    else:
+        compliance_status = 'critico'
+        compliance_texto = f'{pendentes_hinario} pendencias de compliance em fila.'
+    estados.append({
+        'nome': 'Compliance',
+        'status': compliance_status,
+        'detalhe': compliance_texto,
+    })
+    if compliance_status != 'ok':
+        prioridades.append({
+            'titulo': 'Limpar fila de compliance',
+            'detalhe': compliance_texto,
+            'status': compliance_status,
+        })
+
+    # 5) Financeiro operacional do WhatsApp
+    try:
+        analise = analisar_risco_whatsapp_assinaturas()
+        risco_global = analise.get('resumo', {}).get('risco_global', 'indefinido')
+        share = float(analise.get('resumo', {}).get('share_total', 0) or 0)
+        if risco_global == 'alto' or share >= 0.9:
+            custo_status = 'critico'
+        elif risco_global == 'medio' or share >= 0.6:
+            custo_status = 'alerta'
+        else:
+            custo_status = 'ok'
+
+        custo_texto = f'Risco {risco_global} | Share {share:.2f}x'
+        estados.append({
+            'nome': 'Custo WhatsApp',
+            'status': custo_status,
+            'detalhe': custo_texto,
+        })
+        if custo_status != 'ok':
+            prioridades.append({
+                'titulo': 'Revisar margem do WhatsApp',
+                'detalhe': custo_texto,
+                'status': custo_status,
+            })
+    except Exception:
+        estados.append({
+            'nome': 'Custo WhatsApp',
+            'status': 'alerta',
+            'detalhe': 'Analise indisponivel no momento.',
+        })
+
+    ordem = {'critico': 0, 'alerta': 1, 'ok': 2}
+    prioridades.sort(key=lambda p: ordem.get(p.get('status', 'ok'), 3))
+
+    total_critico = len([e for e in estados if e.get('status') == 'critico'])
+    total_alerta = len([e for e in estados if e.get('status') == 'alerta'])
+    total_ok = len([e for e in estados if e.get('status') == 'ok'])
+
+    if total_critico > 0:
+        panorama = 'critico'
+    elif total_alerta > 0:
+        panorama = 'alerta'
+    else:
+        panorama = 'ok'
+
+    if not prioridades:
+        prioridades = [{
+            'titulo': 'Operacao estavel',
+            'detalhe': 'Nenhuma prioridade critica para hoje.',
+            'status': 'ok',
+        }]
+
+    return {
+        'prioridades': prioridades[:5],
+        'estados': estados,
+        'resumo': {
+            'critico': total_critico,
+            'alerta': total_alerta,
+            'ok': total_ok,
+            'panorama': panorama,
+        },
+    }
 
