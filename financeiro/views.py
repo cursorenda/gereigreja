@@ -1895,7 +1895,17 @@ def finalizar_fechamento_caixa(request): # noqa: E302
         receitas.update(fechado=True)
         despesas.update(fechado=True)
 
-        messages.success(request, f'Caixa da igreja "{igreja_selecionada.nome_igreja}" fechado com sucesso para o período {data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}!')
+        from comunicacao.services import agendar_agradecimentos_dizimo_fechamento
+
+        resumo_dizimos = agendar_agradecimentos_dizimo_fechamento(fechamento=novo_fechamento)
+
+        mensagem_sucesso = (
+            f'Caixa da igreja "{igreja_selecionada.nome_igreja}" fechado com sucesso para o período '
+            f'{data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}!'
+        )
+        if resumo_dizimos.get('agendados'):
+            mensagem_sucesso += f' {resumo_dizimos["agendados"]} agradecimento(s) de dízimo foram agendados.'
+        messages.success(request, mensagem_sucesso)
         return redirect('financeiro:lista_fechamentos_caixa')
 
     except PermissionDenied as pd:
