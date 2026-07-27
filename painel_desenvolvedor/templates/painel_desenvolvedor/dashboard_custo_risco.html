@@ -1,0 +1,206 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}Custo e Risco WhatsApp | Painel Desenvolvedor{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/painel_desenvolvedor_risco.css' %}?v=20260727c">
+{% endblock %}
+
+{% block content %}
+<div class="risk-page">
+  <div class="risk-toolbar">
+    <form class="risk-cycle-filter" method="get">
+      <label for="ciclo" class="risk-cycle-label">Período</label>
+      <select id="ciclo" name="ciclo" class="risk-cycle-select" onchange="this.form.submit()">
+        {% if railway_ciclos %}
+          {% for ciclo in railway_ciclos %}
+            <option value="{{ ciclo.key }}" {% if railway_ciclo_selecionado == ciclo.key %}selected{% endif %}>{{ ciclo.label }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="current" selected>Atual (em aberto)</option>
+        {% endif %}
+      </select>
+    </form>
+    <div class="risk-actions risk-actions-top">
+      <a class="risk-btn" href="{% url 'admin:index' %}">Voltar para Início</a>
+      <a class="risk-btn" href="{% url 'admin_dashboard_desenvolvedor' %}">Dashboard Dev</a>
+      <a class="risk-btn" href="{% url 'painel_desenvolvedor:galeria_imagens' %}">Galeria</a>
+    </div>
+  </div>
+
+  <div class="risk-topbar">
+    <div>
+      <h1 class="risk-title">Custo e Risco do WhatsApp</h1>
+      <p class="risk-subtitle">Monitoramento executivo de margem, consumo WAHA/Railway e exposição operacional por ministério.</p>
+      <div class="risk-source-badges">
+        <span class="risk-source-badge {{ railway_status_kind }}" title="{{ railway_status_detail }}">
+          Dados Railway: {{ railway_status_label }}
+        </span>
+{% if railway_precisa_account_token %}
+        <span class="risk-source-badge warn" title="Crie um Account Token em railway.com/account/tokens selecionando 'No workspace' para ativar custo real.">
+          ⚠ Precisa Account Token
+        </span>
+{% endif %}
+        <span class="risk-source-badge info">
+          Método:
+          {% if origem_custo == 'railway_rateio_por_logs' %}
+            Rateio por logs
+          {% elif origem_custo == 'railway_rateio_uniforme' %}
+            Rateio uniforme
+          {% else %}
+            Sem custo Railway
+          {% endif %}
+        </span>
+        <span class="risk-source-badge info">
+          Custo atual fonte (US$): {% if custo_total_railway_usd is not None %}US$ {{ custo_total_railway_usd|floatformat:2 }}{% else %}N/D{% endif %}
+        </span>
+{% if custo_total_railway_brl is not None %}
+        <span class="risk-source-badge ok">
+          Custo usado no rateio (R$): {{ custo_total_railway_brl|floatformat:2 }}
+        </span>
+{% endif %}
+{% if cotacao_usd_brl %}
+        <span class="risk-source-badge info">
+          Cotação USD/BRL: {{ cotacao_usd_brl|floatformat:4 }} ({{ cotacao_usd_brl_fonte|default:'fonte externa' }})
+        </span>
+{% endif %}
+{% if railway_periodo_fechamento %}
+        <span class="risk-source-badge info">
+          Fechamento do ciclo: {{ railway_periodo_fechamento }}
+        </span>
+{% endif %}
+{% if railway_periodo_label %}
+        <span class="risk-source-badge info">
+          Período aplicado: {{ railway_periodo_label }}
+        </span>
+{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="risk-kpis">
+    <div class="risk-kpi">
+      <div class="risk-kpi-label">Custo total (R$ rateado)</div>
+      <div class="risk-kpi-value">R$ {{ total_custos|floatformat:2 }}</div>
+    </div>
+    <div class="risk-kpi">
+      <div class="risk-kpi-label">Custo total fonte (US$)</div>
+      <div class="risk-kpi-value">{% if custo_total_railway_usd is not None %}US$ {{ custo_total_railway_usd|floatformat:2 }}{% else %}N/D{% endif %}</div>
+    </div>
+    <div class="risk-kpi">
+      <div class="risk-kpi-label">Custo total convertido (R$)</div>
+      <div class="risk-kpi-value">{% if custo_total_railway_brl is not None %}R$ {{ custo_total_railway_brl|floatformat:2 }}{% else %}N/D{% endif %}</div>
+    </div>
+    <div class="risk-kpi">
+      <div class="risk-kpi-label">Receita total (R$)</div>
+      <div class="risk-kpi-value">R$ {{ total_receitas|floatformat:2 }}</div>
+    </div>
+    <div class="risk-kpi">
+      <div class="risk-kpi-label">Share custo/receita</div>
+      <div class="risk-kpi-value small">{{ share_total|floatformat:2 }}x</div>
+    </div>
+    <div class="risk-kpi">
+      <div class="risk-kpi-label">Margem estimada</div>
+      <div class="risk-kpi-value small">{{ margem_total|floatformat:2 }}</div>
+    </div>
+    <div class="risk-kpi">
+      <div class="risk-kpi-label">Logs WhatsApp</div>
+      <div class="risk-kpi-value">{{ total_logs }}</div>
+    </div>
+  </div>
+
+  <div class="risk-semaforo" data-nivel="{{ risco_global }}">
+    <div class="risk-semaforo-text">
+      <strong>Semáforo global (status):</strong>
+      {% if risco_global == 'alto' %}
+        Alto
+      {% elif risco_global == 'medio' %}
+        Médio
+      {% elif risco_global == 'baixo' %}
+        Baixo
+      {% else %}
+        Indefinido
+      {% endif %}
+      | Distribuição: Alto {{ risco_alto }} | Médio {{ risco_medio }} | Baixo {{ risco_baixo }} | Indefinido {{ risco_indefinido }}
+      {% if origem_custo == 'railway_rateio_por_logs' %}
+        | Fonte custo: Railway (rateio por volume de logs)
+      {% elif origem_custo == 'railway_rateio_uniforme' %}
+        | Fonte custo: Railway (rateio uniforme)
+      {% else %}
+        | Fonte custo: Fallback (sem custo Railway)
+      {% endif %}
+    </div>
+    <div class="risk-dot-group" aria-hidden="true">
+      <span class="risk-dot bad"></span>
+      <span class="risk-dot mid"></span>
+      <span class="risk-dot good"></span>
+    </div>
+  </div>
+
+  {% if railway_missing_keys %}
+    <div class="risk-warning">
+      Integração Railway pendente. Variáveis ausentes: {{ railway_missing_keys|join:', ' }}.
+      Depois de preenchidas, a página passa a consolidar o custo automaticamente.
+    </div>
+  {% elif railway_precisa_account_token and railway_status_kind != 'warn' %}
+    <div class="risk-info-box">
+      <strong>Token Railway ativo</strong> — métricas técnicas disponíveis, mas custo monetário real requer um <strong>Account Token</strong>.
+      Crie em <a href="https://railway.com/account/tokens" target="_blank" rel="noopener">railway.com/account/tokens</a> selecionando <em>"No workspace"</em>, substitua o valor de <code>RAILWAY_API_TOKEN</code> no <code>.env</code> e o badge mudará automaticamente para <strong>Custo real</strong>.
+    </div>
+  {% endif %}
+
+  <div class="risk-info-box">
+    <strong>Unidade monetária:</strong> custo Railway em <strong>US$</strong> e receita de assinaturas em <strong>R$</strong>.
+    O share é uma razão de custo/receita e pode exigir conversão cambial para leitura financeira formal.
+  </div>
+
+  <div class="risk-table-wrap">
+    <div class="risk-table-scroll">
+      <table class="risk-table">
+        <thead>
+          <tr>
+            <th>Ministério</th>
+            <th>Plano</th>
+            <th>Receita Mensal</th>
+            <th>Custo Mensal (R$)</th>
+            <th>Logs</th>
+            <th>Share Custo/Receita</th>
+            <th>Risco</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in dados %}
+            <tr>
+              <td class="risk-ministerio">{{ item.ministerio.nome_fantasia }}</td>
+              <td>{{ item.plano.get_nome_display|default:'Sem plano' }}</td>
+              <td>R$ {{ item.receita_mensal|floatformat:2 }}</td>
+              <td>R$ {{ item.custo_mensal|floatformat:2 }}</td>
+              <td>{{ item.quantidade_logs }}</td>
+              <td>{{ item.risco.percentual_custo_receita|floatformat:2 }}x</td>
+              <td>
+                <span class="risk-chip risk-chip-{{ item.risco.nivel }}">
+                  {% if item.risco.nivel == 'medio' %}
+                    Médio
+                  {% elif item.risco.nivel == 'baixo' %}
+                    Baixo
+                  {% elif item.risco.nivel == 'alto' %}
+                    Alto
+                  {% else %}
+                    Indefinido
+                  {% endif %}
+                </span>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7">Nenhuma assinatura cadastrada para análise.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

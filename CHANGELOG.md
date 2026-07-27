@@ -1,3 +1,28 @@
+# v1.14.6 — 27/07/2026
+🚀 **Painel do Desenvolvedor — Fase 1 concluída com dashboard premium, custo/risco Railway e layout responsivo**
+
+### Entregas
+- **Painel do desenvolvedor expandido**:
+  - Novo acesso direto ao dashboard de custo e risco, com navegação premium no admin.
+  - Integração com dados reais da Railway para custo fonte e análise de share custo/receita.
+  - Exibição diferenciada de valores em USD e em BRL convertidos para leitura financeira mais clara.
+
+- **Análise de risco e margem**:
+  - Cálculo de share custo/receita, margem estimada e semáforo executivo por ministério.
+  - Filtros de período/ciclo com contexto histórico e visão consolidada do consumo WAHA/Railway.
+
+- **UX e responsividade**:
+  - Ajustes visuais no dashboard premium para melhor distribuição dos cards KPI.
+  - Organização do topo com seletor de período e botões de ação em linha.
+  - Refinos de tipografia e espaçamento para reduzir desajustes em telas menores.
+
+### Impacto
+- Aumenta a visibilidade operacional do custo real do WhatsApp e do risco financeiro por ministério.
+- Melhora a experiência do admin do desenvolvedor, tornando a tela mais profissional e mais fácil de usar.
+- Posiciona a base da Fase 1 para evolução posterior para a Fase 2.
+
+---
+
 # v1.14.5 — 22/07/2026
 📣 **Comunicação — automações diárias, novos comandos operacionais e evolução dos fluxos WhatsApp/E-mail**
 
