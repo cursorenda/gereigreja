@@ -52,6 +52,7 @@ MEDIA_ROOT = tempfile.mkdtemp(prefix='gereigreja_test_media_')
 # If a test requires running real migrations for an app, remove it from this
 # mapping.
 PROJECT_TEST_MIGRATION_DISABLE = [
+    'configuracao',
     'secretaria',
     'financeiro',
     'eventos',
@@ -60,6 +61,12 @@ PROJECT_TEST_MIGRATION_DISABLE = [
     'contas',
     'suporte',
     'auditoria',
+    'comunicacao',
+    'hinario',
+    'painel_desenvolvedor',
+    'notificacoes',
+    'deploy',
+    'blog',
 ]
 
 MIGRATION_MODULES = {app: None for app in PROJECT_TEST_MIGRATION_DISABLE}
