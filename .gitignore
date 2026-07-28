@@ -70,7 +70,8 @@ db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/ # Se você sempre roda collectstatic antes do deploy
-staticfiles_production/ # Artefatos gerados por collectstatic (não versionar)
+# Artefatos gerados por collectstatic (não versionar)
+staticfiles_production/
 # backup/ # Se você não quer versionar seus backups locais
 
 # Virtual Environments
