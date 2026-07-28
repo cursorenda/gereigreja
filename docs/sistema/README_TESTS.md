@@ -24,6 +24,37 @@ python manage.py test eventos.tests.test_evento_sessao -v2 --settings=core.setti
 python manage.py test --settings=core.settings_test
 ```
 
+3.1) Runner equivalente com descoberta robusta (recomendado para escopo por pasta)
+
+```powershell
+python -m pytest -q
+```
+
+Exemplo por módulo/pasta:
+
+```powershell
+python -m pytest core -q
+```
+
+Notas:
+- O `pytest.ini` do projeto já aponta para `core.settings_test`.
+- Em cenários específicos de descoberta (ex.: alguns rótulos como `core.tests` no `manage.py test`), o pytest pode ser mais estável.
+- Para consistência de equipe/CI, escolha um runner oficial por pipeline e mantenha o mesmo comando em todas as execuções.
+
+3.2) Runner oficial padronizado do projeto
+
+```powershell
+python scripts/automation/test_runner.py
+```
+
+Exemplo por escopo:
+
+```powershell
+python scripts/automation/test_runner.py core
+```
+
+Este runner encapsula o padrão do projeto (pytest + `core.settings_test`) para reduzir divergências entre ambiente local e pipeline.
+
 4) Nota sobre segurança e produção
 - `core/settings_test.py` é apenas para desenvolvimento local/CI; não use essas configurações em produção.
 - Desabilitar migrações em memória é um atalho prático para testes unitários, mas testes que dependem de comportamento de migrações podem falhar.

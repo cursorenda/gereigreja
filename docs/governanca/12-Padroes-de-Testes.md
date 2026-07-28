@@ -201,6 +201,16 @@ Cada teste deverá preparar seu próprio ambiente.
 
 Os testes deverão ser executados automaticamente sempre que possível.
 
+O time deverá padronizar o comando de execução por contexto (local e CI),
+evitando alternância aleatória de runners entre ambientes.
+
+Para este projeto, é aceitável utilizar tanto `python manage.py test --settings=core.settings_test`
+quanto `python -m pytest -q`, desde que o comando oficial do pipeline esteja documentado e seja
+executado de forma consistente.
+
+Quando houver inconsistência de descoberta por rótulo/pacote no Django test runner,
+o pytest deverá ser adotado como alternativa preferencial para esse escopo.
+
 Recomenda-se integração futura com pipelines de CI/CD para:
 
 - execução automática;
