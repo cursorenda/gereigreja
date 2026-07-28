@@ -79,6 +79,7 @@ Confirmar que:
 - documentação atualizada;
 - comentários temporários removidos;
 - código morto eliminado.
+- artefatos de build não versionados (ex.: `staticfiles_production/`, gerado por `collectstatic`).
 
 ---
 
