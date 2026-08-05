@@ -1,3 +1,27 @@
+# v1.14.10 — 05/08/2026
+📐 **Frontend Docs — padronização oficial de grid responsivo para cards de resumo**
+
+### Entregas
+- **Especificação oficial adicionada em Layouts**:
+  - `docs/frontend/04-Layouts.md` com nova regra `GFE-LAY-009`.
+  - Definição explícita do padrão para cards de resumo:
+    - Desktop: `col-lg-3` (4 colunas);
+    - Tablet: `col-sm-6` (2 colunas);
+    - Mobile: `col-12` implícito (1 coluna);
+    - Espaçamento da grade: `g-3` na `row`.
+  - Referência-base de marcação HTML incluída no documento.
+
+- **Checklist de CSS reforçado**:
+  - `docs/frontend/07-CSS.md` atualizado com verificação obrigatória do padrão de grid responsivo para cards.
+  - Exceções permitidas somente quando houver justificativa funcional documentada.
+
+### Impacto
+- Formaliza um padrão único de responsividade para cards no sistema.
+- Reduz variação visual entre módulos e facilita revisões frontend.
+- Aumenta aderência à governança de templates e design system.
+
+---
+
 # v1.14.9 — 05/08/2026
 🌍 **Localização — dias da semana em português no dashboard da Secretaria**
 

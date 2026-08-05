@@ -855,6 +855,30 @@ Toda nova estrutura deverá ser documentada antes de ser considerada oficial.
 
 ---
 
+## GFE-LAY-009
+
+Cards de resumo e blocos equivalentes deverão seguir o padrão responsivo oficial de grid:
+
+- Desktop: 4 colunas (`col-lg-3`);
+- Tablet: 2 colunas (`col-sm-6`);
+- Mobile: 1 coluna (`col-12`, implícita quando não houver classe menor);
+- Espaçamento horizontal/vertical: `g-3` na `row`.
+
+Referência base:
+
+```html
+<div class="row g-3">
+        <div class="col-sm-6 col-lg-3">...</div>
+        <div class="col-sm-6 col-lg-3">...</div>
+        <div class="col-sm-6 col-lg-3">...</div>
+        <div class="col-sm-6 col-lg-3">...</div>
+</div>
+```
+
+Variações serão permitidas apenas quando houver justificativa funcional documentada.
+
+---
+
 # 14. Boas Práticas
 
 Durante o desenvolvimento recomenda-se:

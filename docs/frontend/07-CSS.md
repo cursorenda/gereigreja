@@ -674,6 +674,7 @@ Antes de criar, alterar ou remover regras CSS, verificar os itens abaixo.
 - [ ] Funciona em Notebook?
 - [ ] Funciona em Tablet?
 - [ ] Funciona em Smartphone?
+- [ ] Cards de resumo seguem padrão oficial de grid (`col-sm-6 col-lg-3` + `g-3`), salvo exceção documentada?
 
 ---
 
