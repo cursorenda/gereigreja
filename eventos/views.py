@@ -949,7 +949,7 @@ def marcar_presenca_evento(request, pk):
 		houve_ids_submetidos = bool(valores_json_brutos or valores_checkbox_brutos or presentes_map_name_pks or presentes_state_pks)
 
 		import logging
-		logger = logging.getLogger('django.request')
+		logger = logging.getLogger('eventos')
 		logger.info(
 			"[PRESENCA_EVENTO] evento=%s sessao=%s json_brutos=%s checkbox_brutos=%s presentes_json=%s presentes_checkbox=%s presentes_nomecampo=%s presentes_estado=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s amostra_json=%s amostra_checkbox=%s amostra_keys=%s",
 			evento.pk,

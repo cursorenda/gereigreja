@@ -1,3 +1,17 @@
+# v1.14.20 — 05/08/2026
+🧪 **Eventos — correção de ID localizável e log dedicado de presença**
+
+### Entregas
+- Correção no template para impedir localização de PK com separador de milhar em nomes/valores dos campos de presença.
+- Backend ajustado para normalizar IDs em formato localizado quando recebidos no POST.
+- Logger dedicado `eventos` configurado com arquivo próprio `logs/eventos_presenca.log` para rastrear o fluxo de marcação de presença sem depender apenas do terminal.
+
+### Impacto
+- Corrige a causa raiz evidenciada no log (`11.398` em vez de `11398`) que impedia o mapeamento dos participantes.
+- Facilita suporte e auditoria com histórico de logs técnicos por arquivo.
+
+---
+
 # v1.14.19 — 05/08/2026
 🔧 **Eventos — correção definitiva para IDs localizados na marcação de presença**
 

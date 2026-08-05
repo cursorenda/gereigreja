@@ -215,6 +215,14 @@ LOGGING = {
             'backupCount': 5,
             'formatter': 'verbose',
         },
+        'eventos_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'eventos_presenca.log',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
@@ -246,6 +254,11 @@ LOGGING = {
             'handlers': ['file', 'console'],
             'level': 'DEBUG',
             'propagate': True,
+        },
+        'eventos': {
+            'handlers': ['eventos_file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
         },
         'comunicacao': {
             'handlers': ['file', 'console'],
@@ -282,6 +295,14 @@ if DEBUG:
         'level': 'ERROR',
         'class': 'logging.handlers.RotatingFileHandler',
         'filename': LOGS_DIR / 'django_errors.log',
+        'maxBytes': 1024 * 1024 * 5,
+        'backupCount': 5,
+        'formatter': 'verbose',
+    }
+    LOGGING['handlers']['eventos_file'] = {
+        'level': 'INFO',
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': LOGS_DIR / 'eventos_presenca.log',
         'maxBytes': 1024 * 1024 * 5,
         'backupCount': 5,
         'formatter': 'verbose',
