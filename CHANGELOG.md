@@ -1,3 +1,18 @@
+# v1.14.16 — 05/08/2026
+🧱 **Eventos — correção estrutural do formulário de presença (sessão)**
+
+### Entregas
+- Formulário de marcação passou a enviar presença em formato robusto por nome de campo:
+  - `presentes_map_<pk_da_participacao>`.
+- Backend passou a priorizar esse mapeamento por nome de campo e manter compatibilidade com payloads legados (`presentes_json`, `presentes`, `email:*`).
+- Serialização do `presentes_json` no frontend foi alinhada para usar `data-participacao-pk`, evitando divergência de valor em checkbox.
+
+### Impacto
+- Elimina falha recorrente de mapeamento que mantinha todos como ausentes mesmo após marcação.
+- Torna o fluxo resistente a mudanças antigas de frontend e a diferenças de payload entre ambientes.
+
+---
+
 # v1.14.15 — 05/08/2026
 🔁 **Eventos — compatibilidade retroativa no payload de presença (fix definitivo)**
 

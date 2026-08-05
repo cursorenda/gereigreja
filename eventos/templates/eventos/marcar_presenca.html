@@ -72,9 +72,9 @@
             <tr>
               <td class="text-center">
                 {% if p.membro %}
-                  <input type="checkbox" name="presentes" value="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="checkbox" name="presentes_map_{{ p.pk }}" value="{{ p.pk }}" data-participacao-pk="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
                 {% elif p.convidado_email %}
-                  <input type="checkbox" name="presentes" value="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="checkbox" name="presentes_map_{{ p.pk }}" value="{{ p.pk }}" data-participacao-pk="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
                 {% endif %}
               </td>
               <td>{% if p.membro %}{{ p.membro.nome }}{% else %}{{ p.convidado_nome|default:p.convidado_email }}{% endif %}</td>
@@ -216,7 +216,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     const presentesPks = linhasDados().map(function(row) {
       const checkbox = row.querySelector('input.js-presenca-checkbox');
-      return checkbox && checkbox.checked ? checkbox.value : null;
+      if (!checkbox || !checkbox.checked) {
+        return null;
+      }
+      return checkbox.getAttribute('data-participacao-pk') || checkbox.value;
     }).filter(function(v) {
       return !!v;
     });
