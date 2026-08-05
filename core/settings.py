@@ -16,14 +16,19 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
 
-# Durante o build do Railway as env vars de runtime ainda não estão disponíveis.
-# Só ativamos o storage Cloudinary e validamos a config quando a variável existir.
+# Durante o build do Render as env vars de runtime ainda não estão disponíveis.
+# Só ativamos o storage Cloudinary quando a variável existir.
 _IS_BUILD_PHASE = not os.environ.get('CLOUDINARY_CLOUD_NAME')
 
 if _IS_BUILD_PHASE:
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 else:
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    # Força a inicialização do storage Cloudinary imediatamente
+    # (necessário para django-cloudinary-storage 0.3.0 com Django 5.x)
+    from django.core.files.storage import default_storage
+    from django.utils.module_loading import import_string
+    default_storage._wrapped = import_string(DEFAULT_FILE_STORAGE)()
 
 MEDIA_URL = '/media/'
 
