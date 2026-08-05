@@ -1,3 +1,20 @@
+# v1.14.13 — 05/08/2026
+✅ **Eventos — correção no registro de presenças por sessão**
+
+### Entregas
+- Correção na view de marcação de presença para evitar bloqueio silencioso quando o catálogo de status diverge do padrão textual.
+- Filtro de status ajustado para comparação resiliente (`iexact`) e fallback seguro quando não houver status padrão correspondentes.
+- Fluxo de criação/consulta de participações alinhado para incluir membros e convidados elegíveis sem perder registros por filtro rígido.
+- Redirecionamento pós-salvamento agora preserva a sessão selecionada no detalhe do evento (`?sessao=`), evitando percepção de que a presença não foi salva.
+- Mensagem explícita adicionada quando não existir participante elegível na sessão.
+
+### Impacto
+- Resolve cenário em que a presença aparentava não registrar na tela de detalhes do evento.
+- Reduz risco de sucesso falso sem alteração de dados.
+- Melhora consistência em eventos com múltiplas sessões.
+
+---
+
 # v1.14.12 — 05/08/2026
 🎯 **Secretaria — modal contextual para alteracoes de Tipo e Status no cadastro de pessoas**
 

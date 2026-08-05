@@ -680,20 +680,34 @@ def marcar_presenca_evento(request, pk):
 
 	# Exibir apenas membros com status permitido na lista de presença (usando IDs)
 	from secretaria.models import StatusPessoa
-	status_nomes = ['Ativo', 'Desligado', 'Em Disciplina']
-	status_ids = list(StatusPessoa.objects.filter(nome__in=status_nomes).values_list('id', flat=True))
+	status_ids = list(
+		StatusPessoa.objects.filter(
+			Q(nome__iexact='Ativo') |
+			Q(nome__iexact='Desligado') |
+			Q(nome__iexact='Em Disciplina')
+		).values_list('id', flat=True)
+	)
 
 	# Buscar participações para a sessão selecionada; se não existirem, criar
 	# participações baseadas nos membros esperados do evento.
 	# Buscar participações para a sessão selecionada; incluir tanto membros
 	# quanto convidados por email (convidado_email). Para membros, respeitar
 	# o filtro de status; convidados por email não têm membro associado.
-	participacoes = ParticipacaoEvento.objects.filter(
+	participacoes_base = ParticipacaoEvento.objects.filter(
 		evento=evento,
 		sessao=sessao
-	).filter(
-		Q(membro__isnull=False, membro__status_pessoa__in=status_ids) | Q(convidado_email__isnull=False)
 	).select_related('membro')
+
+	if status_ids:
+		participacoes = participacoes_base.filter(
+			Q(membro__isnull=False, membro__status_pessoa__in=status_ids) | Q(convidado_email__isnull=False)
+		)
+	else:
+		# Fallback defensivo: quando o catálogo de status divergir do padrão,
+		# não bloquear o registro de presença por filtro rígido.
+		participacoes = participacoes_base.filter(
+			Q(membro__isnull=False) | Q(convidado_email__isnull=False)
+		)
 
 	# Se não há participações para a sessão, preencha automaticamente usando sistema híbrido
 	if not participacoes.exists():
@@ -733,7 +747,13 @@ def marcar_presenca_evento(request, pk):
 				if created_flag:
 					created.append(pe)
 		
-		participacoes = ParticipacaoEvento.objects.filter(evento=evento, sessao=sessao, membro__status_pessoa__in=status_ids).select_related('membro')
+		participacoes_base = ParticipacaoEvento.objects.filter(evento=evento, sessao=sessao).select_related('membro')
+		if status_ids:
+			participacoes = participacoes_base.filter(
+				Q(membro__isnull=False, membro__status_pessoa__in=status_ids) | Q(convidado_email__isnull=False)
+			)
+		else:
+			participacoes = participacoes_base.filter(Q(membro__isnull=False) | Q(convidado_email__isnull=False))
 
 	if request.method == 'POST':
 		presentes_pks = set()
@@ -766,6 +786,16 @@ def marcar_presenca_evento(request, pk):
 			participacoes.count()
 		)
 
+		if not participacoes.exists():
+			messages.warning(
+				request,
+				'Nenhum participante elegivel foi encontrado para registrar presença nesta sessão.'
+			)
+			redirect_url = reverse('eventos:detalhe_evento', args=[evento.pk])
+			if sessao:
+				redirect_url = f"{redirect_url}?sessao={sessao.pk}"
+			return redirect(redirect_url)
+
 		# Atualiza participações existentes (membros e convidados por email)
 		for participacao in participacoes:
 			justificativa_sel = request.POST.get(f'justificativa_sel_{participacao.pk}', '').strip()
@@ -789,7 +819,10 @@ def marcar_presenca_evento(request, pk):
 					participacao.justificativa_falta = justificativa
 					participacao.save(update_fields=['status', 'justificativa_falta'])
 		messages.success(request, 'Presenças e justificativas atualizadas com sucesso!')
-		return redirect(reverse('eventos:detalhe_evento', args=[evento.pk]))
+		redirect_url = reverse('eventos:detalhe_evento', args=[evento.pk])
+		if sessao:
+			redirect_url = f"{redirect_url}?sessao={sessao.pk}"
+		return redirect(redirect_url)
 
 	return render(request, 'eventos/marcar_presenca.html', {'evento': evento, 'participacoes': participacoes, 'sessoes': sessoes, 'sessao': sessao})
 
