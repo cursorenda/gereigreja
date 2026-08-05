@@ -1,3 +1,18 @@
+# v1.14.17 — 05/08/2026
+🧩 **Eventos — persistência determinística da presença por linha (hotfix final)**
+
+### Entregas
+- Cada participante da grade de presença agora envia um campo oculto `presenca_estado_<pk>` com estado `1/0`.
+- JavaScript sincroniza automaticamente esse estado ao marcar/desmarcar checkbox e ao usar ações de marcação em lote.
+- Backend passou a priorizar o estado por linha para compor os presentes, mantendo todos os fallbacks anteriores (`presentes_json`, `presentes`, `presentes_map_*`).
+- Log técnico ampliado com `presentes_estado` para validação operacional em produção e ambiente local.
+
+### Impacto
+- Remove dependência de variações de serialização de checkbox/json no navegador.
+- Corrige de forma estável o erro de mapeamento em sessões de evento com lista grande de participantes.
+
+---
+
 # v1.14.16 — 05/08/2026
 🧱 **Eventos — correção estrutural do formulário de presença (sessão)**
 

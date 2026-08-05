@@ -759,6 +759,7 @@ def marcar_presenca_evento(request, pk):
 		presentes_json_pks = set()
 		presentes_checkbox_pks = set()
 		presentes_map_name_pks = set()
+		presentes_state_pks = set()
 		valores_json_brutos = []
 		valores_checkbox_brutos = []
 		import json
@@ -781,6 +782,18 @@ def marcar_presenca_evento(request, pk):
 				presentes_map_name_pks.add(int(suffix))
 			except (TypeError, ValueError):
 				continue
+
+		# Formato determinístico: cada linha envia estado 1/0 por PK de participação.
+		for key, val in request.POST.items():
+			if not str(key).startswith('presenca_estado_'):
+				continue
+			suffix = str(key).split('presenca_estado_', 1)[1].strip()
+			try:
+				pk_participacao = int(suffix)
+			except (TypeError, ValueError):
+				continue
+			if str(val).strip() == '1':
+				presentes_state_pks.add(pk_participacao)
 
 		# Compatibilidade com payload antigo por lista "presentes".
 		for value in request.POST.getlist('presentes'):
@@ -834,13 +847,14 @@ def marcar_presenca_evento(request, pk):
 			presentes_checkbox_pks.update(mapeados)
 
 		presentes_map_name_pks = presentes_map_name_pks.intersection(participacoes_ids)
-		presentes_pks = presentes_json_pks.union(presentes_checkbox_pks).union(presentes_map_name_pks)
-		houve_ids_submetidos = bool(valores_json_brutos or valores_checkbox_brutos or presentes_map_name_pks)
+		presentes_state_pks = presentes_state_pks.intersection(participacoes_ids)
+		presentes_pks = presentes_state_pks.union(presentes_json_pks).union(presentes_checkbox_pks).union(presentes_map_name_pks)
+		houve_ids_submetidos = bool(valores_json_brutos or valores_checkbox_brutos or presentes_map_name_pks or presentes_state_pks)
 
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.info(
-			"[PRESENCA_EVENTO] evento=%s sessao=%s json_brutos=%s checkbox_brutos=%s presentes_json=%s presentes_checkbox=%s presentes_nomecampo=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s",
+			"[PRESENCA_EVENTO] evento=%s sessao=%s json_brutos=%s checkbox_brutos=%s presentes_json=%s presentes_checkbox=%s presentes_nomecampo=%s presentes_estado=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s",
 			evento.pk,
 			sessao.pk if sessao else None,
 			len(valores_json_brutos),
@@ -848,6 +862,7 @@ def marcar_presenca_evento(request, pk):
 			len(presentes_json_pks),
 			len(presentes_checkbox_pks),
 			len(presentes_map_name_pks),
+			len(presentes_state_pks),
 			len(presentes_pks),
 			len(presentes_json),
 			participacoes.count()

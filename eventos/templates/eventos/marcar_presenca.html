@@ -73,8 +73,10 @@
               <td class="text-center">
                 {% if p.membro %}
                   <input type="checkbox" name="presentes_map_{{ p.pk }}" value="{{ p.pk }}" data-participacao-pk="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="hidden" name="presenca_estado_{{ p.pk }}" value="{% if p.status == 'PRESENTE' %}1{% else %}0{% endif %}" data-participacao-pk="{{ p.pk }}" class="js-presenca-state">
                 {% elif p.convidado_email %}
                   <input type="checkbox" name="presentes_map_{{ p.pk }}" value="{{ p.pk }}" data-participacao-pk="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="hidden" name="presenca_estado_{{ p.pk }}" value="{% if p.status == 'PRESENTE' %}1{% else %}0{% endif %}" data-participacao-pk="{{ p.pk }}" class="js-presenca-state">
                 {% endif %}
               </td>
               <td>{% if p.membro %}{{ p.membro.nome }}{% else %}{{ p.convidado_nome|default:p.convidado_email }}{% endif %}</td>
@@ -202,8 +204,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       const checkbox = row.querySelector('input.js-presenca-checkbox');
+      const stateInput = row.querySelector('input.js-presenca-state');
       if (checkbox) {
         checkbox.checked = marcar;
+      }
+      if (stateInput) {
+        stateInput.value = marcar ? '1' : '0';
       }
     });
     syncPresentesJson();
@@ -216,6 +222,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     const presentesPks = linhasDados().map(function(row) {
       const checkbox = row.querySelector('input.js-presenca-checkbox');
+      const stateInput = row.querySelector('input.js-presenca-state');
+      if (stateInput && String(stateInput.value) === '1') {
+        return stateInput.getAttribute('data-participacao-pk') || null;
+      }
       if (!checkbox || !checkbox.checked) {
         return null;
       }
@@ -325,6 +335,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   tbody.addEventListener('change', function(event) {
     if (event.target && event.target.matches('input.js-presenca-checkbox')) {
+      const row = event.target.closest('tr');
+      if (row) {
+        const stateInput = row.querySelector('input.js-presenca-state');
+        if (stateInput) {
+          stateInput.value = event.target.checked ? '1' : '0';
+        }
+      }
       syncPresentesJson();
       atualizarResumo();
     }
