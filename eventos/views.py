@@ -772,6 +772,27 @@ def marcar_presenca_evento(request, pk):
 			texto = str(raw or '').strip().lower()
 			return texto in {'1', 'true', 'on', 'yes', 'sim', 'checked'}
 
+		def _parse_pk_localizado(valor_raw):
+			texto = str(valor_raw or '').strip()
+			if not texto:
+				return None
+
+			try:
+				return int(texto)
+			except (TypeError, ValueError):
+				pass
+
+			# Aceita formato localizado com separadores (ex.: 11.398 -> 11398).
+			if re.fullmatch(r'[\d\.,\s]+', texto):
+				digitos = re.sub(r'\D', '', texto)
+				if digitos:
+					try:
+						return int(digitos)
+					except (TypeError, ValueError):
+						return None
+
+			return None
+
 		def _coletar_tokens_json(node):
 			tokens = []
 			if isinstance(node, list):
@@ -820,19 +841,17 @@ def marcar_presenca_evento(request, pk):
 			if not str(key).startswith('presentes_map_'):
 				continue
 			suffix = str(key).split('presentes_map_', 1)[1].strip()
-			try:
-				presentes_map_name_pks.add(int(suffix))
-			except (TypeError, ValueError):
-				continue
+			pk_normalizado = _parse_pk_localizado(suffix)
+			if pk_normalizado is not None:
+				presentes_map_name_pks.add(pk_normalizado)
 
 		# Formato determinístico: cada linha envia estado 1/0 por PK de participação.
 		for key, val in request.POST.items():
 			if not str(key).startswith('presenca_estado_'):
 				continue
 			suffix = str(key).split('presenca_estado_', 1)[1].strip()
-			try:
-				pk_participacao = int(suffix)
-			except (TypeError, ValueError):
+			pk_participacao = _parse_pk_localizado(suffix)
+			if pk_participacao is None:
 				continue
 			if str(val).strip() == '1':
 				presentes_state_pks.add(pk_participacao)
@@ -884,12 +903,9 @@ def marcar_presenca_evento(request, pk):
 				return set()
 
 			# 1) Valor já é PK da participação.
-			try:
-				candidato_pk = int(valor_raw)
-				if candidato_pk in participacoes_ids:
-					return {candidato_pk}
-			except (TypeError, ValueError):
-				pass
+			candidato_pk = _parse_pk_localizado(valor_raw)
+			if candidato_pk is not None and candidato_pk in participacoes_ids:
+				return {candidato_pk}
 
 			# 2) Valor é ID do membro (compatibilidade com payload legado).
 			if valor_raw in participacoes_por_membro:

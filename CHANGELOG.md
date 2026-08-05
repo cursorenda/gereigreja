@@ -1,3 +1,16 @@
+# v1.14.19 — 05/08/2026
+🔧 **Eventos — correção definitiva para IDs localizados na marcação de presença**
+
+### Entregas
+- Template de presença passou a usar `unlocalize` nos campos dinâmicos por participação (`presentes_map_*`, `presenca_estado_*`, justificativas), impedindo envio com separador de milhar.
+- Backend ganhou normalização explícita para IDs localizados (ex.: `11.398` -> `11398`) durante o mapeamento de presença.
+
+### Impacto
+- Elimina a causa raiz observada em produção/local onde os IDs chegavam com ponto e eram descartados no parse.
+- Evita novo falso negativo de mapeamento para sessões com grande volume de participantes.
+
+---
+
 # v1.14.18 — 05/08/2026
 🛡️ **Eventos — blindagem extra de mapeamento de presença (payload heterogêneo)**
 

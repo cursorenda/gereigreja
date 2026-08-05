@@ -1,5 +1,6 @@
 {% extends 'base_com_sistema.html' %}
 {% load static %}
+{% load l10n %}
 
 {% block title %}Marcar Presença{% endblock %}
 {% block nome_departamento %}Eventos{% endblock %}
@@ -72,11 +73,11 @@
             <tr>
               <td class="text-center">
                 {% if p.membro %}
-                  <input type="checkbox" name="presentes_map_{{ p.pk }}" value="{{ p.pk }}" data-participacao-pk="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
-                  <input type="hidden" name="presenca_estado_{{ p.pk }}" value="{% if p.status == 'PRESENTE' %}1{% else %}0{% endif %}" data-participacao-pk="{{ p.pk }}" class="js-presenca-state">
+                  <input type="checkbox" name="presentes_map_{{ p.pk|unlocalize }}" value="{{ p.pk|unlocalize }}" data-participacao-pk="{{ p.pk|unlocalize }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="hidden" name="presenca_estado_{{ p.pk|unlocalize }}" value="{% if p.status == 'PRESENTE' %}1{% else %}0{% endif %}" data-participacao-pk="{{ p.pk|unlocalize }}" class="js-presenca-state">
                 {% elif p.convidado_email %}
-                  <input type="checkbox" name="presentes_map_{{ p.pk }}" value="{{ p.pk }}" data-participacao-pk="{{ p.pk }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
-                  <input type="hidden" name="presenca_estado_{{ p.pk }}" value="{% if p.status == 'PRESENTE' %}1{% else %}0{% endif %}" data-participacao-pk="{{ p.pk }}" class="js-presenca-state">
+                  <input type="checkbox" name="presentes_map_{{ p.pk|unlocalize }}" value="{{ p.pk|unlocalize }}" data-participacao-pk="{{ p.pk|unlocalize }}" class="js-presenca-checkbox" {% if p.status == 'PRESENTE' %}checked{% endif %}>
+                  <input type="hidden" name="presenca_estado_{{ p.pk|unlocalize }}" value="{% if p.status == 'PRESENTE' %}1{% else %}0{% endif %}" data-participacao-pk="{{ p.pk|unlocalize }}" class="js-presenca-state">
                 {% endif %}
               </td>
               <td>{% if p.membro %}{{ p.membro.nome }}{% else %}{{ p.convidado_nome|default:p.convidado_email }}{% endif %}</td>
@@ -92,7 +93,7 @@
               <td>{{ p.get_papel_display }}</td>
               <td>
                 {% if p.status == 'AUSENTE' or p.status != 'PRESENTE' %}
-                  <select name="justificativa_sel_{{ p.pk }}" class="form-select form-select-sm justificativa-select" data-pk="{{ p.pk }}">
+                  <select name="justificativa_sel_{{ p.pk|unlocalize }}" class="form-select form-select-sm justificativa-select" data-pk="{{ p.pk|unlocalize }}">
                     <option value="">Selecione...</option>
                     <option value="Motivo de saúde" {% if p.justificativa_falta == 'Motivo de saúde' %}selected{% endif %}>Motivo de saúde</option>
                     <option value="Trabalho/Compromissos profissionais" {% if p.justificativa_falta == 'Trabalho/Compromissos profissionais' %}selected{% endif %}>Trabalho/Compromissos profissionais</option>
@@ -105,7 +106,7 @@
                     <option value="Motivo pessoal" {% if p.justificativa_falta == 'Motivo pessoal' %}selected{% endif %}>Motivo pessoal</option>
                     <option value="Outro" {% if p.justificativa_falta and p.justificativa_falta|slice:"0:5" == 'Outro' %}selected{% endif %}>Outro</option>
                   </select>
-                  <input type="text" name="justificativa_outro_{{ p.pk }}" class="form-control form-control-sm mt-1 justificativa-outro eventos-hidden" value="{% if p.justificativa_falta and p.justificativa_falta|slice:'0:5' == 'Outro' %}{{ p.justificativa_falta|cut:'Outro: ' }}{% endif %}" placeholder="Descreva o motivo...">
+                  <input type="text" name="justificativa_outro_{{ p.pk|unlocalize }}" class="form-control form-control-sm mt-1 justificativa-outro eventos-hidden" value="{% if p.justificativa_falta and p.justificativa_falta|slice:'0:5' == 'Outro' %}{{ p.justificativa_falta|cut:'Outro: ' }}{% endif %}" placeholder="Descreva o motivo...">
                 {% else %}
                   <span class="text-muted">-</span>
                 {% endif %}
