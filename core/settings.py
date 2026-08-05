@@ -16,14 +16,16 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-if not CLOUDINARY_STORAGE['CLOUD_NAME']:
-    raise Exception("CLOUDINARY_CLOUD_NAME não está definida!")
-MEDIA_URL = '/media/'
+# Durante o build do Railway as env vars de runtime ainda não estão disponíveis.
+# Só ativamos o storage Cloudinary e validamos a config quando a variável existir.
+_IS_BUILD_PHASE = not os.environ.get('CLOUDINARY_CLOUD_NAME')
 
-from django.core.files.storage import default_storage
-from django.utils.module_loading import import_string
-default_storage._wrapped = import_string(DEFAULT_FILE_STORAGE)()
+if _IS_BUILD_PHASE:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+else:
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+MEDIA_URL = '/media/'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/

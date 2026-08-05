@@ -1,0 +1,28 @@
+# nixpacks.toml — configuração do build Railway para o GereIgreja
+#
+# weasyprint precisa de bibliotecas de sistema (pango, cairo, gdk-pixbuf, etc.)
+# que não estão disponíveis no ambiente Nixpacks por padrão.
+# Também movemos collectstatic para o start command para evitar falhas
+# quando variáveis de ambiente de runtime (Cloudinary) não estão disponíveis na fase de build.
+
+[phases.setup]
+nixPkgs = [
+    "pango",
+    "cairo",
+    "gdk-pixbuf",
+    "libffi",
+    "gobject-introspection",
+    "harfbuzz",
+    "fontconfig",
+    "freetype",
+    "pkg-config",
+]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
