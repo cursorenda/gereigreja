@@ -390,26 +390,31 @@ def executar_automacao_aniversario_email(*, ministerio, referencia=None, force=F
     if automacao.ultima_execucao_email == hoje and not force:
         return {'enviados': 0, 'falhas': 0, 'ignorado': True}
 
+    from configuracao.models import Igreja
+
     enviados = 0
     falhas = 0
 
-    pessoas = Membro.objects.filter(
-        igreja__ministerio=ministerio,
-        nascimento__month=hoje.month,
-        nascimento__day=hoje.day,
-    ).exclude(email__isnull=True).exclude(email='').select_related('igreja')
+    # Itera por igreja para garantir isolamento de escopo (evitar escape entre igrejas do ministerio)
+    igrejas = Igreja.objects.filter(ministerio=ministerio, ativa=True)
+    for igreja in igrejas:
+        pessoas = Membro.objects.filter(
+            igreja=igreja,
+            nascimento__month=hoje.month,
+            nascimento__day=hoje.day,
+        ).exclude(email__isnull=True).exclude(email='').select_related('igreja')
 
-    for pessoa in pessoas:
-        try:
-            enviar_email_personalizado(
-                ministerio=ministerio,
-                membro=pessoa,
-                assunto_template=automacao.email_assunto_template,
-                mensagem_template=automacao.email_mensagem_template,
-            )
-            enviados += 1
-        except Exception:
-            falhas += 1
+        for pessoa in pessoas:
+            try:
+                enviar_email_personalizado(
+                    ministerio=ministerio,
+                    membro=pessoa,
+                    assunto_template=automacao.email_assunto_template,
+                    mensagem_template=automacao.email_mensagem_template,
+                )
+                enviados += 1
+            except Exception:
+                falhas += 1
 
     with transaction.atomic():
         AutomacaoAniversariantes.objects.filter(pk=automacao.pk).update(ultima_execucao_email=hoje)

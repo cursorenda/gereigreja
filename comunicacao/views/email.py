@@ -217,6 +217,8 @@ def configurar_automacao_aniversariantes(request):
     else:
         form = AutomacaoAniversariantesForm(instance=automacao)
 
+    igreja_ativa = request.igreja_ativa
+
     return render(
         request,
         'comunicacao/automacoes/aniversariantes.html',
@@ -224,8 +226,12 @@ def configurar_automacao_aniversariantes(request):
             'form': form,
             'ministerio': ministerio,
             'automacao': automacao,
+            'igreja_ativa': igreja_ativa,
             'agendamentos_aniversario': listar_agendamentos_aniversariantes(ministerio=ministerio),
-            'proximos_aniversariantes': listar_proximos_aniversariantes(ministerio=ministerio),
+            'proximos_aniversariantes': listar_proximos_aniversariantes(
+                ministerio=ministerio,
+                igreja=igreja_ativa,
+            ),
             'titulo_pagina': 'Automacao de Aniversariantes',
         },
     )
