@@ -765,35 +765,55 @@ def marcar_presenca_evento(request, pk):
 		import json
 		import re
 		import unicodedata
-		presentes_json = request.POST.get('presentes_json', '').strip()
-		if presentes_json:
-			try:
-				for value in json.loads(presentes_json):
-					if isinstance(value, dict):
-						candidatos = [
-							value.get('participacao_id'),
-							value.get('participacaoPk'),
-							value.get('pk'),
-							value.get('id'),
-							value.get('membro_id'),
-							value.get('membroId'),
-							value.get('email'),
-							value.get('nome'),
-							value.get('value'),
-						]
-						for candidato in candidatos:
-							if candidato is None:
-								continue
-							valor_normalizado = str(candidato).strip()
-							if valor_normalizado:
-								valores_json_brutos.append(valor_normalizado)
-						continue
 
-					valor_normalizado = str(value or '').strip()
-					if valor_normalizado:
-						valores_json_brutos.append(valor_normalizado)
+		def _valor_indica_true(raw):
+			if isinstance(raw, bool):
+				return raw
+			texto = str(raw or '').strip().lower()
+			return texto in {'1', 'true', 'on', 'yes', 'sim', 'checked'}
+
+		def _coletar_tokens_json(node):
+			tokens = []
+			if isinstance(node, list):
+				for item in node:
+					tokens.extend(_coletar_tokens_json(item))
+				return tokens
+
+			if isinstance(node, dict):
+				# Formato mapa: {"123": true, "124": false}
+				for k, v in node.items():
+					chave = str(k or '').strip()
+					if chave and _valor_indica_true(v):
+						tokens.append(chave)
+					tokens.extend(_coletar_tokens_json(v))
+
+				# Campos comuns em payloads de seleção.
+				for field in [
+					'participacao_id', 'participacaoPk', 'participacao_pk',
+					'pk', 'id', 'membro_id', 'membroId', 'email', 'nome', 'value'
+				]:
+					if field in node and node.get(field) is not None:
+						tokens.append(str(node.get(field)).strip())
+				return tokens
+
+			valor = str(node or '').strip()
+			return [valor] if valor else []
+
+		for presentes_json_raw in request.POST.getlist('presentes_json'):
+			presentes_json_raw = str(presentes_json_raw or '').strip()
+			if not presentes_json_raw:
+				continue
+			try:
+				parsed = json.loads(presentes_json_raw)
+				for token in _coletar_tokens_json(parsed):
+					if token:
+						valores_json_brutos.append(token)
 			except (ValueError, TypeError, json.JSONDecodeError):
-				valores_json_brutos = []
+				# Payload não-JSON: tenta fallback por CSV/pipe/separadores comuns.
+				for token in re.split(r'[;,|\s]+', presentes_json_raw):
+					token = str(token or '').strip()
+					if token:
+						valores_json_brutos.append(token)
 
 		# Formato robusto: nome do campo carrega o pk da participação.
 		for key in request.POST.keys():
@@ -819,6 +839,15 @@ def marcar_presenca_evento(request, pk):
 
 		# Compatibilidade com payload antigo por lista "presentes".
 		for value in request.POST.getlist('presentes'):
+			valor_normalizado = str(value or '').strip()
+			if valor_normalizado:
+				valores_checkbox_brutos.append(valor_normalizado)
+
+		# Fallback ultra-defensivo: qualquer chave de presença que carregue valor textual.
+		for key, value in request.POST.items():
+			key_lower = str(key or '').lower()
+			if ('presen' not in key_lower) or str(key).startswith('presenca_estado_'):
+				continue
 			valor_normalizado = str(value or '').strip()
 			if valor_normalizado:
 				valores_checkbox_brutos.append(valor_normalizado)
@@ -916,7 +945,7 @@ def marcar_presenca_evento(request, pk):
 			len(presentes_map_name_pks),
 			len(presentes_state_pks),
 			len(presentes_pks),
-			len(presentes_json),
+			len(request.POST.get('presentes_json', '') or ''),
 			participacoes.count(),
 			valores_json_brutos[:5],
 			valores_checkbox_brutos[:5],
