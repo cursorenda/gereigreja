@@ -3,6 +3,7 @@ from django.http import Http404
 from django.contrib import messages
 from configuracao.models import PerfilUsuario, Ministerio
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from configuracao.models import AssinaturaMinisterio
 from configuracao.services_assinatura import assinatura_esta_regular, obter_assinatura_ministerio
@@ -17,6 +18,27 @@ import logging
 from secretaria.models import Membro # Certifique-se que o caminho está correto
 
 logger = logging.getLogger(__name__)
+
+WEEKDAY_LABELS = {
+    'pt': {'mon': 'SEG', 'tue': 'TER', 'wed': 'QUA', 'thu': 'QUI', 'fri': 'SEX', 'sat': 'SÁB', 'sun': 'DOM'},
+    'en': {'mon': 'MON', 'tue': 'TUE', 'wed': 'WED', 'thu': 'THU', 'fri': 'FRI', 'sat': 'SAT', 'sun': 'SUN'},
+}
+
+
+def get_weekday_label(value, language='pt'):
+    """Retorna o nome abreviado do dia da semana em um idioma configurado.
+
+    O padrão é português, mas o helper já aceita outros idiomas para futura expansão.
+    """
+    if hasattr(value, 'weekday'):
+        weekday_index = value.weekday()
+    else:
+        weekday_index = int(value)
+
+    names = WEEKDAY_LABELS.get(language, WEEKDAY_LABELS['pt'])
+    mapping = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    return names[mapping[weekday_index]].upper()
+
 
 def enviar_email_para_membro(membro: Membro, assunto: str, corpo_html: str, corpo_texto: str = None):
     """

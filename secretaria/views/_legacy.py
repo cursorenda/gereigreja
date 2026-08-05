@@ -216,7 +216,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 # Third-party/local apps
 from core.decorators import verificar_assinatura_valida, page_access_required
-from core.utils import get_ministerio_or_error
+from core.utils import get_ministerio_or_error, get_weekday_label
 from eventos.models import Evento
 from financeiro.models import Receitas
 from secretaria.utils import (
@@ -2702,7 +2702,7 @@ def index(request):
         dia = data.day
         # Dia da semana abreviado (ex: TER, QUA)
         try:
-            dia_semana = data.strftime('%a').upper()
+            dia_semana = get_weekday_label(data)
         except Exception:
             dia_semana = ''
 
