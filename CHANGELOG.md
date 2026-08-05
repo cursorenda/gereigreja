@@ -1,3 +1,23 @@
+# v1.14.12 — 05/08/2026
+🎯 **Secretaria — modal contextual para alteracoes de Tipo e Status no cadastro de pessoas**
+
+### Entregas
+- Fluxo da tela de edicao premium atualizado para reduzir ambiguidade na governanca:
+  - ao alterar **Tipo**, a janela de auditoria abre focada em Tipo;
+  - ao alterar **Status**, a janela de auditoria abre focada em Status.
+- Modal de auditoria agora adapta dinamicamente:
+  - titulo e texto de ajuda por contexto;
+  - exibicao de apenas um bloco de data quando a mudanca e exclusiva de Tipo ou de Status;
+  - preservacao do fluxo manual completo quando aberto por acao direta.
+- Validacao no backend refinada para mensagens mais claras quando faltar motivo de alteracao critica, considerando contexto da mudanca.
+
+### Impacto
+- Reduz risco de preenchimento incorreto no registro de auditoria.
+- Melhora entendimento do usuario sobre o que esta sendo alterado.
+- Mantem compatibilidade com o historico de Tipo/Status e regras de governanca existentes.
+
+---
+
 # v1.14.11 — 05/08/2026
 🧩 **Comunicação — cards superiores da home em linha no desktop com responsividade padronizada**
 

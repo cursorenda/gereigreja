@@ -380,12 +380,35 @@ def editar_membro(request, membro_id):  # noqa: E302
                             membro_editado.igreja_id != original_igreja_id or
                             membro_editado.grau_eclesiastico != original_grau
                         )
+                        tipo_changed = membro_editado.tipo_pessoa_id != original_tipo_id
+                        status_changed = membro_editado.status_pessoa_id != original_status_id
                         motivo_transicao = (request.POST.get('motivo_transicao') or '').strip()
 
                         if critical_changed and not motivo_transicao:
+                            transition_context = (request.POST.get('transition_context') or '').strip().lower()
+                            if transition_context not in ('tipo', 'status', 'all'):
+                                transition_context = 'all'
+
+                            campos_criticos = []
+                            if tipo_changed:
+                                campos_criticos.append('Tipo')
+                            if status_changed:
+                                campos_criticos.append('Status')
+                            if membro_editado.igreja_id != original_igreja_id:
+                                campos_criticos.append('Igreja')
+                            if membro_editado.grau_eclesiastico != original_grau:
+                                campos_criticos.append('Grau Eclesiastico')
+
+                            if transition_context == 'tipo' and tipo_changed and len(campos_criticos) == 1:
+                                mensagem_erro = 'Informe o motivo da alteracao para salvar a mudanca de Tipo.'
+                            elif transition_context == 'status' and status_changed and len(campos_criticos) == 1:
+                                mensagem_erro = 'Informe o motivo da alteracao para salvar a mudanca de Status.'
+                            else:
+                                mensagem_erro = 'Informe o motivo da alteracao para salvar mudancas de ' + ', '.join(campos_criticos) + '.'
+
                             messages.error(
                                 request,
-                                'Informe o motivo da alteracao para salvar mudancas de Tipo, Status, Igreja ou Grau Eclesiastico.'
+                                mensagem_erro
                             )
                         else:
                             data_mudanca_tipo = form.cleaned_data.get('data_mudanca_tipo')

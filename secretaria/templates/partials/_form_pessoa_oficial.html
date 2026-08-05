@@ -147,6 +147,7 @@
 
 					<input type="hidden" id="id_data_mudanca_tipo" name="data_mudanca_tipo" value="{% if request.POST.data_mudanca_tipo %}{{ request.POST.data_mudanca_tipo }}{% endif %}">
 					<input type="hidden" id="id_data_mudanca_status" name="data_mudanca_status" value="{% if request.POST.data_mudanca_status %}{{ request.POST.data_mudanca_status }}{% endif %}">
+					<input type="hidden" id="id_transition_context" name="transition_context" value="{% if request.POST.transition_context %}{{ request.POST.transition_context }}{% else %}all{% endif %}">
 					<textarea id="id_motivo_transicao" name="motivo_transicao" class="d-none">{% if request.POST.motivo_transicao %}{{ request.POST.motivo_transicao }}{% endif %}</textarea>
 				</div>
 
@@ -158,9 +159,9 @@
 								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
 							</div>
 							<div class="modal-body">
-								<p class="transition-modal-help">Informe os dados de auditoria para a mudanca. Isso sera gravado no historico de Tipo/Status.</p>
+								<p class="transition-modal-help" id="modal-transition-help">Informe os dados de auditoria para a mudanca. Isso sera gravado no historico de Tipo/Status.</p>
 								<div class="row g-3">
-									<div class="col-md-6">
+									<div class="col-md-6" id="modal-transition-tipo-block">
 										<label for="modal_data_mudanca_tipo" class="form-label">Data da mudanca de Tipo</label>
 										<input type="date" id="modal_data_mudanca_tipo" class="form-control" value="{% if request.POST.data_mudanca_tipo %}{{ request.POST.data_mudanca_tipo }}{% endif %}">
 										<div class="d-flex gap-2 mt-2">
@@ -168,7 +169,7 @@
 											<button type="button" class="btn btn-outline-secondary btn-sm" id="btn-limpar-mudanca-tipo">Limpar</button>
 										</div>
 									</div>
-									<div class="col-md-6">
+									<div class="col-md-6" id="modal-transition-status-block">
 										<label for="modal_data_mudanca_status" class="form-label">Data da mudanca de Status</label>
 										<input type="date" id="modal_data_mudanca_status" class="form-control" value="{% if request.POST.data_mudanca_status %}{{ request.POST.data_mudanca_status }}{% endif %}">
 										<div class="d-flex gap-2 mt-2">
@@ -177,7 +178,7 @@
 										</div>
 									</div>
 									<div class="col-12">
-										<label for="modal_motivo_transicao" class="form-label">Motivo da alteracao</label>
+										<label for="modal_motivo_transicao" class="form-label" id="modal-motivo-transicao-label">Motivo da alteracao</label>
 										<textarea id="modal_motivo_transicao" rows="3" class="form-control" placeholder="Explique o motivo da alteracao.">{% if request.POST.motivo_transicao %}{{ request.POST.motivo_transicao }}{% endif %}</textarea>
 										<small class="form-text text-muted d-block mt-2">A primeira mudanca pode ficar sem data. Apos existir data historica, o sistema usa hoje automaticamente quando o campo vier em branco.</small>
 									</div>

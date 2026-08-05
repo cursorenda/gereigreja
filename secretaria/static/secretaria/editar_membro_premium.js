@@ -4,6 +4,7 @@
     if (!tabButtons.length) return;
     var form = document.querySelector('form[data-premium-sections="1"]');
     var motivoField = document.getElementById('id_motivo_transicao');
+    var transitionContextField = document.getElementById('id_transition_context');
     var dataMudancaTipoField = document.getElementById('id_data_mudanca_tipo');
     var dataMudancaStatusField = document.getElementById('id_data_mudanca_status');
     var tipoSelect = document.getElementById('id_tipo_pessoa');
@@ -12,6 +13,11 @@
     var modalTipoDate = document.getElementById('modal_data_mudanca_tipo');
     var modalStatusDate = document.getElementById('modal_data_mudanca_status');
     var modalMotivo = document.getElementById('modal_motivo_transicao');
+    var modalHelp = document.getElementById('modal-transition-help');
+    var modalTipoBlock = document.getElementById('modal-transition-tipo-block');
+    var modalStatusBlock = document.getElementById('modal-transition-status-block');
+    var modalMotivoLabel = document.getElementById('modal-motivo-transicao-label');
+    var modalTitle = document.getElementById('modalTransitionMetaLabel');
     var btnHojeMudancaTipo = document.getElementById('btn-hoje-mudanca-tipo');
     var btnLimparMudancaTipo = document.getElementById('btn-limpar-mudanca-tipo');
     var btnHojeMudancaStatus = document.getElementById('btn-hoje-mudanca-status');
@@ -25,8 +31,42 @@
     var transitionModal = null;
     var transitionMetaSavedThisOpen = false;
     var isRevertingCriticalFields = false;
+    var pendingTransitionContext = 'all';
     var dirty = false;
     var initialFormSnapshot = '';
+
+    function normalizeTransitionContext(context) {
+      if (context === 'tipo' || context === 'status') return context;
+      return 'all';
+    }
+
+    function setTransitionContext(context) {
+      pendingTransitionContext = normalizeTransitionContext(context);
+      if (transitionContextField) {
+        transitionContextField.value = pendingTransitionContext;
+      }
+
+      if (modalTipoBlock) {
+        modalTipoBlock.style.display = pendingTransitionContext === 'status' ? 'none' : '';
+      }
+      if (modalStatusBlock) {
+        modalStatusBlock.style.display = pendingTransitionContext === 'tipo' ? 'none' : '';
+      }
+
+      if (pendingTransitionContext === 'tipo') {
+        if (modalTitle) modalTitle.textContent = 'Registrar Alteracao de Tipo';
+        if (modalHelp) modalHelp.textContent = 'Informe os dados de auditoria para a mudanca de Tipo. Isso sera gravado no historico.';
+        if (modalMotivoLabel) modalMotivoLabel.textContent = 'Motivo da alteracao de Tipo';
+      } else if (pendingTransitionContext === 'status') {
+        if (modalTitle) modalTitle.textContent = 'Registrar Alteracao de Status';
+        if (modalHelp) modalHelp.textContent = 'Informe os dados de auditoria para a mudanca de Status. Isso sera gravado no historico.';
+        if (modalMotivoLabel) modalMotivoLabel.textContent = 'Motivo da alteracao de Status';
+      } else {
+        if (modalTitle) modalTitle.textContent = 'Registrar Alteracao Critica';
+        if (modalHelp) modalHelp.textContent = 'Informe os dados de auditoria para a mudanca. Isso sera gravado no historico de Tipo/Status.';
+        if (modalMotivoLabel) modalMotivoLabel.textContent = 'Motivo da alteracao';
+      }
+    }
 
     function buildFormSnapshot(targetForm) {
       if (!targetForm) return '';
@@ -143,13 +183,22 @@
       });
     }
 
-    function openTransitionModal() {
+    function openTransitionModal(context) {
       if (!modalRoot || typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+      setTransitionContext(context);
       if (!transitionModal) transitionModal = bootstrap.Modal.getOrCreateInstance(modalRoot);
       transitionMetaSavedThisOpen = false;
       syncModalFromHidden();
       transitionModal.show();
       setTimeout(function () {
+        if (pendingTransitionContext === 'tipo' && modalTipoDate) {
+          modalTipoDate.focus();
+          return;
+        }
+        if (pendingTransitionContext === 'status' && modalStatusDate) {
+          modalStatusDate.focus();
+          return;
+        }
         if (modalMotivo) modalMotivo.focus();
       }, 150);
     }
@@ -169,10 +218,11 @@
     };
 
     updateTransitionSummary();
+    setTransitionContext(transitionContextField ? transitionContextField.value : 'all');
 
     if (btnOpenTransitionModal) {
       btnOpenTransitionModal.addEventListener('click', function () {
-        openTransitionModal();
+        openTransitionModal('all');
       });
     }
 
@@ -195,7 +245,10 @@
       var tipoChanged = currentValue('id_tipo_pessoa') !== criticalInitial.tipo;
       var statusChanged = currentValue('id_status_pessoa') !== criticalInitial.status;
       if (tipoChanged || statusChanged) {
-        openTransitionModal();
+        var context = 'all';
+        if (tipoChanged && !statusChanged) context = 'tipo';
+        if (statusChanged && !tipoChanged) context = 'status';
+        openTransitionModal(context);
       }
     }
 
@@ -217,6 +270,7 @@
           statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
         isRevertingCriticalFields = false;
+        setTransitionContext('all');
 
         updateTransitionSummary();
       });
