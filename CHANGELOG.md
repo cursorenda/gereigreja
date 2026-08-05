@@ -1,3 +1,52 @@
+# v1.14.9 — 05/08/2026
+🌍 **Localização — dias da semana em português no dashboard da Secretaria**
+
+### Entregas
+- **Helper centralizado de dias da semana** em `core/utils.py`:
+  - `get_weekday_label(value, language='pt')` retorna abreviações em português (`SEG`, `TER`, `QUA`, `QUI`, `SEX`, `SÁB`, `DOM`).
+  - Estrutura preparada para expansão a outros idiomas sem alterar os pontos de uso.
+
+- **Correção nos dashboards da Secretaria**:
+  - `secretaria/views/dashboard.py` — substituído `strftime('%a').upper()` pelo helper centralizado.
+  - `secretaria/views/_legacy.py` — mesma correção aplicada no bloco de próximos eventos.
+
+- **Teste automatizado**:
+  - `tests/test_weekday_i18n.py` com cobertura para português e inglês.
+  - 2 testes passando com sucesso.
+
+### Impacto
+- Elimina exibição de nomes de dias em inglês para usuários do sistema.
+- Centraliza a lógica em um único ponto reutilizável por todo o projeto.
+
+---
+
+# v1.14.8 — 05/08/2026
+📚 **Documentação Frontend — revisão completa e novos arquivos de referência**
+
+### Entregas
+- **Revisão e consolidação dos documentos existentes**:
+  - `docs/frontend/01-Frontend-Architecture.md` — arquitetura geral atualizada.
+  - `docs/frontend/02-Estrutura de Pastas.md` — renomeado e revisado.
+  - `docs/frontend/03-Componentes.md` — padrões de componentes revisados.
+  - `docs/frontend/04-Layouts.md` — hierarquia de layouts documentada.
+  - `docs/governanca/07-Padroes-de-Templates.md` — padrões de templates atualizados.
+  - `docs/templates/ARQUITETURA_TEMPLATES.md` — arquitetura de templates revisada.
+
+- **Novos documentos criados**:
+  - `docs/frontend/05-Templates.md` — guia de templates Django.
+  - `docs/frontend/06-Assets.md` — gestão de arquivos estáticos.
+  - `docs/frontend/07-CSS.md` — convenções de CSS e Bootstrap.
+  - `docs/frontend/08-JavaScript.md` — padrões de JavaScript no projeto.
+  - `docs/frontend/09-HTMX.md` — uso de HTMX no GereIgreja.
+  - `docs/frontend/README.md` — índice da documentação frontend.
+
+### Impacto
+- Clarifica a distinção entre a Área de Administração Técnica (Django Admin) e a Área de Gestão do GereIgreja.
+- Documenta a arquitetura real com reconhecimento do estado de migração em curso.
+- Serve como referência oficial para novos desenvolvimentos frontend.
+
+---
+
 # v1.14.7 — 27/07/2026
 🎯 **Painel do Desenvolvedor — Fase 2 com Prioridades do Dia e Estados Operacionais**
 

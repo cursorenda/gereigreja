@@ -104,7 +104,7 @@ Toda página deverá herdar um Template base.
 Preferencialmente:
 
 - `base.html`
-- `base_com_menu.html`
+- `base_com_menu.html` (Área de Gestão do GereIgreja)
 - `base_publico.html`
 
 Evitar duplicação de cabeçalhos, menus, rodapés e scripts.

@@ -93,7 +93,7 @@ O Gereigreja utiliza uma **arquitetura de templates modular** baseada em heranç
 ---
 
 ### 3. `base_com_menu.html` 🔐
-**Uso:** Sistema autenticado (dashboard, CRUD, relatórios)
+**Uso:** Área de Gestão do GereIgreja (dashboard, CRUD, relatórios, telas operacionais)
 
 #### Características:
 - ✅ **Menu lateral (sidebar)** com navegação completa
@@ -103,6 +103,7 @@ O Gereigreja utiliza uma **arquitetura de templates modular** baseada em heranç
 - ✅ **Footer completo** (versão, links, redes sociais)
 - ✅ **Seletor de tamanho de fonte** (acessibilidade)
 - ✅ **Responsivo** (offcanvas mobile)
+- ✅ **Não faz parte do Django Admin**: a Administração Técnica (Django Admin) utiliza sua própria hierarquia de templates
 
 #### Estrutura:
 ```html

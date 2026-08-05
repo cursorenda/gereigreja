@@ -11,7 +11,7 @@ Framework:
 GereIgreja Frontend Engineering (GFE)
 
 Versão:
-1.0
+2.0
 
 Status:
 Oficial
@@ -24,22 +24,22 @@ Julho de 2026
 
 # 01 - Frontend Architecture
 
-> *"Uma interface bem construída transforma funcionalidades complexas em experiências simples, intuitivas e agradáveis para o usuário."*
+> *"O Frontend do GereIgreja não é apenas uma coleção de páginas HTML. Ele constitui a camada oficial de apresentação da plataforma, projetada para oferecer consistência visual, reutilização de componentes, baixa duplicação de código e integração transparente com a arquitetura do Backend."*
 
 ---
 
 # Sumário
 
 1. Objetivo
-2. Filosofia do Frontend
-3. Papel do Frontend no GereIgreja
-4. Arquitetura Geral
-5. Princípios Arquiteturais
-6. Organização da Interface
-7. Integração com o Backend
-8. Escalabilidade
-9. Documentos Relacionados
-10. Princípios Finais
+2. Escopo
+3. Filosofia do Frontend
+4. Objetivos Arquiteturais
+5. Estado Atual da Arquitetura
+6. Stack Oficial
+7. Visão Geral da Arquitetura
+8. Fluxo de Renderização
+9. Decisões Arquiteturais
+10. Documentos Relacionados
 
 ---
 
@@ -47,158 +47,220 @@ Julho de 2026
 
 Este documento define a arquitetura oficial do Frontend do GereIgreja.
 
-Seu objetivo é estabelecer padrões para construção das interfaces da plataforma, garantindo consistência visual, facilidade de manutenção, acessibilidade e integração eficiente com o Backend.
+Seu propósito é estabelecer os princípios, padrões e decisões arquiteturais que orientam a construção da camada de apresentação da plataforma.
 
-Todas as interfaces desenvolvidas para o GereIgreja deverão seguir as diretrizes aqui estabelecidas.
+Este documento não descreve componentes específicos nem detalhes de implementação. Seu papel é apresentar a visão arquitetural de alto nível que deverá orientar toda evolução futura do Frontend.
+
+Em termos práticos, o projeto já utiliza essa arquitetura como referência oficial, mas ainda convive com trechos legados e módulos em transição. A padronização deve ser entendida como um processo gradual, não como uma substituição imediata de tudo o que existe hoje.
+
+Todos os documentos da pasta `docs/frontend/` complementam esta especificação.
 
 ---
 
-# 2. Filosofia do Frontend
+# 2. Escopo
 
-O Frontend deve representar fielmente os princípios do GereIgreja.
+Este documento cobre exclusivamente a arquitetura da camada de apresentação do GereIgreja.
 
-A interface deverá priorizar:
+São abordados:
+
+- arquitetura geral do Frontend;
+- tecnologias oficiais;
+- organização da renderização;
+- comunicação com o Backend;
+- hierarquia arquitetural;
+- princípios de reutilização;
+- diretrizes oficiais da interface.
+
+Os detalhes específicos de Layouts, Templates, Componentes, Assets e JavaScript são documentados em arquivos próprios.
+
+---
+
+# 3. Filosofia do Frontend
+
+O Frontend do GereIgreja foi concebido para ser uma camada de apresentação organizada, previsível e altamente reutilizável.
+
+Toda decisão arquitetural deve preservar cinco princípios fundamentais:
 
 - simplicidade;
-- clareza;
-- rapidez;
-- acessibilidade;
-- consistência;
-- responsividade;
-- reutilização de componentes;
-- experiência do usuário.
+- consistência visual;
+- reutilização de estruturas existentes;
+- separação clara entre apresentação e regra de negócio;
+- facilidade de manutenção.
 
-A interface não deverá conter regras de negócio.
+O Frontend não concentra regras de negócio. Sua responsabilidade é apresentar informações produzidas pelo Backend de forma clara, consistente e responsiva.
 
-Sua principal responsabilidade é apresentar informações e capturar interações do usuário.
+Toda nova funcionalidade deverá priorizar o reaproveitamento da arquitetura existente antes da criação de novas estruturas.
 
 ---
 
-# 3. Papel do Frontend no GereIgreja
+# 4. Objetivos Arquiteturais
 
-O Frontend possui cinco responsabilidades principais:
+A arquitetura do Frontend possui os seguintes objetivos permanentes:
 
-- apresentar dados ao usuário;
-- coletar informações;
-- validar entradas básicas;
-- consumir APIs do Backend;
-- oferecer uma experiência consistente em toda a plataforma.
+- manter identidade visual única em toda a plataforma;
+- reduzir duplicação de código;
+- facilitar evolução dos módulos;
+- simplificar manutenção dos templates;
+- padronizar componentes reutilizáveis;
+- proporcionar experiência consistente ao usuário;
+- permitir crescimento contínuo sem aumento desnecessário da complexidade.
 
-Toda regra de negócio deverá permanecer no Backend.
+Esses objetivos orientam todas as decisões relacionadas à interface do sistema.
 
 ---
 
-# 4. Arquitetura Geral
+# 5. Estado Atual da Arquitetura
 
-Fluxo simplificado:
+A tabela abaixo representa o estado oficial das tecnologias adotadas pelo Frontend.
+
+| Tecnologia | Estado |
+|------------|---------|
+| Django Templates | ✅ Implementado |
+| Bootstrap 5 | ✅ Implementado |
+| CSS próprio | ✅ Implementado |
+| JavaScript | ✅ Implementado |
+| Font Awesome | ✅ Implementado |
+| Dashboard Framework | ✅ Implementado |
+| HTMX | 🟡 Padronizado (adoção gradual) |
+| Alpine.js | 🟡 Padronizado (adoção gradual) |
+| Progressive Web App (PWA) | 🔵 Planejado |
+| Aplicativo Mobile | 🔵 Planejado |
+
+A documentação diferencia claramente tecnologias implementadas, tecnologias oficialmente padronizadas e tecnologias previstas para evolução futura.
+
+---
+
+# 6. Stack Oficial
+
+O Frontend do GereIgreja utiliza uma combinação de tecnologias consolidadas e amplamente adotadas pelo ecossistema Django.
+
+| Tecnologia | Responsabilidade |
+|------------|------------------|
+| Django Templates | Renderização server-side da interface |
+| Bootstrap 5 | Sistema de layout responsivo e componentes básicos |
+| CSS próprio | Design System e identidade visual da plataforma |
+| JavaScript | Comportamentos dinâmicos da interface |
+| Font Awesome | Biblioteca oficial de ícones |
+| HTMX | Atualizações parciais da interface (adoção gradual) |
+| Alpine.js | Comportamentos leves da interface (adoção gradual) |
+
+A adoção de novas tecnologias deverá respeitar a arquitetura existente e evitar aumento desnecessário da complexidade do Frontend.
+
+---
+
+# 7. Visão Geral da Arquitetura
+
+A arquitetura do Frontend integra-se diretamente à arquitetura do Backend.
+
+O fluxo oficial da plataforma é representado pelo seguinte diagrama:
 
 ```text
-Usuário
-
-↓
-
-Interface
-
-↓
-
-Componentes
-
-↓
-
-Serviços de Frontend
-
-↓
-
-API
-
-↓
-
-Backend
-
-↓
-
-Banco de Dados
+                 Usuário
+                    │
+                    ▼
+              Navegador Web
+                    │
+                    ▼
+              URL do Django
+                    │
+                    ▼
+                  View
+          ┌─────────┴─────────┐
+          ▼                   ▼
+      Services          Selectors
+          │                   │
+          └─────────┬─────────┘
+                    ▼
+                 Models
+                    │
+                    ▼
+           Django Templates
+                    │
+              Layouts Base
+                    │
+        Includes + Partials
+                    │
+                    ▼
+               HTML Final
+                    │
+                    ▼
+               Navegador
 ```
 
-A comunicação entre interface e servidor deverá ocorrer exclusivamente por contratos bem definidos.
+Esta arquitetura mantém responsabilidades claramente separadas entre Backend e Frontend, favorecendo manutenção, reutilização e evolução da plataforma.
 
 ---
 
-# 5. Princípios Arquiteturais
+# 8. Fluxo de Renderização
 
-Todo desenvolvimento deverá respeitar:
+O processo oficial de renderização do GereIgreja segue as seguintes etapas:
 
-- separação de responsabilidades;
-- reutilização de componentes;
-- baixo acoplamento;
-- alta coesão;
-- previsibilidade;
-- padronização visual;
-- acessibilidade;
-- desempenho.
+1. O usuário realiza uma requisição.
+2. A URL direciona a requisição para uma View.
+3. A View delega regras de negócio aos Services.
+4. As consultas reutilizáveis são executadas pelos Selectors.
+5. Os Models fornecem os dados persistidos.
+6. A View envia o contexto ao Template.
+7. O Template herda o Layout correspondente.
+8. Includes e Partials compõem a interface.
+9. O HTML final é enviado ao navegador.
 
----
-
-# 6. Organização da Interface
-
-A interface deverá ser organizada em componentes reutilizáveis.
-
-Exemplos:
-
-- Layout;
-- Sidebar;
-- Navbar;
-- Breadcrumb;
-- Cards;
-- Formulários;
-- Tabelas;
-- Modais;
-- Alertas;
-- Componentes de navegação.
-
-Cada componente deverá possuir responsabilidade única.
+Esse fluxo representa a separação oficial de responsabilidades adotada pelo GereIgreja.
 
 ---
 
-# 7. Integração com o Backend
+# 9. Decisões Arquiteturais
 
-Toda comunicação deverá ocorrer através das APIs oficiais.
+As decisões abaixo passam a fazer parte da arquitetura oficial da plataforma.
 
-O Frontend nunca deverá acessar diretamente o banco de dados ou implementar regras de negócio.
+### DA-001 — Renderização Server-Side
 
-As respostas deverão seguir os contratos definidos pelo GBE e pela arquitetura das APIs.
-
----
-
-# 8. Escalabilidade
-
-A arquitetura deverá permitir:
-
-- crescimento da plataforma;
-- criação de novos módulos;
-- reutilização de componentes;
-- evolução para aplicações móveis;
-- integração com novos canais digitais.
-
-As decisões arquiteturais deverão favorecer a evolução contínua da interface.
+Toda a interface do GereIgreja utiliza Django Templates como mecanismo oficial de renderização.
 
 ---
 
-# 9. Documentos Relacionados
+### DA-002 — Hierarquia de Templates
 
-- GEA-05 — Arquitetura do Frontend
+A interface deverá ser construída utilizando herança de layouts, evitando duplicação de código.
+
+---
+
+### DA-003 — Separação entre Backend e Frontend
+
+Regras de negócio permanecem exclusivamente no Backend.
+
+Templates não deverão implementar lógica de negócio.
+
+---
+
+### DA-004 — Reutilização
+
+Sempre que possível deverão ser reutilizados:
+
+- layouts;
+- includes;
+- partials;
+- componentes existentes.
+
+Novas estruturas deverão ser criadas apenas quando justificadas.
+
+---
+
+### DA-005 — Evolução Progressiva
+
+Tecnologias como HTMX e Alpine.js fazem parte da arquitetura oficial do Frontend e serão incorporadas gradualmente aos novos módulos, preservando compatibilidade com a implementação existente.
+
+---
+
+# 10. Documentos Relacionados
+
+- GFE-02 — Estrutura de Pastas
+- GFE-03 — Componentes
+- GFE-04 — Layouts
+- GFE-05 — Templates
 - GDS — GereIgreja Design System
-- GXS — GereIgreja Experience System
-- GBE-20 — Code Standards
-- GAF — Framework de Autenticação
-
----
-
-# 10. Princípios Finais
-
-O Frontend do GereIgreja deverá oferecer uma experiência consistente, moderna e acessível, refletindo os princípios arquiteturais adotados em toda a plataforma.
-
-Cada nova interface deverá contribuir para uma navegação intuitiva, reduzindo a curva de aprendizado dos usuários e facilitando a evolução do sistema.
+- GQF — GereIgreja Quality Framework
+- GDF — GereIgreja Documentation Framework
 
 ---
 
@@ -206,188 +268,368 @@ Cada nova interface deverá contribuir para uma navegação intuitiva, reduzindo
 
 ---
 
-# 11. Separação de Responsabilidades
+# 11. Pilares da Arquitetura do Frontend
 
-A arquitetura do Frontend deverá respeitar rigorosamente a separação de responsabilidades.
+O Frontend do GereIgreja foi construído sobre pilares arquiteturais que orientam toda evolução da camada de apresentação.
 
-Cada camada possui uma função específica:
+## 11.1 Reutilização
 
-- **Templates:** estrutura da interface;
-- **Componentes:** elementos reutilizáveis;
-- **CSS:** apresentação visual;
-- **JavaScript:** comportamento da interface;
-- **APIs:** comunicação com o Backend.
+Sempre que possível deverão ser reutilizados:
 
-Nenhuma camada deverá assumir responsabilidades pertencentes a outra.
+- layouts existentes;
+- templates;
+- partials;
+- includes;
+- componentes visuais;
+- estilos CSS;
+- scripts JavaScript.
 
----
-
-# 12. Componentização
-
-Toda interface reutilizável deverá ser transformada em componente.
-
-Exemplos:
-
-- Cards;
-- Botões;
-- Modais;
-- Alertas;
-- Breadcrumbs;
-- Tabelas;
-- Paginação;
-- Inputs;
-- Selects;
-- Badges.
-
-A componentização reduz duplicação e facilita manutenção.
+Duplicação de código deve ser evitada.
 
 ---
 
-# 13. Estado da Interface
+## 11.2 Padronização
 
-O Frontend deverá manter apenas estados relacionados à experiência do usuário.
+Todos os módulos devem apresentar comportamento visual consistente.
 
-Exemplos:
+Isso inclui:
 
-- modal aberto;
-- aba ativa;
-- filtros atuais;
+- navegação;
+- breadcrumbs;
+- botões;
+- formulários;
+- tabelas;
+- mensagens;
 - paginação;
-- mensagens temporárias.
+- dashboards.
 
-Regras de negócio e persistência pertencem ao Backend.
-
----
-
-# 14. Comunicação com APIs
-
-Toda comunicação deverá utilizar as APIs oficiais da plataforma.
-
-Princípios:
-
-- contratos estáveis;
-- respostas padronizadas;
-- tratamento de erros consistente;
-- autenticação segura;
-- timeout adequado.
-
-O Frontend nunca deverá depender da estrutura interna do Backend.
+O usuário deve perceber uma experiência uniforme em toda a plataforma.
 
 ---
 
-# 15. Responsividade
+## 11.3 Modularização
 
-Toda interface deverá funcionar adequadamente em diferentes resoluções.
+Cada módulo do sistema possui autonomia funcional, porém compartilha a mesma infraestrutura de interface.
 
-Prioridades:
-
-- desktop;
-- notebook;
-- tablet;
-- smartphone.
-
-Nenhum módulo deverá ser desenvolvido considerando apenas uma resolução.
+A evolução de um módulo não deve causar impacto visual ou estrutural em outros módulos.
 
 ---
 
-# 16. Acessibilidade
+## 11.4 Separação de Responsabilidades
 
-O Frontend deverá seguir boas práticas de acessibilidade.
+A camada de apresentação não deve conter regras de negócio.
+
+A responsabilidade do Frontend limita-se a:
+
+- apresentar informações;
+- receber entradas do usuário;
+- organizar componentes visuais;
+- melhorar a experiência de navegação.
+
+Toda regra de negócio permanece concentrada no Backend.
+
+---
+
+## 11.5 Evolução Contínua
+
+A arquitetura foi projetada para permitir evolução incremental.
+
+Novas tecnologias poderão ser incorporadas desde que:
+
+- preservem compatibilidade com a arquitetura existente;
+- reduzam complexidade;
+- aumentem reutilização;
+- mantenham estabilidade da plataforma.
+
+---
+
+# 12. Hierarquia Arquitetural dos Layouts
+
+O GereIgreja possui duas arquiteturas distintas de interface, cada uma destinada a um contexto específico da aplicação.
+
+Essa separação é uma decisão arquitetural oficial da plataforma e evita o acoplamento entre a administração técnica do sistema e a interface utilizada pelos usuários.
+
+> Nomenclatura oficial desta separação: "Administração Técnica (Django Admin)" e "Área de Gestão do GereIgreja".
+
+## 12.1 Administração Técnica (Django Admin)
+
+A Administração Técnica é baseada na infraestrutura nativa do Django Admin.
+
+Essa área é destinada exclusivamente à administração técnica da plataforma, manutenção do sistema e funcionalidades voltadas aos desenvolvedores ou administradores técnicos.
+
+Sua hierarquia de templates permanece baseada nos arquivos do próprio Django Admin.
 
 Exemplos:
 
-- contraste adequado;
-- navegação por teclado;
-- textos alternativos em imagens;
-- labels em formulários;
-- foco visível;
-- estrutura semântica.
+- `admin/base_site.html`
+- `admin/index.html`
+- `dashboard_desenvolvedor.html`
 
-A acessibilidade deverá fazer parte do desenvolvimento desde o início.
+Esses templates **não herdam de `base_com_menu.html`**.
 
 ---
 
-# 17. Performance
+## 12.2 Área de Gestão do GereIgreja
 
-Boas práticas:
+A Área de Gestão corresponde às telas utilizadas pelos usuários autenticados da plataforma, como:
 
-- carregamento sob demanda;
-- imagens otimizadas;
-- arquivos minificados;
-- reutilização de componentes;
-- redução de requisições.
+- Pastores;
+- Secretários;
+- Tesoureiros;
+- Professores;
+- Equipe de Comunicação;
+- Recepção;
+- Demais perfis do ministério.
 
-A interface deve permanecer rápida mesmo em conexões lentas.
+Essa interface é construída sobre a arquitetura própria do GereIgreja.
 
----
+Sua hierarquia é baseada em:
 
-# 18. Segurança
+```text
+base.html
+        │
+        ▼
+base_com_menu.html
+        │
+        ▼
+dashboard_base.html
+        │
+        ▼
+Templates dos módulos
+```
 
-O Frontend deverá contribuir para a segurança da plataforma.
+Todos os módulos funcionais da plataforma devem utilizar essa infraestrutura, garantindo identidade visual, reutilização e padronização da experiência do usuário.
 
-Práticas obrigatórias:
-
-- proteção contra XSS;
-- escape de conteúdo;
-- uso de CSRF;
-- validação de entrada;
-- não expor informações sensíveis.
-
-A segurança não substitui as validações do Backend.
-
----
-
-# 19. Checklist
-
-Antes de publicar uma nova interface verificar:
-
-- layout consistente;
-- componente reutilizável;
-- responsividade;
-- acessibilidade;
-- integração com APIs;
-- tratamento de erros;
-- performance;
-- documentação atualizada.
+Essa camada corresponde à Área de Gestão do GereIgreja. A Administração Técnica (Django Admin) permanece com sua própria hierarquia de templates, preservando a separação entre a interface técnica e a interface de gestão utilizada pelos usuários.
 
 ---
 
-# 20. Evolução Futura
+## 12.3 Motivações da Separação
 
-A arquitetura foi preparada para suportar:
+A existência de duas arquiteturas independentes permite:
 
-- novos módulos;
+- preservar a identidade do Django Admin para tarefas técnicas;
+- evoluir a interface de gestão sem depender da estrutura do Django Admin;
+- reduzir acoplamento entre camadas;
+- facilitar manutenção da plataforma;
+- manter experiências distintas para usuários finais e administradores técnicos.
+
+Essa separação é considerada uma decisão arquitetural permanente do GereIgreja.
+
+---
+
+# 13. Organização da Camada de Apresentação
+
+A camada de apresentação do GereIgreja é composta por diferentes níveis de reutilização.
+
+## Layouts
+
+Responsáveis pela estrutura principal das páginas.
+
+Exemplos:
+
+- base.html;
+- base_com_menu.html;
+- dashboard_base.html.
+
+---
+
+## Includes
+
+Responsáveis por elementos estruturais reutilizados pelos layouts.
+
+Atualmente incluem, entre outros:
+
+- app_footer.html;
+- auth_footer.html;
+- public_footer.html;
+- footer_social_links.html.
+
+Esses arquivos representam infraestrutura compartilhada da interface.
+
+---
+
+## Partials
+
+Representam fragmentos reutilizáveis de telas.
+
+Exemplos atuais:
+
+- abas;
+- formulários;
+- conjuntos de campos;
+- blocos específicos reutilizados por diferentes páginas.
+
+O uso de partials reduz duplicação e facilita manutenção.
+
+---
+
+# 14. Comunicação entre Backend e Frontend
+
+O Frontend não acessa diretamente a camada de persistência.
+
+O fluxo oficial de comunicação é:
+
+```text
+Template
+    │
+    ▼
+View
+    │
+    ▼
+Services
+    │
+    ▼
+Selectors
+    │
+    ▼
+Models
+```
+
+Cada camada possui responsabilidade específica.
+
+Essa separação reduz acoplamento e aumenta a manutenibilidade do sistema.
+
+---
+
+# 15. Estado Evolutivo da Arquitetura
+
+A arquitetura do GereIgreja encontra-se em evolução contínua.
+
+Atualmente:
+
+### Implementado
+
+- Django Templates;
+- Bootstrap;
+- CSS próprio;
+- JavaScript;
+- Font Awesome;
+- Layouts hierárquicos;
+- Dashboard Framework;
+- reutilização de partials;
+- reutilização de includes.
+
+### Em adoção gradual
+
+- HTMX;
+- Alpine.js.
+
+### Planejado
+
 - Progressive Web App (PWA);
-- aplicativos móveis;
-- componentes compartilhados;
-- múltiplos temas;
-- internacionalização.
+- Aplicativos móveis;
+- ampliação da componentização da interface.
+
+Essa distinção permite que a documentação reflita fielmente o estado atual do projeto.
+
+---
+
+# 16. Convenções Oficiais
+
+Todo novo desenvolvimento deverá seguir obrigatoriamente as seguintes convenções:
+
+- reutilizar layouts existentes;
+- evitar HTML duplicado;
+- utilizar includes apenas para elementos estruturais;
+- utilizar partials para fragmentos reutilizáveis de telas;
+- manter compatibilidade com o Design System;
+- preservar a hierarquia oficial dos templates;
+- respeitar os padrões definidos na documentação do Frontend.
+
+---
+
+# 17. Boas Práticas
+
+Sempre:
+
+- reutilizar componentes existentes;
+- manter templates pequenos e organizados;
+- documentar novas decisões arquiteturais;
+- utilizar nomenclaturas consistentes;
+- preservar separação entre apresentação e lógica.
+
+A simplicidade deve ser priorizada em todas as implementações.
+
+---
+
+# 18. Antipadrões
+
+Evitar:
+
+- duplicação de layouts;
+- lógica de negócio em templates;
+- criação de novos layouts sem necessidade;
+- JavaScript desnecessário;
+- CSS específico para apenas uma página quando puder ser reutilizado;
+- fragmentação excessiva de componentes;
+- acoplamento entre módulos.
+
+Esses padrões aumentam a complexidade e dificultam a manutenção da plataforma.
+
+---
+
+# 19. Checklist Arquitetural
+
+Antes de implementar qualquer nova funcionalidade no Frontend verificar:
+
+- utiliza os layouts oficiais?
+- reutiliza componentes existentes?
+- evita duplicação?
+- respeita o Design System?
+- mantém separação entre Backend e Frontend?
+- utiliza partials quando apropriado?
+- documentou alterações arquiteturais?
+- preserva compatibilidade com futuras evoluções?
+
+---
+
+# 20. Roadmap Arquitetural
+
+A evolução planejada do Frontend contempla:
+
+- ampliação da adoção de HTMX;
+- adoção gradual de Alpine.js quando aplicável;
+- expansão do Dashboard Framework;
+- aumento da componentização da interface;
+- preparação para Progressive Web App (PWA);
+- suporte à futura camada mobile.
+
+Toda evolução deverá preservar compatibilidade com a arquitetura estabelecida neste documento.
 
 ---
 
 # 21. Documentos Relacionados
 
+### Frontend
+
 - GFE-02 — Estrutura de Pastas
 - GFE-03 — Componentes
+- GFE-04 — Layouts
+- GFE-05 — Templates
+
+### Frameworks
+
 - GDS — GereIgreja Design System
-- GBE-20 — Code Standards
-- GEA-05 — Arquitetura do Frontend
+- GQF — GereIgreja Quality Framework
+- GDF — GereIgreja Documentation Framework
+
+### Backend
+
+- GBE-03 — Arquitetura dos Apps
+- GBE-05 — Services
+- GBE-06 — Selectors
+- GBE-08 — Views
 
 ---
 
 # 22. Princípios Finais
 
-O Frontend do GereIgreja deverá evoluir preservando simplicidade, consistência e reutilização.
+O Frontend do GereIgreja constitui a camada oficial de apresentação da plataforma.
 
-Toda interface deverá proporcionar uma experiência intuitiva, acessível e alinhada aos padrões arquiteturais da plataforma.
+Sua arquitetura foi concebida para garantir consistência visual, reutilização de componentes, baixo acoplamento e evolução contínua.
 
----
+Toda alteração na interface deverá preservar os princípios estabelecidos neste documento, assegurando que a experiência do usuário permaneça uniforme e que a manutenção do sistema continue simples, previsível e escalável.
 
-## ✅ Status
-
-**Pasta:** `docs/frontend/`
-
-**Arquivo:** `01-Frontend-Architecture.md`
-
-**Status:** **CONCLUÍDO (v1.0)**
+Este documento é a referência arquitetural oficial para toda a camada de Frontend do GereIgreja.
 
