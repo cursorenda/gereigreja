@@ -7,51 +7,331 @@ from django.views.decorators.http import require_GET
 from django.contrib.auth.decorators import login_required
 from core.decorators import page_access_required, verificar_assinatura_valida
 
+
+
+def _obter_sessao_evento(evento, sessao_id):
+	"""Resolve a sessão selecionada para o evento, mantendo o fallback atual."""
+	if not sessao_id:
+		return None
+	try:
+		return EventoSessao.objects.get(pk=sessao_id, evento=evento)
+	except EventoSessao.DoesNotExist:
+		return None
+
+
+def _carregar_participacoes_presenca(evento, sessao):
+	"""Carrega ou cria participações elegíveis para a sessão de presença."""
+	from django.db.models import Q
+	from secretaria.models import StatusPessoa, Membro
+
+	status_ids = list(
+		StatusPessoa.objects.filter(
+			Q(nome__iexact='Ativo') |
+			Q(nome__iexact='Desligado') |
+			Q(nome__iexact='Em Disciplina')
+		).values_list('id', flat=True)
+	)
+
+	participacoes_base = ParticipacaoEvento.objects.filter(
+		evento=evento,
+		sessao=sessao
+	).select_related('membro')
+
+	if status_ids:
+		participacoes = participacoes_base.filter(
+			Q(membro__isnull=False, membro__status_pessoa__in=status_ids) | Q(convidado_email__isnull=False)
+		)
+	else:
+		participacoes = participacoes_base.filter(
+			Q(membro__isnull=False) | Q(convidado_email__isnull=False)
+		)
+
+	if participacoes.exists():
+		return participacoes, status_ids
+
+	membros_criterios, adicionados_manualmente = evento.get_participantes_esperados()
+	created = []
+	for membro in membros_criterios.distinct():
+		pe, created_flag = ParticipacaoEvento.objects.get_or_create(
+			evento=evento,
+			sessao=sessao,
+			membro=membro,
+			defaults={
+				'papel': 'PARTICIPANTE',
+				'status': 'PENDENTE',
+				'tipo_inclusao': 'AUTOMATICA'
+			}
+		)
+		if created_flag:
+			created.append(pe)
+
+	for participacao_manual in adicionados_manualmente:
+		if participacao_manual.membro:
+			pe, created_flag = ParticipacaoEvento.objects.get_or_create(
+				evento=evento,
+				sessao=sessao,
+				membro=participacao_manual.membro,
+				defaults={
+					'papel': 'PARTICIPANTE',
+					'status': 'PENDENTE',
+					'tipo_inclusao': 'MANUAL_ADICIONADO'
+				}
+			)
+			if created_flag:
+				created.append(pe)
+
+	participacoes_base = ParticipacaoEvento.objects.filter(evento=evento, sessao=sessao).select_related('membro')
+	if status_ids:
+		participacoes = participacoes_base.filter(
+			Q(membro__isnull=False, membro__status_pessoa__in=status_ids) | Q(convidado_email__isnull=False)
+		)
+	else:
+		participacoes = participacoes_base.filter(Q(membro__isnull=False) | Q(convidado_email__isnull=False))
+
+	return participacoes, status_ids
+
+
+def _extrair_presencas_submetidas(request, participacoes, evento_obj=None, sessao_obj=None):
+	"""Extrai a lista de participações marcadas sem mudar a compatibilidade legada."""
+	import json
+	import re
+	import unicodedata
+
+	def _valor_indica_true(raw):
+		if isinstance(raw, bool):
+			return raw
+		texto = str(raw or '').strip().lower()
+		return texto in {'1', 'true', 'on', 'yes', 'sim', 'checked'}
+
+	def _parse_pk_localizado(valor_raw):
+		texto = str(valor_raw or '').strip()
+		if not texto:
+			return None
+
+		try:
+			return int(texto)
+		except (TypeError, ValueError):
+			pass
+
+		if re.fullmatch(r'[\d\.,\s]+', texto):
+			digitos = re.sub(r'\D', '', texto)
+			if digitos:
+				try:
+					return int(digitos)
+				except (TypeError, ValueError):
+					return None
+
+		return None
+
+	def _coletar_tokens_json(node):
+		tokens = []
+		if isinstance(node, list):
+			for item in node:
+				tokens.extend(_coletar_tokens_json(item))
+			return tokens
+
+		if isinstance(node, dict):
+			for k, v in node.items():
+				chave = str(k or '').strip()
+				if chave and _valor_indica_true(v):
+					tokens.append(chave)
+				tokens.extend(_coletar_tokens_json(v))
+			for field in [
+				'participacao_id', 'participacaoPk', 'participacao_pk',
+				'pk', 'id', 'membro_id', 'membroId', 'email', 'nome', 'value'
+			]:
+				if field in node and node.get(field) is not None:
+					tokens.append(str(node.get(field)).strip())
+			return tokens
+
+		valor = str(node or '').strip()
+		return [valor] if valor else []
+
+	valores_json_brutos = []
+	valores_checkbox_brutos = []
+	presentes_json = request.POST.get('presentes_json', '').strip()
+	for presentes_json_raw in request.POST.getlist('presentes_json'):
+		presentes_json_raw = str(presentes_json_raw or '').strip()
+		if not presentes_json_raw:
+			continue
+		try:
+			parsed = json.loads(presentes_json_raw)
+			for token in _coletar_tokens_json(parsed):
+				if token:
+					valores_json_brutos.append(token)
+		except (ValueError, TypeError, json.JSONDecodeError):
+			for token in re.split(r'[;,|\s]+', presentes_json_raw):
+				token = str(token or '').strip()
+				if token:
+					valores_json_brutos.append(token)
+
+	presentes_map_name_pks = set()
+	presentes_state_pks = set()
+	for key in request.POST.keys():
+		if not str(key).startswith('presentes_map_'):
+			continue
+		suffix = str(key).split('presentes_map_', 1)[1].strip()
+		pk_normalizado = _parse_pk_localizado(suffix)
+		if pk_normalizado is not None:
+			presentes_map_name_pks.add(pk_normalizado)
+
+	for key, val in request.POST.items():
+		if not str(key).startswith('presenca_estado_'):
+			continue
+		suffix = str(key).split('presenca_estado_', 1)[1].strip()
+		pk_participacao = _parse_pk_localizado(suffix)
+		if pk_participacao is None:
+			continue
+		if str(val).strip() == '1':
+			presentes_state_pks.add(pk_participacao)
+
+	for value in request.POST.getlist('presentes'):
+		valor_normalizado = str(value or '').strip()
+		if valor_normalizado:
+			valores_checkbox_brutos.append(valor_normalizado)
+
+	for key, value in request.POST.items():
+		key_lower = str(key or '').lower()
+		if ('presen' not in key_lower) or str(key).startswith('presenca_estado_'):
+			continue
+		valor_normalizado = str(value or '').strip()
+		if valor_normalizado:
+			valores_checkbox_brutos.append(valor_normalizado)
+
+	participacoes_lista = list(participacoes)
+	participacoes_ids = {p.pk for p in participacoes_lista}
+	participacoes_por_membro = {}
+	participacoes_por_email = {}
+	participacoes_por_nome = {}
+
+	def _normalizar_nome(valor):
+		if not valor:
+			return ''
+		return ''.join(
+			ch for ch in unicodedata.normalize('NFKD', str(valor).strip().lower())
+			if not unicodedata.combining(ch)
+		)
+
+	for p in participacoes_lista:
+		if p.membro_id:
+			participacoes_por_membro.setdefault(str(p.membro_id), set()).add(p.pk)
+			nome_membro = _normalizar_nome(getattr(p.membro, 'nome', ''))
+			if nome_membro:
+				participacoes_por_nome.setdefault(nome_membro, set()).add(p.pk)
+		if p.convidado_email:
+			participacoes_por_email.setdefault(str(p.convidado_email).strip().lower(), set()).add(p.pk)
+		nome_convidado = _normalizar_nome(getattr(p, 'convidado_nome', ''))
+		if nome_convidado:
+			participacoes_por_nome.setdefault(nome_convidado, set()).add(p.pk)
+
+	def _mapear_valor_para_participacao(valor_raw):
+		valor_raw = str(valor_raw or '').strip()
+		if not valor_raw:
+			return set()
+
+		candidato_pk = _parse_pk_localizado(valor_raw)
+		if candidato_pk is not None and candidato_pk in participacoes_ids:
+			return {candidato_pk}
+
+		if valor_raw in participacoes_por_membro:
+			return set(participacoes_por_membro[valor_raw])
+
+		match_digitos = re.search(r'(\d+)$', valor_raw)
+		if match_digitos:
+			candidato = int(match_digitos.group(1))
+			if candidato in participacoes_ids:
+				return {candidato}
+			if str(candidato) in participacoes_por_membro:
+				return set(participacoes_por_membro[str(candidato)])
+
+		valor_email = valor_raw
+		if valor_raw.lower().startswith('email:'):
+			valor_email = valor_raw.split(':', 1)[1].strip()
+		valor_email = valor_email.lower()
+		if valor_email in participacoes_por_email:
+			return set(participacoes_por_email[valor_email])
+
+		nome_normalizado = _normalizar_nome(valor_raw)
+		if nome_normalizado in participacoes_por_nome:
+			return set(participacoes_por_nome[nome_normalizado])
+
+		return set()
+
+	presentes_json_pks = set()
+	presentes_checkbox_pks = set()
+	for valor in valores_json_brutos:
+		presentes_json_pks.update(_mapear_valor_para_participacao(valor))
+	for valor in valores_checkbox_brutos:
+		presentes_checkbox_pks.update(_mapear_valor_para_participacao(valor))
+
+	presentes_map_name_pks = presentes_map_name_pks.intersection(participacoes_ids)
+	presentes_state_pks = presentes_state_pks.intersection(participacoes_ids)
+	presentes_pks = presentes_state_pks.union(presentes_json_pks).union(presentes_checkbox_pks).union(presentes_map_name_pks)
+	houve_ids_submetidos = bool(valores_json_brutos or valores_checkbox_brutos or presentes_map_name_pks or presentes_state_pks)
+
+	import logging
+	logger = logging.getLogger('eventos')
+	logger.info(
+		"[PRESENCA_EVENTO] evento=%s sessao=%s json_brutos=%s checkbox_brutos=%s presentes_json=%s presentes_checkbox=%s presentes_nomecampo=%s presentes_estado=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s amostra_json=%s amostra_checkbox=%s amostra_keys=%s",
+		getattr(evento_obj, 'pk', None),
+		getattr(sessao_obj, 'pk', None),
+		len(valores_json_brutos),
+		len(valores_checkbox_brutos),
+		len(presentes_json_pks),
+		len(presentes_checkbox_pks),
+		len(presentes_map_name_pks),
+		len(presentes_state_pks),
+		len(presentes_pks),
+		len(presentes_json),
+		len(participacoes_lista),
+		valores_json_brutos[:5],
+		valores_checkbox_brutos[:5],
+		list(k for k in request.POST.keys() if ('presenca' in str(k).lower() or 'presente' in str(k).lower()))[:12]
+	)
+
+	return {
+		'participacoes': participacoes,
+		'participacoes_lista': participacoes_lista,
+		'presentes_pks': presentes_pks,
+		'houve_ids_submetidos': houve_ids_submetidos,
+		'status_ids': None,
+	}
+
+
 @login_required
 @require_GET
 def autocomplete_convidados(request):
 	try:
 		import time
 		start_time = time.time()
-		
 		filtro = request.GET.get('filtro')
 		status = request.GET.get('status', '').split(',') if request.GET.get('status') else []
-		igreja_id = request.GET.get('igreja')  # Parâmetro explícito de igreja
-		
-		# SEGURANÇA: Validar escopo de igreja se fornecido
+		igreja_id = request.GET.get('igreja')
+
 		if igreja_id:
 			from core.utils import validar_acesso_igreja
 			from configuracao.models import Igreja
 			try:
 				igreja_obj = Igreja.objects.get(pk=igreja_id)
 				if not validar_acesso_igreja(request.user, igreja_obj):
-					from django.http import HttpResponseForbidden
 					return HttpResponseForbidden()
 			except Igreja.DoesNotExist:
-				from django.http import HttpResponseForbidden
 				return HttpResponseForbidden()
-		
-		# SEGURANÇA: Filtrar apenas membros da igreja ativa
+
 		membros = Membro.objects.select_related('tipo_pessoa', 'status_pessoa', 'igreja')
-		
-		# Priorizar parâmetro explícito, depois igreja_ativa do contexto
 		if igreja_id:
 			membros = membros.filter(igreja_id=igreja_id)
 		elif hasattr(request, 'igreja_ativa') and request.igreja_ativa:
 			membros = membros.filter(igreja=request.igreja_ativa)
-		
-		# Filtro por tipo de pessoa
+
 		if filtro == 'membro_obreiro':
 			membros = membros.filter(tipo_pessoa__nome__in=['Membro', 'Obreiro'])
 		elif filtro == 'cooperadores':
-			# Filtrar membros que têm cargos (usa Exists para evitar problema com proxy model)
 			tem_cargo = MembroCargo.objects.filter(membro_id=OuterRef('pk'))
 			membros = membros.annotate(tem_cargo=Exists(tem_cargo)).filter(tem_cargo=True)
 		elif filtro == 'todos':
-			# Exclui visitantes (são recepcionados na porta do evento)
 			membros = membros.exclude(tipo_pessoa__nome='Visitante')
-		
-		# Filtro de status
+
 		status_map = {
 			'ativo': 'Ativo',
 			'inativo': 'Inativo',
@@ -61,11 +341,8 @@ def autocomplete_convidados(request):
 		status_nomes = [status_map[s] for s in status if s in status_map]
 		if status_nomes:
 			membros = membros.filter(status_pessoa__nome__in=status_nomes)
-		
-		# Limitar a 500 registros para performance
+
 		membros = membros.distinct().order_by('nome')[:500]
-		
-		# Retornar IDs e informações completas para o modal
 		pessoas = []
 		for membro in membros:
 			info_parts = []
@@ -73,58 +350,32 @@ def autocomplete_convidados(request):
 				info_parts.append(membro.tipo_pessoa.nome)
 			if membro.status_pessoa:
 				info_parts.append(membro.status_pessoa.nome)
-			
-			pessoas.append({
-				'id': str(membro.pk),
-				'nome': membro.nome,
-				'info': ' • '.join(info_parts) if info_parts else ''
-			})
-		
+			pessoas.append({'id': str(membro.pk), 'nome': membro.nome, 'info': ' • '.join(info_parts) if info_parts else ''})
+
 		ids = [p['id'] for p in pessoas]
-		
 		elapsed = time.time() - start_time
 		print(f"[PERFORMANCE] autocomplete_convidados: {elapsed:.2f}s - {len(pessoas)} pessoas")
-		
-		return JsonResponse({
-			'ids': ids,
-			'pessoas': pessoas
-		})
-	
+		return JsonResponse({'ids': ids, 'pessoas': pessoas})
 	except Exception as e:
-		# Log do erro para debug
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.error(f"Erro em autocomplete_convidados: {str(e)}", exc_info=True)
-		
-		# Retornar erro JSON ao invés de falhar
-		return JsonResponse({
-			'ids': [],
-			'pessoas': [],
-			'error': f'Erro ao carregar participantes: {str(e)}'
-		}, status=500)
+		return JsonResponse({'ids': [], 'pessoas': [], 'error': f'Erro ao carregar participantes: {str(e)}'}, status=500)
+
 
 @login_required
 @require_GET
 def contar_participantes_criterios(request):
-	"""
-	Endpoint AJAX para contar quantas pessoas atendem os critérios selecionados.
-	Usado no preview dinâmico do sistema híbrido.
-	"""
+	"""Endpoint AJAX para contar quantas pessoas atendem os critérios selecionados."""
 	try:
-		# jQuery envia arrays como 'tipos[]' e 'status[]'
 		tipos_ids = request.GET.getlist('tipos[]') or request.GET.getlist('tipos')
 		status_ids = request.GET.getlist('status[]') or request.GET.getlist('status')
 		igreja_id = request.GET.get('igreja')
-		
-		# DEBUG: Log dos parâmetros recebidos
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.info(f"[CONTAR_CRITERIOS] tipos_ids={tipos_ids}, status_ids={status_ids}, igreja_id={igreja_id}")
-		
 		if not igreja_id:
 			return JsonResponse({'count': 0, 'descricao': 'Igreja não selecionada'})
-		
-		# SEGURANÇA: Verificar se igreja pertence ao ministério do usuário
 		from configuracao.models import Igreja
 		try:
 			igreja = Igreja.objects.get(pk=igreja_id)
@@ -133,36 +384,22 @@ def contar_participantes_criterios(request):
 					return JsonResponse({'count': 0, 'descricao': 'Acesso negado'}, status=403)
 		except Igreja.DoesNotExist:
 			return JsonResponse({'count': 0, 'descricao': 'Igreja não encontrada'}, status=404)
-		
-		# Filtrar membros pela igreja
+
 		membros = Membro.objects.filter(igreja_id=igreja_id)
-		
-		# Aplicar filtros de tipo
 		if tipos_ids:
 			membros = membros.filter(tipo_pessoa_id__in=tipos_ids)
-		
-		# Aplicar filtros de status
 		if status_ids:
 			membros = membros.filter(status_pessoa_id__in=status_ids)
-		
-		# Excluir visitantes (sempre)
 		membros = membros.exclude(tipo_pessoa__nome='Visitante')
-		
 		count = membros.count()
-		
-		# DEBUG: Log da query SQL e contagem
 		logger.info(f"[CONTAR_CRITERIOS] Query: {membros.query}")
 		logger.info(f"[CONTAR_CRITERIOS] Count: {count}")
-		
-		# Gerar descrição legível
 		tipos_nomes = []
 		if tipos_ids:
 			tipos_nomes = list(TipoPessoa.objects.filter(id__in=tipos_ids).values_list('nome', flat=True))
-		
 		status_nomes = []
 		if status_ids:
 			status_nomes = list(StatusPessoa.objects.filter(id__in=status_ids).values_list('nome', flat=True))
-		
 		descricao_partes = []
 		if tipos_nomes:
 			if len(tipos_nomes) > 3:
@@ -171,65 +408,38 @@ def contar_participantes_criterios(request):
 				descricao_partes.append(', '.join(tipos_nomes))
 		else:
 			descricao_partes.append('Todos os tipos')
-		
 		if status_nomes:
 			if len(status_nomes) > 2:
 				descricao_partes.append(f"com {len(status_nomes)} status diferentes")
 			else:
 				descricao_partes.append(f"com status {', '.join(status_nomes)}")
-		
 		descricao = ' '.join(descricao_partes)
-		
 		logger.info(f"[CONTAR_CRITERIOS] Resultado: count={count}, descricao={descricao}, tipos={tipos_nomes}, status={status_nomes}")
-		
-		return JsonResponse({
-			'count': count, 
-			'descricao': descricao,
-			'tipos': tipos_nomes,
-			'status': status_nomes,
-			'igreja_nome': igreja.nome_igreja
-		})
-	
+		return JsonResponse({'count': count, 'descricao': descricao, 'tipos': tipos_nomes, 'status': status_nomes, 'igreja_nome': igreja.nome_igreja})
 	except Exception as e:
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.error(f"Erro em contar_participantes_criterios: {e}")
 		return JsonResponse({'count': 0, 'descricao': 'Erro ao calcular', 'error': str(e)}, status=500)
 
+
 @login_required
 @require_GET
 def listar_participantes_criterios(request):
-	"""
-	Endpoint AJAX para listar pessoas que atendem os critérios selecionados.
-	Usado no modal de remoção do sistema híbrido.
-	"""
+	"""Endpoint AJAX para listar pessoas que atendem os critérios selecionados."""
 	try:
-		# jQuery envia arrays como 'tipos[]' e 'status[]'
 		tipos_ids = request.GET.getlist('tipos[]') or request.GET.getlist('tipos')
 		status_ids = request.GET.getlist('status[]') or request.GET.getlist('status')
 		igreja_id = request.GET.get('igreja')
-		
 		if not igreja_id:
 			return JsonResponse({'pessoas': []})
-		
-		# Filtrar membros pela igreja
 		membros = Membro.objects.filter(igreja_id=igreja_id).select_related('tipo_pessoa', 'status_pessoa')
-		
-		# Aplicar filtros de tipo
 		if tipos_ids:
 			membros = membros.filter(tipo_pessoa_id__in=tipos_ids)
-		
-		# Aplicar filtros de status
 		if status_ids:
 			membros = membros.filter(status_pessoa_id__in=status_ids)
-		
-		# Excluir visitantes (sempre)
 		membros = membros.exclude(tipo_pessoa__nome='Visitante')
-		
-		# Limitar a 500 registros
 		membros = membros.distinct().order_by('nome')[:500]
-		
-		# Retornar informações completas
 		pessoas = []
 		for membro in membros:
 			info_parts = []
@@ -237,15 +447,8 @@ def listar_participantes_criterios(request):
 				info_parts.append(membro.tipo_pessoa.nome)
 			if membro.status_pessoa:
 				info_parts.append(membro.status_pessoa.nome)
-			
-			pessoas.append({
-				'id': str(membro.pk),  # Converter para string (consistência com autocomplete_convidados)
-				'nome': membro.nome,
-				'info': ' • '.join(info_parts) if info_parts else ''
-			})
-		
+			pessoas.append({'id': str(membro.pk), 'nome': membro.nome, 'info': ' • '.join(info_parts) if info_parts else ''})
 		return JsonResponse({'pessoas': pessoas})
-	
 	except Exception as e:
 		import logging
 		logger = logging.getLogger('django.request')
@@ -256,80 +459,47 @@ def listar_participantes_criterios(request):
 @login_required
 @require_GET
 def autocomplete_responsaveis(request):
-	"""
-	Retorna lista de responsáveis (usuários) que são membros da igreja especificada.
-	IMPORTANTE: Filtra apenas usuários do mesmo ministério do usuário logado.
-	"""
+	"""Retorna lista de responsáveis (usuários) que são membros da igreja especificada."""
 	igreja_id = request.GET.get('igreja_id')
-	
 	if not igreja_id:
 		return JsonResponse({'responsaveis': [], 'error': 'Parâmetro obrigatório ausente'})
-	
 	try:
 		from django.contrib.auth import get_user_model
 		from configuracao.models import Igreja
 		User = get_user_model()
-		
-		# 1. Obter a igreja
 		try:
 			igreja = Igreja.objects.get(pk=igreja_id)
 		except Igreja.DoesNotExist:
 			return JsonResponse({'responsaveis': [], 'error': 'Recurso não encontrado'})
-		
-		# 2. Obter ministério do usuário logado
+
 		ministerio_usuario = None
 		if hasattr(request.user, 'perfil') and hasattr(request.user.perfil, 'ministerio'):
 			ministerio_usuario = request.user.perfil.ministerio
-		
-		# 3. SEGURANÇA: Validar se a igreja pertence ao ministério do usuário
+
 		if ministerio_usuario and igreja.ministerio != ministerio_usuario:
-			return JsonResponse({
-				'responsaveis': [], 
-				'error': 'Acesso negado'
-			}, status=403)
-		
-		# 4. SEGURANÇA: Validar se o usuário tem permissão para acessar esta igreja
+			return JsonResponse({'responsaveis': [], 'error': 'Acesso negado'}, status=403)
+
 		if hasattr(request, 'igreja_ativa'):
 			if request.igreja_ativa.pk != int(igreja_id):
-				return JsonResponse({
-					'responsaveis': [],
-					'error': 'Acesso negado'
-				}, status=403)
-		
-		# 5. Buscar membros da igreja que têm usuário vinculado
-		membros_da_igreja = Membro.objects.filter(
-			igreja_id=igreja_id, 
-			usuario__isnull=False
-		).values_list('usuario_id', flat=True)
-		
-		# 6. Buscar usuários correspondentes
+				return JsonResponse({'responsaveis': [], 'error': 'Acesso negado'}, status=403)
+
+		membros_da_igreja = Membro.objects.filter(igreja_id=igreja_id, usuario__isnull=False).values_list('usuario_id', flat=True)
 		usuarios = User.objects.filter(id__in=membros_da_igreja)
-		
-		# 7. Filtrar apenas usuários do mesmo ministério
 		if ministerio_usuario:
 			usuarios = usuarios.filter(perfil__ministerio=ministerio_usuario)
-		
 		usuarios = usuarios.order_by('first_name', 'last_name', 'email')
-		
-		# 8. Formatar resposta
 		responsaveis = []
 		for user in usuarios:
 			nome_completo = user.get_full_name() or user.email
 			label = f"{nome_completo} ({user.email})" if user.get_full_name() else user.email
-			responsaveis.append({
-				'id': user.id,
-				'text': label
-			})
-		
+			responsaveis.append({'id': user.id, 'text': label})
 		return JsonResponse({'responsaveis': responsaveis})
-	
 	except Exception as e:
-		# Log do erro (se logging configurado)
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.error(f"Erro em autocomplete_responsaveis: {str(e)}", exc_info=True)
-		
 		return JsonResponse({'error': 'Erro interno do servidor'}, status=500)
+
 
 from django.db.models import Q
 import openpyxl

@@ -1,3 +1,17 @@
+# v1.14.21 — 05/08/2026
+🧱 **Eventos — refatoração estrutural da view de presença**
+
+### Entregas
+- Extração de helpers privados no módulo de eventos para resolver sessão, carregar participações e normalizar o payload de presença.
+- Manutenção integral do comportamento e dos fallbacks já corrigidos no hotfix anterior.
+- Organização mais próxima dos padrões de views/documentação, reduzindo a carga direta da `marcar_presenca_evento`.
+
+### Impacto
+- Melhora a legibilidade e a manutenção sem alterar o fluxo funcional.
+- Deixa a view mais alinhada com a documentação de arquitetura do sistema.
+
+---
+
 # v1.14.20 — 05/08/2026
 🧪 **Eventos — correção de ID localizável e log dedicado de presença**
 
