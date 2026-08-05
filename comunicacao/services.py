@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from configuracao.models import Igreja
 from eventos.models import Evento
 from financeiro.models import Receitas
 from secretaria.models import Membro, Pessoa
@@ -389,8 +390,6 @@ def executar_automacao_aniversario_email(*, ministerio, referencia=None, force=F
 
     if automacao.ultima_execucao_email == hoje and not force:
         return {'enviados': 0, 'falhas': 0, 'ignorado': True}
-
-    from configuracao.models import Igreja
 
     enviados = 0
     falhas = 0
