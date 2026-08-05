@@ -70,7 +70,7 @@ class EventoSessaoPresenceTest(TestCase):
 
         post_data = {
             'sessao': str(sessao2.pk),
-            'presentes': [str(self.membro.chave)],
+            'presentes': [str(pe.pk)],
         }
         resp_post = self.client.post(url, post_data, follow=True)
         self.assertEqual(resp_post.status_code, 200)
@@ -78,3 +78,29 @@ class EventoSessaoPresenceTest(TestCase):
         pe.refresh_from_db()
         self.assertEqual(pe.status, 'PRESENTE')
         self.assertEqual(pe.sessao, sessao2)
+
+    def test_mark_presence_accepts_presentes_json_payload(self):
+        start = timezone.now().replace(hour=10, minute=0, second=0, microsecond=0)
+        evento = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Retiro JSON',
+            data_inicio=start,
+            quantidade_dias=2,
+        )
+
+        sessoes = list(EventoSessao.objects.filter(evento=evento).order_by('numero'))
+        sessao1 = sessoes[0]
+
+        url = reverse('eventos:marcar_presenca', args=[evento.pk])
+        self.client.get(f"{url}?sessao={sessao1.pk}")
+        pe = ParticipacaoEvento.objects.get(evento=evento, sessao=sessao1, membro=self.membro)
+
+        post_data = {
+            'sessao': str(sessao1.pk),
+            'presentes_json': f'[{pe.pk}]',
+        }
+        resp_post = self.client.post(url, post_data, follow=True)
+        self.assertEqual(resp_post.status_code, 200)
+
+        pe.refresh_from_db()
+        self.assertEqual(pe.status, 'PRESENTE')

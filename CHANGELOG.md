@@ -1,3 +1,18 @@
+# v1.14.14 — 05/08/2026
+🛠️ **Eventos — hotfix para eliminar sucesso falso ao salvar presença**
+
+### Entregas
+- Ajuste no processamento de presença para combinar IDs enviados por `presentes_json` e por checkboxes (`presentes`).
+- Validação de escopo dos IDs recebidos para aceitar somente participantes da sessão atual.
+- Novo aviso de segurança quando houver marcação enviada, mas nenhum ID mapeável para a sessão.
+- Logs técnicos detalhados para diagnóstico rápido (`presentes_json`, `presentes_checkbox`, `presentes_recebidos`).
+
+### Impacto
+- Elimina cenário de "salvou com sucesso", mas mantendo todos como ausentes.
+- Garante consistência entre tela de marcação e cards/lista no detalhe do evento.
+
+---
+
 # v1.14.13 — 05/08/2026
 ✅ **Eventos — correção no registro de presenças por sessão**
 

@@ -756,32 +756,39 @@ def marcar_presenca_evento(request, pk):
 			participacoes = participacoes_base.filter(Q(membro__isnull=False) | Q(convidado_email__isnull=False))
 
 	if request.method == 'POST':
-		presentes_pks = set()
+		presentes_json_pks = set()
+		presentes_checkbox_pks = set()
 		import json
 		presentes_json = request.POST.get('presentes_json', '').strip()
 		if presentes_json:
 			try:
 				for value in json.loads(presentes_json):
-					presentes_pks.add(int(value))
+					presentes_json_pks.add(int(value))
 			except (ValueError, TypeError, json.JSONDecodeError):
-				presentes_pks = set()
+				presentes_json_pks = set()
 
-		# Fallback para submissão padrão de checkboxes.
-		if not presentes_pks:
-			for value in request.POST.getlist('presentes'):
-				try:
-					presentes_pks.add(int(value))
-				except (TypeError, ValueError):
-					continue
+		# Sempre considerar checkboxes também (não apenas fallback),
+		# para evitar sucesso falso quando o JSON ficar divergente.
+		for value in request.POST.getlist('presentes'):
+			try:
+				presentes_checkbox_pks.add(int(value))
+			except (TypeError, ValueError):
+				continue
+
+		presentes_pks = presentes_json_pks.union(presentes_checkbox_pks)
+		participacoes_ids = set(participacoes.values_list('pk', flat=True))
+		presentes_pks = presentes_pks.intersection(participacoes_ids)
+		houve_ids_submetidos = bool(presentes_json_pks or presentes_checkbox_pks)
 
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.info(
-			"[PRESENCA_EVENTO] evento=%s sessao=%s presentes_recebidos=%s presentes_post=%s json_len=%s participacoes_carregadas=%s",
+			"[PRESENCA_EVENTO] evento=%s sessao=%s presentes_json=%s presentes_checkbox=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s",
 			evento.pk,
 			sessao.pk if sessao else None,
+			len(presentes_json_pks),
+			len(presentes_checkbox_pks),
 			len(presentes_pks),
-			len(request.POST.getlist('presentes')),
 			len(presentes_json),
 			participacoes.count()
 		)
@@ -792,6 +799,16 @@ def marcar_presenca_evento(request, pk):
 				'Nenhum participante elegivel foi encontrado para registrar presença nesta sessão.'
 			)
 			redirect_url = reverse('eventos:detalhe_evento', args=[evento.pk])
+			if sessao:
+				redirect_url = f"{redirect_url}?sessao={sessao.pk}"
+			return redirect(redirect_url)
+
+		if houve_ids_submetidos and not presentes_pks:
+			messages.warning(
+				request,
+				'Nao foi possivel mapear os participantes marcados para esta sessao. Recarregue a pagina e tente novamente.'
+			)
+			redirect_url = reverse('eventos:marcar_presenca', args=[evento.pk])
 			if sessao:
 				redirect_url = f"{redirect_url}?sessao={sessao.pk}"
 			return redirect(redirect_url)

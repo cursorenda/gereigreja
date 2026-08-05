@@ -67,7 +67,7 @@ class EventoEdgeCasesTest(TestCase):
         url = reverse('eventos:marcar_presenca', args=[evento.pk])
         post_data = {
             'sessao': str(sessao1.pk),
-            'presentes': [f'email:guest2@example.com'],
+            'presentes': [str(pe.pk)],
         }
         resp = self.client.post(url, post_data, follow=True)
         self.assertEqual(resp.status_code, 200)
@@ -94,7 +94,7 @@ class EventoEdgeCasesTest(TestCase):
         self.assertIsNotNone(pe_s2)
 
         # Marca presente apenas na sessao 1
-        post_data = {'sessao': str(s1.pk), 'presentes': [str(self.membro.chave)]}
+        post_data = {'sessao': str(s1.pk), 'presentes': [str(pe_s1.pk)]}
         resp = self.client.post(url, post_data, follow=True)
         self.assertEqual(resp.status_code, 200)
 
