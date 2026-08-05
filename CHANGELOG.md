@@ -1,3 +1,17 @@
+# v1.14.18 — 05/08/2026
+🛡️ **Eventos — blindagem extra de mapeamento de presença (payload heterogêneo)**
+
+### Entregas
+- Parser de `presentes_json` ampliado para aceitar também itens em formato objeto (ex.: `id`, `pk`, `participacao_id`, `membro_id`, `email`, `nome`, `value`).
+- Fallback adicional para tokens textuais com dígitos finais (ex.: `pk:123`, `id=123`) e para nome normalizado sem acentos.
+- Log técnico expandido com amostras reais do payload (`amostra_json`, `amostra_checkbox`, `amostra_keys`) para diagnóstico preciso em produção quando houver divergência de navegador/cache.
+
+### Impacto
+- Reduz drasticamente risco de novo “não foi possível mapear” por variações de serialização no cliente.
+- Facilita identificar imediatamente qualquer formato residual fora do padrão esperado.
+
+---
+
 # v1.14.17 — 05/08/2026
 🧩 **Eventos — persistência determinística da presença por linha (hotfix final)**
 

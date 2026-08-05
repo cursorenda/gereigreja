@@ -763,10 +763,32 @@ def marcar_presenca_evento(request, pk):
 		valores_json_brutos = []
 		valores_checkbox_brutos = []
 		import json
+		import re
+		import unicodedata
 		presentes_json = request.POST.get('presentes_json', '').strip()
 		if presentes_json:
 			try:
 				for value in json.loads(presentes_json):
+					if isinstance(value, dict):
+						candidatos = [
+							value.get('participacao_id'),
+							value.get('participacaoPk'),
+							value.get('pk'),
+							value.get('id'),
+							value.get('membro_id'),
+							value.get('membroId'),
+							value.get('email'),
+							value.get('nome'),
+							value.get('value'),
+						]
+						for candidato in candidatos:
+							if candidato is None:
+								continue
+							valor_normalizado = str(candidato).strip()
+							if valor_normalizado:
+								valores_json_brutos.append(valor_normalizado)
+						continue
+
 					valor_normalizado = str(value or '').strip()
 					if valor_normalizado:
 						valores_json_brutos.append(valor_normalizado)
@@ -805,11 +827,27 @@ def marcar_presenca_evento(request, pk):
 		participacoes_ids = {p.pk for p in participacoes_lista}
 		participacoes_por_membro = {}
 		participacoes_por_email = {}
+		participacoes_por_nome = {}
+
+		def _normalizar_nome(valor):
+			if not valor:
+				return ''
+			return ''.join(
+				ch for ch in unicodedata.normalize('NFKD', str(valor).strip().lower())
+				if not unicodedata.combining(ch)
+			)
+
 		for p in participacoes_lista:
 			if p.membro_id:
 				participacoes_por_membro.setdefault(str(p.membro_id), set()).add(p.pk)
+				nome_membro = _normalizar_nome(getattr(p.membro, 'nome', ''))
+				if nome_membro:
+					participacoes_por_nome.setdefault(nome_membro, set()).add(p.pk)
 			if p.convidado_email:
 				participacoes_por_email.setdefault(str(p.convidado_email).strip().lower(), set()).add(p.pk)
+			nome_convidado = _normalizar_nome(getattr(p, 'convidado_nome', ''))
+			if nome_convidado:
+				participacoes_por_nome.setdefault(nome_convidado, set()).add(p.pk)
 
 		def _mapear_valor_para_participacao(valor_raw):
 			valor_raw = str(valor_raw or '').strip()
@@ -828,6 +866,15 @@ def marcar_presenca_evento(request, pk):
 			if valor_raw in participacoes_por_membro:
 				return set(participacoes_por_membro[valor_raw])
 
+			# 2.1) Valor em formatos comuns "pk:123", "id=123", etc.
+			match_digitos = re.search(r'(\d+)$', valor_raw)
+			if match_digitos:
+				candidato = int(match_digitos.group(1))
+				if candidato in participacoes_ids:
+					return {candidato}
+				if str(candidato) in participacoes_por_membro:
+					return set(participacoes_por_membro[str(candidato)])
+
 			# 3) Valor legado por e-mail de convidado: email:alguem@dominio.
 			valor_email = valor_raw
 			if valor_raw.lower().startswith('email:'):
@@ -835,6 +882,11 @@ def marcar_presenca_evento(request, pk):
 			valor_email = valor_email.lower()
 			if valor_email in participacoes_por_email:
 				return set(participacoes_por_email[valor_email])
+
+			# 4) Valor por nome de participante (fallback defensivo).
+			nome_normalizado = _normalizar_nome(valor_raw)
+			if nome_normalizado in participacoes_por_nome:
+				return set(participacoes_por_nome[nome_normalizado])
 
 			return set()
 
@@ -854,7 +906,7 @@ def marcar_presenca_evento(request, pk):
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.info(
-			"[PRESENCA_EVENTO] evento=%s sessao=%s json_brutos=%s checkbox_brutos=%s presentes_json=%s presentes_checkbox=%s presentes_nomecampo=%s presentes_estado=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s",
+			"[PRESENCA_EVENTO] evento=%s sessao=%s json_brutos=%s checkbox_brutos=%s presentes_json=%s presentes_checkbox=%s presentes_nomecampo=%s presentes_estado=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s amostra_json=%s amostra_checkbox=%s amostra_keys=%s",
 			evento.pk,
 			sessao.pk if sessao else None,
 			len(valores_json_brutos),
@@ -865,7 +917,10 @@ def marcar_presenca_evento(request, pk):
 			len(presentes_state_pks),
 			len(presentes_pks),
 			len(presentes_json),
-			participacoes.count()
+			participacoes.count(),
+			valores_json_brutos[:5],
+			valores_checkbox_brutos[:5],
+			list(k for k in request.POST.keys() if ('presenca' in str(k).lower() or 'presente' in str(k).lower()))[:12]
 		)
 
 		if not participacoes.exists():
