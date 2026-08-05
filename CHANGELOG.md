@@ -1,3 +1,20 @@
+# v1.14.15 — 05/08/2026
+🔁 **Eventos — compatibilidade retroativa no payload de presença (fix definitivo)**
+
+### Entregas
+- Backend de presença ajustado para mapear automaticamente valores marcados em formatos distintos:
+  - PK da participação (`ParticipacaoEvento.pk`);
+  - ID do membro (`membro_id` / `chave`);
+  - formato legado de convidado (`email:usuario@dominio`).
+- Leitura combinada de `presentes_json` e `presentes` (checkboxes), com normalização e resolução por sessão.
+- Logs técnicos ampliados para rastrear quantidade de valores brutos recebidos e quantidade efetivamente mapeada.
+
+### Impacto
+- Corrige cenário em que o sistema mostrava sucesso, mas os cards/lista continuavam sem atualizar presença.
+- Restaura compatibilidade com fluxos antigos de frontend sem quebrar o padrão atual.
+
+---
+
 # v1.14.14 — 05/08/2026
 🛠️ **Eventos — hotfix para eliminar sucesso falso ao salvar presença**
 

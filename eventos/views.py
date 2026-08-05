@@ -758,34 +758,82 @@ def marcar_presenca_evento(request, pk):
 	if request.method == 'POST':
 		presentes_json_pks = set()
 		presentes_checkbox_pks = set()
+		valores_json_brutos = []
+		valores_checkbox_brutos = []
 		import json
 		presentes_json = request.POST.get('presentes_json', '').strip()
 		if presentes_json:
 			try:
 				for value in json.loads(presentes_json):
-					presentes_json_pks.add(int(value))
+					valor_normalizado = str(value or '').strip()
+					if valor_normalizado:
+						valores_json_brutos.append(valor_normalizado)
 			except (ValueError, TypeError, json.JSONDecodeError):
-				presentes_json_pks = set()
+				valores_json_brutos = []
 
 		# Sempre considerar checkboxes também (não apenas fallback),
 		# para evitar sucesso falso quando o JSON ficar divergente.
 		for value in request.POST.getlist('presentes'):
+			valor_normalizado = str(value or '').strip()
+			if valor_normalizado:
+				valores_checkbox_brutos.append(valor_normalizado)
+
+		participacoes_lista = list(participacoes)
+		participacoes_ids = {p.pk for p in participacoes_lista}
+		participacoes_por_membro = {}
+		participacoes_por_email = {}
+		for p in participacoes_lista:
+			if p.membro_id:
+				participacoes_por_membro.setdefault(str(p.membro_id), set()).add(p.pk)
+			if p.convidado_email:
+				participacoes_por_email.setdefault(str(p.convidado_email).strip().lower(), set()).add(p.pk)
+
+		def _mapear_valor_para_participacao(valor_raw):
+			valor_raw = str(valor_raw or '').strip()
+			if not valor_raw:
+				return set()
+
+			# 1) Valor já é PK da participação.
 			try:
-				presentes_checkbox_pks.add(int(value))
+				candidato_pk = int(valor_raw)
+				if candidato_pk in participacoes_ids:
+					return {candidato_pk}
 			except (TypeError, ValueError):
-				continue
+				pass
+
+			# 2) Valor é ID do membro (compatibilidade com payload legado).
+			if valor_raw in participacoes_por_membro:
+				return set(participacoes_por_membro[valor_raw])
+
+			# 3) Valor legado por e-mail de convidado: email:alguem@dominio.
+			valor_email = valor_raw
+			if valor_raw.lower().startswith('email:'):
+				valor_email = valor_raw.split(':', 1)[1].strip()
+			valor_email = valor_email.lower()
+			if valor_email in participacoes_por_email:
+				return set(participacoes_por_email[valor_email])
+
+			return set()
+
+		for valor in valores_json_brutos:
+			mapeados = _mapear_valor_para_participacao(valor)
+			presentes_json_pks.update(mapeados)
+
+		for valor in valores_checkbox_brutos:
+			mapeados = _mapear_valor_para_participacao(valor)
+			presentes_checkbox_pks.update(mapeados)
 
 		presentes_pks = presentes_json_pks.union(presentes_checkbox_pks)
-		participacoes_ids = set(participacoes.values_list('pk', flat=True))
-		presentes_pks = presentes_pks.intersection(participacoes_ids)
-		houve_ids_submetidos = bool(presentes_json_pks or presentes_checkbox_pks)
+		houve_ids_submetidos = bool(valores_json_brutos or valores_checkbox_brutos)
 
 		import logging
 		logger = logging.getLogger('django.request')
 		logger.info(
-			"[PRESENCA_EVENTO] evento=%s sessao=%s presentes_json=%s presentes_checkbox=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s",
+			"[PRESENCA_EVENTO] evento=%s sessao=%s json_brutos=%s checkbox_brutos=%s presentes_json=%s presentes_checkbox=%s presentes_recebidos=%s json_len=%s participacoes_carregadas=%s",
 			evento.pk,
 			sessao.pk if sessao else None,
+			len(valores_json_brutos),
+			len(valores_checkbox_brutos),
 			len(presentes_json_pks),
 			len(presentes_checkbox_pks),
 			len(presentes_pks),
