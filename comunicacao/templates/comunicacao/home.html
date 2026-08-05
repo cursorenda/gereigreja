@@ -36,8 +36,8 @@
     </ol>
 
     {# Grid de Ações Rápidas #}
-    <div class="row mb-5">
-        <div class="col-md-6 col-lg-4 mb-3">
+    <div class="row mb-5 g-3">
+        <div class="col-sm-6 col-lg-3">
             <a href="{% url 'comunicacao:enviar_email_massa' %}" class="card card-hover text-decoration-none text-dark h-100">
                 <div class="card-body text-center py-4">
                     <div class="icon-large text-primary mb-3">
@@ -50,7 +50,7 @@
             </a>
         </div>
 
-        <div class="col-md-6 col-lg-4 mb-3">
+        <div class="col-sm-6 col-lg-3">
             <a href="{% url 'comunicacao:enviar_whatsapp_massa' %}" class="card card-hover text-decoration-none text-dark h-100">
                 <div class="card-body text-center py-4">
                     <div class="icon-large text-success mb-3">
@@ -63,7 +63,7 @@
             </a>
         </div>
 
-        <div class="col-md-6 col-lg-4 mb-3">
+        <div class="col-sm-6 col-lg-3">
             <a href="{% url 'comunicacao:lista_avisos' %}" class="card card-hover text-decoration-none text-dark h-100">
                 <div class="card-body text-center py-4">
                     <div class="icon-large text-warning mb-3">
@@ -76,7 +76,7 @@
             </a>
         </div>
 
-        <div class="col-md-6 col-lg-4 mb-3">
+        <div class="col-sm-6 col-lg-3">
             <a href="{% url 'comunicacao:configurar_automacao_aniversariantes' %}" class="card card-hover text-decoration-none text-dark h-100">
                 <div class="card-body text-center py-4">
                     <div class="icon-large text-danger mb-3">

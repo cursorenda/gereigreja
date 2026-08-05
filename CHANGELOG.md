@@ -1,3 +1,18 @@
+# v1.14.11 — 05/08/2026
+🧩 **Comunicação — cards superiores da home em linha no desktop com responsividade padronizada**
+
+### Entregas
+- `comunicacao/templates/comunicacao/home.html` atualizado para o padrão de grid responsivo oficial:
+  - `row mb-5 g-3` para espaçamento horizontal e vertical consistente;
+  - colunas `col-sm-6 col-lg-3` nos 4 cards superiores.
+
+### Impacto
+- Mantém os quatro cards na mesma linha em desktop.
+- Preserva responsividade em tablet (2 colunas) e smartphone (1 coluna).
+- Alinha a home de Comunicação ao padrão documentado de frontend.
+
+---
+
 # v1.14.10 — 05/08/2026
 📐 **Frontend Docs — padronização oficial de grid responsivo para cards de resumo**
 
