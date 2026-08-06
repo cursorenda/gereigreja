@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
+import requests
 
 from configuracao.models import (
     CidadeCatalogo,
@@ -8,6 +9,7 @@ from configuracao.models import (
     PaisTraducao,
     SubdivisaoAdministrativa,
     SubdivisaoTraducao,
+    normalizar_texto_catalogo,
 )
 
 
@@ -47,10 +49,23 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--apenas-brasil', action='store_true', help='Carrega somente o catálogo inicial brasileiro.')
+        parser.add_argument(
+            '--brasil-completo',
+            action='store_true',
+            help='Importa todos os municipios do Brasil a partir da API publica do IBGE.',
+        )
+        parser.add_argument(
+            '--ibge-timeout',
+            type=int,
+            default=60,
+            help='Timeout (segundos) para chamadas HTTP ao IBGE no modo --brasil-completo.',
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
         apenas_brasil = options['apenas_brasil']
+        brasil_completo = options['brasil_completo']
+        ibge_timeout = max(10, int(options['ibge_timeout'] or 60))
 
         pais_br, _ = Pais.objects.update_or_create(
             codigo_iso2='BR',
@@ -73,7 +88,10 @@ class Command(BaseCommand):
             defaults={'nome': 'Brazil'},
         )
 
-        self._seed_brasil(pais_br)
+        ufs_map = self._seed_brasil(pais_br)
+
+        if brasil_completo:
+            self._seed_brasil_municipios_ibge(pais_br, ufs_map, timeout=ibge_timeout)
 
         if not apenas_brasil:
             self._seed_paises_base()
@@ -81,6 +99,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Catalogo de localidades carregado com sucesso.'))
 
     def _seed_brasil(self, pais_br):
+        ufs_map = {}
         for uf, nome_estado, capital in BR_ESTADOS_CAPITAIS:
             subdivisao, _ = SubdivisaoAdministrativa.objects.update_or_create(
                 pais=pais_br,
@@ -118,6 +137,74 @@ class Command(BaseCommand):
                 idioma='en-US',
                 defaults={'nome': capital},
             )
+            ufs_map[uf] = subdivisao
+
+        return ufs_map
+
+    def _seed_brasil_municipios_ibge(self, pais_br, ufs_map, timeout=60):
+        self.stdout.write('Importando municipios do Brasil via IBGE...')
+
+        response = requests.get(
+            'https://servicodados.ibge.gov.br/api/v1/localidades/municipios',
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+        if not isinstance(payload, list):
+            raise RuntimeError('Resposta inesperada da API do IBGE para municipios.')
+
+        nomes_por_uf = {uf: set() for uf in ufs_map.keys()}
+        for item in payload:
+            nome = (item or {}).get('nome')
+            if not nome:
+                continue
+            nome = str(nome).strip()
+            if not nome:
+                continue
+
+            microrregiao = (item or {}).get('microrregiao') or {}
+            mesorregiao = microrregiao.get('mesorregiao') or {}
+            uf_obj = mesorregiao.get('UF') or {}
+            uf_sigla = (uf_obj.get('sigla') or '').strip().upper()
+            if uf_sigla in nomes_por_uf:
+                nomes_por_uf[uf_sigla].add(nome)
+
+        total_novas = 0
+        for uf, subdivisao in ufs_map.items():
+            nomes = nomes_por_uf.get(uf) or set()
+            if not nomes:
+                continue
+
+            existentes_norm = set(
+                CidadeCatalogo.objects.filter(pais=pais_br, subdivisao=subdivisao).values_list('nome_normalizado', flat=True)
+            )
+            novos = []
+            for nome in sorted(nomes):
+                nome_norm = normalizar_texto_catalogo(nome)
+                if nome_norm in existentes_norm:
+                    continue
+                existentes_norm.add(nome_norm)
+                novos.append(
+                    CidadeCatalogo(
+                        pais=pais_br,
+                        subdivisao=subdivisao,
+                        nome=nome,
+                        nome_normalizado=nome_norm,
+                        ativo=True,
+                    )
+                )
+
+            if novos:
+                CidadeCatalogo.objects.bulk_create(novos, batch_size=1000)
+                total_novas += len(novos)
+
+        total_br = CidadeCatalogo.objects.filter(pais=pais_br).count()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'IBGE importado com sucesso. Novas cidades: {total_novas}. Total BR no catalogo: {total_br}.'
+            )
+        )
 
     def _seed_paises_base(self):
         base = [

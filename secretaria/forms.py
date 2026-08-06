@@ -81,7 +81,7 @@ from django.core.exceptions import ValidationError
 from .models import Membro, Pessoa
 from .models import MembroCargo, TipoPessoa, StatusPessoa, StatusHistorico, Cargo
 from django.contrib.auth.models import Group
-from configuracao.models import PerfilUsuario, Igreja, Ministerio
+from configuracao.models import PerfilUsuario, Igreja, Ministerio, CidadeCatalogo
 from configuracao.services_assinatura import contar_pessoas_ativas, ministerio_pode_adicionar_pessoa_ativa, obter_limite_pessoas_ativas
 # --- IMPORTAR UTILS DE PERMISSÃO ---
 from .utils import is_admin_org, get_allowed_churches_for_membros
@@ -270,6 +270,7 @@ class MembroForm(forms.ModelForm):
         label='Tags',
         help_text='Segure Ctrl para selecionar múltiplas tags'
     )
+    naturalidade_cidade_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
     data_batismo = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -403,6 +404,17 @@ class MembroForm(forms.ModelForm):
         igreja_inicial = kwargs.pop('igreja_inicial', None)
         super().__init__(*args, **kwargs)
         self.ministerio = ministerio
+        self._naturalidade_cidade_obj = None
+
+        if getattr(self.instance, 'naturalidade_cidade_id', None):
+            self.initial.setdefault('naturalidade_cidade_id', self.instance.naturalidade_cidade_id)
+            if not self.is_bound and not (self.initial.get('naturalidade') or '').strip() and self.instance.naturalidade_cidade:
+                self.initial['naturalidade'] = self.instance.naturalidade_cidade.nome_exibicao(idioma='pt-BR')
+
+        if 'naturalidade' in self.fields:
+            self.fields['naturalidade'].widget.attrs.setdefault('autocomplete', 'off')
+            self.fields['naturalidade'].widget.attrs.setdefault('data-naturalidade-autocomplete', '1')
+
         if auto_cadastro:
             self.fields.pop('igreja', None)
             self.fields.pop('tipo_pessoa', None)
@@ -621,10 +633,24 @@ class MembroForm(forms.ModelForm):
             cleaned_data['convencao'] = ''
             cleaned_data['observacoes_ministeriais'] = ''
 
+        naturalidade_cidade_id = cleaned_data.get('naturalidade_cidade_id')
+        self._naturalidade_cidade_obj = None
+        if naturalidade_cidade_id:
+            self._naturalidade_cidade_obj = CidadeCatalogo.objects.filter(
+                pk=naturalidade_cidade_id,
+                ativo=True,
+                pais__ativo=True,
+            ).select_related('pais', 'subdivisao').first()
+            if self._naturalidade_cidade_obj and not (cleaned_data.get('naturalidade') or '').strip():
+                cleaned_data['naturalidade'] = self._naturalidade_cidade_obj.nome_exibicao(idioma='pt-BR')
+
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        instance.naturalidade_cidade = self._naturalidade_cidade_obj
+        if instance.naturalidade_cidade and not (instance.naturalidade or '').strip():
+            instance.naturalidade = instance.naturalidade_cidade.nome_exibicao(idioma='pt-BR')
         if commit:
             instance.save()
             self.save_m2m()

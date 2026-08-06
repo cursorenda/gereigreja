@@ -271,7 +271,14 @@
 				<div class="col-md-3">
 					<div class="mb-3">
 						<label for="{{ form.naturalidade.id_for_label }}" class="form-label">{{ form.naturalidade.label }}:</label>
-						{{ form.naturalidade }}
+						<div class="position-relative">
+							{{ form.naturalidade }}
+							<div id="naturalidade-sugestoes" class="list-group position-absolute w-100 d-none" style="z-index: 1080; max-height: 220px; overflow-y: auto;"></div>
+						</div>
+						{{ form.naturalidade_cidade_id }}
+						<datalist id="naturalidade-cidades-list"></datalist>
+						<small class="form-text text-muted">Digite para buscar no catálogo global ou informe manualmente.</small>
+						{% if form.naturalidade_cidade_id.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade_cidade_id.errors|striptags }}</div>{% endif %}
 						{% if form.naturalidade.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade.errors|striptags }}</div>{% endif %}
 					</div>
 				</div>
@@ -543,3 +550,132 @@
 		</div>
 	</div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+	var inputNaturalidade = document.getElementById('id_naturalidade');
+	var inputNaturalidadeCidadeId = document.getElementById('id_naturalidade_cidade_id');
+	var inputEstado = document.getElementById('id_estado');
+	var listaNaturalidade = document.getElementById('naturalidade-cidades-list');
+	var painelSugestoes = document.getElementById('naturalidade-sugestoes');
+	if (!inputNaturalidade || !inputNaturalidadeCidadeId || !listaNaturalidade || !painelSugestoes) {
+		return;
+	}
+
+	inputNaturalidade.setAttribute('list', 'naturalidade-cidades-list');
+	var valorInicial = (inputNaturalidade.value || '').trim();
+	var idInicial = (inputNaturalidadeCidadeId.value || '').trim();
+
+	var cacheOpcoes = new Map();
+
+	function obterUfParaFiltro() {
+		if (!inputEstado) {
+			return '';
+		}
+		var estadoValor = (inputEstado.value || '').trim().toUpperCase();
+		if (estadoValor.length === 2) {
+			return estadoValor;
+		}
+		return '';
+	}
+
+	function limparLista() {
+		listaNaturalidade.innerHTML = '';
+		cacheOpcoes.clear();
+		painelSugestoes.innerHTML = '';
+		painelSugestoes.classList.add('d-none');
+	}
+
+	function popularLista(cidades) {
+		limparLista();
+		cidades.forEach(function (cidade) {
+			if (!cidade || !cidade.display) {
+				return;
+			}
+			cacheOpcoes.set(cidade.display, cidade.id);
+			var option = document.createElement('option');
+			option.value = cidade.display;
+			listaNaturalidade.appendChild(option);
+
+			var item = document.createElement('button');
+			item.type = 'button';
+			item.className = 'list-group-item list-group-item-action';
+			item.textContent = cidade.display;
+			item.addEventListener('mousedown', function (event) {
+				event.preventDefault();
+				inputNaturalidade.value = cidade.display;
+				inputNaturalidadeCidadeId.value = String(cidade.id || '');
+				painelSugestoes.classList.add('d-none');
+			});
+			painelSugestoes.appendChild(item);
+		});
+		if (painelSugestoes.children.length) {
+			painelSugestoes.classList.remove('d-none');
+		}
+	}
+
+	var debounceTimer = null;
+	inputNaturalidade.addEventListener('input', function () {
+		inputNaturalidadeCidadeId.value = '';
+		var termo = (inputNaturalidade.value || '').trim();
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+		if (termo.length < 2) {
+			limparLista();
+			return;
+		}
+		debounceTimer = setTimeout(function () {
+			var url = '{% url "configuracao:api_buscar_cidades" %}?q=' + encodeURIComponent(termo) + '&limit=12';
+			var uf = obterUfParaFiltro();
+			if (uf) {
+				url += '&uf=' + encodeURIComponent(uf);
+			}
+			fetch(url, { credentials: 'same-origin' })
+				.then(function (response) { return response.ok ? response.json() : { results: [] }; })
+				.then(function (data) {
+					var cidades = Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
+					if (!cidades.length) {
+						limparLista();
+						return;
+					}
+					popularLista(cidades);
+				})
+				.catch(function () {
+					limparLista();
+				});
+		}, 220);
+	});
+
+	function sincronizarOpcaoSelecionada() {
+		var chave = (inputNaturalidade.value || '').trim();
+		if (cacheOpcoes.has(chave)) {
+			inputNaturalidadeCidadeId.value = cacheOpcoes.get(chave) || '';
+			return;
+		}
+		if (chave && chave === valorInicial) {
+			inputNaturalidadeCidadeId.value = idInicial;
+			return;
+		}
+		inputNaturalidadeCidadeId.value = '';
+	}
+
+	inputNaturalidade.addEventListener('change', sincronizarOpcaoSelecionada);
+	inputNaturalidade.addEventListener('blur', function () {
+		sincronizarOpcaoSelecionada();
+		setTimeout(function () {
+			painelSugestoes.classList.add('d-none');
+		}, 150);
+	});
+	inputNaturalidade.addEventListener('focus', function () {
+		if (painelSugestoes.children.length) {
+			painelSugestoes.classList.remove('d-none');
+		}
+	});
+	document.addEventListener('click', function (event) {
+		if (!painelSugestoes.contains(event.target) && event.target !== inputNaturalidade) {
+			painelSugestoes.classList.add('d-none');
+		}
+	});
+});
+</script>

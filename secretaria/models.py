@@ -112,6 +112,14 @@ class Pessoa(models.Model):
     cpf = models.CharField(max_length=14, blank=True, null=True, unique=True)
     rg = models.CharField(max_length=20, blank=True, null=True)
     naturalidade = models.CharField(max_length=50, blank=True, null=True)
+    naturalidade_cidade = models.ForeignKey(
+        'configuracao.CidadeCatalogo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pessoas_naturalidade',
+        verbose_name='Naturalidade (catálogo)'
+    )
     nascimento = models.DateField(blank=True, null=True)
     genero = models.CharField(max_length=1, choices=[('M', 'Masculino'), ('F', 'Feminino')], blank=True, null=True)
     estado_civil = models.CharField(max_length=20, choices=[('Solteiro', 'Solteiro'), ('Casado', 'Casado'), ('Divorciado', 'Divorciado'), ('Amasiado', 'Amasiado'), ('Viuvo', 'Viuvo')], blank=True, null=True)

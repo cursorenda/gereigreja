@@ -1,3 +1,45 @@
+# v1.14.24 — 06/08/2026
+🌎 **Naturalidade nacional completa + filtro por UF no autocomplete**
+
+### Entregas
+- Catálogo de localidades evoluído para suportar carga completa de municípios do Brasil via IBGE:
+  - comando `seed_localidades` recebeu `--brasil-completo` e `--ibge-timeout`;
+  - importação em lote robusta com preenchimento de `nome_normalizado` para respeitar constraints de unicidade.
+- Backend de busca de cidades com novo filtro opcional por UF:
+  - `buscar_cidades_catalogo(..., uf=...)`;
+  - endpoint `configuracao:api_buscar_cidades` aceita `uf` e retorna metadado correspondente.
+- UX do campo naturalidade reforçada na secretaria:
+  - lista de sugestões clicável/visível (além do datalist);
+  - frontend envia `uf` automaticamente quando campo Estado estiver em sigla (ex.: `SP`).
+
+### Impacto
+- Cobertura nacional real para naturalidade (capitais + demais municípios brasileiros).
+- Busca mais rápida e precisa quando UF está preenchida.
+- Melhor previsibilidade de seleção para o usuário final em navegadores com comportamento inconsistente de datalist.
+
+---
+
+# v1.14.23 — 06/08/2026
+🧭 **Secretaria — naturalidade com catálogo global (fase 2, compatível com legado)**
+
+### Entregas
+- Pessoa agora suporta vínculo opcional de naturalidade com o catálogo global:
+  - novo campo `Pessoa.naturalidade_cidade` (FK nullable para `configuracao.CidadeCatalogo`).
+- `MembroForm` passou a aceitar seleção por catálogo com fallback total para o texto existente:
+  - novo campo oculto `naturalidade_cidade_id`;
+  - preservação do campo textual `naturalidade` para compatibilidade retroativa.
+- UI principal de cadastro/edição (`_form_pessoa_oficial.html`) ganhou autocomplete leve de naturalidade:
+  - busca via `configuracao:api_buscar_cidades`;
+  - seleção preenche FK; digitação manual continua funcionando sem bloqueio.
+- Migration adicionada em `secretaria/migrations/10008_pessoa_naturalidade_cidade.py`.
+
+### Impacto
+- Habilita evolução internacional de naturalidade sem ruptura de dados e telas atuais.
+- Mantém comportamento legado para registros antigos e para entradas manuais (ex.: exterior/outros).
+- Cria base segura para próximas fases de adoção progressiva do catálogo em outros fluxos.
+
+---
+
 # v1.14.22 — 06/08/2026
 🌍 **Catálogo global de localidades (fase 1) — pronto para países e idiomas**
 

@@ -16,6 +16,7 @@ def api_buscar_cidades(request):
     termo = (request.GET.get('q') or '').strip()
     idioma = (request.GET.get('lang') or 'pt-BR').strip()
     pais = (request.GET.get('country') or '').strip().upper() or None
+    uf = (request.GET.get('uf') or '').strip().upper() or None
 
     try:
         limite = int(request.GET.get('limit', '30'))
@@ -23,12 +24,12 @@ def api_buscar_cidades(request):
         limite = 30
 
     if len(termo) < 2:
-        return JsonResponse({'results': [], 'meta': {'q': termo, 'lang': idioma, 'country': pais, 'limit': limite}})
+        return JsonResponse({'results': [], 'meta': {'q': termo, 'lang': idioma, 'country': pais, 'uf': uf, 'limit': limite}})
 
     try:
-        cidades = buscar_cidades_catalogo(termo=termo, pais_iso2=pais, idioma=idioma, limite=limite)
+        cidades = buscar_cidades_catalogo(termo=termo, pais_iso2=pais, idioma=idioma, limite=limite, uf=uf)
         resultados = [serializar_cidade(cidade, idioma=idioma) for cidade in cidades]
-        return JsonResponse({'results': resultados, 'meta': {'q': termo, 'lang': idioma, 'country': pais, 'limit': limite}})
+        return JsonResponse({'results': resultados, 'meta': {'q': termo, 'lang': idioma, 'country': pais, 'uf': uf, 'limit': limite}})
     except Exception as exc:
         logger.error('Erro ao buscar cidades no catálogo global: %s', exc, exc_info=True)
         return JsonResponse({'results': [], 'error': 'Erro ao buscar cidades no catálogo.'}, status=500)

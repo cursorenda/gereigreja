@@ -3,12 +3,16 @@ from django.db.models import Q
 from .models import CidadeCatalogo, normalizar_texto_catalogo
 
 
-def buscar_cidades_catalogo(termo='', pais_iso2=None, idioma='pt-BR', limite=30):
-    """Busca cidades no catálogo global com tolerância a acento e filtro opcional por país."""
+def buscar_cidades_catalogo(termo='', pais_iso2=None, idioma='pt-BR', limite=30, uf=None):
+    """Busca cidades no catálogo global com tolerância a acento e filtro opcional por país/UF."""
     qs = CidadeCatalogo.objects.filter(ativo=True, pais__ativo=True).select_related('pais', 'subdivisao')
 
     if pais_iso2:
         qs = qs.filter(pais__codigo_iso2=str(pais_iso2).upper().strip())
+
+    uf_limpa = (uf or '').strip().upper()
+    if len(uf_limpa) == 2:
+        qs = qs.filter(subdivisao__codigo=uf_limpa)
 
     termo_normalizado = normalizar_texto_catalogo(termo)
     if termo_normalizado:
