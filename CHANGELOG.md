@@ -1,3 +1,27 @@
+# v1.14.22 — 06/08/2026
+🌍 **Catálogo global de localidades (fase 1) — pronto para países e idiomas**
+
+### Entregas
+- Novo núcleo internacionalizado de localidades no app `configuracao` com modelos:
+  - `Pais`, `SubdivisaoAdministrativa`, `CidadeCatalogo`
+  - traduções por idioma: `PaisTraducao`, `SubdivisaoTraducao`, `CidadeTraducao`
+- Busca reutilizável de cidades com tolerância a acento e filtro por país/idioma:
+  - serviço `configuracao/services_localidades.py`
+  - endpoint `configuracao:api_buscar_cidades` em `configuracao/views_localidades.py`
+- Command de carga inicial do catálogo geográfico:
+  - `manage.py seed_localidades` (base Brasil + países iniciais)
+- Admin técnico para manutenção do catálogo no padrão modularizado do sistema:
+  - `configuracao/admin_localidades.py` integrado ao hub `configuracao/admin.py`
+- Migration inicial da estrutura internacionalizada:
+  - `configuracao/migrations/0037_pais_subdivisaoadministrativa_cidadecatalogo_and_more.py`
+
+### Impacto
+- Base pronta para expansão futura de naturalidade/endereço com múltiplos países e idiomas.
+- Reuso centralizado para outros módulos sem duplicação de listas locais.
+- Evolução alinhada às diretrizes de documentação (views, templates, logging e arquitetura).
+
+---
+
 # v1.14.21 — 05/08/2026
 🧱 **Eventos — refatoração estrutural da view de presença**
 

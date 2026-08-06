@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 # Importar reverse_lazy para URLs de sucesso
 from django.urls import reverse_lazy
 from .views import validar_imagens_perfil
+from .views_localidades import api_buscar_cidades
 from django.conf import settings
 from django.conf.urls.static import static # Importar static
 
@@ -89,6 +90,7 @@ urlpatterns = [
     
     # Dashboard do Sistema (uso interno do admin)
     path('api/metricas-sistema/', login_required(api_metricas_sistema), name='api_metricas_sistema'),
+    path('api/localidades/cidades/', api_buscar_cidades, name='api_buscar_cidades'),
     
     # Auditoria de Permissões
     path('auditoria-permissoes/', auditoria_permissoes, name='auditoria_permissoes'),

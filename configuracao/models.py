@@ -84,6 +84,7 @@ from django.conf import settings # Necessário para referenciar o User model pad
 from django.utils import timezone # Importar timezone se usar default=timezone.now
 import uuid # Para nomes de arquivo únicos
 import os   # Para manipulação de caminhos
+import unicodedata
 from datetime import timedelta # Para calcular data_fim da assinatura
 from django.apps import apps # Para import tardio e evitar circularidade
 
@@ -1186,3 +1187,187 @@ class GastoSistema(models.Model):
 
     def __str__(self):
         return f"{self.data_competencia:%m/%Y} - {self.descricao}"
+
+
+def normalizar_texto_catalogo(valor: str) -> str:
+    """Normaliza texto para busca sem acento e comparação estável."""
+    if not valor:
+        return ''
+    texto = unicodedata.normalize('NFKD', str(valor).strip().lower())
+    texto = ''.join(ch for ch in texto if not unicodedata.combining(ch))
+    return ' '.join(texto.split())
+
+
+class Pais(models.Model):
+    """Catálogo global de países (base para i18n/localização)."""
+    codigo_iso2 = models.CharField(max_length=2, unique=True, verbose_name='Código ISO2')
+    codigo_iso3 = models.CharField(max_length=3, unique=True, blank=True, null=True, verbose_name='Código ISO3')
+    nome_oficial = models.CharField(max_length=120, verbose_name='Nome oficial')
+    nome_curto = models.CharField(max_length=120, blank=True, verbose_name='Nome curto')
+    nome_normalizado = models.CharField(max_length=140, db_index=True, editable=False)
+    idioma_padrao = models.CharField(max_length=10, default='pt-BR', verbose_name='Idioma padrão')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+
+    class Meta:
+        verbose_name = 'País'
+        verbose_name_plural = 'Países'
+        ordering = ['nome_oficial']
+        constraints = [
+            models.UniqueConstraint(fields=['codigo_iso3'], condition=models.Q(codigo_iso3__isnull=False), name='uq_pais_iso3_not_null'),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.codigo_iso2 = (self.codigo_iso2 or '').upper().strip()
+        self.codigo_iso3 = (self.codigo_iso3 or '').upper().strip() or None
+        self.nome_normalizado = normalizar_texto_catalogo(self.nome_curto or self.nome_oficial)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.nome_oficial} ({self.codigo_iso2})"
+
+    def nome_exibicao(self, idioma='pt-BR'):
+        traducao = self.traducoes.filter(idioma=idioma).only('nome').first()
+        if traducao:
+            return traducao.nome
+        if self.idioma_padrao and self.idioma_padrao != idioma:
+            traducao_padrao = self.traducoes.filter(idioma=self.idioma_padrao).only('nome').first()
+            if traducao_padrao:
+                return traducao_padrao.nome
+        return self.nome_curto or self.nome_oficial
+
+
+class SubdivisaoAdministrativa(models.Model):
+    """Subdivisão administrativa por país (estado/província/região)."""
+    NIVEL_ESTADO = 'estado'
+    NIVEL_PROVINCIA = 'provincia'
+    NIVEL_REGIAO = 'regiao'
+    NIVEL_DISTRITO = 'distrito'
+    NIVEL_CHOICES = [
+        (NIVEL_ESTADO, 'Estado'),
+        (NIVEL_PROVINCIA, 'Província'),
+        (NIVEL_REGIAO, 'Região'),
+        (NIVEL_DISTRITO, 'Distrito'),
+    ]
+
+    pais = models.ForeignKey(Pais, on_delete=models.PROTECT, related_name='subdivisoes')
+    codigo = models.CharField(max_length=20, verbose_name='Código da subdivisão')
+    nome = models.CharField(max_length=120, verbose_name='Nome')
+    nome_normalizado = models.CharField(max_length=140, db_index=True, editable=False)
+    nivel = models.CharField(max_length=20, choices=NIVEL_CHOICES, default=NIVEL_ESTADO, verbose_name='Nível')
+    ativo = models.BooleanField(default=True, verbose_name='Ativa')
+
+    class Meta:
+        verbose_name = 'Subdivisão administrativa'
+        verbose_name_plural = 'Subdivisões administrativas'
+        ordering = ['pais__nome_oficial', 'nome']
+        constraints = [
+            models.UniqueConstraint(fields=['pais', 'codigo'], name='uq_subdivisao_pais_codigo'),
+            models.UniqueConstraint(fields=['pais', 'nome_normalizado', 'nivel'], name='uq_subdivisao_pais_nome_nivel'),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.codigo = (self.codigo or '').upper().strip()
+        self.nome_normalizado = normalizar_texto_catalogo(self.nome)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.nome} - {self.pais.codigo_iso2}"
+
+    def nome_exibicao(self, idioma='pt-BR'):
+        traducao = self.traducoes.filter(idioma=idioma).only('nome').first()
+        if traducao:
+            return traducao.nome
+        return self.nome
+
+
+class CidadeCatalogo(models.Model):
+    """Cidade global com suporte a país/subdivisão e traduções."""
+    pais = models.ForeignKey(Pais, on_delete=models.PROTECT, related_name='cidades')
+    subdivisao = models.ForeignKey(
+        SubdivisaoAdministrativa,
+        on_delete=models.PROTECT,
+        related_name='cidades',
+        null=True,
+        blank=True,
+    )
+    nome = models.CharField(max_length=160, verbose_name='Nome')
+    nome_normalizado = models.CharField(max_length=180, db_index=True, editable=False)
+    ativo = models.BooleanField(default=True, verbose_name='Ativa')
+
+    class Meta:
+        verbose_name = 'Cidade'
+        verbose_name_plural = 'Cidades'
+        ordering = ['pais__nome_oficial', 'subdivisao__nome', 'nome']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['pais', 'subdivisao', 'nome_normalizado'],
+                name='uq_cidade_pais_subdivisao_nome'
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['pais', 'subdivisao', 'nome_normalizado']),
+            models.Index(fields=['nome_normalizado']),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.nome_normalizado = normalizar_texto_catalogo(self.nome)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        if self.subdivisao:
+            return f"{self.nome}/{self.subdivisao.codigo}"
+        return f"{self.nome}/{self.pais.codigo_iso2}"
+
+    def nome_exibicao(self, idioma='pt-BR'):
+        traducao = self.traducoes.filter(idioma=idioma).only('nome').first()
+        if traducao:
+            return traducao.nome
+        return self.nome
+
+
+class PaisTraducao(models.Model):
+    pais = models.ForeignKey(Pais, on_delete=models.CASCADE, related_name='traducoes')
+    idioma = models.CharField(max_length=10, db_index=True)
+    nome = models.CharField(max_length=120)
+
+    class Meta:
+        verbose_name = 'Tradução de país'
+        verbose_name_plural = 'Traduções de países'
+        constraints = [
+            models.UniqueConstraint(fields=['pais', 'idioma'], name='uq_pais_traducao_idioma'),
+        ]
+
+    def __str__(self):
+        return f"{self.pais.codigo_iso2} [{self.idioma}]"
+
+
+class SubdivisaoTraducao(models.Model):
+    subdivisao = models.ForeignKey(SubdivisaoAdministrativa, on_delete=models.CASCADE, related_name='traducoes')
+    idioma = models.CharField(max_length=10, db_index=True)
+    nome = models.CharField(max_length=120)
+
+    class Meta:
+        verbose_name = 'Tradução de subdivisão'
+        verbose_name_plural = 'Traduções de subdivisões'
+        constraints = [
+            models.UniqueConstraint(fields=['subdivisao', 'idioma'], name='uq_subdivisao_traducao_idioma'),
+        ]
+
+    def __str__(self):
+        return f"{self.subdivisao.codigo} [{self.idioma}]"
+
+
+class CidadeTraducao(models.Model):
+    cidade = models.ForeignKey(CidadeCatalogo, on_delete=models.CASCADE, related_name='traducoes')
+    idioma = models.CharField(max_length=10, db_index=True)
+    nome = models.CharField(max_length=160)
+
+    class Meta:
+        verbose_name = 'Tradução de cidade'
+        verbose_name_plural = 'Traduções de cidades'
+        constraints = [
+            models.UniqueConstraint(fields=['cidade', 'idioma'], name='uq_cidade_traducao_idioma'),
+        ]
+
+    def __str__(self):
+        return f"{self.cidade.nome} [{self.idioma}]"
