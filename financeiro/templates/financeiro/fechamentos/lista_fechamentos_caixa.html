@@ -20,6 +20,30 @@
         <a href="{% url 'financeiro:criar_fechamento_caixa' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Criar Novo Fechamento</a>
     </div>
     {% endif %}
+
+    {% if departamentos_financeiros_dropdown %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-6 col-lg-5">
+                    <label for="dept_filtro" class="form-label">Departamento financeiro</label>
+                    <select name="dept_filtro" id="dept_filtro" class="form-select">
+                        <option value="">Todos os departamentos</option>
+                        {% for departamento_financeiro in departamentos_financeiros_dropdown %}
+                        <option value="{{ departamento_financeiro.pk }}" {% if departamento_filtro_selecionado == departamento_financeiro.pk|stringformat:'s' %}selected{% endif %}>
+                            {{ departamento_financeiro.nome_exibicao }}{% if departamento_financeiro.igreja %} - {{ departamento_financeiro.igreja.nome_igreja }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+                    <a href="{% url 'financeiro:lista_fechamentos_caixa' %}" class="btn btn-outline-secondary">Limpar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
     
     <div class="card mb-4">
         <div class="card-header">
@@ -32,6 +56,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>Igreja</th>
+                            <th>Departamento</th>
                             <th>Período</th>
                             <th>Data do Fechamento</th>
                             <th class="text-end">Total Entradas</th>
@@ -45,6 +70,7 @@
                         {% for fechamento in fechamentos %}
                         <tr>
                             <td>{{ fechamento.igreja.nome_igreja|default:"-" }}</td>
+                            <td>{{ fechamento.fundo_departamental.nome_exibicao|default:"Geral" }}</td>
                             <td>{{ fechamento.data_inicio|date:"d/m/y" }} a {{ fechamento.data_fim|date:"d/m/y" }}</td>
                             <td>{{ fechamento.data_fechamento|date:"d/m/Y H:i" }}</td>
                             <td class="text-end">R$ {{ fechamento.total_entradas|floatformat:"2"|intcomma }}</td>
@@ -78,7 +104,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="8" class="text-center"> {# Colspan ajustado para 8 colunas #}
+                            <td colspan="9" class="text-center">
                                 Nenhum fechamento de caixa encontrado.
                                 {% if can_edit_finance %}
                                     <a href="{% url 'financeiro:criar_fechamento_caixa' %}" class="ms-2">Criar um novo?</a>

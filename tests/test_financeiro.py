@@ -1,36 +1,51 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from contas.constants import TESOUREIRO
-from configuracao.models import Igreja, Ministerio, PerfilUsuario
+from contas.constants import ADMIN_MINISTERIO, TESOUREIRO
+from configuracao.models import Departamento, Igreja, Ministerio, PerfilUsuario
+from eventos.models import Evento
 from financeiro.models import (
     CategoriaDespesa,
     ContaBancaria,
     ContaPagar,
+    DepartamentoCaixa,
+    DepartamentoFinanceiro,
     Despesas,
     FechamentoCaixa,
     Fornecedor,
+    FundoDepartamental,
     ImportacaoExtratoOFX,
     LancamentoExtratoOFX,
     LogTransacaoFinanceira,
+    PoliticaDepartamentoFinanceiro,
     RecorrenciaContaPagar,
     Receitas,
     TransferenciaCaixa,
 )
 from financeiro.forms import RecorrenciaContaPagarForm
+from financeiro.forms import ReceitaForm, DespesaForm
 from financeiro.services import (
     AlertaVencimentoContaPagarService,
     FechamentoCaixaService,
     OFXImportService,
+    DepartamentoFinanceiroService,
+    ReceitaFluxoService,
     RecorrenciaContaPagarService,
+)
+from financeiro.policies import (
+    categorias_despesa_padrao_eventos,
+    categoria_receita_padrao_por_fundo,
+    categorias_receita_permitidas_por_fundo,
 )
 from notificacoes.models import Notificacao
 from financeiro.views import (
@@ -169,6 +184,39 @@ class FechamentoCaixaServiceTest(BaseFinanceiroTestCase):
         self.assertEqual(fechamento.total_saidas, Decimal("80.00"))
         self.assertEqual(fechamento.saldo_final, Decimal("220.00"))
         self.assertEqual(fechamento.status, "fechado")
+
+    def test_fechamento_rejeita_fundo_de_outra_igreja(self):
+        ministerio_b = Ministerio.objects.create(
+            nome_fantasia="Ministerio Fechamento B",
+            administrador_principal=self.user,
+            ativo=True,
+            cnpj="12345678000155",
+        )
+        igreja_b = Igreja.objects.create(
+            nome_igreja="Igreja Fechamento B",
+            ministerio=ministerio_b,
+            tipo_igreja="congregacao",
+        )
+        fundo_outra_igreja = FundoDepartamental.objects.create(
+            igreja=igreja_b,
+            codigo='PROJETO_TESTE',
+            nome_exibicao='Projeto Teste',
+            ativo=True,
+        )
+
+        fechamento = FechamentoCaixa(
+            igreja=self.igreja,
+            fundo_departamental=fundo_outra_igreja,
+            data_inicio=date(2026, 5, 1),
+            data_fim=date(2026, 5, 31),
+            total_entradas=Decimal("0.00"),
+            total_saidas=Decimal("0.00"),
+            saldo_final=Decimal("0.00"),
+            status='fechado',
+        )
+
+        with self.assertRaises(ValidationError):
+            fechamento.full_clean()
 
 
 class TransferenciaCaixaModelTest(BaseFinanceiroTestCase):
@@ -1776,6 +1824,8 @@ class ContaBancariaViewTest(BaseFinanceiroTestCase):
 class ReceitasViewTest(BaseFinanceiroTestCase):
     def setUp(self):
         super().setUp()
+        group_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(group_tesoureiro)
         self.perfil, _ = PerfilUsuario.objects.get_or_create(
             user=self.user,
             defaults={'ministerio': self.ministerio},
@@ -1871,12 +1921,37 @@ class ReceitasViewTest(BaseFinanceiroTestCase):
         response = self.client.get(reverse('financeiro:lista_receitas'), {'fechado': 'todos'})
 
         self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['exibir_cards_dizimos_ofertas'])
         self.assertEqual(response.context['dizimos_dinheiro'], Decimal('30.00'))
         self.assertEqual(response.context['dizimos_pix'], Decimal('20.00'))
         self.assertEqual(response.context['dizimos_total'], Decimal('100.00'))
         self.assertEqual(response.context['ofertas_dinheiro'], Decimal('40.00'))
         self.assertEqual(response.context['ofertas_pix'], Decimal('10.00'))
         self.assertEqual(response.context['ofertas_total'], Decimal('150.00'))
+
+    def test_lista_receitas_exibe_cards_dizimos_ofertas_apenas_para_fundo_local(self):
+        fundo_local = FundoDepartamental.objects.get(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_LOCAL,
+        )
+        fundo_eventos = FundoDepartamental.objects.get(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+        )
+
+        response_local = self.client.get(
+            reverse('financeiro:lista_receitas'),
+            {'fechado': 'todos', 'fundo_filtro': str(fundo_local.pk)},
+        )
+        self.assertEqual(response_local.status_code, 200)
+        self.assertTrue(response_local.context['exibir_cards_dizimos_ofertas'])
+
+        response_eventos = self.client.get(
+            reverse('financeiro:lista_receitas'),
+            {'fechado': 'todos', 'fundo_filtro': str(fundo_eventos.pk)},
+        )
+        self.assertEqual(response_eventos.status_code, 200)
+        self.assertFalse(response_eventos.context['exibir_cards_dizimos_ofertas'])
 
     def test_lista_receitas_restringe_caixas_e_dados_a_igreja_ativa(self):
         self.perfil.igrejas_permitidas.set([self.igreja, self.outra_igreja])
@@ -1912,6 +1987,8 @@ class ReceitasViewTest(BaseFinanceiroTestCase):
 class DespesasViewTest(BaseFinanceiroTestCase):
     def setUp(self):
         super().setUp()
+        group_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(group_tesoureiro)
         self.perfil, _ = PerfilUsuario.objects.get_or_create(
             user=self.user,
             defaults={'ministerio': self.ministerio},
@@ -2092,4 +2169,1405 @@ class PainelFinanceiroViewTest(BaseFinanceiroTestCase):
         self.assertEqual(response.context['total_contas_fixas_previstas'], Decimal('330.00'))
         self.assertEqual(response.context['total_contas_fixas_pagas'], Decimal('150.00'))
         self.assertEqual(response.context['total_contas_fixas_atrasadas'], Decimal('80.00'))
+
+
+class EventoFinanceiroSegregacaoTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.perfil, _ = PerfilUsuario.objects.get_or_create(
+            user=self.user,
+            defaults={'ministerio': self.ministerio},
+        )
+        if self.perfil.ministerio_id != self.ministerio.id:
+            self.perfil.ministerio = self.ministerio
+            self.perfil.save(update_fields=['ministerio'])
+        self.perfil.igrejas_permitidas.set([self.igreja])
+
+        group_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(group_tesoureiro)
+
+        self.client.force_login(self.user)
+
+        self.caixa_evento = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa Evento Teste',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('100.00'),
+        )
+        self.caixa_tesouraria = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa Tesouraria Geral',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('200.00'),
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Evento Segregacao',
+        )
+        self.categoria_evento = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Outros Custos do Evento',
+        )
+        self.evento = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Conferencia Financeira',
+            data_inicio=timezone.make_aware(datetime(2026, 8, 10, 9, 0, 0)),
+            data_fim=timezone.make_aware(datetime(2026, 8, 11, 18, 0, 0)),
+            conta_bancaria_evento=self.caixa_evento,
+        )
+
+    def test_receita_model_rejeita_caixa_diferente_do_evento(self):
+        receita = Receitas(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('50.00'),
+            conta_bancaria=self.caixa_tesouraria,
+        )
+
+        with self.assertRaises(ValidationError):
+            receita.full_clean()
+
+    def test_despesa_model_rejeita_caixa_diferente_do_evento(self):
+        despesa = Despesas(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Pagamento fornecedor',
+            valor=Decimal('30.00'),
+            conta_bancaria=self.caixa_tesouraria,
+        )
+
+        with self.assertRaises(ValidationError):
+            despesa.full_clean()
+
+    def test_receita_form_contexto_evento_trava_evento_e_caixa(self):
+        form = ReceitaForm(
+            ministerio=self.ministerio,
+            allowed_churches=Igreja.objects.filter(pk=self.igreja.pk),
+            igreja_selecionada_inicial=self.igreja,
+            evento_contexto=self.evento,
+            travar_evento=True,
+            travar_conta_evento=True,
+        )
+
+        self.assertTrue(form.fields['evento'].disabled)
+        self.assertTrue(form.fields['conta_bancaria'].disabled)
+        self.assertEqual(form.initial['evento'], self.evento.pk)
+        self.assertEqual(form.initial['categoria'], 'doacao')
+        self.assertEqual(form.initial['conta_bancaria'], self.caixa_evento.pk)
+
+    def test_receita_fluxo_service_post_evento_forca_categoria_e_conta(self):
+        post_data, conta_evento_efetiva_id = ReceitaFluxoService.construir_post_data_receita_evento(
+            raw_post_data={
+                'data': '2026-08-10',
+                'categoria': 'oferta',
+                'valor': '120.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            evento=self.evento,
+        )
+
+        self.assertEqual(post_data['igreja'], str(self.igreja.pk))
+        self.assertEqual(post_data['evento'], str(self.evento.pk))
+        self.assertEqual(post_data['categoria'], 'doacao')
+        self.assertEqual(post_data['conta_bancaria'], str(self.caixa_evento.pk))
+        self.assertEqual(conta_evento_efetiva_id, self.caixa_evento.pk)
+
+    def test_receita_fluxo_service_post_caixa_eventos_com_evento_forca_doacao(self):
+        post_data, evento, conta_evento_efetiva_id = ReceitaFluxoService.construir_post_data_receita_caixa_eventos(
+            raw_post_data={
+                'evento': str(self.evento.pk),
+                'categoria': 'oferta',
+                'valor': '120.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            igreja_padrao_para_form=self.igreja,
+            allowed_churches=Igreja.objects.filter(pk=self.igreja.pk),
+        )
+
+        self.assertIsNotNone(evento)
+        self.assertEqual(post_data['igreja'], str(self.igreja.pk))
+        self.assertEqual(post_data['categoria'], 'doacao')
+        self.assertEqual(post_data['conta_bancaria'], str(self.caixa_evento.pk))
+        self.assertEqual(conta_evento_efetiva_id, self.caixa_evento.pk)
+
+    def test_receita_fluxo_service_initial_caixa_eventos_usa_conta_padrao_eventos(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        initial = ReceitaFluxoService.construir_initial_receita_caixa_eventos(self.igreja)
+
+        self.assertEqual(initial['categoria'], 'doacao')
+        self.assertEqual(initial['conta_bancaria'], self.caixa_evento.pk)
+
+    def test_cadastrar_receita_caixa_eventos_get_filtra_categoria_e_preseleciona_conta_eventos(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        response = self.client.get(reverse('financeiro:cadastrar_receita_caixa_eventos'))
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context['form']
+        categorias = [codigo for codigo, _rotulo in form.fields['categoria'].choices]
+        self.assertEqual(categorias, ['doacao', 'outro'])
+        self.assertEqual(form.initial['categoria'], 'doacao')
+        self.assertEqual(form.initial['conta_bancaria'], self.caixa_evento.pk)
+        self.assertContains(response, '<select name="categoria"', html=False)
+        self.assertNotContains(response, '<select name="conta_bancaria"', html=False)
+        self.assertContains(response, f'name="conta_bancaria" value="{self.caixa_evento.pk}"', html=False)
+
+    def test_cadastrar_receita_caixa_eventos_mostra_conta_quando_nao_ha_padrao_eventos(self):
+        self.igreja.conta_padrao_eventos = None
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        response = self.client.get(reverse('financeiro:cadastrar_receita_caixa_eventos'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<select name="categoria"', html=False)
+        self.assertContains(response, '<select name="conta_bancaria"', html=False)
+
+    def test_cadastrar_receita_caixa_eventos_sem_evento_salva_no_fundo_eventos(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_receita_caixa_eventos'),
+            data={
+                'data': '2026-08-10',
+                'categoria': 'outro',
+                'valor': '120.00',
+                'forma_pgto': 'PIX',
+                'conta_bancaria': str(self.caixa_evento.pk),
+                'membro': '',
+                'evento': '',
+                'observacao': 'entrada geral de eventos',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        receita = Receitas.objects.order_by('-id').first()
+        self.assertIsNotNone(receita)
+        self.assertEqual(receita.fundo_departamental.codigo, FundoDepartamental.CODIGO_EVENTOS)
+        self.assertEqual(receita.categoria, 'outro')
+        self.assertEqual(receita.conta_bancaria_id, self.caixa_evento.pk)
+
+    def test_cadastrar_receita_com_next_eventos_redireciona_para_fluxo_eventos(self):
+        response = self.client.get(
+            reverse('financeiro:cadastrar_receita'),
+            {'next': reverse('eventos:lista_eventos')},
+        )
+
+        self.assertRedirects(response, reverse('financeiro:cadastrar_receita_caixa_eventos'))
+
+    def test_cadastrar_despesa_com_next_eventos_redireciona_para_fluxo_eventos(self):
+        response = self.client.get(
+            reverse('financeiro:cadastrar_despesa'),
+            {'next': reverse('eventos:lista_eventos')},
+        )
+
+        self.assertRedirects(response, reverse('financeiro:cadastrar_despesa_caixa_eventos'))
+
+    def test_eventos_lista_painel_reflete_receita_caixa_eventos_sem_evento(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        response_post = self.client.post(
+            reverse('financeiro:cadastrar_receita_caixa_eventos'),
+            data={
+                'data': '2026-08-10',
+                'categoria': 'doacao',
+                'valor': '125.00',
+                'forma_pgto': 'PIX',
+                'conta_bancaria': str(self.caixa_evento.pk),
+                'membro': '',
+                'evento': '',
+                'observacao': 'entrada sem evento específico',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response_post.status_code, 200)
+
+        response_lista = self.client.get(
+            reverse('eventos:lista_eventos'),
+            {
+                'periodo_filtro': 'ano_atual',
+                'status': 'aguardando',
+            },
+        )
+
+        self.assertEqual(response_lista.status_code, 200)
+        painel = response_lista.context['painel_financeiro_eventos']
+        self.assertEqual(painel['total_entradas'], Decimal('125.00'))
+
+    def test_eventos_lista_painel_reflete_despesa_caixa_eventos_sem_evento(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+        categoria_evento, _ = CategoriaDespesa.objects.get_or_create(
+            ministerio=self.ministerio,
+            nome='Outros Custos do Evento',
+            defaults={'padrao_global': False},
+        )
+
+        response_post = self.client.post(
+            reverse('financeiro:cadastrar_despesa_caixa_eventos'),
+            data={
+                'data': '2026-08-10',
+                'categoria': str(categoria_evento.pk),
+                'descricao': 'saida sem evento específico',
+                'valor': '77.50',
+                'conta_bancaria': str(self.caixa_evento.pk),
+                'evento': '',
+                'observacao': 'teste de saida geral de eventos',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response_post.status_code, 200)
+
+        response_lista = self.client.get(
+            reverse('eventos:lista_eventos'),
+            {
+                'periodo_filtro': 'ano_atual',
+                'status': 'aguardando',
+            },
+        )
+
+        self.assertEqual(response_lista.status_code, 200)
+        painel = response_lista.context['painel_financeiro_eventos']
+        self.assertEqual(painel['total_saidas'], Decimal('77.50'))
+
+    def test_cadastrar_despesa_caixa_eventos_restringe_categorias_para_contexto_eventos(self):
+        response = self.client.get(reverse('financeiro:cadastrar_despesa_caixa_eventos'))
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context['form']
+        categorias_renderizadas = list(form.fields['categoria'].queryset.values_list('nome', flat=True))
+
+        for nome_categoria in categorias_despesa_padrao_eventos():
+            self.assertIn(nome_categoria, categorias_renderizadas)
+        self.assertNotIn(self.categoria.nome, categorias_renderizadas)
+
+    def test_cadastrar_receita_evento_forca_caixa_vinculado(self):
+        response = self.client.post(
+            reverse('financeiro:cadastrar_receita_evento', args=[self.evento.pk]),
+            data={
+                'data': '2026-08-10',
+                'categoria': 'oferta',
+                'valor': '120.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        receita = Receitas.objects.filter(evento=self.evento).order_by('-id').first()
+        self.assertIsNotNone(receita)
+        self.assertEqual(receita.categoria, 'doacao')
+        self.assertEqual(receita.conta_bancaria_id, self.caixa_evento.pk)
+
+    def test_cadastrar_despesa_evento_forca_caixa_vinculado(self):
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa_evento', args=[self.evento.pk]),
+            data={
+                'data': '2026-08-10',
+                'categoria': str(self.categoria_evento.pk),
+                'descricao': 'Compra de material',
+                'valor': '40.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        despesa = Despesas.objects.filter(evento=self.evento).order_by('-id').first()
+        self.assertIsNotNone(despesa)
+        self.assertEqual(despesa.conta_bancaria_id, self.caixa_evento.pk)
+
+    def test_evento_sem_caixa_permite_caixa_tesouraria(self):
+        evento_sem_caixa = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Evento sem caixa vinculado',
+            data_inicio=timezone.make_aware(datetime(2026, 8, 20, 9, 0, 0)),
+            data_fim=timezone.make_aware(datetime(2026, 8, 20, 18, 0, 0)),
+            conta_bancaria_evento=None,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_receita_evento', args=[evento_sem_caixa.pk]),
+            data={
+                'data': '2026-08-20',
+                'categoria': 'oferta',
+                'valor': '55.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        receita = Receitas.objects.filter(evento=evento_sem_caixa).order_by('-id').first()
+        self.assertIsNotNone(receita)
+        self.assertEqual(receita.categoria, 'doacao')
+        self.assertEqual(receita.conta_bancaria_id, self.caixa_tesouraria.pk)
+
+    def test_evento_sem_caixa_usa_conta_padrao_eventos_da_igreja_na_receita(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        evento_sem_caixa = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Evento com conta padrao da igreja',
+            data_inicio=timezone.make_aware(datetime(2026, 8, 22, 9, 0, 0)),
+            data_fim=timezone.make_aware(datetime(2026, 8, 22, 18, 0, 0)),
+            conta_bancaria_evento=None,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_receita_evento', args=[evento_sem_caixa.pk]),
+            data={
+                'data': '2026-08-22',
+                'categoria': 'oferta',
+                'valor': '88.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        receita = Receitas.objects.filter(evento=evento_sem_caixa).order_by('-id').first()
+        self.assertIsNotNone(receita)
+        self.assertEqual(receita.categoria, 'doacao')
+        self.assertEqual(receita.conta_bancaria_id, self.caixa_evento.pk)
+
+    def test_form_receita_evento_oculta_seletor_conta_quando_igreja_tem_padrao_eventos(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        evento_sem_caixa = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Evento sem caixa com padrao igreja',
+            data_inicio=timezone.make_aware(datetime(2026, 8, 23, 9, 0, 0)),
+            data_fim=timezone.make_aware(datetime(2026, 8, 23, 18, 0, 0)),
+            conta_bancaria_evento=None,
+        )
+
+        response = self.client.get(reverse('financeiro:cadastrar_receita_evento', args=[evento_sem_caixa.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '<select name="conta_bancaria"')
+        self.assertContains(response, f'name="conta_bancaria" value="{self.caixa_evento.pk}"')
+
+    def test_form_receita_evento_renderiza_action_da_rota_de_evento(self):
+        response = self.client.get(reverse('financeiro:cadastrar_receita_evento', args=[self.evento.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'action="{reverse("financeiro:cadastrar_receita_evento", args=[self.evento.pk])}"',
+        )
+
+    def test_lista_receitas_filtra_por_fundo_eventos(self):
+        Receitas.objects.create(
+            igreja=self.igreja,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('10.00'),
+            conta_bancaria=self.caixa_tesouraria,
+        )
+        receita_evento = Receitas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria='doacao',
+            data=date(2026, 8, 10),
+            valor=Decimal('20.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+        fundo_eventos = FundoDepartamental.objects.get(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+        )
+
+        response = self.client.get(
+            reverse('financeiro:lista_receitas'),
+            {'fundo_filtro': str(fundo_eventos.pk), 'fechado': 'todos'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        receitas_contexto = list(response.context['receitas'])
+        self.assertEqual(len(receitas_contexto), 1)
+        self.assertEqual(receitas_contexto[0].pk, receita_evento.pk)
+
+    def test_lista_despesas_filtra_por_fundo_eventos(self):
+        Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa local',
+            valor=Decimal('11.00'),
+            conta_bancaria=self.caixa_tesouraria,
+        )
+        despesa_evento = Despesas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa evento',
+            valor=Decimal('21.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+        fundo_eventos = FundoDepartamental.objects.get(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+        )
+
+        response = self.client.get(
+            reverse('financeiro:lista_despesas'),
+            {'fundo_filtro': str(fundo_eventos.pk), 'fechado': 'todos'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        despesas_contexto = list(response.context['despesas'])
+        self.assertEqual(len(despesas_contexto), 1)
+        self.assertEqual(despesas_contexto[0].pk, despesa_evento.pk)
+
+    def test_painel_financeiro_filtra_por_fundo_eventos(self):
+        Receitas.objects.create(
+            igreja=self.igreja,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('30.00'),
+            conta_bancaria=self.caixa_tesouraria,
+        )
+        Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa local painel',
+            valor=Decimal('5.00'),
+            conta_bancaria=self.caixa_tesouraria,
+        )
+        Receitas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria='doacao',
+            data=date(2026, 8, 10),
+            valor=Decimal('40.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+        Despesas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa evento painel',
+            valor=Decimal('7.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+        fundo_eventos = FundoDepartamental.objects.get(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+        )
+
+        with patch('contas.page_permissions.user_can_access_page', return_value=True):
+            response = self.client.get(
+                reverse('financeiro:painel_financeiro'),
+                {'periodo_filtro': 'geral', 'fundo_filtro': str(fundo_eventos.pk)},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_receitas'], Decimal('40.00'))
+        self.assertEqual(response.context['total_despesas'], Decimal('7.00'))
+
+    def test_edicao_receita_evento_mantem_regra_de_caixa(self):
+        receita = Receitas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('70.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:editar_receita', args=[receita.pk]),
+            data={
+                'igreja': str(self.igreja.pk),
+                'evento': str(self.evento.pk),
+                'data': '2026-08-10',
+                'categoria': 'oferta',
+                'valor': '70.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+                'forma_pgto': '',
+                'membro': '',
+                'observacao': 'tentativa troca caixa',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Use o caixa vinculado ao evento selecionado.')
+        receita.refresh_from_db()
+        self.assertEqual(receita.conta_bancaria_id, self.caixa_evento.pk)
+
+    def test_evento_sem_caixa_permite_despesa_com_caixa_tesouraria(self):
+        evento_sem_caixa = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Evento sem caixa para despesa',
+            data_inicio=timezone.make_aware(datetime(2026, 8, 21, 9, 0, 0)),
+            data_fim=timezone.make_aware(datetime(2026, 8, 21, 18, 0, 0)),
+            conta_bancaria_evento=None,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa_evento', args=[evento_sem_caixa.pk]),
+            data={
+                'data': '2026-08-21',
+                'categoria': str(self.categoria_evento.pk),
+                'descricao': 'Despesa sem caixa vinculado',
+                'valor': '35.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        despesa = Despesas.objects.filter(evento=evento_sem_caixa).order_by('-id').first()
+        self.assertIsNotNone(despesa)
+        self.assertEqual(despesa.conta_bancaria_id, self.caixa_tesouraria.pk)
+
+    def test_evento_sem_caixa_usa_conta_padrao_eventos_da_igreja_na_despesa(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        evento_sem_caixa = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Evento despesa com conta padrao da igreja',
+            data_inicio=timezone.make_aware(datetime(2026, 8, 24, 9, 0, 0)),
+            data_fim=timezone.make_aware(datetime(2026, 8, 24, 18, 0, 0)),
+            conta_bancaria_evento=None,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa_evento', args=[evento_sem_caixa.pk]),
+            data={
+                'data': '2026-08-24',
+                'categoria': str(self.categoria_evento.pk),
+                'descricao': 'Despesa com padrao da igreja',
+                'valor': '42.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        despesa = Despesas.objects.filter(evento=evento_sem_caixa).order_by('-id').first()
+        self.assertIsNotNone(despesa)
+        self.assertEqual(despesa.conta_bancaria_id, self.caixa_evento.pk)
+
+    def test_form_despesa_evento_renderiza_action_da_rota_de_evento(self):
+        response = self.client.get(reverse('financeiro:cadastrar_despesa_evento', args=[self.evento.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'action="{reverse("financeiro:cadastrar_despesa_evento", args=[self.evento.pk])}"',
+        )
+
+    def test_cadastrar_despesa_caixa_eventos_oculta_conta_quando_igreja_tem_padrao_eventos(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        response = self.client.get(reverse('financeiro:cadastrar_despesa_caixa_eventos'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '<select name="conta_bancaria"')
+        self.assertContains(response, f'name="conta_bancaria" value="{self.caixa_evento.pk}"')
+
+    def test_edicao_despesa_evento_mantem_regra_de_caixa(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa original',
+            valor=Decimal('45.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:editar_despesa', args=[despesa.pk]),
+            data={
+                'igreja': str(self.igreja.pk),
+                'evento': str(self.evento.pk),
+                'categoria': str(self.categoria.pk),
+                'data': '2026-08-10',
+                'valor': '45.00',
+                'descricao': 'Despesa editada',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+                'observacao': 'tentativa troca caixa',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Use o caixa vinculado ao evento selecionado.')
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.conta_bancaria_id, self.caixa_evento.pk)
+
+    def test_cadastrar_despesa_evento_salva_pendente_quando_politica_exige_aprovacao(self):
+        user_model = get_user_model()
+        tesoureiro_local = user_model.objects.create_user(
+            username='tesoureiro_sem_nivel_aprovacao_evento',
+            email='tesoureiro_evento@gereigreja.test',
+            password='senha123',
+        )
+        perfil_tesoureiro, _ = PerfilUsuario.objects.get_or_create(
+            user=tesoureiro_local,
+            defaults={'ministerio': self.ministerio},
+        )
+        if perfil_tesoureiro.ministerio_id != self.ministerio.id:
+            perfil_tesoureiro.ministerio = self.ministerio
+            perfil_tesoureiro.save(update_fields=['ministerio'])
+        perfil_tesoureiro.igrejas_permitidas.set([self.igreja])
+        group_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        tesoureiro_local.groups.add(group_tesoureiro)
+        self.client.force_login(tesoureiro_local)
+
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+        departamento_eventos = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja,
+            codigo_interno=DepartamentoFinanceiro.CODIGO_EVENTOS,
+        )
+        politica = PoliticaDepartamentoFinanceiro.objects.get(departamento=departamento_eventos)
+        politica.exige_aprovacao_para_saida = True
+        politica.valor_minimo_para_aprovacao = Decimal('10.00')
+        politica.save(update_fields=['exige_aprovacao_para_saida', 'valor_minimo_para_aprovacao'])
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa_evento', args=[self.evento.pk]),
+            data={
+                'data': '2026-08-10',
+                'categoria': str(self.categoria_evento.pk),
+                'descricao': 'Despesa bloqueada por aprovacao',
+                'valor': '40.00',
+                'conta_bancaria': str(self.caixa_evento.pk),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'salvo como pendente para aprovacao')
+        despesa = Despesas.objects.get(descricao='Despesa bloqueada por aprovacao')
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+
+    def test_cadastrar_despesa_local_salva_pendente_quando_politica_exige_aprovacao(self):
+        user_model = get_user_model()
+        tesoureiro_local = user_model.objects.create_user(
+            username='tesoureiro_sem_nivel_aprovacao_local',
+            email='tesoureiro_local@gereigreja.test',
+            password='senha123',
+        )
+        perfil_tesoureiro, _ = PerfilUsuario.objects.get_or_create(
+            user=tesoureiro_local,
+            defaults={'ministerio': self.ministerio},
+        )
+        if perfil_tesoureiro.ministerio_id != self.ministerio.id:
+            perfil_tesoureiro.ministerio = self.ministerio
+            perfil_tesoureiro.save(update_fields=['ministerio'])
+        perfil_tesoureiro.igrejas_permitidas.set([self.igreja])
+        group_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        tesoureiro_local.groups.add(group_tesoureiro)
+        self.client.force_login(tesoureiro_local)
+
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+        departamento_local = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja,
+            codigo_interno=DepartamentoFinanceiro.CODIGO_LOCAL,
+        )
+        politica = PoliticaDepartamentoFinanceiro.objects.get(departamento=departamento_local)
+        politica.exige_aprovacao_para_saida = True
+        politica.valor_minimo_para_aprovacao = Decimal('10.00')
+        politica.save(update_fields=['exige_aprovacao_para_saida', 'valor_minimo_para_aprovacao'])
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa'),
+            data={
+                'data': '2026-08-10',
+                'categoria': str(self.categoria.pk),
+                'descricao': 'Despesa local bloqueada por aprovacao',
+                'valor': '50.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+                'evento': '',
+                'observacao': 'teste politica aprovacao',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'salvo como pendente para aprovacao')
+        despesa = Despesas.objects.get(descricao='Despesa local bloqueada por aprovacao')
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+
+    def test_aprovar_despesa_pendente_atualiza_status(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa pendente de aprovacao',
+            valor=Decimal('77.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:aprovar_despesa', args=[despesa.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_APROVADA)
+        self.assertEqual(despesa.aprovado_por_id, self.user.id)
+        self.assertIsNotNone(despesa.aprovado_em)
+
+    def test_reprovar_despesa_pendente_atualiza_status(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa pendente para reprovar',
+            valor=Decimal('63.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:reprovar_despesa', args=[despesa.pk]),
+            data={'observacao_aprovacao': 'Documento incompleto.'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_REJEITADA)
+        self.assertEqual(despesa.aprovado_por_id, self.user.id)
+        self.assertEqual(despesa.observacao_aprovacao, 'Documento incompleto.')
+
+    def test_reprovar_despesa_sem_motivo_retorna_erro(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa pendente sem motivo',
+            valor=Decimal('63.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:reprovar_despesa', args=[despesa.pk]),
+            data={'observacao_aprovacao': '   '},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Informe o motivo da reprovação antes de continuar.')
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+
+    def test_lista_despesas_filtra_por_status_aprovacao(self):
+        despesa_pendente = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa pendente filtro',
+            valor=Decimal('25.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+        )
+        despesa_aprovada = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa aprovada filtro',
+            valor=Decimal('35.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            aprovado_por=self.user,
+            aprovado_em=timezone.now(),
+            aprovacao_status=Despesas.APROVACAO_APROVADA,
+        )
+
+        response = self.client.get(
+            reverse('financeiro:lista_despesas'),
+            {'aprovacao_status': 'PENDENTE', 'fechado': 'todos'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        despesas_contexto = list(response.context['despesas'])
+        self.assertIn(despesa_pendente, despesas_contexto)
+        self.assertNotIn(despesa_aprovada, despesas_contexto)
+
+    def test_finalizar_fechamento_ignora_despesas_pendentes(self):
+        Receitas.objects.create(
+            igreja=self.igreja,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('100.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            fechado=False,
+        )
+        despesa_aprovada = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa aprovada fechamento',
+            valor=Decimal('30.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            aprovado_por=self.user,
+            aprovado_em=timezone.now(),
+            aprovacao_status=Despesas.APROVACAO_APROVADA,
+            fechado=False,
+        )
+        despesa_pendente = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 8, 10),
+            descricao='Despesa pendente fechamento',
+            valor=Decimal('20.00'),
+            conta_bancaria=self.caixa_tesouraria,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+            fechado=False,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:finalizar_fechamento_caixa'),
+            data={
+                'igreja_id': str(self.igreja.pk),
+                'data_inicio': '2026-08-01',
+                'data_fim': '2026-08-31',
+                'observacoes': 'teste fechamento aprovacao',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        fechamento = FechamentoCaixa.objects.latest('id')
+        self.assertEqual(fechamento.total_entradas, Decimal('100.00'))
+        self.assertEqual(fechamento.total_saidas, Decimal('30.00'))
+        despesa_aprovada.refresh_from_db()
+        despesa_pendente.refresh_from_db()
+        self.assertTrue(despesa_aprovada.fechado)
+        self.assertFalse(despesa_pendente.fechado)
+
+    def test_prestacao_contas_eventos_fecha_lancamentos_do_periodo(self):
+        receita = Receitas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria='doacao',
+            data=date(2026, 8, 10),
+            valor=Decimal('110.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria=self.categoria_evento,
+            data=date(2026, 8, 10),
+            descricao='Despesa para fechamento',
+            valor=Decimal('35.00'),
+            conta_bancaria=self.caixa_evento,
+        )
+
+        response = self.client.post(
+            reverse('eventos:prestacao_contas_eventos') + '?periodo_filtro=custom&data_inicio=2026-08-01&data_fim=2026-08-31',
+            data={'acao': 'fechar_periodo_eventos'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        receita.refresh_from_db()
+        despesa.refresh_from_db()
+        self.assertTrue(receita.fechado)
+        self.assertTrue(despesa.fechado)
+
+    def test_edicao_receita_fechada_e_bloqueada(self):
+        receita = Receitas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria='doacao',
+            data=date(2026, 8, 10),
+            valor=Decimal('70.00'),
+            conta_bancaria=self.caixa_evento,
+            fechado=True,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:editar_receita', args=[receita.pk]),
+            data={
+                'igreja': str(self.igreja.pk),
+                'evento': str(self.evento.pk),
+                'data': '2026-08-10',
+                'categoria': 'doacao',
+                'valor': '95.00',
+                'conta_bancaria': str(self.caixa_evento.pk),
+                'forma_pgto': 'PIX',
+                'membro': '',
+                'observacao': 'tentativa alteracao',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Não é possível editar uma receita fechada.')
+        receita.refresh_from_db()
+        self.assertEqual(receita.valor, Decimal('70.00'))
+
+    def test_exclusao_despesa_fechada_e_bloqueada(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria=self.categoria_evento,
+            data=date(2026, 8, 10),
+            descricao='Despesa fechada',
+            valor=Decimal('42.00'),
+            conta_bancaria=self.caixa_evento,
+            fechado=True,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:excluir_despesa', args=[despesa.pk]),
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Não é possível excluir uma despesa fechada.')
+        self.assertTrue(Despesas.objects.filter(pk=despesa.pk).exists())
+
+
+class FundosDepartamentaisFinanceiroTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.conta = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa Fundo Teste',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('100.00'),
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Fundo Teste',
+        )
+        self.evento = Evento.objects.create(
+            igreja=self.igreja,
+            titulo='Evento Fundo Teste',
+            data_inicio=timezone.make_aware(datetime(2026, 9, 1, 19, 0, 0)),
+            data_fim=timezone.make_aware(datetime(2026, 9, 1, 21, 0, 0)),
+        )
+
+    def test_receita_sem_evento_recebe_fundo_local(self):
+        receita = Receitas.objects.create(
+            igreja=self.igreja,
+            categoria='oferta',
+            data=date(2026, 9, 2),
+            valor=Decimal('50.00'),
+            conta_bancaria=self.conta,
+        )
+
+        self.assertIsNotNone(receita.fundo_departamental_id)
+        self.assertEqual(receita.fundo_departamental.codigo, FundoDepartamental.CODIGO_LOCAL)
+
+    def test_despesa_com_evento_recebe_fundo_eventos(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            evento=self.evento,
+            data=date(2026, 9, 2),
+            descricao='Despesa de evento',
+            valor=Decimal('20.00'),
+            categoria=self.categoria,
+            conta_bancaria=self.conta,
+        )
+
+        self.assertIsNotNone(despesa.fundo_departamental_id)
+        self.assertEqual(despesa.fundo_departamental.codigo, FundoDepartamental.CODIGO_EVENTOS)
+
+    def test_receita_evento_com_fundo_local_rejeita_validacao(self):
+        fundo_local, _ = FundoDepartamental.objects.get_or_create(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_LOCAL,
+            defaults={'nome_exibicao': 'Tesouraria Local'},
+        )
+        receita = Receitas(
+            igreja=self.igreja,
+            evento=self.evento,
+            categoria='oferta',
+            data=date(2026, 9, 3),
+            valor=Decimal('30.00'),
+            conta_bancaria=self.conta,
+            fundo_departamental=fundo_local,
+        )
+
+        with self.assertRaises(ValidationError):
+            receita.full_clean()
+
+    def test_receita_fundo_eventos_rejeita_categoria_dizimo(self):
+        fundo_eventos, _ = FundoDepartamental.objects.get_or_create(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+            defaults={'nome_exibicao': 'Eventos'},
+        )
+        receita = Receitas(
+            igreja=self.igreja,
+            categoria='dizimo',
+            data=date(2026, 9, 3),
+            valor=Decimal('45.00'),
+            conta_bancaria=self.conta,
+            fundo_departamental=fundo_eventos,
+        )
+
+        with self.assertRaises(ValidationError):
+            receita.full_clean()
+
+    def test_receita_fundo_eventos_rejeita_categoria_oferta(self):
+        fundo_eventos, _ = FundoDepartamental.objects.get_or_create(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+            defaults={'nome_exibicao': 'Eventos'},
+        )
+        receita = Receitas(
+            igreja=self.igreja,
+            categoria='oferta',
+            data=date(2026, 9, 3),
+            valor=Decimal('45.00'),
+            conta_bancaria=self.conta,
+            fundo_departamental=fundo_eventos,
+        )
+
+        with self.assertRaises(ValidationError):
+            receita.full_clean()
+
+    def test_receita_fundo_eventos_aceita_categoria_doacao(self):
+        fundo_eventos, _ = FundoDepartamental.objects.get_or_create(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+            defaults={'nome_exibicao': 'Eventos'},
+        )
+        receita = Receitas(
+            igreja=self.igreja,
+            categoria='doacao',
+            data=date(2026, 9, 3),
+            valor=Decimal('45.00'),
+            conta_bancaria=self.conta,
+            fundo_departamental=fundo_eventos,
+        )
+
+        receita.full_clean()
+
+    def test_receita_fundo_eventos_aceita_categoria_outro(self):
+        fundo_eventos, _ = FundoDepartamental.objects.get_or_create(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+            defaults={'nome_exibicao': 'Eventos'},
+        )
+        receita = Receitas(
+            igreja=self.igreja,
+            categoria='outro',
+            data=date(2026, 9, 3),
+            valor=Decimal('45.00'),
+            conta_bancaria=self.conta,
+            fundo_departamental=fundo_eventos,
+        )
+
+        receita.full_clean()
+
+    def test_receita_fundo_assistencia_aceita_categoria_doacao(self):
+        fundo_assistencia, _ = FundoDepartamental.objects.get_or_create(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_ASSISTENCIA,
+            defaults={'nome_exibicao': 'Assistencia Social'},
+        )
+        receita = Receitas(
+            igreja=self.igreja,
+            categoria='doacao',
+            data=date(2026, 9, 3),
+            valor=Decimal('55.00'),
+            conta_bancaria=self.conta,
+            fundo_departamental=fundo_assistencia,
+        )
+
+        receita.full_clean()
+
+    def test_politica_categoria_padrao_por_fundo(self):
+        self.assertEqual(categoria_receita_padrao_por_fundo(FundoDepartamental.CODIGO_EVENTOS), 'doacao')
+        self.assertEqual(categoria_receita_padrao_por_fundo(FundoDepartamental.CODIGO_ASSISTENCIA), 'doacao')
+        self.assertEqual(categoria_receita_padrao_por_fundo(FundoDepartamental.CODIGO_LOCAL), 'oferta')
+
+    def test_politica_categorias_permitidas_por_fundo(self):
+        permitidas_eventos = categorias_receita_permitidas_por_fundo(FundoDepartamental.CODIGO_EVENTOS)
+        permitidas_assistencia = categorias_receita_permitidas_por_fundo(FundoDepartamental.CODIGO_ASSISTENCIA)
+        permitidas_local = categorias_receita_permitidas_por_fundo(FundoDepartamental.CODIGO_LOCAL)
+
+        self.assertEqual(permitidas_eventos, {'doacao', 'outro'})
+        self.assertIn('doacao', permitidas_assistencia)
+        self.assertIn('oferta', permitidas_local)
+
+    def test_despesa_evento_com_fundo_local_rejeita_validacao(self):
+        fundo_local, _ = FundoDepartamental.objects.get_or_create(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_LOCAL,
+            defaults={'nome_exibicao': 'Tesouraria Local'},
+        )
+        despesa = Despesas(
+            igreja=self.igreja,
+            evento=self.evento,
+            data=date(2026, 9, 3),
+            descricao='Despesa invalida por fundo',
+            valor=Decimal('22.00'),
+            categoria=self.categoria,
+            conta_bancaria=self.conta,
+            fundo_departamental=fundo_local,
+        )
+
+        with self.assertRaises(ValidationError):
+            despesa.full_clean()
+
+
+class DepartamentoFinanceiroGeradorTest(BaseFinanceiroTestCase):
+    def test_service_cria_departamentos_padroes_com_politica(self):
+        resumo = DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+
+        self.assertIn(resumo['departamentos_criados'], (0, 4))
+        self.assertIn(resumo['politicas_criadas'], (0, 4))
+        self.assertEqual(
+            DepartamentoFinanceiro.objects.filter(igreja=self.igreja, ativo=True).count(),
+            4,
+        )
+        self.assertEqual(Departamento.objects.filter(igreja=self.igreja, ativo=True).count(), 4)
+
+        departamento_eventos = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja,
+            codigo_interno=DepartamentoFinanceiro.CODIGO_EVENTOS,
+        )
+        self.assertEqual(departamento_eventos.tipo_departamento, DepartamentoFinanceiro.TIPO_PADRAO)
+        self.assertIsNotNone(departamento_eventos.fundo_departamental_id)
+        self.assertIsNotNone(departamento_eventos.departamento_id)
+
+        politica_eventos = PoliticaDepartamentoFinanceiro.objects.get(departamento=departamento_eventos)
+        self.assertFalse(politica_eventos.exige_nota_fiscal)
+        self.assertTrue(politica_eventos.permite_prestacao_local_simplificada)
+
+    def test_service_e_idempotente(self):
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+        resumo = DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+
+        self.assertEqual(resumo['departamentos_criados'], 0)
+        self.assertEqual(resumo['politicas_criadas'], 0)
+        self.assertEqual(DepartamentoFinanceiro.objects.filter(igreja=self.igreja).count(), 4)
+
+    def test_command_sincroniza_igreja_especifica(self):
+        igreja_b = Igreja.objects.create(
+            nome_igreja='Igreja B - Deptos',
+            ministerio=self.ministerio,
+            tipo_igreja='congregacao',
+        )
+
+        call_command('gerar_departamentos_financeiros', '--igreja-id', str(igreja_b.id))
+
+        self.assertEqual(DepartamentoFinanceiro.objects.filter(igreja=self.igreja).count(), 4)
+        self.assertEqual(DepartamentoFinanceiro.objects.filter(igreja=igreja_b).count(), 4)
+
+    def test_vinculo_departamento_caixa_rejeita_igreja_diferente(self):
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+        departamento_local = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja,
+            codigo_interno=DepartamentoFinanceiro.CODIGO_LOCAL,
+        )
+
+        ministerio_b = Ministerio.objects.create(
+            nome_fantasia='Ministerio B',
+            administrador_principal=self.user,
+            ativo=True,
+            cnpj='22345678000199',
+        )
+        igreja_b = Igreja.objects.create(
+            nome_igreja='Igreja B',
+            ministerio=ministerio_b,
+            tipo_igreja='sede',
+        )
+        caixa_outra_igreja = ContaBancaria.objects.create(
+            igreja=igreja_b,
+            nome_identificacao='Caixa B',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('0.00'),
+        )
+
+        vinculo = DepartamentoCaixa(
+            departamento=departamento_local,
+            conta_bancaria=caixa_outra_igreja,
+        )
+        with self.assertRaises(ValidationError):
+            vinculo.full_clean()
+
+    def test_fundos_visiveis_ignoram_departamento_inativo_e_mantem_fundos_soltos(self):
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+
+        fundo_local = FundoDepartamental.objects.get(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_LOCAL,
+        )
+        fundo_eventos = FundoDepartamental.objects.get(
+            igreja=self.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+        )
+        fundo_local.departamento_financeiro.ativo = False
+        fundo_local.departamento_financeiro.save(update_fields=['ativo'])
+
+        fundo_solto = FundoDepartamental.objects.create(
+            igreja=self.igreja,
+            codigo='PROJETO',
+            nome_exibicao='Fundo Projeto',
+            ativo=True,
+        )
+
+        fundos_visiveis = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas([self.igreja])
+        fundos_visiveis_ids = set(fundos_visiveis.values_list('id', flat=True))
+
+        self.assertNotIn(fundo_local.id, fundos_visiveis_ids)
+        self.assertIn(fundo_eventos.id, fundos_visiveis_ids)
+        self.assertIn(fundo_solto.id, fundos_visiveis_ids)
+
+
+class GestaoDepartamentosViewTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+
+        self.conta = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa Teste Departamentos',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('0.00'),
+        )
+
+        perfil, _ = PerfilUsuario.objects.get_or_create(
+            user=self.user,
+            defaults={'ministerio': self.ministerio},
+        )
+        if perfil.ministerio_id != self.ministerio.id:
+            perfil.ministerio = self.ministerio
+            perfil.save(update_fields=['ministerio'])
+        perfil.igrejas_permitidas.set([self.igreja])
+
+        grupo_admin, _ = Group.objects.get_or_create(name=ADMIN_MINISTERIO)
+        self.user.groups.add(grupo_admin)
+
+    def test_get_renderiza_pagina_departamentos(self):
+        response = self.client.get(reverse('configuracao:gestao_departamentos'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'configuracao/departamentos/gestao_departamentos.html')
+        self.assertContains(response, 'Gestao de Departamentos')
+
+    def test_post_cria_departamento_personalizado(self):
+        response = self.client.post(
+            reverse('configuracao:gestao_departamentos'),
+            data={
+                'action': 'criar_departamento',
+                'igreja_id': str(self.igreja.id),
+                'codigo_interno': 'JOVENS',
+                'nome_exibicao': 'Ministerio de Jovens',
+                'tipo_departamento': Departamento.TIPO_PERSONALIZADO,
+                'ordem_exibicao': '60',
+                'ativo': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            Departamento.objects.filter(
+                igreja=self.igreja,
+                codigo_interno='JOVENS',
+                nome_exibicao='Ministerio de Jovens',
+            ).exists()
+        )
+
+    def test_post_habilita_financeiro_departamento_e_salva_politica(self):
+        departamento = Departamento.objects.create(
+            igreja=self.igreja,
+            codigo_interno='KIDS',
+            nome_exibicao='Ministerio Kids',
+            tipo_departamento=Departamento.TIPO_PERSONALIZADO,
+            ativo=True,
+            ordem_exibicao=70,
+        )
+
+        response = self.client.post(
+            reverse('configuracao:gestao_departamentos'),
+            data={
+                'action': 'salvar_financeiro_departamento',
+                'igreja_id': str(self.igreja.id),
+                'departamento_id': str(departamento.id),
+                'habilitar_financeiro': 'on',
+                'exige_nota_fiscal': 'on',
+                'exige_envio_contabilidade': 'on',
+                'permite_prestacao_local_simplificada': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        departamento_financeiro = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja,
+            codigo_interno='KIDS',
+        )
+        politica = PoliticaDepartamentoFinanceiro.objects.get(departamento=departamento_financeiro)
+
+        self.assertTrue(departamento_financeiro.ativo)
+        self.assertEqual(departamento_financeiro.departamento_id, departamento.id)
+        self.assertTrue(politica.exige_nota_fiscal)
+        self.assertTrue(politica.exige_envio_contabilidade)
+        self.assertTrue(politica.permite_prestacao_local_simplificada)
+
+    def test_post_salva_caixa_padrao_para_departamento_financeiro(self):
+        departamento = Departamento.objects.create(
+            igreja=self.igreja,
+            codigo_interno='KIDS_CAIXA',
+            nome_exibicao='Kids Caixa',
+            tipo_departamento=Departamento.TIPO_PERSONALIZADO,
+            ativo=True,
+            ordem_exibicao=20,
+        )
+
+        response = self.client.post(
+            reverse('configuracao:gestao_departamentos'),
+            data={
+                'action': 'salvar_financeiro_departamento',
+                'igreja_id': str(self.igreja.id),
+                'departamento_id': str(departamento.id),
+                'habilitar_financeiro': 'on',
+                'caixa_padrao_id': str(self.conta.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        departamento_financeiro = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja,
+            codigo_interno='KIDS_CAIXA',
+        )
+        vinculo_caixa = DepartamentoCaixa.objects.get(
+            departamento=departamento_financeiro,
+            conta_bancaria=self.conta,
+        )
+
+        self.assertTrue(departamento_financeiro.ativo)
+        self.assertTrue(vinculo_caixa.ativo)
+        self.assertTrue(vinculo_caixa.is_padrao)
 

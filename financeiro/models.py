@@ -64,10 +64,49 @@ from django.utils import timezone
 from secretaria.models import Membro
 from decimal import Decimal
 # PRECISAMOS importar Igreja e Ministerio para adicionar as FKs
-from configuracao.models import Igreja, Ministerio # <<< ADICIONAR IMPORT
+from configuracao.models import Departamento, Igreja, Ministerio # <<< ADICIONAR IMPORT
 from django.conf import settings
 import logging # Adicione no topo do arquivo se já não estiver
+from .policies import categorias_receita_permitidas_por_fundo
 logger = logging.getLogger(__name__) # Adicione no topo do arquivo
+
+
+def _obter_ou_criar_fundo_departamental(igreja, evento=None):
+    """Resolve o fundo padrão para lancamentos legados sem fundo explícito."""
+    from django.db import connection
+    from django.db.utils import OperationalError, ProgrammingError
+
+    if not igreja:
+        return None
+
+    # Compatibilidade com bases antigas sem a tabela de fundos departamentais.
+    try:
+        if 'financeiro_fundodepartamental' not in connection.introspection.table_names():
+            return None
+    except Exception:
+        return None
+
+    codigo = FundoDepartamental.CODIGO_EVENTOS if getattr(evento, 'pk', None) else FundoDepartamental.CODIGO_LOCAL
+    nomes = {
+        FundoDepartamental.CODIGO_LOCAL: 'Tesouraria Local',
+        FundoDepartamental.CODIGO_EVENTOS: 'Eventos',
+        FundoDepartamental.CODIGO_MISSOES: 'Missoes',
+        FundoDepartamental.CODIGO_ASSISTENCIA: 'Assistencia Social',
+    }
+
+    try:
+        fundo, _ = FundoDepartamental.objects.get_or_create(
+            igreja=igreja,
+            codigo=codigo,
+            defaults={'nome_exibicao': nomes[codigo]},
+        )
+        return fundo
+    except (ProgrammingError, OperationalError):
+        return None
+
+
+def _categorias_receita_permitidas_por_fundo(codigo_fundo):
+    return categorias_receita_permitidas_por_fundo(codigo_fundo)
 
 
 class CategoriaDespesa(models.Model):
@@ -99,6 +138,196 @@ class CategoriaDespesa(models.Model):
         unique_together = ('ministerio', 'nome')
 
 
+class FundoDepartamental(models.Model):
+    """Representa o destino/finalidade ministerial da movimentacao financeira."""
+    CODIGO_LOCAL = 'LOCAL'
+    CODIGO_EVENTOS = 'EVENTOS'
+    CODIGO_MISSOES = 'MISSOES'
+    CODIGO_ASSISTENCIA = 'ASSISTENCIA'
+
+    CODIGO_CHOICES = [
+        (CODIGO_LOCAL, 'Tesouraria Local'),
+        (CODIGO_EVENTOS, 'Eventos'),
+        (CODIGO_MISSOES, 'Missoes'),
+        (CODIGO_ASSISTENCIA, 'Assistencia Social'),
+    ]
+
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.CASCADE,
+        related_name='fundos_departamentais',
+        verbose_name='Igreja',
+    )
+    codigo = models.CharField(max_length=20, choices=CODIGO_CHOICES, verbose_name='Codigo do Fundo')
+    nome_exibicao = models.CharField(max_length=100, verbose_name='Nome de Exibicao')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+
+    class Meta:
+        verbose_name = 'Fundo Departamental'
+        verbose_name_plural = 'Fundos Departamentais'
+        unique_together = ('igreja', 'codigo')
+        ordering = ['igreja__nome_igreja', 'nome_exibicao']
+
+    def __str__(self):
+        return f"{self.nome_exibicao} ({self.igreja.nome_igreja})"
+
+
+def _normalizar_codigo_departamento(valor):
+    return (valor or '').strip().upper().replace(' ', '_')
+
+
+class DepartamentoFinanceiro(models.Model):
+    """Departamento financeiro por igreja para organizar operacao e governanca."""
+
+    TIPO_PADRAO = 'PADRAO'
+    TIPO_PERSONALIZADO = 'PERSONALIZADO'
+
+    TIPO_CHOICES = [
+        (TIPO_PADRAO, 'Padrao do Sistema'),
+        (TIPO_PERSONALIZADO, 'Personalizado'),
+    ]
+
+    CODIGO_LOCAL = 'LOCAL'
+    CODIGO_EVENTOS = 'EVENTOS'
+    CODIGO_MISSOES = 'MISSOES'
+    CODIGO_ASSISTENCIA = 'ASSISTENCIA'
+
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.CASCADE,
+        related_name='departamentos_financeiros',
+        verbose_name='Igreja',
+    )
+    codigo_interno = models.CharField(max_length=40, verbose_name='Codigo Interno')
+    nome_exibicao = models.CharField(max_length=120, verbose_name='Nome de Exibicao')
+    tipo_departamento = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default=TIPO_PERSONALIZADO,
+        verbose_name='Tipo de Departamento',
+    )
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    ordem_exibicao = models.PositiveIntegerField(default=100, verbose_name='Ordem de Exibicao')
+    departamento = models.OneToOneField(
+        Departamento,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='configuracao_financeira',
+        verbose_name='Departamento Organizacional',
+    )
+    fundo_departamental = models.OneToOneField(
+        'FundoDepartamental',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='departamento_financeiro',
+        verbose_name='Fundo Departamental Legado',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+
+    class Meta:
+        verbose_name = 'Departamento Financeiro'
+        verbose_name_plural = 'Departamentos Financeiros'
+        unique_together = ('igreja', 'codigo_interno')
+        ordering = ['igreja__nome_igreja', 'ordem_exibicao', 'nome_exibicao']
+
+    def __str__(self):
+        return f"{self.nome_exibicao} ({self.igreja.nome_igreja})"
+
+    def clean(self):
+        super().clean()
+        self.codigo_interno = _normalizar_codigo_departamento(self.codigo_interno)
+        if self.departamento_id and self.departamento.igreja_id != self.igreja_id:
+            raise ValidationError({'departamento': 'O departamento organizacional deve pertencer a mesma igreja.'})
+        if self.fundo_departamental_id and self.fundo_departamental.igreja_id != self.igreja_id:
+            raise ValidationError({'fundo_departamental': 'O fundo legado deve pertencer a mesma igreja do departamento.'})
+
+    def save(self, *args, **kwargs):
+        self.codigo_interno = _normalizar_codigo_departamento(self.codigo_interno)
+        super().save(*args, **kwargs)
+
+
+class PoliticaDepartamentoFinanceiro(models.Model):
+    """Politicas operacionais e contabeis configuraveis por departamento."""
+
+    departamento = models.OneToOneField(
+        'DepartamentoFinanceiro',
+        on_delete=models.CASCADE,
+        related_name='politica',
+        verbose_name='Departamento',
+    )
+    exige_nota_fiscal = models.BooleanField(default=False, verbose_name='Exige Nota Fiscal')
+    exige_envio_contabilidade = models.BooleanField(default=False, verbose_name='Exige Envio para Contabilidade')
+    permite_prestacao_local_simplificada = models.BooleanField(
+        default=True,
+        verbose_name='Permite Prestacao Local Simplificada',
+    )
+    exige_aprovacao_para_saida = models.BooleanField(default=False, verbose_name='Exige Aprovacao para Saida')
+    valor_minimo_para_anexo = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Valor Minimo para Anexo',
+    )
+    valor_minimo_para_aprovacao = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Valor Minimo para Aprovacao',
+    )
+
+    class Meta:
+        verbose_name = 'Politica de Departamento Financeiro'
+        verbose_name_plural = 'Politicas de Departamentos Financeiros'
+
+    def __str__(self):
+        return f"Politica - {self.departamento.nome_exibicao}"
+
+
+class DepartamentoCaixa(models.Model):
+    """Vinculo entre departamento financeiro e caixas permitidos para movimentacao."""
+
+    departamento = models.ForeignKey(
+        'DepartamentoFinanceiro',
+        on_delete=models.CASCADE,
+        related_name='caixas_vinculados',
+        verbose_name='Departamento',
+    )
+    conta_bancaria = models.ForeignKey(
+        'ContaBancaria',
+        on_delete=models.CASCADE,
+        related_name='departamentos_vinculados',
+        verbose_name='Conta/Caixa',
+    )
+    is_padrao = models.BooleanField(default=False, verbose_name='Caixa Padrao do Departamento')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+
+    class Meta:
+        verbose_name = 'Vinculo Departamento x Caixa'
+        verbose_name_plural = 'Vinculos Departamento x Caixa'
+        unique_together = ('departamento', 'conta_bancaria')
+
+    def __str__(self):
+        return f"{self.departamento.nome_exibicao} -> {self.conta_bancaria.nome_identificacao}"
+
+    def clean(self):
+        super().clean()
+        if self.departamento_id and self.conta_bancaria_id:
+            if self.departamento.igreja_id != self.conta_bancaria.igreja_id:
+                raise ValidationError({'conta_bancaria': 'A conta/caixa deve pertencer a mesma igreja do departamento.'})
+        if self.is_padrao and self.departamento_id:
+            qs = DepartamentoCaixa.objects.filter(departamento=self.departamento, is_padrao=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError({'is_padrao': 'Ja existe um caixa padrao para este departamento.'})
+
+
 class Despesas(models.Model):
     """
     Modelo para representar uma despesa.
@@ -111,6 +340,15 @@ class Despesas(models.Model):
         related_name='despesas',
         verbose_name="Igreja"
     )
+    evento = models.ForeignKey(
+        'eventos.Evento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despesas_evento',
+        verbose_name='Evento (Opcional)',
+        help_text='Vincule a despesa a um evento/festividade para composicao do resultado financeiro do evento.',
+    )
     # --- FIM ADIÇÃO ---
     data = models.DateField(verbose_name="Data")
     descricao = models.CharField(max_length=255, verbose_name="Descrição")
@@ -119,12 +357,44 @@ class Despesas(models.Model):
     categoria = models.ForeignKey(CategoriaDespesa, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Categoria")
     observacao = models.TextField(blank=True, null=True, verbose_name="Observação")
     fechado = models.BooleanField(default=False, verbose_name="Fechado")
+    APROVACAO_PENDENTE = 'PENDENTE'
+    APROVACAO_APROVADA = 'APROVADA'
+    APROVACAO_REJEITADA = 'REJEITADA'
+    APROVACAO_STATUS_CHOICES = [
+        (APROVACAO_PENDENTE, 'Pendente'),
+        (APROVACAO_APROVADA, 'Aprovada'),
+        (APROVACAO_REJEITADA, 'Rejeitada'),
+    ]
+    aprovacao_status = models.CharField(
+        max_length=20,
+        choices=APROVACAO_STATUS_CHOICES,
+        default=APROVACAO_APROVADA,
+        verbose_name='Status de Aprovacao',
+    )
+    aprovado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despesas_aprovadas',
+        verbose_name='Aprovado por',
+    )
+    aprovado_em = models.DateTimeField(null=True, blank=True, verbose_name='Aprovado em')
+    observacao_aprovacao = models.TextField(blank=True, null=True, verbose_name='Observacao da Aprovacao')
     conta_bancaria = models.ForeignKey(
         'ContaBancaria',
         on_delete=models.SET_NULL, # Se a conta for excluída, a despesa não é, mas perde o vínculo
         null=True, blank=True, # Permitir despesas sem conta vinculada
         related_name='despesas_associadas', # Nome do related_name alterado para evitar conflito
         verbose_name="Conta/Caixa de Origem"
+    )
+    fundo_departamental = models.ForeignKey(
+        'FundoDepartamental',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despesas',
+        verbose_name='Fundo Departamental',
     )
 
      # --- NOVOS CAMPOS PARA INTEGRAÇÃO COM CONTAS A PAGAR ---
@@ -147,6 +417,25 @@ class Despesas(models.Model):
     def __str__(self):
         return self.descricao
 
+    def clean(self):
+        super().clean()
+        if self.evento and self.igreja_id and self.evento.igreja_id != self.igreja_id:
+            raise ValidationError({'evento': 'O evento selecionado deve pertencer a mesma igreja da despesa.'})
+        if self.conta_bancaria and self.igreja_id and self.conta_bancaria.igreja_id != self.igreja_id:
+            raise ValidationError({'conta_bancaria': 'A conta/caixa deve pertencer a mesma igreja da despesa.'})
+        if self.fundo_departamental and self.igreja_id and self.fundo_departamental.igreja_id != self.igreja_id:
+            raise ValidationError({'fundo_departamental': 'O fundo departamental deve pertencer a mesma igreja da despesa.'})
+        if self.evento and self.fundo_departamental and self.fundo_departamental.codigo != FundoDepartamental.CODIGO_EVENTOS:
+            raise ValidationError({'fundo_departamental': 'Lancamentos vinculados a evento devem usar o fundo Eventos.'})
+        conta_evento_efetiva_id = None
+        if self.evento:
+            conta_evento_efetiva_id = self.evento.conta_bancaria_evento_id or getattr(self.evento.igreja, 'conta_padrao_eventos_id', None)
+        if conta_evento_efetiva_id:
+            if not self.conta_bancaria_id:
+                raise ValidationError({'conta_bancaria': 'Este evento possui caixa definido. Informe o caixa/conta do evento para lançar a despesa.'})
+            if self.conta_bancaria_id != conta_evento_efetiva_id:
+                raise ValidationError({'conta_bancaria': 'Esta despesa deve usar o caixa vinculado ao evento.'})
+
     class Meta:
         # Remover db_table
         # db_table = 'despesas'
@@ -166,6 +455,12 @@ class Despesas(models.Model):
     def save(self, *args, **kwargs):
         from django.db import transaction # Import local para melhor ministério
         logger.info(f"Despesa SAVE - Despesa ID: {self.pk}, Valor: {self.valor}, ContaBancaria ID: {self.conta_bancaria_id}")
+
+        if self.igreja_id:
+            if self.evento_id:
+                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, self.evento)
+            elif not self.fundo_departamental_id:
+                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, None)
 
         # 1. Lidar com a conta bancária ANTIGA (se estiver editando e a conta mudou ou foi removida)
         if not self._state.adding and self._original_conta_bancaria_id:
@@ -231,6 +526,7 @@ class Receitas(models.Model):
     CATEGORIA_CHOICES = [
         ('dizimo', 'Dízimo'),
         ('oferta', 'Oferta'),
+        ('doacao', 'Doacao'),
         ('voto', 'Voto'),
         ('campanha', 'Campanha'),
         # Adicionar outras se necessário
@@ -242,6 +538,15 @@ class Receitas(models.Model):
         on_delete=models.PROTECT,
         related_name='receitas',
         verbose_name="Igreja"
+    )
+    evento = models.ForeignKey(
+        'eventos.Evento',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='receitas_evento',
+        verbose_name='Evento (Opcional)',
+        help_text='Vincule a receita a um evento/festividade para composicao do resultado financeiro do evento.',
     )
     # --- FIM ADIÇÃO ---
     categoria = models.CharField( # Mover categoria para cima para agrupar com outros campos de dados
@@ -273,6 +578,14 @@ class Receitas(models.Model):
         related_name='receitas_associadas', # Nome do related_name alterado para evitar conflito
         verbose_name="Conta/Caixa de Destino"
     )
+    fundo_departamental = models.ForeignKey(
+        'FundoDepartamental',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='receitas',
+        verbose_name='Fundo Departamental',
+    )
     forma_pgto = models.CharField(
         max_length=50, # CORRIGIDO: Aumentar para acomodar valores antigos como "Dinheiro"
         choices=FORMA_PAGAMENTO_CHOICES, # Adicionar as opções
@@ -285,6 +598,29 @@ class Receitas(models.Model):
         verbose_name = "Receita"
         verbose_name_plural = "Receitas"
         ordering = ['-data'] # Ordenar por data descendente
+
+    def clean(self):
+        super().clean()
+        if self.evento and self.igreja_id and self.evento.igreja_id != self.igreja_id:
+            raise ValidationError({'evento': 'O evento selecionado deve pertencer a mesma igreja da receita.'})
+        if self.conta_bancaria and self.igreja_id and self.conta_bancaria.igreja_id != self.igreja_id:
+            raise ValidationError({'conta_bancaria': 'A conta/caixa deve pertencer a mesma igreja da receita.'})
+        if self.fundo_departamental and self.igreja_id and self.fundo_departamental.igreja_id != self.igreja_id:
+            raise ValidationError({'fundo_departamental': 'O fundo departamental deve pertencer a mesma igreja da receita.'})
+        if self.evento and self.fundo_departamental and self.fundo_departamental.codigo != FundoDepartamental.CODIGO_EVENTOS:
+            raise ValidationError({'fundo_departamental': 'Lancamentos vinculados a evento devem usar o fundo Eventos.'})
+        if self.fundo_departamental and self.categoria:
+            permitidas = _categorias_receita_permitidas_por_fundo(self.fundo_departamental.codigo)
+            if self.categoria not in permitidas:
+                raise ValidationError({'categoria': 'Categoria nao permitida para o fundo departamental selecionado.'})
+        conta_evento_efetiva_id = None
+        if self.evento:
+            conta_evento_efetiva_id = self.evento.conta_bancaria_evento_id or getattr(self.evento.igreja, 'conta_padrao_eventos_id', None)
+        if conta_evento_efetiva_id:
+            if not self.conta_bancaria_id:
+                raise ValidationError({'conta_bancaria': 'Este evento possui caixa definido. Informe o caixa/conta do evento para lançar a receita.'})
+            if self.conta_bancaria_id != conta_evento_efetiva_id:
+                raise ValidationError({'conta_bancaria': 'Esta receita deve usar o caixa vinculado ao evento.'})
 
     
     _original_valor_receita = None
@@ -299,6 +635,12 @@ class Receitas(models.Model):
     def save(self, *args, **kwargs):
        
         from django.db import transaction # Import local
+
+        if self.igreja_id:
+            if self.evento_id:
+                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, self.evento)
+            elif not self.fundo_departamental_id:
+                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, None)
 
         # 1. Lidar com a conta bancária ANTIGA (se estiver editando e a conta mudou ou foi removida)
         if not self._state.adding and self._original_conta_bancaria_id_receita:
@@ -438,6 +780,14 @@ class FechamentoCaixa(models.Model):
         related_name='fechamentos_caixa',
         verbose_name="Igreja"
     )
+    fundo_departamental = models.ForeignKey(
+        'FundoDepartamental',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fechamentos_caixa',
+        verbose_name='Fundo Departamental (Opcional)',
+    )
     # --- FIM ADIÇÃO ---
     data_inicio = models.DateField(verbose_name="Data de Início")
     data_fim = models.DateField(verbose_name="Data de Fim")
@@ -456,7 +806,13 @@ class FechamentoCaixa(models.Model):
     # bairro = models.CharField(max_length=255, blank=True, null=True, verbose_name="Bairro")
 
     def __str__(self):
-        return f"Fechamento {self.igreja.nome_igreja}: {self.data_inicio} a {self.data_fim}"
+        escopo = self.fundo_departamental.nome_exibicao if self.fundo_departamental_id else 'Geral'
+        return f"Fechamento {self.igreja.nome_igreja} ({escopo}): {self.data_inicio} a {self.data_fim}"
+
+    def clean(self):
+        super().clean()
+        if self.fundo_departamental_id and self.igreja_id and self.fundo_departamental.igreja_id != self.igreja_id:
+            raise ValidationError({'fundo_departamental': 'O fundo departamental deve pertencer a mesma igreja do fechamento.'})
 
     class Meta:
         # Remover db_table

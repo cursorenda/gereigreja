@@ -62,12 +62,43 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-12 col-md-3">
+                    <label for="evento_filtro_select" class="form-label">Evento:</label>
+                    <select name="evento" id="evento_filtro_select" class="form-select form-select-sm">
+                        <option value="" {% if not evento_selecionado %}selected{% endif %}>Todos os Eventos</option>
+                        {% for ev in eventos_filtro %}
+                            <option value="{{ ev.pk }}" {% if evento_selecionado == ev.pk|stringformat:"s" %}selected{% endif %}>{{ ev.titulo }} ({{ ev.data_inicio|date:'d/m/Y' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if fundos_departamentais_disponivel %}
+                <div class="col-12 col-md-2">
+                    <label for="fundo_filtro_select" class="form-label">Fundo:</label>
+                    <select name="fundo_filtro" id="fundo_filtro_select" class="form-select form-select-sm">
+                        <option value="" {% if not fundo_id_filtro_selecionado %}selected{% endif %}>Todos</option>
+                        {% for fundo in fundos_departamentais_dropdown %}
+                            <option value="{{ fundo.pk }}" {% if fundo_id_filtro_selecionado == fundo.pk|stringformat:"s" %}selected{% endif %}>
+                                {{ fundo.nome_exibicao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="col-12 col-md-2">
                     <label for="filtro_fechado" class="form-label">Status Lançamento:</label>
                     <select name="fechado" id="filtro_fechado" class="form-select form-select-sm">
                         <option value="false" {% if fechado_selecionado == 'false' %}selected{% endif %}>Aberto</option>
                         <option value="true" {% if fechado_selecionado == 'true' %}selected{% endif %}>Fechado</option>
                         <option value="todos" {% if fechado_selecionado == 'todos' %}selected{% endif %}>Todos</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2">
+                    <label for="filtro_aprovacao" class="form-label">Status Aprovação:</label>
+                    <select name="aprovacao_status" id="filtro_aprovacao" class="form-select form-select-sm">
+                        <option value="" {% if not aprovacao_status_filtro %}selected{% endif %}>Todos</option>
+                        <option value="PENDENTE" {% if aprovacao_status_filtro == 'PENDENTE' %}selected{% endif %}>Pendente</option>
+                        <option value="APROVADA" {% if aprovacao_status_filtro == 'APROVADA' %}selected{% endif %}>Aprovada</option>
+                        <option value="REJEITADA" {% if aprovacao_status_filtro == 'REJEITADA' %}selected{% endif %}>Rejeitada</option>
                     </select>
                 </div>
                 <div class="col-12 col-md-auto d-flex align-items-end gap-2 financeiro-filtro-acoes">
@@ -77,6 +108,12 @@
             </form>
         </div>
     </div>
+
+    {% if not fundos_departamentais_disponivel %}
+    <div class="alert alert-warning" role="alert">
+        O filtro por fundo está temporariamente indisponível neste ambiente. Execute as migrações do financeiro para habilitar esse recurso.
+    </div>
+    {% endif %}
 
     <div class="row g-2 mb-4">
         <div class="col-md-6 col-lg-3">
@@ -136,12 +173,18 @@
                                     Categoria {% if sort_atual == 'categoria' %}▲{% elif sort_atual == '-categoria' %}▼{% endif %}
                                 </a>
                             </th>
+                            <th>
+                                <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'evento' %}-evento{% else %}evento{% endif %}">
+                                    Evento {% if sort_atual == 'evento' %}▲{% elif sort_atual == '-evento' %}▼{% endif %}
+                                </a>
+                            </th>
                             <th class="text-end">
                                 <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'valor' %}-valor{% else %}valor{% endif %}">
                                     Valor (R$) {% if sort_atual == 'valor' %}▲{% elif sort_atual == '-valor' %}▼{% endif %}
                                 </a>
                             </th>
                             <th>Status</th>
+                            <th>Aprovação</th>
                             {% if can_edit_finance %}<th>Ações</th>{% endif %}
                         </tr>
                     </thead>
@@ -152,6 +195,7 @@
                                 <td>{{ despesa.igreja.nome_igreja|default:"-" }}</td>
                                 <td>{{ despesa.descricao|truncatechars:40 }}</td>
                                 <td>{{ despesa.categoria.nome|default:"-" }}</td>
+                                <td>{{ despesa.evento.titulo|default:"-" }}</td>
                                 <td class="text-end">R$ {{ despesa.valor|floatformat:2|intcomma }}</td>
                                 <td>
                                     {% if despesa.fechado %}
@@ -160,9 +204,43 @@
                                         <span class="badge bg-success"><i class="fas fa-lock-open me-1"></i>Aberto</span>
                                     {% endif %}
                                 </td>
+                                <td>
+                                    {% if despesa.aprovacao_status == 'APROVADA' %}
+                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Aprovada</span>
+                                    {% elif despesa.aprovacao_status == 'PENDENTE' %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pendente</span>
+                                    {% elif despesa.aprovacao_status == 'REJEITADA' %}
+                                        <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Rejeitada</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">-</span>
+                                    {% endif %}
+                                    {% if despesa.aprovado_por %}
+                                        <div class="small text-muted mt-1">{{ despesa.aprovado_por.get_full_name|default:despesa.aprovado_por.username }}</div>
+                                    {% endif %}
+                                    {% if despesa.aprovado_em %}
+                                        <div class="small text-muted">{{ despesa.aprovado_em|date:"d/m/Y H:i" }}</div>
+                                    {% endif %}
+                                </td>
                                 {% if can_edit_finance %}
                                 <td>
                                     {% if not despesa.fechado %}
+                                        {% if can_approve_despesa and despesa.aprovacao_status != 'APROVADA' %}
+                                        <form action="{% url 'financeiro:aprovar_despesa' despesa.pk %}" method="post" class="d-inline me-1">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Aprovar">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        {% if despesa.aprovacao_status != 'REJEITADA' %}
+                                        <form action="{% url 'financeiro:reprovar_despesa' despesa.pk %}" method="post" class="d-inline me-1" onsubmit="return prepararReprovacao(this);">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="observacao_aprovacao" value="">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Reprovar">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% endif %}
                                         <a href="{% url 'financeiro:editar_despesa' despesa.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Editar">
                                             <i class="fas fa-pencil-alt"></i>
                                         </a>
@@ -180,7 +258,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="{% if can_edit_finance %}7{% else %}6{% endif %}" class="text-center">
+                                <td colspan="{% if can_edit_finance %}9{% else %}8{% endif %}" class="text-center">
                                     Nenhuma despesa encontrada com os filtros aplicados.
                                     {% if can_edit_finance %}
                                         <a href="{% url 'financeiro:cadastrar_despesa' %}" class="ms-2">Cadastrar uma nova?</a>
@@ -210,4 +288,23 @@
     </div>
     {% endif %}
 </div>
+<script>
+function prepararReprovacao(formElement) {
+    const motivo = window.prompt('Informe o motivo da reprovação:');
+    if (motivo === null) {
+        return false;
+    }
+    const texto = motivo.trim();
+    if (!texto) {
+        window.alert('O motivo da reprovação é obrigatório.');
+        return false;
+    }
+    const hiddenInput = formElement.querySelector('input[name="observacao_aprovacao"]');
+    if (!hiddenInput) {
+        return false;
+    }
+    hiddenInput.value = texto;
+    return true;
+}
+</script>
 {% endblock %}

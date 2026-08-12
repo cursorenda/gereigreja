@@ -62,6 +62,28 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-12 col-md-3">
+                    <label for="evento_filtro_select" class="form-label">Evento:</label>
+                    <select name="evento" id="evento_filtro_select" class="form-select form-select-sm">
+                        <option value="" {% if not evento_selecionado %}selected{% endif %}>Todos os Eventos</option>
+                        {% for ev in eventos_filtro %}
+                            <option value="{{ ev.pk }}" {% if evento_selecionado == ev.pk|stringformat:"s" %}selected{% endif %}>{{ ev.titulo }} ({{ ev.data_inicio|date:'d/m/Y' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if fundos_departamentais_disponivel %}
+                <div class="col-12 col-md-2">
+                    <label for="fundo_filtro_select" class="form-label">Fundo:</label>
+                    <select name="fundo_filtro" id="fundo_filtro_select" class="form-select form-select-sm">
+                        <option value="" {% if not fundo_id_filtro_selecionado %}selected{% endif %}>Todos</option>
+                        {% for fundo in fundos_departamentais_dropdown %}
+                            <option value="{{ fundo.pk }}" {% if fundo_id_filtro_selecionado == fundo.pk|stringformat:"s" %}selected{% endif %}>
+                                {{ fundo.nome_exibicao }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
                 <div class="col-12 col-md-2">
                     <label for="filtro_fechado" class="form-label">Status Lançamento:</label>
                     <select name="fechado" id="filtro_fechado" class="form-select form-select-sm">
@@ -77,6 +99,12 @@
             </form>
         </div>
     </div>
+
+    {% if not fundos_departamentais_disponivel %}
+    <div class="alert alert-warning" role="alert">
+        O filtro por fundo está temporariamente indisponível neste ambiente. Execute as migrações do financeiro para habilitar esse recurso.
+    </div>
+    {% endif %}
 
     <div class="row g-2 mb-4">
         <div class="col-md-6 col-lg-3">
@@ -136,6 +164,11 @@
                                     Categoria {% if sort_atual == 'categoria' %}▲{% elif sort_atual == '-categoria' %}▼{% endif %}
                                 </a>
                             </th>
+                            <th>
+                                <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'evento' %}-evento{% else %}evento{% endif %}">
+                                    Evento {% if sort_atual == 'evento' %}▲{% elif sort_atual == '-evento' %}▼{% endif %}
+                                </a>
+                            </th>
                             <th class="text-end">
                                 <a class="text-decoration-none text-dark" href="?{% if querystring_without_sort %}{{ querystring_without_sort }}&{% endif %}sort={% if sort_atual == 'valor' %}-valor{% else %}valor{% endif %}">
                                     Valor (R$) {% if sort_atual == 'valor' %}▲{% elif sort_atual == '-valor' %}▼{% endif %}
@@ -171,6 +204,7 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ receita.get_categoria_display }}</td>
+                                <td>{{ receita.evento.titulo|default:"-" }}</td>
                                 <td class="text-end">R$ {{ receita.valor|floatformat:2|intcomma }}</td>
                                 <td>
                                     {% if receita.fechado %}
@@ -199,7 +233,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="{% if can_edit_finance %}7{% else %}6{% endif %}" class="text-center">
+                                <td colspan="{% if can_edit_finance %}8{% else %}7{% endif %}" class="text-center">
                                     Nenhuma receita encontrada com os filtros aplicados.
                                     {% if can_edit_finance %}
                                         <a href="{% url 'financeiro:cadastrar_receita' %}" class="ms-2">Cadastrar uma nova?</a>
@@ -213,7 +247,8 @@
         </div>
     </div>
 
-    <!-- Novos cards de resumo de Dízimos e Ofertas -->
+    {% if exibir_cards_dizimos_ofertas %}
+    <!-- Cards de resumo de Dízimos e Ofertas (apenas Tesouraria Local) -->
     <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
         <div class="col">
             <div class="card border-success h-100 shadow-sm">
@@ -266,5 +301,6 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

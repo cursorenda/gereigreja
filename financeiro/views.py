@@ -48,11 +48,14 @@ from django.utils.timezone import now # Importar now
 from .models import (
     Receitas,
     Despesas,
+    FundoDepartamental,
     ContaBancaria,
     FechamentoCaixa,
     ContaPagar,
     RecorrenciaContaPagar,
     CategoriaDespesa,
+    DepartamentoFinanceiro,
+    DepartamentoCaixa,
     Fornecedor,
     TransferenciaCaixa,
     ImportacaoExtratoOFX,
@@ -65,6 +68,7 @@ from .forms import (
 )
 # from django.contrib.auth.decorators import login_required # Removido, já importado acima
 from configuracao.models import PerfilUsuario, Ministerio, Igreja
+from eventos.models import Evento
 from django.core.exceptions import PermissionDenied, ValidationError # Adicionar ValidationError
 from django.http import Http404, HttpResponse
 from django.db.models import Sum, Q, Count # Adicionado Count
@@ -79,13 +83,16 @@ import locale
 import logging, traceback, calendar 
 from datetime import date, datetime, timedelta 
 from urllib.parse import urlencode
+from uuid import uuid4
 from num2words import num2words
 from openpyxl import Workbook
-from django.db import transaction # Adicionar import para transações atômicas
+from django.db import transaction, connection # Adicionar import para transações atômicas
 import json # Adicionar esta linha # noqa: E402
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from core.decorators import verificar_assinatura_valida # Ou o caminho correto
-from .services import OFXImportService, RecorrenciaContaPagarService
+from .services import DepartamentoFinanceiroService, OFXImportService, RecorrenciaContaPagarService, ReceitaFluxoService
+from contas.constants import PASTOR_LOCAL, user_has_permission_level_or_higher
 
 @login_required
 @verificar_assinatura_valida # Nosso novo decorator
@@ -101,6 +108,168 @@ def minha_view_protegida(request):
 # from dateutil.relativedelta import relativedelta # Descomente se for usar relativedelta
 
 logger = logging.getLogger(__name__)
+
+
+def _get_safe_next_url(request, fallback_url_name):
+    """Return a safe local redirect target from request next param."""
+    next_url = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return reverse(fallback_url_name)
+
+
+def _fundos_departamentais_disponivel():
+    """Retorna True quando a tabela de fundos departamentais existe no banco atual."""
+    try:
+        return 'financeiro_fundodepartamental' in connection.introspection.table_names()
+    except Exception:
+        return False
+
+
+def _obter_ids_contas_eventos_para_igreja(igreja):
+    """Retorna IDs de contas/caixas tratadas como contexto de eventos na igreja."""
+    if not igreja:
+        return []
+
+    contas_eventos_ids = set(
+        DepartamentoCaixa.objects.filter(
+            departamento__igreja=igreja,
+            departamento__codigo_interno=DepartamentoFinanceiro.CODIGO_EVENTOS,
+            departamento__ativo=True,
+            ativo=True,
+            is_padrao=True,
+        ).values_list('conta_bancaria_id', flat=True)
+    )
+
+    conta_padrao_eventos_id = getattr(igreja, 'conta_padrao_eventos_id', None)
+    if conta_padrao_eventos_id:
+        contas_eventos_ids.add(conta_padrao_eventos_id)
+
+    return sorted(contas_eventos_ids)
+
+
+def _batch_session_key(tipo, igreja_id):
+    return f'financeiro_batch_{tipo}_{igreja_id}'
+
+
+def _batch_get(request, tipo, igreja_id):
+    return request.session.get(_batch_session_key(tipo, igreja_id), [])
+
+
+def _batch_set(request, tipo, igreja_id, itens):
+    request.session[_batch_session_key(tipo, igreja_id)] = itens
+    request.session.modified = True
+
+
+def _batch_clear(request, tipo, igreja_id):
+    request.session.pop(_batch_session_key(tipo, igreja_id), None)
+    request.session.modified = True
+
+
+def _batch_defaults_session_key(tipo, igreja_id):
+    return f'financeiro_batch_defaults_{tipo}_{igreja_id}'
+
+
+def _batch_defaults_get(request, tipo, igreja_id):
+    return request.session.get(_batch_defaults_session_key(tipo, igreja_id), {})
+
+
+def _batch_defaults_set(request, tipo, igreja_id, valores):
+    request.session[_batch_defaults_session_key(tipo, igreja_id)] = valores
+    request.session.modified = True
+
+
+def _resolver_fundo_para_politica_saida(despesa):
+    if despesa.fundo_departamental_id:
+        return despesa.fundo_departamental
+
+    if despesa.evento_id and despesa.igreja_id:
+        return FundoDepartamental.objects.filter(
+            igreja=despesa.igreja,
+            codigo=FundoDepartamental.CODIGO_EVENTOS,
+        ).first()
+
+    if despesa.igreja_id:
+        return FundoDepartamental.objects.filter(
+            igreja=despesa.igreja,
+            codigo=FundoDepartamental.CODIGO_LOCAL,
+        ).first()
+
+    return None
+
+
+def _user_pode_aprovar_saida(user):
+    return is_admin_org(user) or user_has_permission_level_or_higher(user, PASTOR_LOCAL)
+
+
+def _aplicar_politica_aprovacao_saida(request, despesa):
+    fundo = _resolver_fundo_para_politica_saida(despesa)
+    if not fundo and not despesa.igreja_id:
+        despesa.aprovacao_status = Despesas.APROVACAO_APROVADA
+        despesa.aprovado_por = request.user
+        despesa.aprovado_em = now()
+        return None
+
+    departamento_financeiro = None
+    if despesa.igreja_id:
+        codigo_departamento = None
+        if fundo and fundo.codigo:
+            codigo_departamento = (fundo.codigo or '').strip().upper()
+        elif despesa.evento_id:
+            codigo_departamento = FundoDepartamental.CODIGO_EVENTOS
+        else:
+            codigo_departamento = FundoDepartamental.CODIGO_LOCAL
+
+        if codigo_departamento:
+            departamento_financeiro = DepartamentoFinanceiro.objects.filter(
+                igreja=despesa.igreja,
+                codigo_interno=codigo_departamento,
+            ).first()
+
+    if not departamento_financeiro and fundo is not None:
+        departamento_financeiro = getattr(fundo, 'departamento_financeiro', None)
+
+    if not departamento_financeiro or not departamento_financeiro.ativo:
+        despesa.aprovacao_status = Despesas.APROVACAO_APROVADA
+        despesa.aprovado_por = request.user
+        despesa.aprovado_em = now()
+        return None
+
+    politica = getattr(departamento_financeiro, 'politica', None)
+    if not politica or not politica.exige_aprovacao_para_saida:
+        despesa.aprovacao_status = Despesas.APROVACAO_APROVADA
+        despesa.aprovado_por = request.user
+        despesa.aprovado_em = now()
+        return None
+
+    valor_despesa = despesa.valor or Decimal('0')
+    limite_aprovacao = politica.valor_minimo_para_aprovacao
+    if limite_aprovacao is not None and valor_despesa < limite_aprovacao:
+        despesa.aprovacao_status = Despesas.APROVACAO_APROVADA
+        despesa.aprovado_por = request.user
+        despesa.aprovado_em = now()
+        return None
+
+    if _user_pode_aprovar_saida(request.user):
+        despesa.aprovacao_status = Despesas.APROVACAO_APROVADA
+        despesa.aprovado_por = request.user
+        despesa.aprovado_em = now()
+        if not despesa.observacao_aprovacao:
+            despesa.observacao_aprovacao = 'Aprovacao automatica por perfil autorizado.'
+        return None
+
+    despesa.aprovacao_status = Despesas.APROVACAO_PENDENTE
+    despesa.aprovado_por = None
+    despesa.aprovado_em = None
+    descricao_limite = f" acima de R$ {limite_aprovacao}" if limite_aprovacao is not None else ''
+    return (
+        f"A politica do departamento '{departamento_financeiro.nome_exibicao}' exige aprovacao para saidas"
+        f"{descricao_limite}. Lancamento salvo como pendente para aprovacao de um Pastor Local ou superior."
+    )
 
 # Tenta configurar o locale para pt_BR, com fallbacks.
 locales_to_try = ['pt_BR.UTF-8', 'Portuguese_Brazil.1252']
@@ -185,20 +354,67 @@ def painel_financeiro(request):
                 data_inicio_filtro = None
                 data_fim_filtro    = None
 
+        # --- FILTRO DE DEPARTAMENTO ---
+        departamento_filtro = (request.GET.get('dept_filtro') or '').strip()
+        departamento_contexto_obj = None
+        departamento_contexto_label = None
+
+        if igreja_selecionada_para_dados:
+            igrejas_escopo_departamento = Igreja.objects.filter(pk=igreja_selecionada_para_dados.pk)
+        else:
+            igrejas_escopo_departamento = allowed_churches
+
+        if departamento_filtro:
+            departamento_contexto_obj = DepartamentoFinanceiro.objects.filter(
+                igreja__in=igrejas_escopo_departamento,
+                pk=departamento_filtro,
+                ativo=True,
+            ).select_related('departamento', 'fundo_departamental').first()
+            if departamento_contexto_obj:
+                departamento_contexto_label = departamento_contexto_obj.nome_exibicao
+                if departamento_contexto_obj.fundo_departamental_id and not fundo_id_filtro:
+                    fundo_id_filtro = str(departamento_contexto_obj.fundo_departamental_id)
+            else:
+                messages.warning(request, 'Departamento selecionado inválido ou fora do seu escopo. Mostrando visão consolidada.')
+                departamento_filtro = ''
+
         # --- FILTRO DE CAIXA ---
         caixa_id_filtro = (request.GET.get('caixa_filtro') or '').strip()
+        fundo_id_filtro = (request.GET.get('fundo_filtro') or '').strip()
+        fundos_disponivel = _fundos_departamentais_disponivel()
         if igreja_selecionada_para_dados:
             contas_bancarias_dropdown = ContaBancaria.objects.filter(
                 igreja=igreja_selecionada_para_dados
             ).order_by('nome_identificacao')
+            if fundos_disponivel:
+                fundos_departamentais_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas(
+                    [igreja_selecionada_para_dados]
+                )
+            else:
+                fundos_departamentais_dropdown = FundoDepartamental.objects.none()
         else:
             contas_bancarias_dropdown = ContaBancaria.objects.filter(
                 igreja__in=allowed_churches
             ).order_by('igreja__nome_igreja', 'nome_identificacao')
+            if fundos_disponivel:
+                fundos_departamentais_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas(
+                    allowed_churches
+                )
+            else:
+                fundos_departamentais_dropdown = FundoDepartamental.objects.none()
 
         if caixa_id_filtro and not contas_bancarias_dropdown.filter(pk=caixa_id_filtro).exists():
             messages.warning(request, 'Caixa selecionado inválido para o seu escopo. Exibindo dados consolidados por caixa.')
             caixa_id_filtro = ''
+        if fundos_disponivel:
+            if fundo_id_filtro and not fundos_departamentais_dropdown.filter(pk=fundo_id_filtro).exists():
+                messages.warning(request, 'Fundo selecionado inválido para o seu escopo. Exibindo dados consolidados por fundo.')
+                fundo_id_filtro = ''
+        else:
+            fundo_id_filtro = ''
+
+        if departamento_contexto_obj and departamento_contexto_obj.fundo_departamental_id:
+            fundo_id_filtro = str(departamento_contexto_obj.fundo_departamental_id)
 
         # Base Querysets - AGORA FILTRADOS PELAS IGREJAS PERMITIDAS ou pela igreja selecionada (se permitida)
         # Se igreja_selecionada (do seletor global ou do filtro GET) está definida, filtra por ela
@@ -214,6 +430,9 @@ def painel_financeiro(request):
         if caixa_id_filtro:
             receitas_base = receitas_base.filter(conta_bancaria_id=caixa_id_filtro)
             despesas_base = despesas_base.filter(conta_bancaria_id=caixa_id_filtro)
+        if fundos_disponivel and fundo_id_filtro:
+            receitas_base = receitas_base.filter(fundo_departamental_id=fundo_id_filtro)
+            despesas_base = despesas_base.filter(fundo_departamental_id=fundo_id_filtro)
 
 
          # --- Base para Contas a Pagar (filtrado por igreja/allowed_churches) ---
@@ -309,6 +528,26 @@ def painel_financeiro(request):
         total_receitas = receitas_filtradas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
         total_despesas = despesas_filtradas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
         saldo_geral = total_receitas - total_despesas
+
+        # KPIs por fundo no escopo/periodo corrente
+        if fundos_disponivel:
+            receitas_local = receitas_filtradas.filter(fundo_departamental__codigo='LOCAL').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            receitas_eventos = receitas_filtradas.filter(fundo_departamental__codigo='EVENTOS').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            receitas_missoes = receitas_filtradas.filter(fundo_departamental__codigo='MISSOES').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            receitas_assistencia = receitas_filtradas.filter(fundo_departamental__codigo='ASSISTENCIA').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            despesas_local = despesas_filtradas.filter(fundo_departamental__codigo='LOCAL').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            despesas_eventos = despesas_filtradas.filter(fundo_departamental__codigo='EVENTOS').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            despesas_missoes = despesas_filtradas.filter(fundo_departamental__codigo='MISSOES').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+            despesas_assistencia = despesas_filtradas.filter(fundo_departamental__codigo='ASSISTENCIA').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
+        else:
+            receitas_local = Decimal(0)
+            receitas_eventos = Decimal(0)
+            receitas_missoes = Decimal(0)
+            receitas_assistencia = Decimal(0)
+            despesas_local = Decimal(0)
+            despesas_eventos = Decimal(0)
+            despesas_missoes = Decimal(0)
+            despesas_assistencia = Decimal(0)
 
         # Saldo do mês atual (também filtrado por igreja, se aplicável)
         receitas_mes = receitas_base.filter(data__gte=data_inicio_mes).aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
@@ -504,6 +743,8 @@ def painel_financeiro(request):
             query_receitas_despesas_parts.append(f"igreja={igreja_id_filtro_selecionado_template}")
         if caixa_id_filtro:
             query_receitas_despesas_parts.append(f"caixa_filtro={caixa_id_filtro}")
+        if fundo_id_filtro:
+            query_receitas_despesas_parts.append(f"fundo_filtro={fundo_id_filtro}")
         if periodo_filtro == 'custom' and data_inicio_filtro_str and data_fim_filtro_str:
             query_receitas_despesas_parts.append(f"data_inicio={data_inicio_filtro_str}")
             query_receitas_despesas_parts.append(f"data_fim={data_fim_filtro_str}")
@@ -537,14 +778,22 @@ def painel_financeiro(request):
 
         escopo_igreja_label = igreja_selecionada_para_dados.nome_igreja if igreja_selecionada_para_dados else 'Todas as igrejas permitidas'
         escopo_caixa_label = caixa_selecionada_obj.nome_identificacao if caixa_selecionada_obj else 'Todos os caixas'
+        fundo_selecionado_obj = fundos_departamentais_dropdown.filter(pk=fundo_id_filtro).first() if fundo_id_filtro else None
+        escopo_fundo_label = fundo_selecionado_obj.nome_exibicao if fundo_selecionado_obj else 'Todos os fundos'
 
         context = {
             'contas_bancarias_dropdown': contas_bancarias_dropdown,
+            'fundos_departamentais_dropdown': fundos_departamentais_dropdown,
+            'fundos_departamentais_disponivel': fundos_disponivel,
             'ministerio': ministerio,
             'igrejas_org': igrejas_para_filtro_template,
             'igreja_selecionada': igreja_selecionada_para_dados,
             'igreja_id_filtro_selecionado': igreja_id_filtro_selecionado_template,
             'caixa_id_filtro_selecionado': caixa_id_filtro,
+            'fundo_id_filtro_selecionado': fundo_id_filtro,
+            'departamento_filtro_selecionado': departamento_filtro,
+            'departamento_contexto_label': departamento_contexto_label,
+            'departamento_contexto_id': departamento_contexto_obj.id if departamento_contexto_obj else None,
             'total_receitas': total_receitas,
             'total_despesas': total_despesas,
             'saldo_geral': saldo_geral,
@@ -617,10 +866,19 @@ def painel_financeiro(request):
             'query_contas_pagar_extra': query_contas_pagar_extra,
             'escopo_igreja_label': escopo_igreja_label,
             'escopo_caixa_label': escopo_caixa_label,
+            'escopo_fundo_label': escopo_fundo_label,
             'escopo_periodo_label': titulo_filtro_periodo,
             'url_limpar_filtros': url_limpar_filtros,
             'url_voltar_geral': url_voltar_geral,
             'dashboard_tem_dados': dashboard_tem_dados,
+            'receitas_local': receitas_local,
+            'receitas_eventos': receitas_eventos,
+            'receitas_missoes': receitas_missoes,
+            'receitas_assistencia': receitas_assistencia,
+            'despesas_local': despesas_local,
+            'despesas_eventos': despesas_eventos,
+            'despesas_missoes': despesas_missoes,
+            'despesas_assistencia': despesas_assistencia,
 
             # 'allowed_churches_count' não é usado diretamente neste painel da mesma forma que no de liderança
             # 'igrejas_permitidas_filtro' e 'igreja_id_filtro_selecionado' já são tratados por 'igrejas_org' e 'igreja_id_filtro'
@@ -661,12 +919,12 @@ def lista_receitas(request): # noqa: E302
         if request.igreja_ativa:
             # Se uma igreja ativa está selecionada, filtra por ela (garantindo que ela está entre as permitidas)
             if request.igreja_ativa in igrejas_base:
-                receitas_qs = Receitas.objects.filter(igreja=request.igreja_ativa).select_related('igreja', 'membro').order_by('-data')
+                receitas_qs = Receitas.objects.filter(igreja=request.igreja_ativa).select_related('igreja', 'membro', 'evento').order_by('-data')
             else: # Segurança: se a igreja ativa não for permitida, mostra vazio ou todas permitidas
-                receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro').order_by('-data')
+                receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro', 'evento').order_by('-data')
         else:
             # Se nenhuma igreja ativa, mostra de todas as igrejas permitidas
-            receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro').order_by('-data')
+            receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro', 'evento').order_by('-data')
         # --- Fim Lógica de Filtragem Inicial ---
 
 
@@ -676,6 +934,22 @@ def lista_receitas(request): # noqa: E302
         categoria = request.GET.get('categoria')
         igreja_id_get = request.GET.get('igreja') # Renomeado
         caixa_id_filtro = request.GET.get('caixa_filtro')
+        evento_id_filtro = request.GET.get('evento')
+        fundo_id_filtro = request.GET.get('fundo_filtro')
+        fundos_disponivel = _fundos_departamentais_disponivel()
+
+        if fundos_disponivel:
+            if request.igreja_ativa and request.igreja_ativa in igrejas_base:
+                fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas([request.igreja_ativa])
+            else:
+                fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas(igrejas_base)
+
+            if fundo_id_filtro and not fundos_dropdown.filter(pk=fundo_id_filtro).exists():
+                messages.warning(request, 'Fundo selecionado inválido para o seu escopo. Exibindo dados sem filtro de fundo.')
+                fundo_id_filtro = ''
+        else:
+            fundos_dropdown = FundoDepartamental.objects.none()
+            fundo_id_filtro = ''
         # --- LÓGICA DO FILTRO 'fechado' ---
         # Pega o valor do parâmetro, default para 'false' (aberto) se não vier na URL
         fechado_filter = request.GET.get('fechado', 'false')
@@ -685,6 +959,10 @@ def lista_receitas(request): # noqa: E302
         if categoria: receitas_qs = receitas_qs.filter(categoria=categoria)
         if caixa_id_filtro:
             receitas_qs = receitas_qs.filter(conta_bancaria_id=caixa_id_filtro)
+        if evento_id_filtro:
+            receitas_qs = receitas_qs.filter(evento_id=evento_id_filtro)
+        if fundos_disponivel and fundo_id_filtro:
+            receitas_qs = receitas_qs.filter(fundo_departamental_id=fundo_id_filtro)
         # --- Lógica para o filtro de igreja na página (se request.igreja_ativa NÃO estiver definida) ---
 
         if igreja_id_get:
@@ -705,6 +983,22 @@ def lista_receitas(request): # noqa: E302
             receitas_qs = receitas_qs.filter(fechado=True)
         elif fechado_filter == 'false': # Inclui o default
             receitas_qs = receitas_qs.filter(fechado=False)
+
+        # Cards de dizimos/ofertas fazem sentido apenas no contexto Tesouraria Local.
+        exibir_cards_dizimos_ofertas = False
+        if fundos_disponivel and fundo_id_filtro:
+            fundo_contexto = fundos_dropdown.filter(pk=fundo_id_filtro).only('codigo').first()
+            exibir_cards_dizimos_ofertas = bool(
+                fundo_contexto and fundo_contexto.codigo == FundoDepartamental.CODIGO_LOCAL
+            )
+        elif caixa_id_filtro:
+            exibir_cards_dizimos_ofertas = DepartamentoCaixa.objects.filter(
+                conta_bancaria_id=caixa_id_filtro,
+                ativo=True,
+                departamento__ativo=True,
+                departamento__codigo_interno=DepartamentoFinanceiro.CODIGO_LOCAL,
+                departamento__igreja__in=igrejas_base,
+            ).exists()
 
         # --- RESUMOS DE DÍZIMOS E OFERTAS (DINHEIRO, PIX, TOTAL) ---
         from decimal import Decimal
@@ -733,6 +1027,8 @@ def lista_receitas(request): # noqa: E302
             '-membro': '-membro__nome',
             'categoria': 'categoria',
             '-categoria': '-categoria',
+            'evento': 'evento__titulo',
+            '-evento': '-evento__titulo',
             'valor': 'valor',
             '-valor': '-valor',
         }
@@ -757,8 +1053,10 @@ def lista_receitas(request): # noqa: E302
         # --- FILTRO DE CONTAS BANCÁRIAS (respeitando a igreja ativa) ---
         if request.igreja_ativa and request.igreja_ativa in igrejas_base:
             contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja=request.igreja_ativa).order_by('nome_identificacao')
+            eventos_dropdown = Evento.objects.filter(igreja=request.igreja_ativa).order_by('-data_inicio', 'titulo')
         else:
             contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja__in=igrejas_base).order_by('igreja__nome_igreja', 'nome_identificacao')
+            eventos_dropdown = Evento.objects.filter(igreja__in=igrejas_base).order_by('-data_inicio', 'titulo')
 
         context = {
             'receitas': receitas_qs,
@@ -769,10 +1067,15 @@ def lista_receitas(request): # noqa: E302
             'data_fim': data_fim,
             'categoria_selecionada': categoria,
             'igreja_selecionada': igreja_id_selecionada_template, # ID para o select do filtro da página
+            'evento_selecionado': evento_id_filtro,
             # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta no filtro da página
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
             'contas_bancarias_painel': contas_bancarias_dropdown,
+            'fundos_departamentais_dropdown': fundos_dropdown,
+            'fundos_departamentais_disponivel': fundos_disponivel,
+            'eventos_filtro': eventos_dropdown,
+            'fundo_id_filtro_selecionado': fundo_id_filtro,
             'sort_atual': sort if sort in sort_map else '-data',
             'querystring_without_sort': query_params.urlencode(),
             'resumo_total_periodo': resumo_total_periodo,
@@ -786,6 +1089,7 @@ def lista_receitas(request): # noqa: E302
             'ofertas_dinheiro': ofertas_dinheiro,
             'ofertas_pix': ofertas_pix,
             'ofertas_total': ofertas_total,
+            'exibir_cards_dizimos_ofertas': exibir_cards_dizimos_ofertas,
         }
         return render(request, 'financeiro/receitas/lista_receitas.html', context)
     except Exception as e:
@@ -1060,11 +1364,15 @@ def cadastrar_receita(request): # noqa: E302
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
     is_admin = is_admin_org(request.user)
+    next_url = _get_safe_next_url(request, 'financeiro:lista_receitas')
+
+    if request.method == 'GET' and next_url == reverse('eventos:lista_eventos'):
+        return redirect('financeiro:cadastrar_receita_caixa_eventos')
 
     # Se não for admin e não tiver igrejas permitidas, não pode criar
     if not is_admin and not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar receitas ou não está associado a nenhuma igreja específica.")
-        return redirect('financeiro:lista_receitas')
+        return redirect(next_url)
 
     # A igreja do lançamento deve vir do seletor global (igreja ativa).
     if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
@@ -1074,9 +1382,114 @@ def cadastrar_receita(request): # noqa: E302
 
     if igreja_padrao_para_form is None:
         messages.error(request, "Selecione uma igreja no seletor global antes de cadastrar a receita.")
-        return redirect('financeiro:lista_receitas')
+        return redirect(next_url)
+
+    batch_itens = _batch_get(request, 'receitas', igreja_padrao_para_form.pk)
+    batch_defaults = _batch_defaults_get(request, 'receitas', igreja_padrao_para_form.pk)
 
     if request.method == 'POST':
+        action = (request.POST.get('action') or 'save_single').strip()
+
+        if action == 'batch_remove':
+            item_id = (request.POST.get('batch_item_id') or '').strip()
+            batch_itens = [item for item in batch_itens if item.get('id') != item_id]
+            _batch_set(request, 'receitas', igreja_padrao_para_form.pk, batch_itens)
+            messages.success(request, 'Item removido da lista temporária.')
+            return redirect(request.path)
+
+        if action == 'batch_edit':
+            item_id = (request.POST.get('batch_item_id') or '').strip()
+            item = next((it for it in batch_itens if it.get('id') == item_id), None)
+            if item:
+                initial_edicao = {
+                    'igreja': igreja_padrao_para_form,
+                    'data': item.get('data') or '',
+                    'categoria': item.get('categoria') or '',
+                    'valor': item.get('valor') or '',
+                    'forma_pgto': item.get('forma_pgto') or '',
+                    'membro': item.get('membro') or '',
+                    'evento': item.get('evento') or '',
+                    'conta_bancaria': item.get('conta_bancaria') or '',
+                    'observacao': item.get('observacao') or '',
+                }
+                form = ReceitaForm(
+                    initial=initial_edicao,
+                    ministerio=ministerio,
+                    allowed_churches=allowed_churches,
+                    igreja_selecionada_inicial=igreja_padrao_para_form,
+                )
+                context = {
+                    'form': form,
+                    'ministerio': ministerio,
+                    'titulo_pagina': 'Cadastrar Receita',
+                    'ocultar_campo_igreja': True,
+                    'url_cancelar': next_url,
+                    'next_url': next_url,
+                    'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(igreja_padrao_para_form),
+                    'mostrar_evento_por_conta': True,
+                    'batch_itens': batch_itens,
+                    'batch_tipo': 'receitas',
+                    'batch_edit_item_id': item_id,
+                }
+                return render(request, 'financeiro/receitas/form_receita.html', context)
+            messages.warning(request, 'Item não encontrado para edição.')
+            return redirect(request.path)
+
+        if action == 'batch_duplicate':
+            item_id = (request.POST.get('batch_item_id') or '').strip()
+            item = next((it for it in batch_itens if it.get('id') == item_id), None)
+            if item:
+                novo_item = item.copy()
+                novo_item['id'] = str(uuid4())
+                batch_itens.append(novo_item)
+                _batch_set(request, 'receitas', igreja_padrao_para_form.pk, batch_itens)
+                messages.success(request, 'Item duplicado na lista temporária.')
+            else:
+                messages.warning(request, 'Item não encontrado para duplicar.')
+            return redirect(request.path)
+
+        if action == 'batch_clear':
+            _batch_clear(request, 'receitas', igreja_padrao_para_form.pk)
+            messages.success(request, 'Lista temporária de receitas limpa.')
+            return redirect(request.path)
+
+        if action == 'batch_save':
+            if not batch_itens:
+                messages.warning(request, 'Não há itens na lista temporária para salvar.')
+                return redirect(request.path)
+
+            salvos = 0
+            with transaction.atomic():
+                for item in batch_itens:
+                    payload = {
+                        'igreja': str(igreja_padrao_para_form.pk),
+                        'evento': item.get('evento') or '',
+                        'membro': item.get('membro') or '',
+                        'data': item.get('data') or '',
+                        'categoria': item.get('categoria') or '',
+                        'valor': item.get('valor') or '',
+                        'forma_pgto': item.get('forma_pgto') or '',
+                        'conta_bancaria': item.get('conta_bancaria') or '',
+                        'observacao': item.get('observacao') or '',
+                    }
+                    item_form = ReceitaForm(
+                        payload,
+                        ministerio=ministerio,
+                        allowed_churches=allowed_churches,
+                        igreja_selecionada_inicial=igreja_padrao_para_form,
+                    )
+                    if not item_form.is_valid():
+                        raise ValidationError(f"Item inválido no lote de receitas: {item_form.errors.as_text()}")
+
+                    nova_receita = item_form.save(commit=False)
+                    nova_receita.igreja = igreja_padrao_para_form
+                    nova_receita.save()
+                    salvos += 1
+
+            _batch_clear(request, 'receitas', igreja_padrao_para_form.pk)
+            messages.success(request, f'{salvos} receita(s) salvas com sucesso em lote!')
+            return redirect(next_url)
+
         post_data = request.POST.copy()
         post_data['igreja'] = str(igreja_padrao_para_form.pk)
         # Passa ministério para o form filtrar igrejas e membros (se necessário)
@@ -1093,10 +1506,57 @@ def cadastrar_receita(request): # noqa: E302
                 elif nova_receita.membro and nova_receita.membro.igreja.ministerio != ministerio:
                     messages.error(request, "Erro: Membro selecionado não pertence à seu ministério.")
                 else:
+                    if action == 'batch_add':
+                        novo_item = {
+                            'id': str(uuid4()),
+                            'data': str(form.cleaned_data['data']),
+                            'categoria': form.cleaned_data['categoria'],
+                            'categoria_label': form.fields['categoria'].choices and dict(form.fields['categoria'].choices).get(form.cleaned_data['categoria'], form.cleaned_data['categoria']),
+                            'valor': str(form.cleaned_data['valor']),
+                            'forma_pgto': form.cleaned_data.get('forma_pgto') or '',
+                            'forma_pgto_label': dict(form.fields['forma_pgto'].choices).get(form.cleaned_data.get('forma_pgto'), form.cleaned_data.get('forma_pgto') or '-'),
+                            'membro': str(form.cleaned_data['membro'].pk) if form.cleaned_data.get('membro') else '',
+                            'membro_label': form.cleaned_data['membro'].nome if form.cleaned_data.get('membro') else '-',
+                            'evento': str(form.cleaned_data['evento'].pk) if form.cleaned_data.get('evento') else '',
+                            'evento_label': form.cleaned_data['evento'].titulo if form.cleaned_data.get('evento') else '-',
+                            'conta_bancaria': str(form.cleaned_data['conta_bancaria'].pk) if form.cleaned_data.get('conta_bancaria') else '',
+                            'conta_bancaria_label': form.cleaned_data['conta_bancaria'].nome_identificacao if form.cleaned_data.get('conta_bancaria') else '-',
+                            'observacao': form.cleaned_data.get('observacao') or '',
+                        }
+                        edit_item_id = (request.POST.get('batch_edit_item_id') or '').strip()
+                        if edit_item_id:
+                            atualizado = False
+                            for idx, item_existente in enumerate(batch_itens):
+                                if item_existente.get('id') == edit_item_id:
+                                    novo_item['id'] = edit_item_id
+                                    batch_itens[idx] = novo_item
+                                    atualizado = True
+                                    break
+                            if not atualizado:
+                                batch_itens.append(novo_item)
+                        else:
+                            batch_itens.append(novo_item)
+
+                        _batch_set(request, 'receitas', igreja_padrao_para_form.pk, batch_itens)
+                        _batch_defaults_set(
+                            request,
+                            'receitas',
+                            igreja_padrao_para_form.pk,
+                            {
+                                'categoria': novo_item.get('categoria') or '',
+                                'forma_pgto': novo_item.get('forma_pgto') or '',
+                                'conta_bancaria': novo_item.get('conta_bancaria') or '',
+                                'membro': novo_item.get('membro') or '',
+                                'evento': novo_item.get('evento') or '',
+                            }
+                        )
+                        messages.success(request, 'Receita adicionada à lista temporária.')
+                        return redirect(request.path)
+
                     # O método save da Receita agora atualiza o saldo
                     nova_receita.save()
                     messages.success(request, 'Receita cadastrada com sucesso!')
-                    return redirect('financeiro:lista_receitas')
+                    return redirect(next_url)
             except Exception as e:
                 logger.exception(f"Erro ao salvar receita para ministério {ministerio.id}")
                 messages.error(request, f'Erro ao salvar receita: {e}')
@@ -1107,19 +1567,167 @@ def cadastrar_receita(request): # noqa: E302
             'ministerio': ministerio,
             'titulo_pagina': 'Cadastrar Receita',
             'ocultar_campo_igreja': True,
+            'url_cancelar': next_url,
+            'next_url': next_url,
+            'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(igreja_padrao_para_form),
+            'mostrar_evento_por_conta': True,
+            'batch_itens': batch_itens,
+            'batch_tipo': 'receitas',
         }
         return render(request, 'financeiro/receitas/form_receita.html', context)
     else:
         initial_form_data = {'igreja': igreja_padrao_para_form}
+        initial_form_data.update({
+            'categoria': batch_defaults.get('categoria') or '',
+            'forma_pgto': batch_defaults.get('forma_pgto') or '',
+            'conta_bancaria': batch_defaults.get('conta_bancaria') or '',
+            'membro': batch_defaults.get('membro') or '',
+            'evento': batch_defaults.get('evento') or '',
+        })
         form = ReceitaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
         context = {
             'form': form,
             'ministerio': ministerio,
             'titulo_pagina': 'Cadastrar Receita',
             'ocultar_campo_igreja': True,
+            'url_cancelar': next_url,
+            'next_url': next_url,
+            'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(igreja_padrao_para_form),
+            'mostrar_evento_por_conta': True,
+            'batch_itens': batch_itens,
+            'batch_tipo': 'receitas',
         }
         # Usar um template genérico ou específico
         return render(request, 'financeiro/receitas/form_receita.html', context)
+
+
+@page_access_required('financeiro')
+def cadastrar_receita_evento(request, evento_id):
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    evento = get_object_or_404(Evento, pk=evento_id, igreja__in=allowed_churches)
+    _, conta_evento_efetiva_id = ReceitaFluxoService.construir_initial_receita_evento(evento)
+
+    if request.method == 'POST':
+        post_data, conta_evento_efetiva_id = ReceitaFluxoService.construir_post_data_receita_evento(request.POST, evento)
+
+        form = ReceitaForm(
+            post_data,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=evento.igreja,
+            evento_contexto=evento,
+            travar_evento=True,
+            travar_conta_evento=bool(conta_evento_efetiva_id),
+        )
+        if form.is_valid():
+            try:
+                receita = form.save(commit=False)
+                receita.igreja = evento.igreja
+                receita.evento = evento
+                ReceitaFluxoService.aplicar_defaults_receita_fluxo_evento(receita)
+                receita.save()
+                messages.success(request, 'Entrada do evento cadastrada com sucesso!')
+                return redirect('eventos:detalhe_evento', pk=evento.pk)
+            except Exception as e:
+                logger.exception(f"Erro ao salvar receita do evento {evento.pk} para ministério {ministerio.id}")
+                messages.error(request, f'Erro ao salvar entrada do evento: {e}')
+        else:
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+    else:
+        initial, conta_evento_efetiva_id = ReceitaFluxoService.construir_initial_receita_evento(evento)
+
+        form = ReceitaForm(
+            initial=initial,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=evento.igreja,
+            evento_contexto=evento,
+            travar_evento=True,
+            travar_conta_evento=bool(conta_evento_efetiva_id),
+        )
+
+    context = ReceitaFluxoService.construir_contexto_receita_evento(
+        form=form,
+        ministerio=ministerio,
+        evento=evento,
+        conta_evento_efetiva_id=conta_evento_efetiva_id,
+    )
+    context['contas_eventos_ids'] = _obter_ids_contas_eventos_para_igreja(evento.igreja)
+    context['mostrar_evento_por_conta'] = False
+    return render(request, 'financeiro/receitas/form_receita.html', context)
+
+
+@page_access_required('financeiro')
+def cadastrar_receita_caixa_eventos(request):
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    is_admin = is_admin_org(request.user)
+    igreja_padrao_para_form = ReceitaFluxoService.resolver_igreja_padrao_receita_caixa_eventos(
+        request=request,
+        allowed_churches=allowed_churches,
+        is_admin=is_admin,
+    )
+
+    if not is_admin and not allowed_churches.exists():
+        messages.error(request, "Você não tem permissão para adicionar entradas de eventos.")
+        return redirect('eventos:lista_eventos')
+
+    if igreja_padrao_para_form is None:
+        messages.error(request, "Selecione uma igreja no seletor global antes de lançar entrada de eventos.")
+        return redirect('eventos:lista_eventos')
+
+    if request.method == 'POST':
+        post_data, _evento, _conta_evento_efetiva_id = ReceitaFluxoService.construir_post_data_receita_caixa_eventos(
+            raw_post_data=request.POST,
+            igreja_padrao_para_form=igreja_padrao_para_form,
+            allowed_churches=allowed_churches,
+        )
+
+        form = ReceitaForm(
+            post_data,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=igreja_padrao_para_form,
+            codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
+        )
+        if form.is_valid():
+            try:
+                receita = form.save(commit=False)
+                receita.igreja = igreja_padrao_para_form
+                ReceitaFluxoService.aplicar_defaults_receita_caixa_eventos(receita)
+                receita.full_clean()
+                receita.save()
+                messages.success(request, 'Entrada do caixa de eventos cadastrada com sucesso!')
+                return redirect('eventos:lista_eventos')
+            except Exception as e:
+                logger.exception(f"Erro ao salvar entrada do caixa de eventos para ministério {ministerio.id}")
+                messages.error(request, f'Erro ao salvar entrada do caixa de eventos: {e}')
+        else:
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+    else:
+        initial = ReceitaFluxoService.construir_initial_receita_caixa_eventos(igreja_padrao_para_form)
+        form = ReceitaForm(
+            initial=initial,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=igreja_padrao_para_form,
+            codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
+        )
+
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': 'Lançar Entrada - Caixa de Eventos',
+        'ocultar_campo_igreja': True,
+        'ocultar_campo_categoria': False,
+        'ocultar_campo_conta_bancaria': bool(getattr(igreja_padrao_para_form, 'conta_padrao_eventos_id', None)),
+        'url_cancelar': reverse('eventos:lista_eventos'),
+        'form_action_url': reverse('financeiro:cadastrar_receita_caixa_eventos'),
+        'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(igreja_padrao_para_form),
+        'mostrar_evento_por_conta': False,
+    }
+    return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
 @page_access_required('financeiro')
@@ -1129,10 +1737,9 @@ def editar_receita(request, pk): # noqa: E302
     # Garante que a receita pertence às igrejas permitidas
     receita = get_object_or_404(Receitas, pk=pk, igreja__in=allowed_churches)
 
-    # Não permitir editar receita já fechada? (Opcional)
-    # if receita.fechado:
-    #    messages.error(request, "Não é possível editar uma receita que pertence a um caixa fechado.")
-    #    return redirect('financeiro:lista_receitas')
+    if receita.fechado:
+        messages.error(request, "Não é possível editar uma receita fechada.")
+        return redirect('financeiro:lista_receitas')
 
     if request.method == 'POST':
         form = ReceitaForm(request.POST, instance=receita, ministerio=ministerio, allowed_churches=allowed_churches)
@@ -1155,8 +1762,17 @@ def editar_receita(request, pk): # noqa: E302
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         form = ReceitaForm(instance=receita, ministerio=ministerio, allowed_churches=allowed_churches)
-        context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Editar Receita', 'receita': receita}
-        return render(request, 'financeiro/receitas/form_receita.html', context)
+
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': 'Editar Receita',
+        'receita': receita,
+        'url_cancelar': reverse('financeiro:lista_receitas'),
+        'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(receita.igreja),
+        'mostrar_evento_por_conta': True,
+    }
+    return render(request, 'financeiro/receitas/form_receita.html', context)
 
 
 @page_access_required('financeiro')
@@ -1166,10 +1782,9 @@ def excluir_receita(request, pk): # noqa: E302
     allowed_churches = get_allowed_churches_for_user(request.user)
     receita = get_object_or_404(Receitas, pk=pk, igreja__in=allowed_churches)
 
-    # Não permitir excluir receita já fechada?
-    # if receita.fechado:
-    #    messages.error(request, "Não é possível excluir uma receita que pertence a um caixa fechado.")
-    #    return redirect('financeiro:lista_receitas')
+    if receita.fechado:
+        messages.error(request, "Não é possível excluir uma receita fechada.")
+        return redirect('financeiro:lista_receitas')
 
     if request.method == 'POST': # Exclusão deve ser POST
         try:
@@ -1203,7 +1818,7 @@ def lista_despesas(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
-        despesas_qs = Despesas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'categoria').order_by('-data')
+        despesas_qs = Despesas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'categoria', 'evento').order_by('-data')
 
         # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
         if request.igreja_ativa and request.igreja_ativa in allowed_churches:
@@ -1219,6 +1834,23 @@ def lista_despesas(request): # noqa: E302
         categoria_id = request.GET.get('categoria')
         igreja_id_get = request.GET.get('igreja') # Renomeado para evitar conflito com variável de contexto
         caixa_id_filtro = request.GET.get('caixa_filtro')
+        evento_id_filtro = request.GET.get('evento')
+        fundo_id_filtro = request.GET.get('fundo_filtro')
+        aprovacao_status_filtro = (request.GET.get('aprovacao_status') or '').strip().upper()
+        fundos_disponivel = _fundos_departamentais_disponivel()
+
+        if fundos_disponivel:
+            if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+                fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas([request.igreja_ativa])
+            else:
+                fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas(allowed_churches)
+
+            if fundo_id_filtro and not fundos_dropdown.filter(pk=fundo_id_filtro).exists():
+                messages.warning(request, 'Fundo selecionado inválido para o seu escopo. Exibindo dados sem filtro de fundo.')
+                fundo_id_filtro = ''
+        else:
+            fundos_dropdown = FundoDepartamental.objects.none()
+            fundo_id_filtro = ''
         # --- LÓGICA DO FILTRO 'fechado' ---
         # Pega o valor do parâmetro, default para 'false' (aberto) se não vier na URL
         fechado_filter = request.GET.get('fechado', 'false')
@@ -1228,6 +1860,16 @@ def lista_despesas(request): # noqa: E302
         if categoria_id: despesas_qs = despesas_qs.filter(categoria_id=categoria_id)
         if caixa_id_filtro:
             despesas_qs = despesas_qs.filter(conta_bancaria_id=caixa_id_filtro)
+        if evento_id_filtro:
+            despesas_qs = despesas_qs.filter(evento_id=evento_id_filtro)
+        if fundos_disponivel and fundo_id_filtro:
+            despesas_qs = despesas_qs.filter(fundo_departamental_id=fundo_id_filtro)
+        if aprovacao_status_filtro in {
+            Despesas.APROVACAO_PENDENTE,
+            Despesas.APROVACAO_APROVADA,
+            Despesas.APROVACAO_REJEITADA,
+        }:
+            despesas_qs = despesas_qs.filter(aprovacao_status=aprovacao_status_filtro)
         if igreja_id_get:
             # Este filtro só deve ser aplicado se request.igreja_ativa NÃO estiver definida
             if not request.igreja_ativa and (is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists()):
@@ -1249,6 +1891,8 @@ def lista_despesas(request): # noqa: E302
             '-descricao': '-descricao',
             'categoria': 'categoria__nome',
             '-categoria': '-categoria__nome',
+            'evento': 'evento__titulo',
+            '-evento': '-evento__titulo',
             'valor': 'valor',
             '-valor': '-valor',
         }
@@ -1281,11 +1925,14 @@ def lista_despesas(request): # noqa: E302
         # --- FILTRO DE CONTAS BANCÁRIAS (respeitando a igreja ativa) ---
         if request.igreja_ativa and request.igreja_ativa in allowed_churches:
             contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja=request.igreja_ativa).order_by('nome_identificacao')
+            eventos_dropdown = Evento.objects.filter(igreja=request.igreja_ativa).order_by('-data_inicio', 'titulo')
         else:
             contas_bancarias_dropdown = ContaBancaria.objects.filter(igreja__in=allowed_churches).order_by('igreja__nome_igreja', 'nome_identificacao')
+            eventos_dropdown = Evento.objects.filter(igreja__in=allowed_churches).order_by('-data_inicio', 'titulo')
 
         # Permissão de edição para o template
         can_edit = has_finance_edit_permission(request.user)
+        can_approve = _user_pode_aprovar_saida(request.user)
         query_params = request.GET.copy()
         query_params.pop('sort', None)
 
@@ -1298,10 +1945,16 @@ def lista_despesas(request): # noqa: E302
             'data_fim': data_fim,
             'categoria_selecionada': categoria_id,
             'igreja_selecionada': igreja_id_selecionada_template, # ID para o select do filtro da página
+            'evento_selecionado': evento_id_filtro,
             # Passa o valor que FOI USADO no filtro para o template selecionar a opção correta
             'fechado_selecionado': fechado_filter,
             'can_edit_finance': can_edit, # Flag para o template
             'contas_bancarias_painel': contas_bancarias_dropdown,
+            'fundos_departamentais_dropdown': fundos_dropdown,
+            'fundos_departamentais_disponivel': fundos_disponivel,
+            'eventos_filtro': eventos_dropdown,
+            'fundo_id_filtro_selecionado': fundo_id_filtro,
+            'aprovacao_status_filtro': aprovacao_status_filtro,
             'sort_atual': sort if sort in sort_map else '-data',
             'querystring_without_sort': query_params.urlencode(),
             # Novos resumos
@@ -1310,6 +1963,7 @@ def lista_despesas(request): # noqa: E302
             'resumo_ticket_medio': resumo_ticket_medio,
             'resumo_quantidade_periodo': resumo_quantidade_periodo,
             'resumos_categoria': resumos_categoria,
+            'can_approve_despesa': can_approve,
         }
         return render(request, 'financeiro/despesas/lista_despesas.html', context)
     except Exception as e:
@@ -1324,11 +1978,15 @@ def cadastrar_despesa(request): # noqa: E302
     allowed_churches = get_allowed_churches_for_user(request.user)
     igreja_padrao_para_form = None # Inicializa
     is_admin = is_admin_org(request.user)
+    next_url = _get_safe_next_url(request, 'financeiro:lista_despesas')
+
+    if request.method == 'GET' and next_url == reverse('eventos:lista_eventos'):
+        return redirect('financeiro:cadastrar_despesa_caixa_eventos')
 
     # Se não for admin e não tiver igrejas permitidas, não pode criar
     if not is_admin and not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar despesas ou não está associado a nenhuma igreja específica.")
-        return redirect('financeiro:lista_despesas')
+        return redirect(next_url)
 
     if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
         igreja_padrao_para_form = request.igreja_ativa
@@ -1337,9 +1995,113 @@ def cadastrar_despesa(request): # noqa: E302
 
     if igreja_padrao_para_form is None:
         messages.error(request, "Selecione uma igreja no seletor global antes de cadastrar a despesa.")
-        return redirect('financeiro:lista_despesas')
+        return redirect(next_url)
+
+    batch_itens = _batch_get(request, 'despesas', igreja_padrao_para_form.pk)
+    batch_defaults = _batch_defaults_get(request, 'despesas', igreja_padrao_para_form.pk)
 
     if request.method == 'POST':
+        action = (request.POST.get('action') or 'save_single').strip()
+
+        if action == 'batch_remove':
+            item_id = (request.POST.get('batch_item_id') or '').strip()
+            batch_itens = [item for item in batch_itens if item.get('id') != item_id]
+            _batch_set(request, 'despesas', igreja_padrao_para_form.pk, batch_itens)
+            messages.success(request, 'Item removido da lista temporária.')
+            return redirect(request.path)
+
+        if action == 'batch_edit':
+            item_id = (request.POST.get('batch_item_id') or '').strip()
+            item = next((it for it in batch_itens if it.get('id') == item_id), None)
+            if item:
+                initial_edicao = {
+                    'igreja': igreja_padrao_para_form,
+                    'data': item.get('data') or '',
+                    'categoria': item.get('categoria') or '',
+                    'valor': item.get('valor') or '',
+                    'descricao': item.get('descricao') or '',
+                    'evento': item.get('evento') or '',
+                    'conta_bancaria': item.get('conta_bancaria') or '',
+                    'observacao': item.get('observacao') or '',
+                }
+                form = DespesaForm(
+                    initial=initial_edicao,
+                    ministerio=ministerio,
+                    allowed_churches=allowed_churches,
+                    igreja_selecionada_inicial=igreja_padrao_para_form,
+                )
+                context = {
+                    'form': form,
+                    'ministerio': ministerio,
+                    'titulo_pagina': 'Cadastrar Despesa',
+                    'ocultar_campo_igreja': True,
+                    'url_cancelar': next_url,
+                    'next_url': next_url,
+                    'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(igreja_padrao_para_form),
+                    'mostrar_evento_por_conta': True,
+                    'batch_itens': batch_itens,
+                    'batch_tipo': 'despesas',
+                    'batch_edit_item_id': item_id,
+                }
+                return render(request, 'financeiro/despesas/form_despesa.html', context)
+            messages.warning(request, 'Item não encontrado para edição.')
+            return redirect(request.path)
+
+        if action == 'batch_duplicate':
+            item_id = (request.POST.get('batch_item_id') or '').strip()
+            item = next((it for it in batch_itens if it.get('id') == item_id), None)
+            if item:
+                novo_item = item.copy()
+                novo_item['id'] = str(uuid4())
+                batch_itens.append(novo_item)
+                _batch_set(request, 'despesas', igreja_padrao_para_form.pk, batch_itens)
+                messages.success(request, 'Item duplicado na lista temporária.')
+            else:
+                messages.warning(request, 'Item não encontrado para duplicar.')
+            return redirect(request.path)
+
+        if action == 'batch_clear':
+            _batch_clear(request, 'despesas', igreja_padrao_para_form.pk)
+            messages.success(request, 'Lista temporária de despesas limpa.')
+            return redirect(request.path)
+
+        if action == 'batch_save':
+            if not batch_itens:
+                messages.warning(request, 'Não há itens na lista temporária para salvar.')
+                return redirect(request.path)
+
+            salvos = 0
+            with transaction.atomic():
+                for item in batch_itens:
+                    payload = {
+                        'igreja': str(igreja_padrao_para_form.pk),
+                        'evento': item.get('evento') or '',
+                        'categoria': item.get('categoria') or '',
+                        'data': item.get('data') or '',
+                        'valor': item.get('valor') or '',
+                        'descricao': item.get('descricao') or '',
+                        'conta_bancaria': item.get('conta_bancaria') or '',
+                        'observacao': item.get('observacao') or '',
+                    }
+                    item_form = DespesaForm(
+                        payload,
+                        ministerio=ministerio,
+                        allowed_churches=allowed_churches,
+                        igreja_selecionada_inicial=igreja_padrao_para_form,
+                    )
+                    if not item_form.is_valid():
+                        raise ValidationError(f"Item inválido no lote de despesas: {item_form.errors.as_text()}")
+
+                    nova_despesa = item_form.save(commit=False)
+                    nova_despesa.igreja = igreja_padrao_para_form
+                    _aplicar_politica_aprovacao_saida(request, nova_despesa)
+                    nova_despesa.save()
+                    salvos += 1
+
+            _batch_clear(request, 'despesas', igreja_padrao_para_form.pk)
+            messages.success(request, f'{salvos} despesa(s) salvas com sucesso em lote!')
+            return redirect(next_url)
+
         post_data = request.POST.copy()
         post_data['igreja'] = str(igreja_padrao_para_form.pk)
         form = DespesaForm(post_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
@@ -1351,13 +2113,56 @@ def cadastrar_despesa(request): # noqa: E302
                 elif nova_despesa.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
+                        if action == 'batch_add':
+                            novo_item = {
+                                'id': str(uuid4()),
+                                'data': str(form.cleaned_data['data']),
+                                'categoria': str(form.cleaned_data['categoria'].pk),
+                                'categoria_label': form.cleaned_data['categoria'].nome,
+                                'valor': str(form.cleaned_data['valor']),
+                                'descricao': form.cleaned_data.get('descricao') or '',
+                                'evento': str(form.cleaned_data['evento'].pk) if form.cleaned_data.get('evento') else '',
+                                'evento_label': form.cleaned_data['evento'].titulo if form.cleaned_data.get('evento') else '-',
+                                'conta_bancaria': str(form.cleaned_data['conta_bancaria'].pk) if form.cleaned_data.get('conta_bancaria') else '',
+                                'conta_bancaria_label': form.cleaned_data['conta_bancaria'].nome_identificacao if form.cleaned_data.get('conta_bancaria') else '-',
+                                'observacao': form.cleaned_data.get('observacao') or '',
+                            }
+                            edit_item_id = (request.POST.get('batch_edit_item_id') or '').strip()
+                            if edit_item_id:
+                                atualizado = False
+                                for idx, item_existente in enumerate(batch_itens):
+                                    if item_existente.get('id') == edit_item_id:
+                                        novo_item['id'] = edit_item_id
+                                        batch_itens[idx] = novo_item
+                                        atualizado = True
+                                        break
+                                if not atualizado:
+                                    batch_itens.append(novo_item)
+                            else:
+                                batch_itens.append(novo_item)
+
+                            _batch_set(request, 'despesas', igreja_padrao_para_form.pk, batch_itens)
+                            _batch_defaults_set(
+                                request,
+                                'despesas',
+                                igreja_padrao_para_form.pk,
+                                {
+                                    'categoria': novo_item.get('categoria') or '',
+                                    'conta_bancaria': novo_item.get('conta_bancaria') or '',
+                                    'evento': novo_item.get('evento') or '',
+                                }
+                            )
+                            messages.success(request, 'Despesa adicionada à lista temporária.')
+                            return redirect(request.path)
+
+                        mensagem_aprovacao = _aplicar_politica_aprovacao_saida(request, nova_despesa)
                         # O método save da Despesa agora atualiza o saldo
-                        nova_despesa.save() 
-                        
-                       
-                   
-                        messages.success(request, 'Despesa cadastrada com sucesso!')
-                        return redirect('financeiro:lista_despesas')
+                        nova_despesa.save()
+                        if mensagem_aprovacao:
+                            messages.warning(request, mensagem_aprovacao)
+                        else:
+                            messages.success(request, 'Despesa cadastrada com sucesso!')
+                        return redirect(next_url)
    
             except Exception as e:
                  logger.exception(f"Erro ao salvar despesa para ministério {ministerio.id}")
@@ -1367,6 +2172,11 @@ def cadastrar_despesa(request): # noqa: E302
     else:
       
         initial_form_data = {'igreja': igreja_padrao_para_form}
+        initial_form_data.update({
+            'categoria': batch_defaults.get('categoria') or '',
+            'conta_bancaria': batch_defaults.get('conta_bancaria') or '',
+            'evento': batch_defaults.get('evento') or '',
+        })
         form = DespesaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
 
     context = {
@@ -1374,6 +2184,193 @@ def cadastrar_despesa(request): # noqa: E302
         'ministerio': ministerio,
         'titulo_pagina': 'Cadastrar Despesa',
         'ocultar_campo_igreja': True,
+        'url_cancelar': next_url,
+        'next_url': next_url,
+        'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(igreja_padrao_para_form),
+        'mostrar_evento_por_conta': True,
+        'batch_itens': batch_itens,
+        'batch_tipo': 'despesas',
+    }
+    return render(request, 'financeiro/despesas/form_despesa.html', context)
+
+
+@page_access_required('financeiro')
+def cadastrar_despesa_evento(request, evento_id):
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    evento = get_object_or_404(Evento, pk=evento_id, igreja__in=allowed_churches)
+    conta_evento_efetiva_id = evento.conta_bancaria_evento_id or getattr(evento.igreja, 'conta_padrao_eventos_id', None)
+
+    if request.method == 'POST':
+        post_data = request.POST.copy()
+        post_data['igreja'] = str(evento.igreja_id)
+        post_data['evento'] = str(evento.pk)
+        if conta_evento_efetiva_id:
+            post_data['conta_bancaria'] = str(conta_evento_efetiva_id)
+
+        form = DespesaForm(
+            post_data,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=evento.igreja,
+            evento_contexto=evento,
+            codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
+            travar_evento=True,
+            travar_conta_evento=bool(conta_evento_efetiva_id),
+        )
+        if form.is_valid():
+            try:
+                despesa = form.save(commit=False)
+                despesa.igreja = evento.igreja
+                despesa.evento = evento
+                if conta_evento_efetiva_id:
+                    despesa.conta_bancaria_id = conta_evento_efetiva_id
+                mensagem_aprovacao = _aplicar_politica_aprovacao_saida(request, despesa)
+                despesa.save()
+                if mensagem_aprovacao:
+                    messages.warning(request, mensagem_aprovacao)
+                else:
+                    messages.success(request, 'Saída do evento cadastrada com sucesso!')
+                return redirect('eventos:detalhe_evento', pk=evento.pk)
+            except Exception as e:
+                logger.exception(f"Erro ao salvar despesa do evento {evento.pk} para ministério {ministerio.id}")
+                messages.error(request, f'Erro ao salvar saída do evento: {e}')
+        else:
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+    else:
+        initial = {
+            'igreja': evento.igreja,
+            'evento': evento,
+            'data': now().date(),
+        }
+        if conta_evento_efetiva_id:
+            initial['conta_bancaria'] = conta_evento_efetiva_id
+
+        form = DespesaForm(
+            initial=initial,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=evento.igreja,
+            evento_contexto=evento,
+            codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
+            travar_evento=True,
+            travar_conta_evento=bool(conta_evento_efetiva_id),
+        )
+
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': f'Adicionar Saída - {evento.titulo}',
+        'ocultar_campo_igreja': True,
+        'ocultar_campo_evento': True,
+        'ocultar_campo_conta_bancaria': bool(conta_evento_efetiva_id),
+        'modo_evento': True,
+        'evento_contexto': evento,
+        'url_cancelar': reverse('eventos:detalhe_evento', kwargs={'pk': evento.pk}),
+        'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(evento.igreja),
+        'mostrar_evento_por_conta': False,
+    }
+    return render(request, 'financeiro/despesas/form_despesa.html', context)
+
+
+@page_access_required('financeiro')
+def cadastrar_despesa_caixa_eventos(request):
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    igreja_padrao_para_form = None
+    is_admin = is_admin_org(request.user)
+
+    if not is_admin and not allowed_churches.exists():
+        messages.error(request, "Você não tem permissão para adicionar saídas de eventos.")
+        return redirect('eventos:lista_eventos')
+
+    if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
+        igreja_padrao_para_form = request.igreja_ativa
+    elif not is_admin and allowed_churches.count() == 1:
+        igreja_padrao_para_form = allowed_churches.first()
+
+    if igreja_padrao_para_form is None:
+        messages.error(request, "Selecione uma igreja no seletor global antes de lançar saída de eventos.")
+        return redirect('eventos:lista_eventos')
+
+    conta_padrao_eventos_id = getattr(igreja_padrao_para_form, 'conta_padrao_eventos_id', None)
+
+    if request.method == 'POST':
+        post_data = request.POST.copy()
+        post_data['igreja'] = str(igreja_padrao_para_form.pk)
+        if conta_padrao_eventos_id and not post_data.get('conta_bancaria'):
+            post_data['conta_bancaria'] = str(conta_padrao_eventos_id)
+
+        evento_id = post_data.get('evento')
+        evento = None
+        conta_evento_efetiva_id = None
+        if evento_id:
+            evento = Evento.objects.filter(pk=evento_id, igreja__in=allowed_churches).first()
+            if evento:
+                conta_evento_efetiva_id = evento.conta_bancaria_evento_id or getattr(evento.igreja, 'conta_padrao_eventos_id', None)
+                if conta_evento_efetiva_id:
+                    post_data['conta_bancaria'] = str(conta_evento_efetiva_id)
+
+        form = DespesaForm(
+            post_data,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=igreja_padrao_para_form,
+            codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
+        )
+        if form.is_valid():
+            try:
+                despesa = form.save(commit=False)
+                despesa.igreja = igreja_padrao_para_form
+                if not despesa.evento_id and _fundos_departamentais_disponivel():
+                    fundo_eventos, _created = FundoDepartamental.objects.get_or_create(
+                        igreja=igreja_padrao_para_form,
+                        codigo=FundoDepartamental.CODIGO_EVENTOS,
+                        defaults={'nome_exibicao': 'Eventos'},
+                    )
+                    despesa.fundo_departamental = fundo_eventos
+                if despesa.evento_id:
+                    conta_evento_efetiva_id = despesa.evento.conta_bancaria_evento_id or getattr(despesa.evento.igreja, 'conta_padrao_eventos_id', None)
+                    if conta_evento_efetiva_id:
+                        despesa.conta_bancaria_id = conta_evento_efetiva_id
+                mensagem_aprovacao = _aplicar_politica_aprovacao_saida(request, despesa)
+                despesa.save()
+                if mensagem_aprovacao:
+                    messages.warning(request, mensagem_aprovacao)
+                else:
+                    messages.success(request, 'Saída do caixa de eventos cadastrada com sucesso!')
+                return redirect('eventos:lista_eventos')
+            except Exception as e:
+                logger.exception(f"Erro ao salvar saída do caixa de eventos para ministério {ministerio.id}")
+                messages.error(request, f'Erro ao salvar saída do caixa de eventos: {e}')
+        else:
+            messages.error(request, 'Por favor, corrija os erros no formulário.')
+    else:
+        initial = {
+            'igreja': igreja_padrao_para_form,
+            'data': now().date(),
+        }
+        if conta_padrao_eventos_id:
+            initial['conta_bancaria'] = conta_padrao_eventos_id
+        form = DespesaForm(
+            initial=initial,
+            ministerio=ministerio,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=igreja_padrao_para_form,
+            codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
+        )
+
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': 'Lançar Saída - Caixa de Eventos',
+        'ocultar_campo_igreja': True,
+        'ocultar_campo_categoria': False,
+        'ocultar_campo_conta_bancaria': bool(conta_padrao_eventos_id),
+        'url_cancelar': reverse('eventos:lista_eventos'),
+        'form_action_url': reverse('financeiro:cadastrar_despesa_caixa_eventos'),
+        'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(igreja_padrao_para_form),
+        'mostrar_evento_por_conta': False,
     }
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
@@ -1384,7 +2381,9 @@ def editar_despesa(request, pk): # noqa: E302
     allowed_churches = get_allowed_churches_for_user(request.user)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
 
-    # if despesa.fechado: ... (verificar se pode editar)
+    if despesa.fechado:
+        messages.error(request, "Não é possível editar uma despesa fechada.")
+        return redirect('financeiro:lista_despesas')
 
     if request.method == 'POST':
         form = DespesaForm(request.POST, instance=despesa, ministerio=ministerio, allowed_churches=allowed_churches)
@@ -1395,8 +2394,12 @@ def editar_despesa(request, pk): # noqa: E302
                 elif despesa_editada.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
+                    mensagem_aprovacao = _aplicar_politica_aprovacao_saida(request, despesa_editada)
                     despesa_editada.save()
-                    messages.success(request, 'Despesa atualizada com sucesso!')
+                    if mensagem_aprovacao:
+                        messages.warning(request, mensagem_aprovacao)
+                    else:
+                        messages.success(request, 'Despesa atualizada com sucesso!')
                     return redirect('financeiro:lista_despesas')
             except Exception as e:
                  logger.exception(f"Erro ao salvar edição da despesa {pk} para ministério {ministerio.id}")
@@ -1406,7 +2409,15 @@ def editar_despesa(request, pk): # noqa: E302
     else:
         form = DespesaForm(instance=despesa, ministerio=ministerio, allowed_churches=allowed_churches)
 
-    context = {'form': form, 'ministerio': ministerio, 'titulo_pagina': 'Editar Despesa', 'despesa': despesa}
+    context = {
+        'form': form,
+        'ministerio': ministerio,
+        'titulo_pagina': 'Editar Despesa',
+        'despesa': despesa,
+        'url_cancelar': reverse('financeiro:lista_despesas'),
+        'contas_eventos_ids': _obter_ids_contas_eventos_para_igreja(despesa.igreja),
+        'mostrar_evento_por_conta': True,
+    }
     return render(request, 'financeiro/despesas/form_despesa.html', context)
 
 
@@ -1416,7 +2427,84 @@ def excluir_despesa(request, pk): # noqa: E302
     allowed_churches = get_allowed_churches_for_user(request.user)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
 
-    # if despesa.fechado: ... (verificar se pode excluir)
+    if despesa.fechado:
+        messages.error(request, "Não é possível excluir uma despesa fechada.")
+        return redirect('financeiro:lista_despesas')
+
+
+@page_access_required('financeiro')
+def aprovar_despesa(request, pk):
+    ministerio = get_ministerio_or_error(request)
+    if request.method != 'POST':
+        messages.error(request, 'Método inválido para aprovação.')
+        return redirect('financeiro:lista_despesas')
+
+    if not _user_pode_aprovar_saida(request.user):
+        raise PermissionDenied('Você não tem permissão para aprovar despesas.')
+
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
+
+    if despesa.fechado:
+        messages.error(request, 'Não é possível aprovar uma despesa já fechada.')
+        return redirect('financeiro:lista_despesas')
+
+    if despesa.aprovacao_status == Despesas.APROVACAO_APROVADA:
+        messages.info(request, 'Esta despesa já está aprovada.')
+        return redirect('financeiro:lista_despesas')
+
+    try:
+        despesa.aprovacao_status = Despesas.APROVACAO_APROVADA
+        despesa.aprovado_por = request.user
+        despesa.aprovado_em = now()
+        despesa.observacao_aprovacao = (request.POST.get('observacao_aprovacao') or '').strip() or despesa.observacao_aprovacao
+        despesa.save(update_fields=['aprovacao_status', 'aprovado_por', 'aprovado_em', 'observacao_aprovacao'])
+        messages.success(request, 'Despesa aprovada com sucesso.')
+    except Exception:
+        logger.exception(f"Erro ao aprovar despesa {pk} para ministério {ministerio.id}")
+        messages.error(request, 'Erro ao aprovar despesa.')
+
+    return redirect('financeiro:lista_despesas')
+
+
+@page_access_required('financeiro')
+def reprovar_despesa(request, pk):
+    ministerio = get_ministerio_or_error(request)
+    if request.method != 'POST':
+        messages.error(request, 'Método inválido para reprovação.')
+        return redirect('financeiro:lista_despesas')
+
+    if not _user_pode_aprovar_saida(request.user):
+        raise PermissionDenied('Você não tem permissão para reprovar despesas.')
+
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
+
+    if despesa.fechado:
+        messages.error(request, 'Não é possível reprovar uma despesa já fechada.')
+        return redirect('financeiro:lista_despesas')
+
+    if despesa.aprovacao_status == Despesas.APROVACAO_REJEITADA:
+        messages.info(request, 'Esta despesa já está reprovada.')
+        return redirect('financeiro:lista_despesas')
+
+    observacao = (request.POST.get('observacao_aprovacao') or '').strip()
+    if not observacao:
+        messages.error(request, 'Informe o motivo da reprovação antes de continuar.')
+        return redirect('financeiro:lista_despesas')
+
+    try:
+        despesa.aprovacao_status = Despesas.APROVACAO_REJEITADA
+        despesa.aprovado_por = request.user
+        despesa.aprovado_em = now()
+        despesa.observacao_aprovacao = observacao
+        despesa.save(update_fields=['aprovacao_status', 'aprovado_por', 'aprovado_em', 'observacao_aprovacao'])
+        messages.success(request, 'Despesa reprovada com sucesso.')
+    except Exception:
+        logger.exception(f"Erro ao reprovar despesa {pk} para ministério {ministerio.id}")
+        messages.error(request, 'Erro ao reprovar despesa.')
+
+    return redirect('financeiro:lista_despesas')
 
     if request.method == 'POST':
         try:
@@ -1426,6 +2514,10 @@ def excluir_despesa(request, pk): # noqa: E302
             messages.success(request, f'Despesa "{nome_despesa}" excluída com sucesso!')
         except Exception as e:
             logger.exception(f"Erro ao excluir despesa {pk} para ministério {ministerio.id}")
+            messages.error(request, f'Erro ao excluir despesa: {e}')
+        return redirect('financeiro:lista_despesas')
+    messages.error(request, 'Método inválido para exclusão.')
+    return redirect('financeiro:lista_despesas')
 
 
 
@@ -1686,18 +2778,41 @@ def lista_fechamentos_caixa(request): # noqa: E302
     # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
-           fechamentos = FechamentoCaixa.objects.filter(igreja=request.igreja_ativa).select_related('igreja').order_by('-data_fim')
+        dept_filtro = (request.GET.get('dept_filtro') or '').strip()
+        if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
+            igrejas_escopo = Igreja.objects.filter(pk=request.igreja_ativa.pk)
+            fechamentos = FechamentoCaixa.objects.filter(
+                igreja=request.igreja_ativa
+            ).select_related('igreja', 'fundo_departamental').order_by('-data_fim')
         else:        
-        # allowed_churches já foi definida no início do try
-        # Filtra pelos fechamentos das igrejas permitidas
-            fechamentos = FechamentoCaixa.objects.filter(igreja__in=allowed_churches).select_related('igreja').order_by('-data_fim')
+            igrejas_escopo = allowed_churches
+            # Filtra pelos fechamentos das igrejas permitidas
+            fechamentos = FechamentoCaixa.objects.filter(
+                igreja__in=igrejas_escopo
+            ).select_related('igreja', 'fundo_departamental').order_by('-data_fim')
+
+        departamentos_financeiros_dropdown = DepartamentoFinanceiro.objects.filter(
+            igreja__in=igrejas_escopo,
+            ativo=True,
+            fundo_departamental__isnull=False,
+        ).select_related('igreja', 'fundo_departamental').order_by('igreja__nome_igreja', 'nome_exibicao')
+        departamento_filtro_obj = None
+        if dept_filtro:
+            departamento_filtro_obj = departamentos_financeiros_dropdown.filter(pk=dept_filtro).first()
+            if departamento_filtro_obj:
+                fechamentos = fechamentos.filter(fundo_departamental=departamento_filtro_obj.fundo_departamental)
+            else:
+                messages.warning(request, 'Departamento selecionado inválido para o seu escopo. Exibindo todos os fechamentos permitidos.')
+                dept_filtro = ''
         # Permissão para criar novo fechamento
         can_edit = has_finance_edit_permission(request.user)
         context = {
             'fechamentos': fechamentos,
             'ministerio': ministerio,
             'can_edit_finance': can_edit, # Passa para o template
+            'departamentos_financeiros_dropdown': departamentos_financeiros_dropdown,
+            'departamento_filtro_selecionado': dept_filtro,
+            'departamento_filtro_obj': departamento_filtro_obj,
         }
         return render(request, 'financeiro/fechamentos/lista_fechamentos_caixa.html', context)
     except Exception as e:
@@ -1741,6 +2856,7 @@ def criar_fechamento_caixa(request): # noqa: E302
                 igreja_selecionada = form.cleaned_data.get('igreja')
             data_inicio = form.cleaned_data['data_inicio']
             data_fim = form.cleaned_data['data_fim']
+            fundo_selecionado = form.cleaned_data.get('fundo_departamental')
             observacoes = form.cleaned_data.get('observacoes', '') # Pega observações para passar adiante
 
             # 1. Verificar se a igreja pertence às permitidas (redundante se o form filtrou, mas seguro)
@@ -1751,10 +2867,15 @@ def criar_fechamento_caixa(request): # noqa: E302
                 return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
 
             # 2. Verificar sobreposição (mantido aqui)
-            sobreposicao = FechamentoCaixa.objects.filter(
+            sobreposicao_qs = FechamentoCaixa.objects.filter(
                 Q(igreja=igreja_selecionada),
                 Q(data_inicio__lte=data_fim) & Q(data_fim__gte=data_inicio)
-            ).exists()
+            )
+            if fundo_selecionado:
+                sobreposicao_qs = sobreposicao_qs.filter(
+                    Q(fundo_departamental=fundo_selecionado) | Q(fundo_departamental__isnull=True)
+                )
+            sobreposicao = sobreposicao_qs.exists()
             if sobreposicao:
                 messages.error(request, f"Já existe um fechamento de caixa para a igreja '{igreja_selecionada.nome_igreja}' que se sobrepõe ao período selecionado.")
                 # Re-renderiza o form inicial com o erro, passando o form já instanciado
@@ -1762,8 +2883,29 @@ def criar_fechamento_caixa(request): # noqa: E302
                 return render(request, 'financeiro/fechamentos/criar_fechamento_caixa.html', context)
 
             # 3. Buscar receitas e despesas ABERTAS para a pré-visualização
-            receitas = Receitas.objects.filter(igreja=igreja_selecionada, data__range=(data_inicio, data_fim), fechado=False).select_related('membro')
-            despesas = Despesas.objects.filter(igreja=igreja_selecionada, data__range=(data_inicio, data_fim), fechado=False).select_related('categoria')
+            receitas = Receitas.objects.filter(igreja=igreja_selecionada, data__range=(data_inicio, data_fim), fechado=False)
+            despesas = Despesas.objects.filter(
+                igreja=igreja_selecionada,
+                data__range=(data_inicio, data_fim),
+                fechado=False,
+                aprovacao_status=Despesas.APROVACAO_APROVADA,
+            )
+            if fundo_selecionado:
+                receitas = receitas.filter(fundo_departamental=fundo_selecionado)
+                despesas = despesas.filter(fundo_departamental=fundo_selecionado)
+            receitas = receitas.select_related('membro')
+            despesas = despesas.select_related('categoria')
+
+            despesas_nao_aprovadas = Despesas.objects.filter(
+                igreja=igreja_selecionada,
+                data__range=(data_inicio, data_fim),
+                fechado=False,
+            ).exclude(aprovacao_status=Despesas.APROVACAO_APROVADA)
+            if fundo_selecionado:
+                despesas_nao_aprovadas = despesas_nao_aprovadas.filter(fundo_departamental=fundo_selecionado)
+            despesas_pendentes_count = despesas_nao_aprovadas.filter(aprovacao_status=Despesas.APROVACAO_PENDENTE).count()
+            despesas_rejeitadas_count = despesas_nao_aprovadas.filter(aprovacao_status=Despesas.APROVACAO_REJEITADA).count()
+            despesas_nao_aprovadas_total = despesas_nao_aprovadas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
 
             # 4. Calcular totais provisórios
             total_entradas = receitas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
@@ -1779,10 +2921,15 @@ def criar_fechamento_caixa(request): # noqa: E302
             ofertas_pix = receitas.filter(categoria='oferta', forma_pgto='PIX').aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
             ofertas_total = ofertas_dinheiro + ofertas_pix
 
+            exibir_cards_dizimos_ofertas = bool(
+                fundo_selecionado and fundo_selecionado.codigo == FundoDepartamental.CODIGO_LOCAL
+            )
+
             # 5. Preparar contexto para o template de CONFIRMAÇÃO
             context_confirmacao = {
                 'ministerio': ministerio,
                 'igreja_selecionada': igreja_selecionada,
+                'fundo_selecionado': fundo_selecionado,
                 'data_inicio': data_inicio,
                 'data_fim': data_fim,
                 'observacoes': observacoes, # Passa as observações
@@ -1797,6 +2944,10 @@ def criar_fechamento_caixa(request): # noqa: E302
                 'ofertas_dinheiro': ofertas_dinheiro,
                 'ofertas_pix': ofertas_pix,
                 'ofertas_total': ofertas_total,
+                'exibir_cards_dizimos_ofertas': exibir_cards_dizimos_ofertas,
+                'despesas_pendentes_count': despesas_pendentes_count,
+                'despesas_rejeitadas_count': despesas_rejeitadas_count,
+                'despesas_nao_aprovadas_total': despesas_nao_aprovadas_total,
                 'can_edit_finance': has_finance_edit_permission(request.user), # Adicionar esta linha
                 'titulo_pagina': 'Confirmar Fechamento de Caixa'
             }
@@ -1838,6 +2989,7 @@ def finalizar_fechamento_caixa(request): # noqa: E302
     try:
         # Pegar dados dos campos hidden do POST
         igreja_id = request.POST.get('igreja_id')
+        fundo_id = (request.POST.get('fundo_id') or '').strip()
         data_inicio_str = request.POST.get('data_inicio')
         data_fim_str = request.POST.get('data_fim')
         observacoes = request.POST.get('observacoes', '') # Pega observações
@@ -1855,6 +3007,16 @@ def finalizar_fechamento_caixa(request): # noqa: E302
              # Se não encontrou nas permitidas (ou ID inválido), negar permissão
              raise PermissionDenied("Igreja selecionada inválida ou não permitida.")
 
+        fundo_selecionado = None
+        if fundo_id:
+            fundo_selecionado = FundoDepartamental.objects.filter(
+                pk=fundo_id,
+                igreja=igreja_selecionada,
+                ativo=True,
+            ).first()
+            if not fundo_selecionado:
+                raise PermissionDenied("Fundo departamental inválido para a igreja selecionada.")
+
         data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date() # Converte string para date
         data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date()
 
@@ -1862,17 +3024,30 @@ def finalizar_fechamento_caixa(request): # noqa: E302
         # Não confiar nos totais passados, recalcular com base nas transações ABERTAS atuais.
 
         # 1. Verificar sobreposição novamente (segurança extra)
-        sobreposicao = FechamentoCaixa.objects.filter(
+        sobreposicao_qs = FechamentoCaixa.objects.filter(
             Q(igreja=igreja_selecionada),
             Q(data_inicio__lte=data_fim) & Q(data_fim__gte=data_inicio)
-        ).exists()
+        )
+        if fundo_selecionado:
+            sobreposicao_qs = sobreposicao_qs.filter(
+                Q(fundo_departamental=fundo_selecionado) | Q(fundo_departamental__isnull=True)
+            )
+        sobreposicao = sobreposicao_qs.exists()
         if sobreposicao:
             messages.error(request, f"Erro: Um fechamento sobreposto foi criado enquanto você confirmava. Tente novamente.")
             return redirect('financeiro:criar_fechamento_caixa')
 
         # 2. Buscar receitas e despesas ABERTAS no período para a igreja
         receitas = Receitas.objects.filter(igreja=igreja_selecionada, data__range=(data_inicio, data_fim), fechado=False)
-        despesas = Despesas.objects.filter(igreja=igreja_selecionada, data__range=(data_inicio, data_fim), fechado=False)
+        despesas = Despesas.objects.filter(
+            igreja=igreja_selecionada,
+            data__range=(data_inicio, data_fim),
+            fechado=False,
+            aprovacao_status=Despesas.APROVACAO_APROVADA,
+        )
+        if fundo_selecionado:
+            receitas = receitas.filter(fundo_departamental=fundo_selecionado)
+            despesas = despesas.filter(fundo_departamental=fundo_selecionado)
 
         # 3. Calcular totais
         total_entradas = receitas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)
@@ -1882,6 +3057,7 @@ def finalizar_fechamento_caixa(request): # noqa: E302
         # 4. Criar o registro de Fechamento
         novo_fechamento = FechamentoCaixa.objects.create(
             igreja=igreja_selecionada,
+            fundo_departamental=fundo_selecionado,
             data_inicio=data_inicio,
             data_fim=data_fim,
             total_entradas=total_entradas,
@@ -1903,6 +3079,11 @@ def finalizar_fechamento_caixa(request): # noqa: E302
             f'Caixa da igreja "{igreja_selecionada.nome_igreja}" fechado com sucesso para o período '
             f'{data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}!'
         )
+        if fundo_selecionado:
+            mensagem_sucesso = (
+                f'Caixa da igreja "{igreja_selecionada.nome_igreja}" no fundo "{fundo_selecionado.nome_exibicao}" '
+                f'fechado com sucesso para o período {data_inicio.strftime("%d/%m/%Y")} a {data_fim.strftime("%d/%m/%Y")}!'
+            )
         if resumo_dizimos.get('agendados'):
             mensagem_sucesso += f' {resumo_dizimos["agendados"]} agradecimento(s) de dízimo foram agendados.'
         messages.success(request, mensagem_sucesso)
@@ -1932,8 +3113,13 @@ def detalhe_fechamento_caixa(request, pk): # noqa: E302
     try:
         # Busca as receitas e despesas que FORAM incluídas neste fechamento (fechado=True)
         # Não precisa filtrar por allowed_churches aqui, pois o fechamento já foi validado
-        receitas = Receitas.objects.filter(igreja=fechamento.igreja, data__range=(fechamento.data_inicio, fechamento.data_fim), fechado=True).select_related('membro') # noqa
-        despesas = Despesas.objects.filter(igreja=fechamento.igreja, data__range=(fechamento.data_inicio, fechamento.data_fim), fechado=True).select_related('categoria')
+        receitas = Receitas.objects.filter(igreja=fechamento.igreja, data__range=(fechamento.data_inicio, fechamento.data_fim), fechado=True)
+        despesas = Despesas.objects.filter(igreja=fechamento.igreja, data__range=(fechamento.data_inicio, fechamento.data_fim), fechado=True)
+        if fechamento.fundo_departamental_id:
+            receitas = receitas.filter(fundo_departamental=fechamento.fundo_departamental)
+            despesas = despesas.filter(fundo_departamental=fechamento.fundo_departamental)
+        receitas = receitas.select_related('membro')
+        despesas = despesas.select_related('categoria')
 
         # Recalcula totais para garantir consistência (ou usa os valores salvos no fechamento)
         # total_entradas = receitas.aggregate(Sum('valor'))['valor__sum'] or Decimal(0)

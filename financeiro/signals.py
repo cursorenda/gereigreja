@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from configuracao.models import Ministerio
+from configuracao.models import Igreja, Ministerio
 from financeiro.models import (
     CategoriaDespesa,
     Despesas,
@@ -11,6 +11,7 @@ from financeiro.models import (
     Receitas,
     TransferenciaCaixa,
 )
+from financeiro.services import DepartamentoFinanceiroService
 
 @receiver(post_save, sender=Ministerio)
 def criar_categorias_padrao_ministerio(sender, instance, created, **kwargs):
@@ -32,6 +33,13 @@ def criar_categorias_padrao_ministerio(sender, instance, created, **kwargs):
                 ativo=forn.ativo
             )
     # (Removido) Não criar contas bancárias padrão global aqui, pois não há igreja ainda.
+
+
+@receiver(post_save, sender=Igreja)
+def criar_departamentos_padrao_igreja(sender, instance, created, **kwargs):
+    if not created:
+        return
+    DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(instance)
 
 
 def _extrair_igreja(instance):

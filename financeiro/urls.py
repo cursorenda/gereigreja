@@ -21,13 +21,21 @@ urlpatterns = [
     # Receitas
     path('receitas/', views.lista_receitas, name='lista_receitas'),
     path('receitas/cadastrar/', views.cadastrar_receita, name='cadastrar_receita'),
+    path('receitas/cadastrar/caixa-eventos/', views.cadastrar_receita_caixa_eventos, name='cadastrar_receita_caixa_eventos'),
+    path('receitas/cadastrar/caixa_eventos/', views.cadastrar_receita_caixa_eventos, name='cadastrar_receita_caixa_eventos_legacy'),
+    path('receitas/cadastrar/evento/<int:evento_id>/', views.cadastrar_receita_evento, name='cadastrar_receita_evento'),
     path('receitas/editar/<int:pk>/', views.editar_receita, name='editar_receita'),
     path('receitas/excluir/<int:pk>/', views.excluir_receita, name='excluir_receita'), # Adicionado URL de exclusão
 
     # Despesas
     path('despesas/', views.lista_despesas, name='lista_despesas'),
     path('despesas/cadastrar/', views.cadastrar_despesa, name='cadastrar_despesa'),
+    path('despesas/cadastrar/caixa-eventos/', views.cadastrar_despesa_caixa_eventos, name='cadastrar_despesa_caixa_eventos'),
+    path('despesas/cadastrar/caixa_eventos/', views.cadastrar_despesa_caixa_eventos, name='cadastrar_despesa_caixa_eventos_legacy'),
+    path('despesas/cadastrar/evento/<int:evento_id>/', views.cadastrar_despesa_evento, name='cadastrar_despesa_evento'),
     path('despesas/editar/<int:pk>/', views.editar_despesa, name='editar_despesa'),
+    path('despesas/<int:pk>/aprovar/', views.aprovar_despesa, name='aprovar_despesa'),
+    path('despesas/<int:pk>/reprovar/', views.reprovar_despesa, name='reprovar_despesa'),
     path('despesas/excluir/<int:pk>/', views.excluir_despesa, name='excluir_despesa'), # Adicionado URL de exclusão
 
     # Categorias de Despesa

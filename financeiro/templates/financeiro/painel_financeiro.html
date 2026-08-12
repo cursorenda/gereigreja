@@ -129,8 +129,22 @@
       <div class="fp-scope-row" aria-label="Escopo ativo do painel">
         <span class="fp-scope-chip"><i class="fas fa-church"></i> {{ escopo_igreja_label }}</span>
         <span class="fp-scope-chip"><i class="fas fa-university"></i> {{ escopo_caixa_label }}</span>
+        {% if fundos_departamentais_disponivel %}
+        <span class="fp-scope-chip"><i class="fas fa-layer-group"></i> {{ escopo_fundo_label }}</span>
+        {% endif %}
+        {% if departamento_contexto_label %}
+        <span class="fp-scope-chip"><i class="fas fa-diagram-project"></i> {{ departamento_contexto_label }}</span>
+        {% endif %}
         <span class="fp-scope-chip"><i class="fas fa-calendar-alt"></i> {{ escopo_periodo_label }}</span>
       </div>
+
+      {% if departamento_contexto_label %}
+      <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+        <span class="fp-scope-chip"><i class="fas fa-sitemap"></i> Contexto de departamento ativo</span>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'configuracao:gestao_departamentos' %}?igreja_id={{ igreja_id_filtro_selecionado|default_if_none:'' }}">Abrir gestão do departamento</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'financeiro:painel_financeiro' %}?igreja_filtro={{ igreja_id_filtro_selecionado|default_if_none:'' }}">Limpar contexto do departamento</a>
+      </div>
+      {% endif %}
 
     </div>
 
@@ -163,6 +177,32 @@
         </select>
 
       </div>
+
+      {% if fundos_departamentais_disponivel %}
+      <div class="fp-filter-pill">
+
+        <span class="fp-filter-label">Fundo</span>
+
+        <select name="fundo_filtro" id="fundo_filtro_select" onchange="this.form.submit()">
+
+          <option value="" {% if not request.GET.fundo_filtro %}selected{% endif %}>Todos</option>
+
+          {% for fundo in fundos_departamentais_dropdown %}
+
+            <option value="{{ fundo.pk }}"
+
+                    {% if request.GET.fundo_filtro == fundo.pk|stringformat:"s" %}selected{% endif %}>
+
+              {{ fundo.nome_exibicao }}
+
+            </option>
+
+          {% endfor %}
+
+        </select>
+
+      </div>
+      {% endif %}
 
       <div class="fp-filter-pill">
 
@@ -215,6 +255,12 @@
     <div class="fp-filter-history-list" id="fp-filter-history-list"></div>
   </section>
 
+  {% if not fundos_departamentais_disponivel %}
+  <div class="alert alert-warning" role="alert">
+    O filtro e os indicadores por fundo estão temporariamente indisponíveis neste ambiente. Execute as migrações do financeiro para habilitar esse recurso.
+  </div>
+  {% endif %}
+
   {% if not dashboard_tem_dados %}
   <div class="fp-empty-state-banner" role="status">
     <div>
@@ -255,6 +301,35 @@
       </div>
     </article>
   </section>
+
+  {% if fundos_departamentais_disponivel %}
+  <section class="row g-2 mb-3" aria-label="KPI por fundo">
+    <div class="col-md-6 col-lg-3">
+      <div class="border rounded p-2 h-100 bg-light">
+        <div class="small text-muted">Local (Receitas/Despesas)</div>
+        <div class="fw-semibold">R$ {{ receitas_local|floatformat:2|intcomma }} / R$ {{ despesas_local|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="border rounded p-2 h-100 bg-light">
+        <div class="small text-muted">Eventos (Receitas/Despesas)</div>
+        <div class="fw-semibold">R$ {{ receitas_eventos|floatformat:2|intcomma }} / R$ {{ despesas_eventos|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="border rounded p-2 h-100 bg-light">
+        <div class="small text-muted">Missões (Receitas/Despesas)</div>
+        <div class="fw-semibold">R$ {{ receitas_missoes|floatformat:2|intcomma }} / R$ {{ despesas_missoes|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="border rounded p-2 h-100 bg-light">
+        <div class="small text-muted">Assistência (Receitas/Despesas)</div>
+        <div class="fw-semibold">R$ {{ receitas_assistencia|floatformat:2|intcomma }} / R$ {{ despesas_assistencia|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
 
   
 

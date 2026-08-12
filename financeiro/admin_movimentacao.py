@@ -8,19 +8,19 @@ from .models import Receitas, Despesas, FechamentoCaixa, LogTransacaoFinanceira
 
 @admin.register(Receitas)
 class ReceitasAdmin(MinisterioFilteredMixin, DataHierarchyMixin, admin.ModelAdmin):
-    list_display = ('__str__', 'igreja', 'data', 'valor', 'categoria', 'fechado')
-    list_filter = ('igreja__ministerio', 'igreja', 'categoria', 'fechado', 'data')
+    list_display = ('__str__', 'igreja', 'evento', 'data', 'valor', 'categoria', 'fechado')
+    list_filter = ('igreja__ministerio', 'igreja', 'evento', 'categoria', 'fechado', 'data')
     search_fields = ('observacao', 'membro__nome', 'igreja__nome_igreja')
-    autocomplete_fields = ['igreja', 'membro', 'conta_bancaria']
+    autocomplete_fields = ['igreja', 'evento', 'membro', 'conta_bancaria']
     ordering = ('-data',)
 
 
 @admin.register(Despesas)
 class DespesasAdmin(MinisterioFilteredMixin, DataHierarchyMixin, admin.ModelAdmin):
-    list_display = ('descricao', 'igreja', 'data', 'valor', 'categoria', 'fechado')
-    list_filter = ('igreja__ministerio', 'igreja', 'categoria', 'fechado', 'data')
+    list_display = ('descricao', 'igreja', 'evento', 'data', 'valor', 'categoria', 'fechado')
+    list_filter = ('igreja__ministerio', 'igreja', 'evento', 'categoria', 'fechado', 'data')
     search_fields = ('descricao', 'observacao', 'igreja__nome_igreja')
-    autocomplete_fields = ['igreja', 'categoria', 'conta_bancaria', 'origem_conta_pagar']
+    autocomplete_fields = ['igreja', 'evento', 'categoria', 'conta_bancaria', 'origem_conta_pagar']
     ordering = ('-data',)
 
 

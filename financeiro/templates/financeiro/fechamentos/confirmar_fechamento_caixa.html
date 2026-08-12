@@ -30,6 +30,9 @@
             <i class="fas fa-check-circle me-1"></i>
             Resumo do Fechamento para: <strong>{{ igreja_selecionada.nome_igreja }}</strong>
             (Período: {{ data_inicio|date:"d/m/Y" }} a {{ data_fim|date:"d/m/Y" }})
+            {% if fundo_selecionado %}
+            <div class="small text-muted mt-1">Escopo: {{ fundo_selecionado.nome_exibicao }}</div>
+            {% endif %}
         </div>
         <div class="card-body">
 
@@ -68,6 +71,18 @@
             </div>
 
             <hr>
+
+            {% if despesas_pendentes_count or despesas_rejeitadas_count %}
+            <div class="alert alert-info" role="alert">
+                <h6 class="alert-heading mb-2"><i class="fas fa-shield-alt me-1"></i> Governança do fechamento</h6>
+                <p class="mb-2">Despesas não aprovadas ficam fora deste fechamento para preservar a prestação de contas.</p>
+                <div class="small">
+                    <strong>Pendentes:</strong> {{ despesas_pendentes_count }} |
+                    <strong>Rejeitadas:</strong> {{ despesas_rejeitadas_count }} |
+                    <strong>Total fora do fechamento:</strong> R$ {{ despesas_nao_aprovadas_total|floatformat:2|intcomma }}
+                </div>
+            </div>
+            {% endif %}
 
             {# Listagem de Receitas a serem fechadas #}
             <h5 class="mt-4">Receitas a serem incluídas ({{ receitas.count }})</h5>
@@ -110,6 +125,7 @@
             <p class="text-muted">Nenhuma receita aberta encontrada neste período.</p>
             {% endif %}
 
+            {% if exibir_cards_dizimos_ofertas %}
             <div class="row row-cols-1 row-cols-md-3 g-3 mb-4">
                 <div class="col">
                     <div class="card border-success h-100 shadow-sm">
@@ -163,6 +179,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             {# Listagem de Despesas a serem fechadas #}
             <h5 class="mt-4">Despesas a serem incluídas ({{ despesas.count }})</h5>
@@ -212,6 +229,7 @@
                 <input type="hidden" name="igreja_id" value="{{ igreja_selecionada.pk }}">
                 <input type="hidden" name="data_inicio" value="{{ data_inicio|date:'Y-m-d' }}">
                 <input type="hidden" name="data_fim" value="{{ data_fim|date:'Y-m-d' }}">
+                <input type="hidden" name="fundo_id" value="{% if fundo_selecionado %}{{ fundo_selecionado.pk }}{% endif %}">
                 <input type="hidden" name="observacoes" value="{{ observacoes }}">
 
                 <button type="submit" class="btn btn-primary btn-lg">

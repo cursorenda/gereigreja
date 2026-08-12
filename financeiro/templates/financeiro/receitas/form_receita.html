@@ -10,6 +10,22 @@
         <li class="breadcrumb-item"><a href="{% url 'financeiro:lista_receitas' %}">Receitas</a></li>
         <li class="breadcrumb-item active">{% if receita %}Editar{% else %}Cadastrar{% endif %}</li>
     </ol>
+    {% if modo_evento and evento_contexto %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle me-1"></i>
+        Lançamento em contexto de evento: <strong>{{ evento_contexto.titulo }}</strong>.
+        {% if evento_contexto.conta_bancaria_evento or evento_contexto.igreja.conta_padrao_eventos %}
+            O caixa está vinculado e será aplicado automaticamente:
+            <strong>
+                {% if evento_contexto.conta_bancaria_evento %}
+                    {{ evento_contexto.conta_bancaria_evento.nome_identificacao }}
+                {% else %}
+                    {{ evento_contexto.igreja.conta_padrao_eventos.nome_identificacao }}
+                {% endif %}
+            </strong>.
+        {% endif %}
+    </div>
+    {% endif %}
     {% if receita.pk %} {# Só mostra se estiver editando uma receita existente #}
     <div class="alert alert-warning" role="alert">
         <i class="fas fa-exclamation-triangle me-1"></i>
@@ -32,8 +48,14 @@
             Dados da Receita
         </div>
         <div class="card-body">
-            <form method="post" action="{% if receita %}{% url 'financeiro:editar_receita' pk=receita.pk %}{% else %}{% url 'financeiro:cadastrar_receita' %}{% endif %}">
+            <form method="post" action="{{ form_action_url|default:request.path }}">
                 {% csrf_token %}
+                {% if next_url %}
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
+                {% if batch_edit_item_id %}
+                    <input type="hidden" name="batch_edit_item_id" value="{{ batch_edit_item_id }}">
+                {% endif %}
 
                     {# --- BLOQUEIO DE CAMPOS EM MODO AUDITORIA --- #}
                     {% if modo_auditoria_ativo %}
@@ -69,12 +91,36 @@
                         {% if form.data.errors %}<div class="invalid-feedback d-block">{{ form.data.errors|striptags }}</div>{% endif %}
                     </div>
 
-                     <div class="col-md-3 mb-3">
+                    {% if not ocultar_campo_conta_bancaria %}
+                    <div class="col-md-5 mb-3" id="conta-bancaria-coluna">
+                        <label for="{{ form.conta_bancaria.id_for_label }}" class="form-label">{{ form.conta_bancaria.label }}:</label>
+                        {{ form.conta_bancaria }}
+                        {% if form.conta_bancaria.errors %}<div class="invalid-feedback d-block">{{ form.conta_bancaria.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {% else %}
+                        {% if form.conta_bancaria.value %}
+                            <input type="hidden" name="conta_bancaria" value="{{ form.conta_bancaria.value }}">
+                        {% endif %}
+                    {% endif %}
+
+                    {% if not ocultar_campo_evento %}
+                    <div class="col-md-4 mb-3" id="evento-coluna">
+                        <label for="{{ form.evento.id_for_label }}" class="form-label">{{ form.evento.label }}:</label>
+                        {{ form.evento }}
+                        {% if form.evento.errors %}<div class="invalid-feedback d-block">{{ form.evento.errors|striptags }}</div>{% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if not ocultar_campo_categoria %}
+                    <div class="col-md-3 mb-3">
                         <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
                         {{ form.categoria }}
                         {% if form.categoria.errors %}<div class="invalid-feedback d-block">{{ form.categoria.errors|striptags }}</div>{% endif %}
                     </div>
+                    {% else %}
+                        {{ form.categoria.as_hidden }}
+                    {% endif %}
 
                      <div class="col-md-3 mb-3">
                         <label for="{{ form.forma_pgto.id_for_label }}" class="form-label">{{ form.forma_pgto.label }}:</label>
@@ -101,12 +147,6 @@
                         {% if form.membro.errors %}<div class="invalid-feedback d-block">{{ form.membro.errors|striptags }}</div>{% endif %}
                     </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.conta_bancaria.id_for_label }}" class="form-label">{{ form.conta_bancaria.label }}:</label>
-                        {{ form.conta_bancaria }}
-                        {% if form.conta_bancaria.errors %}<div class="invalid-feedback d-block">{{ form.conta_bancaria.errors|striptags }}</div>{% endif %}
-                    </div>
-
                     <div class="col-md-12 mb-3">
                         <label for="{{ form.observacao.id_for_label }}" class="form-label">{{ form.observacao.label }}:</label>
                         {# --- SIMPLIFICADO --- #}
@@ -118,66 +158,192 @@
                 </div>
 
                 <hr>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" name="action" value="save_single" class="btn btn-primary">
                     <i class="fas fa-save me-1"></i> Salvar Receita
                 </button>
-                <a href="{% url 'financeiro:lista_receitas' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" name="action" value="batch_add" class="btn btn-outline-primary ms-1">
+                    <i class="fas fa-plus me-1"></i> {% if batch_edit_item_id %}Atualizar item{% else %}Adicionar a lista{% endif %}
+                </button>
+                <a href="{{ url_cancelar|default:'/' }}" class="btn btn-secondary">Cancelar</a>
             </form>
+
+            {% if batch_itens %}
+            <hr>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Lançamentos pendentes ({{ batch_itens|length }})</h6>
+                <form method="post" action="{{ form_action_url|default:request.path }}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" name="action" value="batch_clear" class="btn btn-sm btn-outline-secondary">Limpar lista</button>
+                    <button type="submit" name="action" value="batch_save" class="btn btn-sm btn-success ms-1">Salvar lote</button>
+                </form>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Categoria</th>
+                            <th>Pessoa</th>
+                            <th>Evento</th>
+                            <th>Conta/Caixa</th>
+                            <th class="text-end">Valor</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in batch_itens %}
+                        <tr>
+                            <td>{{ item.data }}</td>
+                            <td>{{ item.categoria_label }}</td>
+                            <td>{{ item.membro_label }}</td>
+                            <td>{{ item.evento_label }}</td>
+                            <td>{{ item.conta_bancaria_label }}</td>
+                            <td class="text-end">R$ {{ item.valor }}</td>
+                            <td class="text-end">
+                                <form method="post" action="{{ form_action_url|default:request.path }}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="batch_item_id" value="{{ item.id }}">
+                                    <button type="submit" name="action" value="batch_edit" class="btn btn-sm btn-outline-primary" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{{ form_action_url|default:request.path }}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="batch_item_id" value="{{ item.id }}">
+                                    <button type="submit" name="action" value="batch_duplicate" class="btn btn-sm btn-outline-secondary" title="Duplicar">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{{ form_action_url|default:request.path }}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="batch_item_id" value="{{ item.id }}">
+                                    <button type="submit" name="action" value="batch_remove" class="btn btn-sm btn-outline-danger" title="Remover">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const formEl = document.querySelector('form[action="{{ form_action_url|default:request.path }}"]');
     const categoriaEl = document.getElementById('{{ form.categoria.id_for_label }}');
     const formaPgtoEl = document.getElementById('{{ form.forma_pgto.id_for_label }}');
     const hintEl = document.getElementById('forma-pgto-hint');
+    const contaEl = document.getElementById('{{ form.conta_bancaria.id_for_label }}');
+    const eventoEl = document.getElementById('{{ form.evento.id_for_label }}');
+    const eventoColuna = document.getElementById('evento-coluna');
+
+    let contasEventosIds = [];
+    try {
+        contasEventosIds = JSON.parse('{{ contas_eventos_ids|default:'[]'|safe|escapejs }}');
+    } catch (e) {
+        contasEventosIds = [];
+    }
+
+    function atualizarVisibilidadeEventoPorConta() {
+        if (!eventoEl || !eventoColuna || !contaEl) {
+            return;
+        }
+
+        const permitirToggle = '{{ mostrar_evento_por_conta|default_if_none:False|yesno:"true,false" }}' === 'true';
+        if (!permitirToggle) {
+            eventoColuna.classList.remove('d-none');
+            return;
+        }
+
+        const contaSelecionada = contaEl.value;
+        const deveExibirEvento = contaSelecionada && contasEventosIds.includes(Number(contaSelecionada));
+
+        eventoColuna.classList.toggle('d-none', !deveExibirEvento);
+        if (!deveExibirEvento) {
+            eventoEl.value = '';
+        }
+    }
 
     if (!categoriaEl || !formaPgtoEl) {
-        return;
-    }
-
-    const originalOptions = Array.from(formaPgtoEl.options).map(function(opt) {
-        return { value: opt.value, text: opt.text };
-    });
-
-    const allowedForDizimoOferta = new Set(['DIN', 'PIX', 'CRE']);
-
-    function rebuildFormaPgtoOptions() {
-        const categoria = categoriaEl.value;
-        const isDizimoOferta = categoria === 'dizimo' || categoria === 'oferta';
-        const currentValue = formaPgtoEl.value;
-
-        formaPgtoEl.innerHTML = '';
-
-        originalOptions.forEach(function(opt) {
-            const isEmpty = !opt.value;
-            const allowed = !isDizimoOferta || isEmpty || allowedForDizimoOferta.has(opt.value);
-            if (allowed) {
-                const optionEl = document.createElement('option');
-                optionEl.value = opt.value;
-                optionEl.text = opt.text;
-                formaPgtoEl.appendChild(optionEl);
-            }
+        atualizarVisibilidadeEventoPorConta();
+    } else {
+        const originalOptions = Array.from(formaPgtoEl.options).map(function(opt) {
+            return { value: opt.value, text: opt.text };
         });
 
-        if (Array.from(formaPgtoEl.options).some(function(opt) { return opt.value === currentValue; })) {
-            formaPgtoEl.value = currentValue;
-        } else if (isDizimoOferta && Array.from(formaPgtoEl.options).some(function(opt) { return opt.value === 'PIX'; })) {
-            formaPgtoEl.value = 'PIX';
-        } else {
-            formaPgtoEl.selectedIndex = 0;
+        const allowedForDizimoOferta = new Set(['DIN', 'PIX', 'CRE']);
+
+        function rebuildFormaPgtoOptions() {
+            const categoria = categoriaEl.value;
+            const isDizimoOferta = categoria === 'dizimo' || categoria === 'oferta';
+            const currentValue = formaPgtoEl.value;
+
+            formaPgtoEl.innerHTML = '';
+
+            originalOptions.forEach(function(opt) {
+                const isEmpty = !opt.value;
+                const allowed = !isDizimoOferta || isEmpty || allowedForDizimoOferta.has(opt.value);
+                if (allowed) {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = opt.value;
+                    optionEl.text = opt.text;
+                    formaPgtoEl.appendChild(optionEl);
+                }
+            });
+
+            if (Array.from(formaPgtoEl.options).some(function(opt) { return opt.value === currentValue; })) {
+                formaPgtoEl.value = currentValue;
+            } else if (isDizimoOferta && Array.from(formaPgtoEl.options).some(function(opt) { return opt.value === 'PIX'; })) {
+                formaPgtoEl.value = 'PIX';
+            } else {
+                formaPgtoEl.selectedIndex = 0;
+            }
+
+            if (hintEl) {
+                hintEl.textContent = isDizimoOferta
+                    ? 'Para Dízimo/Oferta: Dinheiro, PIX e Cartão de Crédito.'
+                    : '';
+            }
         }
 
-        if (hintEl) {
-            hintEl.textContent = isDizimoOferta
-                ? 'Para Dízimo/Oferta: Dinheiro, PIX e Cartão de Crédito.'
-                : '';
-        }
+        categoriaEl.addEventListener('change', rebuildFormaPgtoOptions);
+        rebuildFormaPgtoOptions();
     }
 
-    categoriaEl.addEventListener('change', rebuildFormaPgtoOptions);
-    rebuildFormaPgtoOptions();
+    if (contaEl) {
+        contaEl.addEventListener('change', atualizarVisibilidadeEventoPorConta);
+    }
+    atualizarVisibilidadeEventoPorConta();
+
+    if (formEl) {
+        formEl.addEventListener('keydown', function(event) {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            const target = event.target;
+            if (!target) {
+                return;
+            }
+            const tag = (target.tagName || '').toLowerCase();
+            const type = (target.type || '').toLowerCase();
+            if (tag === 'textarea' || type === 'submit' || type === 'button') {
+                return;
+            }
+
+            event.preventDefault();
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'batch_add';
+            formEl.appendChild(actionInput);
+            formEl.submit();
+        });
+    }
 });
 </script>
 {% endblock %}

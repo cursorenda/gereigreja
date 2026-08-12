@@ -1,7 +1,16 @@
 """Admin para modelos de contas bancarias e permissoes."""
 from django.contrib import admin
 
-from .models import ContaBancaria, ContaPagar, ImportacaoExtratoOFX, LancamentoExtratoOFX, PermissaoCaixa
+from .models import (
+    ContaBancaria,
+    ContaPagar,
+    DepartamentoCaixa,
+    DepartamentoFinanceiro,
+    ImportacaoExtratoOFX,
+    LancamentoExtratoOFX,
+    PermissaoCaixa,
+    PoliticaDepartamentoFinanceiro,
+)
 
 
 @admin.register(ContaBancaria)
@@ -61,3 +70,39 @@ class LancamentoExtratoOFXAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ['importacao']
     date_hierarchy = 'data'
+
+
+@admin.register(DepartamentoFinanceiro)
+class DepartamentoFinanceiroAdmin(admin.ModelAdmin):
+    list_display = ('nome_exibicao', 'codigo_interno', 'igreja', 'departamento', 'tipo_departamento', 'ativo', 'ordem_exibicao')
+    list_filter = ('igreja__ministerio', 'igreja', 'tipo_departamento', 'ativo')
+    search_fields = ('nome_exibicao', 'codigo_interno', 'igreja__nome_igreja')
+    autocomplete_fields = ['igreja']
+
+
+@admin.register(DepartamentoCaixa)
+class DepartamentoCaixaAdmin(admin.ModelAdmin):
+    list_display = ('departamento', 'conta_bancaria', 'is_padrao', 'ativo', 'created_at')
+    list_filter = ('departamento__igreja__ministerio', 'departamento__igreja', 'is_padrao', 'ativo')
+    search_fields = ('departamento__nome_exibicao', 'conta_bancaria__nome_identificacao')
+    autocomplete_fields = ['departamento', 'conta_bancaria']
+
+
+@admin.register(PoliticaDepartamentoFinanceiro)
+class PoliticaDepartamentoFinanceiroAdmin(admin.ModelAdmin):
+    list_display = (
+        'departamento',
+        'exige_nota_fiscal',
+        'exige_envio_contabilidade',
+        'permite_prestacao_local_simplificada',
+        'exige_aprovacao_para_saida',
+    )
+    list_filter = (
+        'departamento__igreja__ministerio',
+        'departamento__igreja',
+        'exige_nota_fiscal',
+        'exige_envio_contabilidade',
+        'exige_aprovacao_para_saida',
+    )
+    search_fields = ('departamento__nome_exibicao', 'departamento__igreja__nome_igreja')
+    autocomplete_fields = ['departamento']

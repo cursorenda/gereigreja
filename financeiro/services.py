@@ -5,24 +5,316 @@ from calendar import monthrange
 from decimal import Decimal
 from xml.etree import ElementTree as ET
 
-from django.db import IntegrityError, transaction
-from django.db.models import Sum
+from django.db import IntegrityError, connection, transaction
+from django.db.models import Sum, Q
 from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
     ContaPagar,
+    DepartamentoFinanceiro,
     Despesas,
     FechamentoCaixa,
+    FundoDepartamental,
     ImportacaoExtratoOFX,
     LancamentoExtratoOFX,
+    PoliticaDepartamentoFinanceiro,
     Receitas,
     RecorrenciaContaPagar,
 )
+from configuracao.models import Departamento, Igreja
 from configuracao.models import PerfilUsuario
 from contas.constants import TESOUREIRO
 from contas.constants import user_has_permission_level_or_higher
 from notificacoes.models import Notificacao
+from .selectors import (
+    categoria_receita_por_evento,
+    obter_conta_evento_efetiva_id,
+    obter_evento_no_escopo,
+)
+from .policies import FUNDO_EVENTOS, categoria_receita_padrao_por_fundo
+
+
+class DepartamentoFinanceiroService:
+    """Servicos para gerar e sincronizar departamentos financeiros padrao."""
+
+    DEPARTAMENTOS_PADRAO = (
+        {
+            'codigo': DepartamentoFinanceiro.CODIGO_LOCAL,
+            'nome': 'Tesouraria Local',
+            'ordem': 10,
+            'politica': {
+                'exige_nota_fiscal': True,
+                'exige_envio_contabilidade': True,
+                'permite_prestacao_local_simplificada': False,
+                'exige_aprovacao_para_saida': True,
+            },
+        },
+        {
+            'codigo': DepartamentoFinanceiro.CODIGO_EVENTOS,
+            'nome': 'Eventos',
+            'ordem': 20,
+            'politica': {
+                'exige_nota_fiscal': False,
+                'exige_envio_contabilidade': False,
+                'permite_prestacao_local_simplificada': True,
+                'exige_aprovacao_para_saida': False,
+            },
+        },
+        {
+            'codigo': DepartamentoFinanceiro.CODIGO_MISSOES,
+            'nome': 'Missoes',
+            'ordem': 30,
+            'politica': {
+                'exige_nota_fiscal': True,
+                'exige_envio_contabilidade': True,
+                'permite_prestacao_local_simplificada': False,
+                'exige_aprovacao_para_saida': True,
+            },
+        },
+        {
+            'codigo': DepartamentoFinanceiro.CODIGO_ASSISTENCIA,
+            'nome': 'Assistencia Social',
+            'ordem': 40,
+            'politica': {
+                'exige_nota_fiscal': True,
+                'exige_envio_contabilidade': True,
+                'permite_prestacao_local_simplificada': False,
+                'exige_aprovacao_para_saida': True,
+            },
+        },
+    )
+
+    @staticmethod
+    def garantir_departamentos_padrao_para_igreja(igreja):
+        """Cria/atualiza departamentos padrao para uma igreja de forma idempotente."""
+        if not igreja:
+            return {'departamentos_criados': 0, 'departamentos_atualizados': 0, 'politicas_criadas': 0}
+
+        stats = {'departamentos_criados': 0, 'departamentos_atualizados': 0, 'politicas_criadas': 0}
+
+        with transaction.atomic():
+            for definicao in DepartamentoFinanceiroService.DEPARTAMENTOS_PADRAO:
+                codigo = definicao['codigo']
+                nome = definicao['nome']
+                ordem = definicao['ordem']
+                politica_defaults = definicao['politica']
+
+                fundo, _ = FundoDepartamental.objects.get_or_create(
+                    igreja=igreja,
+                    codigo=codigo,
+                    defaults={'nome_exibicao': nome, 'ativo': True},
+                )
+
+                departamento_central = None
+                try:
+                    if 'configuracao_departamento' in connection.introspection.table_names():
+                        departamento_central, _ = Departamento.objects.get_or_create(
+                            igreja=igreja,
+                            codigo_interno=codigo,
+                            defaults={
+                                'nome_exibicao': nome,
+                                'tipo_departamento': Departamento.TIPO_PADRAO,
+                                'ativo': True,
+                                'ordem_exibicao': ordem,
+                            },
+                        )
+
+                        if departamento_central.tipo_departamento != Departamento.TIPO_PADRAO:
+                            departamento_central.tipo_departamento = Departamento.TIPO_PADRAO
+                            departamento_central.save(update_fields=['tipo_departamento'])
+                except Exception:
+                    departamento_central = None
+
+                departamento, created = DepartamentoFinanceiro.objects.get_or_create(
+                    igreja=igreja,
+                    codigo_interno=codigo,
+                    defaults={
+                        'nome_exibicao': nome,
+                        'tipo_departamento': DepartamentoFinanceiro.TIPO_PADRAO,
+                        'ativo': True,
+                        'ordem_exibicao': ordem,
+                        'departamento': departamento_central,
+                        'fundo_departamental': fundo,
+                    },
+                )
+
+                if created:
+                    stats['departamentos_criados'] += 1
+                else:
+                    campos_update = []
+                    if departamento.tipo_departamento != DepartamentoFinanceiro.TIPO_PADRAO:
+                        departamento.tipo_departamento = DepartamentoFinanceiro.TIPO_PADRAO
+                        campos_update.append('tipo_departamento')
+                    if departamento_central and departamento.departamento_id != departamento_central.id:
+                        departamento.departamento = departamento_central
+                        campos_update.append('departamento')
+                    if departamento.fundo_departamental_id != fundo.id:
+                        departamento.fundo_departamental = fundo
+                        campos_update.append('fundo_departamental')
+                    if not departamento.nome_exibicao:
+                        departamento.nome_exibicao = nome
+                        campos_update.append('nome_exibicao')
+                    if campos_update:
+                        departamento.save(update_fields=campos_update)
+                        stats['departamentos_atualizados'] += 1
+
+                _, politica_created = PoliticaDepartamentoFinanceiro.objects.get_or_create(
+                    departamento=departamento,
+                    defaults=politica_defaults,
+                )
+                if politica_created:
+                    stats['politicas_criadas'] += 1
+
+        return stats
+
+    @staticmethod
+    def sincronizar_departamentos_padrao(igreja_ids=None):
+        """Sincroniza departamentos padrao para todas igrejas (ou subconjunto)."""
+        igrejas = Igreja.objects.all().order_by('id')
+        if igreja_ids:
+            igrejas = igrejas.filter(id__in=igreja_ids)
+
+        total = {
+            'igrejas_processadas': 0,
+            'departamentos_criados': 0,
+            'departamentos_atualizados': 0,
+            'politicas_criadas': 0,
+        }
+
+        for igreja in igrejas.iterator():
+            resultado = DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(igreja)
+            total['igrejas_processadas'] += 1
+            total['departamentos_criados'] += resultado['departamentos_criados']
+            total['departamentos_atualizados'] += resultado['departamentos_atualizados']
+            total['politicas_criadas'] += resultado['politicas_criadas']
+
+        return total
+
+    @staticmethod
+    def fundos_visiveis_para_igrejas(igrejas):
+        """Retorna fundos ativos e com departamento ativo, se existir vinculo departamental."""
+        if not igrejas:
+            return FundoDepartamental.objects.none()
+
+        return FundoDepartamental.objects.filter(
+            igreja__in=igrejas,
+            ativo=True,
+        ).filter(
+            Q(departamento_financeiro__isnull=True) | Q(departamento_financeiro__ativo=True)
+        ).order_by('igreja__nome_igreja', 'nome_exibicao')
+
+
+class ReceitaFluxoService:
+    """Orquestra preparacao de payload/contexto dos fluxos de receita."""
+
+    @staticmethod
+    def construir_post_data_receita_evento(raw_post_data, evento):
+        post_data = raw_post_data.copy()
+        conta_evento_efetiva_id = obter_conta_evento_efetiva_id(evento)
+        post_data['igreja'] = str(evento.igreja_id)
+        post_data['evento'] = str(evento.pk)
+        post_data['categoria'] = categoria_receita_por_evento(evento)
+        if conta_evento_efetiva_id:
+            post_data['conta_bancaria'] = str(conta_evento_efetiva_id)
+        return post_data, conta_evento_efetiva_id
+
+    @staticmethod
+    def construir_initial_receita_evento(evento):
+        conta_evento_efetiva_id = obter_conta_evento_efetiva_id(evento)
+        initial = {
+            'igreja': evento.igreja,
+            'evento': evento,
+            'data': timezone.now().date(),
+            'categoria': categoria_receita_por_evento(evento),
+        }
+        if conta_evento_efetiva_id:
+            initial['conta_bancaria'] = conta_evento_efetiva_id
+        return initial, conta_evento_efetiva_id
+
+    @staticmethod
+    def construir_contexto_receita_evento(form, ministerio, evento, conta_evento_efetiva_id):
+        return {
+            'form': form,
+            'ministerio': ministerio,
+            'titulo_pagina': f'Adicionar Entrada - {evento.titulo}',
+            'ocultar_campo_igreja': True,
+            'ocultar_campo_evento': True,
+            'ocultar_campo_categoria': True,
+            'ocultar_campo_conta_bancaria': bool(conta_evento_efetiva_id),
+            'modo_evento': True,
+            'evento_contexto': evento,
+            'url_cancelar': reverse('eventos:detalhe_evento', kwargs={'pk': evento.pk}),
+        }
+
+    @staticmethod
+    def resolver_igreja_padrao_receita_caixa_eventos(request, allowed_churches, is_admin):
+        if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
+            return request.igreja_ativa
+        if not is_admin and allowed_churches.count() == 1:
+            return allowed_churches.first()
+        return None
+
+    @staticmethod
+    def construir_post_data_receita_caixa_eventos(raw_post_data, igreja_padrao_para_form, allowed_churches):
+        post_data = raw_post_data.copy()
+        post_data['igreja'] = str(igreja_padrao_para_form.pk)
+        post_data['categoria'] = post_data.get('categoria') or categoria_receita_padrao_por_fundo(FUNDO_EVENTOS)
+
+        evento_id = post_data.get('evento')
+        evento = obter_evento_no_escopo(allowed_churches, evento_id)
+        conta_evento_efetiva_id = None
+
+        if evento:
+            post_data['categoria'] = categoria_receita_por_evento(evento)
+            conta_evento_efetiva_id = obter_conta_evento_efetiva_id(evento)
+            if conta_evento_efetiva_id:
+                post_data['conta_bancaria'] = str(conta_evento_efetiva_id)
+        elif getattr(igreja_padrao_para_form, 'conta_padrao_eventos_id', None) and not post_data.get('conta_bancaria'):
+            post_data['conta_bancaria'] = str(igreja_padrao_para_form.conta_padrao_eventos_id)
+
+        return post_data, evento, conta_evento_efetiva_id
+
+    @staticmethod
+    def aplicar_defaults_receita_fluxo_evento(receita):
+        receita.categoria = categoria_receita_por_evento(receita.evento)
+        if receita.evento_id:
+            conta_evento_efetiva_id = obter_conta_evento_efetiva_id(receita.evento)
+            if conta_evento_efetiva_id:
+                receita.conta_bancaria_id = conta_evento_efetiva_id
+
+    @staticmethod
+    def construir_initial_receita_caixa_eventos(igreja_padrao_para_form):
+        initial = {
+            'igreja': igreja_padrao_para_form,
+            'data': timezone.now().date(),
+            'categoria': categoria_receita_padrao_por_fundo(FUNDO_EVENTOS),
+        }
+        if getattr(igreja_padrao_para_form, 'conta_padrao_eventos_id', None):
+            initial['conta_bancaria'] = igreja_padrao_para_form.conta_padrao_eventos_id
+        return initial
+
+    @staticmethod
+    def aplicar_defaults_receita_caixa_eventos(receita):
+        from django.db import connection
+        from django.db.utils import OperationalError, ProgrammingError
+        from .models import FundoDepartamental
+
+        try:
+            if 'financeiro_fundodepartamental' in connection.introspection.table_names():
+                fundo_eventos, _ = FundoDepartamental.objects.get_or_create(
+                    igreja=receita.igreja,
+                    codigo=FundoDepartamental.CODIGO_EVENTOS,
+                    defaults={'nome_exibicao': 'Eventos'},
+                )
+                receita.fundo_departamental = fundo_eventos
+        except (ProgrammingError, OperationalError):
+            receita.fundo_departamental = None
+
+        if receita.evento_id:
+            ReceitaFluxoService.aplicar_defaults_receita_fluxo_evento(receita)
+        elif not receita.conta_bancaria_id and getattr(receita.igreja, 'conta_padrao_eventos_id', None):
+            receita.conta_bancaria_id = receita.igreja.conta_padrao_eventos_id
 
 
 class FechamentoCaixaService:
