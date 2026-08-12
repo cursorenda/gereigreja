@@ -180,6 +180,14 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="eventos-top-spacer"></div>
 <div class="container-fluid px-4">
 
+  {% if modo_evento_individual %}
+  <div class="alert alert-info" role="alert">
+    <strong>Novo Evento:</strong> neste fluxo, os eventos são individuais e não recorrentes.
+    Use apenas os tipos <b>Festa</b>, <b>Cruzada</b> ou <b>Encontro</b>.
+    Eventos de rotina (culto, estudo, reunião, escola dominical) devem vir da Configuração da Igreja.
+  </div>
+  {% endif %}
+
   <div class="card eventos-section-card mb-4">
     <div class="card-header">
       <i class="fas fa-calendar-plus me-1"></i>
@@ -303,6 +311,52 @@ document.addEventListener('DOMContentLoaded', function() {
               </label>
               {{ form.responsavel|add_class:'form-select' }}
               {% if form.responsavel.errors %}<div class="invalid-feedback d-block">{{ form.responsavel.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3 border-bottom pb-2">
+          <i class="fas fa-sitemap me-2"></i>Governanca Operacional
+        </h5>
+        <div class="row mb-4">
+          <div class="col-lg-4 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.status_operacional.id_for_label }}" class="form-label">
+                {{ form.status_operacional.label }}
+                <span class="badge bg-danger ms-1">Obrigatorio</span>
+              </label>
+              {{ form.status_operacional|add_class:'form-select' }}
+              {% if form.status_operacional.errors %}<div class="invalid-feedback d-block">{{ form.status_operacional.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.meta_publico.id_for_label }}" class="form-label">{{ form.meta_publico.label }}</label>
+              {{ form.meta_publico|add_class:'form-control' }}
+              {% if form.meta_publico.errors %}<div class="invalid-feedback d-block">{{ form.meta_publico.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-4 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.meta_arrecadacao.id_for_label }}" class="form-label">{{ form.meta_arrecadacao.label }}</label>
+              {{ form.meta_arrecadacao|add_class:'form-control' }}
+              {% if form.meta_arrecadacao.errors %}<div class="invalid-feedback d-block">{{ form.meta_arrecadacao.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-lg-6 col-md-6 col-12">
+            <div class="mb-3">
+              <label for="{{ form.conta_bancaria_evento.id_for_label }}" class="form-label">{{ form.conta_bancaria_evento.label }}</label>
+              {{ form.conta_bancaria_evento|add_class:'form-select' }}
+              <small class="text-muted">Defina um caixa específico para impedir mistura com a tesouraria geral.</small>
+              {% if form.conta_bancaria_evento.errors %}<div class="invalid-feedback d-block">{{ form.conta_bancaria_evento.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="mb-3">
+              <label for="{{ form.observacoes_internas.id_for_label }}" class="form-label">{{ form.observacoes_internas.label }}</label>
+              {{ form.observacoes_internas|add_class:'form-control' }}
+              <small class="text-muted">Use para alinhamentos internos de organizacao e acompanhamento pastoral.</small>
+              {% if form.observacoes_internas.errors %}<div class="invalid-feedback d-block">{{ form.observacoes_internas.errors|striptags }}</div>{% endif %}
             </div>
           </div>
         </div>

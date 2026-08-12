@@ -1,6 +1,7 @@
 
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from secretaria.models import Membro
 from configuracao.models import Igreja
 
@@ -10,6 +11,14 @@ class Evento(models.Model):
 	STATUS_EVENTO_CHOICES = [
 		('ativo', 'Ativo'),
 		('cancelado', 'Cancelado'),
+	]
+
+	STATUS_OPERACIONAL_CHOICES = [
+		('rascunho', 'Rascunho'),
+		('planejamento', 'Planejamento'),
+		('publicado', 'Publicado'),
+		('em_execucao', 'Em Execucao'),
+		('encerrado', 'Encerrado'),
 	]
 
 	quantidade_dias = models.PositiveIntegerField(
@@ -42,6 +51,8 @@ class Evento(models.Model):
 		("culto", "Culto"),
 		("reuniao", "Reunião"),
 		("festa", "Festa"),
+		("cruzada", "Cruzada"),
+		("encontro", "Encontro"),
 		("feriado", "Feriado"),
 		("estudo", "Estudo"),
 		("escola_dominical", "Escola Dominical"),
@@ -53,6 +64,41 @@ class Evento(models.Model):
 	descricao = models.TextField(blank=True, null=True)
 	tipo = models.CharField(max_length=20, choices=TIPO_EVENTO_CHOICES, default="outro")
 	status_evento = models.CharField(max_length=20, choices=STATUS_EVENTO_CHOICES, default='ativo')
+	status_operacional = models.CharField(
+		max_length=20,
+		choices=STATUS_OPERACIONAL_CHOICES,
+		default='planejamento',
+		verbose_name='Status operacional',
+		help_text='Controla o ciclo de trabalho do evento (planejamento ate encerramento).',
+	)
+	meta_publico = models.PositiveIntegerField(
+		null=True,
+		blank=True,
+		verbose_name='Meta de publico',
+		help_text='Quantidade estimada de pessoas para o evento.',
+	)
+	meta_arrecadacao = models.DecimalField(
+		max_digits=12,
+		decimal_places=2,
+		null=True,
+		blank=True,
+		verbose_name='Meta de arrecadacao (R$)',
+		help_text='Meta financeira prevista para o evento.',
+	)
+	observacoes_internas = models.TextField(
+		blank=True,
+		null=True,
+		verbose_name='Observacoes internas',
+		help_text='Notas de governanca e operacao visiveis apenas para usuarios autorizados no sistema.',
+	)
+	encerrado_em = models.DateTimeField(blank=True, null=True)
+	encerrado_por = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name='eventos_encerrados',
+	)
 	motivo_cancelamento = models.TextField(blank=True, null=True)
 	cancelado_em = models.DateTimeField(blank=True, null=True)
 	cancelado_por = models.ForeignKey(
@@ -74,6 +120,15 @@ class Evento(models.Model):
 		on_delete=models.SET_NULL,
 		related_name='eventos_gerados',
 		verbose_name='Programação padrão de origem',
+	)
+	conta_bancaria_evento = models.ForeignKey(
+		'financeiro.ContaBancaria',
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name='eventos_com_caixa_vinculado',
+		verbose_name='Caixa/conta do evento',
+		help_text='Conta preferencial para entradas e saídas deste evento. Se preenchida, os lançamentos financeiros do evento devem usar esta conta.',
 	)
 
 	# Recorrência
@@ -114,6 +169,11 @@ class Evento(models.Model):
 	def __str__(self):
 		return f"{self.titulo} ({self.data_inicio:%d/%m/%Y %H:%M})"
 
+	def clean(self):
+		super().clean()
+		if self.conta_bancaria_evento and self.igreja_id and self.conta_bancaria_evento.igreja_id != self.igreja_id:
+			raise ValidationError({'conta_bancaria_evento': 'O caixa/conta do evento deve pertencer a mesma igreja do evento.'})
+
 	def cancelar(self, motivo='', usuario=None):
 		self.status_evento = 'cancelado'
 		self.motivo_cancelamento = (motivo or '').strip()
@@ -127,6 +187,19 @@ class Evento(models.Model):
 		self.cancelado_em = None
 		self.cancelado_por = None
 		self.save(update_fields=['status_evento', 'motivo_cancelamento', 'cancelado_em', 'cancelado_por'])
+
+	def marcar_encerrado(self, usuario=None):
+		self.status_operacional = 'encerrado'
+		if not self.encerrado_em:
+			self.encerrado_em = timezone.now()
+		self.encerrado_por = usuario
+		self.save(update_fields=['status_operacional', 'encerrado_em', 'encerrado_por'])
+
+	def reabrir_operacao(self):
+		self.status_operacional = 'planejamento'
+		self.encerrado_em = None
+		self.encerrado_por = None
+		self.save(update_fields=['status_operacional', 'encerrado_em', 'encerrado_por'])
 
 	def get_participantes_esperados(self):
 		"""

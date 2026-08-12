@@ -6,6 +6,12 @@ from .models import Evento, ParticipacaoEvento
 User = get_user_model()
 
 class EventoForm(forms.ModelForm):
+	EVENTOS_NAO_CORRIQUEIROS_CHOICES = [
+		('festa', 'Festa'),
+		('cruzada', 'Cruzada'),
+		('encontro', 'Encontro'),
+	]
+
 	# Campo responsável customizado para permitir controle do queryset
 	responsavel = forms.ModelChoiceField(
 		queryset=User.objects.none(),  # Inicializado vazio, será populado no __init__
@@ -134,6 +140,8 @@ class EventoForm(forms.ModelForm):
 		model = Evento
 		fields = [
 			'igreja', 'titulo', 'descricao', 'tipo', 'local', 'responsavel',
+			'status_operacional', 'meta_publico', 'meta_arrecadacao', 'observacoes_internas',
+			'conta_bancaria_evento',
 			'data_inicio', 'quantidade_dias', 'hora_termino',
 			# 'data_fim' removido do formulário do usuário
 			'recorrente', 'frequencia', 'intervalo', 'dia_semana', 'semana_mes', 'mes_ano', 'data_fim_recorrencia',
@@ -147,6 +155,11 @@ class EventoForm(forms.ModelForm):
 			'descricao': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
 			'tipo': forms.Select(attrs={'class': 'form-select'}),
 			'local': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Salão, Sala 1, Sala 2'}),
+			'status_operacional': forms.Select(attrs={'class': 'form-select'}),
+			'meta_publico': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+			'meta_arrecadacao': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+			'observacoes_internas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+			'conta_bancaria_evento': forms.Select(attrs={'class': 'form-select'}),
 			# 'responsavel' removido - definido como campo da classe
 			'data_inicio': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
 			'hora_termino': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
@@ -219,7 +232,9 @@ class EventoForm(forms.ModelForm):
 	def __init__(self, *args, **kwargs):
 		# Espera-se que o request seja passado em kwargs
 		self.request = kwargs.pop('request', None)
+		self.somente_eventos_individuais = kwargs.pop('somente_eventos_individuais', False)
 		super().__init__(*args, **kwargs)
+		from financeiro.models import ContaBancaria
 		from secretaria.models import TipoPessoa, StatusPessoa, Cargo
 		from django.contrib.auth import get_user_model
 		from django.utils import timezone
@@ -270,6 +285,35 @@ class EventoForm(forms.ModelForm):
 		if 'igreja' in self.fields:
 			self.fields['igreja'].label_from_instance = lambda obj: obj.nome_igreja
 
+		if 'conta_bancaria_evento' in self.fields:
+			contas_qs = ContaBancaria.objects.none()
+			if instance and getattr(instance, 'igreja', None):
+				contas_qs = ContaBancaria.objects.filter(igreja=instance.igreja).order_by('nome_identificacao')
+			elif self.request and hasattr(self.request, 'igreja_ativa') and self.request.igreja_ativa:
+				contas_qs = ContaBancaria.objects.filter(igreja=self.request.igreja_ativa).order_by('nome_identificacao')
+			elif ministerio_ativo:
+				contas_qs = ContaBancaria.objects.filter(igreja__ministerio=ministerio_ativo).order_by('igreja__nome_igreja', 'nome_identificacao')
+			self.fields['conta_bancaria_evento'].queryset = contas_qs
+			self.fields['conta_bancaria_evento'].empty_label = 'Selecione o caixa/conta do evento (opcional)'
+
+		if self.somente_eventos_individuais:
+			self.fields['tipo'].choices = self.EVENTOS_NAO_CORRIQUEIROS_CHOICES
+			self.fields['tipo'].help_text = 'Para Novo Evento, use apenas tipos não corriqueiros.'
+			if 'recorrente' in self.fields:
+				self.fields['recorrente'].initial = False
+			for field_name, initial in [
+				('frequencia', 'nenhuma'),
+				('intervalo', 1),
+				('dia_semana', []),
+				('semana_mes', []),
+				('mes_ano', []),
+				('data_fim_recorrencia', None),
+			]:
+				if field_name in self.fields:
+					self.fields[field_name].required = False
+					self.fields[field_name].initial = initial
+					self.fields[field_name].widget = forms.HiddenInput()
+
 		# Corrigir datas para o formato do input datetime-local, considerando timezone local
 		instance = kwargs.get('instance')
 		if instance:
@@ -289,6 +333,28 @@ class EventoForm(forms.ModelForm):
 		if self.request and hasattr(self.request, 'igreja_ativa') and self.request.igreja_ativa:
 			return self.request.igreja_ativa
 		return igreja_field
+
+	def clean(self):
+		cleaned_data = super().clean()
+		igreja = cleaned_data.get('igreja')
+		conta_bancaria_evento = cleaned_data.get('conta_bancaria_evento')
+		if igreja and conta_bancaria_evento and conta_bancaria_evento.igreja_id != igreja.id:
+			self.add_error('conta_bancaria_evento', 'Selecione uma conta/caixa da mesma igreja do evento.')
+
+		if self.somente_eventos_individuais:
+			tipo = cleaned_data.get('tipo')
+			tipos_permitidos = {codigo for codigo, _ in self.EVENTOS_NAO_CORRIQUEIROS_CHOICES}
+			if tipo not in tipos_permitidos:
+				self.add_error('tipo', 'No fluxo de Novo Evento, use apenas Festa, Cruzada ou Encontro.')
+			cleaned_data['recorrente'] = False
+			cleaned_data['frequencia'] = 'nenhuma'
+			cleaned_data['intervalo'] = 1
+			cleaned_data['dia_semana'] = ''
+			cleaned_data['semana_mes'] = ''
+			cleaned_data['mes_ano'] = ''
+			cleaned_data['data_fim_recorrencia'] = None
+
+		return cleaned_data
 
 class ParticipacaoEventoForm(forms.ModelForm):
 	class Meta:

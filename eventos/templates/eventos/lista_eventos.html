@@ -14,6 +14,35 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/eventos_premium.css' %}">
 <link rel="stylesheet" href="{% static 'css/eventos_lista_premium.css' %}">
+<style>
+  .dia-badge {
+    min-width: 2.6rem;
+    display: inline-block;
+    text-align: center;
+  }
+  .dia-badge.dia-util {
+    background: #e8f5e9;
+    color: #1b5e20;
+  }
+  .dia-badge.fim-semana {
+    background: #fff4e5;
+    color: #9a3412;
+  }
+  .evento-titulo-toggle {
+    background: none;
+    border: 0;
+    color: #0f766e;
+    font-size: .78rem;
+    padding: 0;
+    margin-left: .5rem;
+  }
+  .evento-dia-row {
+    background: #fafafa;
+  }
+  .evento-dia-row.is-hoje {
+    background: #e9f7ef;
+  }
+</style>
 {% endblock %}
 
 {% block card_header_gradiente %}
@@ -42,26 +71,92 @@
 
 <div class="card eventos-section-card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span><i class="fas fa-wallet me-1"></i>Caixa de Eventos (Geral)</span>
+    <small class="text-muted">Período filtrado</small>
+  </div>
+  <div class="card-body">
+    <div class="alert alert-light border py-2 mb-3">
+      <strong>Regra operacional:</strong> o caixa é gerenciado de forma geral para eventos.
+      Eventos recorrentes da programação não exigem gestão financeira individual por linha.
+    </div>
+    <div class="row g-3">
+      <div class="col-12 col-md-3">
+        <div class="border rounded p-3 h-100 bg-light">
+          <div class="small text-muted">Entradas</div>
+          <div class="h5 mb-0 text-success">R$ {{ painel_financeiro_eventos.total_entradas|floatformat:2 }}</div>
+          <div class="mt-2 d-flex flex-wrap gap-2">
+            <a href="{% url 'financeiro:cadastrar_receita_caixa_eventos' %}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-plus-circle me-1"></i>Lançar Entrada
+            </a>
+            <a href="{{ link_doacoes_eventos }}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-list me-1"></i>Ver Doações
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="border rounded p-3 h-100 bg-light">
+          <div class="small text-muted">Saídas</div>
+          <div class="h5 mb-0 text-danger">R$ {{ painel_financeiro_eventos.total_saidas|floatformat:2 }}</div>
+          <div class="mt-2 d-flex flex-wrap gap-2">
+            <a href="{% url 'financeiro:cadastrar_despesa_caixa_eventos' %}" class="btn btn-sm btn-outline-danger">
+              <i class="fas fa-minus-circle me-1"></i>Lançar Saída
+            </a>
+            <a href="{{ link_saidas_eventos }}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-list me-1"></i>Ver Saídas
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="border rounded p-3 h-100 bg-light">
+          <div class="small text-muted">Saldo</div>
+          <div class="h5 mb-0 {% if painel_financeiro_eventos.saldo >= 0 %}text-primary{% else %}text-danger{% endif %}">
+            R$ {{ painel_financeiro_eventos.saldo|floatformat:2 }}
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="border rounded p-3 h-100 bg-light">
+          <div class="small text-muted">Lançamentos</div>
+          <div class="h5 mb-0">{{ painel_financeiro_eventos.total_lancamentos }}</div>
+          <div class="small text-muted">{{ painel_financeiro_eventos.eventos_no_periodo }} evento(s)</div>
+          <div class="mt-2">
+            <a href="{{ link_prestacao_contas_eventos }}" class="btn btn-sm btn-outline-dark">
+              <i class="fas fa-file-invoice-dollar me-1"></i>Prestação de Contas
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card eventos-section-card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <span><i class="fas fa-filter me-1"></i>Filtros</span>
     <a href="{% url 'eventos:criar_evento' %}" class="btn btn-sm btn-primary eventos-btn-primary">
       <i class="fas fa-plus me-1"></i>Novo Evento
     </a>
   </div>
   <div class="card-body">
-    <form method="get" class="row g-3 align-items-end eventos-filtros-grid">
-      <div class="col-12 col-md-3">
+    <form method="get" class="eventos-filtros-grid">
+      <div class="eventos-filtro-item eventos-filtro-tipo">
         <label for="tipo" class="form-label mb-0">Tipo</label>
         <select name="tipo" id="tipo" class="form-select">
           <option value="">Todos</option>
           <option value="culto" {% if request.GET.tipo == 'culto' %}selected{% endif %}>Culto</option>
           <option value="reuniao" {% if request.GET.tipo == 'reuniao' %}selected{% endif %}>Reunião</option>
           <option value="festa" {% if request.GET.tipo == 'festa' %}selected{% endif %}>Festa</option>
+          <option value="cruzada" {% if request.GET.tipo == 'cruzada' %}selected{% endif %}>Cruzada</option>
+          <option value="encontro" {% if request.GET.tipo == 'encontro' %}selected{% endif %}>Encontro</option>
           <option value="feriado" {% if request.GET.tipo == 'feriado' %}selected{% endif %}>Feriado</option>
           <option value="estudo" {% if request.GET.tipo == 'estudo' %}selected{% endif %}>Estudo</option>
+          <option value="escola_dominical" {% if request.GET.tipo == 'escola_dominical' %}selected{% endif %}>Escola Dominical</option>
           <option value="outro" {% if request.GET.tipo == 'outro' %}selected{% endif %}>Outro</option>
         </select>
       </div>
-      <div class="col-12 col-md-2">
+      <div class="eventos-filtro-item eventos-filtro-status">
         <label for="status" class="form-label mb-0">Status</label>
         <select name="status" id="status" class="form-select">
           <option value="">Todos</option>
@@ -70,18 +165,52 @@
           <option value="finalizada" {% if request.GET.status == 'finalizada' %}selected{% endif %}>Finalizada</option>
         </select>
       </div>
-      <div class="col-12 col-md-2">
-        <label for="data_inicio" class="form-label mb-0">Início após</label>
-        <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request.GET.data_inicio|default:data_inicio }}">
+      <div class="eventos-filtro-item eventos-filtro-origem">
+        <label for="origem" class="form-label mb-0">Origem</label>
+        <select name="origem" id="origem" class="form-select">
+          <option value="" {% if not origem_filtro %}selected{% endif %}>Todas</option>
+          <option value="padrao" {% if origem_filtro == 'padrao' %}selected{% endif %}>Configuração da Igreja</option>
+          <option value="manual" {% if origem_filtro == 'manual' %}selected{% endif %}>Novo Evento</option>
+        </select>
       </div>
-      <div class="col-12 col-md-2">
-        <label for="data_fim" class="form-label mb-0">Início até</label>
-        <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request.GET.data_fim|default:data_fim }}">
+      <div class="eventos-filtro-item eventos-filtro-ordenacao">
+        <label for="ordenacao" class="form-label mb-0">Ordenar</label>
+        <select name="ordenacao" id="ordenacao" class="form-select">
+          <option value="data_asc" {% if ordenacao_filtro == 'data_asc' %}selected{% endif %}>Data (mais antiga)</option>
+          <option value="data_desc" {% if ordenacao_filtro == 'data_desc' %}selected{% endif %}>Data (mais recente)</option>
+          <option value="dia_data" {% if ordenacao_filtro == 'dia_data' %}selected{% endif %}>Dia da semana + data</option>
+        </select>
       </div>
-      <div class="col-12 col-md-3 d-flex align-items-end gap-2 eventos-filtros-acoes">
+      <div class="eventos-filtro-item eventos-filtro-periodo">
+        <label class="form-label mb-1">Período</label>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <input type="hidden" name="periodo_filtro" id="periodo_filtro_hidden" value="{{ periodo_filtro_selecionado }}">
+          <button type="button" class="btn btn-sm {% if periodo_filtro_selecionado == 'hoje' %}btn-primary{% else %}btn-outline-primary{% endif %} eventos-periodo-pill" data-periodo="hoje">Hoje</button>
+          <button type="button" class="btn btn-sm {% if periodo_filtro_selecionado == '7d' %}btn-primary{% else %}btn-outline-primary{% endif %} eventos-periodo-pill" data-periodo="7d">7 dias</button>
+          <button type="button" class="btn btn-sm {% if periodo_filtro_selecionado == '30d' %}btn-primary{% else %}btn-outline-primary{% endif %} eventos-periodo-pill" data-periodo="30d">30 dias</button>
+          <button type="button" class="btn btn-sm {% if periodo_filtro_selecionado == 'mes_atual' %}btn-primary{% else %}btn-outline-primary{% endif %} eventos-periodo-pill" data-periodo="mes_atual">Mês atual</button>
+          <button type="button" class="btn btn-sm {% if periodo_filtro_selecionado == 'ano_atual' %}btn-primary{% else %}btn-outline-primary{% endif %} eventos-periodo-pill" data-periodo="ano_atual">Ano atual</button>
+          <button type="button" class="btn btn-sm {% if periodo_filtro_selecionado == 'custom' %}btn-primary{% else %}btn-outline-primary{% endif %} eventos-periodo-pill" data-periodo="custom">Personalizado</button>
+        </div>
+      </div>
+      <div class="eventos-filtro-item eventos-filtro-acao d-flex align-items-end gap-2 eventos-filtros-acoes">
         <button type="submit" class="btn btn-primary eventos-btn-primary">
           <i class="fas fa-search me-1"></i>Buscar
         </button>
+      </div>
+
+      <div id="eventos-periodo-custom" class="col-12 {% if periodo_filtro_selecionado != 'custom' %}d-none{% endif %}">
+        <div class="d-flex flex-wrap gap-2 align-items-end">
+          <div>
+            <label for="data_inicio" class="form-label mb-0">De</label>
+            <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ data_inicio_filtro }}">
+          </div>
+          <div>
+            <label for="data_fim" class="form-label mb-0">Até</label>
+            <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ data_fim_filtro }}">
+          </div>
+          <small class="text-muted">Use o modo personalizado para faixas específicas.</small>
+        </div>
       </div>
     </form>
   </div>
@@ -95,8 +224,10 @@
           <tr>
             <th>Título</th>
             <th>Data Início</th>
-            <th>Data Fim</th>
+            <th>Dia</th>
             {% if mostrar_coluna_igreja %}<th>Igreja</th>{% endif %}
+            <th>Origem</th>
+            <th>Operacional</th>
             <th>Status</th>
             <th>Criado por</th>
             <th>Ações</th>
@@ -104,18 +235,44 @@
         </thead>
         <tbody>
           {% for evento in page_obj %}
-          {% if evento.data_inicio.date == today %}
+          {% if evento.eh_hoje %}
           <tr class="table-success fw-bold">
           {% else %}
           <tr>
           {% endif %}
             <td>
               <a href="{% url 'eventos:detalhe_evento' evento.pk %}" class="eventos-link-titulo">{{ evento.titulo }}</a>
-              {% if evento.data_inicio.date == today %}<span class="badge bg-success ms-2">Hoje</span>{% endif %}
+              {% if evento.eh_hoje %}<span class="badge bg-success ms-2">Hoje</span>{% endif %}
+              {% if evento.qtd_dias_exibicao > 1 %}
+                <span class="badge bg-dark ms-2">{{ evento.qtd_dias_exibicao }} dias</span>
+                <button type="button" class="evento-titulo-toggle js-toggle-dias" data-evento-id="{{ evento.pk }}" aria-expanded="false">
+                  <i class="fas fa-chevron-right me-1"></i>Mostrar dias
+                </button>
+              {% endif %}
             </td>
             <td>{{ evento.data_inicio|date:'d/m/Y H:i' }}</td>
-            <td>{{ evento.data_fim|date:'d/m/Y H:i' }}</td>
+            <td><span class="badge dia-badge {{ evento.dia_semana_classe }}">{{ evento.dia_semana_abrev }}</span></td>
             {% if mostrar_coluna_igreja %}<td>{{ evento.igreja.nome_igreja }}</td>{% endif %}
+            <td>
+              {% if evento.programacao_padrao_id %}
+                <span class="badge bg-info text-dark">Configuração da Igreja</span>
+              {% else %}
+                <span class="badge bg-primary">Novo Evento</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if evento.status_operacional == 'encerrado' %}
+                <span class="badge bg-dark">Encerrado</span>
+              {% elif evento.status_operacional == 'em_execucao' %}
+                <span class="badge bg-primary">Em Execução</span>
+              {% elif evento.status_operacional == 'publicado' %}
+                <span class="badge bg-info text-dark">Publicado</span>
+              {% elif evento.status_operacional == 'planejamento' %}
+                <span class="badge bg-warning text-dark">Planejamento</span>
+              {% else %}
+                <span class="badge bg-secondary">Rascunho</span>
+              {% endif %}
+            </td>
             <td>
               {% with status=eventos_status|dict_get:evento.pk %}
                 {% if status == 'aguardando' %}
@@ -144,9 +301,42 @@
               </div>
             </td>
           </tr>
+          {% if evento.qtd_dias_exibicao > 1 %}
+            {% for dia_evento in evento.dias_evento_exibicao %}
+            <tr class="evento-dia-row js-dia-row js-dia-row-{{ evento.pk }} {% if dia_evento.eh_hoje %}is-hoje{% endif %}" style="display:none;">
+              <td class="ps-4">
+                <i class="fas fa-arrow-turn-up text-muted me-2"></i>
+                {{ dia_evento.titulo }}
+                {% if dia_evento.eh_hoje %}<span class="badge bg-success ms-2">Hoje</span>{% endif %}
+              </td>
+              <td>{{ dia_evento.inicio|date:'d/m/Y H:i' }}</td>
+              <td><span class="badge dia-badge {{ dia_evento.dia_semana_classe }}">{{ dia_evento.dia_semana_abrev }}</span></td>
+              {% if mostrar_coluna_igreja %}<td>{{ evento.igreja.nome_igreja }}</td>{% endif %}
+              <td>
+                {% if evento.programacao_padrao_id %}
+                  <span class="badge bg-info text-dark">Configuração da Igreja</span>
+                {% else %}
+                  <span class="badge bg-primary">Novo Evento</span>
+                {% endif %}
+              </td>
+              <td><span class="badge bg-light text-dark">Dia {{ dia_evento.indice }}</span></td>
+              <td><span class="badge bg-light text-dark">-</span></td>
+              <td class="text-muted small">Agrupado</td>
+              <td>
+                {% if dia_evento.sessao_id %}
+                <a href="{% url 'eventos:marcar_presenca' evento.pk %}?sessao={{ dia_evento.sessao_id }}" class="btn btn-sm btn-outline-primary" title="Registrar presença deste dia">
+                  <i class="fas fa-user-check me-1"></i>Presença do dia
+                </a>
+                {% else %}
+                <span class="text-muted small">Use as ações da linha principal</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% endif %}
           {% empty %}
           <tr>
-            <td colspan="{% if mostrar_coluna_igreja %}7{% else %}6{% endif %}" class="text-center text-muted py-4">Nenhum evento cadastrado.</td>
+            <td colspan="{% if mostrar_coluna_igreja %}9{% else %}8{% endif %}" class="text-center text-muted py-4">Nenhum evento cadastrado.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -157,11 +347,11 @@
       <div class="d-flex justify-content-center">
         <ul class="pagination mb-0">
           {% if page_obj.has_previous %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+            <li class="page-item"><a class="page-link" href="?{% if querystring_base %}{{ querystring_base }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a></li>
           {% endif %}
           <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
           {% if page_obj.has_next %}
-            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a></li>
+            <li class="page-item"><a class="page-link" href="?{% if querystring_base %}{{ querystring_base }}&{% endif %}page={{ page_obj.next_page_number }}">Próxima</a></li>
           {% endif %}
         </ul>
       </div>
@@ -172,4 +362,53 @@
 {% include 'secretaria/partials/_modal_criar_visitante_presenca.html' %}
 <script src="{% static 'secretaria/recepcao.js' %}"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.initRecepcaoModal) window.initRecepcaoModal(); });</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const botoes = document.querySelectorAll('.js-toggle-dias');
+  const periodoPills = document.querySelectorAll('.eventos-periodo-pill');
+  const periodoHidden = document.getElementById('periodo_filtro_hidden');
+  const periodoCustom = document.getElementById('eventos-periodo-custom');
+  const filtroForm = document.querySelector('.eventos-filtros-grid');
+
+  function atualizarPeriodoCustom() {
+    if (!periodoHidden || !periodoCustom) {
+      return;
+    }
+    if (periodoHidden.value === 'custom') {
+      periodoCustom.classList.remove('d-none');
+    } else {
+      periodoCustom.classList.add('d-none');
+    }
+  }
+
+  periodoPills.forEach(function (pill) {
+    pill.addEventListener('click', function () {
+      if (!periodoHidden || !filtroForm) {
+        return;
+      }
+      periodoHidden.value = pill.getAttribute('data-periodo') || 'mes_atual';
+      filtroForm.requestSubmit();
+    });
+  });
+
+  if (periodoHidden) {
+    atualizarPeriodoCustom();
+  }
+
+  botoes.forEach(function (botao) {
+    botao.addEventListener('click', function () {
+      const eventoId = botao.getAttribute('data-evento-id');
+      const linhas = document.querySelectorAll('.js-dia-row-' + eventoId);
+      const aberto = botao.getAttribute('aria-expanded') === 'true';
+      linhas.forEach(function (linha) {
+        linha.style.display = aberto ? 'none' : 'table-row';
+      });
+      botao.setAttribute('aria-expanded', aberto ? 'false' : 'true');
+      botao.innerHTML = aberto
+        ? '<i class="fas fa-chevron-right me-1"></i>Mostrar dias'
+        : '<i class="fas fa-chevron-down me-1"></i>Ocultar dias';
+    });
+  });
+});
+</script>
 {% endblock %}

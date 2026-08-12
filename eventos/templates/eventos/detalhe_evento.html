@@ -49,6 +49,7 @@
             <div class="col-md-7">
               <div class="mb-1"><strong>Título:</strong> {{ evento.titulo }}</div>
               <div class="mb-1"><strong>Tipo:</strong> {{ evento.get_tipo_display }}</div>
+              <div class="mb-1"><strong>Status operacional:</strong> {{ evento.get_status_operacional_display }}</div>
               <div class="mb-1"><strong>Igreja:</strong> {{ evento.igreja.nome_igreja }}</div>
               <div class="mb-0 mt-1"><strong>Local:</strong> {{ evento.local }}</div>
               <div class="mt-1 mb-0 lh-sm"><strong>Descrição:</strong></div>
@@ -57,12 +58,22 @@
             <div class="col-md-5">
               <div class="mb-1"><strong>Início:</strong> {{ evento.data_inicio|date:'d/m/Y H:i' }}</div>
               <div class="mb-1"><strong>Fim:</strong> {{ evento.data_fim|date:'d/m/Y H:i' }}</div>
+              <div class="mb-1"><strong>Meta de público:</strong> {{ evento.meta_publico|default:'-' }}</div>
+              <div class="mb-1"><strong>Meta de arrecadação:</strong> R$ {{ evento.meta_arrecadacao|default:'0,00' }}</div>
+              <div class="mb-1"><strong>Caixa do evento:</strong> {{ evento.conta_bancaria_evento.nome_identificacao|default:'Não definido' }}</div>
               <div class="mb-1"><strong>Criado por:</strong> {{ evento.criado_por }}</div>
               <div class="mb-1"><strong>Responsável:</strong> {{ evento.responsavel }}</div>
               <div class="mb-1"><strong>Recorrente?</strong> {{ evento.recorrente|yesno:"Sim,Não" }}</div>
             </div>
           </div>
           <div class="row mt-3">
+            {% if evento.observacoes_internas %}
+            <div class="col-12 mb-2">
+              <div class="alert alert-light border mb-0">
+                <strong>Observações internas:</strong> {{ evento.observacoes_internas }}
+              </div>
+            </div>
+            {% endif %}
             {% if evento.recorrente %}
             <div class="col-md-4">
               <div class="mb-2"><strong>Frequência:</strong> {{ evento.get_frequencia_display }}</div>
@@ -113,6 +124,47 @@
               <div class="card text-center mb-2 eventos-kpi-card eventos-kpi-warning"><div class="card-body p-2"><div class="fw-bold eventos-kpi-title">Justificados</div><div class="fs-5">{{ estatisticas.total_justificados }}</div><div class="small">({{ estatisticas.percentual_justificados|floatformat:1 }}%)</div></div></div>
             </div>
           </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-12">
+              <div class="alert alert-light border py-2 mb-2">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                  <div>
+                    <h6 class="mb-1 d-flex align-items-center gap-2">
+                      <i class="fas fa-wallet text-success"></i>
+                      Conferência Financeira (resumo)
+                    </h6>
+                    <div class="small text-muted">
+                      Operação de caixa centralizada na lista de eventos. Este bloco mostra apenas os números deste evento.
+                    </div>
+                  </div>
+                  <a href="{% url 'eventos:lista_eventos' %}" class="btn btn-outline-primary btn-sm">Abrir Painel de Caixa</a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 col-12">
+              <div class="d-flex gap-3 align-items-center border rounded p-2 bg-light">
+                <span class="small text-muted">Entradas</span>
+                <span class="fw-semibold text-success">R$ {{ estatisticas.total_entradas_evento|floatformat:2 }}</span>
+                <span class="small text-muted">({{ estatisticas.quantidade_receitas_evento }})</span>
+              </div>
+            </div>
+            <div class="col-md-4 col-12">
+              <div class="d-flex gap-3 align-items-center border rounded p-2 bg-light">
+                <span class="small text-muted">Saídas</span>
+                <span class="fw-semibold text-danger">R$ {{ estatisticas.total_saidas_evento|floatformat:2 }}</span>
+                <span class="small text-muted">({{ estatisticas.quantidade_despesas_evento }})</span>
+              </div>
+            </div>
+            <div class="col-md-4 col-12">
+              <div class="d-flex gap-3 align-items-center border rounded p-2 bg-light">
+                <span class="small text-muted">Saldo</span>
+                <span class="fw-semibold {% if estatisticas.saldo_evento >= 0 %}text-primary{% else %}text-danger{% endif %}">R$ {{ estatisticas.saldo_evento|floatformat:2 }}</span>
+                <span class="small text-muted">Meta: {{ estatisticas.percentual_meta_arrecadacao|floatformat:1 }}%</span>
+              </div>
+            </div>
+          </div>
+
           <div class="row g-2 mb-3">
             <div class="col-md-6">
               <div class="mb-2"><strong>Distribuição por papel:</strong>

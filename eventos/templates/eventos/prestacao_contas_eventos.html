@@ -1,0 +1,212 @@
+{% extends 'base_com_menu.html' %}
+{% load humanize %}
+
+{% block title %}Prestação de Contas - Caixa de Eventos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4 mb-2">
+        <h1 class="mb-0">Prestação de Contas - Caixa de Eventos</h1>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-dark" onclick="window.print()">
+                <i class="fas fa-print me-1"></i>Imprimir Relatório
+            </button>
+            <a href="{{ link_entradas }}" class="btn btn-outline-success">
+                <i class="fas fa-arrow-down me-1"></i>Entradas
+            </a>
+            <a href="{{ link_saidas }}" class="btn btn-outline-danger">
+                <i class="fas fa-arrow-up me-1"></i>Saídas
+            </a>
+        </div>
+    </div>
+
+    <ol class="breadcrumb mb-3">
+        <li class="breadcrumb-item"><a href="{% url 'eventos:lista_eventos' %}">Eventos</a></li>
+        <li class="breadcrumb-item active">Prestação de Contas</li>
+    </ol>
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-12 col-md-2">
+                    <label class="form-label" for="periodo_filtro">Período</label>
+                    <select class="form-select form-select-sm" id="periodo_filtro" name="periodo_filtro">
+                        <option value="7d" {% if periodo_filtro == '7d' %}selected{% endif %}>Últimos 7 dias</option>
+                        <option value="30d" {% if periodo_filtro == '30d' %}selected{% endif %}>Últimos 30 dias</option>
+                        <option value="90d" {% if periodo_filtro == '90d' %}selected{% endif %}>Últimos 90 dias</option>
+                        <option value="mes_atual" {% if periodo_filtro == 'mes_atual' %}selected{% endif %}>Mês atual</option>
+                        <option value="ano_atual" {% if periodo_filtro == 'ano_atual' %}selected{% endif %}>Ano atual</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="data_inicio">De</label>
+                    <input type="date" class="form-control form-control-sm" id="data_inicio" name="data_inicio" value="{{ data_inicio|date:'Y-m-d' }}">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label" for="data_fim">Até</label>
+                    <input type="date" class="form-control form-control-sm" id="data_fim" name="data_fim" value="{{ data_fim|date:'Y-m-d' }}">
+                </div>
+                <div class="col-12 col-md-auto d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-search me-1"></i>Atualizar
+                    </button>
+                    <a href="{% url 'eventos:prestacao_contas_eventos' %}" class="btn btn-outline-secondary btn-sm">Limpar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-3">
+            <div class="border rounded p-3 h-100 bg-light">
+                <div class="small text-muted">Entradas</div>
+                <div class="h5 text-success mb-0">R$ {{ total_entradas|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="border rounded p-3 h-100 bg-light">
+                <div class="small text-muted">Saídas</div>
+                <div class="h5 text-danger mb-0">R$ {{ total_saidas|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="border rounded p-3 h-100 bg-light">
+                <div class="small text-muted">Saldo</div>
+                <div class="h5 mb-0 {% if saldo >= 0 %}text-primary{% else %}text-danger{% endif %}">R$ {{ saldo|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="border rounded p-3 h-100 bg-light">
+                <div class="small text-muted">Lançamentos</div>
+                <div class="h5 mb-0">{{ quantidade_movimentos }}</div>
+                <div class="small text-muted">{{ data_inicio|date:'d/m/Y' }} até {{ data_fim|date:'d/m/Y' }}</div>
+            </div>
+        </div>
+    </div>
+
+    {% if pode_fechar_periodo %}
+    <div class="card mb-3 border-warning">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <div class="fw-semibold">Fechamento do Período</div>
+                <div class="small text-muted">Bloqueia edição e exclusão dos lançamentos desta prestação de contas.</div>
+            </div>
+            <form method="post" onsubmit="return confirm('Confirma o fechamento deste período? Esta ação bloqueia alterações dos lançamentos fechados.');">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="fechar_periodo_eventos">
+                <button type="submit" class="btn btn-warning btn-sm">
+                    <i class="fas fa-lock me-1"></i>Fechar Período de Eventos
+                </button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        Selecione uma igreja ativa para habilitar o fechamento do caixa de eventos por período.
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-file-invoice-dollar me-1"></i>Lançamentos Consolidados</span>
+            <span class="small text-muted">Trilha de auditoria visível por lançamento</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Data</th>
+                            <th>Tipo</th>
+                            <th>Categoria</th>
+                            <th>Descrição</th>
+                            <th>Evento</th>
+                            <th>Conta/Caixa</th>
+                            <th class="text-end">Valor (R$)</th>
+                            <th>Status</th>
+                            <th>Auditoria</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in movimentos %}
+                        <tr>
+                            <td>{{ item.data|date:'d/m/Y' }}</td>
+                            <td>
+                                {% if item.tipo == 'entrada' %}
+                                <span class="badge bg-success">Entrada</span>
+                                {% else %}
+                                <span class="badge bg-danger">Saída</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.categoria }}</td>
+                            <td>{{ item.descricao|default:'-'|truncatechars:80 }}</td>
+                            <td>{{ item.evento.titulo|default:'-' }}</td>
+                            <td>{{ item.conta.nome_identificacao|default:'-' }}</td>
+                            <td class="text-end {% if item.tipo == 'entrada' %}text-success{% else %}text-danger{% endif %}">
+                                {{ item.valor|floatformat:2|intcomma }}
+                            </td>
+                            <td>
+                                {% if item.fechado %}
+                                <span class="badge bg-secondary">Fechado</span>
+                                {% else %}
+                                <span class="badge bg-primary">Aberto</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.log %}
+                                <div class="small fw-semibold">{{ item.log.get_acao_display }}</div>
+                                <div class="small text-muted">
+                                    {% if item.log.usuario %}
+                                        {{ item.log.usuario.get_full_name|default:item.log.usuario.username }}
+                                    {% else %}
+                                        Sistema
+                                    {% endif %}
+                                </div>
+                                <div class="small text-muted">{{ item.log.criado_em|date:'d/m/Y H:i' }}</div>
+                                {% else %}
+                                <span class="small text-muted">Sem log</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.fechado %}
+                                <span class="text-muted small"><i class="fas fa-lock me-1"></i>Bloqueado</span>
+                                {% else %}
+                                <div class="d-flex gap-1">
+                                    <a href="{{ item.editar_url }}" class="btn btn-sm btn-outline-primary">Editar</a>
+                                    <form method="post" action="{{ item.excluir_url }}" onsubmit="return confirm('Confirma excluir este lançamento?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Excluir</button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted">Nenhum lançamento encontrado no período.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .sb-nav-fixed #layoutSidenav #layoutSidenav_nav,
+    .btn,
+    .breadcrumb,
+    form,
+    .alert {
+        display: none !important;
+    }
+    .card {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+{% endblock %}

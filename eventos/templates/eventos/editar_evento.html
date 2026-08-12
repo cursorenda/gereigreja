@@ -113,6 +113,13 @@
                 {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors|striptags }}</div>{% endif %}
               </div>
             </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label for="{{ form.status_operacional.id_for_label }}" class="form-label">{{ form.status_operacional.label }}:</label>
+                {{ form.status_operacional|add_class:'form-select' }}
+                {% if form.status_operacional.errors %}<div class="invalid-feedback d-block">{{ form.status_operacional.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
             <div class="col-md-6">
               <div class="mb-3">
                 <label for="{{ form.local.id_for_label }}" class="form-label">{{ form.local.label }}:</label>
@@ -120,11 +127,42 @@
                 {% if form.local.errors %}<div class="invalid-feedback d-block">{{ form.local.errors|striptags }}</div>{% endif %}
               </div>
             </div>
-            <div class="col-md-3">
+          </div>
+
+          <div class="row mb-4">
+            <div class="col-md-4">
               <div class="mb-3">
                 <label for="{{ form.responsavel.id_for_label }}" class="form-label">{{ form.responsavel.label }}:</label>
                 {{ form.responsavel|add_class:'form-select' }}
                 {% if form.responsavel.errors %}<div class="invalid-feedback d-block">{{ form.responsavel.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="{{ form.meta_publico.id_for_label }}" class="form-label">{{ form.meta_publico.label }}:</label>
+                {{ form.meta_publico|add_class:'form-control' }}
+                {% if form.meta_publico.errors %}<div class="invalid-feedback d-block">{{ form.meta_publico.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="{{ form.meta_arrecadacao.id_for_label }}" class="form-label">{{ form.meta_arrecadacao.label }}:</label>
+                {{ form.meta_arrecadacao|add_class:'form-control' }}
+                {% if form.meta_arrecadacao.errors %}<div class="invalid-feedback d-block">{{ form.meta_arrecadacao.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="{{ form.conta_bancaria_evento.id_for_label }}" class="form-label">{{ form.conta_bancaria_evento.label }}:</label>
+                {{ form.conta_bancaria_evento|add_class:'form-select' }}
+                {% if form.conta_bancaria_evento.errors %}<div class="invalid-feedback d-block">{{ form.conta_bancaria_evento.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="mb-3">
+                <label for="{{ form.observacoes_internas.id_for_label }}" class="form-label">{{ form.observacoes_internas.label }}:</label>
+                {{ form.observacoes_internas|add_class:'form-control' }}
+                {% if form.observacoes_internas.errors %}<div class="invalid-feedback d-block">{{ form.observacoes_internas.errors|striptags }}</div>{% endif %}
               </div>
             </div>
           </div>

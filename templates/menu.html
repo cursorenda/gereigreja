@@ -107,6 +107,12 @@
                 <div class="sb-nav-link-icon"><i class="fas fa-sitemap"></i></div>
                 Centro Ministerial
             </a>
+            {% if is_admin_ministerio %}
+            <a class="nav-link {% if '/configuracao/departamentos/' in request.path %}active{% endif %}" href="{% url 'configuracao:gestao_departamentos' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-layer-group"></i></div>
+                Departamentos
+            </a>
+            {% endif %}
             {% endif %}
 
             {% if is_admin_ministerio and can_section_secretaria %}

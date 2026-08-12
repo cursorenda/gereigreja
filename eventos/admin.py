@@ -5,9 +5,9 @@ from .models import Evento, ParticipacaoEvento
 
 @admin.register(Evento)
 class EventoAdmin(DataInicioHierarchyMixin, admin.ModelAdmin):
-	list_display = ("titulo", "status_evento", "data_inicio", "data_fim", "igreja", "criado_por")
+	list_display = ("titulo", "status_evento", "status_operacional", "data_inicio", "data_fim", "igreja", "criado_por")
 	search_fields = ("titulo", "descricao", "local")
-	list_filter = ("status_evento", "igreja", "data_inicio")
+	list_filter = ("status_evento", "status_operacional", "igreja", "data_inicio")
 	ordering = ("-data_inicio",)
 
 @admin.register(ParticipacaoEvento)
