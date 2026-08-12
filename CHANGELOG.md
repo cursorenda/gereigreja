@@ -1,3 +1,32 @@
+# v1.14.25 — 12/08/2026
+🚀 **Governança, financeiro por departamento e fluxo operacional em lote**
+
+### Entregas
+- Documentação ampliada para a nova camada de frontend, design system e arquitetura financeira:
+  - novos guias de `HTMX`, `AlpineJS` e `Dashboards`;
+  - novo pacote de `docs/design-system`;
+  - notas de evolução do financeiro por fases em `docs/sistema`.
+- Configuração do ministério e departamentos evoluída:
+  - suporte à conta padrão de eventos na igreja;
+  - tela de gestão de departamentos com visão executiva e cards recolhidos por padrão;
+  - novas migrations para conta padrão de eventos e departamentos.
+- Eventos com governança operacional e prestação de contas:
+  - fluxo de criação/edição e cobrança por conta de evento;
+  - tela de prestação de contas de eventos;
+  - migrações de apoio para tipo e conta bancária do evento.
+- Financeiro com fundos departamentais e lote operacional:
+  - políticas e seletores centralizados para categorias e escopo;
+  - serviços, migrations e command para departamentos financeiros;
+  - formulários de receitas e despesas com lote, edição, duplicação, defaults persistidos e atalho Enter.
+- Secretaria com ajuste pontual no autocomplete de naturalidade.
+
+### Impacto
+- Consolida a governança departamental com separação clara entre organização, eventos e financeiro.
+- Reduz retrabalho em lançamentos repetitivos com fluxo em lote mais produtivo.
+- Melhora a previsibilidade do deploy com documentação e arquitetura mais explícitas.
+
+---
+
 # v1.14.24 — 06/08/2026
 🌎 **Naturalidade nacional completa + filtro por UF no autocomplete**
 
