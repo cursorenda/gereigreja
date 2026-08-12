@@ -9,7 +9,7 @@ from django.templatetags.static import static
 from django.utils.html import format_html
 from django.urls import path, reverse
 
-from .models import ConfiguracaoSistema, Igreja, Ministerio, PerfilUsuario, ModeloCartaRecomendacao
+from .models import ConfiguracaoSistema, Departamento, Igreja, Ministerio, PerfilUsuario, ModeloCartaRecomendacao
 
 
 @admin.register(ConfiguracaoSistema)
@@ -260,6 +260,14 @@ class PerfilUsuarioAdmin(admin.ModelAdmin):
     def ministerio_nome(self, obj):
         return obj.ministerio.nome_fantasia
     ministerio_nome.short_description = "Ministério"
+
+
+@admin.register(Departamento)
+class DepartamentoAdmin(admin.ModelAdmin):
+    list_display = ('nome_exibicao', 'codigo_interno', 'igreja', 'tipo_departamento', 'ativo', 'ordem_exibicao')
+    list_filter = ('igreja__ministerio', 'igreja', 'tipo_departamento', 'ativo')
+    search_fields = ('nome_exibicao', 'codigo_interno', 'igreja__nome_igreja', 'igreja__ministerio__nome_fantasia')
+    autocomplete_fields = ['igreja']
 
 
 @admin.register(Igreja)

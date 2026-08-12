@@ -183,15 +183,16 @@
                                     {{ form.moeda }}
                                     {% if form.moeda.errors %}<div class="invalid-feedback d-block">{{ form.moeda.errors|striptags }}</div>{% endif %}
                                 </div>
-                                <div class="col-md-4">
-                                    <label for="{{ form.conta_padrao_receitas.id_for_label }}" class="form-label">{{ form.conta_padrao_receitas.label }}</label>
-                                    {{ form.conta_padrao_receitas }}
-                                    {% if form.conta_padrao_receitas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_receitas.errors|striptags }}</div>{% endif %}
-                                </div>
                                 <div class="col-md-5">
-                                    <label for="{{ form.conta_padrao_despesas.id_for_label }}" class="form-label">{{ form.conta_padrao_despesas.label }}</label>
-                                    {{ form.conta_padrao_despesas }}
-                                    {% if form.conta_padrao_despesas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_despesas.errors|striptags }}</div>{% endif %}
+                                    <label for="{{ form.conta_padrao_financeiro.id_for_label }}" class="form-label">{{ form.conta_padrao_financeiro.label }}</label>
+                                    {{ form.conta_padrao_financeiro }}
+                                    {% if form.conta_padrao_financeiro.help_text %}<div class="form-text">{{ form.conta_padrao_financeiro.help_text|safe }}</div>{% endif %}
+                                    {% if form.conta_padrao_financeiro.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_financeiro.errors|striptags }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="{{ form.conta_padrao_eventos.id_for_label }}" class="form-label">{{ form.conta_padrao_eventos.label }}</label>
+                                    {{ form.conta_padrao_eventos }}
+                                    {% if form.conta_padrao_eventos.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_eventos.errors|striptags }}</div>{% endif %}
                                 </div>
 
                                 <div class="col-md-4">

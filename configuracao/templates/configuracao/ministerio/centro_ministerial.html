@@ -33,6 +33,9 @@
                 <a class="btn btn-outline-primary btn-sm" href="{% url 'configuracao:carteirinha_ministerio' %}">
                     <i class="fas fa-id-card me-1"></i> Carteirinha Premium
                 </a>
+                <a class="btn btn-outline-primary btn-sm" href="{% url 'configuracao:gestao_departamentos' %}">
+                    <i class="fas fa-layer-group me-1"></i> Departamentos
+                </a>
             </div>
         </div>
     </div>
@@ -73,6 +76,146 @@
                     <small class="text-muted">Eventos em 15 dias. Convites pendentes: {{ convites_pendentes }}</small>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <div class="text-uppercase text-muted small mb-1">Mapa premium do sistema</div>
+                    <h4 class="mb-1">Módulos conectados entre si</h4>
+                    <p class="mb-0 text-muted">Cada área conversa com as demais. O departamento organiza pessoas, eventos, comunicação e governança financeira no mesmo fluxo.</p>
+                </div>
+            </div>
+            <div class="row g-3">
+                {% for modulo in modulos_conectados %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="card h-100 border-light shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex align-items-start justify-content-between gap-3 mb-2">
+                                <div>
+                                    <div class="text-primary mb-1"><i class="fas {{ modulo.icone }}"></i></div>
+                                    <h5 class="mb-1">{{ modulo.titulo }}</h5>
+                                </div>
+                                <span class="badge bg-light text-muted border">Conectado</span>
+                            </div>
+                            <p class="text-muted small mb-3 flex-grow-1">{{ modulo.descricao }}</p>
+                            <div class="small text-muted mb-3"><strong>Relação:</strong> {{ modulo.relacao }}</div>
+                            <a class="btn btn-outline-primary btn-sm align-self-start" href="{{ modulo.rota }}">{{ modulo.cta }}</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+                <div>
+                    <div class="text-uppercase text-muted small mb-1">Departamentos como módulos</div>
+                    <h4 class="mb-2">Estrutura departamental centralizada no Centro Ministerial</h4>
+                    <p class="mb-0 text-muted">Os departamentos são unidades de governança, não atalhos do financeiro. Cada um pode operar com pessoas, eventos, comunicação e, quando necessário, financeiro próprio.</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="{% url 'configuracao:gestao_departamentos' %}">
+                        <i class="fas fa-layer-group me-1"></i> Abrir Gestão
+                    </a>
+                    <a class="btn btn-outline-primary" href="{% url 'configuracao:lista_igrejas' %}">
+                        <i class="fas fa-church me-1"></i> Ver Estrutura de Igrejas
+                    </a>
+                </div>
+            </div>
+            <div class="row g-3 mt-3">
+                <div class="col-12 col-md-3">
+                    <div class="bg-light rounded-3 p-3 h-100">
+                        <div class="text-muted small">Departamentos cadastrados</div>
+                        <div class="h3 mb-0">{{ departamentos_total }}</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="bg-light rounded-3 p-3 h-100">
+                        <div class="text-muted small">Departamentos ativos</div>
+                        <div class="h3 mb-0">{{ departamentos_ativos }}</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="bg-light rounded-3 p-3 h-100">
+                        <div class="text-muted small">Módulos financeiros ativos</div>
+                        <div class="h3 mb-0">{{ departamentos_financeiros_ativos }}</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="bg-light rounded-3 p-3 h-100">
+                        <div class="text-muted small">Igrejas com departamentos</div>
+                        <div class="h3 mb-0">{{ igrejas_com_departamentos }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3 mt-1">
+                <div class="col-12 col-md-4">
+                    <div class="bg-light rounded-3 p-3 h-100 border-start border-4 border-warning">
+                        <div class="text-muted small">Pendências de aprovação</div>
+                        <div class="h3 mb-0">{{ pendencias_aprovacao_departamental }}</div>
+                        <div class="small text-muted">R$ {{ valor_pendencias_aprovacao_departamental|floatformat:2 }}</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="bg-light rounded-3 p-3 h-100 border-start border-4 border-info">
+                        <div class="text-muted small">Fechamentos em aberto</div>
+                        <div class="h3 mb-0">{{ fechamentos_abertos_count }}</div>
+                        <div class="small text-muted">Governança pendente de conclusão</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="bg-light rounded-3 p-3 h-100 border-start border-4 border-secondary">
+                        <div class="text-muted small">Departamentos sem financeiro ativo</div>
+                        <div class="h3 mb-0">{{ departamentos_sem_financeiro_ativo }}</div>
+                        <div class="small text-muted">Estruturas ativas sem governança financeira local</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="bg-light rounded-3 p-3 h-100 border-start border-4 border-dark">
+                        <div class="text-muted small">Sem movimentação recente</div>
+                        <div class="h3 mb-0">{{ departamentos_sem_movimentacao_recente }}</div>
+                        <div class="small text-muted">Departamentos com financeiro ativo sem movimentação nos últimos 60 dias</div>
+                    </div>
+                </div>
+            </div>
+            {% if departamentos_principais %}
+            <div class="mt-3">
+                <div class="text-muted small mb-2">Visualização rápida</div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for departamento in departamentos_principais %}
+                    <span class="badge bg-primary-subtle text-primary border">{{ departamento.nome_exibicao }} • {{ departamento.igreja.nome_igreja }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if ranking_departamentos_pendentes %}
+            <div class="mt-4">
+                <div class="text-muted small mb-2">Departamentos com mais pendências financeiras</div>
+                <div class="row g-2">
+                    {% for departamento_pendente in ranking_departamentos_pendentes %}
+                    <div class="col-12 col-lg-6">
+                        <div class="border rounded-3 bg-white p-3 h-100">
+                            <div class="fw-semibold">{{ departamento_pendente.nome_exibicao }}</div>
+                            <div class="small text-muted">{{ departamento_pendente.igreja.nome_igreja }}</div>
+                            <div class="small mt-2">
+                                <strong>{{ departamento_pendente.pendencias_qtd }}</strong> pendência(s)
+                                {% if departamento_pendente.pendencias_total %}
+                                • R$ {{ departamento_pendente.pendencias_total|floatformat:2 }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -184,6 +327,9 @@
                 <div class="list-group list-group-flush">
                     <a class="list-group-item list-group-item-action" href="{% url 'financeiro:painel_lideranca_financeiro' %}">
                         <i class="fas fa-landmark me-2 text-primary"></i> Painel Financeiro Ministerial
+                    </a>
+                    <a class="list-group-item list-group-item-action" href="{% url 'configuracao:gestao_departamentos' %}">
+                        <i class="fas fa-layer-group me-2 text-primary"></i> Gestão de Departamentos
                     </a>
                     <a class="list-group-item list-group-item-action" href="{% url 'secretaria:painel_lideranca_secretaria' %}">
                         <i class="fas fa-users-cog me-2 text-primary"></i> Painel Secretaria Ministerial

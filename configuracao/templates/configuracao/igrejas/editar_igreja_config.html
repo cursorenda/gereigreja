@@ -56,7 +56,7 @@
 
     <div class="card">
         <div class="card-body">
-            <form method="post" enctype="multipart/form-data">
+            <form id="form-editar-igreja" method="post" enctype="multipart/form-data" action="{% url 'configuracao:editar_igreja_config' igreja.id %}">
                 {% csrf_token %}
                 {% if form.non_field_errors %}
                 <div class="alert alert-danger">
@@ -254,16 +254,16 @@
                                 {% if form.moeda.errors %}<div class="invalid-feedback d-block">{{ form.moeda.errors|join:", " }}</div>{% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label for="{{ form.conta_padrao_receitas.id_for_label }}" class="form-label">{{ form.conta_padrao_receitas.label }}</label>
-                                {{ form.conta_padrao_receitas }}
-                                {% if form.conta_padrao_receitas.help_text %}<div class="form-text">{{ form.conta_padrao_receitas.help_text|safe }}</div>{% endif %}
-                                {% if form.conta_padrao_receitas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_receitas.errors|join:", " }}</div>{% endif %}
+                                <label for="{{ form.conta_padrao_financeiro.id_for_label }}" class="form-label">{{ form.conta_padrao_financeiro.label }}</label>
+                                {{ form.conta_padrao_financeiro }}
+                                {% if form.conta_padrao_financeiro.help_text %}<div class="form-text">{{ form.conta_padrao_financeiro.help_text|safe }}</div>{% endif %}
+                                {% if form.conta_padrao_financeiro.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_financeiro.errors|join:", " }}</div>{% endif %}
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label for="{{ form.conta_padrao_despesas.id_for_label }}" class="form-label">{{ form.conta_padrao_despesas.label }}</label>
-                                {{ form.conta_padrao_despesas }}
-                                {% if form.conta_padrao_despesas.help_text %}<div class="form-text">{{ form.conta_padrao_despesas.help_text|safe }}</div>{% endif %}
-                                {% if form.conta_padrao_despesas.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_despesas.errors|join:", " }}</div>{% endif %}
+                                <label for="{{ form.conta_padrao_eventos.id_for_label }}" class="form-label">{{ form.conta_padrao_eventos.label }}</label>
+                                {{ form.conta_padrao_eventos }}
+                                {% if form.conta_padrao_eventos.help_text %}<div class="form-text">{{ form.conta_padrao_eventos.help_text|safe }}</div>{% endif %}
+                                {% if form.conta_padrao_eventos.errors %}<div class="invalid-feedback d-block">{{ form.conta_padrao_eventos.errors|join:", " }}</div>{% endif %}
                             </div>
                         </div>
                     </div>
@@ -657,7 +657,7 @@
                 </div>
 
                 <div class="mt-4">
-                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    <button type="submit" class="btn btn-primary" form="form-editar-igreja">Salvar Alterações</button>
                     <a href="{% url 'configuracao:lista_igrejas' %}" class="btn btn-outline-secondary">Cancelar</a>
                 </div>
             </form>

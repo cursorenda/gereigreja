@@ -94,7 +94,7 @@ class ConfiguracaoPortalForm(forms.ModelForm):
 # c:\Gereigreja\configuracao\forms.py
 from django import forms
 from .models import ESTADO_CHOICES 
-from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ModeloCartaRecomendacao, ProgramacaoPadraoIgreja
+from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ModeloCartaRecomendacao, ProgramacaoPadraoIgreja, Departamento
 
 from django.contrib.auth.models import User # Modelo de usuário padrão
 from financeiro.models import ContaBancaria # Importar ContaBancaria
@@ -126,16 +126,17 @@ class IgrejaForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-select'}),
         help_text="Selecione a Sede ou Regional à qual esta igreja está vinculada (se aplicável)."
     )
-    conta_padrao_receitas = forms.ModelChoiceField(
+    conta_padrao_financeiro = forms.ModelChoiceField(
         queryset=ContaBancaria.objects.none(), # Será filtrado no __init__
         required=False,
-        label="Conta/Caixa Padrão para Receitas",
+        label="Conta/Caixa Padrão Financeiro",
+        help_text="Conta/Caixa padrão para receitas e despesas desta igreja.",
         widget=forms.Select(attrs={'class': 'form-select'})
     )
-    conta_padrao_despesas = forms.ModelChoiceField(
+    conta_padrao_eventos = forms.ModelChoiceField(
         queryset=ContaBancaria.objects.none(), # Será filtrado no __init__
         required=False,
-        label="Conta/Caixa Padrão para Despesas",
+        label="Conta/Caixa Padrão para Eventos",
         widget=forms.Select(attrs={'class': 'form-select'})
     )
 
@@ -147,7 +148,8 @@ class IgrejaForm(forms.ModelForm):
         fields = [
             'nome_igreja', 'tipo_igreja', 'igreja_superior', 'data_fundacao',
             'cep', 'rua', 'numero_casa', 'complemento', 'bairro_distrito', 'cidade', 'estado', 'pais',
-            'email', 'cnpj', 'telefone', 'celular', 'site', 'conta_padrao_receitas', 'conta_padrao_despesas',
+            'email', 'cnpj', 'telefone', 'celular', 'site', 'conta_padrao_financeiro',
+            'conta_padrao_eventos',
             'pastor_local', 'pastor_regional',
             'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario',
             'ebd_pontos_presente', 'ebd_pontos_biblia', 'ebd_pontos_revista', 'ebd_pontos_oferta', 'ebd_pontos_visitante',
@@ -214,23 +216,27 @@ class IgrejaForm(forms.ModelForm):
             # Se for uma nova igreja (instance is None), o queryset de contas será vazio,
             # o que é correto, pois a igreja precisa ser salva antes de ter contas.
             if instance:
-                self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.filter(igreja=instance).order_by('nome_identificacao')
-                self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.filter(igreja=instance).order_by('nome_identificacao')
+                contas_qs = ContaBancaria.objects.filter(igreja=instance).order_by('nome_identificacao')
+                self.fields['conta_padrao_financeiro'].queryset = contas_qs
+                self.fields['conta_padrao_eventos'].queryset = contas_qs
+                conta_financeira_inicial = instance.conta_padrao_receitas or instance.conta_padrao_despesas
+                if conta_financeira_inicial and not self.initial.get('conta_padrao_financeiro'):
+                    self.initial['conta_padrao_financeiro'] = conta_financeira_inicial
             else:
-                self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.none()
-                self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.none()
+                self.fields['conta_padrao_financeiro'].queryset = ContaBancaria.objects.none()
+                self.fields['conta_padrao_eventos'].queryset = ContaBancaria.objects.none()
         
 
         else:
             # Se não houver ministério, não mostra nenhuma igreja superior nem contas
             self.fields['igreja_superior'].queryset = Igreja.objects.none()
-            self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.none()
-            self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.none()
+            self.fields['conta_padrao_financeiro'].queryset = ContaBancaria.objects.none()
+            self.fields['conta_padrao_eventos'].queryset = ContaBancaria.objects.none()
 
         # Definir empty_label para igreja_superior
         self.fields['igreja_superior'].empty_label = "Nenhuma (Igreja Sede ou sem vínculo)"
-        self.fields['conta_padrao_receitas'].empty_label = "Nenhuma Conta/Caixa Padrão"
-        self.fields['conta_padrao_despesas'].empty_label = "Nenhuma Conta/Caixa Padrão"
+        self.fields['conta_padrao_financeiro'].empty_label = "Nenhuma Conta/Caixa Padrão"
+        self.fields['conta_padrao_eventos'].empty_label = "Nenhuma Conta/Caixa Padrão"
 
     def clean(self):
         cleaned_data = super().clean()
@@ -243,6 +249,17 @@ class IgrejaForm(forms.ModelForm):
                 cleaned_data['igreja_superior'] = None
                 # Opcional: self.add_error('igreja_superior', 'Igrejas Sede/Independente não têm Igreja Superior.')
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        conta_padrao_financeiro = self.cleaned_data.get('conta_padrao_financeiro')
+        instance.conta_padrao_receitas = conta_padrao_financeiro
+        instance.conta_padrao_despesas = conta_padrao_financeiro
+        instance.conta_padrao_eventos = self.cleaned_data.get('conta_padrao_eventos')
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 class ProgramacaoPadraoIgrejaForm(forms.ModelForm):
@@ -369,6 +386,55 @@ class ProgramacaoPadraoIgrejaForm(forms.ModelForm):
 
         return cleaned_data
 
+
+class DepartamentoForm(forms.ModelForm):
+    class Meta:
+        model = Departamento
+        fields = [
+            'codigo_interno',
+            'nome_exibicao',
+            'tipo_departamento',
+            'ordem_exibicao',
+            'ativo',
+        ]
+        widgets = {
+            'codigo_interno': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: JOVENS'}),
+            'nome_exibicao': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: Ministerio de Jovens'}),
+            'tipo_departamento': forms.Select(attrs={'class': 'form-select'}),
+            'ordem_exibicao': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.igreja = kwargs.pop('igreja', None)
+        self.permitir_editar_codigo = kwargs.pop('permitir_editar_codigo', True)
+        super().__init__(*args, **kwargs)
+        if not self.permitir_editar_codigo and 'codigo_interno' in self.fields:
+            self.fields['codigo_interno'].disabled = True
+
+    def clean_codigo_interno(self):
+        codigo = (self.cleaned_data.get('codigo_interno') or '').strip().upper().replace(' ', '_')
+        if not codigo:
+            raise ValidationError('Informe um código interno para o departamento.')
+
+        qs = Departamento.objects.filter(codigo_interno=codigo)
+        if self.igreja:
+            qs = qs.filter(igreja=self.igreja)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError('Já existe um departamento com este código nesta igreja.')
+        return codigo
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.igreja and not instance.igreja_id:
+            instance.igreja = self.igreja
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
 # --- FORMULÁRIO PARA EDITAR DADOS DA MINISTÉRIO (PELO ADMIN DA ORG) ---
 class MinisterioEditForm(forms.ModelForm):
     """ Formulário para o Admin do Minist. editar dados da própria ministério """
@@ -478,6 +544,20 @@ class IgrejaEditForm(forms.ModelForm):
         widget=CustomClearableFileInput,
         required=False # Mantém como opcional
     )
+    conta_padrao_financeiro = forms.ModelChoiceField(
+        queryset=ContaBancaria.objects.none(),
+        required=False,
+        label="Conta/Caixa Padrão Financeiro",
+        help_text="Conta/Caixa padrão para receitas e despesas desta igreja.",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    conta_padrao_eventos = forms.ModelChoiceField(
+        queryset=ContaBancaria.objects.none(),
+        required=False,
+        label="Conta/Caixa Padrão para Eventos",
+        help_text="Conta/Caixa usada automaticamente nas entradas e saídas de eventos desta igreja.",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     class Meta:
             model = Igreja
             fields = [
@@ -488,7 +568,7 @@ class IgrejaEditForm(forms.ModelForm):
                 'moeda', 'ebd_periodo', 'ebd_dia_semana', 'ebd_horario',
                 'ebd_pontos_presente', 'ebd_pontos_biblia', 'ebd_pontos_revista', 'ebd_pontos_oferta', 'ebd_pontos_visitante',
                 'observacoes', 'logo1', 'logo2',
-                'conta_padrao_receitas', 'conta_padrao_despesas'
+                'conta_padrao_financeiro', 'conta_padrao_eventos'
             ]
             widgets = {
                 'data_fundacao': forms.DateInput(attrs={'type': 'date'}),
@@ -545,13 +625,18 @@ class IgrejaEditForm(forms.ModelForm):
             # Filtrar contas padrão para mostrar apenas contas de igrejas da mesma ministério
             # O modelo ContaBancaria tem 'igreja', e Igreja tem 'ministerio'.
             # O campo 'nome_identificacao' está em ContaBancaria.
-            self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('nome_identificacao')
-            self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('nome_identificacao')
+            contas_qs = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('nome_identificacao')
+            self.fields['conta_padrao_financeiro'].queryset = contas_qs
+            self.fields['conta_padrao_eventos'].queryset = contas_qs
+
+            conta_financeira_inicial = self.instance.conta_padrao_receitas or self.instance.conta_padrao_despesas
+            if conta_financeira_inicial and not self.initial.get('conta_padrao_financeiro'):
+                self.initial['conta_padrao_financeiro'] = conta_financeira_inicial
         else:
             # Se não houver ministério, esvaziar os querysets ou tratar como erro
             self.fields['igreja_superior'].queryset = Igreja.objects.none()
-            self.fields['conta_padrao_receitas'].queryset = ContaBancaria.objects.none()
-            self.fields['conta_padrao_despesas'].queryset = ContaBancaria.objects.none()
+            self.fields['conta_padrao_financeiro'].queryset = ContaBancaria.objects.none()
+            self.fields['conta_padrao_eventos'].queryset = ContaBancaria.objects.none()
 
         # Adicionar classes CSS do Bootstrap aos campos
         for field_name, field in self.fields.items():
@@ -571,7 +656,18 @@ class IgrejaEditForm(forms.ModelForm):
             if igreja_superior is not None:
                 cleaned_data['igreja_superior'] = None
                 # Opcional: self.add_error('igreja_superior', 'Igrejas Sede/Independente não têm Igreja Superior.')
-        return cleaned_data    
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        conta_padrao_financeiro = self.cleaned_data.get('conta_padrao_financeiro')
+        instance.conta_padrao_receitas = conta_padrao_financeiro
+        instance.conta_padrao_despesas = conta_padrao_financeiro
+        instance.conta_padrao_eventos = self.cleaned_data.get('conta_padrao_eventos')
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 # Você pode adicionar outros formulários aqui conforme necessário,
 # por exemplo, um formulário para editar o PerfilUsuario, etc.

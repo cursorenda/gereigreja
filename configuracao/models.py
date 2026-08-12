@@ -567,6 +567,14 @@ class Igreja(models.Model):
         verbose_name="Conta/Caixa Padrão para Despesas",
         help_text="Conta/Caixa que será pré-selecionada ao registrar novas despesas para esta igreja."
     )
+    conta_padrao_eventos = models.ForeignKey(
+        'financeiro.ContaBancaria',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='igreja_como_padrao_evento',
+        verbose_name="Conta/Caixa Padrão para Eventos",
+        help_text="Conta/Caixa usada automaticamente nas entradas e saídas de eventos desta igreja."
+    )
     data_cadastro = models.DateTimeField(auto_now_add=True, verbose_name="Data de Cadastro")
     data_atualizacao = models.DateTimeField(auto_now=True, verbose_name="Data de Atualização")
  
@@ -623,6 +631,50 @@ class Igreja(models.Model):
         verbose_name_plural = "Igrejas"
         ordering = ['ministerio', 'nome_igreja']
         unique_together = ('ministerio', 'nome_igreja')
+
+
+class Departamento(models.Model):
+    """Entidade organizacional de departamento por igreja, independente do modulo financeiro."""
+
+    TIPO_PADRAO = 'PADRAO'
+    TIPO_PERSONALIZADO = 'PERSONALIZADO'
+
+    TIPO_CHOICES = [
+        (TIPO_PADRAO, 'Padrao do Sistema'),
+        (TIPO_PERSONALIZADO, 'Personalizado'),
+    ]
+
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.CASCADE,
+        related_name='departamentos',
+        verbose_name='Igreja',
+    )
+    codigo_interno = models.CharField(max_length=40, verbose_name='Codigo Interno')
+    nome_exibicao = models.CharField(max_length=120, verbose_name='Nome de Exibicao')
+    tipo_departamento = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default=TIPO_PERSONALIZADO,
+        verbose_name='Tipo de Departamento',
+    )
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    ordem_exibicao = models.PositiveIntegerField(default=100, verbose_name='Ordem de Exibicao')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+
+    class Meta:
+        verbose_name = 'Departamento'
+        verbose_name_plural = 'Departamentos'
+        ordering = ['igreja__ministerio__nome_fantasia', 'igreja__nome_igreja', 'ordem_exibicao', 'nome_exibicao']
+        unique_together = ('igreja', 'codigo_interno')
+
+    def __str__(self):
+        return f"{self.nome_exibicao} ({self.igreja.nome_igreja})"
+
+    def save(self, *args, **kwargs):
+        self.codigo_interno = (self.codigo_interno or '').strip().upper().replace(' ', '_')
+        super().save(*args, **kwargs)
 
 
 class ProgramacaoPadraoIgreja(models.Model):

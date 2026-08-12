@@ -394,12 +394,13 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseRedirect
 from django.db.models import Q # Para buscas
 import logging
-from .models import Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
+from .models import Departamento, Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
 from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
 import django.db.utils # Import django utils
 from decimal import Decimal
-from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm, ProgramacaoPadraoIgrejaForm # Adicionado IgrejaEditForm
+from datetime import date, timedelta
+from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm, ProgramacaoPadraoIgrejaForm, DepartamentoForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import reverse
@@ -538,6 +539,310 @@ def lista_igrejas(request):
         logger.exception(f"Erro ao listar igrejas para ministério {ministerio.id}")
         messages.error(request, f"Ocorreu um erro ao listar as igrejas: {e}")
         return redirect('secretaria:dashboard')
+
+
+@login_required
+@admin_ministerio_required
+def gestao_departamentos(request):
+    """Tela operacional para gerir departamentos da igreja e habilitacao financeira por departamento."""
+    ministerio = get_ministerio_or_error(request)
+
+    allowed_churches = get_allowed_churches_for_user(request.user)
+    if not request.user.is_superuser:
+        allowed_churches = allowed_churches.filter(ministerio=ministerio)
+
+    if not allowed_churches.exists():
+        fallback = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        allowed_churches = fallback
+
+    if not allowed_churches.exists():
+        messages.error(request, 'Nenhuma igreja encontrada para gerenciar departamentos.')
+        return redirect('configuracao:lista_igrejas')
+
+    igreja_id = request.GET.get('igreja_id') or request.POST.get('igreja_id')
+    igreja_contexto = None
+
+    if igreja_id:
+        try:
+            igreja_contexto = allowed_churches.filter(pk=int(igreja_id)).first()
+        except (TypeError, ValueError):
+            igreja_contexto = None
+
+    if igreja_contexto is None and getattr(request, 'igreja_ativa', None):
+        igreja_ativa = request.igreja_ativa
+        if allowed_churches.filter(pk=igreja_ativa.pk).exists():
+            igreja_contexto = igreja_ativa
+
+    if igreja_contexto is None:
+        igreja_contexto = allowed_churches.order_by('nome_igreja').first()
+
+    if igreja_contexto is None:
+        messages.error(request, 'Nao foi possivel determinar a igreja para gerenciamento de departamentos.')
+        return redirect('configuracao:lista_igrejas')
+
+    from financeiro.models import (
+        ContaBancaria,
+        DepartamentoCaixa,
+        DepartamentoFinanceiro,
+        Despesas,
+        FechamentoCaixa,
+        Receitas,
+        FundoDepartamental,
+        PoliticaDepartamentoFinanceiro,
+    )
+    from django.db.models import Sum
+    from financeiro.services import DepartamentoFinanceiroService
+
+    DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(igreja_contexto)
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+
+        if action == 'criar_departamento':
+            form_create = DepartamentoForm(request.POST, igreja=igreja_contexto)
+            if form_create.is_valid():
+                novo = form_create.save()
+                messages.success(request, f'Departamento "{novo.nome_exibicao}" criado com sucesso.')
+            else:
+                messages.error(request, 'Nao foi possivel criar o departamento. Revise os campos informados.')
+
+        elif action == 'editar_departamento':
+            departamento_id = request.POST.get('departamento_id')
+            departamento = Departamento.objects.filter(pk=departamento_id, igreja=igreja_contexto).first()
+            if not departamento:
+                messages.error(request, 'Departamento nao encontrado para edicao.')
+            else:
+                form_edit = DepartamentoForm(
+                    request.POST,
+                    instance=departamento,
+                    igreja=igreja_contexto,
+                    permitir_editar_codigo=False,
+                )
+                if form_edit.is_valid():
+                    atualizado = form_edit.save()
+                    messages.success(request, f'Departamento "{atualizado.nome_exibicao}" atualizado com sucesso.')
+                else:
+                    messages.error(request, 'Nao foi possivel atualizar o departamento. Revise os campos informados.')
+
+        elif action == 'salvar_financeiro_departamento':
+            departamento_id = request.POST.get('departamento_id')
+            departamento = Departamento.objects.filter(pk=departamento_id, igreja=igreja_contexto).first()
+            if not departamento:
+                messages.error(request, 'Departamento nao encontrado para configuracao financeira.')
+            else:
+                habilitar_financeiro = request.POST.get('habilitar_financeiro') == 'on'
+                caixa_padrao_id = (request.POST.get('caixa_padrao_id') or '').strip()
+
+                codigo = (departamento.codigo_interno or '').strip().upper()
+                padroes = {
+                    FundoDepartamental.CODIGO_LOCAL,
+                    FundoDepartamental.CODIGO_EVENTOS,
+                    FundoDepartamental.CODIGO_MISSOES,
+                    FundoDepartamental.CODIGO_ASSISTENCIA,
+                }
+
+                fundo_departamental = None
+                if codigo in padroes:
+                    fundo_departamental, _ = FundoDepartamental.objects.get_or_create(
+                        igreja=igreja_contexto,
+                        codigo=codigo,
+                        defaults={'nome_exibicao': departamento.nome_exibicao, 'ativo': True},
+                    )
+
+                dept_financeiro, _ = DepartamentoFinanceiro.objects.get_or_create(
+                    igreja=igreja_contexto,
+                    codigo_interno=codigo,
+                    defaults={
+                        'nome_exibicao': departamento.nome_exibicao,
+                        'tipo_departamento': DepartamentoFinanceiro.TIPO_PADRAO
+                        if departamento.tipo_departamento == Departamento.TIPO_PADRAO
+                        else DepartamentoFinanceiro.TIPO_PERSONALIZADO,
+                        'ordem_exibicao': departamento.ordem_exibicao,
+                        'ativo': True,
+                        'departamento': departamento,
+                        'fundo_departamental': fundo_departamental,
+                    },
+                )
+
+                dept_financeiro.nome_exibicao = departamento.nome_exibicao
+                dept_financeiro.departamento = departamento
+                dept_financeiro.ordem_exibicao = departamento.ordem_exibicao
+                dept_financeiro.tipo_departamento = (
+                    DepartamentoFinanceiro.TIPO_PADRAO
+                    if departamento.tipo_departamento == Departamento.TIPO_PADRAO
+                    else DepartamentoFinanceiro.TIPO_PERSONALIZADO
+                )
+                dept_financeiro.fundo_departamental = fundo_departamental
+                dept_financeiro.ativo = habilitar_financeiro
+                dept_financeiro.save()
+
+                if caixa_padrao_id:
+                    caixa_padrao = ContaBancaria.objects.filter(pk=caixa_padrao_id, igreja=igreja_contexto).first()
+                    if caixa_padrao:
+                        DepartamentoCaixa.objects.filter(
+                            departamento=dept_financeiro,
+                            is_padrao=True,
+                        ).update(is_padrao=False)
+
+                        vinculo_caixa, _ = DepartamentoCaixa.objects.get_or_create(
+                            departamento=dept_financeiro,
+                            conta_bancaria=caixa_padrao,
+                            defaults={'is_padrao': True, 'ativo': True},
+                        )
+                        if not vinculo_caixa.ativo or not vinculo_caixa.is_padrao:
+                            vinculo_caixa.ativo = True
+                            vinculo_caixa.is_padrao = True
+                            vinculo_caixa.save(update_fields=['ativo', 'is_padrao'])
+                    else:
+                        messages.warning(request, 'Caixa padrao informado nao pertence a igreja em contexto.')
+                elif request.POST.get('limpar_caixa_padrao') == 'on':
+                    DepartamentoCaixa.objects.filter(
+                        departamento=dept_financeiro,
+                        is_padrao=True,
+                    ).update(is_padrao=False)
+
+                politica, _ = PoliticaDepartamentoFinanceiro.objects.get_or_create(
+                    departamento=dept_financeiro,
+                    defaults={
+                        'exige_nota_fiscal': False,
+                        'exige_envio_contabilidade': False,
+                        'permite_prestacao_local_simplificada': True,
+                        'exige_aprovacao_para_saida': False,
+                    },
+                )
+
+                politica.exige_nota_fiscal = request.POST.get('exige_nota_fiscal') == 'on'
+                politica.exige_envio_contabilidade = request.POST.get('exige_envio_contabilidade') == 'on'
+                politica.permite_prestacao_local_simplificada = request.POST.get('permite_prestacao_local_simplificada') == 'on'
+                politica.exige_aprovacao_para_saida = request.POST.get('exige_aprovacao_para_saida') == 'on'
+                politica.save()
+
+                status = 'habilitada' if habilitar_financeiro else 'desabilitada'
+                messages.success(
+                    request,
+                    f'Configuracao financeira do departamento "{departamento.nome_exibicao}" {status} com sucesso.',
+                )
+
+        return redirect(f"{reverse('configuracao:gestao_departamentos')}?igreja_id={igreja_contexto.id}")
+
+    departamentos = list(
+        Departamento.objects.filter(igreja=igreja_contexto).order_by('ordem_exibicao', 'nome_exibicao')
+    )
+    financeiros_qs = DepartamentoFinanceiro.objects.filter(igreja=igreja_contexto).select_related('departamento', 'politica')
+    financeiros_map = {item.departamento_id: item for item in financeiros_qs if item.departamento_id}
+
+    contas_bancarias_disponiveis = list(
+        ContaBancaria.objects.filter(igreja=igreja_contexto).order_by('nome_identificacao')
+    )
+    vinculos_caixa_qs = DepartamentoCaixa.objects.filter(
+        departamento__igreja=igreja_contexto,
+        ativo=True,
+    ).select_related('conta_bancaria', 'departamento')
+
+    caixas_por_departamento = {}
+    caixa_padrao_por_departamento = {}
+    for vinculo in vinculos_caixa_qs:
+        caixas_por_departamento.setdefault(vinculo.departamento_id, []).append(vinculo)
+        if vinculo.is_padrao:
+            caixa_padrao_por_departamento[vinculo.departamento_id] = vinculo.conta_bancaria_id
+
+    departamentos_detalhados = []
+    departamentos_sem_movimentacao_recente = 0
+    for departamento in departamentos:
+        departamento_financeiro = financeiros_map.get(departamento.id)
+        departamento_financeiro_id = departamento_financeiro.id if departamento_financeiro else None
+        pendencias_aprovacao_count = 0
+        pendencias_aprovacao_total = None
+        receitas_total = Decimal('0')
+        despesas_total = Decimal('0')
+        saldo_departamento = Decimal('0')
+        fechamentos_count = 0
+        ultimo_fechamento = None
+        fechamentos_igreja_count = 0
+        ultimo_fechamento_igreja = None
+        ultima_movimentacao_em = None
+        status_saude = 'neutro'
+        status_saude_label = 'Sem financeiro ativo'
+        fechamentos_igreja_qs = FechamentoCaixa.objects.filter(igreja=igreja_contexto)
+        fechamentos_igreja_count = fechamentos_igreja_qs.count()
+        ultimo_fechamento_igreja = fechamentos_igreja_qs.order_by('-data_fechamento').first()
+        if departamento_financeiro and departamento_financeiro.fundo_departamental_id:
+            receitas_qs = Receitas.objects.filter(
+                igreja=igreja_contexto,
+                fundo_departamental=departamento_financeiro.fundo_departamental,
+            )
+            despesas_qs = Despesas.objects.filter(
+                igreja=igreja_contexto,
+                fundo_departamental=departamento_financeiro.fundo_departamental,
+            )
+            pendencias_qs = Despesas.objects.filter(
+                igreja=igreja_contexto,
+                fundo_departamental=departamento_financeiro.fundo_departamental,
+                fechado=False,
+                aprovacao_status=Despesas.APROVACAO_PENDENTE,
+            )
+            pendencias_aprovacao_count = pendencias_qs.count()
+            pendencias_aprovacao_total = pendencias_qs.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+            receitas_total = receitas_qs.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+            despesas_total = despesas_qs.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+            saldo_departamento = receitas_total - despesas_total
+            fechamentos_qs = FechamentoCaixa.objects.filter(
+                igreja=igreja_contexto,
+                fundo_departamental=departamento_financeiro.fundo_departamental,
+            )
+            fechamentos_count = fechamentos_qs.count()
+            ultimo_fechamento = fechamentos_qs.order_by('-data_fechamento').first()
+            ultima_receita = receitas_qs.order_by('-data', '-id').first()
+            ultima_despesa = despesas_qs.order_by('-data', '-id').first()
+            datas_movimentacao = [item.data for item in [ultima_receita, ultima_despesa] if item and item.data]
+            ultima_movimentacao_em = max(datas_movimentacao) if datas_movimentacao else None
+
+            hoje_contexto = date.today()
+            if pendencias_aprovacao_count > 0:
+                status_saude = 'critico'
+                status_saude_label = 'Crítico'
+            elif ultima_movimentacao_em and ultima_movimentacao_em < (hoje_contexto - timedelta(days=60)):
+                status_saude = 'atencao'
+                status_saude_label = 'Atenção'
+                departamentos_sem_movimentacao_recente += 1
+            elif ultima_movimentacao_em:
+                status_saude = 'saudavel'
+                status_saude_label = 'Saudável'
+            else:
+                status_saude = 'atencao'
+                status_saude_label = 'Sem movimentação'
+                departamentos_sem_movimentacao_recente += 1
+        departamentos_detalhados.append(
+            {
+                'departamento': departamento,
+                'departamento_financeiro': departamento_financeiro,
+                'caixas_vinculados': caixas_por_departamento.get(departamento_financeiro_id, []),
+                'caixa_padrao_id': caixa_padrao_por_departamento.get(departamento_financeiro_id),
+                'pendencias_aprovacao_count': pendencias_aprovacao_count,
+                'pendencias_aprovacao_total': pendencias_aprovacao_total,
+                'receitas_total': receitas_total,
+                'despesas_total': despesas_total,
+                'saldo_departamento': saldo_departamento,
+                'fechamentos_count': fechamentos_count,
+                'ultimo_fechamento': ultimo_fechamento,
+                'fechamentos_igreja_count': fechamentos_igreja_count,
+                'ultimo_fechamento_igreja': ultimo_fechamento_igreja,
+                'ultima_movimentacao_em': ultima_movimentacao_em,
+                'status_saude': status_saude,
+                'status_saude_label': status_saude_label,
+            }
+        )
+
+    context = {
+        'ministerio': ministerio,
+        'igrejas_disponiveis': allowed_churches.order_by('nome_igreja'),
+        'igreja_contexto': igreja_contexto,
+        'departamentos_detalhados': departamentos_detalhados,
+        'departamento_form': DepartamentoForm(igreja=igreja_contexto),
+        'contas_bancarias_disponiveis': contas_bancarias_disponiveis,
+        'departamentos_sem_movimentacao_recente': departamentos_sem_movimentacao_recente,
+    }
+    return render(request, 'configuracao/departamentos/gestao_departamentos.html', context)
 
 
 @login_required
@@ -752,6 +1057,8 @@ def centro_ministerial(request):
     from financeiro.models import ContaPagar
     from eventos.models import Evento
     from contas.models import Convite
+    from configuracao.models import Departamento
+    from financeiro.models import DepartamentoFinanceiro
 
     hoje = timezone.localdate()
     agora = timezone.now()
@@ -801,6 +1108,97 @@ def centro_ministerial(request):
     ranking_igrejas = list(
         igrejas_qs.annotate(total_membros=Count('membros', distinct=True))
         .order_by('-total_membros', 'nome_igreja')[:8]
+    )
+
+    modulos_conectados = [
+        {
+            'titulo': 'Departamentos',
+            'descricao': 'Estrutura organizacional central para criar, ativar e governar cada frente do ministério.',
+            'icone': 'fa-layer-group',
+            'rota': reverse('configuracao:gestao_departamentos'),
+            'cta': 'Abrir Departamentos',
+            'relacao': 'Base da operação do ministério.',
+        },
+        {
+            'titulo': 'Secretaria',
+            'descricao': 'Pessoas, vínculos, transferências, cargos e acompanhamento da igreja local.',
+            'icone': 'fa-users',
+            'rota': reverse('secretaria:dashboard'),
+            'cta': 'Ir para Secretaria',
+            'relacao': 'Conecta membros, equipes e liderança.',
+        },
+        {
+            'titulo': 'Agenda e Eventos',
+            'descricao': 'Programação, eventos, convites e celebrações com fluxo operacional unificado.',
+            'icone': 'fa-calendar-check',
+            'rota': reverse('agenda:agenda'),
+            'cta': 'Abrir Agenda',
+            'relacao': 'Cada departamento pode gerar eventos e escalas.',
+        },
+        {
+            'titulo': 'Escola Bíblica',
+            'descricao': 'Turmas, lições, frequência e acompanhamento de formação por igreja.',
+            'icone': 'fa-book-open',
+            'rota': reverse('escola_biblica:dashboard'),
+            'cta': 'Abrir EBD',
+            'relacao': 'Departamentos alimentam turmas e responsabilidades.',
+        },
+        {
+            'titulo': 'Comunicação',
+            'descricao': 'Avisos, campanhas, e-mail e WhatsApp com segmentação por contexto ministerial.',
+            'icone': 'fa-comments',
+            'rota': reverse('comunicacao:home'),
+            'cta': 'Abrir Comunicação',
+            'relacao': 'Distribui mensagens para membros e líderes.',
+        },
+        {
+            'titulo': 'Financeiro',
+            'descricao': 'Receitas, despesas, caixas e prestação de contas por igreja e departamento.',
+            'icone': 'fa-landmark',
+            'rota': reverse('financeiro:painel_financeiro'),
+            'cta': 'Abrir Financeiro',
+            'relacao': 'Camada de governança e prestação.',
+        },
+    ]
+
+    departamentos_qs = Departamento.objects.filter(igreja__ministerio=ministerio)
+    departamentos_financeiros_qs = DepartamentoFinanceiro.objects.filter(igreja__ministerio=ministerio)
+    departamentos_total = departamentos_qs.count()
+    departamentos_ativos = departamentos_qs.filter(ativo=True).count()
+    departamentos_financeiros_ativos = departamentos_financeiros_qs.filter(ativo=True).count()
+    igrejas_com_departamentos = igrejas_qs.filter(departamentos__isnull=False).distinct().count()
+    despesas_pendentes_aprovacao_qs = Despesas.objects.filter(
+        igreja__ministerio=ministerio,
+        fechado=False,
+        aprovacao_status=Despesas.APROVACAO_PENDENTE,
+    )
+    pendencias_aprovacao_departamental = despesas_pendentes_aprovacao_qs.count()
+    valor_pendencias_aprovacao_departamental = despesas_pendentes_aprovacao_qs.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+    fechamentos_abertos_qs = FechamentoCaixa.objects.filter(igreja__ministerio=ministerio, status='aberto')
+    fechamentos_abertos_count = fechamentos_abertos_qs.count()
+    departamentos_sem_financeiro_ativo = max(departamentos_ativos - departamentos_financeiros_ativos, 0)
+    ranking_departamentos_pendentes = list(
+        departamentos_financeiros_qs.filter(fundo_departamental__isnull=False)
+        .annotate(
+            pendencias_qtd=Count(
+                'fundo_departamental__despesas',
+                filter=Q(
+                    fundo_departamental__despesas__fechado=False,
+                    fundo_departamental__despesas__aprovacao_status=Despesas.APROVACAO_PENDENTE,
+                ),
+                distinct=True,
+            ),
+            pendencias_total=Sum(
+                'fundo_departamental__despesas__valor',
+                filter=Q(
+                    fundo_departamental__despesas__fechado=False,
+                    fundo_departamental__despesas__aprovacao_status=Despesas.APROVACAO_PENDENTE,
+                ),
+            ),
+        )
+        .filter(pendencias_qtd__gt=0)
+        .select_related('igreja', 'fundo_departamental')
+        .order_by('-pendencias_qtd', '-pendencias_total', 'nome_exibicao')[:5]
     )
 
     pendencias = []
@@ -859,6 +1257,11 @@ def centro_ministerial(request):
             'acao_texto': 'Abrir dashboard local',
         })
 
+    departamentos_principais = list(
+        departamentos_qs.select_related('igreja')
+        .order_by('igreja__nome_igreja', 'ordem_exibicao', 'nome_exibicao')[:6]
+    )
+
     context = {
         'ministerio': ministerio,
         'igrejas_total': igrejas_total,
@@ -872,8 +1275,19 @@ def centro_ministerial(request):
         'eventos_proximos': list(eventos_proximos_qs[:8]),
         'convites_pendentes': convites_pendentes,
         'ranking_igrejas': ranking_igrejas,
+        'modulos_conectados': modulos_conectados,
         'pendencias': pendencias,
         'atualizado_em': agora,
+        'departamentos_total': departamentos_total,
+        'departamentos_ativos': departamentos_ativos,
+        'departamentos_financeiros_ativos': departamentos_financeiros_ativos,
+        'igrejas_com_departamentos': igrejas_com_departamentos,
+        'departamentos_principais': departamentos_principais,
+        'pendencias_aprovacao_departamental': pendencias_aprovacao_departamental,
+        'valor_pendencias_aprovacao_departamental': valor_pendencias_aprovacao_departamental,
+        'fechamentos_abertos_count': fechamentos_abertos_count,
+        'departamentos_sem_financeiro_ativo': departamentos_sem_financeiro_ativo,
+        'ranking_departamentos_pendentes': ranking_departamentos_pendentes,
     }
     return render(request, 'configuracao/ministerio/centro_ministerial.html', context)
 
@@ -957,7 +1371,7 @@ def editar_igreja_config(request, igreja_id): # Renomeei para evitar conflito co
         if form.is_valid():
             form.save()
             messages.success(request, f"Dados da igreja '{igreja.nome_igreja}' atualizados com sucesso!")
-            return redirect('configuracao:lista_igrejas') # Ou para onde você quiser redirecionar
+            return redirect('configuracao:editar_igreja_config', igreja_id=igreja.id)
 
         messages.error(request, "Erro ao atualizar os dados da igreja. Verifique os campos.")
         return _render_editar_igreja_config_page(request, ministerio, igreja, form=form, status_code=400)
