@@ -276,7 +276,6 @@
 							<div id="naturalidade-sugestoes" class="list-group position-absolute w-100 d-none" style="z-index: 1080; max-height: 220px; overflow-y: auto;"></div>
 						</div>
 						{{ form.naturalidade_cidade_id }}
-						<datalist id="naturalidade-cidades-list"></datalist>
 						<small class="form-text text-muted">Digite para buscar no catálogo global ou informe manualmente.</small>
 						{% if form.naturalidade_cidade_id.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade_cidade_id.errors|striptags }}</div>{% endif %}
 						{% if form.naturalidade.errors %}<div class="invalid-feedback d-block">{{ form.naturalidade.errors|striptags }}</div>{% endif %}
@@ -556,13 +555,10 @@ document.addEventListener('DOMContentLoaded', function () {
 	var inputNaturalidade = document.getElementById('id_naturalidade');
 	var inputNaturalidadeCidadeId = document.getElementById('id_naturalidade_cidade_id');
 	var inputEstado = document.getElementById('id_estado');
-	var listaNaturalidade = document.getElementById('naturalidade-cidades-list');
 	var painelSugestoes = document.getElementById('naturalidade-sugestoes');
-	if (!inputNaturalidade || !inputNaturalidadeCidadeId || !listaNaturalidade || !painelSugestoes) {
+	if (!inputNaturalidade || !inputNaturalidadeCidadeId || !painelSugestoes) {
 		return;
 	}
-
-	inputNaturalidade.setAttribute('list', 'naturalidade-cidades-list');
 	var valorInicial = (inputNaturalidade.value || '').trim();
 	var idInicial = (inputNaturalidadeCidadeId.value || '').trim();
 
@@ -580,7 +576,6 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
 
 	function limparLista() {
-		listaNaturalidade.innerHTML = '';
 		cacheOpcoes.clear();
 		painelSugestoes.innerHTML = '';
 		painelSugestoes.classList.add('d-none');
@@ -593,9 +588,6 @@ document.addEventListener('DOMContentLoaded', function () {
 				return;
 			}
 			cacheOpcoes.set(cidade.display, cidade.id);
-			var option = document.createElement('option');
-			option.value = cidade.display;
-			listaNaturalidade.appendChild(option);
 
 			var item = document.createElement('button');
 			item.type = 'button';
