@@ -351,6 +351,26 @@
     <form id="cadastro-premium-form" method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
 
+        {% if form.errors %}
+        <div class="alert alert-danger mb-3" id="premium-error-summary" role="alert" aria-live="assertive">
+            <strong>Encontramos erros no cadastro.</strong> Revise os campos abaixo e tente novamente:
+            <ul class="mb-0 mt-2 ps-3">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                    <li>
+                        <a href="#{{ field.id_for_label }}" class="premium-error-link" data-field-id="{{ field.id_for_label }}">
+                            {{ field.label|default:field.name }}: {{ error }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
         <div class="premium-steps" role="tablist" aria-label="Etapas do cadastro premium">
             <button type="button" class="premium-step-indicator active" data-step="1" role="tab" aria-selected="true" aria-controls="premium-step-panel-1" id="premium-step-tab-1">1. Dados Pessoais</button>
             <button type="button" class="premium-step-indicator" data-step="2" role="tab" aria-selected="false" aria-controls="premium-step-panel-2" id="premium-step-tab-2">2. Localizacao</button>
@@ -571,6 +591,89 @@
             {id: {{ tag.id }}, nome: "{{ tag.nome|escapejs }}", cor: "{{ tag.cor|escapejs }}"}{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var serverFieldErrors = {
+        {% for field in form %}
+            {% if field.errors %}
+            '{{ field.id_for_label }}': [
+                {% for error in field.errors %}
+                '{{ error|escapejs }}'{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            {% endif %}
+        {% endfor %}
+    };
+
+    function resolveFieldContainer(fieldEl) {
+        return (
+            fieldEl.closest('.col-md-3, .col-md-4, .col-md-6, .col-md-8, .col-12')
+            || fieldEl.parentElement
+        );
+    }
+
+    function showStepForField(fieldEl) {
+        var stepCard = fieldEl.closest('.premium-step-card');
+        if (!stepCard) return;
+
+        var step = stepCard.getAttribute('data-step');
+        if (!step) return;
+
+        document.querySelectorAll('.premium-step-card').forEach(function (card) {
+            var active = card === stepCard;
+            card.style.display = active ? 'block' : 'none';
+            card.setAttribute('aria-hidden', active ? 'false' : 'true');
+        });
+
+        document.querySelectorAll('.premium-step-indicator').forEach(function (indicator) {
+            var isActive = indicator.getAttribute('data-step') === step;
+            indicator.classList.toggle('active', isActive);
+            indicator.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            indicator.setAttribute('aria-current', isActive ? 'step' : 'false');
+        });
+    }
+
+    Object.keys(serverFieldErrors).forEach(function (fieldId) {
+        var fieldEl = document.getElementById(fieldId);
+        if (!fieldEl) return;
+
+        fieldEl.classList.add('field-invalid');
+        fieldEl.setAttribute('aria-invalid', 'true');
+
+        var container = resolveFieldContainer(fieldEl);
+        if (!container) return;
+
+        var existing = container.querySelector('.invalid-feedback.d-block[data-server-error-for="' + fieldId + '"]');
+        if (existing) {
+            existing.remove();
+        }
+
+        var errorEl = document.createElement('div');
+        errorEl.className = 'invalid-feedback d-block';
+        errorEl.setAttribute('data-server-error-for', fieldId);
+        errorEl.textContent = serverFieldErrors[fieldId].join(' ');
+        container.appendChild(errorEl);
+    });
+
+    var firstInvalid = document.querySelector('.field-invalid, [aria-invalid="true"]');
+    if (firstInvalid) {
+        showStepForField(firstInvalid);
+        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    document.querySelectorAll('.premium-error-link[data-field-id]').forEach(function (linkEl) {
+        linkEl.addEventListener('click', function (event) {
+            event.preventDefault();
+            var targetId = linkEl.getAttribute('data-field-id');
+            var targetEl = targetId ? document.getElementById(targetId) : null;
+            if (!targetEl) return;
+            showStepForField(targetEl);
+            targetEl.focus();
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    });
+});
 </script>
 <script src="{% static 'secretaria/form_masks.js' %}?v=20260612-1" defer></script>
 <script src="{% static 'secretaria/form_date_masks.js' %}?v=20260612-2" defer></script>
