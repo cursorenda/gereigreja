@@ -1042,7 +1042,7 @@ def centro_ministerial(request):
     """
     Dashboard premium do ministério com visão consolidada para presidência/admin.
     """
-    from django.db.models import Count, Q
+    from django.db.models import Count, Q, Sum
     from django.utils import timezone
     from secretaria.utils import is_secretaria_leader
 
@@ -1054,7 +1054,7 @@ def centro_ministerial(request):
 
     from configuracao.models import Igreja
     from secretaria.models import Membro
-    from financeiro.models import ContaPagar
+    from financeiro.models import ContaPagar, Despesas, FechamentoCaixa
     from eventos.models import Evento
     from contas.models import Convite
     from configuracao.models import Departamento
