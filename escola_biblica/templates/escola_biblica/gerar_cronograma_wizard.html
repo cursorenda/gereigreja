@@ -42,7 +42,7 @@
                         <label for="id_periodo" class="form-label">Período</label>
                         <select name="periodo" id="id_periodo" class="form-select" required>
                             {% for periodo in periodos %}
-                            <option value="{{ periodo.numero }}">{{ periodo.get_tipo_display }} {{ periodo.numero }} ({{ periodo.data_inicio|date:'d/m/Y' }} - {{ periodo.data_fim|date:'d/m/Y' }})</option>
+                            <option value="{{ periodo.numero }}" {% if periodo.numero == periodo_selecionado %}selected{% endif %}>{{ periodo.get_tipo_display }} {{ periodo.numero }} ({{ periodo.data_inicio|date:'d/m/Y' }} - {{ periodo.data_fim|date:'d/m/Y' }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -50,7 +50,7 @@
                         <label for="id_turmas" class="form-label">Turmas</label>
                         <select name="turmas" id="id_turmas" class="form-select" multiple required>
                             {% for turma in turmas %}
-                            <option value="{{ turma.id }}">{{ turma.nome }}</option>
+                            <option value="{{ turma.id }}" {% if turma.id in turmas_selecionadas %}selected{% endif %}>{{ turma.nome }}</option>
                             {% endfor %}
                         </select>
                         <small class="text-muted">Segure Ctrl (ou Cmd) para selecionar várias turmas.</small>
@@ -75,7 +75,7 @@
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label for="id_material" class="form-label">Material</label>
-                        <input type="text" name="material" id="id_material" class="form-control" value="{{ material|default:'' }}" placeholder="Ex: Revista CPAD, Apostila Jovens, Bíblia, etc.">
+                        <input type="text" name="material" id="id_material" class="form-control" value="{{ material|default:'' }}" maxlength="255" placeholder="Ex: Revista CPAD, Apostila Jovens, Bíblia, etc.">
                     </div>
                     <div class="col-md-3">
                         <label for="id_horario" class="form-label">Horário</label>

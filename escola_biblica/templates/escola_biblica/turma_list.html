@@ -18,10 +18,9 @@
     <div>
         Deseja copiar as turmas, classes e alunos do ano anterior ({{ ano_letivo_selecionado.ano|add:'-1'|unlocalize }}) para {{ ano_letivo_selecionado.ano|unlocalize }}?
     </div>
-    <form method="post" action="{% url 'escola_biblica:copiar_turmas_ano_anterior' %}" style="margin:0;">
-        {% csrf_token %}
+    <form method="get" action="{% url 'escola_biblica:copiar_periodo_selecao' %}" style="margin:0;">
         <input type="hidden" name="ano_destino" value="{{ ano_letivo_selecionado.ano|unlocalize }}">
-        <button type="submit" class="btn btn-primary ms-3">Copiar turmas/classes/alunos</button>
+        <button type="submit" class="btn btn-primary ms-3">Preparar ano letivo</button>
     </form>
 </div>
 {% endif %}
@@ -95,7 +94,7 @@
                 <span style="font-size:1.1rem; font-weight:600;">Turmas</span>
                 <span class="ms-2 text-light" style="font-weight:400;">({{ turmas_total }})</span>
             </div>
-            <a href="{% url 'escola_biblica:turma_create' %}" class="btn btn-primary" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Turma</a>
+            <a href="{% url 'escola_biblica:turma_create' %}?ano_letivo={{ ano_letivo_selecionado.ano|unlocalize }}" class="btn btn-primary" style="height:40px; min-width:120px; font-weight:600; border-radius:8px;">Nova Turma</a>
         </div>
     </div>
     <div class="card-body pt-3 bg-white w-100" style="border-radius:0 0 12px 12px;">

@@ -133,6 +133,62 @@ class PeriodoEBD(models.Model):
     def __str__(self):
         return f"{self.get_tipo_display()} {self.numero} ({self.ano_letivo.ano})"
 
+
+class FechamentoPeriodoEBD(models.Model):
+    """Confirma o fechamento de um período para uma igreja específica.
+
+    O calendário (`PeriodoEBD`) é compartilhado por ano letivo. Por isso o
+    fechamento operacional precisa ser isolado por igreja, sem alterar o
+    período usado pelas demais igrejas do ministério.
+    """
+    periodo = models.ForeignKey(
+        PeriodoEBD,
+        on_delete=models.PROTECT,
+        related_name='fechamentos_por_igreja',
+    )
+    igreja = models.ForeignKey(
+        Igreja,
+        on_delete=models.PROTECT,
+        related_name='fechamentos_ebd',
+    )
+    fechado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fechamentos_periodo_ebd_realizados',
+    )
+    fechado_em = models.DateTimeField(auto_now_add=True)
+    TIPO_NORMAL = 'normal'
+    TIPO_EXCECAO = 'excecao'
+    TIPO_CHOICES = [
+        (TIPO_NORMAL, 'Fechamento normal'),
+        (TIPO_EXCECAO, 'Fechamento com exceção'),
+    ]
+    tipo = models.CharField(max_length=12, choices=TIPO_CHOICES, default=TIPO_NORMAL)
+    motivo_excecao = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['periodo', 'igreja'],
+                name='uq_fechamento_ebd_periodo_igreja',
+            ),
+        ]
+        ordering = ['-fechado_em']
+        verbose_name = 'Fechamento de Período EBD'
+        verbose_name_plural = 'Fechamentos de Períodos EBD'
+
+    def __str__(self):
+        return f'{self.periodo} — {self.igreja}'
+
+    def clean(self):
+        super().clean()
+        if self.tipo == self.TIPO_EXCECAO and not self.motivo_excecao.strip():
+            raise ValidationError({
+                'motivo_excecao': 'Informe o motivo do fechamento com exceção.',
+            })
+
 class Classe(models.Model):
     """Classe de alunos da EBD (faixa etária, nome, etc)."""
     DEPARTAMENTO_CHOICES = [
@@ -200,7 +256,7 @@ class Turma(models.Model):
         if self.classe_id and self.igreja_id and self.classe.igreja_id and self.classe.igreja_id != self.igreja_id:
             raise ValidationError('A turma deve estar vinculada a uma classe da mesma igreja.')
 
-    def get_professor_nome(self):
+    def get_professor_ebd(self):
         from secretaria.models import MembroCargo
         cargos = MembroCargo.objects.filter(
             membro__in=self.membros.all(),
@@ -209,7 +265,13 @@ class Turma(models.Model):
             data_fim__isnull=True
         ).select_related('membro').order_by('membro__nome')
         if cargos.exists():
-            return cargos.first().membro.nome
+            return cargos.first().membro
+        return None
+
+    def get_professor_nome(self):
+        professor = self.get_professor_ebd()
+        if professor is not None:
+            return professor.nome
         return ''
 
 
@@ -721,7 +783,7 @@ class TransferenciaAluno(models.Model):
 class Avaliacao(models.Model):
     """Avaliação do aluno em uma lição."""
     aluno = models.ForeignKey('Aluno', on_delete=models.CASCADE)
-    licao = models.ForeignKey('Licao', on_delete=models.CASCADE)
+    licao = models.ForeignKey('Licao', on_delete=models.PROTECT)
     nota = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     participacao = models.BooleanField(default=False)
     observacao = models.TextField(blank=True)
@@ -730,6 +792,27 @@ class Avaliacao(models.Model):
 
     class Meta:
         unique_together = ("aluno", "licao")
+
+    def clean(self):
+        if not self.aluno_id or not self.licao_id:
+            return
+
+        if self.aluno.turma_id != self.licao.turma_id:
+            raise ValidationError({
+                'aluno': 'O aluno deve pertencer a turma da licao avaliada.'
+            })
+
+        matricula_referencia = self.aluno.cadastro.get_matricula_referencia(
+            data_referencia=self.licao.data,
+        )
+        if matricula_referencia is None or matricula_referencia.pk != self.aluno_id:
+            raise ValidationError({
+                'aluno': 'O aluno nao estava matriculado nesta turma na data da licao.'
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.aluno} - {self.licao} - Nota: {self.nota}"

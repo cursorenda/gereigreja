@@ -67,7 +67,14 @@
                         </div>
                         <div class="mb-3">
                             <label for="{{ form.membros.id_for_label }}" class="form-label">Professores/Colaboradores da Turma:</label>
-                            {{ form.membros|add_attrs:'class=form-select,multiple=multiple' }}
+                            <details class="border rounded bg-white" id="{{ form.membros.id_for_label }}">
+                                <summary class="form-select border-0" style="cursor:pointer; list-style:none;">
+                                    Selecionar professores/colaboradores
+                                </summary>
+                                <div class="p-2 border-top" style="max-height:180px; overflow-y:auto;">
+                                    {{ form.membros }}
+                                </div>
+                            </details>
                             {% if form.membros.errors %}<div class="invalid-feedback d-block">{{ form.membros.errors|striptags }}</div>{% endif %}
                         </div>
                     </div>

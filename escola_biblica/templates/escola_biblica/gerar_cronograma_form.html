@@ -3,10 +3,8 @@
 {% block header %}
   {% include 'partials/_header.html' %}
 {% endblock %}
-
 {% block sidebar %}
 {% endblock %}
-
 {% block content %}
 <div class="container-fluid px-4 mt-3">
     <h2 class="mb-0">Gerar Aulas</h2>
@@ -125,13 +123,16 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-5">
+            <div class="col-5 d-none">
               <label for="id_professor_modal" class="form-label">Professor responsável</label>
               <input type="text" name="professor" id="id_professor_modal" class="form-control" value="" readonly>
             </div>
           </div>
+          <div class="alert alert-info py-2" role="alert">
+            O período, dia e horário das aulas seguem a configuração da igreja vinculada à turma.
+          </div>
           <div class="row mb-3">
-            <div class="col-6">
+            <div class="col-6 d-none">
               <label for="id_periodicidade_modal" class="form-label">Periodicidade</label>
               <select name="periodicidade" id="id_periodicidade_modal" class="form-select">
                 <option value="semanal" selected>Semanal</option>
@@ -149,11 +150,11 @@
             <textarea name="observacoes" id="id_obs_modal" class="form-control" rows="2" placeholder="Opcional"></textarea>
           </div>
           <div class="row mb-3">
-            <div class="col-6">
+            <div class="col-6 d-none">
               <label for="id_data_inicial_modal" class="form-label">Data inicial <span class="text-danger">*</span></label>
               <input type="date" name="data_inicial" id="id_data_inicial_modal" class="form-control" required>
             </div>
-            <div class="col-6">
+            <div class="col-6 d-none">
               <label for="id_horario_modal" class="form-label">Horário padrão</label>
               <input type="time" name="horario" id="id_horario_modal" class="form-control" value="">
             </div>
@@ -177,23 +178,4 @@
   </div>
 </div>
 {% endblock %}
-
-{% block extra_js %}
-<script>
-  var turmaProfessores = {
-    {% for turma in turmas %}
-      '{{ turma.id }}': '{{ turma.get_professor_nome|escapejs }}'{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  };
-  document.addEventListener('DOMContentLoaded', function() {
-    var turmaSelect = document.getElementById('id_turma_modal');
-    var professorInput = document.getElementById('id_professor_modal');
-    if (turmaSelect && professorInput) {
-      turmaSelect.addEventListener('change', function() {
-        var turmaId = turmaSelect.value;
-        professorInput.value = turmaProfessores[turmaId] || '';
-      });
-    }
-  });
-</script>
-{% endblock %}
+{# fim do template #}

@@ -170,6 +170,18 @@
 							<small>Planeje lições e sequência de aulas.</small>
 						</span>
 					</a>
+					{% if pode_preparar_ano_letivo %}
+					<a href="{% url 'escola_biblica:copiar_periodo_selecao' %}?ano_destino={{ ano_destino_preparo|unlocalize }}" class="ebdash-quick-action">
+						<span class="icon"><i class="fas fa-calendar-plus"></i></span>
+						<span class="content">
+							<strong>Preparar ano letivo {{ ano_destino_preparo|unlocalize }}</strong>
+							<small>Selecione turmas, alunos e colaboradores para o novo ano.</small>
+						</span>
+					</a>
+					{% endif %}
+					{% if ebd_periodo_atual %}
+					<a href="{% url 'escola_biblica:fechamento_periodo' ebd_periodo_atual.id %}" class="ebdash-quick-action"><span class="icon"><i class="fas fa-lock"></i></span><span class="content"><strong>Fechar período</strong><small>Revise pendências ou registre uma exceção.</small></span></a>
+					{% endif %}
 					{% if ebd_config_igreja_link %}
 					<a href="{{ ebd_config_igreja_link }}" class="ebdash-quick-action">
 						<span class="icon"><i class="fas fa-sliders"></i></span>
@@ -235,6 +247,7 @@
 		<div class="ebdash-insights-grid">
 			<article id="centro-resumo-semanal" class="ebdash-insight-card is-info">
 				<div class="head"><span><i class="fas fa-envelope-open-text"></i> Resumo Semanal da EBD</span></div>
+				<small class="text-muted d-block mb-2">Escopo: {{ scope_label }} | Ano letivo: {{ ano_letivo_selecionado.ano|unlocalize }}</small>
 				{% if resumo_semanal %}
 				<p>
 					Turmas com chamada: {{ resumo_semanal.turmas_com_chamada }}/{{ resumo_semanal.turmas_previstas }} |

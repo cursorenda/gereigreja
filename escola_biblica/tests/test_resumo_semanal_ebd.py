@@ -75,6 +75,38 @@ class EBDResumoSemanalTest(TestCase):
         self.assertEqual(resumo['frequencia_media'], 50.0)
         self.assertEqual(resumo['total_ofertas'], 50.0)
 
+    def test_build_resumo_semanal_ebd_respeita_igreja_e_ano_letivo(self):
+        outra_igreja = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Outra Igreja Resumo EBD',
+            tipo_igreja='congregacao',
+        )
+        classe_outra = Classe.objects.create(igreja=outra_igreja, nome='Classe Outra')
+        Turma.objects.create(
+            nome='Turma Outra Igreja',
+            igreja=outra_igreja,
+            classe=classe_outra,
+            ano_letivo=self.ano_letivo,
+        )
+        ano_anterior = AnoLetivo.objects.create(ano=self.ano_letivo.ano - 1, ativo=False)
+        Turma.objects.create(
+            nome='Turma Ano Anterior',
+            igreja=self.igreja,
+            classe=Classe.objects.create(igreja=self.igreja, nome='Classe Anterior'),
+            ano_letivo=ano_anterior,
+        )
+
+        resumo = build_resumo_semanal_ebd(
+            self.ministerio,
+            timezone.localdate() - timedelta(days=7),
+            timezone.localdate(),
+            igrejas=[self.igreja],
+            ano_letivo=self.ano_letivo,
+        )
+
+        self.assertEqual(resumo['turmas_previstas'], 1)
+        self.assertEqual(resumo['turmas_sem_chamada'], 1)
+
     def test_formatar_resumo_semanal_ebd_retorna_texto_operacional(self):
         hoje = timezone.localdate()
         resumo = {

@@ -1,5 +1,5 @@
 from django import forms
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.forms import BaseFormSet, formset_factory
 from .models import Aluno, Turma, Frequencia, Licao, Avaliacao, Classe, OfertaClasse, Departamento, DEPARTAMENTOS_SUGERIDOS, TransferenciaAluno
 
@@ -63,9 +63,14 @@ class AlunoForm(forms.ModelForm):
 
         igrejas = _get_request_scoped_churches(request)
         if igrejas is not None and 'turma' in self.fields:
-            self.fields['turma'].queryset = Turma.objects.filter(
+            turmas = Turma.objects.filter(
                 Q(igreja__in=igrejas) | Q(igreja__isnull=True, membros__igreja__in=igrejas)
-            ).distinct().order_by('nome')
+            ).distinct()
+            if request is not None:
+                from .services_permissoes import filtrar_turmas_para_usuario
+
+                turmas = filtrar_turmas_para_usuario(turmas, request.user)
+            self.fields['turma'].queryset = turmas.order_by('nome')
 
     class Meta:
         model = Aluno
@@ -86,11 +91,21 @@ class TurmaForm(forms.ModelForm):
             data_fim__isnull=True
         ).values_list('membro_id', flat=True)
         if 'membros' in self.fields:
-            queryset = self.fields['membros'].queryset.filter(chave__in=membros_ebd_ids)
+            queryset = self.fields['membros'].queryset.filter(chave__in=membros_ebd_ids).distinct()
             igrejas = _get_request_scoped_churches(request)
             if igrejas is not None:
                 queryset = queryset.filter(igreja__in=igrejas).distinct()
-            self.fields['membros'].queryset = queryset.order_by('nome')
+            cargos_ativos = MembroCargo.objects.filter(
+                cargo__is_ebd=True,
+                data_fim__isnull=True,
+            ).select_related('cargo')
+            self.fields['membros'].queryset = queryset.prefetch_related(
+                Prefetch('membrocargo_set', queryset=cargos_ativos),
+            ).order_by('nome', 'chave')
+            self.fields['membros'].label_from_instance = self._rotulo_colaborador_ebd
+            widget_membros = forms.CheckboxSelectMultiple()
+            widget_membros.choices = self.fields['membros'].choices
+            self.fields['membros'].widget = widget_membros
 
         igrejas = _get_request_scoped_churches(request)
         if igrejas is not None:
@@ -103,6 +118,15 @@ class TurmaForm(forms.ModelForm):
                 self.fields['classe'].queryset = Classe.objects.filter(
                     Q(igreja__in=igrejas) | Q(igreja__isnull=True)
                 ).distinct().order_by('nome')
+
+    @staticmethod
+    def _rotulo_colaborador_ebd(membro):
+        cargos = sorted({
+            vinculo.cargo.nome
+            for vinculo in membro.membrocargo_set.all()
+            if vinculo.cargo.is_ebd and vinculo.data_fim is None
+        })
+        return f"{membro.nome} — {', '.join(cargos)}" if cargos else membro.nome
 
 class FrequenciaForm(forms.ModelForm):
     class Meta:
@@ -127,6 +151,11 @@ class LicaoForm(forms.ModelForm):
             turmas = turmas.filter(
                 Q(igreja__in=igrejas) | Q(igreja__isnull=True, membros__igreja__in=igrejas)
             ).distinct()
+
+        if request is not None:
+            from .services_permissoes import filtrar_turmas_para_usuario
+
+            turmas = filtrar_turmas_para_usuario(turmas, request.user)
 
         self.fields['professor'].queryset = professores.order_by('nome')
         if 'turma' in self.fields:
@@ -156,15 +185,27 @@ class AvaliacaoForm(forms.ModelForm):
             aluno_queryset = Aluno.objects.filter(Q(ativo=True) | Q(pk=self.instance.aluno_id))
 
         igrejas = _get_request_scoped_churches(request)
+        turmas_professor = None
+        if request is not None:
+            from .services_permissoes import get_turmas_professor, usuario_pode_gerenciar_ebd
+
+            if not usuario_pode_gerenciar_ebd(request.user):
+                turmas_professor = get_turmas_professor(request.user)
         if igrejas is not None:
             if 'aluno' in self.fields:
-                self.fields['aluno'].queryset = aluno_queryset.filter(
+                alunos = aluno_queryset.filter(
                     Q(turma__igreja__in=igrejas) | Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas)
-                ).select_related('cadastro', 'turma').distinct().order_by('nome')
+                )
+                if turmas_professor is not None:
+                    alunos = alunos.filter(turma__in=turmas_professor)
+                self.fields['aluno'].queryset = alunos.select_related('cadastro', 'turma').distinct().order_by('nome')
             if 'licao' in self.fields:
-                self.fields['licao'].queryset = Licao.objects.filter(
+                licoes = Licao.objects.filter(
                     Q(turma__igreja__in=igrejas) | Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas)
-                ).distinct().order_by('-data', 'tema')
+                )
+                if turmas_professor is not None:
+                    licoes = licoes.filter(turma__in=turmas_professor)
+                self.fields['licao'].queryset = licoes.distinct().order_by('-data', 'tema')
 
         if 'aluno' in self.fields:
             self.fields['aluno'].label_from_instance = lambda obj: f"{obj.cadastro.nome} - {obj.turma}{' (histórico)' if not obj.ativo else ''}"
@@ -175,6 +216,11 @@ class AvaliacaoForm(forms.ModelForm):
         licao = cleaned_data.get('licao')
         if not aluno or not licao or not aluno.cadastro_id:
             return cleaned_data
+
+        if aluno.turma_id != licao.turma_id:
+            raise forms.ValidationError(
+                'Selecione um aluno matriculado na turma da licao.'
+            )
 
         matricula_referencia = aluno.cadastro.get_matricula_referencia(data_referencia=licao.data)
         if matricula_referencia is not None and matricula_referencia.pk != aluno.pk:
@@ -200,9 +246,14 @@ class OfertaClasseForm(forms.ModelForm):
 
         igrejas = _get_request_scoped_churches(request)
         if igrejas is not None and 'turma' in self.fields:
-            self.fields['turma'].queryset = Turma.objects.filter(
+            turmas = Turma.objects.filter(
                 Q(igreja__in=igrejas) | Q(igreja__isnull=True, membros__igreja__in=igrejas)
-            ).distinct().order_by('nome')
+            ).distinct()
+            if request is not None:
+                from .services_permissoes import filtrar_turmas_para_usuario
+
+                turmas = filtrar_turmas_para_usuario(turmas, request.user)
+            self.fields['turma'].queryset = turmas.order_by('nome')
 
     class Meta:
         model = OfertaClasse
@@ -220,9 +271,14 @@ class TransferenciaAlunoForm(forms.ModelForm):
                     Q(turma__igreja__in=igrejas) | Q(turma__igreja__isnull=True, turma__membros__igreja__in=igrejas)
                 ).distinct().order_by('nome')
             if 'turma_destino' in self.fields:
-                self.fields['turma_destino'].queryset = Turma.objects.filter(
+                turmas_destino = Turma.objects.filter(
                     Q(igreja__in=igrejas) | Q(igreja__isnull=True, membros__igreja__in=igrejas)
-                ).distinct().order_by('nome')
+                ).distinct()
+                if request is not None:
+                    from .services_permissoes import filtrar_turmas_para_usuario
+
+                    turmas_destino = filtrar_turmas_para_usuario(turmas_destino, request.user)
+                self.fields['turma_destino'].queryset = turmas_destino.order_by('nome')
 
     class Meta:
         model = TransferenciaAluno
@@ -243,17 +299,18 @@ class DepartamentoForm(forms.ModelForm):
 
 class GerarCronogramaForm(forms.Form):
     turma = forms.ModelChoiceField(queryset=Turma.objects.all(), required=True)
-    data_inicial = forms.DateField(required=True, widget=forms.DateInput(attrs={'type': 'date'}))
-    periodicidade = forms.ChoiceField(choices=[('semanal', 'Semanal'), ('quinzenal', 'Quinzenal'), ('mensal', 'Mensal')], required=True)
     material = forms.CharField(required=False, widget=forms.TextInput())
     observacoes = forms.CharField(widget=forms.Textarea, required=False)
-    horario = forms.TimeField(required=False, widget=forms.TimeInput(attrs={'type': 'time'}))
     status = forms.ChoiceField(choices=[('ativa', 'Ativa'), ('rascunho', 'Rascunho')], required=True)
-    professor = forms.CharField(required=False, widget=forms.TextInput())
 
     def __init__(self, *args, **kwargs):
         request = kwargs.pop('request', None)
+        turmas = kwargs.pop('turmas', None)
         super().__init__(*args, **kwargs)
+
+        if turmas is not None:
+            self.fields['turma'].queryset = turmas.order_by('nome')
+            return
 
         igrejas = _get_request_scoped_churches(request)
         if igrejas is not None:

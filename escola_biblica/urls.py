@@ -66,6 +66,7 @@ urlpatterns = [
 
     # Períodos e cópias
     path('abrir_novo_periodo/', views.abrir_novo_periodo, name='abrir_novo_periodo'),
+    path('periodos/<int:periodo_id>/fechar/', views.fechamento_periodo, name='fechamento_periodo'),
     path('copiar_turmas_ano_anterior/', views.copiar_turmas_ano_anterior, name='copiar_turmas_ano_anterior'),
     path('copiar_periodo_selecao/', views.copiar_periodo_selecao, name='copiar_periodo_selecao'),
 

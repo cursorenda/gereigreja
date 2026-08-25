@@ -1,0 +1,9 @@
+{% extends 'base_com_sistema.html' %}
+{% block title %}Fechar período EBD{% endblock %}
+{% block conteudo_principal %}
+<div class="card"><div class="card-header"><h3>Fechar {{ periodo }}</h3></div><div class="card-body">
+<p><strong>Igreja:</strong> {{ igreja }}</p>
+{% if diagnostico.aulas_pendentes %}<div class="alert alert-warning">{{ diagnostico.motivo }}</div><ul>{% for item in diagnostico.pendencias %}<li>{{ item.turma_nome }} — {{ item.data|date:'d/m/Y' }}</li>{% endfor %}</ul>{% elif not diagnostico.pode_fechar %}<div class="alert alert-warning">{{ diagnostico.motivo }}</div>{% else %}<div class="alert alert-success">Período pronto para fechamento normal.</div>{% endif %}
+<form method="post">{% csrf_token %}{% if diagnostico.permite_excecao %}<label for="motivo_excecao">Motivo da exceção</label><textarea class="form-control" id="motivo_excecao" name="motivo_excecao" required>{{ motivo_excecao }}</textarea>{% endif %}{% if diagnostico.pode_fechar or diagnostico.permite_excecao %}<button class="btn btn-primary mt-3" type="submit">Confirmar fechamento</button>{% endif %}<a class="btn btn-outline-secondary mt-3" href="{% url 'escola_biblica:dashboard' %}">Voltar</a></form>
+</div></div>
+{% endblock %}

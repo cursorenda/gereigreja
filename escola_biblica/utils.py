@@ -84,7 +84,7 @@ def gerar_licoes_periodos(ano, tipo_periodo, turmas, material='', observacoes=''
     for periodo in periodos:
         domingos = gerar_domingos_periodo(periodo['data_inicio'], periodo['data_fim'])
         for turma in turmas:
-            professor = turma.get_professor_nome() if hasattr(turma, 'get_professor_nome') else ''
+            professor = turma.get_professor_ebd() if hasattr(turma, 'get_professor_ebd') else None
             for idx, domingo in enumerate(domingos, start=1):
                 licoes.append({
                     'turma': turma,
@@ -121,12 +121,20 @@ def get_faixa_semana_anterior(data_base=None):
     return inicio, fim
 
 
-def build_resumo_semanal_ebd(ministerio, data_inicio, data_fim):
+def build_resumo_semanal_ebd(
+    ministerio, data_inicio, data_fim, *, igrejas=None, ano_letivo=None,
+):
+    """Monta o resumo semanal, opcionalmente limitado ao escopo exibido."""
     from django.db.models import Q, Sum
 
     from .models import Aluno, Frequencia, OfertaClasse, Turma
 
-    turmas_qs = Turma.objects.filter(igreja__ministerio=ministerio).distinct()
+    turmas_qs = Turma.objects.filter(igreja__ministerio=ministerio)
+    if igrejas is not None:
+        turmas_qs = turmas_qs.filter(igreja__in=igrejas)
+    if ano_letivo is not None:
+        turmas_qs = turmas_qs.filter(ano_letivo=ano_letivo)
+    turmas_qs = turmas_qs.distinct()
     turmas_ids = list(turmas_qs.values_list('id', flat=True))
     turmas_previstas = len(turmas_ids)
 
@@ -143,19 +151,22 @@ def build_resumo_semanal_ebd(ministerio, data_inicio, data_fim):
     turmas_com_chamada = frequencias_qs.values_list('aluno__turma_id', flat=True).distinct().count()
     turmas_sem_chamada = max(turmas_previstas - turmas_com_chamada, 0)
 
-    total_ofertas = float(
-        OfertaClasse.objects.filter(
-            data__gte=data_inicio,
-            data__lte=data_fim,
-        ).filter(
-            Q(turma__igreja__ministerio=ministerio)
-            | Q(turma__isnull=True, classe__igreja__ministerio=ministerio)
-        ).aggregate(total=Sum('valor'))['total']
-        or 0
+    ofertas_qs = OfertaClasse.objects.filter(
+        data__gte=data_inicio,
+        data__lte=data_fim,
+    ).filter(
+        Q(turma__in=turmas_qs)
+        | Q(turma__isnull=True, classe__igreja__ministerio=ministerio)
     )
+    if igrejas is not None:
+        ofertas_qs = ofertas_qs.filter(
+            Q(turma__in=turmas_qs)
+            | Q(turma__isnull=True, classe__igreja__in=igrejas)
+        )
+    total_ofertas = float(ofertas_qs.aggregate(total=Sum('valor'))['total'] or 0)
 
     alunos_novos = Aluno.objects.filter(
-        turma__igreja__ministerio=ministerio,
+        turma__in=turmas_qs,
         created_at__date__gte=data_inicio,
         created_at__date__lte=data_fim,
     ).count()
