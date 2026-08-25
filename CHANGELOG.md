@@ -1,3 +1,19 @@
+# v1.14.26 — 25/08/2026
+🚀 **Consolidação operacional, segurança de chamadas e usabilidade da Escola Bíblica Dominical**
+
+### Entregas
+- Reforço do escopo de chamada: professor EBD acessa e registra chamada somente nas turmas às quais está vinculado.
+- Preservação dos acessos operacionais já existentes para secretaria, superintendência e administração EBD.
+- Evolução da gestão de turmas: seletor de professores e colaboradores com cargos visíveis e opções sem duplicação visual.
+- Consolidação dos fluxos de dashboard, período letivo, chamadas, relatórios e governança operacional da EBD.
+- Ampliação da cobertura automatizada da EBD, incluindo regressão de autorização de chamada por turma.
+- Atualização dos guias operacionais, design system e segurança relacionados ao módulo.
+
+### Validação
+- Suíte automatizada da EBD: 137 testes aprovados, sem falhas.
+
+---
+
 # v1.14.25 — 12/08/2026
 🚀 **Governança, financeiro por departamento e fluxo operacional em lote**
 
