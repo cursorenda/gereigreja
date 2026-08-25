@@ -73,6 +73,40 @@ Regras:
 - Relatorios e graficos mais confiaveis por respeitar periodo oficial.
 - Menor chance de inconsistencias de calendario.
 
+## Integridade adicional de dados
+
+### Copia de turmas entre anos
+
+- A turma de destino e identificada por `nome + igreja + ano_letivo`.
+- Classes e alunos copiados permanecem no escopo da mesma igreja.
+- A operacao e transacional e impede duplicar o mesmo aluno na turma de destino.
+- Cada copia anual gera evento de auditoria com usuario, igreja em escopo, anos envolvidos e totais processados.
+
+### Preparacao do ano letivo
+
+- A secretaria seleciona explicitamente as classes, turmas e alunos que continuarao no novo ano.
+- Professores e colaboradores vinculados as turmas selecionadas tambem sao copiados.
+- Ao concluir a copia, o sistema cria os periodos necessarios e gera as licoes do novo ano.
+- O calendario de cada turma usa a configuracao da sua igreja: periodo, dia da semana e horario.
+- A geracao e idempotente: uma nova execucao nao duplica turmas, matriculas ou licoes.
+
+### Avaliacoes
+
+- O aluno avaliado deve pertencer a mesma turma da licao.
+- A matricula precisa estar vigente na data da licao, inclusive em consultas historicas.
+- A regra e validada tanto no formulario quanto no modelo, protegendo interfaces e integracoes.
+
+### Chamada de presenca
+
+- O POST da chamada aceita somente a lista completa, sem duplicatas, dos alunos ativos da turma acessada.
+- Identificadores manipulados de alunos de outra turma sao recusados sem gravar frequencia.
+- A chamada continua protegida por idempotencia e bloqueio de concorrencia.
+
+### Desempenho da chamada
+
+- A pagina reutiliza na propria requisicao as verificacoes de grupos, ministerio e modulos permitidos.
+- O fluxo possui testes de orcamento de consultas e de regressao N+1.
+
 ## Riscos e mitigacoes
 
 Risco: mudar `ebd_periodo` no meio do ano pode alterar a janela esperada.  
@@ -83,10 +117,11 @@ Mitigacao: validacoes bloqueiam novos registros inconsistentes; tratar legados e
 
 ## Operacao recomendada
 
-1. Definir `ebd_periodo` e `ebd_dia_semana` no ministerio.
+1. Definir `ebd_periodo`, `ebd_dia_semana` e horario na igreja; na ausencia de override local, usar a configuracao do ministerio.
 2. Acessar dashboard/chamada/turmas para disparar auto-sync inicial.
 3. Verificar se periodos e licoes foram gerados no ano vigente.
-4. Monitorar mensagens de validacao em caso de tentativa fora de periodo.
+4. Na virada anual, abrir "Preparar Ano Letivo", selecionar os dados que continuarao e confirmar a copia.
+5. Monitorar mensagens de validacao em caso de tentativa fora de periodo.
 
 ## Checklist tecnico
 
@@ -94,4 +129,9 @@ Mitigacao: validacoes bloqueiam novos registros inconsistentes; tratar legados e
 - [x] Utilitario por dia da semana configurado
 - [x] Validacoes de dominio em Licao/Frequencia/Oferta
 - [x] Constraint `turma + data` para licoes
+- [x] Copia anual isolada por igreja e sem duplicacao de alunos
+- [x] Preparacao anual seletiva com geracao automatica de licoes por configuracao da igreja
+- [x] Avaliacao vinculada a turma e matricula historica corretas
+- [x] Chamada protegida contra aluno de outra turma no POST
+- [x] Orcamento de consultas para a chamada
 - [x] `manage.py check` sem erros
