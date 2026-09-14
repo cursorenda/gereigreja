@@ -11,7 +11,9 @@ This file also speeds up tests by using the MD5 password hasher and a
 lightweight email backend.
 """
 
-from .settings import *  # noqa: F401,F403
+# Herda do ambiente local seguro para nao carregar `.env` nem integracoes
+# produtivas antes de aplicar os overrides especificos da suite.
+from .settings_local import *  # noqa: F401,F403
 
 # Use a fast, in-memory SQLite DB for tests
 DATABASES = {

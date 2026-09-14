@@ -112,5 +112,16 @@ logs/
 contexto_gereigreja.md
 CHAT_RESPOSTAS.md
 docs/ANALISE_SISTEMA_DEPLOY.md
+# --- Bancos SQLite locais adicionais ---
+db.*.sqlite3
+
+# --- Sandbox local de migrations ---
+core/settings_local_migration_sandbox.py
+
+# --- Artefatos locais de auditoria ---
+auditoria_permissoes_codigo.txt
 
 # Keep these lists intentional: add other patterns if you discover more artifacts to ignore.
+
+# Google Drive - arquivos temporários de sincronização
+*.tmp.driveupload

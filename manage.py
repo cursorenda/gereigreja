@@ -6,10 +6,9 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    # Force the default settings module to the production/dev settings.
-    # This prevents accidental usage of test settings (e.g., core.test_settings)
-    # when running manage.py commands in local shells.
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'core.settings'
+    # Comandos locais sao seguros por padrao. Ambientes nao locais devem
+    # declarar o settings explicitamente no processo ou via --settings.
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings_local')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
