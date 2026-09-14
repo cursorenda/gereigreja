@@ -1,5 +1,6 @@
 import subprocess
 import os
+import re
 from datetime import datetime
 from django.conf import settings
 from .models import DeployHistorico
@@ -146,16 +147,22 @@ def obter_commits_desde_ultimo_deploy():
         return f"- (Erro ao obter commits: {str(e)})"
 
 
+# Formato canonico atual do CHANGELOG.md: "# vX.Y.Z — DD/MM/AAAA".
+# A expressao aceita de 1 a 6 "#" para tambem reconhecer a variante
+# historica de dois "#" sem quebrar o formato canonico vigente.
+_VERSAO_CHANGELOG_RE = re.compile(r'^#{1,6}\s*v(\d+\.\d+\.\d+)\b')
+
+
 def obter_versao_atual():
     """Lê a versão atual do CHANGELOG.md"""
     try:
         changelog_path = os.path.join(settings.BASE_DIR, 'CHANGELOG.md')
         with open(changelog_path, 'r', encoding='utf-8') as f:
             for linha in f:
-                if linha.startswith('## v'):
-                    # Extrai a versão (ex: "## v1.0.9" -> "1.0.9")
-                    versao = linha.split('—')[0].replace('## v', '').strip()
-                    return versao
+                match = _VERSAO_CHANGELOG_RE.match(linha.strip())
+                if match:
+                    # Extrai a versão (ex: "# v1.14.26 — 25/08/2026" -> "1.14.26")
+                    return match.group(1)
         return '1.0.0'
     except:
         return '1.0.0'

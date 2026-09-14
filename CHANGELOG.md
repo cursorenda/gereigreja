@@ -1,3 +1,45 @@
+# v1.15.0 — 14/09/2026
+🚀 **Departamentos ministeriais, isolamento do tenant Demo, escopo canônico de igreja e ambientes locais seguros**
+
+### Entregas
+- Departamentos ministeriais:
+  - novo modelo `DepartamentoMinisterial` com capacidades e classificação;
+  - novo vínculo `DepartamentoVinculo` entre pessoa e departamento;
+  - hub do departamento, visão "meus departamentos" e gestão ministerial;
+  - novo serviço `configuracao/services_departamentos.py` centralizando as regras;
+  - migrations `0040`, `0041` e `0042`.
+- Isolamento do tenant de demonstração:
+  - novo campo `Ministerio.is_demo` (migration `0043`);
+  - neutralização de envios reais de comunicação (WhatsApp e e-mail) quando o ministério é Demo;
+  - novo serviço `core/services/email.py` para centralizar envio e neutralização;
+  - comando `popular_demo` passa a marcar o tenant Demo explicitamente;
+  - remoção do handler legado `enviar_whatsapp_novo_membro`, que referenciava símbolos não importados e causava `NameError` no `post_save` de `secretaria.Pessoa`.
+- Escopo canônico de igreja e permissões:
+  - novo helper `core.utils.get_igrejas_selecionaveis()`;
+  - `ActiveChurchMiddleware` passa a validar a igreja ativa contra o escopo canônico, descartando-a da sessão quando fora do escopo;
+  - auto-seleção de igreja quando o usuário possui exatamente uma igreja no escopo;
+  - cache por requisição para grupos e ministério do usuário, reduzindo consultas repetidas;
+  - nova regra de entrada no módulo Financeiro para Administrador do Ministério, restrita a igreja ativa do tipo Sede ou Independente.
+- Landing ministerial:
+  - Administrador do Ministério passa a abrir o Centro Ministerial após o login, sem cair no portal do membro nem em igreja escolhida arbitrariamente.
+- Ambientes locais seguros:
+  - `manage.py` passa a usar `core.settings_local` como padrão;
+  - novos `core/settings_local.py` e `core/settings_test_migrations.py`;
+  - `core/settings_test.py` passa a herdar do ambiente local seguro.
+- Saneamento do processo de release:
+  - leitura da versão do `CHANGELOG.md` passa a reconhecer o formato canônico `# vX.Y.Z`, corrigindo o fallback indevido para `1.0.0`.
+- Reorganização documental:
+  - consolidação das famílias de documentação, com retirada das famílias `design/`, `ui/`, `templates/` e `marketing/` e realocação de release notes para `docs/release-notes/`.
+
+### Impacto
+- Introduz camada departamental reutilizável para organização, eventos e financeiro.
+- Elimina risco de comunicação real disparada a partir de ambiente de demonstração.
+- Torna explícito o escopo de igreja do usuário, evitando operação local acidental.
+- Reduz consultas repetidas por requisição em verificação de grupos, ministério e módulos.
+- Separa desenvolvimento local, testes e testes de migration do fluxo produtivo legado.
+
+---
+
 # v1.14.26 — 25/08/2026
 🚀 **Consolidação operacional, segurança de chamadas e usabilidade da Escola Bíblica Dominical**
 
