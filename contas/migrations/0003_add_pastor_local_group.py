@@ -17,9 +17,9 @@ def criar_grupo_pastor_local(apps, schema_editor):
     pastor_local, created = Group.objects.get_or_create(name='Pastor Local')
     
     if created:
-        print("✅ Grupo 'Pastor Local' criado com sucesso")
+        print("[OK] Grupo 'Pastor Local' criado com sucesso")
     else:
-        print("ℹ️  Grupo 'Pastor Local' já existe")
+        print("[INFO] Grupo 'Pastor Local' ja existe")
     
     # Obter ContentTypes dos módulos
     try:
@@ -33,10 +33,10 @@ def criar_grupo_pastor_local(apps, schema_editor):
             content_type__in=[pessoa_ct, cargo_ct, familia_ct, visita_ct]
         )
         pastor_local.permissions.add(*secretaria_perms)
-        print(f"✅ Permissões de Secretaria adicionadas: {secretaria_perms.count()}")
+        print(f"[OK] Permissoes de Secretaria adicionadas: {secretaria_perms.count()}")
         
     except ContentType.DoesNotExist:
-        print("⚠️  ContentType 'secretaria' não encontrado - pular permissões de secretaria")
+        print("[WARN] ContentType 'secretaria' nao encontrado - pular permissoes de secretaria")
     
     # Financeiro: Visualização (não lançamento)
     try:
@@ -49,10 +49,10 @@ def criar_grupo_pastor_local(apps, schema_editor):
             codename__startswith='view_'
         )
         pastor_local.permissions.add(*financeiro_perms)
-        print(f"✅ Permissões de visualização financeira adicionadas: {financeiro_perms.count()}")
+        print(f"[OK] Permissoes de visualizacao financeira adicionadas: {financeiro_perms.count()}")
         
     except ContentType.DoesNotExist:
-        print("⚠️  ContentType 'financeiro' não encontrado - pular permissões financeiras")
+        print("[WARN] ContentType 'financeiro' nao encontrado - pular permissoes financeiras")
     
     # Eventos: Pode gerenciar eventos da igreja
     try:
@@ -63,10 +63,10 @@ def criar_grupo_pastor_local(apps, schema_editor):
             content_type__in=[evento_ct, inscricao_ct]
         )
         pastor_local.permissions.add(*eventos_perms)
-        print(f"✅ Permissões de Eventos adicionadas: {eventos_perms.count()}")
+        print(f"[OK] Permissoes de Eventos adicionadas: {eventos_perms.count()}")
         
     except ContentType.DoesNotExist:
-        print("⚠️  ContentType 'eventos' não encontrado - pular permissões de eventos")
+        print("[WARN] ContentType 'eventos' nao encontrado - pular permissoes de eventos")
     
     # Comunicação: Envio de mensagens e avisos
     try:
@@ -74,10 +74,10 @@ def criar_grupo_pastor_local(apps, schema_editor):
         
         comunicacao_perms = Permission.objects.filter(content_type=aviso_ct)
         pastor_local.permissions.add(*comunicacao_perms)
-        print(f"✅ Permissões de Comunicação adicionadas: {comunicacao_perms.count()}")
+        print(f"[OK] Permissoes de Comunicacao adicionadas: {comunicacao_perms.count()}")
         
     except ContentType.DoesNotExist:
-        print("⚠️  ContentType 'comunicacao' não encontrado - pular permissões de comunicação")
+        print("[WARN] ContentType 'comunicacao' nao encontrado - pular permissoes de comunicacao")
     
     # EBD: Visualização
     try:
@@ -89,12 +89,12 @@ def criar_grupo_pastor_local(apps, schema_editor):
             codename__startswith='view_'
         )
         pastor_local.permissions.add(*ebd_perms)
-        print(f"✅ Permissões de visualização EBD adicionadas: {ebd_perms.count()}")
+        print(f"[OK] Permissoes de visualizacao EBD adicionadas: {ebd_perms.count()}")
         
     except ContentType.DoesNotExist:
-        print("⚠️  ContentType 'escola_biblica' não encontrado - pular permissões EBD")
+        print("[WARN] ContentType 'escola_biblica' nao encontrado - pular permissoes EBD")
     
-    print(f"✅ Total de permissões atribuídas a 'Pastor Local': {pastor_local.permissions.count()}")
+    print(f"[OK] Total de permissoes atribuidas a 'Pastor Local': {pastor_local.permissions.count()}")
 
 
 def reverter_grupo_pastor_local(apps, schema_editor):
@@ -104,9 +104,9 @@ def reverter_grupo_pastor_local(apps, schema_editor):
     try:
         pastor_local = Group.objects.get(name='Pastor Local')
         pastor_local.delete()
-        print("✅ Grupo 'Pastor Local' removido")
+        print("[OK] Grupo 'Pastor Local' removido")
     except Group.DoesNotExist:
-        print("ℹ️  Grupo 'Pastor Local' não existe")
+        print("[INFO] Grupo 'Pastor Local' nao existe")
 
 
 class Migration(migrations.Migration):

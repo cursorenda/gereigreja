@@ -10,13 +10,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='membroscargos',
-            name='cargo',
-        ),
+        # Remova a constraint antes dos campos usados por ela; o SQLite
+        # reconstroi a tabela ao executar RemoveField.
         migrations.AlterUniqueTogether(
             name='membroscargos',
             unique_together=None,
+        ),
+        migrations.RemoveField(
+            model_name='membroscargos',
+            name='cargo',
         ),
         migrations.RemoveField(
             model_name='membroscargos',
