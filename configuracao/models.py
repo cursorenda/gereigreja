@@ -347,6 +347,17 @@ class Ministerio(models.Model):
         help_text="ID do cliente no Stripe, usado para gerenciar assinaturas."
     )
 
+    # Identificador canonico de tenant de demonstracao.
+    # Runtime deve depender exclusivamente deste campo.
+    # Nunca usar username/nome fantasia como barreira de autorizacao.
+    is_demo = models.BooleanField(
+        default=False,
+        verbose_name='É ministério de demonstração',
+        help_text='Identifica este ministério como ambiente de demonstração isolado. '
+                  'Quando True, efeitos externos (WhatsApp/e-mail) são neutralizados.',
+        db_index=True,
+    )
+
     def __str__(self):
         return self.nome_fantasia
 
@@ -644,11 +655,29 @@ class Departamento(models.Model):
         (TIPO_PERSONALIZADO, 'Personalizado'),
     ]
 
+    CLASSIFICACAO_ORGANIZACIONAL = 'ORGANIZACIONAL'
+    CLASSIFICACAO_CONTEXTO_FINANCEIRO_SISTEMA = 'CONTEXTO_FINANCEIRO_SISTEMA'
+    CLASSIFICACAO_LEGADO_SUGERIDO = 'LEGADO_SUGERIDO'
+
+    CLASSIFICACAO_CHOICES = [
+        (CLASSIFICACAO_ORGANIZACIONAL, 'Departamento organizacional'),
+        (CLASSIFICACAO_CONTEXTO_FINANCEIRO_SISTEMA, 'Contexto financeiro do sistema'),
+        (CLASSIFICACAO_LEGADO_SUGERIDO, 'Legado sugerido para confirmação'),
+    ]
+
     igreja = models.ForeignKey(
         Igreja,
         on_delete=models.CASCADE,
         related_name='departamentos',
         verbose_name='Igreja',
+    )
+    departamento_ministerial = models.ForeignKey(
+        'DepartamentoMinisterial',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='departamentos_locais',
+        verbose_name='Definição ministerial',
     )
     codigo_interno = models.CharField(max_length=40, verbose_name='Codigo Interno')
     nome_exibicao = models.CharField(max_length=120, verbose_name='Nome de Exibicao')
@@ -657,6 +686,12 @@ class Departamento(models.Model):
         choices=TIPO_CHOICES,
         default=TIPO_PERSONALIZADO,
         verbose_name='Tipo de Departamento',
+    )
+    classificacao = models.CharField(
+        max_length=35,
+        choices=CLASSIFICACAO_CHOICES,
+        default=CLASSIFICACAO_ORGANIZACIONAL,
+        verbose_name='Classificação',
     )
     ativo = models.BooleanField(default=True, verbose_name='Ativo')
     ordem_exibicao = models.PositiveIntegerField(default=100, verbose_name='Ordem de Exibicao')
@@ -675,6 +710,171 @@ class Departamento(models.Model):
     def save(self, *args, **kwargs):
         self.codigo_interno = (self.codigo_interno or '').strip().upper().replace(' ', '_')
         super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if (
+            self.departamento_ministerial_id
+            and self.igreja_id
+            and self.departamento_ministerial.ministerio_id != self.igreja.ministerio_id
+        ):
+            raise ValidationError(
+                {'departamento_ministerial': 'A definição ministerial deve pertencer ao mesmo ministério da igreja.'}
+            )
+
+
+class DepartamentoMinisterial(models.Model):
+    """Definição organizacional de departamento disponível às igrejas do ministério."""
+
+    ministerio = models.ForeignKey(
+        Ministerio,
+        on_delete=models.CASCADE,
+        related_name='departamentos_ministeriais',
+        verbose_name='Ministério',
+    )
+    codigo = models.CharField(max_length=40, verbose_name='Código')
+    nome = models.CharField(max_length=120, verbose_name='Nome')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    ordem = models.PositiveIntegerField(default=100, verbose_name='Ordem')
+
+    class Meta:
+        verbose_name = 'Departamento ministerial'
+        verbose_name_plural = 'Departamentos ministeriais'
+        ordering = ['ministerio__nome_fantasia', 'ordem', 'nome']
+        constraints = [
+            models.UniqueConstraint(fields=['ministerio', 'codigo'], name='uniq_departamento_ministerial_codigo'),
+        ]
+        indexes = [
+            models.Index(fields=['ministerio', 'ativo', 'ordem'], name='dep_ministerial_list_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.nome} ({self.ministerio.nome_fantasia})'
+
+    def save(self, *args, **kwargs):
+        self.codigo = (self.codigo or '').strip().upper().replace(' ', '_')
+        super().save(*args, **kwargs)
+
+
+class DepartamentoCapacidade(models.Model):
+    """Capacidades operacionais declaradas por departamento, sem conceder permissões."""
+
+    PESSOAS = 'PESSOAS'
+    AGENDA = 'AGENDA'
+    EVENTOS = 'EVENTOS'
+    COMUNICACAO = 'COMUNICACAO'
+    ESCALAS = 'ESCALAS'
+    TAREFAS = 'TAREFAS'
+    FINANCEIRO = 'FINANCEIRO'
+    ALMOXARIFADO = 'ALMOXARIFADO'
+
+    CAPACIDADE_CHOICES = [
+        (PESSOAS, 'Pessoas'),
+        (AGENDA, 'Agenda'),
+        (EVENTOS, 'Eventos'),
+        (COMUNICACAO, 'Comunicação'),
+        (ESCALAS, 'Escalas'),
+        (TAREFAS, 'Tarefas'),
+        (FINANCEIRO, 'Financeiro'),
+        (ALMOXARIFADO, 'Almoxarifado'),
+    ]
+
+    departamento = models.ForeignKey(
+        Departamento,
+        on_delete=models.CASCADE,
+        related_name='capacidades',
+        verbose_name='Departamento',
+    )
+    capacidade = models.CharField(max_length=20, choices=CAPACIDADE_CHOICES, verbose_name='Capacidade')
+    ativa = models.BooleanField(default=True, verbose_name='Ativa')
+
+    class Meta:
+        verbose_name = 'Capacidade do Departamento'
+        verbose_name_plural = 'Capacidades dos Departamentos'
+        unique_together = ('departamento', 'capacidade')
+        ordering = ['capacidade']
+
+    def __str__(self):
+        return f"{self.departamento.nome_exibicao}: {self.get_capacidade_display()}"
+
+
+class DepartamentoVinculo(models.Model):
+    """Vinculo historico de uma pessoa com a equipe de um departamento local."""
+
+    departamento = models.ForeignKey(
+        Departamento,
+        on_delete=models.PROTECT,
+        related_name='vinculos',
+        verbose_name='Departamento',
+    )
+    membro = models.ForeignKey(
+        'secretaria.Pessoa',
+        on_delete=models.PROTECT,
+        related_name='vinculos_departamentais',
+        verbose_name='Membro',
+    )
+    cargo = models.ForeignKey(
+        'secretaria.Cargo',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='vinculos_departamentais',
+        verbose_name='Cargo no departamento',
+    )
+    data_inicio = models.DateField(default=timezone.localdate, verbose_name='Data de inicio')
+    data_fim = models.DateField(null=True, blank=True, verbose_name='Data de fim')
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vinculos_departamentais_criados',
+        verbose_name='Criado por',
+    )
+    encerrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vinculos_departamentais_encerrados',
+        verbose_name='Encerrado por',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+
+    class Meta:
+        verbose_name = 'Vinculo de departamento'
+        verbose_name_plural = 'Vinculos de departamentos'
+        ordering = ['departamento', 'membro__nome', '-data_inicio', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['departamento', 'membro'],
+                condition=models.Q(data_fim__isnull=True),
+                name='uniq_dep_vinculo_ativo_membro',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(data_fim__isnull=True) | models.Q(data_fim__gte=models.F('data_inicio')),
+                name='dep_vinculo_datas_validas',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['departamento', 'data_fim'], name='dep_vinculo_dep_fim_idx'),
+            models.Index(fields=['membro', 'data_fim'], name='dep_vinculo_membro_fim_idx'),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.departamento_id and self.membro_id and self.departamento.igreja_id != self.membro.igreja_id:
+            raise ValidationError('Membro e departamento devem pertencer a mesma igreja.')
+        if self.data_fim and self.data_inicio and self.data_fim < self.data_inicio:
+            raise ValidationError({'data_fim': 'A data de fim nao pode ser anterior a data de inicio.'})
+
+    @property
+    def ativo(self):
+        return self.data_fim is None
+
+    def __str__(self):
+        return f'{self.membro} - {self.departamento} ({self.data_fim or "ativo"})'
 
 
 class ProgramacaoPadraoIgreja(models.Model):
