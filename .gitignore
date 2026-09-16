@@ -125,3 +125,6 @@ auditoria_permissoes_codigo.txt
 
 # Google Drive - arquivos temporários de sincronização
 *.tmp.driveupload
+
+# Metadados do Windows / Google Drive
+desktop.ini
