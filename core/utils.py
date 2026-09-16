@@ -182,6 +182,38 @@ def get_ministerio_or_error(request):
 # FUNÇÕES DE ESCOPO HIERÁRQUICO
 # ===================================
 
+def get_igrejas_selecionaveis(user, ministerio=None):
+    """Retorna o escopo organizacional canônico do seletor de igreja.
+
+    Este escopo não concede permissão funcional. Admin Ministério pode
+    selecionar as igrejas do próprio ministério; os demais perfis dependem
+    exclusivamente dos vínculos explícitos em ``PerfilUsuario``.
+    """
+    from configuracao.models import Igreja
+    from contas.constants import user_is_admin
+
+    if not getattr(user, 'is_authenticated', False):
+        return Igreja.objects.none()
+
+    perfil = getattr(user, 'perfil', None) or getattr(user, 'perfil_usuario', None)
+    ministerio_perfil = getattr(perfil, 'ministerio', None)
+
+    if user.is_superuser:
+        if ministerio is not None:
+            return Igreja.objects.filter(ministerio=ministerio)
+        return Igreja.objects.all()
+
+    if not ministerio_perfil:
+        return Igreja.objects.none()
+
+    if ministerio is not None and ministerio.pk != ministerio_perfil.pk:
+        return Igreja.objects.none()
+
+    if user_is_admin(user):
+        return Igreja.objects.filter(ministerio=ministerio_perfil)
+
+    return perfil.igrejas_permitidas.filter(ministerio=ministerio_perfil)
+
 def get_igrejas_permitidas(user, ministerio=None):
     """
     Retorna queryset de igrejas que o usuário pode acessar baseado em seu escopo hierárquico.

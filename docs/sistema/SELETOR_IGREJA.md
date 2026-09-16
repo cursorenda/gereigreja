@@ -734,3 +734,37 @@ Admin Org > Finanças > Membros > Outros
 
 **Para modificar no futuro:**
 Sempre mantenha retrocompatibilidade. Use deprecation warnings antes de remover código antigo.
+
+---
+
+## Atualização normativa: hardening do contexto de igreja (agosto de 2026)
+
+A fonte canônica das igrejas que podem ser escolhidas no contexto global é
+`core.utils.get_igrejas_selecionaveis()`. O middleware, o seletor visual e o
+endpoint de troca devem consumir esse mesmo escopo.
+
+- Admin Ministério pode selecionar as igrejas do próprio Ministério.
+- Demais perfis dependem exclusivamente de `PerfilUsuario.igrejas_permitidas`
+  dentro do próprio Ministério.
+- Perfis locais, inclusive Pastor Local e Secretário Local, não recebem igrejas
+  subordinadas por expansão hierárquica.
+- Escopo ausente permanece vazio (fail-closed).
+
+Uma igreja selecionável não é, por si só, uma igreja autorizada em qualquer
+módulo. Cada módulo conserva sua política adicional; em especial, o Financeiro
+continua usando seu helper financeiro canônico. A sessão armazena apenas o
+contexto escolhido e nunca é fonte de autorização. O middleware deve revalidar
+o ID a cada request e removê-lo quando ficar obsoleto ou o escopo se tornar vazio.
+
+A troca ocorre somente por POST com CSRF. O parâmetro opcional `next` deve ser
+validado por `url_has_allowed_host_and_scheme`; valores externos, inclusive URLs
+protocol-relative, usam fallback interno seguro.
+
+As trocas bem-sucedidas, limpezas e tentativas negadas geram logging estruturado
+temporário com identificadores de usuário, Ministério e igrejas envolvidas, sem
+dados sensíveis. Esse logging **não substitui auditoria persistente**. Uma trilha
+semântica persistente própria para troca de contexto permanece dívida técnica.
+
+Filtros próprios mantidos por Secretaria, Eventos, EBD, Agenda e Comunicação
+também permanecem como dívida técnica para futura convergência; este hardening
+não altera suas políticas de negócio.

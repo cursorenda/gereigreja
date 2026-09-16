@@ -1,0 +1,69 @@
+{% extends 'base_com_menu.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Departamentos do Ministério</h1>
+            <p class="text-muted mb-0">Definições disponíveis para as igrejas de {{ ministerio.nome_fantasia }}.</p>
+        </div>
+        <a class="btn btn-outline-primary" href="{% url 'configuracao:gestao_departamentos' %}">
+            <i class="fas fa-church me-1"></i> Gestão local
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Novo departamento ministerial</div>
+        <div class="card-body">
+            <form method="post" class="row g-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="criar_departamento_ministerial">
+                <div class="col-md-3">{{ departamento_ministerial_form.codigo.label_tag }}{{ departamento_ministerial_form.codigo }}</div>
+                <div class="col-md-5">{{ departamento_ministerial_form.nome.label_tag }}{{ departamento_ministerial_form.nome }}</div>
+                <div class="col-md-2">{{ departamento_ministerial_form.ordem.label_tag }}{{ departamento_ministerial_form.ordem }}</div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <div class="form-check mb-2">{{ departamento_ministerial_form.ativo }}{{ departamento_ministerial_form.ativo.label_tag }}</div>
+                </div>
+                <div class="col-12"><button class="btn btn-primary" type="submit"><i class="fas fa-plus me-1"></i> Criar definição</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">Definições ministeriais</div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Departamento</th><th>Código</th><th>Estado</th><th>Igrejas vinculadas</th><th>Ordem</th><th></th></tr></thead>
+                <tbody>
+                    {% for departamento in departamentos_ministeriais %}
+                    <tr>
+                        <td>{{ departamento.nome }}</td>
+                        <td><code>{{ departamento.codigo }}</code></td>
+                        <td>{% if departamento.ativo %}<span class="badge bg-success">Ativo</span>{% else %}<span class="badge bg-secondary">Inativo</span>{% endif %}</td>
+                        <td>{{ departamento.total_igrejas_vinculadas }}</td>
+                        <td>{{ departamento.ordem }}</td>
+                        <td class="text-end">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#editar-departamento-{{ departamento.id }}">Editar</button>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="editar-departamento-{{ departamento.id }}"><td colspan="6">
+                        <form method="post" class="row g-2 py-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="editar_departamento_ministerial">
+                            <input type="hidden" name="departamento_ministerial_id" value="{{ departamento.id }}">
+                            <div class="col-md-3"><input class="form-control" name="codigo" value="{{ departamento.codigo }}" required></div>
+                            <div class="col-md-5"><input class="form-control" name="nome" value="{{ departamento.nome }}" required></div>
+                            <div class="col-md-2"><input class="form-control" name="ordem" type="number" min="0" value="{{ departamento.ordem }}" required></div>
+                            <div class="col-md-1 d-flex align-items-center"><div class="form-check"><input class="form-check-input" name="ativo" type="checkbox" {% if departamento.ativo %}checked{% endif %}><label class="form-check-label">Ativo</label></div></div>
+                            <div class="col-md-1"><button class="btn btn-primary btn-sm" type="submit">Salvar</button></div>
+                        </form>
+                    </td></tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-muted">Nenhuma definição ministerial cadastrada.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

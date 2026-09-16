@@ -1,6 +1,7 @@
 # c:\Gereigreja\financeiro\templatetags\financeiro_tags.py
 from django import template
 from financeiro.utils import is_finance_leader, get_allowed_churches_for_user # Importa as funções que já criamos
+from core.utils import get_igrejas_selecionaveis
 from configuracao.models import Igreja # Para o caso de retorno vazio na nova tag
 import logging
 
@@ -49,7 +50,10 @@ def get_churches_tree_ordered(context):
             and hasattr(request.user, 'perfil') and request.user.perfil):
         return []
     try:
-        churches = list(get_allowed_churches_for_user(request.user))
+        churches_scope = getattr(request, 'igrejas_permitidas', None)
+        if churches_scope is None:
+            churches_scope = get_igrejas_selecionaveis(request.user)
+        churches = list(churches_scope)
 
         sedes       = sorted([c for c in churches if c.tipo_igreja in ('sede', 'independente')], key=lambda x: x.nome_igreja)
         regionais   = sorted([c for c in churches if c.tipo_igreja == 'regional'],               key=lambda x: x.nome_igreja)

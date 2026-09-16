@@ -1,8 +1,13 @@
-﻿from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import get_user_model
 from .forms import ConfiguracaoSistemaForm
 from .models import ConfiguracaoSistema
-from contas.constants import ADMIN_MINISTERIO, user_is_admin
+from contas.constants import (
+    ADMIN_MINISTERIO,
+    PASTOR_LOCAL,
+    SECRETARIO_LOCAL,
+    user_is_admin,
+)
 from core.decorators import user_passes_test_or_403, admin_ministerio_required, verificar_assinatura_valida  # Importar decorator que lança 403 e assinatura
 from configuracao.services_assinatura import (
     contar_pessoas_ativas,
@@ -394,20 +399,21 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseRedirect
 from django.db.models import Q # Para buscas
 import logging
-from .models import Departamento, Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
+from .models import Departamento, DepartamentoCapacidade, DepartamentoMinisterial, Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
+from contas.page_permissions import user_can_access_page
 from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
 import django.db.utils # Import django utils
 from decimal import Decimal
 from datetime import date, timedelta
-from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm, ProgramacaoPadraoIgrejaForm, DepartamentoForm # Adicionado IgrejaEditForm
+from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm, ProgramacaoPadraoIgrejaForm, DepartamentoCapacidadesForm, DepartamentoForm, DepartamentoMinisterialForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import reverse
 # Ajuste o import de get_allowed_churches_for_user se você a moveu para core.utils
 from financeiro.utils import get_allowed_churches_for_user # Importar para set_active_church
 
-from core.utils import get_ministerio_or_error # Importar de core.utils
+from core.utils import get_igrejas_selecionaveis, get_ministerio_or_error # Importar de core.utils
 from .models import AtualizacaoSistema
 
 
@@ -418,6 +424,8 @@ from core.decorators import verificar_assinatura_valida # Ou o caminho correto
 from .forms import UserEditForm, PerfilUsuarioEditForm
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.utils.http import url_has_allowed_host_and_scheme
 import json
 
 from django.contrib.admin.views.decorators import staff_member_required
@@ -543,17 +551,91 @@ def lista_igrejas(request):
 
 @login_required
 @admin_ministerio_required
+def gestao_departamentos_ministeriais(request):
+    """Gestão mínima das definições departamentais do ministério em contexto."""
+    from django.db.models import Count
+
+    ministerio = get_ministerio_or_error(request)
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action == 'criar_departamento_ministerial':
+            form = DepartamentoMinisterialForm(request.POST, ministerio=ministerio)
+            if form.is_valid():
+                from configuracao.services_gestao_departamentos import DepartamentoGestaoService
+
+                try:
+                    DepartamentoGestaoService.criar_definicao_ministerial(
+                        ministerio=ministerio,
+                        dados=form.cleaned_data,
+                    )
+                except ValidationError as exc:
+                    messages.error(request, '; '.join(exc.messages))
+                else:
+                    messages.success(request, 'Departamento ministerial criado com sucesso.')
+            else:
+                messages.error(request, 'Não foi possível criar o departamento ministerial. Revise os campos informados.')
+        elif action == 'editar_departamento_ministerial':
+            departamento = get_object_or_404(
+                DepartamentoMinisterial,
+                pk=request.POST.get('departamento_ministerial_id'),
+                ministerio=ministerio,
+            )
+            form = DepartamentoMinisterialForm(request.POST, instance=departamento, ministerio=ministerio)
+            if form.is_valid():
+                from configuracao.services_gestao_departamentos import DepartamentoGestaoService
+
+                try:
+                    DepartamentoGestaoService.atualizar_definicao_ministerial(
+                        definicao=departamento,
+                        ministerio=ministerio,
+                        dados=form.cleaned_data,
+                    )
+                except ValidationError as exc:
+                    messages.error(request, '; '.join(exc.messages))
+                else:
+                    messages.success(request, 'Departamento ministerial atualizado com sucesso.')
+            else:
+                messages.error(request, 'Não foi possível atualizar o departamento ministerial. Revise os campos informados.')
+        return redirect('configuracao:gestao_departamentos_ministeriais')
+
+    departamentos = DepartamentoMinisterial.objects.filter(ministerio=ministerio).annotate(
+        total_igrejas_vinculadas=Count('departamentos_locais__igreja', distinct=True),
+    ).order_by('ordem', 'nome')
+    return render(
+        request,
+        'configuracao/departamentos/gestao_departamentos_ministeriais.html',
+        {
+            'ministerio': ministerio,
+            'departamentos_ministeriais': departamentos,
+            'departamento_ministerial_form': DepartamentoMinisterialForm(ministerio=ministerio),
+        },
+    )
+
+
+def _usuario_pode_gerir_departamentos_locais(user):
+    """Autoriza somente a gestao estrutural ministerial ou local de departamentos."""
+    return user_is_admin(user) or user.groups.filter(
+        name__in=[PASTOR_LOCAL, SECRETARIO_LOCAL],
+    ).exists()
+
+
+def _igrejas_para_gestao_departamentos(request, ministerio):
+    """Reutiliza o escopo canônico de igrejas, limitado ao Ministério em contexto."""
+    igrejas_permitidas = getattr(request, 'igrejas_permitidas', None)
+    if igrejas_permitidas is None:
+        igrejas_permitidas = get_igrejas_selecionaveis(
+            request.user,
+            ministerio=ministerio,
+        )
+    return igrejas_permitidas.filter(ministerio=ministerio)
+
+
 def gestao_departamentos(request):
     """Tela operacional para gerir departamentos da igreja e habilitacao financeira por departamento."""
     ministerio = get_ministerio_or_error(request)
 
-    allowed_churches = get_allowed_churches_for_user(request.user)
-    if not request.user.is_superuser:
-        allowed_churches = allowed_churches.filter(ministerio=ministerio)
-
-    if not allowed_churches.exists():
-        fallback = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
-        allowed_churches = fallback
+    allowed_churches = _igrejas_para_gestao_departamentos(request, ministerio)
 
     if not allowed_churches.exists():
         messages.error(request, 'Nenhuma igreja encontrada para gerenciar departamentos.')
@@ -567,6 +649,8 @@ def gestao_departamentos(request):
             igreja_contexto = allowed_churches.filter(pk=int(igreja_id)).first()
         except (TypeError, ValueError):
             igreja_contexto = None
+        if igreja_contexto is None:
+            raise Http404('Igreja fora do escopo permitido.')
 
     if igreja_contexto is None and getattr(request, 'igreja_ativa', None):
         igreja_ativa = request.igreja_ativa
@@ -580,6 +664,7 @@ def gestao_departamentos(request):
         messages.error(request, 'Nao foi possivel determinar a igreja para gerenciamento de departamentos.')
         return redirect('configuracao:lista_igrejas')
 
+    action_requisitada = (request.POST.get('action') or '').strip()
     from financeiro.models import (
         ContaBancaria,
         DepartamentoCaixa,
@@ -591,26 +676,46 @@ def gestao_departamentos(request):
         PoliticaDepartamentoFinanceiro,
     )
     from django.db.models import Sum
-    from financeiro.services import DepartamentoFinanceiroService
+    pode_gerir_financeiro_departamentos = user_is_admin(request.user)
+    if (
+        pode_gerir_financeiro_departamentos
+        and action_requisitada not in {
+            'ativar_departamento_ministerial',
+            'desativar_departamento_ministerial',
+        }
+    ):
+        from financeiro.services import DepartamentoFinanceiroService
 
-    DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(igreja_contexto)
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(igreja_contexto)
 
     if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
+        action = action_requisitada
 
         if action == 'criar_departamento':
-            form_create = DepartamentoForm(request.POST, igreja=igreja_contexto)
-            if form_create.is_valid():
-                novo = form_create.save()
-                messages.success(request, f'Departamento "{novo.nome_exibicao}" criado com sucesso.')
-            else:
-                messages.error(request, 'Nao foi possivel criar o departamento. Revise os campos informados.')
+            raise PermissionDenied('Departamentos estruturais devem ser criados na Gestao Ministerial.')
 
         elif action == 'editar_departamento':
             departamento_id = request.POST.get('departamento_id')
             departamento = Departamento.objects.filter(pk=departamento_id, igreja=igreja_contexto).first()
             if not departamento:
                 messages.error(request, 'Departamento nao encontrado para edicao.')
+            elif departamento.departamento_ministerial_id:
+                form_capacidades = DepartamentoCapacidadesForm(request.POST)
+                if form_capacidades.is_valid():
+                    from configuracao.services_gestao_departamentos import DepartamentoGestaoService
+
+                    try:
+                        DepartamentoGestaoService.atualizar_capacidades(
+                            departamento=departamento,
+                            igreja=igreja_contexto,
+                            capacidades=form_capacidades.cleaned_data['capacidades'],
+                        )
+                    except ValidationError as exc:
+                        messages.error(request, '; '.join(exc.messages))
+                    else:
+                        messages.success(request, f'Capacidades locais de "{departamento.nome_exibicao}" atualizadas com sucesso.')
+                else:
+                    messages.error(request, 'Nao foi possivel atualizar as capacidades locais.')
             else:
                 form_edit = DepartamentoForm(
                     request.POST,
@@ -620,11 +725,88 @@ def gestao_departamentos(request):
                 )
                 if form_edit.is_valid():
                     atualizado = form_edit.save()
-                    messages.success(request, f'Departamento "{atualizado.nome_exibicao}" atualizado com sucesso.')
+                    from configuracao.services_gestao_departamentos import DepartamentoGestaoService
+
+                    try:
+                        DepartamentoGestaoService.atualizar_capacidades(
+                            departamento=atualizado,
+                            igreja=igreja_contexto,
+                            capacidades=form_edit.cleaned_data['capacidades'],
+                        )
+                    except ValidationError as exc:
+                        messages.error(request, '; '.join(exc.messages))
+                    else:
+                        messages.success(request, f'Departamento "{atualizado.nome_exibicao}" atualizado com sucesso.')
                 else:
                     messages.error(request, 'Nao foi possivel atualizar o departamento. Revise os campos informados.')
 
+        elif action == 'confirmar_legado_departamento':
+            departamento_id = request.POST.get('departamento_id')
+            departamento = Departamento.objects.filter(
+                pk=departamento_id,
+                igreja=igreja_contexto,
+                classificacao=Departamento.CLASSIFICACAO_LEGADO_SUGERIDO,
+                departamento_ministerial__isnull=True,
+            ).first()
+            if not departamento:
+                messages.error(request, 'Departamento legado nao encontrado para confirmacao.')
+            else:
+                from configuracao.services_gestao_departamentos import DepartamentoGestaoService
+
+                try:
+                    DepartamentoGestaoService.confirmar_legado(
+                        departamento=departamento,
+                        igreja=igreja_contexto,
+                    )
+                except ValidationError as exc:
+                    messages.error(request, '; '.join(exc.messages))
+                else:
+                    messages.success(
+                        request,
+                        f'Departamento "{departamento.nome_exibicao}" confirmado como departamento da igreja.',
+                    )
+
+        elif action == 'ativar_departamento_ministerial':
+            definicao = get_object_or_404(
+                DepartamentoMinisterial.objects.exclude(codigo__in=['LOCAL', 'EVENTOS']),
+                pk=request.POST.get('departamento_ministerial_id'),
+                ministerio=igreja_contexto.ministerio,
+                ativo=True,
+            )
+            from configuracao.services_gestao_departamentos import DepartamentoGestaoService
+
+            try:
+                departamento, _ = DepartamentoGestaoService.ativar_na_igreja(
+                    definicao=definicao,
+                    igreja=igreja_contexto,
+                )
+            except ValidationError as exc:
+                messages.error(request, '; '.join(exc.messages))
+            else:
+                messages.success(request, f'Departamento "{departamento.nome_exibicao}" ativado na igreja.')
+
+        elif action == 'desativar_departamento_ministerial':
+            departamento = get_object_or_404(
+                Departamento,
+                pk=request.POST.get('departamento_id'),
+                igreja=igreja_contexto,
+                departamento_ministerial__isnull=False,
+            )
+            from configuracao.services_gestao_departamentos import DepartamentoGestaoService
+
+            try:
+                DepartamentoGestaoService.desativar_na_igreja(
+                    departamento=departamento,
+                    igreja=igreja_contexto,
+                )
+            except ValidationError as exc:
+                messages.error(request, '; '.join(exc.messages))
+            else:
+                messages.success(request, f'Departamento "{departamento.nome_exibicao}" desativado na igreja.')
+
         elif action == 'salvar_financeiro_departamento':
+            if not pode_gerir_financeiro_departamentos:
+                raise PermissionDenied('Voce nao tem permissao para configurar o financeiro do departamento.')
             departamento_id = request.POST.get('departamento_id')
             departamento = Departamento.objects.filter(pk=departamento_id, igreja=igreja_contexto).first()
             if not departamento:
@@ -726,8 +908,20 @@ def gestao_departamentos(request):
         return redirect(f"{reverse('configuracao:gestao_departamentos')}?igreja_id={igreja_contexto.id}")
 
     departamentos = list(
-        Departamento.objects.filter(igreja=igreja_contexto).order_by('ordem_exibicao', 'nome_exibicao')
+        Departamento.objects.filter(igreja=igreja_contexto)
+        .exclude(classificacao=Departamento.CLASSIFICACAO_CONTEXTO_FINANCEIRO_SISTEMA)
+        .prefetch_related('capacidades')
+        .order_by('-ativo', 'ordem_exibicao', 'nome_exibicao')
     )
+    departamentos_ministeriais_disponiveis = DepartamentoMinisterial.objects.filter(
+        ministerio=igreja_contexto.ministerio,
+        ativo=True,
+    ).exclude(codigo__in=['LOCAL', 'EVENTOS']).exclude(
+        pk__in=Departamento.objects.filter(
+            igreja=igreja_contexto,
+            departamento_ministerial__isnull=False,
+        ).values('departamento_ministerial_id')
+    ).order_by('ordem', 'nome')
     financeiros_qs = DepartamentoFinanceiro.objects.filter(igreja=igreja_contexto).select_related('departamento', 'politica')
     financeiros_map = {item.departamento_id: item for item in financeiros_qs if item.departamento_id}
 
@@ -749,6 +943,11 @@ def gestao_departamentos(request):
     departamentos_detalhados = []
     departamentos_sem_movimentacao_recente = 0
     for departamento in departamentos:
+        capacidades_ativas = {
+            capacidade.capacidade
+            for capacidade in departamento.capacidades.all()
+            if capacidade.ativa
+        }
         departamento_financeiro = financeiros_map.get(departamento.id)
         departamento_financeiro_id = departamento_financeiro.id if departamento_financeiro else None
         pendencias_aprovacao_count = 0
@@ -815,6 +1014,7 @@ def gestao_departamentos(request):
         departamentos_detalhados.append(
             {
                 'departamento': departamento,
+                'capacidades_ativas': capacidades_ativas,
                 'departamento_financeiro': departamento_financeiro,
                 'caixas_vinculados': caixas_por_departamento.get(departamento_financeiro_id, []),
                 'caixa_padrao_id': caixa_padrao_por_departamento.get(departamento_financeiro_id),
@@ -841,6 +1041,13 @@ def gestao_departamentos(request):
         'departamento_form': DepartamentoForm(igreja=igreja_contexto),
         'contas_bancarias_disponiveis': contas_bancarias_disponiveis,
         'departamentos_sem_movimentacao_recente': departamentos_sem_movimentacao_recente,
+        'departamentos_ministeriais_disponiveis': departamentos_ministeriais_disponiveis,
+        'pode_gerir_financeiro_departamentos': pode_gerir_financeiro_departamentos,
+        'pode_acessar_pessoas': user_can_access_page(request.user, 'dashboard_secretaria', request=request, igreja=igreja_contexto),
+        'pode_acessar_agenda': user_can_access_page(request.user, 'agenda', request=request, igreja=igreja_contexto),
+        'pode_acessar_eventos': user_can_access_page(request.user, 'eventos', request=request, igreja=igreja_contexto),
+        'pode_acessar_comunicacao': user_can_access_page(request.user, 'comunicacao', request=request, igreja=igreja_contexto),
+        'pode_acessar_financeiro': user_can_access_page(request.user, 'financeiro', request=request, igreja=igreja_contexto),
     }
     return render(request, 'configuracao/departamentos/gestao_departamentos.html', context)
 
@@ -2105,45 +2312,63 @@ def _minha_assinatura_legado(request):
 # Adicionar ao final de c:\Gereigreja\configuracao\views.py
 
 @login_required
+@require_POST
 def set_active_church(request):
-    if request.method == 'POST':
-        igreja_id_selecionada_str = request.POST.get('igreja_id_selector') # Nome do campo no formulário do seletor
+    requested_value = (request.POST.get('igreja_id_selector') or '').strip()
+    previous_church_id = getattr(getattr(request, 'igreja_ativa', None), 'pk', None)
+    perfil = getattr(request.user, 'perfil', None)
+    ministerio_id = getattr(perfil, 'ministerio_id', None)
+    redirect_url = request.POST.get('next', '')
+    if not url_has_allowed_host_and_scheme(
+        redirect_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        redirect_url = reverse('secretaria:dashboard')
 
-        if not request.user.is_authenticated or not hasattr(request.user, 'perfil') or not request.user.perfil:
-            messages.error(request, "Você precisa estar logado e ter um perfil para selecionar uma igreja.")
-            return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('secretaria:dashboard')))
+    log_context = {
+        'event': 'active_church_context_change',
+        'user_id': request.user.pk,
+        'ministerio_id': ministerio_id,
+        'previous_church_id': previous_church_id,
+        'requested_church_id': None,
+        'new_church_id': previous_church_id,
+    }
 
-        if igreja_id_selecionada_str:
-            if igreja_id_selecionada_str == "todas": # Opção para limpar a seleção
-                if 'igreja_ativa_id' in request.session:
-                    del request.session['igreja_ativa_id']
-                messages.info(request, "Visualização consolidada (todas as igrejas permitidas) ativada.")
-            else:
-                try:
-                    igreja_id_int = int(igreja_id_selecionada_str)
-                    # Verificar se o usuário tem permissão para esta igreja
-                    allowed_churches = get_allowed_churches_for_user(request.user) # Função agora está no escopo
-                    igreja_selecionada_obj = allowed_churches.get(pk=igreja_id_int)
-                    
-                    request.session['igreja_ativa_id'] = igreja_selecionada_obj.pk
-                    request.session.modified = True # Garante que a sessão seja salva
-                    messages.success(request, f"Contexto alterado para a igreja: {igreja_selecionada_obj.nome_igreja}.")
-                
-                except (ValueError, TypeError): # TypeError se igreja_id_selecionada_str não for conversível para int
-                    messages.error(request, "ID de igreja inválido.")
-                except Igreja.DoesNotExist:
-                    messages.error(request, "Igreja selecionada inválida ou não permitida.")
-                except Exception as e:
-                    logger.error(f"Erro ao definir igreja ativa para usuário {request.user.username} (ID: {request.user.id}): {e}")
-                    messages.error(request, "Ocorreu um erro ao tentar alterar o contexto da igreja.")
-        else:
-            # Se nenhum ID for enviado (ou for vazio), pode ser interpretado como limpar a seleção
-            if 'igreja_ativa_id' in request.session:
-                del request.session['igreja_ativa_id']
-            messages.info(request, "Contexto de igreja removido. Visualizando dados de todas as igrejas permitidas.")
+    if requested_value in ('', 'todas'):
+        request.session.pop('igreja_ativa_id', None)
+        logger.info(
+            "Contexto de igreja removido",
+            extra={**log_context, 'new_church_id': None, 'result': 'cleared'},
+        )
+        messages.info(request, "Contexto de igreja removido.")
+        return HttpResponseRedirect(redirect_url)
 
-    # Redirecionar para a página anterior ou para o dashboard
-    redirect_url = request.META.get('HTTP_REFERER', reverse('secretaria:dashboard')) # Ajuste 'secretaria:dashboard' se necessário
+    try:
+        requested_church_id = int(requested_value)
+    except (TypeError, ValueError):
+        logger.warning("Troca de contexto de igreja negada", extra={**log_context, 'result': 'denied'})
+        messages.error(request, "Igreja selecionada inválida ou não permitida.")
+        return HttpResponseRedirect(redirect_url)
+
+    allowed_churches = getattr(request, 'igrejas_permitidas', None)
+    if allowed_churches is None:
+        allowed_churches = get_igrejas_selecionaveis(request.user)
+    igreja_selecionada = allowed_churches.filter(pk=requested_church_id).first()
+    log_context['requested_church_id'] = requested_church_id
+
+    if igreja_selecionada is None:
+        logger.warning("Troca de contexto de igreja negada", extra={**log_context, 'result': 'denied'})
+        messages.error(request, "Igreja selecionada inválida ou não permitida.")
+        return HttpResponseRedirect(redirect_url)
+
+    request.session['igreja_ativa_id'] = igreja_selecionada.pk
+    request.session.modified = True
+    logger.info(
+        "Contexto de igreja alterado",
+        extra={**log_context, 'new_church_id': igreja_selecionada.pk, 'result': 'success'},
+    )
+    messages.success(request, f"Contexto alterado para a igreja: {igreja_selecionada.nome_igreja}.")
     return HttpResponseRedirect(redirect_url)
 
 

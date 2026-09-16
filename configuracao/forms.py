@@ -94,7 +94,7 @@ class ConfiguracaoPortalForm(forms.ModelForm):
 # c:\Gereigreja\configuracao\forms.py
 from django import forms
 from .models import ESTADO_CHOICES 
-from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ModeloCartaRecomendacao, ProgramacaoPadraoIgreja, Departamento
+from .models import Ministerio, Igreja, PerfilUsuario, Plano, AssinaturaMinisterio, ModeloCartaRecomendacao, ProgramacaoPadraoIgreja, Departamento, DepartamentoCapacidade, DepartamentoMinisterial
 
 from django.contrib.auth.models import User # Modelo de usuário padrão
 from financeiro.models import ContaBancaria # Importar ContaBancaria
@@ -387,7 +387,43 @@ class ProgramacaoPadraoIgrejaForm(forms.ModelForm):
         return cleaned_data
 
 
+class DepartamentoMinisterialForm(forms.ModelForm):
+    class Meta:
+        model = DepartamentoMinisterial
+        fields = ['codigo', 'nome', 'ativo', 'ordem']
+        widgets = {
+            'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex.: MISSOES'}),
+            'nome': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex.: Missões'}),
+            'ativo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'ordem': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.ministerio = kwargs.pop('ministerio', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_codigo(self):
+        codigo = (self.cleaned_data.get('codigo') or '').strip().upper().replace(' ', '_')
+        if not codigo:
+            raise ValidationError('Informe um código para o departamento ministerial.')
+
+        if self.ministerio:
+            qs = DepartamentoMinisterial.objects.filter(ministerio=self.ministerio, codigo=codigo)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError('Já existe um departamento ministerial com este código.')
+        return codigo
+
 class DepartamentoForm(forms.ModelForm):
+    capacidades = forms.MultipleChoiceField(
+        choices=DepartamentoCapacidade.CAPACIDADE_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label='Capacidades operacionais',
+        help_text='Capacidades organizam a tela; não concedem permissões de acesso.',
+    )
+
     class Meta:
         model = Departamento
         fields = [
@@ -411,6 +447,10 @@ class DepartamentoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.permitir_editar_codigo and 'codigo_interno' in self.fields:
             self.fields['codigo_interno'].disabled = True
+        if self.instance.pk:
+            self.initial['capacidades'] = list(
+                self.instance.capacidades.filter(ativa=True).values_list('capacidade', flat=True)
+            )
 
     def clean_codigo_interno(self):
         codigo = (self.cleaned_data.get('codigo_interno') or '').strip().upper().replace(' ', '_')
@@ -434,6 +474,17 @@ class DepartamentoForm(forms.ModelForm):
             instance.save()
             self.save_m2m()
         return instance
+
+
+class DepartamentoCapacidadesForm(forms.Form):
+    capacidades = forms.MultipleChoiceField(
+        choices=DepartamentoCapacidade.CAPACIDADE_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label='Capacidades operacionais',
+    )
+
+
 
 # --- FORMULÁRIO PARA EDITAR DADOS DA MINISTÉRIO (PELO ADMIN DA ORG) ---
 class MinisterioEditForm(forms.ModelForm):

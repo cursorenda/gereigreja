@@ -115,6 +115,19 @@ class DepartamentoFinanceiroService:
                             defaults={
                                 'nome_exibicao': nome,
                                 'tipo_departamento': Departamento.TIPO_PADRAO,
+                                'classificacao': (
+                                    Departamento.CLASSIFICACAO_CONTEXTO_FINANCEIRO_SISTEMA
+                                    if codigo in {
+                                        DepartamentoFinanceiro.CODIGO_LOCAL,
+                                        DepartamentoFinanceiro.CODIGO_EVENTOS,
+                                    }
+                                    else Departamento.CLASSIFICACAO_LEGADO_SUGERIDO
+                                    if codigo in {
+                                        DepartamentoFinanceiro.CODIGO_MISSOES,
+                                        DepartamentoFinanceiro.CODIGO_ASSISTENCIA,
+                                    }
+                                    else Departamento.CLASSIFICACAO_ORGANIZACIONAL
+                                ),
                                 'ativo': True,
                                 'ordem_exibicao': ordem,
                             },

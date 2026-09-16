@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from contas.constants import ADMIN_MINISTERIO, TESOUREIRO
-from configuracao.models import Departamento, Igreja, Ministerio, PerfilUsuario
+from configuracao.models import Departamento, DepartamentoCapacidade, Igreja, Ministerio, PerfilUsuario
 from eventos.models import Evento
 from financeiro.models import (
     CategoriaDespesa,
@@ -3475,7 +3475,7 @@ class GestaoDepartamentosViewTest(BaseFinanceiroTestCase):
         self.assertTemplateUsed(response, 'configuracao/departamentos/gestao_departamentos.html')
         self.assertContains(response, 'Gestao de Departamentos')
 
-    def test_post_cria_departamento_personalizado(self):
+    def test_post_bloqueia_criacao_local_de_departamento_personalizado(self):
         response = self.client.post(
             reverse('configuracao:gestao_departamentos'),
             data={
@@ -3489,8 +3489,8 @@ class GestaoDepartamentosViewTest(BaseFinanceiroTestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(
             Departamento.objects.filter(
                 igreja=self.igreja,
                 codigo_interno='JOVENS',
@@ -3571,3 +3571,129 @@ class GestaoDepartamentosViewTest(BaseFinanceiroTestCase):
         self.assertTrue(vinculo_caixa.ativo)
         self.assertTrue(vinculo_caixa.is_padrao)
 
+    def test_conexoes_exibem_apenas_capacidades_ativas(self):
+        departamento = Departamento.objects.create(
+            igreja=self.igreja,
+            codigo_interno='CONEXOES',
+            nome_exibicao='Departamento Conexoes',
+            tipo_departamento=Departamento.TIPO_PERSONALIZADO,
+            ativo=True,
+            ordem_exibicao=80,
+        )
+        DepartamentoCapacidade.objects.create(
+            departamento=departamento,
+            capacidade=DepartamentoCapacidade.PESSOAS,
+            ativa=True,
+        )
+        DepartamentoCapacidade.objects.create(
+            departamento=departamento,
+            capacidade=DepartamentoCapacidade.EVENTOS,
+            ativa=True,
+        )
+        DepartamentoCapacidade.objects.create(
+            departamento=departamento,
+            capacidade=DepartamentoCapacidade.AGENDA,
+            ativa=False,
+        )
+
+        response = self.client.get(reverse('configuracao:gestao_departamentos'))
+
+        self.assertEqual(response.status_code, 200)
+        detalhes = response.content.decode().split(
+            f'id="departamento_detalhes_{departamento.id}"', 1
+        )[1].split('<div class="row g-3">', 1)[0]
+        self.assertIn(reverse('secretaria:dashboard'), detalhes)
+        self.assertIn(reverse('eventos:lista_eventos'), detalhes)
+        self.assertNotIn(reverse('agenda:agenda'), detalhes)
+        self.assertNotIn(reverse('comunicacao:home'), detalhes)
+        self.assertNotIn(reverse('escola_biblica:dashboard'), detalhes)
+
+    def test_confirmacao_de_legado_preserva_vinculos_financeiros(self):
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+        departamento = Departamento.objects.get(igreja=self.igreja, codigo_interno='MISSOES')
+        financeiro = DepartamentoFinanceiro.objects.get(igreja=self.igreja, codigo_interno='MISSOES')
+        DepartamentoCaixa.objects.create(
+            departamento=financeiro,
+            conta_bancaria=self.conta,
+            ativo=True,
+            is_padrao=True,
+        )
+        financeiro_id = financeiro.id
+        fundo_id = financeiro.fundo_departamental_id
+
+        response = self.client.post(
+            reverse('configuracao:gestao_departamentos'),
+            data={
+                'action': 'confirmar_legado_departamento',
+                'igreja_id': str(self.igreja.id),
+                'departamento_id': str(departamento.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        departamento.refresh_from_db()
+        financeiro.refresh_from_db()
+        self.assertEqual(departamento.classificacao, Departamento.CLASSIFICACAO_ORGANIZACIONAL)
+        self.assertEqual(financeiro.id, financeiro_id)
+        self.assertEqual(financeiro.departamento_id, departamento.id)
+        self.assertEqual(financeiro.fundo_departamental_id, fundo_id)
+        self.assertTrue(
+            DepartamentoCaixa.objects.filter(
+                departamento=financeiro,
+                conta_bancaria=self.conta,
+                ativo=True,
+            ).exists()
+        )
+
+    def test_capacidade_financeiro_exibe_grupo_separado(self):
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+        departamento = Departamento.objects.get(igreja=self.igreja, codigo_interno='MISSOES')
+        financeiro = DepartamentoFinanceiro.objects.get(igreja=self.igreja, codigo_interno='MISSOES')
+        DepartamentoCapacidade.objects.create(
+            departamento=departamento,
+            capacidade=DepartamentoCapacidade.FINANCEIRO,
+            ativa=True,
+        )
+
+        with patch('configuracao.views.user_can_access_page', return_value=True):
+            response = self.client.get(reverse('configuracao:gestao_departamentos'))
+
+        self.assertEqual(response.status_code, 200)
+        detalhes = response.content.decode().split(
+            f'id="departamento_detalhes_{departamento.id}"', 1
+        )[1].split('<div class="row g-3">', 1)[0]
+        self.assertIn('Financeiro do departamento', detalhes)
+        self.assertIn(
+            f'{reverse("financeiro:lista_receitas")}?fundo_filtro={financeiro.fundo_departamental_id}',
+            detalhes,
+        )
+        self.assertIn(
+            f'{reverse("financeiro:lista_fechamentos_caixa")}?dept_filtro={financeiro.id}',
+            detalhes,
+        )
+        self.assertNotIn('>Financeiro</span>', detalhes)
+
+    def test_confirmacao_de_legado_nao_altera_departamento_de_outra_igreja(self):
+        outra_igreja = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja Fora do Contexto',
+        )
+        departamento = Departamento.objects.create(
+            igreja=outra_igreja,
+            codigo_interno='LEGADO_FORA',
+            nome_exibicao='Legado Fora do Contexto',
+            classificacao=Departamento.CLASSIFICACAO_LEGADO_SUGERIDO,
+        )
+
+        response = self.client.post(
+            reverse('configuracao:gestao_departamentos'),
+            data={
+                'action': 'confirmar_legado_departamento',
+                'igreja_id': str(self.igreja.id),
+                'departamento_id': str(departamento.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        departamento.refresh_from_db()
+        self.assertEqual(departamento.classificacao, Departamento.CLASSIFICACAO_LEGADO_SUGERIDO)

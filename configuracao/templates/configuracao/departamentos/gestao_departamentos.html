@@ -32,12 +32,13 @@
         <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
             <div>
                 <h5 class="mb-1"><i class="fas fa-layer-group me-1"></i> Estrutura Departamental</h5>
-                <p class="mb-0 text-muted">Hub operacional para criar e governar departamentos como módulos da igreja, com financeiro apenas como extensão opcional.</p>
+                <p class="mb-0 text-muted">Hub operacional para ativar e configurar localmente os departamentos definidos pelo Ministério.</p>
             </div>
             <span class="badge bg-primary-subtle text-primary">Ministerio: {{ ministerio.nome_fantasia }}</span>
         </div>
     </div>
 
+    {% if pode_acessar_financeiro %}
     <div class="row g-3 mb-4">
         <div class="col-md-6">
             <div class="card h-100 border-0 shadow-sm">
@@ -59,6 +60,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">
@@ -81,47 +83,43 @@
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header"><i class="fas fa-plus-circle me-1"></i> Novo Departamento</div>
+    <div class="card mb-4 border-primary-subtle">
+        <div class="card-header bg-primary-subtle text-primary">
+            <i class="fas fa-building me-1"></i> Disponíveis pelo Ministério
+        </div>
         <div class="card-body">
-            <form method="post" class="row g-3">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="criar_departamento">
-                <input type="hidden" name="igreja_id" value="{{ igreja_contexto.id }}">
-
-                <div class="col-md-3">
-                    <label class="form-label" for="id_codigo_interno">{{ departamento_form.codigo_interno.label }}</label>
-                    {{ departamento_form.codigo_interno }}
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="id_nome_exibicao">{{ departamento_form.nome_exibicao.label }}</label>
-                    {{ departamento_form.nome_exibicao }}
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="id_tipo_departamento">{{ departamento_form.tipo_departamento.label }}</label>
-                    {{ departamento_form.tipo_departamento }}
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label" for="id_ordem_exibicao">{{ departamento_form.ordem_exibicao.label }}</label>
-                    {{ departamento_form.ordem_exibicao }}
-                </div>
-                <div class="col-md-1 d-flex align-items-center">
-                    <div class="form-check mt-4">
-                        {{ departamento_form.ativo }}
-                        <label class="form-check-label" for="id_ativo">Ativo</label>
+            <p class="small text-muted">Definições ativas do Ministério que ainda não foram provisionadas nesta igreja.</p>
+            <div class="row g-2">
+                {% for definicao in departamentos_ministeriais_disponiveis %}
+                <div class="col-md-6 col-xl-4">
+                    <div class="border rounded-3 p-3 h-100 d-flex flex-column">
+                        <div class="fw-semibold">{{ definicao.nome }}</div>
+                        <div class="small text-muted mb-3">Código: {{ definicao.codigo }}</div>
+                        <form method="post" class="mt-auto">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="ativar_departamento_ministerial">
+                            <input type="hidden" name="departamento_ministerial_id" value="{{ definicao.id }}">
+                            <input type="hidden" name="igreja_id" value="{{ igreja_contexto.id }}">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-toggle-on me-1"></i> Ativar na igreja
+                            </button>
+                        </form>
                     </div>
                 </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i> Cadastrar departamento
-                    </button>
-                </div>
-            </form>
+                {% empty %}
+                <div class="col-12 small text-muted">Não há departamentos ministeriais disponíveis para ativação nesta igreja.</div>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
     {% for item in departamentos_detalhados %}
         {% with departamento=item.departamento dept_fin=item.departamento_financeiro %}
+        {% ifchanged departamento.ativo %}
+        <h4 class="mt-4 mb-3">
+            {% if departamento.ativo %}Departamentos da igreja — provisionados e ativos{% else %}Departamentos da igreja — provisionados e desativados{% endif %}
+        </h4>
+        {% endifchanged %}
         <div class="card dp-departamento-card mb-3">
             <div class="card-body">
                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-3">
@@ -131,12 +129,38 @@
                         <span class="dp-pill {% if departamento.ativo %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %}">
                             {% if departamento.ativo %}Departamento ativo{% else %}Departamento inativo{% endif %}
                         </span>
+                        {% if departamento.departamento_ministerial_id %}
+                        <span class="dp-pill bg-primary-subtle text-primary">Origem ministerial</span>
+                        <form method="post" class="d-inline-block ms-1">
+                            {% csrf_token %}
+                            {% if departamento.ativo %}
+                            <input type="hidden" name="action" value="desativar_departamento_ministerial">
+                            {% else %}
+                            <input type="hidden" name="action" value="ativar_departamento_ministerial">
+                            <input type="hidden" name="departamento_ministerial_id" value="{{ departamento.departamento_ministerial_id }}">
+                            {% endif %}
+                            <input type="hidden" name="departamento_id" value="{{ departamento.id }}">
+                            <input type="hidden" name="igreja_id" value="{{ igreja_contexto.id }}">
+                            <button type="submit" class="btn btn-outline-{% if departamento.ativo %}secondary{% else %}primary{% endif %} btn-sm">
+                                {% if departamento.ativo %}Desativar na igreja{% else %}Reativar na igreja{% endif %}
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="dp-pill bg-light text-muted border">Origem local/legada</span>
+                        {% endif %}
+                        {% if pode_gerir_financeiro_departamentos %}
                         <span class="dp-pill {% if dept_fin and dept_fin.ativo %}bg-primary-subtle text-primary{% else %}bg-light text-muted border{% endif %}">
                             {% if dept_fin and dept_fin.ativo %}Financeiro habilitado{% else %}Financeiro desabilitado{% endif %}
                         </span>
                         <span class="dp-pill {% if item.status_saude == 'critico' %}bg-danger-subtle text-danger{% elif item.status_saude == 'atencao' %}bg-warning-subtle text-warning{% elif item.status_saude == 'saudavel' %}bg-success-subtle text-success{% else %}bg-light text-muted border{% endif %}">
                             Saúde: {{ item.status_saude_label }}
                         </span>
+                        {% endif %}
+                        {% for capacidade in departamento.capacidades.all %}
+                            {% if capacidade.ativa and capacidade.capacidade != 'FINANCEIRO' %}
+                            <span class="dp-pill bg-light text-muted border">{{ capacidade.get_capacidade_display }}</span>
+                            {% endif %}
+                        {% endfor %}
                     </div>
                     <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#departamento_detalhes_{{ departamento.id }}" aria-expanded="false" aria-controls="departamento_detalhes_{{ departamento.id }}">
                         <i class="fas fa-chevron-down me-1"></i> Expandir detalhes
@@ -151,23 +175,47 @@
                             <span class="badge bg-light text-muted border">Módulo organizacional</span>
                         </div>
                         <div class="d-flex flex-wrap gap-2">
+                            {% if pode_acessar_pessoas and 'PESSOAS' in item.capacidades_ativas %}
                             <a class="btn btn-outline-secondary btn-sm" href="{% url 'secretaria:dashboard' %}"><i class="fas fa-users me-1"></i> Pessoas</a>
+                            {% endif %}
+                            {% if pode_acessar_agenda and 'AGENDA' in item.capacidades_ativas %}
                             <a class="btn btn-outline-secondary btn-sm" href="{% url 'agenda:agenda' %}"><i class="fas fa-calendar-check me-1"></i> Agenda</a>
-                            <a class="btn btn-outline-secondary btn-sm" href="{% url 'escola_biblica:dashboard' %}"><i class="fas fa-book-open me-1"></i> EBD</a>
+                            {% endif %}
+                            {% if pode_acessar_eventos and 'EVENTOS' in item.capacidades_ativas %}
+                            <a class="btn btn-outline-secondary btn-sm" href="{% url 'eventos:lista_eventos' %}"><i class="fas fa-calendar-alt me-1"></i> Eventos</a>
+                            {% endif %}
+                            {% if pode_acessar_comunicacao and 'COMUNICACAO' in item.capacidades_ativas %}
                             <a class="btn btn-outline-secondary btn-sm" href="{% url 'comunicacao:home' %}"><i class="fas fa-comments me-1"></i> Comunicação</a>
+                            {% endif %}
+                            {% if 'ESCALAS' in item.capacidades_ativas %}
+                            <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true"><i class="fas fa-users-cog me-1"></i> Escalas — Em breve</span>
+                            {% endif %}
+                            {% if 'TAREFAS' in item.capacidades_ativas %}
+                            <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true"><i class="fas fa-tasks me-1"></i> Tarefas — Em breve</span>
+                            {% endif %}
+                            {% if 'ALMOXARIFADO' in item.capacidades_ativas %}
+                            <span class="btn btn-outline-secondary btn-sm disabled" aria-disabled="true"><i class="fas fa-boxes me-1"></i> Almoxarifado — Em breve</span>
+                            {% endif %}
+                        </div>
+                        {% if pode_acessar_financeiro and 'FINANCEIRO' in item.capacidades_ativas %}
+                        <div class="border rounded-3 bg-white p-2 mt-3 dp-financeiro-capacidade">
+                            <div class="small fw-semibold text-primary mb-2"><i class="fas fa-landmark me-1"></i> Financeiro do departamento</div>
+                            <div class="d-flex flex-wrap gap-2">
                             {% if dept_fin and dept_fin.fundo_departamental_id and dept_fin.ativo %}
                             <a class="btn btn-outline-primary btn-sm" href="{% url 'financeiro:lista_receitas' %}?fundo_filtro={{ dept_fin.fundo_departamental_id }}"><i class="fas fa-arrow-down me-1"></i> Receitas do Departamento</a>
                             <a class="btn btn-outline-primary btn-sm" href="{% url 'financeiro:lista_despesas' %}?fundo_filtro={{ dept_fin.fundo_departamental_id }}"><i class="fas fa-arrow-up me-1"></i> Despesas do Departamento</a>
                             <a class="btn btn-outline-warning btn-sm" href="{% url 'financeiro:lista_despesas' %}?fundo_filtro={{ dept_fin.fundo_departamental_id }}&aprovacao_status=PENDENTE"><i class="fas fa-clock me-1"></i> Pendências do Departamento{% if item.pendencias_aprovacao_count %} ({{ item.pendencias_aprovacao_count }}){% endif %}</a>
+                            <a class="btn btn-outline-secondary btn-sm" href="{% url 'financeiro:lista_fechamentos_caixa' %}?dept_filtro={{ dept_fin.id }}"><i class="fas fa-lock me-1"></i> Fechamentos</a>
                             {% if item.pendencias_aprovacao_total %}
                             <span class="badge bg-warning text-dark align-self-center">R$ {{ item.pendencias_aprovacao_total|floatformat:2 }}</span>
                             {% endif %}
                             {% else %}
-                            <a class="btn btn-outline-secondary btn-sm" href="{% url 'financeiro:painel_financeiro' %}?dept_filtro={{ departamento_financeiro.id }}"><i class="fas fa-landmark me-1"></i> Financeiro</a>
+                            <span class="small text-muted align-self-center">Contexto financeiro indisponível.</span>
                             {% endif %}
-                            <a class="btn btn-outline-secondary btn-sm" href="{% url 'financeiro:lista_fechamentos_caixa' %}"><i class="fas fa-lock me-1"></i> Fechamentos</a>
+                            </div>
                         </div>
-                        {% if item.caixas_vinculados %}
+                        {% endif %}
+                        {% if pode_gerir_financeiro_departamentos and item.caixas_vinculados %}
                         <div class="mt-2 small text-muted">
                             Caixas vinculados:
                             {% for vinculo_caixa in item.caixas_vinculados %}
@@ -178,7 +226,7 @@
                         </div>
                         {% endif %}
 
-                        {% if dept_fin and dept_fin.ativo %}
+                        {% if pode_gerir_financeiro_departamentos and dept_fin and dept_fin.ativo %}
                         <div class="row g-2 mt-1">
                             <div class="col-6 col-md-3">
                                 <div class="border rounded-3 bg-white p-2 h-100">
@@ -221,10 +269,11 @@
                     </div>
                 </div>
 
+
                 <div class="row g-3">
                     <div class="col-lg-6">
                         <div class="card h-100">
-                            <div class="card-header">Dados do Departamento</div>
+                            <div class="card-header">{% if departamento.departamento_ministerial_id %}Configurações locais{% else %}Dados do Departamento{% endif %}</div>
                             <div class="card-body">
                                 <form method="post" class="row g-2">
                                     {% csrf_token %}
@@ -233,6 +282,7 @@
                                     <input type="hidden" name="igreja_id" value="{{ igreja_contexto.id }}">
                                     <input type="hidden" name="codigo_interno" value="{{ departamento.codigo_interno }}">
 
+                                    {% if not departamento.departamento_ministerial_id %}
                                     <div class="col-md-8">
                                         <label class="form-label">Nome de exibicao</label>
                                         <input type="text" class="form-control" name="nome_exibicao" value="{{ departamento.nome_exibicao }}" required>
@@ -254,9 +304,22 @@
                                             <label class="form-check-label" for="dep_ativo_{{ departamento.id }}">Departamento ativo</label>
                                         </div>
                                     </div>
+                                    {% endif %}
+                                    <div class="col-12">
+                                        <label class="form-label">Capacidades operacionais</label>
+                                        <div class="d-flex flex-wrap gap-3">
+                                            {% for capacidade_codigo, capacidade_nome in departamento_form.fields.capacidades.choices %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="capacidades" value="{{ capacidade_codigo }}" id="capacidade_{{ departamento.id }}_{{ capacidade_codigo }}" {% for capacidade in departamento.capacidades.all %}{% if capacidade.capacidade == capacidade_codigo and capacidade.ativa %}checked{% endif %}{% endfor %}>
+                                                <label class="form-check-label" for="capacidade_{{ departamento.id }}_{{ capacidade_codigo }}">{{ capacidade_nome }}</label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="form-text">Capacidades não concedem permissões de acesso.</div>
+                                    </div>
                                     <div class="col-12">
                                         <button type="submit" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-pen me-1"></i> Salvar dados
+                                            <i class="fas fa-pen me-1"></i> {% if departamento.departamento_ministerial_id %}Salvar capacidades locais{% else %}Salvar dados{% endif %}
                                         </button>
                                     </div>
                                 </form>
@@ -264,6 +327,7 @@
                         </div>
                     </div>
 
+                    {% if pode_gerir_financeiro_departamentos %}
                     <div class="col-lg-6">
                         <div class="card h-100">
                             <div class="card-header">Configuracao Financeira</div>
@@ -322,6 +386,7 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
                 </div>
             </div>
