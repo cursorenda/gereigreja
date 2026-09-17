@@ -399,14 +399,14 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseRedirect
 from django.db.models import Q # Para buscas
 import logging
-from .models import Departamento, DepartamentoCapacidade, DepartamentoMinisterial, Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
+from .models import Departamento, DepartamentoCapacidade, DepartamentoMinisterial, DepartamentoVinculo, Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
 from contas.page_permissions import user_can_access_page
 from django.conf import settings # Para pegar as chaves do Stripe
 import stripe # Importar a biblioteca do Stripe
 import django.db.utils # Import django utils
 from decimal import Decimal
 from datetime import date, timedelta
-from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm, ProgramacaoPadraoIgrejaForm, DepartamentoCapacidadesForm, DepartamentoForm, DepartamentoMinisterialForm # Adicionado IgrejaEditForm
+from .forms import IgrejaForm, MinisterioEditForm, IgrejaEditForm, MinisterioLogosForm, MinisterioCarteirinhaPoliticaForm, ProgramacaoPadraoIgrejaForm, DepartamentoCapacidadesForm, DepartamentoForm, DepartamentoMinisterialForm, DepartamentoVinculoForm # Adicionado IgrejaEditForm
 from .utils import pode_editar_configuracao_org # Importa a função
 from django.contrib.auth.decorators import user_passes_test
 from django.urls import reverse
@@ -631,6 +631,14 @@ def _igrejas_para_gestao_departamentos(request, ministerio):
     return igrejas_permitidas.filter(ministerio=ministerio)
 
 
+def _usuario_pode_operar_equipe_departamento(user):
+    """Operacao local explicita; administracao ministerial permanece readonly."""
+    if user_is_admin(user):
+        return False
+    return user.groups.filter(name__in=[PASTOR_LOCAL, SECRETARIO_LOCAL]).exists()
+
+@login_required
+@user_passes_test_or_403(_usuario_pode_gerir_departamentos_locais)
 def gestao_departamentos(request):
     """Tela operacional para gerir departamentos da igreja e habilitacao financeira por departamento."""
     ministerio = get_ministerio_or_error(request)
@@ -677,6 +685,7 @@ def gestao_departamentos(request):
     )
     from django.db.models import Sum
     pode_gerir_financeiro_departamentos = user_is_admin(request.user)
+    pode_operar_equipe_departamento = _usuario_pode_operar_equipe_departamento(request.user)
     if (
         pode_gerir_financeiro_departamentos
         and action_requisitada not in {
@@ -693,6 +702,55 @@ def gestao_departamentos(request):
 
         if action == 'criar_departamento':
             raise PermissionDenied('Departamentos estruturais devem ser criados na Gestao Ministerial.')
+
+        elif action == 'adicionar_vinculo_departamento':
+            if not pode_operar_equipe_departamento:
+                raise PermissionDenied('A operacao da equipe exige autorizacao local explicita.')
+            departamento = get_object_or_404(
+                Departamento,
+                pk=request.POST.get('departamento_id'),
+                igreja=igreja_contexto,
+                ativo=True,
+            )
+            form_vinculo = DepartamentoVinculoForm(request.POST, igreja=igreja_contexto)
+            if not form_vinculo.is_valid():
+                if 'membro' in form_vinculo.errors or 'cargo' in form_vinculo.errors:
+                    raise Http404('Membro ou cargo fora do escopo permitido.')
+                messages.error(request, 'Nao foi possivel adicionar o membro. Revise a data informada.')
+            else:
+                from configuracao.services_departamentos import DepartamentoVinculoService
+
+                try:
+                    DepartamentoVinculoService.adicionar(
+                        departamento=departamento,
+                        membro=form_vinculo.cleaned_data['membro'],
+                        cargo=form_vinculo.cleaned_data.get('cargo'),
+                        usuario=request.user,
+                        data_inicio=form_vinculo.cleaned_data.get('data_inicio'),
+                    )
+                except ValidationError as exc:
+                    messages.error(request, '; '.join(exc.messages))
+                else:
+                    messages.success(request, 'Membro adicionado a equipe do departamento.')
+
+        elif action == 'encerrar_vinculo_departamento':
+            if not pode_operar_equipe_departamento:
+                raise PermissionDenied('A operacao da equipe exige autorizacao local explicita.')
+            vinculo = get_object_or_404(
+                DepartamentoVinculo.objects.select_related('departamento'),
+                pk=request.POST.get('vinculo_id'),
+                departamento__igreja=igreja_contexto,
+                departamento__ativo=True,
+                data_fim__isnull=True,
+            )
+            from configuracao.services_departamentos import DepartamentoVinculoService
+
+            try:
+                DepartamentoVinculoService.encerrar(vinculo=vinculo, usuario=request.user)
+            except ValidationError as exc:
+                messages.error(request, '; '.join(exc.messages))
+            else:
+                messages.success(request, 'Vinculo encerrado e mantido no historico.')
 
         elif action == 'editar_departamento':
             departamento_id = request.POST.get('departamento_id')
@@ -925,6 +983,14 @@ def gestao_departamentos(request):
     financeiros_qs = DepartamentoFinanceiro.objects.filter(igreja=igreja_contexto).select_related('departamento', 'politica')
     financeiros_map = {item.departamento_id: item for item in financeiros_qs if item.departamento_id}
 
+    vinculos_equipe_qs = DepartamentoVinculo.objects.filter(
+        departamento__in=departamentos,
+        data_fim__isnull=True,
+    ).select_related('membro', 'cargo').order_by('membro__nome')
+    vinculos_equipe_map = {}
+    for vinculo_equipe in vinculos_equipe_qs:
+        vinculos_equipe_map.setdefault(vinculo_equipe.departamento_id, []).append(vinculo_equipe)
+
     contas_bancarias_disponiveis = list(
         ContaBancaria.objects.filter(igreja=igreja_contexto).order_by('nome_identificacao')
     )
@@ -1030,6 +1096,7 @@ def gestao_departamentos(request):
                 'ultima_movimentacao_em': ultima_movimentacao_em,
                 'status_saude': status_saude,
                 'status_saude_label': status_saude_label,
+                'vinculos_equipe_ativos': vinculos_equipe_map.get(departamento.id, []),
             }
         )
 
@@ -1043,6 +1110,8 @@ def gestao_departamentos(request):
         'departamentos_sem_movimentacao_recente': departamentos_sem_movimentacao_recente,
         'departamentos_ministeriais_disponiveis': departamentos_ministeriais_disponiveis,
         'pode_gerir_financeiro_departamentos': pode_gerir_financeiro_departamentos,
+        'pode_operar_equipe_departamento': pode_operar_equipe_departamento,
+        'departamento_vinculo_form': DepartamentoVinculoForm(igreja=igreja_contexto),
         'pode_acessar_pessoas': user_can_access_page(request.user, 'dashboard_secretaria', request=request, igreja=igreja_contexto),
         'pode_acessar_agenda': user_can_access_page(request.user, 'agenda', request=request, igreja=igreja_contexto),
         'pode_acessar_eventos': user_can_access_page(request.user, 'eventos', request=request, igreja=igreja_contexto),

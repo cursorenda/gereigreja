@@ -485,6 +485,28 @@ class DepartamentoCapacidadesForm(forms.Form):
     )
 
 
+class DepartamentoVinculoForm(forms.Form):
+    membro = forms.ModelChoiceField(queryset=None, label='Membro')
+    cargo = forms.ModelChoiceField(queryset=None, required=False, label='Cargo (opcional)')
+    data_inicio = forms.DateField(
+        required=False,
+        label='Data de inicio',
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        igreja = kwargs.pop('igreja', None)
+        super().__init__(*args, **kwargs)
+        from secretaria.models import Cargo, Pessoa
+
+        self.fields['membro'].queryset = (
+            Pessoa.objects.filter(igreja=igreja).order_by('nome')
+            if igreja is not None
+            else Pessoa.objects.none()
+        )
+        self.fields['cargo'].queryset = Cargo.objects.order_by('nome')
+        self.fields['membro'].widget.attrs['class'] = 'form-select'
+        self.fields['cargo'].widget.attrs['class'] = 'form-select'
 
 # --- FORMULÁRIO PARA EDITAR DADOS DA MINISTÉRIO (PELO ADMIN DA ORG) ---
 class MinisterioEditForm(forms.ModelForm):

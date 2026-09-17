@@ -8,10 +8,11 @@ from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from contas.constants import ADMIN_MINISTERIO, PASTOR_LOCAL, SECRETARIO_LOCAL
-from configuracao.models import Igreja, Ministerio, PerfilUsuario
+from configuracao.models import Departamento, DepartamentoVinculo, Igreja, Ministerio, PerfilUsuario
 from core.middleware import ActiveChurchMiddleware
 from core.utils import get_igrejas_selecionaveis
 from financeiro.templatetags.financeiro_tags import get_churches_tree_ordered
+from secretaria.models import Pessoa, StatusPessoa, TipoPessoa
 
 
 class IgrejaAtivaHardeningTests(TestCase):
@@ -183,6 +184,26 @@ class IgrejaAtivaHardeningTests(TestCase):
         response = client.post(self.url, {'igreja_id_selector': self.local.pk})
         self.assertEqual(response.status_code, 403)
 
+
+    def test_departamento_vinculo_nao_concede_selecao_de_igreja(self):
+        tipo = TipoPessoa.objects.create(nome='Membro Contexto')
+        status = StatusPessoa.objects.create(nome='Ativo Contexto')
+        pessoa = Pessoa.objects.bulk_create([
+            Pessoa(
+                usuario=self.sem_escopo,
+                igreja=self.local,
+                nome='Pessoa Sem Escopo Geral',
+                tipo_pessoa=tipo,
+                status_pessoa=status,
+            )
+        ])[0]
+        departamento = Departamento.objects.filter(igreja=self.local).first()
+        DepartamentoVinculo.objects.create(
+            departamento=departamento,
+            membro=pessoa,
+            criado_por=self.admin,
+        )
+        self.assertFalse(get_igrejas_selecionaveis(self.sem_escopo).exists())
 
     def test_logging_estruturado_registra_sucesso_limpeza_e_negacao(self):
         self.pastor_perfil.igrejas_permitidas.add(self.sede)

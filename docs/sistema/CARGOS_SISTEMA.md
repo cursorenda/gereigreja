@@ -175,6 +175,20 @@ Mitigacao:
 3. Criar teste de regressao para cada novo ponto que alterar permissao.
 4. Manter regra deterministica e documentada.
 
+### 10.1 Uso de Cargo em equipes departamentais
+
+`DepartamentoVinculo` pode referenciar `Cargo` apenas como funcao organizacional.
+
+- Esse vinculo nao cria nem altera `MembroCargo`.
+- A existencia de `cargo.grupo_permissao` nao concede o grupo ao membro por meio de `DepartamentoVinculo`.
+- Os signals deste modulo continuam tendo `MembroCargo` como unico sender para sincronizacao por cargo.
+- Cada vinculo departamental ativo admite somente um cargo opcional nesta versao.
+- Multiplos cargos simultaneos exigem novo ADR.
+
+Referencias:
+- `docs/apps/05-Departamentos.md`
+- `docs/adr/01-DepartamentoVinculo-Historico-e-Cargo.md`
+
 ---
 
 ## 11. Atualizacoes Aplicadas em 08/04/2026

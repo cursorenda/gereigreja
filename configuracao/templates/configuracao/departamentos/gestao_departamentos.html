@@ -269,6 +269,85 @@
                     </div>
                 </div>
 
+                {% if departamento.ativo %}
+                <div class="card border-primary-subtle mb-3">
+                    <div class="card-header bg-primary-subtle text-primary">
+                        <i class="fas fa-user-friends me-1"></i> Equipe do departamento
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Membro</th>
+                                        <th>Cargo</th>
+                                        <th>Data de inicio</th>
+                                        {% if pode_operar_equipe_departamento %}<th class="text-end">Acao</th>{% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vinculo in item.vinculos_equipe_ativos %}
+                                    <tr>
+                                        <td>{{ vinculo.membro.nome }}</td>
+                                        <td>{{ vinculo.cargo.nome|default:'Sem cargo definido' }}</td>
+                                        <td>{{ vinculo.data_inicio|date:'d/m/Y' }}</td>
+                                        {% if pode_operar_equipe_departamento %}
+                                        <td class="text-end">
+                                            <form method="post" class="d-inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="encerrar_vinculo_departamento">
+                                                <input type="hidden" name="vinculo_id" value="{{ vinculo.id }}">
+                                                <input type="hidden" name="igreja_id" value="{{ igreja_contexto.id }}">
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm">Encerrar</button>
+                                            </form>
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4" class="text-muted">Nenhum membro ativo nesta equipe.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% if pode_operar_equipe_departamento %}
+                        <form method="post" class="row g-2 align-items-end">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="adicionar_vinculo_departamento">
+                            <input type="hidden" name="departamento_id" value="{{ departamento.id }}">
+                            <input type="hidden" name="igreja_id" value="{{ igreja_contexto.id }}">
+                            <div class="col-md-5">
+                                <label class="form-label" for="equipe_membro_{{ departamento.id }}">Membro</label>
+                                <select class="form-select" id="equipe_membro_{{ departamento.id }}" name="membro" required>
+                                    <option value="">Selecione</option>
+                                    {% for membro in departamento_vinculo_form.fields.membro.queryset %}
+                                    <option value="{{ membro.pk }}">{{ membro.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="equipe_cargo_{{ departamento.id }}">Cargo (opcional)</label>
+                                <select class="form-select" id="equipe_cargo_{{ departamento.id }}" name="cargo">
+                                    <option value="">Sem cargo definido</option>
+                                    {% for cargo in departamento_vinculo_form.fields.cargo.queryset %}
+                                    <option value="{{ cargo.pk }}">{{ cargo.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="equipe_inicio_{{ departamento.id }}">Data de inicio</label>
+                                <input class="form-control" type="date" id="equipe_inicio_{{ departamento.id }}" name="data_inicio">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Adicionar</button>
+                            </div>
+                        </form>
+                        {% else %}
+                        <p class="small text-muted mb-0">Visao somente leitura. A operacao da equipe exige autorizacao local explicita.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="row g-3">
                     <div class="col-lg-6">
