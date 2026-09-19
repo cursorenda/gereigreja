@@ -1,5 +1,3 @@
-import inspect
-
 from contas.constants import (
     ADMIN_MINISTERIO,
     EQUIPE_RECEPCAO,
@@ -106,6 +104,48 @@ def _is_active_ebd_professor(user):
     ).exists()
 
 
+def pode_acessar_financeiro(user, request=None, igreja=None):
+    """Regra de entrada no modulo Financeiro.
+
+    Pastor Local e Tesoureiro: preservam comportamento atual.
+    Admin Ministerio: permitido somente quando a igreja ativa for Sede ou Independente
+    e estiver dentro do escopo canônico (get_igrejas_selecionaveis).
+
+    A entrada no modulo NAO concede poderes internos de Tesoureiro.
+    """
+    if not user or not user.is_authenticated:
+        return False
+
+    if not usuario_pode_usar_modulo(user, 'financeiro'):
+        return False
+
+    igreja_contexto = igreja
+    if igreja_contexto is None and request is not None:
+        igreja_contexto = getattr(request, 'igreja_ativa', None)
+
+    papel_local_financeiro = user_tem_qualquer_grupo(user, [PASTOR_LOCAL, TESOUREIRO])
+    if igreja_contexto is None:
+        return papel_local_financeiro
+
+    from core.utils import get_igrejas_selecionaveis
+
+    igrejas_autorizadas = get_igrejas_selecionaveis(
+        user,
+        ministerio=igreja_contexto.ministerio,
+    )
+    if not igrejas_autorizadas.filter(pk=igreja_contexto.pk).exists():
+        return False
+
+    if papel_local_financeiro:
+        return True
+
+    if not user_tem_grupo(user, ADMIN_MINISTERIO):
+        return False
+
+    tipo_normalizado = _normalizar_tipo_igreja(getattr(igreja_contexto, 'tipo_igreja', None))
+    return tipo_normalizado in {'sede', 'independente'}
+
+
 PAGE_ACCESS_RULES = {
     'menu_interno': _can_view_internal_menu,
     'dashboard_secretaria': lambda user, **ctx: pode_acessar_secretaria(user, request=ctx.get('request'), igreja=ctx.get('igreja')) and usuario_pode_usar_modulo(user, 'secretaria'),
@@ -134,10 +174,7 @@ PAGE_ACCESS_RULES = {
         PROFESSOR_EBD,
         ]) or _is_active_ebd_professor(user)
     ) and usuario_pode_usar_modulo(user, 'escola_biblica'),
-    'financeiro': lambda user: user_tem_qualquer_grupo(user, [
-        PASTOR_LOCAL,
-        TESOUREIRO,
-    ]) and usuario_pode_usar_modulo(user, 'financeiro'),
+    'financeiro': lambda user, **ctx: pode_acessar_financeiro(user, request=ctx.get('request'), igreja=ctx.get('igreja')),
     'lideranca_secretaria': user_is_lideranca_secretaria,
     'lideranca_financeira': user_is_lideranca_financeira,
     'comunicacao': lambda user: user_pode_gerenciar_comunicacao(user) and usuario_pode_usar_modulo(user, 'comunicacao'),
@@ -149,22 +186,33 @@ PAGE_ACCESS_RULES = {
 }
 
 
+PAGE_ACCESS_RULES_WITH_CONTEXT = frozenset({
+    'dashboard_secretaria',
+    'secretaria_pessoas',
+    'secretaria_transferencias',
+    'secretaria_cargos',
+    'secretaria_grupos_casa',
+    'secretaria_acompanhamentos',
+    'secretaria_tags',
+    'secretaria_relatorios',
+    'recepcao_visitantes',
+    'financeiro',
+})
+
+
 def user_can_access_page(user, page_key, request=None, igreja=None):
     rule = PAGE_ACCESS_RULES.get(page_key)
     if rule is None:
         return False
 
-    signature = inspect.signature(rule)
-    params = signature.parameters
-    aceita_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
-
-    if aceita_kwargs or 'request' in params or 'igreja' in params:
-        kwargs = {}
-        if aceita_kwargs or 'request' in params:
-            kwargs['request'] = request
-        if aceita_kwargs or 'igreja' in params:
-            kwargs['igreja'] = igreja
-        return bool(rule(user, **kwargs))
+    if page_key in PAGE_ACCESS_RULES_WITH_CONTEXT:
+        return bool(
+            rule(
+                user,
+                request=request,
+                igreja=igreja,
+            )
+        )
 
     return bool(rule(user))
 
