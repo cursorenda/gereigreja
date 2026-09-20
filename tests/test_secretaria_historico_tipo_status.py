@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from configuracao.models import Igreja, Ministerio, PerfilUsuario
 from contas.constants import SECRETARIO_LOCAL
-from secretaria.models import Membro, StatusHistorico, StatusPessoa, TipoPessoa
+from secretaria.models import Membro, StatusHistorico, StatusPessoa, TimelineEvent, TipoPessoa
 
 
 class SecretariaHistoricoTipoStatusTests(TestCase):
@@ -111,6 +111,79 @@ class SecretariaHistoricoTipoStatusTests(TestCase):
         self.assertIn("Congregado", html)
         self.assertIn("Ativo", html)
         self.assertIn("Inativo", html)
+
+    def test_statushistorico_sem_data_transicao_e_permitido_sem_timeline_temporal(self):
+        membro = self._criar_membro()
+
+        before = TimelineEvent.objects.filter(membro=membro).count()
+        historico = StatusHistorico.objects.create(
+            membro=membro,
+            status_pessoa_anterior=self.status_ativo,
+            status_pessoa_novo=self.status_inativo,
+            data_transicao=None,
+            registrado_por=self.user,
+        )
+
+        self.assertIsNone(historico.data_transicao)
+        after = TimelineEvent.objects.filter(membro=membro).count()
+        self.assertEqual(after, before)
+
+    def test_historico_sem_data_nao_cria_timeline_de_mudanca_tipo(self):
+        membro = self._criar_membro()
+
+        TimelineEvent.objects.filter(membro=membro).delete()
+        StatusHistorico.objects.create(
+            membro=membro,
+            tipo_pessoa_anterior=self.tipo_membro,
+            tipo_pessoa_novo=self.tipo_congregado,
+            data_transicao=None,
+            registrado_por=self.user,
+        )
+
+        self.assertFalse(TimelineEvent.objects.filter(membro=membro, tipo_evento='mudanca_tipo').exists())
+
+    def test_historico_com_data_cria_timeline_status_com_mesma_data(self):
+        membro = self._criar_membro()
+        TimelineEvent.objects.filter(membro=membro, tipo_evento='mudanca_status').delete()
+        data_ref = timezone.now().replace(microsecond=0)
+
+        StatusHistorico.objects.create(
+            membro=membro,
+            status_pessoa_anterior=self.status_ativo,
+            status_pessoa_novo=self.status_inativo,
+            data_transicao=data_ref,
+            registrado_por=self.user,
+        )
+
+        evento = TimelineEvent.objects.get(membro=membro, tipo_evento='mudanca_status', data=data_ref)
+        self.assertEqual(evento.data, data_ref)
+
+    def test_historico_com_data_cria_timeline_tipo_com_mesma_data(self):
+        membro = self._criar_membro()
+        TimelineEvent.objects.filter(membro=membro, tipo_evento='mudanca_tipo').delete()
+        data_ref = timezone.now().replace(microsecond=0)
+
+        StatusHistorico.objects.create(
+            membro=membro,
+            tipo_pessoa_anterior=self.tipo_membro,
+            tipo_pessoa_novo=self.tipo_congregado,
+            data_transicao=data_ref,
+            registrado_por=self.user,
+        )
+
+        evento = TimelineEvent.objects.get(membro=membro, tipo_evento='mudanca_tipo', data=data_ref)
+        self.assertEqual(evento.data, data_ref)
+
+    def test_criacao_de_membro_sem_data_historica_nao_quebra_timeline(self):
+        membro = self._criar_membro()
+
+        self.assertTrue(StatusHistorico.objects.filter(membro=membro).exists())
+        self.assertFalse(
+            TimelineEvent.objects.filter(
+                membro=membro,
+                tipo_evento__in=['mudanca_status', 'mudanca_tipo'],
+            ).exists()
+        )
 
     def test_linha_do_tempo_com_datas_nao_quebra_e_respeita_escopo(self):
         membro_escopo = self._criar_membro()

@@ -86,6 +86,8 @@ def cria_evento_entrada_membro(sender, instance, created, **kwargs):
 def cria_evento_status_tipo_membro(sender, instance, created, **kwargs):
     if created:
         data_transicao = instance.data_transicao
+        if data_transicao is None:
+            return
         if data_transicao and timezone.is_naive(data_transicao):
             from django.utils.timezone import make_aware, get_current_timezone
             data_transicao = make_aware(data_transicao, get_current_timezone())
