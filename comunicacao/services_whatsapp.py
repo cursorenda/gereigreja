@@ -175,6 +175,20 @@ def _format_http_error(response):
 
 
 def send_whatsapp_text(configuracao, phone, text, *, tipo='outro', ministerio=None, igreja=None, membro=None):
+    config_igreja = getattr(configuracao, 'igreja', None)
+    config_ministerio_id = getattr(configuracao, 'ministerio_id', None)
+    config_igreja_ministerio_id = getattr(config_igreja, 'ministerio_id', None)
+    ministerio_id = getattr(ministerio, 'id', None)
+    igreja_id = getattr(igreja, 'id', None)
+    if (
+        config_igreja is None
+        or (config_ministerio_id is not None and config_igreja_ministerio_id != config_ministerio_id)
+        or (ministerio_id is not None and config_ministerio_id is not None and ministerio_id != config_ministerio_id)
+        or (igreja_id is not None and getattr(configuracao, 'igreja_id', None) is not None and igreja_id != configuracao.igreja_id)
+    ):
+        logger.warning('Envio WhatsApp bloqueado por configuracao ou contexto cross-tenant: config=%s', getattr(configuracao, 'pk', None))
+        raise WhatsAppSendError('Configuracao WhatsApp invalida para o ministerio informado.')
+
     numero_normalizado, chat_id = normalize_phone_to_chat_id(phone)
     if not chat_id:
         raise WhatsAppSendError('Numero de telefone invalido para envio WhatsApp.')

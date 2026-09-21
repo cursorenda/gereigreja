@@ -201,10 +201,16 @@ class WhatsAppConfiguracaoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        ministerio = kwargs.pop('ministerio', None)
+        self.ministerio = kwargs.pop('ministerio', None)
         super().__init__(*args, **kwargs)
-        if ministerio:
-            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio).order_by('nome_igreja')
+        if self.ministerio:
+            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=self.ministerio).order_by('nome_igreja')
+
+    def clean_igreja(self):
+        igreja = self.cleaned_data['igreja']
+        if self.ministerio and igreja.ministerio_id != self.ministerio.id:
+            raise forms.ValidationError('A igreja selecionada não pertence ao ministério atual.')
+        return igreja
 
 
 class WhatsAppMassaForm(forms.Form):

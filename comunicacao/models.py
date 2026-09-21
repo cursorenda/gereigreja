@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -117,6 +118,23 @@ class WhatsAppConfiguracao(models.Model):
 
     def __str__(self):
         return f"WhatsApp {self.igreja.nome_igreja}"
+
+    def clean(self):
+        super().clean()
+        if not self.igreja_id or not self.ministerio_id:
+            return
+
+        igreja = self._state.fields_cache.get('igreja') or self.igreja
+        if igreja.ministerio_id != self.ministerio_id:
+            raise ValidationError({
+                'igreja': 'A igreja selecionada deve pertencer ao mesmo ministério da configuração WhatsApp.',
+            })
+
+    def save(self, *args, **kwargs):
+        # Configurações podem ser persistidas fora de ModelForms (admin/services).
+        # A invariável de tenant deve valer também nesses caminhos normais.
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     def get_session_name(self):
         """Retorna session_name ou gera automaticamente a partir do slug da igreja."""

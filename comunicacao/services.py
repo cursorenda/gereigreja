@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+import logging
 
 from django.db import transaction
 
@@ -14,6 +15,9 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
+
+
+logger = logging.getLogger(__name__)
 
 
 WHATSAPP_TEMPLATE_NOVO_MEMBRO = (
@@ -42,6 +46,25 @@ WHATSAPP_TEMPLATE_AGRADECIMENTO_DIZIMO = (
 def _obter_automacao_comunicacao(ministerio):
     automacao, _ = AutomacaoAniversariantes.objects.get_or_create(ministerio=ministerio)
     return automacao
+
+
+def _configuracao_whatsapp_pertence_ao_ministerio(configuracao, ministerio):
+    """Retorna False para configurações históricas que cruzam tenants."""
+    igreja = getattr(configuracao, 'igreja', None)
+    if igreja is None:
+        logger.warning('Configuracao WhatsApp sem igreja ignorada: config=%s', getattr(configuracao, 'pk', None))
+        return False
+
+    igreja_ministerio_id = getattr(igreja, 'ministerio_id', None)
+    config_ministerio_id = getattr(configuracao, 'ministerio_id', None)
+    ministerio_id = getattr(ministerio, 'id', None)
+    if igreja_ministerio_id is not None and config_ministerio_id is not None and igreja_ministerio_id != config_ministerio_id:
+        logger.warning('Configuracao WhatsApp cross-tenant ignorada: config=%s', getattr(configuracao, 'pk', None))
+        return False
+    if igreja_ministerio_id is not None and ministerio_id is not None and igreja_ministerio_id != ministerio_id:
+        logger.warning('Configuracao WhatsApp fora do ministerio solicitado ignorada: config=%s', getattr(configuracao, 'pk', None))
+        return False
+    return True
 
 
 def _formatar_valor_brasileiro(valor):
@@ -77,6 +100,8 @@ def agendar_agradecimentos_dizimo_fechamento(*, fechamento, force=False):
         auto_contribuicoes=True,
     ).first()
     if not config:
+        return {'agendados': 0, 'ignorados': 0, 'inativo': True}
+    if not _configuracao_whatsapp_pertence_ao_ministerio(config, fechamento.igreja.ministerio):
         return {'agendados': 0, 'ignorados': 0, 'inativo': True}
 
     recebimentos = (
@@ -174,6 +199,12 @@ def processar_whatsapp_agendados(*, ministerio=None, force=False):
             agendamento.save(update_fields=['status', 'erro', 'atualizado_em'])
             falhas += 1
             continue
+        if not _configuracao_whatsapp_pertence_ao_ministerio(config, agendamento.ministerio):
+            agendamento.status = 'erro'
+            agendamento.erro = 'Configuracao WhatsApp pertence a outro ministerio.'
+            agendamento.save(update_fields=['status', 'erro', 'atualizado_em'])
+            falhas += 1
+            continue
 
         if not agendamento.telefone_destino:
             agendamento.status = 'erro'
@@ -226,6 +257,7 @@ def enviar_whatsapp_massa(*, ministerio, membros_qs, mensagem):
             ativo=True,
             igreja_id__in=igreja_ids,
         )
+        if _configuracao_whatsapp_pertence_ao_ministerio(cfg, ministerio)
     }
 
     for membro in membros_qs.select_related('igreja'):
@@ -356,6 +388,8 @@ def executar_automacao_aniversario_whatsapp(*, ministerio, referencia=None, forc
     ).select_related('igreja', 'ministerio')
 
     for config in configs:
+        if not _configuracao_whatsapp_pertence_ao_ministerio(config, ministerio):
+            continue
         pessoas = Membro.objects.filter(
             igreja=config.igreja,
             nascimento__month=hoje.month,
@@ -437,6 +471,8 @@ def executar_automacao_novos_membros_whatsapp(*, ministerio, referencia=None, di
     ).select_related('igreja', 'ministerio')
 
     for config in configs:
+        if not _configuracao_whatsapp_pertence_ao_ministerio(config, ministerio):
+            continue
         pessoas = (
             Membro.objects.filter(
                 igreja=config.igreja,
@@ -500,6 +536,8 @@ def executar_automacao_followup_visitantes_whatsapp(*, ministerio, referencia=No
     ).select_related('igreja', 'ministerio')
 
     for config in configs:
+        if not _configuracao_whatsapp_pertence_ao_ministerio(config, ministerio):
+            continue
         pessoas = (
             Pessoa.objects.filter(
                 igreja=config.igreja,
@@ -565,6 +603,8 @@ def executar_automacao_lembrete_eventos_whatsapp(*, ministerio, referencia=None,
     ).select_related('igreja', 'ministerio')
 
     for config in configs:
+        if not _configuracao_whatsapp_pertence_ao_ministerio(config, ministerio):
+            continue
         eventos = Evento.objects.filter(
             igreja=config.igreja,
             data_inicio__date__in=[hoje, amanha],
