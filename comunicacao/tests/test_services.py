@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
+from configuracao.models import Igreja, Ministerio
 from comunicacao.services import (
     executar_automacao_aniversario_email,
     executar_automacao_novos_membros_whatsapp,
@@ -12,7 +13,9 @@ from comunicacao.services import (
     executar_automacao_aniversario_whatsapp,
     personalizar_template_comunicacao,
 )
+from comunicacao.models import AutomacaoAniversariantes
 from comunicacao.services_whatsapp import WhatsAppSendError
+from secretaria.models import Pessoa, StatusPessoa, TipoPessoa
 
 
 class _ChainResult:
@@ -116,9 +119,17 @@ class ComunicacaoServicesTests(TestCase):
 
     @patch('comunicacao.services.enviar_email_personalizado')
     @patch('comunicacao.services.Membro.objects.filter')
+    @patch('comunicacao.services.Igreja.objects.filter')
     @patch('comunicacao.services.AutomacaoAniversariantes.objects')
     @patch('comunicacao.services.timezone.localdate')
-    def test_automacao_email_processa_envios(self, mock_localdate, mock_automacao_objects, mock_membro_filter, mock_email):
+    def test_automacao_email_processa_envios(
+        self,
+        mock_localdate,
+        mock_automacao_objects,
+        mock_igreja_filter,
+        mock_membro_filter,
+        mock_email,
+    ):
         hoje = date(2026, 7, 13)
         ministerio = SimpleNamespace(id=2, nome_fantasia='AD QA')
         igreja = SimpleNamespace(nome_igreja='Congregacao Norte')
@@ -131,6 +142,7 @@ class ComunicacaoServicesTests(TestCase):
             email_assunto_template='Feliz aniversario {primeiro_nome}',
             email_mensagem_template='Parabens {nome}',
         )
+        mock_igreja_filter.return_value = [igreja]
         mock_membro_filter.return_value = _ChainResult([pessoa])
 
         resumo = executar_automacao_aniversario_email(ministerio=ministerio, force=False)
@@ -140,6 +152,58 @@ class ComunicacaoServicesTests(TestCase):
         self.assertFalse(resumo['ignorado'])
         mock_email.assert_called_once()
         mock_automacao_objects.filter.return_value.update.assert_called_once_with(ultima_execucao_email=hoje)
+
+    @patch('comunicacao.services.enviar_email_personalizado')
+    def test_automacao_email_restringe_aniversariantes_ao_ministerio_informado(self, mock_email):
+        from django.contrib.auth import get_user_model
+
+        hoje = date(2026, 7, 13)
+        User = get_user_model()
+        admin_a = User.objects.create_user(username='admin-email-a')
+        admin_b = User.objects.create_user(username='admin-email-b')
+        ministerio_a = Ministerio.objects.create(
+            nome_fantasia='Ministerio A',
+            administrador_principal=admin_a,
+        )
+        ministerio_b = Ministerio.objects.create(
+            nome_fantasia='Ministerio B',
+            administrador_principal=admin_b,
+        )
+        igreja_a = Igreja.objects.create(ministerio=ministerio_a, nome_igreja='Igreja A')
+        igreja_b = Igreja.objects.create(ministerio=ministerio_b, nome_igreja='Igreja B')
+        tipo = TipoPessoa.objects.create(nome='Membro Email Scope')
+        status = StatusPessoa.objects.create(nome='Ativo Email Scope')
+        pessoa_a = Pessoa.objects.create(
+            igreja=igreja_a,
+            nome='Aniversariante A',
+            nascimento=hoje,
+            email='a@example.com',
+            tipo_pessoa=tipo,
+            status_pessoa=status,
+        )
+        Pessoa.objects.create(
+            igreja=igreja_b,
+            nome='Aniversariante B',
+            nascimento=hoje,
+            email='b@example.com',
+            tipo_pessoa=tipo,
+            status_pessoa=status,
+        )
+        AutomacaoAniversariantes.objects.create(
+            ministerio=ministerio_a,
+            email_ativo=True,
+        )
+
+        resumo = executar_automacao_aniversario_email(
+            ministerio=ministerio_a,
+            referencia=hoje,
+        )
+
+        self.assertEqual(resumo['enviados'], 1)
+        self.assertEqual(resumo['falhas'], 0)
+        mock_email.assert_called_once()
+        self.assertEqual(mock_email.call_args.kwargs['ministerio'], ministerio_a)
+        self.assertEqual(mock_email.call_args.kwargs['membro'], pessoa_a)
 
     @patch('comunicacao.services.WhatsAppMensagemLog.objects.filter')
     @patch('comunicacao.services.send_whatsapp_text')
