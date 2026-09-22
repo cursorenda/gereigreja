@@ -50,26 +50,43 @@ def _resolver_igreja_contexto(request=None, igreja=None):
 
 def pode_acessar_secretaria(user, request=None, igreja=None):
     """
-    Regra central de acesso à Secretaria.
+    Regra central de operação local da Secretaria.
 
-    Segurança:
-    - Secretário Local sempre acessa.
-    - Admin/Presidente acessa somente em contexto de igreja Sede/Independente.
-    - Admin/Presidente não acessa em Regional/Congregação.
-    - Demais usuários não acessam.
+    Distinções:
+    - Liderança ministerial/regional usa painéis próprios de supervisão
+      (`lideranca_secretaria`) e não recebe operação local automática.
+    - Perfis locais usam exclusivamente as igrejas explicitamente vinculadas
+      em `PerfilUsuario.igrejas_permitidas`, sem expansão hierárquica.
+    - Admin Ministério segue política própria: igreja concreta selecionável,
+      limitada a Sede ou Independente.
     """
     if not _is_authenticated(user):
         return False
 
-    if user_tem_grupo(user, SECRETARIO_LOCAL):
-        return True
-
-    if not user_tem_grupo(user, ADMIN_MINISTERIO):
-        return False
-
     igreja_contexto = _resolver_igreja_contexto(request=request, igreja=igreja)
-    tipo_normalizado = _normalizar_tipo_igreja(getattr(igreja_contexto, 'tipo_igreja', None))
-    return tipo_normalizado in {'sede', 'independente'}
+    local_access = False
+
+    if user_tem_grupo(user, SECRETARIO_LOCAL) or user_tem_grupo(user, PASTOR_LOCAL):
+        perfil = getattr(user, 'perfil', None) or getattr(user, 'perfil_usuario', None)
+        if perfil and perfil.ministerio:
+            igrejas_autorizadas = perfil.igrejas_permitidas.filter(
+                ministerio=perfil.ministerio,
+            )
+            if igreja_contexto is None:
+                local_access = igrejas_autorizadas.exists()
+            else:
+                local_access = igrejas_autorizadas.filter(pk=igreja_contexto.pk).exists()
+
+    admin_access = False
+    if user_tem_grupo(user, ADMIN_MINISTERIO) and igreja_contexto is not None:
+        tipo_normalizado = _normalizar_tipo_igreja(getattr(igreja_contexto, 'tipo_igreja', None))
+        if tipo_normalizado in {'sede', 'independente'}:
+            from core.utils import get_igrejas_selecionaveis
+
+            igrejas_autorizadas = get_igrejas_selecionaveis(user)
+            admin_access = igrejas_autorizadas.filter(pk=igreja_contexto.pk).exists()
+
+    return local_access or admin_access
 
 
 def _is_authenticated(user):
