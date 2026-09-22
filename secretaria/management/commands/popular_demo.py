@@ -212,7 +212,10 @@ class Command(BaseCommand):
         perfil_alias_pastor.igrejas_permitidas.set(todas_igrejas)
 
         # Vincula o usuário demo_membro a um dos membros criados
-        membro_pessoa = Pessoa.objects.filter(email__icontains="@demo.com").first()
+        membro_pessoa = Pessoa.objects.filter(
+            igreja__ministerio=ministerio,
+            email__icontains="@demo.com",
+        ).first()
         if membro_pessoa:
             membro_pessoa.usuario = user_membro
             membro_pessoa.save()
