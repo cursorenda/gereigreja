@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
@@ -10,6 +12,9 @@ from django.views.decorators.csrf import csrf_exempt
 import unicodedata
 from contas.constants import ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, LIDERANCA_SECRETARIA, user_tem_grupo
 from contas.page_permissions import user_can_access_page
+
+
+logger = logging.getLogger(__name__)
 
 
 DEMO_PROFILE_OPTIONS = [
@@ -46,6 +51,11 @@ def _authenticate_demo_user(request, username):
         try:
             call_command('popular_demo')
         except Exception:
+            logger.exception(
+                'Falha ao provisionar dados demo para o usuario "%s". '
+                'O comando popular_demo levantou excecao.',
+                username,
+            )
             return None
         return authenticate(request, username=username, password='demo123')
 
@@ -70,15 +80,26 @@ def _resolve_demo_username(perfil_raw):
 
 
 def _demo_redirect_home(request, user=None):
-    """Define landing page por permissão para evitar acesso negado no modo demo."""
+    """Define a landing page pos-login para usuarios demo.
+
+    Admin Ministerio: Centro Ministerial (visao consolidada do ministerio).
+    Liderancas ministeriais: seus paineis especificos de supervisao.
+    Demais perfis: dashboard da secretaria ou portal do membro.
+    """
     if user is None:
         user = request.user
 
-    # Perfis de liderança ministerial devem abrir seus respectivos painéis.
-    if user_tem_grupo(user, LIDERANCA_FINANCEIRA) and not user_tem_grupo(user, ADMIN_MINISTERIO):
+    # Admin Ministerio: landing ministerial consolidada (Centro Ministerial).
+    # Evita portal_membro, dashboard local de Secretaria, painel financeiro local
+    # e definicao arbitraria de igreja local.
+    if user_tem_grupo(user, ADMIN_MINISTERIO):
+        return redirect('configuracao:centro_ministerial')
+
+    # Perfis de lideranca ministerial devem abrir seus respectivos paineis.
+    if user_tem_grupo(user, LIDERANCA_FINANCEIRA):
         return redirect('financeiro:painel_lideranca_financeiro')
 
-    if user_tem_grupo(user, LIDERANCA_SECRETARIA) and not user_tem_grupo(user, ADMIN_MINISTERIO):
+    if user_tem_grupo(user, LIDERANCA_SECRETARIA):
         return redirect('secretaria:painel_lideranca_secretaria')
 
     if user_can_access_page(user, 'dashboard_secretaria', request=request):
