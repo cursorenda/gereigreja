@@ -38,12 +38,14 @@ class Command(BaseCommand):
                 "cidade": "Cidade Demo",
                 "estado": "SP",
                 "administrador_principal": admin_user,
+                "is_demo": True,
             }
         )
-        # Garante que o ministério demo está ativo
-        if not ministerio.ativo:
+        # Garante que o ministério demo está ativo e marcado como demo (idempotente)
+        if not ministerio.ativo or not ministerio.is_demo:
             ministerio.ativo = True
-            ministerio.save()
+            ministerio.is_demo = True
+            ministerio.save(update_fields=['ativo', 'is_demo'])
         # Cria assinatura gratuita para o ministério demo (necessário para acesso)
         from configuracao.models import AssinaturaMinisterio
         assinatura_demo, _ = AssinaturaMinisterio.objects.get_or_create(
@@ -121,19 +123,27 @@ class Command(BaseCommand):
         # Perfis e grupos conforme as constantes do sistema
         # Apenas demo_admin tem is_staff=True (acesso ao admin Django para suporte).
         # Todos os outros perfis demo têm is_staff=False para não expor o /admin/.
+        #
+        # O escopo de igrejas_permitidas segue a politica real de cada perfil:
+        # - Escopo ministerial (Admin, Liderancas): igREJAS_PERMITIDAS VAZIA
+        #   (o escopo e derivado do grupo + ministerio_perfil via get_igrejas_selecionaveis())
+        # - Escopo regional (Pastor Regional): 1 regional (a politica canonica
+        #   _get_igrejas_com_subordinadas() expande para as congregacoes)
+        # - Escopo local (demais): apenas 1 igreja (sede)
+        regional_demo = regionais[0]
         perfis = [
-            {"nome": ADMIN_MINISTERIO, "username": "demo_admin", "email": "admin@demo.com", "is_staff": True, "is_superuser": False},
-            {"nome": PASTOR_REGIONAL, "username": "demo_pastor_regional", "email": "pastor.regional@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": PASTOR_LOCAL, "username": "demo_pastor_local", "email": "pastor.local@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": LIDERANCA_SECRETARIA, "username": "demo_lideranca_secretaria", "email": "secretaria.ministerial@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": LIDERANCA_FINANCEIRA, "username": "demo_lideranca_financeira", "email": "financeiro.ministerial@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": SECRETARIO_LOCAL, "username": "demo_secretario_local", "email": "secretario.local@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": TESOUREIRO, "username": "demo_tesoureiro", "email": "tesoureiro@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": SUPERINTENDENTE_EBD, "username": "demo_superintendente_ebd", "email": "superintendente.ebd@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": PROFESSOR_EBD, "username": "demo_professor_ebd", "email": "professor.ebd@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": EQUIPE_RECEPCAO, "username": "demo_recepcao", "email": "recepcao@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": EQUIPE_EVENTOS, "username": "demo_eventos", "email": "eventos@demo.com", "is_staff": False, "is_superuser": False},
-            {"nome": EQUIPE_MIDIA, "username": "demo_midia", "email": "midia@demo.com", "is_staff": False, "is_superuser": False},
+            {"nome": ADMIN_MINISTERIO, "username": "demo_admin", "email": "admin@demo.com", "is_staff": True, "is_superuser": False, "escopo": "ministerial"},
+            {"nome": PASTOR_REGIONAL, "username": "demo_pastor_regional", "email": "pastor.regional@demo.com", "is_staff": False, "is_superuser": False, "escopo": "regional"},
+            {"nome": PASTOR_LOCAL, "username": "demo_pastor_local", "email": "pastor.local@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
+            {"nome": LIDERANCA_SECRETARIA, "username": "demo_lideranca_secretaria", "email": "secretaria.ministerial@demo.com", "is_staff": False, "is_superuser": False, "escopo": "ministerial"},
+            {"nome": LIDERANCA_FINANCEIRA, "username": "demo_lideranca_financeira", "email": "financeiro.ministerial@demo.com", "is_staff": False, "is_superuser": False, "escopo": "ministerial"},
+            {"nome": SECRETARIO_LOCAL, "username": "demo_secretario_local", "email": "secretario.local@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
+            {"nome": TESOUREIRO, "username": "demo_tesoureiro", "email": "tesoureiro@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
+            {"nome": SUPERINTENDENTE_EBD, "username": "demo_superintendente_ebd", "email": "superintendente.ebd@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
+            {"nome": PROFESSOR_EBD, "username": "demo_professor_ebd", "email": "professor.ebd@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
+            {"nome": EQUIPE_RECEPCAO, "username": "demo_recepcao", "email": "recepcao@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
+            {"nome": EQUIPE_EVENTOS, "username": "demo_eventos", "email": "eventos@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
+            {"nome": EQUIPE_MIDIA, "username": "demo_midia", "email": "midia@demo.com", "is_staff": False, "is_superuser": False, "escopo": "local"},
         ]
         for perfil in perfis:
             group, _ = Group.objects.get_or_create(name=perfil["nome"])
@@ -161,8 +171,19 @@ class Command(BaseCommand):
             if perfil_obj.ministerio != ministerio:
                 perfil_obj.ministerio = ministerio
                 perfil_obj.save()
-            # Vincula todas as igrejas do ministério demo ao perfil
-            perfil_obj.igrejas_permitidas.set(todas_igrejas)
+            # Vincula igrejas conforme escopo real do perfil (politica canonica)
+            escopo = perfil["escopo"]
+            if escopo == "ministerial":
+                # Escopo ministerial: igREJAS_PERMITIDAS VAZIA
+                # O escopo e derivado do grupo + ministerio_perfil via get_igrejas_selecionaveis()
+                # clear() garante idempotencia: execucoes nao acumulam igrejas antigas
+                perfil_obj.igrejas_permitidas.clear()
+            elif escopo == "regional":
+                # Pastor Regional: 1 regional (a politica canonica expande para subordinadas)
+                perfil_obj.igrejas_permitidas.set([regional_demo])
+            else:
+                # Escopo local: apenas a sede (1 igreja)
+                perfil_obj.igrejas_permitidas.set([sede_obj])
 
         # Usuário demo do tipo membro comum (não staff, não superuser)
         membro_group, _ = Group.objects.get_or_create(name=MEMBRO_COMUM)
@@ -187,7 +208,8 @@ class Command(BaseCommand):
         if perfil_membro.ministerio != ministerio:
             perfil_membro.ministerio = ministerio
             perfil_membro.save()
-        perfil_membro.igrejas_permitidas.set(todas_igrejas)
+        # Membro Comum: escopo local (1 igreja = sede)
+        perfil_membro.igrejas_permitidas.set([sede_obj])
 
         # Adiciona o perfil pastor genérico como alias do Pastor Local para compatibilidade com demos antigas
         alias_pastor, _ = User.objects.get_or_create(
@@ -209,9 +231,10 @@ class Command(BaseCommand):
         if perfil_alias_pastor.ministerio != ministerio:
             perfil_alias_pastor.ministerio = ministerio
             perfil_alias_pastor.save()
-        perfil_alias_pastor.igrejas_permitidas.set(todas_igrejas)
+        # Alias Pastor Local: escopo local (1 igreja = sede)
+        perfil_alias_pastor.igrejas_permitidas.set([sede_obj])
 
-        # Vincula o usuário demo_membro a um dos membros criados
+        # Vincula o usuário demo_membro somente a uma Pessoa do tenant Demo.
         membro_pessoa = Pessoa.objects.filter(
             igreja__ministerio=ministerio,
             email__icontains="@demo.com",
