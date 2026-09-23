@@ -52,6 +52,7 @@ urlpatterns = [
     path('igrejas/<int:igreja_id>/programacoes/sincronizar/', views.sincronizar_programacoes_padrao_igreja, name='sincronizar_programacoes_padrao_igreja'),
     path('igrejas/<int:igreja_id>/excluir/', views.excluir_igreja, name='excluir_igreja'),    
     path('departamentos/', views.gestao_departamentos, name='gestao_departamentos'),
+    path('meus-departamentos/', views.meus_departamentos, name='meus_departamentos'),
     path('departamentos/ministeriais/', views.gestao_departamentos_ministeriais, name='gestao_departamentos_ministeriais'),
     path('definir-igreja-ativa/', views.set_active_church, name='set_active_church'), # Nova URL
     path('configuracoes/', views.configuracoes_sistema_legacy_redirect, name='configuracoes_sistema'),

@@ -1,0 +1,63 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}Meus Departamentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-1">Meus Departamentos</h1>
+            <p class="text-muted mb-0">Seus vínculos ativos com equipes de departamentos locais.</p>
+        </div>
+    </div>
+
+    {% if departamentos_itens %}
+    <div class="row g-4">
+        {% for item in departamentos_itens %}
+        <div class="col-12 col-lg-6">
+            <section class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5 mb-1">{{ item.vinculo.departamento.nome_exibicao }}</h2>
+                    <p class="text-muted mb-3"><i class="fas fa-church me-1"></i>{{ item.vinculo.departamento.igreja.nome_igreja }}</p>
+
+                    <dl class="row mb-3">
+                        <dt class="col-sm-4">Função</dt>
+                        <dd class="col-sm-8">{{ item.vinculo.cargo.nome|default:'Sem função informada' }}</dd>
+                        <dt class="col-sm-4">Desde</dt>
+                        <dd class="col-sm-8">{{ item.vinculo.data_inicio|date:'d/m/Y' }}</dd>
+                    </dl>
+
+                    <div class="mb-3">
+                        <div class="fw-semibold mb-1">Recursos do departamento</div>
+                        <p class="small text-muted mb-2">Estas capacidades são informativas e não representam permissões pessoais.</p>
+                        {% for capacidade in item.capacidades %}
+                        <span class="badge bg-light text-dark border me-1 mb-1">{{ capacidade.get_capacidade_display }}</span>
+                        {% empty %}
+                        <span class="text-muted small">Nenhum recurso habilitado.</span>
+                        {% endfor %}
+                    </div>
+
+                    {% if item.atalhos %}
+                    <div class="border-top pt-3">
+                        <div class="fw-semibold mb-2">Atalhos autorizados</div>
+                        {% for atalho in item.atalhos %}
+                        <a class="btn btn-outline-primary btn-sm me-1 mb-1" href="{{ atalho.url }}">{{ atalho.rotulo }}</a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h2 class="h5">Você ainda não possui departamentos ativos</h2>
+            <p class="text-muted mb-0">Quando você fizer parte de uma equipe departamental, ela aparecerá aqui.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

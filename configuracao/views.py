@@ -397,7 +397,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, HttpResponseRedirect # Adicionado HttpResponseRedirect
-from django.db.models import Q # Para buscas
+from django.db.models import Prefetch, Q # Para buscas
 import logging
 from .models import Departamento, DepartamentoCapacidade, DepartamentoMinisterial, DepartamentoVinculo, Igreja, Ministerio, PerfilUsuario, Plano, AssinaturaMinisterio, ProgramacaoPadraoIgreja # Adicionado Plano e AssinaturaMinisterio
 from contas.page_permissions import user_can_access_page
@@ -424,7 +424,7 @@ from core.decorators import verificar_assinatura_valida # Ou o caminho correto
 from .forms import UserEditForm, PerfilUsuarioEditForm
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.utils.http import url_has_allowed_host_and_scheme
 import json
 
@@ -1770,6 +1770,142 @@ def adicionar_igreja(request):
     # Você precisará de um template para adicionar igreja, ex: 'configuracao/igreja/adicionar_igreja.html'
     return render(request, 'configuracao/igrejas/form_igreja.html', context) # Reutilizando form_igreha.html
 
+
+
+
+def _igrejas_operacionais_meus_departamentos(user):
+    """Retorna o escopo aditivo de atalhos da visao pessoal de departamentos.
+
+    Vínculos ativos continuam visíveis independentemente deste escopo. O conjunto
+    abaixo limita somente atalhos operacionais e não usa o escopo hierárquico
+    legado nem o seletor global de igrejas.
+    """
+    perfil = getattr(user, 'perfil', None) or getattr(user, 'perfil_usuario', None)
+    if not perfil or not perfil.ministerio_id:
+        return set()
+
+    igrejas_ids = set()
+    if user.groups.filter(name__in=[PASTOR_LOCAL, SECRETARIO_LOCAL]).exists():
+        igrejas_ids.update(
+            perfil.igrejas_permitidas.filter(
+                ministerio_id=perfil.ministerio_id,
+            ).values_list('pk', flat=True)
+        )
+
+    if user_is_admin(user):
+        igrejas_ids.update(
+            Igreja.objects.filter(
+                ministerio_id=perfil.ministerio_id,
+                tipo_igreja__in=['sede', 'independente'],
+            ).values_list('pk', flat=True)
+        )
+
+    return igrejas_ids
+
+
+def _atalhos_permitidos_departamento(
+    request,
+    departamento,
+    capacidades_ativas,
+    igrejas_operacionais_ids,
+    autorizacoes_cache,
+):
+    """Monta atalhos sem transformar vinculo ou capacidade em autorizacao."""
+    igreja = departamento.igreja
+    if igreja.pk not in igrejas_operacionais_ids:
+        return []
+
+    definicoes = {
+        DepartamentoCapacidade.PESSOAS: ('dashboard_secretaria', 'Pessoas', 'secretaria:dashboard'),
+        DepartamentoCapacidade.AGENDA: ('agenda', 'Agenda', 'agenda:agenda'),
+        DepartamentoCapacidade.EVENTOS: ('eventos', 'Eventos', 'eventos:lista_eventos'),
+        DepartamentoCapacidade.COMUNICACAO: ('comunicacao', 'Comunicacao', 'comunicacao:home'),
+    }
+    atalhos = []
+    for capacidade, (pagina, rotulo, rota) in definicoes.items():
+        if capacidade not in capacidades_ativas:
+            continue
+        chave_autorizacao = (pagina, igreja.pk)
+        if chave_autorizacao not in autorizacoes_cache:
+            autorizacoes_cache[chave_autorizacao] = user_can_access_page(
+                request.user,
+                pagina,
+                request=request,
+                igreja=igreja,
+            )
+        if autorizacoes_cache[chave_autorizacao]:
+            atalhos.append({'rotulo': rotulo, 'url': reverse(rota)})
+
+    chave_financeiro = ('financeiro', igreja.pk)
+    if DepartamentoCapacidade.FINANCEIRO in capacidades_ativas:
+        if chave_financeiro not in autorizacoes_cache:
+            autorizacoes_cache[chave_financeiro] = user_can_access_page(
+                request.user,
+                'financeiro',
+                request=request,
+                igreja=igreja,
+            )
+        if not autorizacoes_cache[chave_financeiro]:
+            return atalhos
+        atalhos.append(
+            {
+                'rotulo': 'Financeiro',
+                'url': f"{reverse('financeiro:painel_financeiro')}?igreja_filtro={igreja.pk}",
+            }
+        )
+    return atalhos
+
+
+@login_required
+@require_GET
+def meus_departamentos(request):
+    """Visao pessoal e somente leitura dos vinculos departamentais ativos."""
+    pessoa = getattr(request.user, 'membro_secretaria', None)
+    vinculos = []
+    if pessoa is not None:
+        capacidades_ativas_qs = DepartamentoCapacidade.objects.filter(ativa=True).order_by('capacidade')
+        vinculos = list(
+            DepartamentoVinculo.objects.filter(membro=pessoa, data_fim__isnull=True)
+            .select_related('departamento__igreja__ministerio', 'cargo')
+            .prefetch_related(
+                Prefetch(
+                    'departamento__capacidades',
+                    queryset=capacidades_ativas_qs,
+                    to_attr='capacidades_ativas_meus_departamentos',
+                )
+            )
+            .order_by('departamento__igreja__nome_igreja', 'departamento__nome_exibicao')
+        )
+
+    itens = []
+    for vinculo in vinculos:
+        capacidades = vinculo.departamento.capacidades_ativas_meus_departamentos
+        capacidades_codigos = {capacidade.capacidade for capacidade in capacidades}
+        itens.append(
+            {
+                'vinculo': vinculo,
+                'capacidades': capacidades,
+                'capacidades_codigos': capacidades_codigos,
+            }
+        )
+
+    igrejas_operacionais_ids = _igrejas_operacionais_meus_departamentos(request.user)
+
+    autorizacoes_cache = {}
+    for item in itens:
+        item['atalhos'] = _atalhos_permitidos_departamento(
+            request,
+            item['vinculo'].departamento,
+            item.pop('capacidades_codigos'),
+            igrejas_operacionais_ids,
+            autorizacoes_cache,
+        )
+
+    return render(
+        request,
+        'configuracao/departamentos/meus_departamentos.html',
+        {'departamentos_itens': itens},
+    )
 
 
 def _anotar_tipo_planos(planos, plano_efetivo, pessoas_ativas=0, igrejas_ativas=0):
