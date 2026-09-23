@@ -68,9 +68,15 @@ Mesmo que o `Cargo` escolhido possua `grupo_permissao`, essa associação não s
 
 Pastor Local e Secretário Local poderão administrar equipes somente em igrejas explicitamente permitidas e na igreja em contexto. O escopo local não poderá ser ampliado por hierarquia ou por igrejas subordinadas.
 
-Admin Ministério terá, por padrão, somente visão consolidada e somente leitura das equipes locais. Ser Admin Ministério não autoriza operação local. Qualquer operação futura exigirá contexto/autorização explícita e nova decisão documentada.
+Admin Ministério/Pastor Presidente não recebe operação local automática em todas as igrejas do Ministério. Na Sede e na Igreja Independente, pode acessar módulos operacionais locais quando a política real e contextual de cada módulo permitir; esse acesso não decorre de um poder irrestrito sobre equipes ou dados. Em Regionais e Congregações, o papel ministerial concede supervisão pela área ou visão ministerial, e não operação local. A operação local nesses contextos exige papel local explícito na igreja. Quando o mesmo usuário acumula papel ministerial e papel local explícito, as permissões são aditivas, mas cada papel preserva seu próprio escopo.
 
 Capacidade declarada no departamento não concede autorização. As políticas canônicas de cada módulo continuam sendo a fonte de autorização.
+
+### Política do Hub Operacional do Departamento
+
+Um `DepartamentoVinculo` ativo permite exclusivamente a visualização do Hub pessoal; vínculo, Cargo e capability não concedem permissão operacional. Atalhos dependem da política contextual real de cada módulo e, para atalhos genéricos da igreja, exigem correspondência com a igreja ativa. Admin Ministério/Pastor Presidente sem papel local explícito não recebe atalhos locais em Regional ou Congregação; na Sede e na Igreja Independente, os atalhos permanecem sujeitos à política contextual do módulo. A dupla atuação com papel local explícito pode autorizar atalhos locais em Regional ou Congregação, dentro do escopo desse papel.
+
+No Financeiro, o acesso do Admin Ministério/Pastor Presidente em Sede ou Igreja Independente depende da política financeira contextual; esse acesso não o transforma automaticamente em Tesoureiro. Regional e Congregação não recebem operação financeira local apenas pelo papel Admin Ministério.
 
 ## 6. Segurança multi-tenant e IDOR
 
