@@ -1908,6 +1908,132 @@ def meus_departamentos(request):
     )
 
 
+
+@login_required
+@require_GET
+def hub_departamento(request, departamento_id):
+    """Hub readonly resolvido exclusivamente pelo vinculo ativo do usuario."""
+    pessoa = getattr(request.user, 'membro_secretaria', None)
+    if pessoa is None:
+        raise Http404()
+
+    capacidades_ativas_qs = DepartamentoCapacidade.objects.filter(ativa=True).order_by('capacidade')
+    vinculo = get_object_or_404(
+        DepartamentoVinculo.objects.filter(
+            membro=pessoa,
+            data_fim__isnull=True,
+            departamento_id=departamento_id,
+        )
+        .select_related('departamento__igreja__ministerio', 'cargo')
+        .prefetch_related(
+            Prefetch(
+                'departamento__capacidades',
+                queryset=capacidades_ativas_qs,
+                to_attr='capacidades_ativas_hub',
+            )
+        )
+    )
+    departamento = vinculo.departamento
+    igreja = departamento.igreja
+    capacidades = departamento.capacidades_ativas_hub
+    capacidades_codigos = {capacidade.capacidade for capacidade in capacidades}
+
+    atalhos_igreja = []
+    igreja_ativa = getattr(request, 'igreja_ativa', None)
+    igreja_em_contexto = igreja_ativa is not None and igreja_ativa.pk == igreja.pk
+    igrejas_operacionais_ids = _igrejas_operacionais_meus_departamentos(request.user)
+    pode_trocar_contexto_igreja = False
+    if not igreja_em_contexto:
+        igrejas_selecionaveis = getattr(request, 'igrejas_permitidas', None)
+        if igrejas_selecionaveis is None:
+            igrejas_selecionaveis = get_igrejas_selecionaveis(request.user)
+        pode_trocar_contexto_igreja = (
+            igreja.pk in igrejas_operacionais_ids
+            and igrejas_selecionaveis.filter(pk=igreja.pk).exists()
+        )
+
+    if igreja_em_contexto and igreja.pk in igrejas_operacionais_ids:
+        definicoes = {
+            DepartamentoCapacidade.PESSOAS: ('dashboard_secretaria', 'Pessoas', 'secretaria:dashboard'),
+            DepartamentoCapacidade.AGENDA: ('agenda', 'Agenda', 'agenda:agenda'),
+            DepartamentoCapacidade.EVENTOS: ('eventos', 'Eventos', 'eventos:lista_eventos'),
+            DepartamentoCapacidade.COMUNICACAO: ('comunicacao', 'Comunicacao', 'comunicacao:home'),
+        }
+        for capacidade, (pagina, rotulo, rota) in definicoes.items():
+            if capacidade in capacidades_codigos and user_can_access_page(
+                request.user,
+                pagina,
+                request=request,
+                igreja=igreja,
+            ):
+                atalhos_igreja.append({'rotulo': rotulo, 'url': reverse(rota)})
+
+    atalhos_financeiros = []
+    if (
+        igreja_em_contexto
+        and igreja.pk in igrejas_operacionais_ids
+        and departamento.ativo
+        and DepartamentoCapacidade.FINANCEIRO in capacidades_codigos
+        and user_can_access_page(
+            request.user,
+            'financeiro',
+            request=request,
+            igreja=igreja,
+        )
+    ):
+        from financeiro.models import DepartamentoFinanceiro
+
+        departamento_financeiro = (
+            DepartamentoFinanceiro.objects.filter(
+                departamento=departamento,
+                igreja=igreja,
+                ativo=True,
+                fundo_departamental__isnull=False,
+            )
+            .select_related('fundo_departamental')
+            .first()
+        )
+        if departamento_financeiro is not None:
+            fundo_id = departamento_financeiro.fundo_departamental_id
+            atalhos_financeiros = [
+                {
+                    'rotulo': 'Receitas',
+                    'url': f"{reverse('financeiro:lista_receitas')}?fundo_filtro={fundo_id}",
+                },
+                {
+                    'rotulo': 'Despesas',
+                    'url': f"{reverse('financeiro:lista_despesas')}?fundo_filtro={fundo_id}",
+                },
+                {
+                    'rotulo': 'Pendencias',
+                    'url': (
+                        f"{reverse('financeiro:lista_despesas')}?fundo_filtro={fundo_id}"
+                        '&aprovacao_status=PENDENTE'
+                    ),
+                },
+                {
+                    'rotulo': 'Fechamentos',
+                    'url': (
+                        f"{reverse('financeiro:lista_fechamentos_caixa')}"
+                        f"?dept_filtro={departamento_financeiro.pk}"
+                    ),
+                },
+            ]
+
+    return render(
+        request,
+        'configuracao/departamentos/hub_departamento.html',
+        {
+            'vinculo': vinculo,
+            'departamento': departamento,
+            'igreja': igreja,
+            'capacidades': capacidades,
+            'atalhos_igreja': atalhos_igreja,
+            'atalhos_financeiros': atalhos_financeiros,
+            'pode_trocar_contexto_igreja': pode_trocar_contexto_igreja,
+        },
+    )
+
 def _anotar_tipo_planos(planos, plano_efetivo, pessoas_ativas=0, igrejas_ativas=0):
     """Retorna lista de dicts com tipo e flags de limite excedido."""
     efetivo_ordem = plano_efetivo.ordem_liberacao if plano_efetivo else None

@@ -1,0 +1,78 @@
+{% extends 'base_com_menu.html' %}
+
+{% block title %}{{ departamento.nome_exibicao }} | Meus Departamentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="mb-4">
+        <a class="small text-decoration-none" href="{% url 'configuracao:meus_departamentos' %}">&larr; Meus Departamentos</a>
+        <h1 class="h3 mb-1 mt-2">{{ departamento.nome_exibicao }}</h1>
+        <p class="text-muted mb-0"><i class="fas fa-church me-1"></i>{{ igreja.nome_igreja }}</p>
+    </div>
+
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Função</dt>
+                <dd class="col-sm-9">{{ vinculo.cargo.nome|default:'Sem função informada' }}</dd>
+                <dt class="col-sm-3">Desde</dt>
+                <dd class="col-sm-9">{{ vinculo.data_inicio|date:'d/m/Y' }}</dd>
+            </dl>
+        </div>
+    </section>
+
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">Recursos do departamento</h2>
+            <p class="text-muted small">As capacidades abaixo são informações organizacionais e não representam permissões pessoais.</p>
+            {% for capacidade in capacidades %}
+            <span class="badge bg-light text-dark border me-1 mb-1">{{ capacidade.get_capacidade_display }}</span>
+            {% empty %}
+            <span class="text-muted small">Nenhum recurso habilitado.</span>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if pode_trocar_contexto_igreja %}
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">Recursos da igreja</h2>
+            <p class="text-muted small">Altere explicitamente o contexto para verificar os recursos que você pode utilizar nesta igreja.</p>
+            <form method="post" action="{% url 'configuracao:set_active_church' %}">
+                {% csrf_token %}
+                <input type="hidden" name="igreja_id_selector" value="{{ igreja.pk }}">
+                <input type="hidden" name="next" value="{% url 'configuracao:hub_departamento' departamento.pk %}">
+                <button class="btn btn-outline-primary btn-sm" type="submit">Acessar recursos na Igreja {{ igreja.nome_igreja }}</button>
+            </form>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if atalhos_financeiros %}
+    <section class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">Financeiro do departamento</h2>
+            <div class="d-flex flex-wrap gap-2">
+                {% for atalho in atalhos_financeiros %}
+                <a class="btn btn-outline-primary btn-sm" href="{{ atalho.url }}">{{ atalho.rotulo }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if atalhos_igreja %}
+    <section class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="h5">Recursos autorizados da igreja</h2>
+            <p class="text-muted small">Estes atalhos usam o contexto da igreja ativa e não representam recursos exclusivos deste departamento.</p>
+            <div class="d-flex flex-wrap gap-2">
+                {% for atalho in atalhos_igreja %}
+                <a class="btn btn-outline-primary btn-sm" href="{{ atalho.url }}">{{ atalho.rotulo }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
