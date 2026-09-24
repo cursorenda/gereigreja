@@ -3728,6 +3728,17 @@ class EscopoFinanceiroPastorLocalTest(TestCase):
             tipo_igreja='congregacao',
             igreja_superior=self.igreja_b,
         )
+        self.outro_admin = User.objects.create_user(username='admin-outro-ministerio-financeiro')
+        self.outro_ministerio = Ministerio.objects.create(
+            nome_fantasia='Outro Ministerio Escopo Financeiro',
+            administrador_principal=self.outro_admin,
+            ativo=True,
+        )
+        self.igreja_outro_ministerio = Igreja.objects.create(
+            ministerio=self.outro_ministerio,
+            nome_igreja='Igreja Outro Ministerio',
+            tipo_igreja='independente',
+        )
         self.perfil = PerfilUsuario.objects.create(user=self.pastor, ministerio=self.ministerio)
         self.perfil.igrejas_permitidas.add(self.igreja_a)
         grupo, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
@@ -3876,6 +3887,117 @@ class EscopoFinanceiroPastorLocalTest(TestCase):
         self.assertNotIn(conta_b, caixas_destino)
         self.assertTrue(all(caixa.igreja_id == self.igreja_a.pk for caixa in caixas_origem))
         self.assertTrue(all(caixa.igreja_id == self.igreja_a.pk for caixa in caixas_destino))
+
+    def test_api_caixas_retorna_somente_caixas_da_igreja_permitida(self):
+        conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Caixa API Permitida',
+            tipo='caixa_fisico',
+        )
+        conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Caixa API Não Permitida',
+            tipo='caixa_fisico',
+        )
+
+        response = self.client.get(
+            reverse('financeiro:api_caixas_por_igreja', args=[self.igreja_a.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        caixas_ids = {caixa['id'] for caixa in response.json()}
+        self.assertIn(conta_a.pk, caixas_ids)
+        self.assertNotIn(conta_b.pk, caixas_ids)
+
+    def test_api_caixas_nega_igreja_do_mesmo_ministerio_fora_do_escopo(self):
+        conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Caixa API IDOR Mesmo Ministério',
+            tipo='caixa_fisico',
+        )
+
+        response = self.client.get(
+            reverse('financeiro:api_caixas_por_igreja', args=[self.igreja_b.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn(conta_b.pk, {caixa['id'] for caixa in response.json()} if response.headers.get('Content-Type', '').startswith('application/json') else set())
+
+    def test_api_caixas_nega_igreja_de_outro_ministerio(self):
+        conta_outro_ministerio = ContaBancaria.objects.create(
+            igreja=self.igreja_outro_ministerio,
+            nome_identificacao='Caixa API Outro Ministério',
+            tipo='caixa_fisico',
+        )
+
+        response = self.client.get(
+            reverse('financeiro:api_caixas_por_igreja', args=[self.igreja_outro_ministerio.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn(conta_outro_ministerio.pk, {caixa['id'] for caixa in response.json()} if response.headers.get('Content-Type', '').startswith('application/json') else set())
+
+    def _criar_transferencia_para_igreja(self, igreja, prefixo):
+        origem = ContaBancaria.objects.create(
+            igreja=igreja,
+            nome_identificacao=f'{prefixo} Origem',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('100.00'),
+        )
+        destino = ContaBancaria.objects.create(
+            igreja=igreja,
+            nome_identificacao=f'{prefixo} Destino',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('0.00'),
+        )
+        return TransferenciaCaixa.objects.create(
+            caixa_origem=origem,
+            caixa_destino=destino,
+            valor=Decimal('10.00'),
+            usuario=self.pastor,
+        )
+
+    def test_transferencia_exibe_historico_da_igreja_ativa_validada(self):
+        transferencia_a = self._criar_transferencia_para_igreja(self.igreja_a, 'Ativa A')
+        transferencia_b = self._criar_transferencia_para_igreja(self.igreja_b, 'Fora Escopo B')
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja_a.pk
+        session.save()
+
+        response = self.client.get(reverse('financeiro:nova_transferencia_caixa'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['transferencias'], [transferencia_a])
+        self.assertNotIn(transferencia_b, response.context['transferencias'])
+
+    def test_transferencia_sessao_com_igreja_nao_permitida_nao_concede_acesso(self):
+        transferencia_a = self._criar_transferencia_para_igreja(self.igreja_a, 'Permitida A')
+        transferencia_b = self._criar_transferencia_para_igreja(self.igreja_b, 'Sessão Não Permitida B')
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja_b.pk
+        session.save()
+
+        response = self.client.get(reverse('financeiro:nova_transferencia_caixa'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['transferencias'], [transferencia_a])
+        self.assertNotIn(transferencia_b, response.context['transferencias'])
+        self.assertEqual(response.context['form'].fields['caixa_origem'].queryset.first().igreja_id, self.igreja_a.pk)
+
+    def test_transferencia_sem_igreja_ativa_validada_falha_fechado(self):
+        self.perfil.igrejas_permitidas.add(self.igreja_b)
+        self._criar_transferencia_para_igreja(self.igreja_a, 'Sem Contexto A')
+        self._criar_transferencia_para_igreja(self.igreja_b, 'Sem Contexto B')
+        session = self.client.session
+        session.pop('igreja_ativa_id', None)
+        session.save()
+
+        response = self.client.get(reverse('financeiro:nova_transferencia_caixa'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['transferencias'].exists())
+        self.assertFalse(response.context['form'].fields['caixa_origem'].queryset.exists())
+        self.assertFalse(response.context['form'].fields['caixa_destino'].queryset.exists())
 
     def test_dropdown_e_filtro_de_fechamentos_rejeitam_igreja_b(self):
         response = self.client.get(

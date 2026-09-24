@@ -4437,12 +4437,8 @@ def transferencia_caixa_create(request):
     else:
         form = TransferenciaCaixaForm(request=request)
 
-    # Histórico de transferências apenas da igreja ativa.
+    # Historico de transferencias apenas da igreja ativa ja validada pelo middleware.
     igreja_ativa = getattr(request, 'igreja_ativa', None)
-    if not igreja_ativa:
-        igreja_ativa_id = request.session.get('igreja_ativa_id')
-        if igreja_ativa_id:
-            igreja_ativa = Igreja.objects.filter(pk=igreja_ativa_id).first()
 
     if igreja_ativa:
         transferencias = TransferenciaCaixa.objects.filter(
@@ -4470,22 +4466,11 @@ def transferencia_caixa_create(request):
 def api_caixas_por_igreja(request, igreja_id):
     """API endpoint para retornar caixas de uma Igreja (para filtro dinâmico no JavaScript)"""
     from django.http import JsonResponse
-    from django.core.exceptions import PermissionDenied
     
-    try:
-        igreja = Igreja.objects.get(pk=igreja_id)
-    except Igreja.DoesNotExist:
-        return JsonResponse({'error': 'Igreja não encontrada'}, status=404)
-    
-    # Verificar permissão - usuário pode acessar caixas dessa Igreja?
-    perfil = getattr(request.user, 'perfil', None) or getattr(request.user, 'perfil_usuario', None)
-    ministerio = getattr(perfil, 'ministerio', None) if perfil else None
-    
-    if ministerio:
-        if igreja.ministerio != ministerio:
-            raise PermissionDenied("Você não tem permissão para acessar caixas dessa Igreja")
-    else:
-        raise PermissionDenied("Usuário sem ministério associado")
+    igreja = get_object_or_404(
+        get_allowed_churches_for_user(request.user),
+        pk=igreja_id,
+    )
     
     # Retornar caixas da Igreja, ordenadas por nome
     caixas = ContaBancaria.objects.filter(
