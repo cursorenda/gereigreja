@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db.models import (
     BooleanField, Case, Count, Q, Sum, Value, When,
 )
@@ -496,11 +497,23 @@ def _gerar_insights_dashboard(
 
 @login_required
 def index(request):
-    from contas.constants import MEMBRO_COMUM, ADMIN_MINISTERIO, user_tem_grupo
+    from contas.constants import MEMBRO_COMUM, user_tem_grupo
+    from contas.page_permissions import user_can_access_page
+
+    can_access_dashboard = user_can_access_page(
+        request.user,
+        'dashboard_secretaria',
+        request=request,
+    )
+
+    # Membro Comum sem autorização operacional usa o Portal do Membro.
     if (user_tem_grupo(request.user, MEMBRO_COMUM)
-            and not user_tem_grupo(request.user, ADMIN_MINISTERIO)
+            and not can_access_dashboard
             and not request.user.is_staff):
         return redirect('secretaria:portal_membro')
+
+    if not can_access_dashboard:
+        raise PermissionDenied("Você não tem permissão para acessar esta página.")
 
     ministerio = get_ministerio_or_error(request)
     if not ministerio:

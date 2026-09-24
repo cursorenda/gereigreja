@@ -9,7 +9,7 @@ from core.sitemaps import StaticViewSitemap, BlogPostSitemap
 
 # Importar a view da landing page
 
-from contas.views import LandingPageView, FuncionalidadesPageView, PlanosPageView, FaqPageView
+from contas.views import LandingPageView, FuncionalidadesPageView, PlanosPageView, FaqPageView, RoleAwareLoginView
 
 from core.views import notificacoes_enviadas_view
 from core.backup_views import backup_urls
@@ -67,6 +67,7 @@ urlpatterns = [
     path('configuracao/', include('configuracao.urls')),
     path('suporte/', include('suporte.urls', namespace='suporte')),
 
+    path('accounts/login/', RoleAwareLoginView.as_view(template_name='registration/login.html'), name='login'),
     path('accounts/', include('django.contrib.auth.urls')), # Inclui as URLs padrão de autenticação do Django, incluindo password_reset
     path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'), #Exemplo usando a view padrão do Django
     path('contas/', include('contas.urls', namespace='contas')),

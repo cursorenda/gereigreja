@@ -20,6 +20,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.conf import settings
 from django.views.generic import TemplateView # Adicionar TemplateView
+from django.contrib.auth.views import LoginView
 from django.core.exceptions import PermissionDenied # Importar PermissionDenied
 from django.http import Http404, HttpResponse, JsonResponse # Importar Http404, HttpResponse, JsonResponse
 import logging
@@ -39,11 +40,14 @@ from secretaria.models import Membro # Importar Membro
 from contas.constants import (
     ADMIN_MINISTERIO,
     HIERARQUIA_GRUPOS,
+    MEMBRO_COMUM,
     PASTOR_LOCAL,
     SECRETARIO_LOCAL,
+    TESOUREIRO,
     get_user_permission_level,
     user_is_admin,
     user_has_permission_level_or_higher,
+    user_tem_grupo,
 )
 
 from .models import Convite, PermissionRequest
@@ -57,7 +61,7 @@ from .forms import (
 )
 from core.decorators import verificar_assinatura_valida, admin_ministerio_required # Ou o caminho correto
 
-from core.utils import get_igrejas_permitidas, get_ministerio_or_error # Importar de core.utils
+from core.utils import get_igrejas_permitidas, get_igrejas_selecionaveis, get_ministerio_or_error # Importar de core.utils
 
 
 # --- FUNÇÃO AUXILIAR PARA CAPTURAR IP ---
@@ -72,6 +76,39 @@ def get_client_ip(request):
         ip = request.META.get('REMOTE_ADDR')
     return ip
 # --- FIM FUNÇÃO AUXILIAR ---
+
+
+class RoleAwareLoginView(LoginView):
+    """Resolve o destino pós-login sem conceder escopo ou selecionar igreja."""
+
+    def get_success_url(self):
+        return self.get_redirect_url() or self._get_role_aware_success_url()
+
+    def _get_role_aware_success_url(self):
+        user = self.request.user
+
+        if user.is_superuser:
+            return reverse('admin:index')
+
+        if user_tem_grupo(user, ADMIN_MINISTERIO):
+            return reverse('configuracao:centro_ministerial')
+
+        if user_tem_grupo(user, PASTOR_LOCAL) or user_tem_grupo(user, SECRETARIO_LOCAL):
+            igrejas_selecionaveis = get_igrejas_selecionaveis(user)
+            if igrejas_selecionaveis.count() == 1:
+                from contas.page_permissions import user_can_access_page
+
+                igreja = igrejas_selecionaveis.first()
+                if user_can_access_page(user, 'dashboard_secretaria', igreja=igreja):
+                    return reverse('secretaria:index')
+
+        if user_tem_grupo(user, TESOUREIRO):
+            return reverse('financeiro:painel_financeiro')
+
+        if user_tem_grupo(user, MEMBRO_COMUM):
+            return reverse('secretaria:portal_membro')
+
+        return reverse('contas:aguardando_acesso')
 
 
 def _usuario_pode_gerenciar_fluxo_usuarios(user):

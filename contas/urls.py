@@ -21,7 +21,7 @@ urlpatterns = [
     path('registrar/', views.registrar_usuario_e_org, name='registrar'),
 
     # Login / Logout (Exemplo usando views padrão - ajuste se necessário)
-    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'), # Aponta para o template raiz
+    path('login/', views.RoleAwareLoginView.as_view(template_name='registration/login.html'), name='login'), # Aponta para o template raiz
     path('logout/', auth_views.LogoutView.as_view(next_page=reverse_lazy('login')), name='logout'), # Redireciona para login após logout
 
     # Alteração de Senha (Dentro da área logada)
