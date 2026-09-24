@@ -2431,6 +2431,19 @@ def excluir_despesa(request, pk): # noqa: E302
         messages.error(request, "Não é possível excluir uma despesa fechada.")
         return redirect('financeiro:lista_despesas')
 
+    if request.method == 'POST':
+        try:
+            nome_despesa = despesa.descricao or f"Despesa ID {despesa.pk}"
+            despesa.delete()  # O método delete da Despesa reverte o saldo
+            messages.success(request, f'Despesa "{nome_despesa}" excluída com sucesso!')
+        except Exception as e:
+            logger.exception(f"Erro ao excluir despesa {pk} para ministério {ministerio.id}")
+            messages.error(request, f'Erro ao excluir despesa: {e}')
+        return redirect('financeiro:lista_despesas')
+
+    messages.error(request, 'Método inválido para exclusão.')
+    return redirect('financeiro:lista_despesas')
+
 
 @page_access_required('financeiro')
 def aprovar_despesa(request, pk):
@@ -2504,19 +2517,6 @@ def reprovar_despesa(request, pk):
         logger.exception(f"Erro ao reprovar despesa {pk} para ministério {ministerio.id}")
         messages.error(request, 'Erro ao reprovar despesa.')
 
-    return redirect('financeiro:lista_despesas')
-
-    if request.method == 'POST':
-        try:
-            nome_despesa = despesa.descricao or f"Despesa ID {despesa.pk}"
-            despesa.delete() # O método delete da Despesa agora reverte o saldo
-            
-            messages.success(request, f'Despesa "{nome_despesa}" excluída com sucesso!')
-        except Exception as e:
-            logger.exception(f"Erro ao excluir despesa {pk} para ministério {ministerio.id}")
-            messages.error(request, f'Erro ao excluir despesa: {e}')
-        return redirect('financeiro:lista_despesas')
-    messages.error(request, 'Método inválido para exclusão.')
     return redirect('financeiro:lista_despesas')
 
 
