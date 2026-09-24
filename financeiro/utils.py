@@ -54,9 +54,9 @@ def has_finance_edit_permission(user):
 
 
 def is_finance_leader(user):
-    """ Verifica se o usuário é Admin da Ministério, Liderança Financeira, ou Pastor Regional/Local (papéis com acesso hierárquico). """
-    from contas.constants import ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, PASTOR_REGIONAL, PASTOR_LOCAL, user_tem_qualquer_grupo
-    return user_tem_qualquer_grupo(user, [ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, PASTOR_REGIONAL, PASTOR_LOCAL])
+    """Verifica papéis cujo escopo financeiro pode abranger igrejas subordinadas."""
+    from contas.constants import ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, PASTOR_REGIONAL, user_tem_qualquer_grupo
+    return user_tem_qualquer_grupo(user, [ADMIN_MINISTERIO, LIDERANCA_FINANCEIRA, PASTOR_REGIONAL])
 
 
 # --- Função para Obter Igrejas Permitidas ---
@@ -200,6 +200,5 @@ def get_allowed_churches_for_user(user):
     
     # Sem permissão financeira e sem cadastro como membro: retorna vazio
     return Igreja.objects.none()
-
 
 

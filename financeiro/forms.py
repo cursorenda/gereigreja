@@ -60,13 +60,7 @@ class TransferenciaCaixaForm(forms.ModelForm):
         kwargs.pop('allowed_churches', None)
         super().__init__(*args, **kwargs)
 
-        igreja_ativa = None
-        if request and getattr(request, 'igreja_ativa', None):
-            igreja_ativa = request.igreja_ativa
-        elif request:
-            igreja_ativa_id = request.session.get('igreja_ativa_id')
-            if igreja_ativa_id:
-                igreja_ativa = Igreja.objects.filter(pk=igreja_ativa_id).first()
+        igreja_ativa = getattr(request, 'igreja_ativa', None) if request else None
         
         # Configurar labels
         self.fields['caixa_origem'].label = "Caixa de Origem"

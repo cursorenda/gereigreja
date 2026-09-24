@@ -11,8 +11,8 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from contas.constants import ADMIN_MINISTERIO, TESOUREIRO
-from configuracao.models import Departamento, DepartamentoCapacidade, Igreja, Ministerio, PerfilUsuario
+from contas.constants import ADMIN_MINISTERIO, PASTOR_LOCAL, TESOUREIRO
+from configuracao.models import Departamento, DepartamentoCapacidade, Igreja, Ministerio, PerfilUsuario, Plano
 from eventos.models import Evento
 from financeiro.models import (
     CategoriaDespesa,
@@ -33,7 +33,7 @@ from financeiro.models import (
     TransferenciaCaixa,
 )
 from financeiro.forms import RecorrenciaContaPagarForm
-from financeiro.forms import ReceitaForm, DespesaForm
+from financeiro.forms import DespesaForm, ReceitaForm, TransferenciaCaixaForm
 from financeiro.services import (
     AlertaVencimentoContaPagarService,
     FechamentoCaixaService,
@@ -55,6 +55,7 @@ from financeiro.views import (
     lista_despesas,
     lista_receitas,
 )
+from financeiro.utils import get_allowed_churches_for_user
 
 
 class BaseFinanceiroTestCase(TestCase):
@@ -3697,3 +3698,320 @@ class GestaoDepartamentosViewTest(BaseFinanceiroTestCase):
         self.assertEqual(response.status_code, 302)
         departamento.refresh_from_db()
         self.assertEqual(departamento.classificacao, Departamento.CLASSIFICACAO_LEGADO_SUGERIDO)
+
+
+class EscopoFinanceiroPastorLocalTest(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        User = get_user_model()
+        self.admin = User.objects.create_user(username='admin-escopo-financeiro')
+        self.pastor = User.objects.create_user(username='pastor-local-escopo-financeiro')
+        self.ministerio = Ministerio.objects.create(
+            nome_fantasia='Ministerio Escopo Financeiro',
+            administrador_principal=self.admin,
+            ativo=True,
+        )
+        self.igreja_a = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Sede Financeiro',
+            tipo_igreja='sede',
+        )
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Regional Financeiro',
+            tipo_igreja='regional',
+            igreja_superior=self.igreja_a,
+        )
+        self.igreja_c = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Congregacao Financeiro',
+            tipo_igreja='congregacao',
+            igreja_superior=self.igreja_b,
+        )
+        self.perfil = PerfilUsuario.objects.create(user=self.pastor, ministerio=self.ministerio)
+        self.perfil.igrejas_permitidas.add(self.igreja_a)
+        grupo, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
+        self.pastor.groups.add(grupo)
+        Plano.objects.get_or_create(
+            nome='pioneiro',
+            defaults={
+                'codigo_plano': 'pioneiro',
+                'permite_modulo_financeiro': True,
+                'ativo': True,
+            },
+        )
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja_a)
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja_b)
+        self.departamento_a = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja_a,
+            codigo_interno=DepartamentoFinanceiro.CODIGO_MISSOES,
+        )
+        self.departamento_b = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja_b,
+            codigo_interno=DepartamentoFinanceiro.CODIGO_MISSOES,
+        )
+        self.fundo_a = self.departamento_a.fundo_departamental
+        self.fundo_b = self.departamento_b.fundo_departamental
+        self.fechamento_a = FechamentoCaixa.objects.create(
+            igreja=self.igreja_a,
+            fundo_departamental=self.fundo_a,
+            data_inicio=date(2026, 7, 1),
+            data_fim=date(2026, 7, 31),
+            status='fechado',
+        )
+        self.fechamento_b = FechamentoCaixa.objects.create(
+            igreja=self.igreja_b,
+            fundo_departamental=self.fundo_b,
+            data_inicio=date(2026, 7, 1),
+            data_fim=date(2026, 7, 31),
+            status='fechado',
+        )
+        self.client.force_login(self.pastor)
+
+    def test_escopo_canonico_nao_expande_pastor_local_para_subordinadas(self):
+        self.assertQuerySetEqual(
+            get_allowed_churches_for_user(self.pastor).order_by('pk'),
+            [self.igreja_a],
+        )
+
+        self.assertNotIn(self.igreja_b, get_allowed_churches_for_user(self.pastor))
+        self.assertNotIn(self.igreja_c, get_allowed_churches_for_user(self.pastor))
+
+    def test_sem_igreja_explicitamente_permitida_retorna_escopo_vazio(self):
+        self.perfil.igrejas_permitidas.clear()
+
+        self.assertFalse(get_allowed_churches_for_user(self.pastor).exists())
+
+    def test_lista_receitas_com_escopo_vazio_nao_retorna_receitas_do_ministerio(self):
+        conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Caixa Sede',
+            tipo='caixa_fisico',
+        )
+        Receitas.objects.create(
+            igreja=self.igreja_a,
+            fundo_departamental=self.fundo_a,
+            conta_bancaria=conta_a,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('10.00'),
+            fechado=False,
+        )
+        self.perfil.igrejas_permitidas.clear()
+
+        response = self.client.get(reverse('financeiro:lista_receitas'), {'fechado': 'todos'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['receitas'].exists())
+        self.assertFalse(response.context['fundos_departamentais_dropdown'].exists())
+
+    def test_lista_receitas_com_igreja_explicita_retorna_somente_receitas_permitidas(self):
+        conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Caixa Sede',
+            tipo='caixa_fisico',
+        )
+        conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Caixa Regional',
+            tipo='caixa_fisico',
+        )
+        receita_a = Receitas.objects.create(
+            igreja=self.igreja_a,
+            fundo_departamental=self.fundo_a,
+            conta_bancaria=conta_a,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('10.00'),
+            fechado=False,
+        )
+        Receitas.objects.create(
+            igreja=self.igreja_b,
+            fundo_departamental=self.fundo_b,
+            conta_bancaria=conta_b,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('20.00'),
+            fechado=False,
+        )
+
+        response = self.client.get(reverse('financeiro:lista_receitas'), {'fechado': 'todos'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertQuerySetEqual(response.context['receitas'], [receita_a])
+
+    def test_formulario_transferencia_ignora_igreja_presente_apenas_na_sessao(self):
+        request = self.factory.get('/')
+        request.igreja_ativa = None
+        request.session = {'igreja_ativa_id': self.igreja_a.pk}
+
+        form = TransferenciaCaixaForm(request=request)
+
+        self.assertFalse(form.fields['caixa_origem'].queryset.exists())
+        self.assertFalse(form.fields['caixa_destino'].queryset.exists())
+
+    def test_formulario_transferencia_restringe_caixas_a_igreja_ativa_validada(self):
+        conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Caixa Sede',
+            tipo='caixa_fisico',
+        )
+        conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Caixa Regional',
+            tipo='caixa_fisico',
+        )
+        request = self.factory.get('/')
+        request.igreja_ativa = self.igreja_a
+        request.session = {}
+
+        form = TransferenciaCaixaForm(request=request)
+
+        caixas_origem = form.fields['caixa_origem'].queryset
+        caixas_destino = form.fields['caixa_destino'].queryset
+
+        self.assertIn(conta_a, caixas_origem)
+        self.assertIn(conta_a, caixas_destino)
+        self.assertNotIn(conta_b, caixas_origem)
+        self.assertNotIn(conta_b, caixas_destino)
+        self.assertTrue(all(caixa.igreja_id == self.igreja_a.pk for caixa in caixas_origem))
+        self.assertTrue(all(caixa.igreja_id == self.igreja_a.pk for caixa in caixas_destino))
+
+    def test_dropdown_e_filtro_de_fechamentos_rejeitam_igreja_b(self):
+        response = self.client.get(
+            reverse('financeiro:lista_fechamentos_caixa'),
+            {'dept_filtro': self.departamento_b.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        departamentos_ids = set(response.context['departamentos_financeiros_dropdown'].values_list('pk', flat=True))
+        fechamentos_ids = set(response.context['fechamentos'].values_list('pk', flat=True))
+        self.assertIn(self.departamento_a.pk, departamentos_ids)
+        self.assertNotIn(self.departamento_b.pk, departamentos_ids)
+        self.assertIn(self.fechamento_a.pk, fechamentos_ids)
+        self.assertNotIn(self.fechamento_b.pk, fechamentos_ids)
+        self.assertEqual(response.context['departamento_filtro_selecionado'], '')
+
+    def test_filtro_de_fechamentos_aceita_departamento_permitido_e_preserva_isolamento(self):
+        response = self.client.get(
+            reverse('financeiro:lista_fechamentos_caixa'),
+            {'dept_filtro': self.departamento_a.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['departamento_filtro_obj'], self.departamento_a)
+        self.assertEqual(
+            response.context['departamento_filtro_selecionado'],
+            str(self.departamento_a.pk),
+        )
+        self.assertQuerySetEqual(response.context['fechamentos'], [self.fechamento_a])
+        self.assertNotContains(response, self.igreja_b.nome_igreja)
+
+    def test_criacao_e_finalizacao_na_igreja_b_nao_alteram_dados(self):
+        quantidade_inicial = FechamentoCaixa.objects.count()
+        dados = {
+            'igreja': self.igreja_b.pk,
+            'fundo_departamental': self.fundo_b.pk,
+            'data_inicio': '2026-08-01',
+            'data_fim': '2026-08-31',
+        }
+
+        response_criacao = self.client.post(reverse('financeiro:criar_fechamento_caixa'), dados)
+        response_finalizacao = self.client.post(
+            reverse('financeiro:finalizar_fechamento_caixa'),
+            {
+                'igreja_id': self.igreja_b.pk,
+                'fundo_id': self.fundo_b.pk,
+                'data_inicio': '2026-08-01',
+                'data_fim': '2026-08-31',
+            },
+        )
+
+        self.assertEqual(response_criacao.status_code, 200)
+        self.assertTrue(response_criacao.context['form'].errors)
+        self.assertEqual(response_finalizacao.status_code, 302)
+        self.assertEqual(FechamentoCaixa.objects.count(), quantidade_inicial)
+
+    def test_detalhe_e_reabertura_da_igreja_b_sao_bloqueados(self):
+        detalhe = self.client.get(
+            reverse('financeiro:detalhe_fechamento_caixa', args=[self.fechamento_b.pk])
+        )
+        reabertura = self.client.post(
+            reverse('financeiro:reabrir_fechamento_caixa', args=[self.fechamento_b.pk])
+        )
+
+        self.assertEqual(detalhe.status_code, 404)
+        self.assertEqual(reabertura.status_code, 404)
+        self.assertTrue(FechamentoCaixa.objects.filter(pk=self.fechamento_b.pk, status='fechado').exists())
+
+    def test_igreja_ativa_restringe_todas_as_listagens_ao_mesmo_escopo(self):
+        self.perfil.igrejas_permitidas.add(self.igreja_b)
+        conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Caixa Ativo A',
+            tipo='caixa_fisico',
+        )
+        conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Caixa Ativo B',
+            tipo='caixa_fisico',
+        )
+        categoria = CategoriaDespesa.objects.create(ministerio=self.ministerio, nome='Escopo Ativo')
+        receita_a = Receitas.objects.create(
+            igreja=self.igreja_a,
+            fundo_departamental=self.fundo_a,
+            conta_bancaria=conta_a,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('10.00'),
+            fechado=False,
+        )
+        Receitas.objects.create(
+            igreja=self.igreja_b,
+            fundo_departamental=self.fundo_b,
+            conta_bancaria=conta_b,
+            categoria='oferta',
+            data=date(2026, 8, 10),
+            valor=Decimal('20.00'),
+            fechado=False,
+        )
+        despesa_a = Despesas.objects.create(
+            igreja=self.igreja_a,
+            fundo_departamental=self.fundo_a,
+            conta_bancaria=conta_a,
+            categoria=categoria,
+            descricao='Pendente A',
+            data=date(2026, 8, 10),
+            valor=Decimal('10.00'),
+            fechado=False,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+        )
+        Despesas.objects.create(
+            igreja=self.igreja_b,
+            fundo_departamental=self.fundo_b,
+            conta_bancaria=conta_b,
+            categoria=categoria,
+            descricao='Pendente B',
+            data=date(2026, 8, 10),
+            valor=Decimal('20.00'),
+            fechado=False,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+        )
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja_a.pk
+        session.save()
+
+        receitas = self.client.get(reverse('financeiro:lista_receitas'), {'fechado': 'todos'})
+        despesas = self.client.get(
+            reverse('financeiro:lista_despesas'),
+            {'fechado': 'todos', 'aprovacao_status': Despesas.APROVACAO_PENDENTE},
+        )
+        fechamentos = self.client.get(reverse('financeiro:lista_fechamentos_caixa'))
+
+        self.assertQuerySetEqual(receitas.context['receitas'], [receita_a])
+        self.assertQuerySetEqual(despesas.context['despesas'], [despesa_a])
+        self.assertQuerySetEqual(fechamentos.context['fechamentos'], [self.fechamento_a])
+        self.assertTrue(all(
+            item.igreja_id == self.igreja_a.pk
+            for item in fechamentos.context['departamentos_financeiros_dropdown']
+        ))

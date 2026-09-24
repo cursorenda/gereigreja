@@ -914,7 +914,7 @@ def lista_receitas(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
         allowed_churches = get_allowed_churches_for_user(request.user)
-        igrejas_base = allowed_churches if allowed_churches.exists() else Igreja.objects.filter(ministerio=ministerio)
+        igrejas_base = allowed_churches
         # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
         if request.igreja_ativa:
             # Se uma igreja ativa está selecionada, filtra por ela (garantindo que ela está entre as permitidas)
