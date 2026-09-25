@@ -3069,6 +3069,12 @@ class EventoFinanceiroSegregacaoTest(BaseFinanceiroTestCase):
         self.assertFalse(despesa_pendente.fechado)
 
     def test_prestacao_contas_eventos_fecha_lancamentos_do_periodo(self):
+        grupo_pastor_local, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
+        self.user.groups.add(grupo_pastor_local)
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja.pk
+        session.save()
+
         receita = Receitas.objects.create(
             igreja=self.igreja,
             evento=self.evento,

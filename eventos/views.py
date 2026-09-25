@@ -1660,6 +1660,7 @@ def prestacao_contas_eventos(request):
 	from configuracao.models import Igreja
 	from financeiro.models import Despesas, FechamentoCaixa, FundoDepartamental, LogTransacaoFinanceira, Receitas
 	from financeiro.utils import get_allowed_churches_for_user
+	from eventos.policies import can_close_event_financial_period
 
 	allowed_igrejas = get_allowed_churches_for_user(request.user)
 	igreja_ativa = getattr(request, 'igreja_ativa', None)
@@ -1757,9 +1758,14 @@ def prestacao_contas_eventos(request):
 	total_saidas = despesas_qs.aggregate(total=Sum('valor')).get('total') or Decimal('0.00')
 	saldo = total_entradas - total_saidas
 
+	pode_fechar_periodo_eventos = can_close_event_financial_period(request.user, igreja_ativa)
+
 	if request.method == 'POST' and request.POST.get('acao') == 'fechar_periodo_eventos':
 		if not igreja_ativa or not allowed_igrejas.filter(pk=igreja_ativa.pk).exists():
 			messages.error(request, 'Selecione uma igreja ativa para fechar o caixa de eventos deste período.')
+			return redirect(f"{reverse('eventos:prestacao_contas_eventos')}?{request.GET.urlencode()}")
+		if not pode_fechar_periodo_eventos:
+			messages.error(request, 'Você não possui autorização para fechar o período financeiro de eventos desta igreja.')
 			return redirect(f"{reverse('eventos:prestacao_contas_eventos')}?{request.GET.urlencode()}")
 
 		with transaction.atomic():
@@ -1871,7 +1877,7 @@ def prestacao_contas_eventos(request):
 		'quantidade_movimentos': len(movimentos),
 		'link_entradas': link_entradas,
 		'link_saidas': link_saidas,
-		'pode_fechar_periodo': bool(igreja_ativa and allowed_igrejas.filter(pk=igreja_ativa.pk).exists()),
+		'pode_fechar_periodo_eventos': pode_fechar_periodo_eventos,
 		'igreja_ativa': igreja_ativa,
 	}
 	return render(request, 'eventos/prestacao_contas_eventos.html', context)
