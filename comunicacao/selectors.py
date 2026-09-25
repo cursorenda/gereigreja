@@ -486,7 +486,11 @@ def listar_logs_whatsapp(*, ministerio, limite=200, status=None, tipo=None, busc
 
 
 def resumir_logs_whatsapp(*, ministerio, status=None, tipo=None, busca=None):
-    """Retorna indicadores rápidos para a tela de logs de WhatsApp."""
+    """Retorna indicadores rápidos para a tela de logs de WhatsApp.
+
+    Nota: neutralizado_demo e contado separadamente e NAO como entrega real.
+    Ele representa fluxo funcional concluido no Demo, nao entrega externa.
+    """
     qs = _base_logs_whatsapp_qs(
         ministerio=ministerio,
         status=status,
@@ -497,9 +501,11 @@ def resumir_logs_whatsapp(*, ministerio, status=None, tipo=None, busca=None):
     sucesso = qs.filter(status='sucesso').count()
     erro = qs.filter(status='erro').count()
     recebido = qs.filter(status='recebido').count()
+    neutralizado_demo = qs.filter(status='neutralizado_demo').count()
     return {
         'total': total,
         'sucesso': sucesso,
         'erro': erro,
         'recebido': recebido,
+        'neutralizado_demo': neutralizado_demo,
     }

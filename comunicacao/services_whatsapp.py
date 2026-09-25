@@ -189,6 +189,32 @@ def send_whatsapp_text(configuracao, phone, text, *, tipo='outro', ministerio=No
         logger.warning('Envio WhatsApp bloqueado por configuracao ou contexto cross-tenant: config=%s', getattr(configuracao, 'pk', None))
         raise WhatsAppSendError('Configuracao WhatsApp invalida para o ministerio informado.')
 
+    # Neutralizacao para tenant de demonstracao:
+    # - NAO chama WAHA/requests/API externa
+    # - registra log com estado semanticamente distinto
+    # - retorna contrato compativel com sucesso funcional
+    ministerio_efetivo = ministerio or getattr(configuracao, 'ministerio', None)
+    if ministerio_efetivo and getattr(ministerio_efetivo, 'is_demo', False):
+        logger.info(
+            'WhatsApp neutralizado no tenant demo: ministerio=%s, tipo=%s',
+            ministerio_efetivo.pk, tipo
+        )
+        WhatsAppMensagemLog.objects.create(
+            ministerio=ministerio_efetivo,
+            igreja=igreja or getattr(configuracao, 'igreja', None),
+            membro=membro,
+            configuracao=configuracao,
+            tipo=tipo,
+            status='neutralizado_demo',
+            telefone_destino=phone,
+            chat_id=None,
+            mensagem=text,
+            resposta_waha=None,
+            erro='Envio neutralizado: tenant de demonstração',
+        )
+        # Retorna contrato compativel com sucesso (dict)
+        return {'ok': True, 'demo': True, 'message': 'Envio neutralizado no modo demonstração'}
+
     numero_normalizado, chat_id = normalize_phone_to_chat_id(phone)
     if not chat_id:
         raise WhatsAppSendError('Numero de telefone invalido para envio WhatsApp.')

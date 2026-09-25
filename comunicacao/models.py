@@ -188,6 +188,7 @@ class WhatsAppMensagemLog(models.Model):
         ('sucesso', 'Sucesso'),
         ('erro', 'Erro'),
         ('recebido', 'Recebido'),
+        ('neutralizado_demo', 'Neutralizado (Demo)'),
     ]
 
     ministerio = models.ForeignKey(Ministerio, on_delete=models.CASCADE, related_name='whatsapp_logs')
