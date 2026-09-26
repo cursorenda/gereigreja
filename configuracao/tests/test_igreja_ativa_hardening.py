@@ -11,6 +11,8 @@ from contas.constants import ADMIN_MINISTERIO, PASTOR_LOCAL, SECRETARIO_LOCAL
 from configuracao.models import Departamento, DepartamentoVinculo, Igreja, Ministerio, PerfilUsuario
 from core.middleware import ActiveChurchMiddleware
 from core.utils import get_igrejas_selecionaveis
+from financeiro.forms import TransferenciaCaixaForm
+from financeiro.models import ContaBancaria
 from financeiro.templatetags.financeiro_tags import get_churches_tree_ordered
 from secretaria.models import Pessoa, StatusPessoa, TipoPessoa
 
@@ -223,3 +225,11 @@ class IgrejaAtivaHardeningTests(TestCase):
             denied_extra = logger.warning.call_args.kwargs['extra']
             self.assertEqual(denied_extra['result'], 'denied')
             self.assertEqual(denied_extra['requested_church_id'], self.cross_ministerio.pk)
+
+    def test_transferencia_nao_confia_em_id_cru_da_sessao(self):
+        ContaBancaria.objects.create(igreja=self.cross_ministerio, nome_identificacao='Caixa Cross')
+        request = self._request(self.pastor, self.cross_ministerio.pk)
+        request.igreja_ativa = None
+        form = TransferenciaCaixaForm(request=request)
+        self.assertFalse(form.fields['caixa_origem'].queryset.exists())
+        self.assertFalse(form.fields['caixa_destino'].queryset.exists())
