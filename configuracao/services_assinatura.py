@@ -57,16 +57,7 @@ def _upsert_codigo_promocional_local(
 
 def _ministerio_eh_demo(ministerio: Optional[Ministerio]) -> bool:
     """Identifica o ministério de demonstração para liberar limites de teste."""
-    if not ministerio:
-        return False
-
-    nome = (getattr(ministerio, 'nome_fantasia', '') or '').strip().lower()
-    if nome == 'demonstração' or nome == 'demonstracao':
-        return True
-
-    administrador = getattr(ministerio, 'administrador_principal', None)
-    username = getattr(administrador, 'username', '') or ''
-    return username.startswith('admin_demo')
+    return bool(ministerio and ministerio.is_demo)
 
 
 # ---------------------------------------------------------------------------

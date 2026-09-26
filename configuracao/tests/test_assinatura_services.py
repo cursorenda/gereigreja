@@ -36,8 +36,10 @@ from configuracao.models import (
     HistoricoAssinatura,
 )
 from configuracao.services_assinatura import (
+    _ministerio_eh_demo,
     assinatura_em_graca_inadimplencia,
     assinatura_esta_regular,
+    contar_pessoas_ativas,
     dias_restantes_graca,
     dias_restantes_trial,
     iniciar_trial,
@@ -48,6 +50,7 @@ from configuracao.services_assinatura import (
     ministerio_pode_criar_igreja,
     ministerio_pode_usar_modulo,
     ministerio_pode_visualizar_plano,
+    obter_limite_pessoas_ativas,
     obter_plano_efetivo_ministerio,
     usuario_pode_usar_modulo,
 )
@@ -722,7 +725,64 @@ class UsuarioModuloTestCase(TestCase):
 
 
 # ===========================================================================
-# 9. ministerio_pode_adicionar_pessoa_ativa()
+# 9. Tenant Demo — fonte canônica Ministerio.is_demo
+# ===========================================================================
+
+class MinisterioDemoCanonicoTestCase(TestCase):
+    def setUp(self):
+        self.plano = criar_plano(
+            nome='pioneiro',
+            codigo='pioneiro',
+            limite_membros=5,
+            permite_comunicacao=False,
+        )
+
+    def test_ministerio_marcado_demo_com_nome_e_admin_normais_libera_modulos_e_limites(self):
+        ministerio, admin = criar_ministerio(nome='Ministério Comum')
+        ministerio.is_demo = True
+        ministerio.save(update_fields=['is_demo'])
+        Igreja.objects.create(ministerio=ministerio, nome_igreja='Igreja Demo')
+        criar_assinatura(ministerio, self.plano, status='cancelada')
+        desativar_liberacoes_automaticas(ministerio)
+
+        self.assertFalse(admin.username.startswith('admin_demo'))
+        self.assertTrue(_ministerio_eh_demo(ministerio))
+        self.assertTrue(usuario_pode_usar_modulo(admin, 'comunicacao'))
+        self.assertEqual(contar_pessoas_ativas(ministerio), 0)
+        self.assertEqual(obter_limite_pessoas_ativas(ministerio), 0)
+        self.assertTrue(ministerio_pode_adicionar_pessoa_ativa(ministerio))
+
+    def test_nome_demonstracao_nao_classifica_tenant_real_como_demo(self):
+        ministerio, admin = criar_ministerio(nome='Demonstração')
+        criar_assinatura(ministerio, self.plano, status='ativa')
+        desativar_liberacoes_automaticas(ministerio)
+
+        self.assertFalse(ministerio.is_demo)
+        self.assertFalse(_ministerio_eh_demo(ministerio))
+        self.assertFalse(usuario_pode_usar_modulo(admin, 'comunicacao'))
+
+    def test_admin_demo_username_nao_classifica_tenant_real_como_demo(self):
+        admin = User.objects.create_user(username='admin_demo_x', password='pass')
+        ministerio, _ = criar_ministerio(admin=admin, nome='Ministério Real')
+        criar_assinatura(ministerio, self.plano, status='ativa')
+        desativar_liberacoes_automaticas(ministerio)
+
+        self.assertFalse(ministerio.is_demo)
+        self.assertFalse(_ministerio_eh_demo(ministerio))
+        self.assertFalse(usuario_pode_usar_modulo(admin, 'comunicacao'))
+
+    def test_nome_demonstracao_sem_flag_nao_classifica_tenant_real_como_demo(self):
+        ministerio, admin = criar_ministerio(nome='Demonstracao')
+        criar_assinatura(ministerio, self.plano, status='ativa')
+        desativar_liberacoes_automaticas(ministerio)
+
+        self.assertFalse(ministerio.is_demo)
+        self.assertFalse(_ministerio_eh_demo(ministerio))
+        self.assertFalse(usuario_pode_usar_modulo(admin, 'comunicacao'))
+
+
+# ===========================================================================
+# 10. ministerio_pode_adicionar_pessoa_ativa()
 # ===========================================================================
 
 class PodeAdicionarPessoaTestCase(TestCase):

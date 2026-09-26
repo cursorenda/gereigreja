@@ -25,12 +25,8 @@ def status_plano_unificado(request):
     if request.user.is_superuser:
         return {'status_plano': None}
 
-    username = getattr(request.user, 'username', '') or ''
-    if username.startswith('demo_') or username == 'admin_demo':
-        return {'status_plano': None}
-
     try:
-        from configuracao.models import LiberacaoPlanoMinisterio, Ministerio
+        from configuracao.models import LiberacaoPlanoMinisterio
         from configuracao.services_assinatura import (
             assinatura_esta_regular,
             assinatura_em_graca_inadimplencia,
@@ -39,23 +35,18 @@ def status_plano_unificado(request):
             contar_pessoas_ativas,
             is_trial_ativo,
             obter_assinatura_ministerio,
+            obter_ministerio_do_usuario,
             obter_plano_efetivo_ministerio,
             obter_limite_pessoas_ativas,
         )
 
-        # --- EXTRAÇÃO DO MINISTÉRIO (inline para evitar import circular) ---
-        perfil = getattr(request.user, 'perfil', None)
-        ministerio = getattr(perfil, 'ministerio', None)
-
-        if not ministerio:
-            membro = getattr(request.user, 'membro_secretaria', None)
-            ministerio = getattr(getattr(membro, 'igreja', None), 'ministerio', None)
-
-        if not ministerio:
-            ministerio = Ministerio.objects.filter(administrador_principal=request.user).first()
+        ministerio = obter_ministerio_do_usuario(request.user)
 
         if not ministerio or not ministerio.ativo:
             # Ministério inativo ou não encontrado - sem status a mostrar
+            return {'status_plano': None}
+
+        if ministerio.is_demo:
             return {'status_plano': None}
 
         # --- PRIORITARIO: Assinatura vencida/irregular ---

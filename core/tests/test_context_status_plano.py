@@ -55,6 +55,32 @@ class StatusPlanoUnificadoTestCase(TestCase):
         self.assertEqual(result['status_plano']['nivel'], 'critico')
         self.assertEqual(result['status_plano']['tipo'], 'sem_assinatura')
         self.assertIn('não possui uma assinatura', result['status_plano']['mensagem'])
+
+    def test_ministerio_demo_com_username_normal_suprime_status(self):
+        self.ministerio.is_demo = True
+        self.ministerio.save(update_fields=['is_demo'])
+
+        result = status_plano_unificado(self._make_request())
+
+        self.assertEqual(result, {'status_plano': None})
+
+    def test_username_demo_nao_suprime_status_de_tenant_real(self):
+        self.user.username = 'demo_usuario'
+        self.user.save(update_fields=['username'])
+
+        with patch('configuracao.services_assinatura.assinatura_esta_regular', return_value=False):
+            result = status_plano_unificado(self._make_request())
+
+        self.assertEqual(result['status_plano']['tipo'], 'sem_assinatura')
+
+    def test_admin_demo_username_nao_suprime_status_de_tenant_real(self):
+        self.user.username = 'admin_demo'
+        self.user.save(update_fields=['username'])
+
+        with patch('configuracao.services_assinatura.assinatura_esta_regular', return_value=False):
+            result = status_plano_unificado(self._make_request())
+
+        self.assertEqual(result['status_plano']['tipo'], 'sem_assinatura')
     
     def test_assinatura_vencida_returns_critico(self):
         """Assinatura vencida deve retornar estado crítico"""
