@@ -209,6 +209,7 @@
             {# --- INÍCIO: Dropdown do Usuário LOGADO --- #}
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle d-flex align-items-center" id="navbarDropdownUser" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    {% resumo_atuacao_usuario user as atuacao_usuario %}
                     {% with user_initial=request.user.get_full_name|default:user.username|slice:":1"|upper %}
                     {% if request.user.perfil.foto_perfil %}
                         <img src="{{ request.user.perfil.foto_perfil.url }}" 
@@ -235,9 +236,29 @@
                     {% endif %}
                     {% endwith %}
 
-                   <span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span>
+                   <span class="user-identity d-none d-md-flex flex-column">
+                       <span class="user-identity-name">{{ user.get_full_name|default:user.username }}</span>
+                       {% if atuacao_usuario.principal %}
+                           <span class="user-identity-role-row" title="{{ atuacao_usuario.titulo }}">
+                               <span class="user-identity-role"><i class="fas fa-shield-halved" aria-hidden="true"></i>{{ atuacao_usuario.principal }}</span>{% if atuacao_usuario.adicionais %}<span class="user-identity-role-count" aria-label="{{ atuacao_usuario.adicionais }} atuações adicionais">+{{ atuacao_usuario.adicionais }}</span>{% endif %}
+                           </span>
+                       {% endif %}
+                   </span>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownUser">
+
+                {% if atuacao_usuario.principal %}
+                    <li class="dropdown-user-roles" aria-label="Suas atuações">
+                        <span class="dropdown-user-roles-title">Suas atuações</span>
+                        {% for atuacao in atuacao_usuario.atuacoes %}
+                            <span class="dropdown-user-role-item{% if forloop.first %} dropdown-user-role-item-primary{% endif %}">
+                                {% if forloop.first %}<i class="fas fa-user-tag" aria-hidden="true"></i>{% else %}<i class="fas fa-circle" aria-hidden="true"></i>{% endif %}
+                                {{ atuacao }}
+                            </span>
+                        {% endfor %}
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                {% endif %}
 
                 {# --- Links de Configuração da Ministério (SÓ PARA NÃO SUPERUSUÁRIOS E NO GRUPO CERTO) --- #}
                 {% if not user.is_superuser and user.groups.all %} {# Verifica se tem grupos associados #}
