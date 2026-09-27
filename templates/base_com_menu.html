@@ -171,19 +171,56 @@
         {# Este formulário será inserido aqui, antes do menu do usuário à direita #}
         {% if user.is_authenticated and not user.is_superuser and user.perfil %}
             {% get_churches_tree_ordered as allowed_churches_list %}
-            {# Só mostra o seletor se houver MAIS de uma igreja permitida #}
-            {% if allowed_churches_list|length > 1 %}
-                <form method="POST" action="{% url 'configuracao:set_active_church' %}" class="d-flex ms-auto me-md-3 my-2 my-md-0 align-items-center" id="activeChurchForm">
-                    {% csrf_token %}
-                    <select name="igreja_id_selector" id="igreja_id_selector_nav" class="font-size-selector-custom igreja-selector-wide" onchange="document.getElementById('activeChurchForm').submit();" title="Selecionar igreja ativa">
-                        <option value="todas" {% if not request.igreja_ativa %}selected{% endif %}>Todas Permitidas</option>
-                        {% for igreja_item in allowed_churches_list %}
-                            <option value="{{ igreja_item.pk }}" {% if request.igreja_ativa and request.igreja_ativa.pk == igreja_item.pk %}selected{% endif %}>
-                                {% if igreja_item.tipo_igreja == 'regional' %}&nbsp;&nbsp;&nbsp;&nbsp;{% elif igreja_item.tipo_igreja == 'congregacao' %}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}{{ igreja_item.nome_igreja }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </form>
+            {% if allowed_churches_list %}
+                <div class="active-church-context ms-auto me-md-3 my-2 my-md-0">
+                    {% if request.igreja_ativa %}
+                        <span class="active-church-current" title="Igreja no contexto atual">
+                            {% if request.igreja_ativa.tipo_igreja == 'sede' %}<span class="active-church-type">Sede</span>{% elif request.igreja_ativa.tipo_igreja == 'regional' %}<span class="active-church-type">Regional</span>{% elif request.igreja_ativa.tipo_igreja == 'congregacao' %}<span class="active-church-type">Congregação</span>{% endif %}
+                            <span class="active-church-name">{{ request.igreja_ativa.nome_igreja }}</span>
+                        </span>
+                    {% else %}
+                        <span class="active-church-current active-church-unselected" title="Selecione uma igreja para definir o contexto de trabalho">
+                            <i class="fas fa-building-columns" aria-hidden="true"></i>
+                            <span class="active-church-name">Selecionar igreja</span>
+                        </span>
+                    {% endif %}
+
+                    {% if allowed_churches_list|length > 1 %}
+                        <button class="active-church-switcher" type="button" id="activeChurchSwitcher" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Trocar igreja do contexto atual" title="Trocar igreja">
+                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end active-church-menu" aria-labelledby="activeChurchSwitcher">
+                            <li><span class="active-church-menu-title">Trocar igreja</span></li>
+                            {% for igreja_item in allowed_churches_list %}
+                                <li>
+                                    <form method="POST" action="{% url 'configuracao:set_active_church' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button class="dropdown-item active-church-option{% if request.igreja_ativa and request.igreja_ativa.pk == igreja_item.pk %} active-church-option-current{% endif %}" type="submit" name="igreja_id_selector" value="{{ igreja_item.pk }}">
+                                            <span>
+                                                {% if igreja_item.tipo_igreja == 'sede' %}<span class="active-church-option-type">Sede</span>{% elif igreja_item.tipo_igreja == 'regional' %}<span class="active-church-option-type">Regional</span>{% elif igreja_item.tipo_igreja == 'congregacao' %}<span class="active-church-option-type">Congregação</span>{% endif %}
+                                                <span class="active-church-option-name">{{ igreja_item.nome_igreja }}</span>
+                                            </span>
+                                            {% if request.igreja_ativa and request.igreja_ativa.pk == igreja_item.pk %}<i class="fas fa-check" aria-label="Igreja atual"></i>{% endif %}
+                                        </button>
+                                    </form>
+                                </li>
+                            {% endfor %}
+                            {% if request.igreja_ativa %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{% url 'configuracao:set_active_church' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button class="dropdown-item active-church-option" type="submit" name="igreja_id_selector" value="todas">
+                                            <span>Limpar seleção</span>
+                                        </button>
+                                    </form>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    {% endif %}
+                </div>
             {% endif %}
         {% endif %}
         {# --- FIM DO SELETOR DE IGREJA ATIVA --- #}
