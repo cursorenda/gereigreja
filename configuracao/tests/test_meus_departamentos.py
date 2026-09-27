@@ -32,9 +32,10 @@ class MeusDepartamentosTests(TestCase):
         self.outro_user = User.objects.create_user(username='outro-meus-deps')
         self.sem_pessoa = User.objects.create_user(username='sem-pessoa-meus-deps')
         self.ministerio_a = Ministerio.objects.create(
-            nome_fantasia='Demonstracao',
+            nome_fantasia='Ministerio Teste Meus Departamentos',
             administrador_principal=self.admin_a,
             ativo=True,
+            is_demo=False,
         )
         self.ministerio_b = Ministerio.objects.create(
             nome_fantasia='Outro Ministerio Meus Departamentos',
@@ -253,7 +254,7 @@ class MeusDepartamentosTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertLessEqual(len(contexto_seis), len(contexto_um) + 2)
 
-    def test_view_isolada_usa_escopo_operacional_local_e_fica_ate_treze_queries(self):
+    def test_view_isolada_usa_escopo_operacional_local_e_mantem_orcamento_de_queries(self):
         grupo_pastor, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
         self.user.groups.add(grupo_pastor)
         self._vincular()
@@ -275,9 +276,9 @@ class MeusDepartamentosTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         seletor_generico.assert_not_called()
-        # O escopo explícito e a política financeira contextual mantêm custo
+        # Escopo local, policy financeira e entitlement real mantêm custo
         # constante por request, sem N+1 por vínculo departamental.
-        self.assertLessEqual(len(queries), 13)
+        self.assertLessEqual(len(queries), 16)
 
     def test_igreja_subordinada_nao_explicitamente_permitida_exibe_vinculo_sem_atalhos(self):
         self._vincular()
