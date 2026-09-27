@@ -5,6 +5,7 @@
 {% load secretaria_tags %} {# Carrega os templatetags da secretaria #}
 {% load secretaria_extras %}
 {% load grupo_tags %} {# Carrega templatetags de grupos #}
+{% load departamento_tags %}
 {% load permissoes_hierarquia %}
 {% load igreja_tags %}
 
@@ -88,6 +89,13 @@
                 <div class="sb-nav-link-icon"><i class="fas fa-user"></i></div>
                 Meu Perfil
             </a>
+            {% usuario_tem_departamento_ativo request.user as tem_departamento_ativo %}
+            {% if tem_departamento_ativo %}
+            <a class="nav-link {% if '/configuracao/meus-departamentos/' in request.path %}active{% endif %}" href="{% url 'configuracao:meus_departamentos' %}">
+                <div class="sb-nav-link-icon"><i class="fas fa-layer-group"></i></div>
+                Meus Departamentos
+            </a>
+            {% endif %}
             {% if can_mural_avisos and not can_comunicacao_massa %}
             <a class="nav-link {% if 'avisos' in request.path %}active{% endif %}" href="{% url 'comunicacao:lista_avisos' %}">
                 <div class="sb-nav-link-icon"><i class="fas fa-bullhorn"></i></div>
