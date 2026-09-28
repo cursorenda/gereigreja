@@ -542,3 +542,71 @@ Mudança confiável
 ```
 
 Quando houver dúvida entre agir e preservar segurança, preservar segurança e reportar a dúvida.
+
+## Revisão visual obrigatória para alterações de arquivos
+
+Para qualquer CRIAÇÃO ou ALTERAÇÃO de arquivo persistente do projeto
+dentro do repositório Gereigreja — seja ele já versionado ou novo
+arquivo destinado a versionamento:
+
+1. Use obrigatoriamente a ferramenta nativa de edição/patch do agente
+   ou da IDE, quando disponível, para alterações normais em arquivos
+   persistentes do projeto, de forma que a alteração seja apresentada
+   em diff visual para revisão humana.
+
+   Quando o agente ou ambiente não oferecer edição/patch com revisão
+   visual, qualquer outra forma de escrita exige autorização explícita
+   do usuário para aquela operação específica, conforme o item 7.
+
+2. NÃO use comandos de terminal para escrever ou sobrescrever arquivos
+   persistentes do projeto dentro do repositório, já versionados ou
+   destinados a versionamento, salvo autorização explícita do usuário
+   para aquela operação específica.
+
+3. São proibidos por padrão, quando direcionados a arquivos persistentes
+   do projeto dentro do repositório, já versionados ou destinados a
+   versionamento:
+
+   - Set-Content
+   - Add-Content
+   - Out-File
+   - redirecionamento > ou >>
+   - Python Path.write_text / write_bytes
+   - open(..., "w") / open(..., "a")
+   - os.write para arquivos persistentes do projeto
+   - sed -i
+   - perl -pi
+   - cópia/sobrescrita de arquivo persistente do projeto
+   - scripts PowerShell/Python usados para reescrever código
+   - git checkout/restore/reset para modificar o worktree
+
+4. O terminal pode ser usado normalmente para operações somente leitura
+   e validação, incluindo:
+
+   - git status
+   - git diff
+   - git show
+   - git log
+   - git grep
+   - git blame
+   - git rev-parse
+   - git hash-object
+   - testes
+   - lint/checks
+   - inspeções AST
+   - materialização em diretórios temporários FORA do repositório
+
+   Arquivos temporários, diagnósticos ou materializações que não façam
+   parte do projeto devem ser criados fora do repositório sempre que
+   possível e não estão sujeitos à revisão visual de código.
+
+5. Antes de editar um arquivo persistente do projeto, informar brevemente:
+   - qual arquivo será alterado;
+   - qual mudança será feita;
+   - por quê.
+
+6. A revisão visual do diff pelo usuário deve ocorrer antes de considerar
+   a alteração aprovada.
+
+7. Exceções a esta regra exigem autorização explícita do usuário na
+   tarefa atual.
