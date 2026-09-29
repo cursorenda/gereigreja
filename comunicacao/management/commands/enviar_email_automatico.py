@@ -22,6 +22,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         enviados = 0
+        neutralizados_demo = 0
+        nao_enviados = 0
         falhas = 0
 
         for automacao in AutomacaoAniversariantes.objects.filter(email_ativo=True).select_related('ministerio'):
@@ -32,8 +34,14 @@ class Command(BaseCommand):
             if resumo.get('ignorado'):
                 continue
             enviados += resumo['enviados']
+            neutralizados_demo += resumo['neutralizados_demo']
+            nao_enviados += resumo['nao_enviados']
             falhas += resumo['falhas']
 
-        self.stdout.write(self.style.SUCCESS(f'Envios com sucesso: {enviados}'))
+        self.stdout.write(self.style.SUCCESS(f'Enviados externamente: {enviados}'))
+        if neutralizados_demo:
+            self.stdout.write(self.style.WARNING(f'Neutralizados em Demo: {neutralizados_demo}'))
+        if nao_enviados:
+            self.stdout.write(self.style.WARNING(f'Não enviados: {nao_enviados}'))
         if falhas:
             self.stdout.write(self.style.WARNING(f'Falhas de envio: {falhas}'))

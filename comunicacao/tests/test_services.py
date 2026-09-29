@@ -14,6 +14,7 @@ from comunicacao.services import (
     executar_automacao_lembrete_eventos_whatsapp,
     executar_automacao_aniversario_whatsapp,
     executar_automacao_novos_membros_whatsapp,
+    enviar_email_personalizado,
     enviar_email_massa,
     personalizar_template_comunicacao,
 )
@@ -59,6 +60,13 @@ class _OrderableResult:
 
 
 class ComunicacaoServicesTests(TestCase):
+    def _resultado_email(self, status, resultado_backend=None):
+        return ResultadoEnvioEmail(
+            status=status,
+            backend_chamado=status != StatusEnvioEmail.NEUTRALIZADO_DEMO,
+            resultado_backend=resultado_backend,
+        )
+
     @patch('comunicacao.services.enviar_email_seguro')
     @patch('comunicacao.services.render_to_string')
     def test_enviar_email_massa_preserva_dispatch_e_parametros(self, mock_render, mock_enviar_email_seguro):
@@ -245,10 +253,13 @@ class ComunicacaoServicesTests(TestCase):
         )
         mock_igreja_filter.return_value = [igreja]
         mock_membro_filter.return_value = _ChainResult([pessoa])
+        mock_email.return_value = self._resultado_email(StatusEnvioEmail.ENVIADO, 1)
 
         resumo = executar_automacao_aniversario_email(ministerio=ministerio, force=False)
 
         self.assertEqual(resumo['enviados'], 1)
+        self.assertEqual(resumo['neutralizados_demo'], 0)
+        self.assertEqual(resumo['nao_enviados'], 0)
         self.assertEqual(resumo['falhas'], 0)
         self.assertFalse(resumo['ignorado'])
         mock_email.assert_called_once()
@@ -294,6 +305,7 @@ class ComunicacaoServicesTests(TestCase):
             ministerio=ministerio_a,
             email_ativo=True,
         )
+        mock_email.return_value = self._resultado_email(StatusEnvioEmail.ENVIADO, 1)
 
         resumo = executar_automacao_aniversario_email(
             ministerio=ministerio_a,
@@ -301,10 +313,210 @@ class ComunicacaoServicesTests(TestCase):
         )
 
         self.assertEqual(resumo['enviados'], 1)
+        self.assertEqual(resumo['neutralizados_demo'], 0)
+        self.assertEqual(resumo['nao_enviados'], 0)
         self.assertEqual(resumo['falhas'], 0)
         mock_email.assert_called_once()
         self.assertEqual(mock_email.call_args.kwargs['ministerio'], ministerio_a)
         self.assertEqual(mock_email.call_args.kwargs['membro'], pessoa_a)
+
+    @patch('comunicacao.services.enviar_email_seguro')
+    @patch('comunicacao.services.render_to_string')
+    def test_enviar_email_personalizado_retorna_resultado_do_wrapper(self, mock_render, mock_enviar_email_seguro):
+        ministerio = SimpleNamespace(nome_fantasia='Ministerio Teste')
+        membro = SimpleNamespace(
+            nome='Ana Silva',
+            nascimento=date(1990, 7, 13),
+            email='ana@example.com',
+            igreja=SimpleNamespace(nome_igreja='Igreja Central', email='contato@igreja.com'),
+        )
+        resultado_dispatch = self._resultado_email(StatusEnvioEmail.ENVIADO, 1)
+        mock_render.return_value = '<html>Mensagem</html>'
+        mock_enviar_email_seguro.return_value = resultado_dispatch
+
+        resultado = enviar_email_personalizado(
+            ministerio=ministerio,
+            membro=membro,
+            assunto_template='Feliz aniversario, {primeiro_nome}',
+            mensagem_template='Parabens, {nome}',
+        )
+
+        self.assertIs(resultado, resultado_dispatch)
+        mock_render.assert_called_once_with(
+            'comunicacao/email/email_massa_template.html',
+            {
+                'assunto': 'Feliz aniversario, Ana',
+                'mensagem': 'Parabens, Ana Silva',
+                'ministerio_nome': 'Ministerio Teste',
+                'igreja_nome': 'Igreja Central',
+                'remetente_email': 'contato@igreja.com',
+            },
+        )
+        mock_enviar_email_seguro.assert_called_once_with(
+            'Feliz aniversario, Ana',
+            'Parabens, Ana Silva',
+            ['ana@example.com'],
+            ministerio=ministerio,
+            membro=membro,
+            html_message='<html>Mensagem</html>',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            fail_silently=False,
+        )
+
+    @patch('comunicacao.services.enviar_email_personalizado')
+    @patch('comunicacao.services.Membro.objects.filter')
+    @patch('comunicacao.services.Igreja.objects.filter')
+    @patch('comunicacao.services.AutomacaoAniversariantes.objects')
+    def test_automacao_email_contabiliza_neutralizacao_demo(self, mock_automacao_objects, mock_igreja_filter, mock_membro_filter, mock_email):
+        hoje = date(2026, 7, 13)
+        ministerio = SimpleNamespace(id=2, nome_fantasia='Demo')
+        igreja = SimpleNamespace(nome_igreja='Congregacao Demo')
+        pessoa = SimpleNamespace(nome='Ana', email='ana@example.com', igreja=igreja)
+        mock_automacao_objects.get.return_value = SimpleNamespace(
+            pk=20,
+            ultima_execucao_email=None,
+            email_assunto_template='Assunto',
+            email_mensagem_template='Mensagem',
+        )
+        mock_igreja_filter.return_value = [igreja]
+        mock_membro_filter.return_value = _ChainResult([pessoa])
+        mock_email.return_value = self._resultado_email(StatusEnvioEmail.NEUTRALIZADO_DEMO)
+
+        resumo = executar_automacao_aniversario_email(ministerio=ministerio, referencia=hoje)
+
+        self.assertEqual(
+            resumo,
+            {'enviados': 0, 'neutralizados_demo': 1, 'nao_enviados': 0, 'falhas': 0, 'ignorado': False},
+        )
+        mock_automacao_objects.filter.return_value.update.assert_called_once_with(ultima_execucao_email=hoje)
+
+    @patch('comunicacao.services.enviar_email_personalizado')
+    @patch('comunicacao.services.Membro.objects.filter')
+    @patch('comunicacao.services.Igreja.objects.filter')
+    @patch('comunicacao.services.AutomacaoAniversariantes.objects')
+    def test_automacao_email_contabiliza_backend_zero(self, mock_automacao_objects, mock_igreja_filter, mock_membro_filter, mock_email):
+        hoje = date(2026, 7, 13)
+        ministerio = SimpleNamespace(id=2, nome_fantasia='Teste')
+        igreja = SimpleNamespace(nome_igreja='Congregacao')
+        pessoa = SimpleNamespace(nome='Ana', email='ana@example.com', igreja=igreja)
+        mock_automacao_objects.get.return_value = SimpleNamespace(
+            pk=20,
+            ultima_execucao_email=None,
+            email_assunto_template='Assunto',
+            email_mensagem_template='Mensagem',
+        )
+        mock_igreja_filter.return_value = [igreja]
+        mock_membro_filter.return_value = _ChainResult([pessoa])
+        mock_email.return_value = self._resultado_email(StatusEnvioEmail.NAO_ENVIADO, 0)
+
+        resumo = executar_automacao_aniversario_email(ministerio=ministerio, referencia=hoje)
+
+        self.assertEqual(
+            resumo,
+            {'enviados': 0, 'neutralizados_demo': 0, 'nao_enviados': 1, 'falhas': 0, 'ignorado': False},
+        )
+        mock_automacao_objects.filter.return_value.update.assert_called_once_with(ultima_execucao_email=hoje)
+
+    @patch('comunicacao.services.enviar_email_personalizado')
+    @patch('comunicacao.services.Membro.objects.filter')
+    @patch('comunicacao.services.Igreja.objects.filter')
+    @patch('comunicacao.services.AutomacaoAniversariantes.objects')
+    def test_automacao_email_continua_apos_falha_parcial(self, mock_automacao_objects, mock_igreja_filter, mock_membro_filter, mock_email):
+        hoje = date(2026, 7, 13)
+        ministerio = SimpleNamespace(id=2, nome_fantasia='Teste')
+        igreja = SimpleNamespace(nome_igreja='Congregacao')
+        pessoa_ok = SimpleNamespace(nome='Ana', email='ana@example.com', igreja=igreja)
+        pessoa_falha = SimpleNamespace(nome='Bruno', email='bruno@example.com', igreja=igreja)
+        mock_automacao_objects.get.return_value = SimpleNamespace(
+            pk=20,
+            ultima_execucao_email=None,
+            email_assunto_template='Assunto',
+            email_mensagem_template='Mensagem',
+        )
+        mock_igreja_filter.return_value = [igreja]
+        mock_membro_filter.return_value = _ChainResult([pessoa_ok, pessoa_falha])
+        mock_email.side_effect = [self._resultado_email(StatusEnvioEmail.ENVIADO, 1), Exception('falha simulada')]
+
+        resumo = executar_automacao_aniversario_email(ministerio=ministerio, referencia=hoje)
+
+        self.assertEqual(
+            resumo,
+            {'enviados': 1, 'neutralizados_demo': 0, 'nao_enviados': 0, 'falhas': 1, 'ignorado': False},
+        )
+        self.assertEqual(mock_email.call_count, 2)
+        mock_automacao_objects.filter.return_value.update.assert_called_once_with(ultima_execucao_email=hoje)
+
+    @patch('comunicacao.services.enviar_email_personalizado')
+    @patch('comunicacao.services.Membro.objects.filter')
+    @patch('comunicacao.services.Igreja.objects.filter')
+    @patch('comunicacao.services.AutomacaoAniversariantes.objects')
+    def test_automacao_email_atualiza_lote_apos_falha_total_individual(self, mock_automacao_objects, mock_igreja_filter, mock_membro_filter, mock_email):
+        hoje = date(2026, 7, 13)
+        ministerio = SimpleNamespace(id=2, nome_fantasia='Teste')
+        igreja = SimpleNamespace(nome_igreja='Congregacao')
+        pessoas = [
+            SimpleNamespace(nome='Ana', email='ana@example.com', igreja=igreja),
+            SimpleNamespace(nome='Bruno', email='bruno@example.com', igreja=igreja),
+        ]
+        mock_automacao_objects.get.return_value = SimpleNamespace(
+            pk=20,
+            ultima_execucao_email=None,
+            email_assunto_template='Assunto',
+            email_mensagem_template='Mensagem',
+        )
+        mock_igreja_filter.return_value = [igreja]
+        mock_membro_filter.return_value = _ChainResult(pessoas)
+        mock_email.side_effect = [Exception('falha 1'), Exception('falha 2')]
+
+        resumo = executar_automacao_aniversario_email(ministerio=ministerio, referencia=hoje)
+
+        self.assertEqual(
+            resumo,
+            {'enviados': 0, 'neutralizados_demo': 0, 'nao_enviados': 0, 'falhas': 2, 'ignorado': False},
+        )
+        mock_automacao_objects.filter.return_value.update.assert_called_once_with(ultima_execucao_email=hoje)
+
+    @patch('comunicacao.services.enviar_email_personalizado')
+    @patch('comunicacao.services.Igreja.objects.filter')
+    @patch('comunicacao.services.AutomacaoAniversariantes.objects')
+    def test_automacao_email_ignora_mesmo_dia_sem_force(self, mock_automacao_objects, mock_igreja_filter, mock_email):
+        hoje = date(2026, 7, 13)
+        ministerio = SimpleNamespace(id=2, nome_fantasia='Teste')
+        mock_automacao_objects.get.return_value = SimpleNamespace(pk=20, ultima_execucao_email=hoje)
+
+        resumo = executar_automacao_aniversario_email(ministerio=ministerio, referencia=hoje, force=False)
+
+        self.assertEqual(
+            resumo,
+            {'enviados': 0, 'neutralizados_demo': 0, 'nao_enviados': 0, 'falhas': 0, 'ignorado': True},
+        )
+        mock_igreja_filter.assert_not_called()
+        mock_email.assert_not_called()
+
+    @patch('comunicacao.services.enviar_email_personalizado')
+    @patch('comunicacao.services.Membro.objects.filter')
+    @patch('comunicacao.services.Igreja.objects.filter')
+    @patch('comunicacao.services.AutomacaoAniversariantes.objects')
+    def test_automacao_email_force_reprocessa_aniversariantes_do_dia(self, mock_automacao_objects, mock_igreja_filter, mock_membro_filter, mock_email):
+        hoje = date(2026, 7, 13)
+        ministerio = SimpleNamespace(id=2, nome_fantasia='Teste')
+        igreja = SimpleNamespace(nome_igreja='Congregacao')
+        pessoa = SimpleNamespace(nome='Ana', email='ana@example.com', igreja=igreja)
+        mock_automacao_objects.get.return_value = SimpleNamespace(
+            pk=20,
+            ultima_execucao_email=hoje,
+            email_assunto_template='Assunto',
+            email_mensagem_template='Mensagem',
+        )
+        mock_igreja_filter.return_value = [igreja]
+        mock_membro_filter.return_value = _ChainResult([pessoa])
+        mock_email.return_value = self._resultado_email(StatusEnvioEmail.ENVIADO, 1)
+
+        resumo = executar_automacao_aniversario_email(ministerio=ministerio, referencia=hoje, force=True)
+
+        self.assertFalse(resumo['ignorado'])
+        self.assertEqual(resumo['enviados'], 1)
+        mock_email.assert_called_once()
 
     @patch('comunicacao.services.WhatsAppMensagemLog.objects.filter')
     @patch('comunicacao.services.send_whatsapp_text')

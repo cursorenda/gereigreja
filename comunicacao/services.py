@@ -3,7 +3,7 @@ from decimal import Decimal
 from dataclasses import dataclass
 import logging
 
-from core.email_services import ResultadoEnvioEmail, enviar_email_seguro
+from core.email_services import ResultadoEnvioEmail, StatusEnvioEmail, enviar_email_seguro
 from django.db import transaction
 
 from configuracao.models import Igreja
@@ -14,7 +14,6 @@ from secretaria.models import Membro, Pessoa
 from .models import AutomacaoAniversariantes, WhatsAppConfiguracao, WhatsAppMensagemAgendada, WhatsAppMensagemLog
 from .services_whatsapp import WhatsAppSendError, send_whatsapp_text
 from django.conf import settings
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -374,12 +373,14 @@ def enviar_email_personalizado(*, ministerio, membro, assunto_template, mensagem
         },
     )
 
-    send_mail(
+    return enviar_email_seguro(
         assunto,
         mensagem,
-        settings.DEFAULT_FROM_EMAIL,
         [membro.email],
+        ministerio=ministerio,
+        membro=membro,
         html_message=html_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
         fail_silently=False,
     )
 
@@ -435,9 +436,17 @@ def executar_automacao_aniversario_email(*, ministerio, referencia=None, force=F
     hoje = referencia or timezone.localdate()
 
     if automacao.ultima_execucao_email == hoje and not force:
-        return {'enviados': 0, 'falhas': 0, 'ignorado': True}
+        return {
+            'enviados': 0,
+            'neutralizados_demo': 0,
+            'nao_enviados': 0,
+            'falhas': 0,
+            'ignorado': True,
+        }
 
     enviados = 0
+    neutralizados_demo = 0
+    nao_enviados = 0
     falhas = 0
 
     # Itera por igreja para garantir isolamento de escopo (evitar escape entre igrejas do ministerio)
@@ -451,20 +460,31 @@ def executar_automacao_aniversario_email(*, ministerio, referencia=None, force=F
 
         for pessoa in pessoas:
             try:
-                enviar_email_personalizado(
+                resultado = enviar_email_personalizado(
                     ministerio=ministerio,
                     membro=pessoa,
                     assunto_template=automacao.email_assunto_template,
                     mensagem_template=automacao.email_mensagem_template,
                 )
-                enviados += 1
+                if resultado.status == StatusEnvioEmail.ENVIADO:
+                    enviados += 1
+                elif resultado.status == StatusEnvioEmail.NEUTRALIZADO_DEMO:
+                    neutralizados_demo += 1
+                elif resultado.status == StatusEnvioEmail.NAO_ENVIADO:
+                    nao_enviados += 1
             except Exception:
                 falhas += 1
 
     with transaction.atomic():
         AutomacaoAniversariantes.objects.filter(pk=automacao.pk).update(ultima_execucao_email=hoje)
 
-    return {'enviados': enviados, 'falhas': falhas, 'ignorado': False}
+    return {
+        'enviados': enviados,
+        'neutralizados_demo': neutralizados_demo,
+        'nao_enviados': nao_enviados,
+        'falhas': falhas,
+        'ignorado': False,
+    }
 
 
 def executar_automacao_novos_membros_whatsapp(*, ministerio, referencia=None, dias=7, force=False):
