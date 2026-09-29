@@ -60,6 +60,7 @@ from .forms import (
     PermissionRequestResponseForm,
 )
 from core.decorators import verificar_assinatura_valida, admin_ministerio_required # Ou o caminho correto
+from core.email_services import StatusEnvioEmail, enviar_email_seguro
 
 from core.utils import get_igrejas_permitidas, get_igrejas_selecionaveis, get_ministerio_or_error # Importar de core.utils
 
@@ -198,17 +199,30 @@ def reenviar_convite(request, pk):
             'domain': current_site.domain,
         })
         try:
-            send_mail(
+            resultado = enviar_email_seguro(
                 subject,
                 message_html,
-                settings.DEFAULT_FROM_EMAIL,
                 [convite.email_convidado],
-                html_message=message_html
+                ministerio=ministerio,
+                html_message=message_html,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                fail_silently=False,
             )
-            messages.success(request, f"Convite reenviado com sucesso para {convite.email_convidado}!")
+            if resultado.status == StatusEnvioEmail.ENVIADO:
+                messages.success(request, f"Convite reenviado com sucesso para {convite.email_convidado}!")
+            elif resultado.status == StatusEnvioEmail.NEUTRALIZADO_DEMO:
+                messages.warning(
+                    request,
+                    "Convite permanece pendente, mas o reenvio externo está desabilitado no ambiente Demo.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    "Convite permanece pendente, mas o e-mail não foi enviado.",
+                )
         except Exception as mail_error:
             logger.error(f"Erro ao reenviar email de convite para {convite.email_convidado}: {mail_error}")
-            messages.warning(request, f"Houve um erro ao reenviar o e-mail. Token para teste manual: {convite.token}")
+            messages.warning(request, "Não foi possível reenviar o convite. O convite permanece pendente.")
         return redirect('contas:lista_usuarios')
     else:
         return redirect('contas:lista_usuarios')
@@ -554,17 +568,30 @@ def enviar_convite(request):
                 })
 
                 try:
-                    send_mail(
+                    resultado = enviar_email_seguro(
                         subject,
                         message_html, # Mensagem principal (pode ser texto puro)
-                        settings.DEFAULT_FROM_EMAIL,
                         [email_convidado],
-                        html_message=message_html # Versão HTML
+                        ministerio=ministerio,
+                        html_message=message_html, # Versão HTML
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        fail_silently=False,
                     )
-                    messages.success(request, f"Convite enviado com sucesso para {email_convidado}!")
+                    if resultado.status == StatusEnvioEmail.ENVIADO:
+                        messages.success(request, f"Convite enviado com sucesso para {email_convidado}!")
+                    elif resultado.status == StatusEnvioEmail.NEUTRALIZADO_DEMO:
+                        messages.warning(
+                            request,
+                            f"Convite criado para {email_convidado}, mas o envio externo está desabilitado no ambiente Demo.",
+                        )
+                    else:
+                        messages.warning(
+                            request,
+                            f"Convite criado para {email_convidado}, mas o e-mail não foi enviado.",
+                        )
                 except Exception as mail_error:
                      logger.error(f"Erro ao enviar email de convite para {email_convidado}: {mail_error}")
-                     messages.warning(request, f"Convite para {email_convidado} foi criado, mas houve um erro ao enviar o e-mail. Token para teste manual: {novo_convite.token}")
+                     messages.warning(request, f"Convite criado para {email_convidado}, mas ocorreu um erro ao enviar o e-mail.")
 
                 return redirect('contas:lista_usuarios')
 
