@@ -9,13 +9,7 @@ from configuracao.models import AssinaturaMinisterio
 from configuracao.services_assinatura import assinatura_esta_regular, obter_assinatura_ministerio
 from notificacoes.models import Notificacao
 
-from django.core.mail import send_mail
-from django.conf import settings
-from django.template.loader import render_to_string # Útil para renderizar templates de email
 import logging
-
-# Importar o modelo Membro do app secretaria
-from secretaria.models import Membro # Certifique-se que o caminho está correto
 
 logger = logging.getLogger(__name__)
 
@@ -38,71 +32,6 @@ def get_weekday_label(value, language='pt'):
     names = WEEKDAY_LABELS.get(language, WEEKDAY_LABELS['pt'])
     mapping = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
     return names[mapping[weekday_index]].upper()
-
-
-def enviar_email_para_membro(membro: Membro, assunto: str, corpo_html: str, corpo_texto: str = None):
-    """
-    Envia um email para um membro específico.
-
-    Args:
-        membro: Objeto Membro destinatário.
-        assunto: Assunto do email.
-        corpo_html: Corpo do email em formato HTML.
-        corpo_texto: Corpo do email em formato texto puro (opcional, fallback).
-    """
-    if not membro.email:
-        logger.warning(f"Tentativa de enviar email para membro {membro.pk} ({membro.nome}), mas o email não está cadastrado.")
-        # Opcional: Adicionar uma mensagem de erro ou logar de forma mais específica
-        return False # Indica que o envio não foi possível
-
-    # Tenta usar o email da igreja do membro como remetente
-    # Se a igreja não tiver email, usa o email padrão das configurações
-    import re
-    def extract_email(address):
-        match = re.search(r'<([^>]+)>', address)
-        return match.group(1) if match else address.strip()
-
-    if membro.igreja and membro.igreja.email:
-        from_email = extract_email(membro.igreja.email)
-    else:
-        from_email = extract_email(settings.DEFAULT_FROM_EMAIL)
-
-        from_email = from_email  # Usa apenas o e-mail puro como remetente
-
-    try:
-        send_mail(
-            assunto,
-            corpo_texto or '', # Corpo em texto puro (fallback)
-                from_email, # Remetente: apenas o e-mail puro
-            [membro.email], # Destinatário (lista de emails)
-            html_message=corpo_html, # Corpo em HTML
-            fail_silently=False, # Para ver erros se o envio falhar
-        )
-        logger.info(f"Email '{assunto}' enviado com sucesso para {membro.email} (Membro ID: {membro.pk}).")
-        return True # Indica sucesso
-    except Exception as e:
-        logger.error(f"Erro ao enviar email '{assunto}' para {membro.email} (Membro ID: {membro.pk}): {e}", exc_info=True)
-        # Opcional: Adicionar mensagem de erro para o usuário que tentou enviar
-        # messages.error(request, f"Erro ao enviar email para {membro.nome}: {e}")
-        return False # Indica falha
-
-# Exemplo de como usar em uma view (ex: em secretaria/views.py ou comunicacao/views.py)
-# from comunicacao.utils import enviar_email_para_membro
-# from secretaria.models import Membro # Se estiver em outro app
-
-# def enviar_email_aniversario_view(request, membro_id):
-#     membro = get_object_or_404(Membro, pk=membro_id)
-#     assunto = "Feliz Aniversário!"
-#     # Renderizar um template de email
-#     corpo_html = render_to_string('comunicacao/emails/aniversario.html', {'membro': membro})
-#     corpo_texto = "Feliz Aniversário, " + membro.nome + "!" # Versão texto simples
-
-#     if enviar_email_para_membro(membro, assunto, corpo_html, corpo_texto):
-#         messages.success(request, f"Email de aniversário enviado para {membro.nome}.")
-#     else:
-#         messages.error(request, f"Falha ao enviar email de aniversário para {membro.nome}. Verifique os logs.")
-
-#     return redirect('secretaria:detalhe_membro', pk=membro_id) # Exemplo de redirecionamento
 
 def get_ministerio_or_error(request):
     """
