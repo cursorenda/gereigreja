@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
 from core.decorators import page_access_required, verificar_assinatura_valida
+from core.email_services import StatusEnvioEmail
 from core.utils import get_ministerio_or_error
 from secretaria.models import StatusPessoa, TipoPessoa
 
@@ -165,14 +166,25 @@ def enviar_email_massa(request):
                 return redirect('comunicacao:enviar_email_massa')
 
             try:
-                total_enviados = enviar_email_massa_service(
+                resultado = enviar_email_massa_service(
                     ministerio=ministerio,
                     assunto=assunto,
                     mensagem=mensagem,
                     destinatarios_emails=destinatarios_emails,
                     igrejas_destino=igrejas_destino,
                 )
-                messages.success(request, f'E-mail enviado com sucesso para {total_enviados} destinatário(s)!')
+                if resultado.resultado_dispatch.status == StatusEnvioEmail.ENVIADO:
+                    messages.success(
+                        request,
+                        f'E-mail enviado com sucesso para {resultado.quantidade_destinatarios} destinatário(s)!',
+                    )
+                elif resultado.resultado_dispatch.status == StatusEnvioEmail.NEUTRALIZADO_DEMO:
+                    messages.warning(
+                        request,
+                        'Envio externo de e-mail foi neutralizado neste ambiente de demonstração.',
+                    )
+                elif resultado.resultado_dispatch.status == StatusEnvioEmail.NAO_ENVIADO:
+                    messages.warning(request, 'Não foi possível concluir o envio externo de e-mail.')
                 return redirect('comunicacao:enviar_email_massa')
             except BadHeaderError:
                 messages.error(request, 'Assunto inválido.')

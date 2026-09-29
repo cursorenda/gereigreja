@@ -2,15 +2,19 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from django.conf import settings
 from django.test import TestCase
 
 from configuracao.models import Igreja, Ministerio
+from core.email_services import ResultadoEnvioEmail, StatusEnvioEmail
 from comunicacao.services import (
+    ResultadoEnvioEmailMassa,
     executar_automacao_aniversario_email,
-    executar_automacao_novos_membros_whatsapp,
     executar_automacao_followup_visitantes_whatsapp,
     executar_automacao_lembrete_eventos_whatsapp,
     executar_automacao_aniversario_whatsapp,
+    executar_automacao_novos_membros_whatsapp,
+    enviar_email_massa,
     personalizar_template_comunicacao,
 )
 from comunicacao.models import AutomacaoAniversariantes
@@ -55,6 +59,103 @@ class _OrderableResult:
 
 
 class ComunicacaoServicesTests(TestCase):
+    @patch('comunicacao.services.enviar_email_seguro')
+    @patch('comunicacao.services.render_to_string')
+    def test_enviar_email_massa_preserva_dispatch_e_parametros(self, mock_render, mock_enviar_email_seguro):
+        ministerio = SimpleNamespace(nome_fantasia='Ministerio Teste')
+        destinatarios = ['ana@example.com', 'bruno@example.com']
+        resultado_dispatch = ResultadoEnvioEmail(
+            status=StatusEnvioEmail.ENVIADO,
+            backend_chamado=True,
+            resultado_backend=1,
+        )
+        mock_render.return_value = '<html>Mensagem</html>'
+        mock_enviar_email_seguro.return_value = resultado_dispatch
+
+        resultado = enviar_email_massa(
+            ministerio=ministerio,
+            assunto='Assunto de teste',
+            mensagem='Mensagem de teste',
+            destinatarios_emails=destinatarios,
+            igrejas_destino=MagicMock(count=MagicMock(return_value=0)),
+        )
+
+        self.assertEqual(
+            resultado,
+            ResultadoEnvioEmailMassa(
+                quantidade_destinatarios=2,
+                resultado_dispatch=resultado_dispatch,
+            ),
+        )
+        mock_render.assert_called_once_with(
+            'comunicacao/email/email_massa_template.html',
+            {
+                'assunto': 'Assunto de teste',
+                'mensagem': 'Mensagem de teste',
+                'ministerio_nome': 'Ministerio Teste',
+                'igreja_nome': None,
+                'remetente_email': settings.DEFAULT_FROM_EMAIL,
+            },
+        )
+        mock_enviar_email_seguro.assert_called_once_with(
+            'Assunto de teste',
+            'Mensagem de teste',
+            destinatarios,
+            ministerio=ministerio,
+            html_message='<html>Mensagem</html>',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            fail_silently=False,
+        )
+
+    @patch('comunicacao.services.enviar_email_seguro')
+    @patch('comunicacao.services.render_to_string')
+    def test_enviar_email_massa_preserva_neutralizacao_demo(self, mock_render, mock_enviar_email_seguro):
+        resultado_dispatch = ResultadoEnvioEmail(
+            status=StatusEnvioEmail.NEUTRALIZADO_DEMO,
+            backend_chamado=False,
+            resultado_backend=None,
+        )
+        mock_enviar_email_seguro.return_value = resultado_dispatch
+
+        resultado = enviar_email_massa(
+            ministerio=SimpleNamespace(nome_fantasia='Ministerio Demo'),
+            assunto='Assunto',
+            mensagem='Mensagem',
+            destinatarios_emails=['demo@example.com'],
+            igrejas_destino=MagicMock(count=MagicMock(return_value=0)),
+        )
+
+        self.assertEqual(resultado.quantidade_destinatarios, 1)
+        self.assertIs(resultado.resultado_dispatch, resultado_dispatch)
+        self.assertEqual(resultado.resultado_dispatch.status, StatusEnvioEmail.NEUTRALIZADO_DEMO)
+
+    @patch('comunicacao.services.enviar_email_seguro')
+    @patch('comunicacao.services.render_to_string')
+    def test_enviar_email_massa_preserva_contagem_quando_backend_retorna_zero(
+        self,
+        mock_render,
+        mock_enviar_email_seguro,
+    ):
+        resultado_dispatch = ResultadoEnvioEmail(
+            status=StatusEnvioEmail.NAO_ENVIADO,
+            backend_chamado=True,
+            resultado_backend=0,
+        )
+        mock_enviar_email_seguro.return_value = resultado_dispatch
+
+        resultado = enviar_email_massa(
+            ministerio=SimpleNamespace(nome_fantasia='Ministerio Teste'),
+            assunto='Assunto',
+            mensagem='Mensagem',
+            destinatarios_emails=['um@example.com', 'dois@example.com', 'tres@example.com'],
+            igrejas_destino=MagicMock(count=MagicMock(return_value=0)),
+        )
+
+        self.assertEqual(resultado.quantidade_destinatarios, 3)
+        self.assertIs(resultado.resultado_dispatch, resultado_dispatch)
+        self.assertEqual(resultado.resultado_dispatch.resultado_backend, 0)
+        self.assertEqual(resultado.resultado_dispatch.status, StatusEnvioEmail.NAO_ENVIADO)
+
     def test_personalizar_template_comunicacao_substitui_variaveis(self):
         membro = SimpleNamespace(
             nome='Maria de Souza',

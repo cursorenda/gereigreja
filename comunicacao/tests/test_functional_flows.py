@@ -3,13 +3,17 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.messages import get_messages
+from django.core.mail import BadHeaderError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from comunicacao.models import Aviso, WhatsAppConfiguracaoGlobal
+from comunicacao.services import ResultadoEnvioEmailMassa
 from configuracao.models import AssinaturaMinisterio, Ministerio, PerfilUsuario, Plano
 from contas.constants import ADMIN_MINISTERIO
+from core.email_services import ResultadoEnvioEmail, StatusEnvioEmail
 
 
 class ComunicacaoFunctionalFlowsTests(TestCase):
@@ -83,15 +87,8 @@ class ComunicacaoFunctionalFlowsTests(TestCase):
         self.assertEqual(response['Location'], reverse('comunicacao:lista_avisos'))
         self.assertTrue(Aviso.objects.filter(ministerio=self.ministerio, titulo='Aviso funcional').exists())
 
-    @patch('comunicacao.views.email.filtrar_membros_email_destino')
-    @patch('comunicacao.views.email.listar_destinatarios_email')
-    @patch('comunicacao.views.email.enviar_email_massa_service')
-    def test_enviar_email_massa_chama_service(self, mock_service, mock_listar_destinatarios, mock_filtrar_membros):
-        mock_filtrar_membros.return_value = object()
-        mock_listar_destinatarios.return_value = ['destino@teste.com']
-        mock_service.return_value = 1
-
-        response = self.client.post(
+    def _post_email_massa(self):
+        return self.client.post(
             reverse('comunicacao:enviar_email_massa'),
             data={
                 'assunto': 'Assunto funcional',
@@ -103,11 +100,105 @@ class ComunicacaoFunctionalFlowsTests(TestCase):
             },
         )
 
+    @patch('comunicacao.views.email.filtrar_membros_email_destino')
+    @patch('comunicacao.views.email.listar_destinatarios_email')
+    @patch('comunicacao.views.email.enviar_email_massa_service')
+    def test_enviar_email_massa_chama_service_e_exibe_sucesso_para_envio_real(
+        self,
+        mock_service,
+        mock_listar_destinatarios,
+        mock_filtrar_membros,
+    ):
+        mock_filtrar_membros.return_value = object()
+        mock_listar_destinatarios.return_value = ['destino@teste.com']
+        mock_service.return_value = ResultadoEnvioEmailMassa(
+            quantidade_destinatarios=1,
+            resultado_dispatch=ResultadoEnvioEmail(
+                status=StatusEnvioEmail.ENVIADO,
+                backend_chamado=True,
+                resultado_backend=1,
+            ),
+        )
+
+        response = self._post_email_massa()
+
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response['Location'], reverse('comunicacao:enviar_email_massa'))
         mock_filtrar_membros.assert_called_once()
         mock_listar_destinatarios.assert_called_once()
         mock_service.assert_called_once()
+        mensagens = [str(mensagem) for mensagem in get_messages(response.wsgi_request)]
+        self.assertIn('E-mail enviado com sucesso para 1 destinatário(s)!', mensagens)
+
+    @patch('comunicacao.views.email.filtrar_membros_email_destino')
+    @patch('comunicacao.views.email.listar_destinatarios_email')
+    @patch('comunicacao.views.email.enviar_email_massa_service')
+    def test_enviar_email_massa_exibe_neutralizacao_demo(self, mock_service, mock_listar_destinatarios, mock_filtrar_membros):
+        mock_filtrar_membros.return_value = object()
+        mock_listar_destinatarios.return_value = ['destino@teste.com']
+        mock_service.return_value = ResultadoEnvioEmailMassa(
+            quantidade_destinatarios=1,
+            resultado_dispatch=ResultadoEnvioEmail(
+                status=StatusEnvioEmail.NEUTRALIZADO_DEMO,
+                backend_chamado=False,
+                resultado_backend=None,
+            ),
+        )
+
+        response = self._post_email_massa()
+        mensagens = [str(mensagem) for mensagem in get_messages(response.wsgi_request)]
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('comunicacao:enviar_email_massa'))
+        self.assertIn('Envio externo de e-mail foi neutralizado neste ambiente de demonstração.', mensagens)
+        self.assertNotIn('E-mail enviado com sucesso para 1 destinatário(s)!', mensagens)
+
+    @patch('comunicacao.views.email.filtrar_membros_email_destino')
+    @patch('comunicacao.views.email.listar_destinatarios_email')
+    @patch('comunicacao.views.email.enviar_email_massa_service')
+    def test_enviar_email_massa_nao_afirma_sucesso_quando_nao_enviado(
+        self,
+        mock_service,
+        mock_listar_destinatarios,
+        mock_filtrar_membros,
+    ):
+        mock_filtrar_membros.return_value = object()
+        mock_listar_destinatarios.return_value = ['destino@teste.com']
+        mock_service.return_value = ResultadoEnvioEmailMassa(
+            quantidade_destinatarios=1,
+            resultado_dispatch=ResultadoEnvioEmail(
+                status=StatusEnvioEmail.NAO_ENVIADO,
+                backend_chamado=True,
+                resultado_backend=0,
+            ),
+        )
+
+        response = self._post_email_massa()
+        mensagens = [str(mensagem) for mensagem in get_messages(response.wsgi_request)]
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('comunicacao:enviar_email_massa'))
+        self.assertIn('Não foi possível concluir o envio externo de e-mail.', mensagens)
+        self.assertNotIn('E-mail enviado com sucesso para 1 destinatário(s)!', mensagens)
+
+    @patch('comunicacao.views.email.filtrar_membros_email_destino')
+    @patch('comunicacao.views.email.listar_destinatarios_email')
+    @patch('comunicacao.views.email.enviar_email_massa_service')
+    def test_enviar_email_massa_preserva_tratamento_de_bad_header(
+        self,
+        mock_service,
+        mock_listar_destinatarios,
+        mock_filtrar_membros,
+    ):
+        mock_filtrar_membros.return_value = object()
+        mock_listar_destinatarios.return_value = ['destino@teste.com']
+        mock_service.side_effect = BadHeaderError('Assunto inválido')
+
+        response = self._post_email_massa()
+        mensagens = [str(mensagem) for mensagem in get_messages(response.wsgi_request)]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Assunto inválido.', mensagens)
 
     def test_configurar_whatsapp_global_persiste_ativo(self):
         response = self.client.post(

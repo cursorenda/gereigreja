@@ -1,7 +1,9 @@
 from datetime import timedelta
 from decimal import Decimal
+from dataclasses import dataclass
 import logging
 
+from core.email_services import ResultadoEnvioEmail, enviar_email_seguro
 from django.db import transaction
 
 from configuracao.models import Igreja
@@ -18,6 +20,12 @@ from django.utils import timezone
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ResultadoEnvioEmailMassa:
+    quantidade_destinatarios: int
+    resultado_dispatch: ResultadoEnvioEmail
 
 
 WHATSAPP_TEMPLATE_NOVO_MEMBRO = (
@@ -309,7 +317,7 @@ def enviar_whatsapp_massa(*, ministerio, membros_qs, mensagem):
 
 
 def enviar_email_massa(*, ministerio, assunto, mensagem, destinatarios_emails, igrejas_destino):
-    """Envia e-mail em massa e retorna quantidade de destinatários."""
+    """Envia e-mail em massa e preserva a contagem de destinatários selecionados."""
     igreja_nome = None
     remetente_email = settings.DEFAULT_FROM_EMAIL
 
@@ -330,16 +338,20 @@ def enviar_email_massa(*, ministerio, assunto, mensagem, destinatarios_emails, i
         },
     )
 
-    send_mail(
+    resultado_dispatch = enviar_email_seguro(
         assunto,
         mensagem,
-        settings.DEFAULT_FROM_EMAIL,
         destinatarios_emails,
+        ministerio=ministerio,
         html_message=html_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
         fail_silently=False,
     )
 
-    return len(destinatarios_emails)
+    return ResultadoEnvioEmailMassa(
+        quantidade_destinatarios=len(destinatarios_emails),
+        resultado_dispatch=resultado_dispatch,
+    )
 
 
 def enviar_email_personalizado(*, ministerio, membro, assunto_template, mensagem_template):
