@@ -3,11 +3,12 @@ from django.contrib.auth.models import Group, User
 from django.contrib.messages import get_messages
 from django.conf import settings
 from django.core import mail
+from django.test import Client
 from django.urls import reverse
 from unittest.mock import patch
 
 from configuracao.models import Igreja, Ministerio, PerfilUsuario
-from contas.constants import PASTOR_LOCAL, SECRETARIO_LOCAL
+from contas.constants import MEMBRO_COMUM, PASTOR_LOCAL, SECRETARIO_LOCAL
 from contas.models import Convite
 from core.email_services import ResultadoEnvioEmail, StatusEnvioEmail
 
@@ -287,24 +288,209 @@ def test_secretario_local_nao_edita_usuario_superior(client, cenario_usuarios_lo
 
 
 @pytest.mark.django_db
-def test_secretario_local_envia_reset_apenas_para_usuario_no_seu_escopo(client, cenario_usuarios_local):
+def test_reset_senha_get_retorna_405_sem_gerar_token_ou_dispatch(client, cenario_usuarios_local):
     ministerio = cenario_usuarios_local['ministerio']
     igreja_local = cenario_usuarios_local['igreja_local']
-    igreja_outra = cenario_usuarios_local['igreja_outra']
     secretario_local = cenario_usuarios_local['secretario_local']
-
     usuario_local = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_local')
-    usuario_fora_escopo = _criar_usuario_com_perfil(ministerio, igreja_outra, 'alvo_reset_fora')
 
     client.force_login(secretario_local)
 
-    response_ok = client.get(reverse('contas:enviar_link_reset_senha', args=[usuario_local.pk]))
-    assert response_ok.status_code == 302
-    assert len(mail.outbox) == 1
-    assert usuario_local.email in mail.outbox[0].to
+    with patch('contas.views.default_token_generator.make_token') as make_token, patch(
+        'contas.views.enviar_email_seguro'
+    ) as enviar_email:
+        response = client.get(reverse('contas:enviar_link_reset_senha', args=[usuario_local.pk]))
 
-    response_fora = client.get(reverse('contas:enviar_link_reset_senha', args=[usuario_fora_escopo.pk]))
-    assert response_fora.status_code == 404
+    assert response.status_code == 405
+    assert len(mail.outbox) == 0
+    make_token.assert_not_called()
+    enviar_email.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_reset_senha_post_enviado_com_ministerio_explicito(client, cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    secretario_local = cenario_usuarios_local['secretario_local']
+    usuario_local = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_enviado')
+    client.force_login(secretario_local)
+
+    with patch(
+        'contas.views.enviar_email_seguro',
+        return_value=_resultado_email(StatusEnvioEmail.ENVIADO, True, 1),
+    ) as enviar_email:
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_local.pk]))
+
+    mensagens = _mensagens(response)
+    assert response.status_code == 302
+    assert f'Link de redefinição de senha enviado com sucesso para {usuario_local.email}.' in mensagens
+    enviar_email.assert_called_once_with(
+        enviar_email.call_args.args[0],
+        enviar_email.call_args.args[1],
+        [usuario_local.email],
+        ministerio=ministerio,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        fail_silently=False,
+    )
+
+
+@pytest.mark.django_db
+def test_reset_senha_demo_bloqueia_antes_de_gerar_token_ou_chamar_wrapper(client, cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    secretario_local = cenario_usuarios_local['secretario_local']
+    usuario_local = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_demo')
+    ministerio.is_demo = True
+    ministerio.save(update_fields=['is_demo'])
+    client.force_login(secretario_local)
+
+    with patch('contas.views.default_token_generator.make_token') as make_token, patch(
+        'contas.views.enviar_email_seguro'
+    ) as enviar_email:
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_local.pk]))
+
+    assert response.status_code == 302
+    assert 'O envio de link de redefinição de senha está desabilitado no ambiente Demo.' in _mensagens(response)
+    make_token.assert_not_called()
+    enviar_email.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_reset_senha_nao_enviado_nao_exibe_sucesso(client, cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    secretario_local = cenario_usuarios_local['secretario_local']
+    usuario_local = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_nao_enviado')
+    client.force_login(secretario_local)
+
+    with patch(
+        'contas.views.enviar_email_seguro',
+        return_value=_resultado_email(StatusEnvioEmail.NAO_ENVIADO, True, 0),
+    ):
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_local.pk]))
+
+    mensagens = _mensagens(response)
+    assert response.status_code == 302
+    assert 'O link de redefinição de senha não foi enviado.' in mensagens
+    assert not any('enviado com sucesso' in mensagem for mensagem in mensagens)
+
+
+@pytest.mark.django_db
+def test_reset_senha_excecao_nao_expoe_detalhe_tecnico(client, cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    secretario_local = cenario_usuarios_local['secretario_local']
+    usuario_local = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_excecao')
+    client.force_login(secretario_local)
+
+    with patch('contas.views.enviar_email_seguro', side_effect=RuntimeError('SEGREDO_TECNICO_TESTE')):
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_local.pk]))
+
+    mensagens = _mensagens(response)
+    assert response.status_code == 302
+    assert 'Não foi possível enviar o link de redefinição de senha.' in mensagens
+    assert 'SEGREDO_TECNICO_TESTE' not in ' '.join(mensagens)
+
+
+@pytest.mark.django_db
+def test_reset_senha_retorna_404_para_usuario_de_outro_ministerio(client, cenario_usuarios_local):
+    secretario_local = cenario_usuarios_local['secretario_local']
+    outro_admin = User.objects.create_user(username='admin_reset_outro', password='123456')
+    outro_ministerio = Ministerio.objects.create(
+        nome_fantasia='Outro Ministério Reset',
+        administrador_principal=outro_admin,
+        ativo=True,
+    )
+    PerfilUsuario.objects.create(user=outro_admin, ministerio=outro_ministerio)
+    outra_igreja = Igreja.objects.create(
+        ministerio=outro_ministerio,
+        nome_igreja='Igreja Outro Ministério',
+        tipo_igreja='congregacao',
+    )
+    usuario_outro_ministerio = _criar_usuario_com_perfil(outro_ministerio, outra_igreja, 'alvo_reset_outro')
+    client.force_login(secretario_local)
+
+    with patch('contas.views.enviar_email_seguro') as enviar_email:
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_outro_ministerio.pk]))
+
+    assert response.status_code == 404
+    enviar_email.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_reset_senha_bloqueia_usuario_hierarquicamente_superior(client, cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    secretario_local = cenario_usuarios_local['secretario_local']
+    pastor_local = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_pastor')
+    grupo_pastor, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
+    pastor_local.groups.add(grupo_pastor)
+    client.force_login(secretario_local)
+
+    with patch('contas.views.enviar_email_seguro') as enviar_email:
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[pastor_local.pk]))
+
+    assert response.status_code == 302
+    assert 'Você não pode enviar reset para um usuário com nível hierárquico superior ao seu.' in _mensagens(response)
+    enviar_email.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_reset_senha_exige_permissao_de_gerenciamento(client, cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    usuario_sem_permissao = _criar_usuario_com_perfil(ministerio, igreja_local, 'operador_sem_permissao_reset')
+    usuario_alvo = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_sem_permissao')
+    grupo_membro_comum, _ = Group.objects.get_or_create(name=MEMBRO_COMUM)
+    usuario_sem_permissao.groups.add(grupo_membro_comum)
+    client.force_login(usuario_sem_permissao)
+
+    with patch('contas.views.enviar_email_seguro') as enviar_email:
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_alvo.pk]))
+
+    assert response.status_code == 403
+    enviar_email.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_reset_senha_post_anonimo_redireciona_para_login(client, cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    usuario_alvo = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_anonimo')
+
+    with patch('contas.views.enviar_email_seguro') as enviar_email:
+        response = client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_alvo.pk]))
+
+    assert response.status_code == 302
+    assert response.url.startswith(settings.LOGIN_URL)
+    enviar_email.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_reset_senha_post_sem_csrf_retorna_403(cenario_usuarios_local):
+    ministerio = cenario_usuarios_local['ministerio']
+    igreja_local = cenario_usuarios_local['igreja_local']
+    secretario_local = cenario_usuarios_local['secretario_local']
+    usuario_alvo = _criar_usuario_com_perfil(ministerio, igreja_local, 'alvo_reset_csrf')
+    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client.force_login(secretario_local)
+
+    with patch('contas.views.enviar_email_seguro') as enviar_email:
+        response = csrf_client.post(reverse('contas:enviar_link_reset_senha', args=[usuario_alvo.pk]))
+
+    assert response.status_code == 403
+    enviar_email.assert_not_called()
+
+
+def test_template_reset_senha_usa_botao_post_sem_ancora():
+    from pathlib import Path
+
+    template = Path('secretaria/templates/partials/_aba_acesso_sistema.html').read_text(encoding='utf-8-sig')
+
+    assert '<button type="submit" class="btn btn-outline-secondary ms-2"' in template
+    assert 'formaction="{% url \'contas:enviar_link_reset_senha\' user_pk=user_associado.pk %}"' in template
+    assert 'formmethod="post"' in template
+    assert '<a href="{% url \'contas:enviar_link_reset_senha\'' not in template
 
 
 @pytest.mark.django_db

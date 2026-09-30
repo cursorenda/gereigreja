@@ -12,7 +12,6 @@ from django.db import transaction
 from django.utils import timezone
 from django.urls import reverse
 from django.core.paginator import Paginator
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.contrib.sites.shortcuts import get_current_site
 from django.contrib.auth.tokens import default_token_generator
@@ -23,6 +22,7 @@ from django.views.generic import TemplateView # Adicionar TemplateView
 from django.contrib.auth.views import LoginView
 from django.core.exceptions import PermissionDenied # Importar PermissionDenied
 from django.http import Http404, HttpResponse, JsonResponse # Importar Http404, HttpResponse, JsonResponse
+from django.views.decorators.http import require_POST
 import logging
 import json
 from io import BytesIO
@@ -829,6 +829,7 @@ def editar_papeis_usuario(request, user_pk):
 
 # --- NOVA VIEW PARA ENVIAR LINK DE RESET PELO ADMIN ---
 @login_required
+@require_POST
 def enviar_link_reset_senha(request, user_pk):
     """
     View para o Admin do Minist. enviar um link de redefinição de senha
@@ -844,6 +845,16 @@ def enviar_link_reset_senha(request, user_pk):
     if _usuario_alvo_e_superior_hierarquico(request.user, usuario_alvo):
         messages.error(request, "Você não pode enviar reset para um usuário com nível hierárquico superior ao seu.")
         return redirect('contas:lista_usuarios')
+
+    try:
+        membro_associado = Membro.objects.get(email__iexact=usuario_alvo.email, igreja__ministerio=ministerio)
+        redirect_url = reverse('secretaria:editar_membro', args=[membro_associado.pk]) + '?tab=acesso-sistema'
+    except Membro.DoesNotExist:
+        redirect_url = reverse('contas:lista_usuarios')
+
+    if ministerio.is_demo:
+        messages.warning(request, "O envio de link de redefinição de senha está desabilitado no ambiente Demo.")
+        return redirect(redirect_url)
 
     # 3. Gerar o token e a URL de reset manualmente
     current_site = get_current_site(request)
@@ -863,21 +874,25 @@ def enviar_link_reset_senha(request, user_pk):
     body = render_to_string('contas/password_reset_email.html', context)
 
     try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [usuario_alvo.email], fail_silently=False)
-        messages.success(request, f"Link de redefinição de senha enviado com sucesso para {usuario_alvo.email}.")
+        resultado = enviar_email_seguro(
+            subject,
+            body,
+            [usuario_alvo.email],
+            ministerio=ministerio,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            fail_silently=False,
+        )
+        if resultado.status == StatusEnvioEmail.ENVIADO:
+            messages.success(request, f"Link de redefinição de senha enviado com sucesso para {usuario_alvo.email}.")
+        elif resultado.status == StatusEnvioEmail.NEUTRALIZADO_DEMO:
+            messages.warning(request, "O envio externo de redefinição de senha está desabilitado no ambiente Demo.")
+        else:
+            messages.warning(request, "O link de redefinição de senha não foi enviado.")
     except Exception as e:
         logger.error(f"Erro ao enviar email de reset de senha para {usuario_alvo.email}: {e}")
-        messages.error(request, f"Ocorreu um erro ao enviar o e-mail: {e}")
+        messages.error(request, "Não foi possível enviar o link de redefinição de senha.")
 
-    # 5. Redirecionar de volta para a página de edição do membro
-    try:
-        membro_associado = Membro.objects.get(email__iexact=usuario_alvo.email, igreja__ministerio=ministerio)
-        # Adiciona o parâmetro ?tab=... para voltar para a aba correta
-        redirect_url = reverse('secretaria:editar_membro', args=[membro_associado.pk]) + '?tab=acesso-sistema'
-        return redirect(redirect_url)
-    except Membro.DoesNotExist:
-        # Se não houver membro associado (caso raro), volta para a lista de usuários.
-        return redirect('contas:lista_usuarios')
+    return redirect(redirect_url)
 
 # --- VIEW ATIVAR/DESATIVAR USUÁRIO ---
 @login_required
