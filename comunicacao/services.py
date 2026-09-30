@@ -395,7 +395,7 @@ def executar_automacao_aniversario_email(*, ministerio, referencia=None, force=F
     falhas = 0
 
     # Itera por igreja para garantir isolamento de escopo (evitar escape entre igrejas do ministerio)
-    igrejas = Igreja.objects.filter(ministerio=ministerio, ativa=True)
+    igrejas = Igreja.objects.filter(ministerio=ministerio)
     for igreja in igrejas:
         pessoas = Membro.objects.filter(
             igreja=igreja,
