@@ -227,7 +227,8 @@ class ChamadaPresencaFluxoTest(TestCase):
         professor_user = user_model.objects.create_user(username='professor_ebd', password='senha123')
         grupo_professor, _ = Group.objects.get_or_create(name=PROFESSOR_EBD)
         professor_user.groups.add(grupo_professor)
-        PerfilUsuario.objects.create(user=professor_user, ministerio=self.ministerio)
+        perfil_professor = PerfilUsuario.objects.create(user=professor_user, ministerio=self.ministerio)
+        perfil_professor.igrejas_permitidas.add(self.igreja)
         tipo, _ = TipoPessoa.objects.get_or_create(nome='Membro')
         status, _ = StatusPessoa.objects.get_or_create(nome='Ativo')
         with patch('secretaria.models.StatusHistorico.objects.create'):
