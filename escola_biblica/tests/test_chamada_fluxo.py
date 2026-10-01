@@ -426,6 +426,7 @@ class ChamadaPresencaFluxoTest(TestCase):
         self.assertEqual(auditoria.call_args.args[1], 'cronograma_wizard_gerado')
         self.assertEqual(auditoria.call_args.kwargs['periodo_id'], periodo.id)
         self.assertEqual(auditoria.call_args.kwargs['turmas_ids'], str(turma.id))
+        self.assertTrue(Licao.objects.filter(turma=turma, horario__isnull=True).exists())
 
     def test_dashboard_inclui_turma_da_igreja_sem_colaboradores(self):
         turma = self._criar_turma('dashboard-sem-colaboradores', criar_licao=True)

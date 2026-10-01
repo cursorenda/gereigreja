@@ -47,11 +47,11 @@ def normalizar_status_licao_wizard(valor):
 
 
 def normalizar_horario_wizard(valor):
-    """Converte o horario do assistente para HH:MM sem propagar entrada invalida."""
+    """Converte o horario do assistente para HH:MM ou None quando ausente."""
     if not valor:
-        return ''
+        return None
     horario = parse_time(str(valor).strip())
-    return horario.strftime('%H:%M') if horario else ''
+    return horario.strftime('%H:%M') if horario else None
 
 
 def normalizar_material_wizard(valor):
