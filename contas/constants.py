@@ -103,9 +103,22 @@ def _is_admin_ministerio_principal(user):
     if not getattr(user, 'is_authenticated', False):
         return False
 
+    cache_attr = '_gereigreja_is_admin_ministerio_principal_cache'
+    if hasattr(user, cache_attr):
+        return getattr(user, cache_attr)
+
     from configuracao.models import Ministerio
 
-    return Ministerio.objects.filter(administrador_principal=user).exists()
+    is_admin_principal = Ministerio.objects.filter(administrador_principal=user).exists()
+    setattr(user, cache_attr, is_admin_principal)
+    return is_admin_principal
+
+
+def _get_cached_group_names(user):
+    cache_attr = '_gereigreja_group_names_cache'
+    if not hasattr(user, cache_attr):
+        setattr(user, cache_attr, set(user.groups.values_list('name', flat=True)))
+    return getattr(user, cache_attr)
 
 # ===================================
 # HELPER FUNCTIONS
@@ -126,7 +139,7 @@ def user_tem_grupo(user, nome_grupo):
         return False
     if nome_grupo == ADMIN_MINISTERIO and _is_admin_ministerio_principal(user):
         return True
-    return user.groups.filter(name=nome_grupo).exists()
+    return nome_grupo in _get_cached_group_names(user)
 
 
 def user_tem_qualquer_grupo(user, lista_grupos):
@@ -144,7 +157,7 @@ def user_tem_qualquer_grupo(user, lista_grupos):
         return False
     if ADMIN_MINISTERIO in lista_grupos and _is_admin_ministerio_principal(user):
         return True
-    return user.groups.filter(name__in=lista_grupos).exists()
+    return bool(_get_cached_group_names(user).intersection(lista_grupos))
 
 
 def get_user_permission_level(user):
