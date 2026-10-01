@@ -1,6 +1,9 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 
+from contas.constants import MEMBRO_COMUM
 from configuracao.models import CidadeCatalogo, CidadeTraducao, Pais, SubdivisaoAdministrativa
 from configuracao.services_localidades import buscar_cidades_catalogo
 
@@ -36,6 +39,10 @@ class LocalidadesCatalogoTests(TestCase):
         self.assertEqual(resultados[0].pk, self.cidade.pk)
 
     def test_api_retorna_resultados(self):
+        usuario = get_user_model().objects.create_user(username='usuario-localidades')
+        grupo_membro_comum, _ = Group.objects.get_or_create(name=MEMBRO_COMUM)
+        usuario.groups.add(grupo_membro_comum)
+        self.client.force_login(usuario)
         url = reverse('configuracao:api_buscar_cidades')
         resp = self.client.get(url, {'q': 'sao', 'country': 'BR', 'lang': 'pt-BR'})
         self.assertEqual(resp.status_code, 200)
