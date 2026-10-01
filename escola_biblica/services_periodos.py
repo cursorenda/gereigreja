@@ -47,11 +47,11 @@ def normalizar_status_licao_wizard(valor):
 
 
 def normalizar_horario_wizard(valor):
-    """Converte o horario do assistente para HH:MM ou None quando ausente."""
+    """Converte o horario do assistente para HH:MM sem propagar entrada invalida."""
     if not valor:
-        return None
+        return ''
     horario = parse_time(str(valor).strip())
-    return horario.strftime('%H:%M') if horario else None
+    return horario.strftime('%H:%M') if horario else ''
 
 
 def normalizar_material_wizard(valor):
@@ -408,6 +408,7 @@ def criar_licoes_cronograma(
     if periodo is None:
         return 0
 
+    horario_modelo = horario or None
     total_criadas = 0
     for turma in turmas:
         professor = turma.get_professor_ebd()
@@ -426,7 +427,7 @@ def criar_licoes_cronograma(
                     'tema': tema,
                     'material': material,
                     'observacoes': observacoes,
-                    'horario': horario,
+                    'horario': horario_modelo,
                     'status': status,
                     'professor': professor,
                     'periodo': periodo,
