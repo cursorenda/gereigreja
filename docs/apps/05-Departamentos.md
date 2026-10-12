@@ -112,6 +112,30 @@ A remoção funcional será realizada pelo encerramento do vínculo, preservando
 - `docs/arquitetura/08-Arquitetura-Multi-Tenant.md`
 - `docs/seguranca/05-Seguranca-Multi-Tenant.md`
 
-## 10. Princípios finais
+## 10. Dívida técnica de performance
+
+A tela `Meus Departamentos` deve reutilizar, por request, os escopos e as decisões de autorização já calculados, sem cache global ou persistente. A consulta funcional de vínculos e capacidades não deve crescer por departamento.
+
+A auditoria de agosto de 2026 identificou custo transversal no middleware, menu, context processors, auditoria, plano/beta, onboarding e seletor global. Essas camadas permanecem fora do escopo da otimização local. A meta inicial para uma futura otimização coordenada da requisição completa é de 28 a 35 queries, preservando integralmente autorização e isolamento multi-tenant.
+
+## 11. Hub Operacional do Departamento V1
+
+O Hub é uma tela pessoal, somente leitura, acessível exclusivamente por um `DepartamentoVinculo` ativo da Pessoa autenticada. O identificador do departamento na URL é apenas candidato: Departamento, Igreja e Ministério são derivados do vínculo encontrado no backend. Um vínculo encerrado ou pertencente a outra Pessoa resulta em resposta não reveladora de recurso.
+
+- capacidades são informações organizacionais e não concedem acesso;
+- Cargo e `DepartamentoVinculo` não concedem grupos, módulos ou permissões;
+- somente o Financeiro possui contexto departamental real nesta versão, por meio de `DepartamentoFinanceiro` resolvido a partir do Departamento autorizado;
+- Pessoas, Agenda, Eventos e Comunicação são apenas atalhos da igreja e exigem política real, escopo oficial e correspondência com a igreja ativa já validada;
+- o Hub não troca a igreja ativa implicitamente nem aceita query string para alterar contexto;
+- quando a igreja do departamento for selecionável pela política canônica e
+  diferir da igreja ativa, o Hub poderá oferecer troca explícita por formulário
+  POST para o endpoint canônico, com retorno interno seguro ao próprio Hub;
+- `DepartamentoVinculo`, Cargo e capacidades não autorizam essa troca: a igreja
+  deve pertencer a `core.utils.get_igrejas_selecionaveis()` e o endpoint faz nova
+  validação antes de alterar a sessão;
+- Escalas, Tarefas e Almoxarifado permanecem somente como capacidades informativas;
+- não há equipe, métricas, próximos eventos ou operações de escrita nesta versão.
+
+## 12. Princípios finais
 
 O vínculo departamental representa organização e histórico local. Ele não representa autorização. Toda operação deverá combinar papel autorizado, escopo explícito de igreja e validação do objeto no backend.
