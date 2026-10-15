@@ -4,14 +4,28 @@ from .models import PermissaoCaixa
 from django.contrib.auth.decorators import login_required
 from core.decorators import page_access_required
 
+
+def _get_explicit_finance_churches(user, ministerio):
+    """Retorna apenas as igrejas explicitamente autorizadas no perfil do usuário."""
+    perfil = getattr(user, 'perfil', None) or getattr(user, 'perfil_usuario', None)
+    if not perfil or perfil.ministerio_id != ministerio.id:
+        return Igreja.objects.none()
+    return perfil.igrejas_permitidas.filter(ministerio=ministerio)
+
+
 @login_required
 @page_access_required('financeiro')
 
 def gerenciar_permissoes_caixa(request, caixa_id):
-    caixa = get_object_or_404(ContaBancaria, pk=caixa_id)
+    ministerio = get_ministerio_or_error(request)
+    allowed_churches = _get_explicit_finance_churches(request.user, ministerio)
+    caixa = get_object_or_404(ContaBancaria, pk=caixa_id, igreja__in=allowed_churches)
     User = get_user_model()
-    # Filtra apenas usuários do mesmo ministério do caixa
-    usuarios = User.objects.filter(is_active=True, perfil__ministerio=caixa.igreja.ministerio)
+    usuarios = User.objects.filter(
+        is_active=True,
+        perfil__ministerio=ministerio,
+        perfil__igrejas_permitidas=caixa.igreja,
+    ).distinct()
     permissoes = PermissaoCaixa.objects.filter(caixa=caixa).select_related('usuario')
 
     if request.method == 'POST':
@@ -2567,18 +2581,14 @@ def cadastrar_categoria_despesa(request): # noqa: E302
 def lista_contas_bancarias(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
-        allowed_churches = get_allowed_churches_for_user(request.user)
+        allowed_churches = _get_explicit_finance_churches(request.user, ministerio)
         query = request.GET.get('q', '').strip()
         tipo_selecionado = request.GET.get('tipo', 'todos')
 
-        contas_base = ContaBancaria.objects.select_related('igreja')
-        if allowed_churches.exists():
-            contas_base = contas_base.filter(igreja__in=allowed_churches)
-        else:
-            contas_base = contas_base.filter(igreja__ministerio=ministerio)
+        contas_base = ContaBancaria.objects.select_related('igreja').filter(igreja__in=allowed_churches)
 
         # --- Lógica para filtrar pela igreja ativa quando disponível ---
-        if allowed_churches.exists() and request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
             contas_base = contas_base.filter(igreja=request.igreja_ativa)
         # --- Fim Lógica de Filtragem Inicial ---
 

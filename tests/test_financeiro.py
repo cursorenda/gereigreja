@@ -28,6 +28,7 @@ from financeiro.models import (
     LancamentoExtratoOFX,
     LogTransacaoFinanceira,
     PoliticaDepartamentoFinanceiro,
+    PermissaoCaixa,
     RecorrenciaContaPagar,
     Receitas,
     TransferenciaCaixa,
@@ -1772,6 +1773,16 @@ VERSION:102
 class ContaBancariaViewTest(BaseFinanceiroTestCase):
     def setUp(self):
         super().setUp()
+        grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(grupo_tesoureiro)
+        perfil, _ = PerfilUsuario.objects.get_or_create(
+            user=self.user,
+            defaults={'ministerio': self.ministerio},
+        )
+        if perfil.ministerio_id != self.ministerio.id:
+            perfil.ministerio = self.ministerio
+            perfil.save(update_fields=['ministerio'])
+        perfil.igrejas_permitidas.set([self.igreja])
         self.client.force_login(self.user)
         self.conta_bancaria = ContaBancaria.objects.create(
             igreja=self.igreja,
@@ -1820,6 +1831,225 @@ class ContaBancariaViewTest(BaseFinanceiroTestCase):
         contas = list(response.context['contas_bancarias'])
         self.assertGreaterEqual(len(contas), 1)
         self.assertTrue(any(conta.id == self.conta_bancaria.id for conta in contas))
+
+
+class ContaBancariaEscopoExplicitoTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.admin_ministerio_1 = User.objects.create_user(username='admin-contas-escopo-1')
+        self.admin_ministerio_2 = User.objects.create_user(username='admin-contas-escopo-2')
+        self.usuario = User.objects.create_user(
+            username='tesoureiro-contas-escopo',
+            password='senha123',
+        )
+        self.usuario.groups.add(self.grupo_tesoureiro)
+
+        self.ministerio_1 = Ministerio.objects.create(
+            nome_fantasia='Ministerio Contas Escopo 1',
+            administrador_principal=self.admin_ministerio_1,
+            ativo=True,
+        )
+        self.ministerio_2 = Ministerio.objects.create(
+            nome_fantasia='Ministerio Contas Escopo 2',
+            administrador_principal=self.admin_ministerio_2,
+            ativo=True,
+        )
+        self.igreja_a = Igreja.objects.create(
+            ministerio=self.ministerio_1,
+            nome_igreja='Igreja A Contas Escopo',
+            tipo_igreja='sede',
+        )
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio_1,
+            nome_igreja='Igreja B Contas Escopo',
+            tipo_igreja='congregacao',
+        )
+        self.igreja_c = Igreja.objects.create(
+            ministerio=self.ministerio_2,
+            nome_igreja='Igreja C Contas Escopo',
+            tipo_igreja='sede',
+        )
+        self.perfil = PerfilUsuario.objects.create(
+            user=self.usuario,
+            ministerio=self.ministerio_1,
+        )
+        self.perfil.igrejas_permitidas.add(self.igreja_a)
+
+        Plano.objects.get_or_create(
+            nome='pioneiro',
+            defaults={
+                'codigo_plano': 'pioneiro',
+                'permite_modulo_financeiro': True,
+                'ativo': True,
+            },
+        )
+        self.conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Caixa Igreja A',
+            tipo='caixa_fisico',
+        )
+        self.conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Caixa Igreja B',
+            tipo='caixa_fisico',
+        )
+        self.conta_c = ContaBancaria.objects.create(
+            igreja=self.igreja_c,
+            nome_identificacao='Caixa Igreja C',
+            tipo='caixa_fisico',
+        )
+        self.client.force_login(self.usuario)
+
+    def test_lista_contas_com_escopo_vazio_falha_fechado(self):
+        self.perfil.igrejas_permitidas.clear()
+
+        response = self.client.get(reverse('financeiro:lista_contas_bancarias'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['contas_bancarias'].exists())
+        self.assertEqual(response.context['resumo_quantidade'], 0)
+
+    def test_lista_contas_retorna_somente_igreja_expressamente_permitida(self):
+        response = self.client.get(reverse('financeiro:lista_contas_bancarias'))
+
+        self.assertEqual(response.status_code, 200)
+        contas = response.context['contas_bancarias']
+        self.assertIn(self.conta_a, contas)
+        self.assertTrue(all(conta.igreja_id == self.igreja_a.pk for conta in contas))
+        self.assertNotIn(self.conta_b, contas)
+        self.assertNotIn(self.conta_c, contas)
+
+    def test_gerenciar_permissoes_caixa_bloqueia_igreja_do_mesmo_ministerio_fora_do_escopo(self):
+        response = self.client.get(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_b.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_gerenciar_permissoes_caixa_bloqueia_escopo_vazio(self):
+        self.perfil.igrejas_permitidas.clear()
+
+        response = self.client.get(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_a.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_gerenciar_permissoes_caixa_permite_igreja_expressamente_autorizada(self):
+        response = self.client.get(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_a.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['caixa'], self.conta_a)
+
+    def test_gerenciar_permissoes_caixa_bloqueia_caixa_de_outro_ministerio(self):
+        response = self.client.get(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_c.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_post_permissoes_ignora_usuario_da_igreja_b_do_mesmo_ministerio(self):
+        usuario_igreja_b = get_user_model().objects.create_user(
+            username='usuario-igreja-b-permissao-caixa',
+        )
+        perfil_igreja_b = PerfilUsuario.objects.create(
+            user=usuario_igreja_b,
+            ministerio=self.ministerio_1,
+        )
+        perfil_igreja_b.igrejas_permitidas.add(self.igreja_b)
+
+        response = self.client.post(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_a.pk]),
+            data={
+                f'user_{usuario_igreja_b.pk}_visualizar': 'on',
+                f'user_{usuario_igreja_b.pk}_transferir': 'on',
+                f'user_{usuario_igreja_b.pk}_editar': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            PermissaoCaixa.objects.filter(
+                usuario=usuario_igreja_b,
+                caixa=self.conta_a,
+            ).exists()
+        )
+
+    def test_post_permissoes_ignora_usuario_de_outro_ministerio(self):
+        usuario_igreja_c = get_user_model().objects.create_user(
+            username='usuario-igreja-c-permissao-caixa',
+        )
+        perfil_igreja_c = PerfilUsuario.objects.create(
+            user=usuario_igreja_c,
+            ministerio=self.ministerio_2,
+        )
+        perfil_igreja_c.igrejas_permitidas.add(self.igreja_c)
+
+        response = self.client.post(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_a.pk]),
+            data={f'user_{usuario_igreja_c.pk}_visualizar': 'on'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            PermissaoCaixa.objects.filter(
+                usuario=usuario_igreja_c,
+                caixa=self.conta_a,
+            ).exists()
+        )
+
+    def test_post_permissoes_ignora_usuario_sem_igreja_explicita(self):
+        usuario_sem_igreja = get_user_model().objects.create_user(
+            username='usuario-sem-igreja-permissao-caixa',
+        )
+        PerfilUsuario.objects.create(
+            user=usuario_sem_igreja,
+            ministerio=self.ministerio_1,
+        )
+
+        response = self.client.post(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_a.pk]),
+            data={f'user_{usuario_sem_igreja.pk}_visualizar': 'on'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            PermissaoCaixa.objects.filter(
+                usuario=usuario_sem_igreja,
+                caixa=self.conta_a,
+            ).exists()
+        )
+
+    def test_post_permissoes_cria_permissao_para_usuario_da_igreja_autorizada(self):
+        usuario_igreja_a = get_user_model().objects.create_user(
+            username='usuario-igreja-a-permissao-caixa',
+        )
+        perfil_igreja_a = PerfilUsuario.objects.create(
+            user=usuario_igreja_a,
+            ministerio=self.ministerio_1,
+        )
+        perfil_igreja_a.igrejas_permitidas.add(self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:gerenciar_permissoes_caixa', args=[self.conta_a.pk]),
+            data={
+                f'user_{usuario_igreja_a.pk}_visualizar': 'on',
+                f'user_{usuario_igreja_a.pk}_transferir': 'on',
+                f'user_{usuario_igreja_a.pk}_editar': 'on',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        permissao = PermissaoCaixa.objects.get(
+            usuario=usuario_igreja_a,
+            caixa=self.conta_a,
+        )
+        self.assertTrue(permissao.pode_visualizar)
+        self.assertTrue(permissao.pode_transferir)
+        self.assertTrue(permissao.pode_editar)
 
 
 class ReceitasViewTest(BaseFinanceiroTestCase):
