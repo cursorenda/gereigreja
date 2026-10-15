@@ -261,18 +261,17 @@ class EscopoPerfisIntegracaoTest(TestCase):
         self.assertNotIn(self.sede.pk, receitas_ids_igreja)
         self.assertNotIn(self.regional.pk, receitas_ids_igreja)
 
-    def test_lista_contas_bancarias_escopo_regional_retorna_apenas_hierarquia_permitida(self):
+    def test_lista_contas_bancarias_escopo_regional_retorna_apenas_igreja_explicita(self):
         self.client.force_login(self.usuario_regional)
 
         response = self.client.get(reverse("financeiro:lista_contas_bancarias"))
 
         self.assertEqual(response.status_code, 200)
         contas_ids_igreja = set(response.context["contas_bancarias"].values_list("igreja_id", flat=True))
-        self.assertEqual(
-            contas_ids_igreja,
-            {self.regional.pk, self.congregacao.pk, self.ponto_local.pk},
-        )
+        self.assertEqual(contas_ids_igreja, {self.regional.pk})
         self.assertNotIn(self.sede.pk, contas_ids_igreja)
+        self.assertNotIn(self.congregacao.pk, contas_ids_igreja)
+        self.assertNotIn(self.ponto_local.pk, contas_ids_igreja)
 
     def test_cadastrar_receita_escopo_regional_permite_igreja_subordinada(self):
         self.client.force_login(self.usuario_regional)

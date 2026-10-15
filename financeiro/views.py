@@ -3,14 +3,7 @@ from .models import PermissaoCaixa
 # --- Gestão de Permissões de Caixa ---
 from django.contrib.auth.decorators import login_required
 from core.decorators import page_access_required
-
-
-def _get_explicit_finance_churches(user, ministerio):
-    """Retorna apenas as igrejas explicitamente autorizadas no perfil do usuário."""
-    perfil = getattr(user, 'perfil', None) or getattr(user, 'perfil_usuario', None)
-    if not perfil or perfil.ministerio_id != ministerio.id:
-        return Igreja.objects.none()
-    return perfil.igrejas_permitidas.filter(ministerio=ministerio)
+from financeiro.authorization import get_finance_read_scope, get_finance_write_scope
 
 
 @login_required
@@ -18,7 +11,7 @@ def _get_explicit_finance_churches(user, ministerio):
 
 def gerenciar_permissoes_caixa(request, caixa_id):
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = _get_explicit_finance_churches(request.user, ministerio)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     caixa = get_object_or_404(ContaBancaria, pk=caixa_id, igreja__in=allowed_churches)
     User = get_user_model()
     usuarios = User.objects.filter(
@@ -2581,7 +2574,7 @@ def cadastrar_categoria_despesa(request): # noqa: E302
 def lista_contas_bancarias(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
-        allowed_churches = _get_explicit_finance_churches(request.user, ministerio)
+        allowed_churches = get_finance_read_scope(request.user, ministerio)
         query = request.GET.get('q', '').strip()
         tipo_selecionado = request.GET.get('tipo', 'todos')
 
