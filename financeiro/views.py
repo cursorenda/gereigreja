@@ -920,15 +920,15 @@ def painel_financeiro(request):
 def lista_receitas(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
-        allowed_churches = get_allowed_churches_for_user(request.user)
+        allowed_churches = get_finance_read_scope(request.user, ministerio)
         igrejas_base = allowed_churches
         # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
         if request.igreja_ativa:
             # Se uma igreja ativa está selecionada, filtra por ela (garantindo que ela está entre as permitidas)
             if request.igreja_ativa in igrejas_base:
                 receitas_qs = Receitas.objects.filter(igreja=request.igreja_ativa).select_related('igreja', 'membro', 'evento').order_by('-data')
-            else: # Segurança: se a igreja ativa não for permitida, mostra vazio ou todas permitidas
-                receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro', 'evento').order_by('-data')
+            else:
+                receitas_qs = Receitas.objects.none()
         else:
             # Se nenhuma igreja ativa, mostra de todas as igrejas permitidas
             receitas_qs = Receitas.objects.filter(igreja__in=igrejas_base).select_related('igreja', 'membro', 'evento').order_by('-data')
@@ -946,8 +946,10 @@ def lista_receitas(request): # noqa: E302
         fundos_disponivel = _fundos_departamentais_disponivel()
 
         if fundos_disponivel:
-            if request.igreja_ativa and request.igreja_ativa in igrejas_base:
+            if request.igreja_ativa and igrejas_base.filter(pk=request.igreja_ativa.pk).exists():
                 fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas([request.igreja_ativa])
+            elif request.igreja_ativa:
+                fundos_dropdown = FundoDepartamental.objects.none()
             else:
                 fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas(igrejas_base)
 
@@ -975,7 +977,7 @@ def lista_receitas(request): # noqa: E302
         if igreja_id_get:
             # Este filtro só deve ser aplicado se request.igreja_ativa NÃO estiver definida
             if not request.igreja_ativa:
-                if is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists():
+                if allowed_churches.filter(pk=igreja_id_get).exists():
                     receitas_qs = receitas_qs.filter(igreja_id=igreja_id_get)
 
 
@@ -1368,23 +1370,21 @@ def conciliacao_ofx(request):
 @page_access_required('financeiro')
 def cadastrar_receita(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     igreja_padrao_para_form = None # Inicializa
-    is_admin = is_admin_org(request.user)
     next_url = _get_safe_next_url(request, 'financeiro:lista_receitas')
 
     if request.method == 'GET' and next_url == reverse('eventos:lista_eventos'):
         return redirect('financeiro:cadastrar_receita_caixa_eventos')
 
-    # Se não for admin e não tiver igrejas permitidas, não pode criar
-    if not is_admin and not allowed_churches.exists():
+    if not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar receitas ou não está associado a nenhuma igreja específica.")
         return redirect(next_url)
 
     # A igreja do lançamento deve vir do seletor global (igreja ativa).
-    if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
+    if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         igreja_padrao_para_form = request.igreja_ativa
-    elif not is_admin and allowed_churches.count() == 1:
+    elif allowed_churches.count() == 1:
         igreja_padrao_para_form = allowed_churches.first()
 
     if igreja_padrao_para_form is None:
@@ -1422,7 +1422,7 @@ def cadastrar_receita(request): # noqa: E302
                 form = ReceitaForm(
                     initial=initial_edicao,
                     ministerio=ministerio,
-                    allowed_churches=allowed_churches,
+                    user=request.user, allowed_churches=allowed_churches,
                     igreja_selecionada_inicial=igreja_padrao_para_form,
                 )
                 context = {
@@ -1482,7 +1482,7 @@ def cadastrar_receita(request): # noqa: E302
                     item_form = ReceitaForm(
                         payload,
                         ministerio=ministerio,
-                        allowed_churches=allowed_churches,
+                        user=request.user, allowed_churches=allowed_churches,
                         igreja_selecionada_inicial=igreja_padrao_para_form,
                     )
                     if not item_form.is_valid():
@@ -1501,13 +1501,13 @@ def cadastrar_receita(request): # noqa: E302
         post_data['igreja'] = str(igreja_padrao_para_form.pk)
         # Passa ministério para o form filtrar igrejas e membros (se necessário)
         # Passa allowed_churches para o form filtrar o campo igreja
-        form = ReceitaForm(post_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
+        form = ReceitaForm(post_data, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
         if form.is_valid():
             try:
                 nova_receita = form.save(commit=False)
                 nova_receita.igreja = igreja_padrao_para_form
                 # Validação extra (form já deve ter validado, mas é bom garantir)
-                if not is_admin and not allowed_churches.filter(pk=nova_receita.igreja_id).exists():
+                if not allowed_churches.filter(pk=nova_receita.igreja_id).exists():
                     messages.error(request, "Erro: Igreja selecionada inválida.")
                 # Validar membro (se selecionado) - form já deve filtrar
                 elif nova_receita.membro and nova_receita.membro.igreja.ministerio != ministerio:
@@ -1591,7 +1591,7 @@ def cadastrar_receita(request): # noqa: E302
             'membro': batch_defaults.get('membro') or '',
             'evento': batch_defaults.get('evento') or '',
         })
-        form = ReceitaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
+        form = ReceitaForm(initial=initial_form_data, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
         context = {
             'form': form,
             'ministerio': ministerio,
@@ -1611,7 +1611,7 @@ def cadastrar_receita(request): # noqa: E302
 @page_access_required('financeiro')
 def cadastrar_receita_evento(request, evento_id):
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     evento = get_object_or_404(Evento, pk=evento_id, igreja__in=allowed_churches)
     _, conta_evento_efetiva_id = ReceitaFluxoService.construir_initial_receita_evento(evento)
 
@@ -1621,7 +1621,7 @@ def cadastrar_receita_evento(request, evento_id):
         form = ReceitaForm(
             post_data,
             ministerio=ministerio,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
             igreja_selecionada_inicial=evento.igreja,
             evento_contexto=evento,
             travar_evento=True,
@@ -1647,7 +1647,7 @@ def cadastrar_receita_evento(request, evento_id):
         form = ReceitaForm(
             initial=initial,
             ministerio=ministerio,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
             igreja_selecionada_inicial=evento.igreja,
             evento_contexto=evento,
             travar_evento=True,
@@ -1668,15 +1668,14 @@ def cadastrar_receita_evento(request, evento_id):
 @page_access_required('financeiro')
 def cadastrar_receita_caixa_eventos(request):
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
-    is_admin = is_admin_org(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     igreja_padrao_para_form = ReceitaFluxoService.resolver_igreja_padrao_receita_caixa_eventos(
         request=request,
         allowed_churches=allowed_churches,
-        is_admin=is_admin,
+        is_admin=False,
     )
 
-    if not is_admin and not allowed_churches.exists():
+    if not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar entradas de eventos.")
         return redirect('eventos:lista_eventos')
 
@@ -1688,13 +1687,13 @@ def cadastrar_receita_caixa_eventos(request):
         post_data, _evento, _conta_evento_efetiva_id = ReceitaFluxoService.construir_post_data_receita_caixa_eventos(
             raw_post_data=request.POST,
             igreja_padrao_para_form=igreja_padrao_para_form,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
         )
 
         form = ReceitaForm(
             post_data,
             ministerio=ministerio,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
             igreja_selecionada_inicial=igreja_padrao_para_form,
             codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
         )
@@ -1717,6 +1716,7 @@ def cadastrar_receita_caixa_eventos(request):
         form = ReceitaForm(
             initial=initial,
             ministerio=ministerio,
+            user=request.user,
             allowed_churches=allowed_churches,
             igreja_selecionada_inicial=igreja_padrao_para_form,
             codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
@@ -1740,7 +1740,7 @@ def cadastrar_receita_caixa_eventos(request):
 @page_access_required('financeiro')
 def editar_receita(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     # Garante que a receita pertence às igrejas permitidas
     receita = get_object_or_404(Receitas, pk=pk, igreja__in=allowed_churches)
 
@@ -1749,12 +1749,12 @@ def editar_receita(request, pk): # noqa: E302
         return redirect('financeiro:lista_receitas')
 
     if request.method == 'POST':
-        form = ReceitaForm(request.POST, instance=receita, ministerio=ministerio, allowed_churches=allowed_churches)
+        form = ReceitaForm(request.POST, instance=receita, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
         if form.is_valid():
             try:
                 receita_editada = form.save(commit=False)
                 # Validações extras
-                if not is_admin_org(request.user) and receita_editada.igreja not in allowed_churches:
+                if receita_editada.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida.")
                 elif receita_editada.membro and receita_editada.membro.igreja.ministerio != ministerio:
                     messages.error(request, "Erro: Membro selecionado não pertence à seu ministério.")
@@ -1768,7 +1768,7 @@ def editar_receita(request, pk): # noqa: E302
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        form = ReceitaForm(instance=receita, ministerio=ministerio, allowed_churches=allowed_churches)
+        form = ReceitaForm(instance=receita, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
 
     context = {
         'form': form,
@@ -1786,7 +1786,7 @@ def editar_receita(request, pk): # noqa: E302
 def excluir_receita(request, pk): # noqa: E302
     # Apenas quem pode editar pode excluir
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     receita = get_object_or_404(Receitas, pk=pk, igreja__in=allowed_churches)
 
     if receita.fechado:
@@ -1824,12 +1824,14 @@ def excluir_receita(request, pk): # noqa: E302
 def lista_despesas(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     try:
-        allowed_churches = get_allowed_churches_for_user(request.user)
+        allowed_churches = get_finance_read_scope(request.user, ministerio)
         despesas_qs = Despesas.objects.filter(igreja__in=allowed_churches).select_related('igreja', 'categoria', 'evento').order_by('-data')
 
         # --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
-        if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+        if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
             despesas_qs = despesas_qs.filter(igreja=request.igreja_ativa)
+        elif request.igreja_ativa:
+            despesas_qs = Despesas.objects.none()
         # Se nenhuma igreja ativa, o filtro já é por igreja__in=allowed_churches (definido acima)
         # --- Fim Lógica de Filtragem Inicial ---
         
@@ -1847,8 +1849,10 @@ def lista_despesas(request): # noqa: E302
         fundos_disponivel = _fundos_departamentais_disponivel()
 
         if fundos_disponivel:
-            if request.igreja_ativa and request.igreja_ativa in allowed_churches:
+            if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
                 fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas([request.igreja_ativa])
+            elif request.igreja_ativa:
+                fundos_dropdown = FundoDepartamental.objects.none()
             else:
                 fundos_dropdown = DepartamentoFinanceiroService.fundos_visiveis_para_igrejas(allowed_churches)
 
@@ -1879,7 +1883,7 @@ def lista_despesas(request): # noqa: E302
             despesas_qs = despesas_qs.filter(aprovacao_status=aprovacao_status_filtro)
         if igreja_id_get:
             # Este filtro só deve ser aplicado se request.igreja_ativa NÃO estiver definida
-            if not request.igreja_ativa and (is_admin_org(request.user) or allowed_churches.filter(pk=igreja_id_get).exists()):
+            if not request.igreja_ativa and allowed_churches.filter(pk=igreja_id_get).exists():
                 despesas_qs = despesas_qs.filter(igreja_id=igreja_id_get)
 
         # Aplica o filtro 'fechado' baseado no valor (seja o da URL ou o default 'false')
@@ -1982,22 +1986,20 @@ def lista_despesas(request): # noqa: E302
 @page_access_required('financeiro')
 def cadastrar_despesa(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     igreja_padrao_para_form = None # Inicializa
-    is_admin = is_admin_org(request.user)
     next_url = _get_safe_next_url(request, 'financeiro:lista_despesas')
 
     if request.method == 'GET' and next_url == reverse('eventos:lista_eventos'):
         return redirect('financeiro:cadastrar_despesa_caixa_eventos')
 
-    # Se não for admin e não tiver igrejas permitidas, não pode criar
-    if not is_admin and not allowed_churches.exists():
+    if not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar despesas ou não está associado a nenhuma igreja específica.")
         return redirect(next_url)
 
-    if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
+    if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         igreja_padrao_para_form = request.igreja_ativa
-    elif not is_admin and allowed_churches.count() == 1:
+    elif allowed_churches.count() == 1:
         igreja_padrao_para_form = allowed_churches.first()
 
     if igreja_padrao_para_form is None:
@@ -2034,7 +2036,7 @@ def cadastrar_despesa(request): # noqa: E302
                 form = DespesaForm(
                     initial=initial_edicao,
                     ministerio=ministerio,
-                    allowed_churches=allowed_churches,
+                    user=request.user, allowed_churches=allowed_churches,
                     igreja_selecionada_inicial=igreja_padrao_para_form,
                 )
                 context = {
@@ -2093,7 +2095,7 @@ def cadastrar_despesa(request): # noqa: E302
                     item_form = DespesaForm(
                         payload,
                         ministerio=ministerio,
-                        allowed_churches=allowed_churches,
+                        user=request.user, allowed_churches=allowed_churches,
                         igreja_selecionada_inicial=igreja_padrao_para_form,
                     )
                     if not item_form.is_valid():
@@ -2111,12 +2113,12 @@ def cadastrar_despesa(request): # noqa: E302
 
         post_data = request.POST.copy()
         post_data['igreja'] = str(igreja_padrao_para_form.pk)
-        form = DespesaForm(post_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
+        form = DespesaForm(post_data, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
         if form.is_valid():
             try:
                 nova_despesa = form.save(commit=False)
                 nova_despesa.igreja = igreja_padrao_para_form
-                if not is_admin and not allowed_churches.filter(pk=nova_despesa.igreja_id).exists(): messages.error(request, "Erro: Igreja inválida.")
+                if not allowed_churches.filter(pk=nova_despesa.igreja_id).exists(): messages.error(request, "Erro: Igreja inválida.")
                 elif nova_despesa.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
@@ -2184,7 +2186,7 @@ def cadastrar_despesa(request): # noqa: E302
             'conta_bancaria': batch_defaults.get('conta_bancaria') or '',
             'evento': batch_defaults.get('evento') or '',
         })
-        form = DespesaForm(initial=initial_form_data, ministerio=ministerio, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
+        form = DespesaForm(initial=initial_form_data, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_padrao_para_form)
 
     context = {
         'form': form,
@@ -2204,7 +2206,7 @@ def cadastrar_despesa(request): # noqa: E302
 @page_access_required('financeiro')
 def cadastrar_despesa_evento(request, evento_id):
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     evento = get_object_or_404(Evento, pk=evento_id, igreja__in=allowed_churches)
     conta_evento_efetiva_id = evento.conta_bancaria_evento_id or getattr(evento.igreja, 'conta_padrao_eventos_id', None)
 
@@ -2218,7 +2220,7 @@ def cadastrar_despesa_evento(request, evento_id):
         form = DespesaForm(
             post_data,
             ministerio=ministerio,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
             igreja_selecionada_inicial=evento.igreja,
             evento_contexto=evento,
             codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
@@ -2256,7 +2258,7 @@ def cadastrar_despesa_evento(request, evento_id):
         form = DespesaForm(
             initial=initial,
             ministerio=ministerio,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
             igreja_selecionada_inicial=evento.igreja,
             evento_contexto=evento,
             codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
@@ -2283,17 +2285,15 @@ def cadastrar_despesa_evento(request, evento_id):
 @page_access_required('financeiro')
 def cadastrar_despesa_caixa_eventos(request):
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     igreja_padrao_para_form = None
-    is_admin = is_admin_org(request.user)
 
-    if not is_admin and not allowed_churches.exists():
-        messages.error(request, "Você não tem permissão para adicionar saídas de eventos.")
+    if not allowed_churches.exists():
         return redirect('eventos:lista_eventos')
 
-    if request.igreja_ativa and (is_admin or allowed_churches.filter(pk=request.igreja_ativa.pk).exists()):
+    if request.igreja_ativa and allowed_churches.filter(pk=request.igreja_ativa.pk).exists():
         igreja_padrao_para_form = request.igreja_ativa
-    elif not is_admin and allowed_churches.count() == 1:
+    elif allowed_churches.count() == 1:
         igreja_padrao_para_form = allowed_churches.first()
 
     if igreja_padrao_para_form is None:
@@ -2321,7 +2321,7 @@ def cadastrar_despesa_caixa_eventos(request):
         form = DespesaForm(
             post_data,
             ministerio=ministerio,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
             igreja_selecionada_inicial=igreja_padrao_para_form,
             codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
         )
@@ -2362,7 +2362,7 @@ def cadastrar_despesa_caixa_eventos(request):
         form = DespesaForm(
             initial=initial,
             ministerio=ministerio,
-            allowed_churches=allowed_churches,
+            user=request.user, allowed_churches=allowed_churches,
             igreja_selecionada_inicial=igreja_padrao_para_form,
             codigo_fundo_contexto=FundoDepartamental.CODIGO_EVENTOS,
         )
@@ -2385,7 +2385,7 @@ def cadastrar_despesa_caixa_eventos(request):
 @page_access_required('financeiro')
 def editar_despesa(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
 
     if despesa.fechado:
@@ -2393,11 +2393,11 @@ def editar_despesa(request, pk): # noqa: E302
         return redirect('financeiro:lista_despesas')
 
     if request.method == 'POST':
-        form = DespesaForm(request.POST, instance=despesa, ministerio=ministerio, allowed_churches=allowed_churches)
+        form = DespesaForm(request.POST, instance=despesa, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
         if form.is_valid():
             try:
                 despesa_editada = form.save(commit=False)
-                if not is_admin_org(request.user) and despesa_editada.igreja not in allowed_churches: messages.error(request, "Erro: Igreja inválida.")
+                if despesa_editada.igreja not in allowed_churches: messages.error(request, "Erro: Igreja inválida.")
                 elif despesa_editada.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
                 else:
@@ -2414,7 +2414,7 @@ def editar_despesa(request, pk): # noqa: E302
         else:
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
-        form = DespesaForm(instance=despesa, ministerio=ministerio, allowed_churches=allowed_churches)
+        form = DespesaForm(instance=despesa, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
 
     context = {
         'form': form,
@@ -2431,7 +2431,7 @@ def editar_despesa(request, pk): # noqa: E302
 @page_access_required('financeiro')
 def excluir_despesa(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
 
     if despesa.fechado:
@@ -2635,11 +2635,11 @@ def lista_contas_bancarias(request): # noqa: E302
 @page_access_required('financeiro')
 def criar_conta_bancaria(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     igreja_inicial_para_form = None 
 
 
-    if not is_admin_org(request.user) and not allowed_churches.exists():
+    if not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar contas ou não está associado a nenhuma igreja específica.")
         return redirect('financeiro:lista_contas_bancarias')
 
@@ -2664,7 +2664,7 @@ def criar_conta_bancaria(request): # noqa: E302
 
                 # Validação de segurança adicional
 
-                if not is_admin_org(request.user) and nova_conta.igreja not in allowed_churches:
+                if nova_conta.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida para sua permissão.")
                     # Não levanta exceção aqui, deixa o form ser re-renderizado com a mensagem
                 else:
@@ -2684,11 +2684,16 @@ def criar_conta_bancaria(request): # noqa: E302
         # --- Lógica para pré-selecionar a igreja no formulário GET ---
         if request.igreja_ativa and request.igreja_ativa in allowed_churches:
             igreja_inicial_para_form = request.igreja_ativa
-        elif allowed_churches.count() == 1 and not is_admin_org(request.user): # Admin Org pode querer escolher
+        elif allowed_churches.count() == 1:
 
             igreja_unica_permitida = allowed_churches.first()
             igreja_inicial_para_form = igreja_unica_permitida
-        form = ContaBancariaForm(ministerio=ministerio, user=request.user, allowed_churches=allowed_churches, igreja_selecionada_inicial=igreja_inicial_para_form)
+        form = ContaBancariaForm(
+            ministerio=ministerio,
+            user=request.user,
+            allowed_churches=allowed_churches,
+            igreja_selecionada_inicial=igreja_inicial_para_form,
+        )
 
     context = {
         'form': form,
@@ -2700,7 +2705,7 @@ def criar_conta_bancaria(request): # noqa: E302
 @page_access_required('financeiro')
 def editar_conta_bancaria(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     conta_bancaria = get_object_or_404(ContaBancaria, pk=pk, igreja__in=allowed_churches)
 
     if request.method == 'POST':
@@ -2708,7 +2713,7 @@ def editar_conta_bancaria(request, pk): # noqa: E302
         if form.is_valid():
             try:
                 conta_editada = form.save(commit=False)
-                if not is_admin_org(request.user) and conta_editada.igreja not in allowed_churches:
+                if conta_editada.igreja not in allowed_churches:
                     messages.error(request, "Erro: Igreja selecionada inválida.")
                 else:
                     conta_editada.save()
@@ -2733,7 +2738,7 @@ def editar_conta_bancaria(request, pk): # noqa: E302
 @page_access_required('financeiro')
 def excluir_conta_bancaria(request, pk): # noqa: E302
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     conta_bancaria = get_object_or_404(ContaBancaria, pk=pk, igreja__in=allowed_churches)
 
     # Verificar se a conta está em uso antes de excluir

@@ -12,6 +12,7 @@ from contas.constants import (
     LIDERANCA_SECRETARIA,
     PASTOR_LOCAL,
     PASTOR_REGIONAL,
+    TESOUREIRO,
 )
 from escola_biblica.models import Aluno, AnoLetivo, CadastroAluno, Classe, Frequencia, Turma
 from financeiro.models import CategoriaDespesa, ContaBancaria, Despesas, Receitas
@@ -62,6 +63,7 @@ class EscopoPerfisIntegracaoTest(TestCase):
         self.grupo_admin, _ = Group.objects.get_or_create(name=ADMIN_MINISTERIO)
         self.grupo_regional, _ = Group.objects.get_or_create(name=PASTOR_REGIONAL)
         self.grupo_local, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
+        self.grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
         self.grupo_lider_secretaria, _ = Group.objects.get_or_create(name=LIDERANCA_SECRETARIA)
 
         self.usuario_ministerial = User.objects.create_user(
@@ -69,18 +71,19 @@ class EscopoPerfisIntegracaoTest(TestCase):
             email="ministerial_perfis@example.com",
             password="senha123",
         )
-        self.usuario_ministerial.groups.add(self.grupo_admin)
-        PerfilUsuario.objects.create(
+        self.usuario_ministerial.groups.add(self.grupo_admin, self.grupo_tesoureiro)
+        perfil_ministerial = PerfilUsuario.objects.create(
             user=self.usuario_ministerial,
             ministerio=self.ministerio,
         )
+        perfil_ministerial.igrejas_permitidas.set([self.sede])
 
         self.usuario_regional = User.objects.create_user(
             username="usuario_regional_perfis",
             email="regional_perfis@example.com",
             password="senha123",
         )
-        self.usuario_regional.groups.add(self.grupo_regional)
+        self.usuario_regional.groups.add(self.grupo_regional, self.grupo_tesoureiro)
         perfil_regional = PerfilUsuario.objects.create(
             user=self.usuario_regional,
             ministerio=self.ministerio,
@@ -225,7 +228,7 @@ class EscopoPerfisIntegracaoTest(TestCase):
             fechado=False,
         )
 
-    def test_lista_receitas_escopo_ministerial_retorna_todas_as_igrejas_do_ministerio(self):
+    def test_lista_receitas_escopo_ministerial_retorna_apenas_igreja_explicita(self):
         self.client.force_login(self.usuario_ministerial)
 
         response = self.client.get(reverse("financeiro:lista_receitas"))
@@ -234,10 +237,10 @@ class EscopoPerfisIntegracaoTest(TestCase):
         receitas_ids_igreja = set(response.context["receitas"].values_list("igreja_id", flat=True))
         self.assertEqual(
             receitas_ids_igreja,
-            {self.sede.pk, self.regional.pk, self.congregacao.pk, self.ponto_local.pk},
+            {self.sede.pk},
         )
 
-    def test_lista_receitas_escopo_regional_retorna_base_e_subordinadas(self):
+    def test_lista_receitas_escopo_regional_retorna_apenas_igreja_explicita(self):
         self.client.force_login(self.usuario_regional)
 
         response = self.client.get(reverse("financeiro:lista_receitas"))
@@ -246,18 +249,18 @@ class EscopoPerfisIntegracaoTest(TestCase):
         receitas_ids_igreja = set(response.context["receitas"].values_list("igreja_id", flat=True))
         self.assertEqual(
             receitas_ids_igreja,
-            {self.regional.pk, self.congregacao.pk, self.ponto_local.pk},
+            {self.regional.pk},
         )
         self.assertNotIn(self.sede.pk, receitas_ids_igreja)
 
-    def test_lista_receitas_escopo_local_retorna_base_e_descendentes_sem_ancestrais(self):
+    def test_lista_receitas_escopo_local_retorna_apenas_igreja_explicita(self):
         self.client.force_login(self.usuario_local)
 
         response = self.client.get(reverse("financeiro:lista_receitas"))
 
         self.assertEqual(response.status_code, 200)
         receitas_ids_igreja = set(response.context["receitas"].values_list("igreja_id", flat=True))
-        self.assertEqual(receitas_ids_igreja, {self.congregacao.pk, self.ponto_local.pk})
+        self.assertEqual(receitas_ids_igreja, {self.congregacao.pk})
         self.assertNotIn(self.sede.pk, receitas_ids_igreja)
         self.assertNotIn(self.regional.pk, receitas_ids_igreja)
 
@@ -273,7 +276,7 @@ class EscopoPerfisIntegracaoTest(TestCase):
         self.assertNotIn(self.congregacao.pk, contas_ids_igreja)
         self.assertNotIn(self.ponto_local.pk, contas_ids_igreja)
 
-    def test_cadastrar_receita_escopo_regional_permite_igreja_subordinada(self):
+    def test_cadastrar_receita_escopo_regional_bloqueia_igreja_subordinada(self):
         self.client.force_login(self.usuario_regional)
 
         payload = {
@@ -289,16 +292,10 @@ class EscopoPerfisIntegracaoTest(TestCase):
 
         response = self.client.post(reverse("financeiro:cadastrar_receita"), data=payload)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            Receitas.objects.filter(
-                igreja=self.congregacao,
-                observacao="receita_regional_subordinada",
-                valor=Decimal("123.45"),
-            ).exists()
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Receitas.objects.filter(observacao="receita_regional_subordinada").exists())
 
-    def test_cadastrar_receita_escopo_local_permite_igreja_descendente(self):
+    def test_cadastrar_receita_escopo_local_bloqueia_igreja_descendente(self):
         self.client.force_login(self.usuario_local)
 
         payload = {
@@ -314,14 +311,8 @@ class EscopoPerfisIntegracaoTest(TestCase):
 
         response = self.client.post(reverse("financeiro:cadastrar_receita"), data=payload)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            Receitas.objects.filter(
-                igreja=self.ponto_local,
-                observacao="receita_local_descendente",
-                valor=Decimal("80.00"),
-            ).exists()
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Receitas.objects.filter(observacao="receita_local_descendente").exists())
 
     def test_cadastrar_receita_escopo_local_bloqueia_igreja_ancestral_fora_do_escopo(self):
         self.client.force_login(self.usuario_local)
@@ -346,7 +337,7 @@ class EscopoPerfisIntegracaoTest(TestCase):
             ).exists()
         )
 
-    def test_cadastrar_despesa_escopo_regional_permite_igreja_subordinada(self):
+    def test_cadastrar_despesa_escopo_regional_bloqueia_igreja_subordinada(self):
         self.client.force_login(self.usuario_regional)
 
         payload = {
@@ -361,16 +352,10 @@ class EscopoPerfisIntegracaoTest(TestCase):
 
         response = self.client.post(reverse("financeiro:cadastrar_despesa"), data=payload)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            Despesas.objects.filter(
-                igreja=self.congregacao,
-                observacao="despesa_regional_subordinada",
-                valor=Decimal("55.40"),
-            ).exists()
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Despesas.objects.filter(observacao="despesa_regional_subordinada").exists())
 
-    def test_cadastrar_despesa_escopo_local_permite_igreja_descendente(self):
+    def test_cadastrar_despesa_escopo_local_bloqueia_igreja_descendente(self):
         self.client.force_login(self.usuario_local)
 
         payload = {
@@ -385,14 +370,8 @@ class EscopoPerfisIntegracaoTest(TestCase):
 
         response = self.client.post(reverse("financeiro:cadastrar_despesa"), data=payload)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            Despesas.objects.filter(
-                igreja=self.ponto_local,
-                observacao="despesa_local_descendente",
-                valor=Decimal("33.00"),
-            ).exists()
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Despesas.objects.filter(observacao="despesa_local_descendente").exists())
 
     def test_cadastrar_despesa_escopo_local_bloqueia_igreja_ancestral_fora_do_escopo(self):
         self.client.force_login(self.usuario_local)
@@ -429,28 +408,12 @@ class EscopoPerfisIntegracaoTest(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_editar_receita_escopo_regional_permite_objeto_subordinado(self):
+    def test_editar_receita_escopo_regional_bloqueia_objeto_subordinado(self):
         self.client.force_login(self.usuario_regional)
 
-        payload = {
-            "igreja": str(self.receita_congregacao.igreja.pk),
-            "membro": str(self.membro_congregacao.pk),
-            "data": "2026-04-20",
-            "categoria": "dizimo",
-            "valor": "150.00",
-            "forma_pgto": "PIX",
-            "conta_bancaria": str(self.conta_congregacao.pk),
-            "observacao": "receita_editada_por_regional",
-        }
+        response = self.client.get(reverse("financeiro:editar_receita", args=[self.receita_congregacao.pk]))
 
-        response = self.client.post(
-            reverse("financeiro:editar_receita", args=[self.receita_congregacao.pk]),
-            data=payload,
-        )
-
-        self.assertEqual(response.status_code, 302)
-        self.receita_congregacao.refresh_from_db()
-        self.assertEqual(self.receita_congregacao.observacao, "receita_editada_por_regional")
+        self.assertEqual(response.status_code, 404)
 
     def test_editar_despesa_escopo_local_bloqueia_objeto_de_outra_igreja(self):
         self.client.force_login(self.usuario_local)
@@ -460,6 +423,18 @@ class EscopoPerfisIntegracaoTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    def test_editar_despesa_escopo_regional_bloqueia_objeto_subordinado(self):
+        self.client.force_login(self.usuario_regional)
+        descricao_original = self.despesa_congregacao.descricao
+
+        response = self.client.get(
+            reverse("financeiro:editar_despesa", args=[self.despesa_congregacao.pk])
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.despesa_congregacao.refresh_from_db()
+        self.assertEqual(self.despesa_congregacao.descricao, descricao_original)
 
     # ------------------------------------------------------------------
     # Exclusão com escopo cruzado
@@ -475,7 +450,7 @@ class EscopoPerfisIntegracaoTest(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(Receitas.objects.filter(pk=self.receita_regional.pk).exists())
 
-    def test_excluir_receita_escopo_regional_permite_objeto_subordinado(self):
+    def test_excluir_receita_escopo_regional_bloqueia_objeto_subordinado(self):
         self.client.force_login(self.usuario_regional)
         pk = self.receita_congregacao.pk
 
@@ -483,8 +458,8 @@ class EscopoPerfisIntegracaoTest(TestCase):
             reverse("financeiro:excluir_receita", args=[pk])
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertFalse(Receitas.objects.filter(pk=pk).exists())
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Receitas.objects.filter(pk=pk).exists())
 
     def test_excluir_despesa_escopo_local_bloqueia_objeto_de_outra_igreja(self):
         self.client.force_login(self.usuario_local)

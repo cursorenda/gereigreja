@@ -6,6 +6,7 @@ from .models import (
 )
 from .models import TransferenciaCaixa
 from configuracao.models import Igreja, Ministerio
+from eventos.models import Evento
 from secretaria.models import Membro
 from decimal import Decimal
 from django.utils import timezone
@@ -122,13 +123,11 @@ class ContaBancariaForm(forms.ModelForm):
         if not self.is_bound and not (self.instance and self.instance.pk) and not self.initial.get('data'):
             self.initial['data'] = timezone.localdate()
 
-        if user and not is_admin_org(user) and allowed_churches is not None:
+        if allowed_churches is not None:
             if not hasattr(allowed_churches, 'all'):
                 self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
             else:
                 self.fields['igreja'].queryset = allowed_churches
-        elif ministerio:
-            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
         self.fields['igreja'].empty_label = "Selecione a Igreja"
@@ -174,13 +173,11 @@ class ReceitaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.codigo_fundo_contexto = codigo_fundo_contexto
 
-        if user and not is_admin_org(user) and allowed_churches is not None:
+        if allowed_churches is not None:
             if not hasattr(allowed_churches, 'all'):
                 self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
             else:
                 self.fields['igreja'].queryset = allowed_churches
-        elif ministerio:
-            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
         else:
             self.fields['igreja'].queryset = Igreja.objects.none()
 
@@ -219,8 +216,10 @@ class ReceitaForm(forms.ModelForm):
         elif igreja_selecionada_inicial:
             igreja_para_filtrar_campos_dependentes = igreja_selecionada_inicial
         
-        if igreja_para_filtrar_campos_dependentes:
-            from eventos.models import Evento
+        if (
+            igreja_para_filtrar_campos_dependentes
+            and self.fields['igreja'].queryset.filter(pk=igreja_para_filtrar_campos_dependentes.pk).exists()
+        ):
             self.fields['membro'].queryset = Membro.objects.filter(igreja=igreja_para_filtrar_campos_dependentes).order_by('nome')
             self.fields['evento'].queryset = Evento.objects.filter(
                 igreja=igreja_para_filtrar_campos_dependentes,
@@ -238,14 +237,6 @@ class ReceitaForm(forms.ModelForm):
                     caixa_principal = self.fields['conta_bancaria'].queryset.filter(is_principal=True).first()
                     if caixa_principal:
                         self.initial['conta_bancaria'] = caixa_principal
-        elif ministerio:
-            from eventos.models import Evento
-            self.fields['membro'].queryset = Membro.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome')
-            self.fields['evento'].queryset = Evento.objects.filter(
-                igreja__ministerio=ministerio,
-                programacao_padrao__isnull=True,
-            ).order_by('-data_inicio', 'titulo')
-            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome_identificacao')
         else:
             self.fields['membro'].queryset = Membro.objects.none()
             self.fields['evento'].queryset = Evento.objects.none()
@@ -331,19 +322,21 @@ class DespesaForm(forms.ModelForm):
         if not self.is_bound and not (self.instance and self.instance.pk) and not self.initial.get('data'):
             self.initial['data'] = timezone.localdate()
 
-        if user and not is_admin_org(user) and allowed_churches is not None:
+        if allowed_churches is not None:
             if not hasattr(allowed_churches, 'all'):
                 self.fields['igreja'].queryset = Igreja.objects.filter(pk__in=[i.pk for i in allowed_churches])
             else:
                 self.fields['igreja'].queryset = allowed_churches
-        elif ministerio:
-            self.fields['igreja'].queryset = Igreja.objects.filter(ministerio=ministerio)
-            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(ministerio=ministerio)
-            self.fields['conta_bancaria'].queryset = ContaBancaria.objects.filter(igreja__ministerio=ministerio).order_by('igreja__nome_igreja', 'nome_identificacao')
         else:
+            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(ministerio=ministerio)
             self.fields['igreja'].queryset = Igreja.objects.none()
-            self.fields['categoria'].queryset = CategoriaDespesa.objects.none()
             self.fields['conta_bancaria'].queryset = ContaBancaria.objects.none()
+
+        if ministerio:
+            self.fields['categoria'].queryset = CategoriaDespesa.objects.filter(ministerio=ministerio)
+        else:
+            self.fields['categoria'].queryset = CategoriaDespesa.objects.none()
+        self.fields['conta_bancaria'].queryset = ContaBancaria.objects.none()
 
         self.fields['igreja'].empty_label = "Selecione a Igreja"
         self.fields['evento'].empty_label = "Selecione o Evento Especial (Opcional)"
@@ -383,8 +376,10 @@ class DespesaForm(forms.ModelForm):
         elif igreja_selecionada_inicial:
             igreja_para_filtrar_contas = igreja_selecionada_inicial
 
-        if igreja_para_filtrar_contas:
-             from eventos.models import Evento
+        if (
+            igreja_para_filtrar_contas
+            and self.fields['igreja'].queryset.filter(pk=igreja_para_filtrar_contas.pk).exists()
+        ):
              self.fields['evento'].queryset = Evento.objects.filter(
                  igreja=igreja_para_filtrar_contas,
                  programacao_padrao__isnull=True,
@@ -398,12 +393,6 @@ class DespesaForm(forms.ModelForm):
                     caixa_principal = self.fields['conta_bancaria'].queryset.filter(is_principal=True).first()
                     if caixa_principal:
                         self.initial['conta_bancaria'] = caixa_principal
-        elif ministerio:
-            from eventos.models import Evento
-            self.fields['evento'].queryset = Evento.objects.filter(
-                igreja__ministerio=ministerio,
-                programacao_padrao__isnull=True,
-            ).order_by('-data_inicio', 'titulo')
         else:
             self.fields['evento'].queryset = Evento.objects.none()
 

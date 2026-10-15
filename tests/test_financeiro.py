@@ -11,7 +11,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from contas.constants import ADMIN_MINISTERIO, PASTOR_LOCAL, TESOUREIRO
+from contas.constants import ADMIN_MINISTERIO, PASTOR_LOCAL, PASTOR_REGIONAL, TESOUREIRO
 from configuracao.models import Departamento, DepartamentoCapacidade, Igreja, Ministerio, PerfilUsuario, Plano
 from eventos.models import Evento
 from financeiro.models import (
@@ -34,7 +34,7 @@ from financeiro.models import (
     TransferenciaCaixa,
 )
 from financeiro.forms import RecorrenciaContaPagarForm
-from financeiro.forms import DespesaForm, ReceitaForm, TransferenciaCaixaForm
+from financeiro.forms import ContaBancariaForm, DespesaForm, ReceitaForm, TransferenciaCaixaForm
 from financeiro.services import (
     AlertaVencimentoContaPagarService,
     FechamentoCaixaService,
@@ -1863,7 +1863,14 @@ class ContaBancariaEscopoExplicitoTest(TestCase):
         self.igreja_b = Igreja.objects.create(
             ministerio=self.ministerio_1,
             nome_igreja='Igreja B Contas Escopo',
+            tipo_igreja='regional',
+            igreja_superior=self.igreja_a,
+        )
+        self.igreja_regional_filha = Igreja.objects.create(
+            ministerio=self.ministerio_1,
+            nome_igreja='Igreja Regional Filha Contas Escopo',
             tipo_igreja='congregacao',
+            igreja_superior=self.igreja_b,
         )
         self.igreja_c = Igreja.objects.create(
             ministerio=self.ministerio_2,
@@ -1899,7 +1906,46 @@ class ContaBancariaEscopoExplicitoTest(TestCase):
             nome_identificacao='Caixa Igreja C',
             tipo='caixa_fisico',
         )
+        self.conta_regional_filha = ContaBancaria.objects.create(
+            igreja=self.igreja_regional_filha,
+            nome_identificacao='Caixa Igreja Regional Filha',
+            tipo='caixa_fisico',
+        )
         self.client.force_login(self.usuario)
+
+    def _payload_conta(self, igreja, nome):
+        return {
+            'igreja': str(igreja.pk),
+            'nome_identificacao': nome,
+            'tipo': 'bancaria',
+            'instituicao_bancaria': 'Banco de Teste',
+            'agencia': '1234',
+            'conta': '0001-9',
+            'saldo_inicial': '100.00',
+        }
+
+    def test_forms_expoem_somente_o_write_scope_explicito_e_fecham_sem_escopo(self):
+        for form_class in (ContaBancariaForm, ReceitaForm, DespesaForm):
+            form = form_class(
+                ministerio=self.ministerio_1,
+                user=self.usuario,
+                allowed_churches=Igreja.objects.filter(pk=self.igreja_a.pk),
+            )
+            self.assertQuerySetEqual(form.fields['igreja'].queryset.order_by('pk'), [self.igreja_a])
+
+            form = form_class(
+                ministerio=self.ministerio_1,
+                user=self.usuario,
+                allowed_churches=Igreja.objects.filter(pk=self.igreja_b.pk),
+            )
+            self.assertQuerySetEqual(form.fields['igreja'].queryset.order_by('pk'), [self.igreja_b])
+
+            form = form_class(
+                ministerio=self.ministerio_1,
+                user=self.usuario,
+                allowed_churches=Igreja.objects.none(),
+            )
+            self.assertFalse(form.fields['igreja'].queryset.exists())
 
     def test_lista_contas_com_escopo_vazio_falha_fechado(self):
         self.perfil.igrejas_permitidas.clear()
@@ -1919,6 +1965,139 @@ class ContaBancariaEscopoExplicitoTest(TestCase):
         self.assertTrue(all(conta.igreja_id == self.igreja_a.pk for conta in contas))
         self.assertNotIn(self.conta_b, contas)
         self.assertNotIn(self.conta_c, contas)
+
+    def test_criar_conta_permite_igreja_expressamente_autorizada(self):
+        response = self.client.post(
+            reverse('financeiro:criar_conta_bancaria'),
+            data=self._payload_conta(self.igreja_a, 'Conta Criada Igreja A'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            ContaBancaria.objects.filter(
+                igreja=self.igreja_a,
+                nome_identificacao='Conta Criada Igreja A',
+            ).exists()
+        )
+
+    def test_criar_conta_bloqueia_tampering_para_igreja_mesmo_ministerio_fora_do_escopo(self):
+        response = self.client.post(
+            reverse('financeiro:criar_conta_bancaria'),
+            data=self._payload_conta(self.igreja_b, 'Conta Tampering Igreja B'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ContaBancaria.objects.filter(
+                igreja=self.igreja_b,
+                nome_identificacao='Conta Tampering Igreja B',
+            ).exists()
+        )
+
+    def test_criar_conta_bloqueia_tampering_para_igreja_de_outro_ministerio(self):
+        response = self.client.post(
+            reverse('financeiro:criar_conta_bancaria'),
+            data=self._payload_conta(self.igreja_c, 'Conta Tampering Igreja C'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ContaBancaria.objects.filter(
+                igreja=self.igreja_c,
+                nome_identificacao='Conta Tampering Igreja C',
+            ).exists()
+        )
+
+    def test_editar_conta_bloqueia_idor_mesmo_ministerio_e_outro_ministerio(self):
+        for conta in (self.conta_b, self.conta_c):
+            url = reverse('financeiro:editar_conta_bancaria', args=[conta.pk])
+            original = conta.nome_identificacao
+
+            response_get = self.client.get(url)
+            response_post = self.client.post(
+                url,
+                data=self._payload_conta(conta.igreja, f'{original} adulterada'),
+            )
+
+            self.assertEqual(response_get.status_code, 404)
+            self.assertEqual(response_post.status_code, 404)
+            conta.refresh_from_db()
+            self.assertEqual(conta.nome_identificacao, original)
+
+    def test_excluir_conta_bloqueia_idor_mesmo_ministerio_e_outro_ministerio(self):
+        for conta in (self.conta_b, self.conta_c):
+            response = self.client.post(
+                reverse('financeiro:excluir_conta_bancaria', args=[conta.pk]),
+            )
+
+            self.assertEqual(response.status_code, 404)
+            self.assertTrue(ContaBancaria.objects.filter(pk=conta.pk).exists())
+
+    def test_regional_com_escopo_explicito_nao_ganha_acesso_a_igreja_filha(self):
+        usuario_regional = get_user_model().objects.create_user(
+            username='tesoureiro-regional-contas-escopo',
+            password='senha123',
+        )
+        grupo_regional, _ = Group.objects.get_or_create(name=PASTOR_REGIONAL)
+        usuario_regional.groups.add(grupo_regional, self.grupo_tesoureiro)
+        perfil_regional = PerfilUsuario.objects.create(
+            user=usuario_regional,
+            ministerio=self.ministerio_1,
+        )
+        perfil_regional.igrejas_permitidas.set([self.igreja_b])
+        self.client.force_login(usuario_regional)
+
+        response_create = self.client.post(
+            reverse('financeiro:criar_conta_bancaria'),
+            data=self._payload_conta(
+                self.igreja_regional_filha,
+                'Conta Regional Filha Bloqueada',
+            ),
+        )
+        response_edit = self.client.post(
+            reverse('financeiro:editar_conta_bancaria', args=[self.conta_regional_filha.pk]),
+            data=self._payload_conta(
+                self.igreja_regional_filha,
+                'Conta Regional Filha Alterada',
+            ),
+        )
+        response_delete = self.client.post(
+            reverse('financeiro:excluir_conta_bancaria', args=[self.conta_regional_filha.pk]),
+        )
+
+        self.assertEqual(response_create.status_code, 302)
+        self.assertEqual(response_edit.status_code, 404)
+        self.assertEqual(response_delete.status_code, 404)
+        self.assertFalse(
+            ContaBancaria.objects.filter(
+                igreja=self.igreja_regional_filha,
+                nome_identificacao='Conta Regional Filha Bloqueada',
+            ).exists()
+        )
+        self.conta_regional_filha.refresh_from_db()
+        self.assertEqual(self.conta_regional_filha.nome_identificacao, 'Caixa Igreja Regional Filha')
+
+    def test_crud_conta_falha_fechado_com_escopo_vazio(self):
+        self.perfil.igrejas_permitidas.clear()
+
+        response_create = self.client.post(
+            reverse('financeiro:criar_conta_bancaria'),
+            data=self._payload_conta(self.igreja_a, 'Conta Escopo Vazio'),
+        )
+        response_edit = self.client.post(
+            reverse('financeiro:editar_conta_bancaria', args=[self.conta_a.pk]),
+            data=self._payload_conta(self.igreja_a, 'Conta A Alterada Sem Escopo'),
+        )
+        response_delete = self.client.post(
+            reverse('financeiro:excluir_conta_bancaria', args=[self.conta_a.pk]),
+        )
+
+        self.assertEqual(response_create.status_code, 302)
+        self.assertEqual(response_edit.status_code, 404)
+        self.assertEqual(response_delete.status_code, 404)
+        self.assertFalse(ContaBancaria.objects.filter(nome_identificacao='Conta Escopo Vazio').exists())
+        self.conta_a.refresh_from_db()
+        self.assertEqual(self.conta_a.nome_identificacao, 'Caixa Igreja A')
 
     def test_gerenciar_permissoes_caixa_bloqueia_igreja_do_mesmo_ministerio_fora_do_escopo(self):
         response = self.client.get(
