@@ -1687,7 +1687,7 @@ def cadastrar_receita_caixa_eventos(request):
         post_data, _evento, _conta_evento_efetiva_id = ReceitaFluxoService.construir_post_data_receita_caixa_eventos(
             raw_post_data=request.POST,
             igreja_padrao_para_form=igreja_padrao_para_form,
-            user=request.user, allowed_churches=allowed_churches,
+            allowed_churches=allowed_churches,
         )
 
         form = ReceitaForm(
