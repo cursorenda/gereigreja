@@ -261,7 +261,10 @@ def _aplicar_politica_aprovacao_saida(request, despesa):
         despesa.aprovado_em = now()
         return None
 
-    if _user_pode_aprovar_saida(request.user):
+    if (
+        _user_pode_aprovar_saida(request.user)
+        and despesa.criado_por_id != request.user.id
+    ):
         despesa.aprovacao_status = Despesas.APROVACAO_APROVADA
         despesa.aprovado_por = request.user
         despesa.aprovado_em = now()
@@ -2466,8 +2469,11 @@ def aprovar_despesa(request, pk):
     if not _user_pode_aprovar_saida(request.user):
         raise PermissionDenied('Você não tem permissão para aprovar despesas.')
 
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
+
+    if despesa.criado_por_id == request.user.id:
+        raise PermissionDenied('Você não pode aprovar uma despesa criada por você.')
 
     if despesa.fechado:
         messages.error(request, 'Não é possível aprovar uma despesa já fechada.')
@@ -2501,8 +2507,11 @@ def reprovar_despesa(request, pk):
     if not _user_pode_aprovar_saida(request.user):
         raise PermissionDenied('Você não tem permissão para reprovar despesas.')
 
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     despesa = get_object_or_404(Despesas, pk=pk, igreja__in=allowed_churches)
+
+    if despesa.criado_por_id == request.user.id:
+        raise PermissionDenied('Você não pode reprovar uma despesa criada por você.')
 
     if despesa.fechado:
         messages.error(request, 'Não é possível reprovar uma despesa já fechada.')

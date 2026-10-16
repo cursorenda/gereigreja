@@ -56,6 +56,7 @@ from financeiro.views import (
     lista_despesas,
     lista_receitas,
 )
+from financeiro.authorization import get_finance_write_scope
 from financeiro.utils import get_allowed_churches_for_user
 
 
@@ -2637,6 +2638,332 @@ class DespesasViewTest(BaseFinanceiroTestCase):
         despesa.refresh_from_db()
         self.assertEqual(despesa.descricao, 'Despesa editada por U2')
         self.assertEqual(despesa.criado_por, self.user)
+
+
+class DespesaAprovacaoHardeningTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.grupo_admin, _ = Group.objects.get_or_create(name=ADMIN_MINISTERIO)
+        self.grupo_pastor_local, _ = Group.objects.get_or_create(name=PASTOR_LOCAL)
+        self.grupo_pastor_regional, _ = Group.objects.get_or_create(name=PASTOR_REGIONAL)
+        self.grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.igreja_b = Igreja.objects.create(
+            nome_igreja='Igreja B Aprovacao',
+            ministerio=self.ministerio,
+            tipo_igreja='independente',
+        )
+        self.igreja_c = Igreja.objects.create(
+            nome_igreja='Igreja C Descendente Aprovacao',
+            ministerio=self.ministerio,
+            tipo_igreja='congregacao',
+            igreja_superior=self.igreja_b,
+        )
+        self.admin_m2 = get_user_model().objects.create_user(
+            username='admin_m2_aprovacao',
+            password='senha123',
+        )
+        self.ministerio_m2 = Ministerio.objects.create(
+            nome_fantasia='Ministerio M2 Aprovacao',
+            administrador_principal=self.admin_m2,
+            ativo=True,
+            cnpj='98765432000177',
+        )
+        self.igreja_m2 = Igreja.objects.create(
+            nome_igreja='Igreja M2 Aprovacao',
+            ministerio=self.ministerio_m2,
+            tipo_igreja='sede',
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Aprovacao Hardening',
+        )
+        self.categoria_m2 = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio_m2,
+            nome='Categoria Aprovacao M2',
+        )
+        self.conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Conta A Aprovacao',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
+        self.conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Conta B Aprovacao',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
+        self.conta_c = ContaBancaria.objects.create(
+            igreja=self.igreja_c,
+            nome_identificacao='Conta C Aprovacao',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
+        self.conta_m2 = ContaBancaria.objects.create(
+            igreja=self.igreja_m2,
+            nome_identificacao='Conta M2 Aprovacao',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
+        DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(self.igreja)
+        departamento_local = DepartamentoFinanceiro.objects.get(
+            igreja=self.igreja,
+            codigo_interno=DepartamentoFinanceiro.CODIGO_LOCAL,
+        )
+        self.politica_local = PoliticaDepartamentoFinanceiro.objects.get(
+            departamento=departamento_local,
+        )
+        self.politica_local.exige_aprovacao_para_saida = True
+        self.politica_local.valor_minimo_para_aprovacao = Decimal('10.00')
+        self.politica_local.save(update_fields=['exige_aprovacao_para_saida', 'valor_minimo_para_aprovacao'])
+
+    def _criar_usuario(self, username, grupos, igrejas, ministerio=None):
+        user = get_user_model().objects.create_user(username=username, password='senha123')
+        user.groups.add(*grupos)
+        perfil = PerfilUsuario.objects.create(
+            user=user,
+            ministerio=ministerio or self.ministerio,
+        )
+        perfil.igrejas_permitidas.set(igrejas)
+        return user
+
+    def _autenticar_com_igreja_ativa(self, user, igreja):
+        self.client.force_login(user)
+        session = self.client.session
+        session['igreja_ativa_id'] = igreja.pk
+        session.save()
+
+    def _criar_despesa_pendente(self, igreja, conta, criador=None, categoria=None):
+        return Despesas.objects.create(
+            igreja=igreja,
+            categoria=categoria or self.categoria,
+            data=date(2026, 10, 16),
+            descricao=f'Despesa pendente {igreja.pk}',
+            valor=Decimal('50.00'),
+            conta_bancaria=conta,
+            criado_por=criador,
+            aprovacao_status=Despesas.APROVACAO_PENDENTE,
+        )
+
+    def test_tesoureiro_cria_despesa_com_aprovacao_obrigatoria_e_permanece_pendente(self):
+        tesoureiro = self._criar_usuario(
+            'tesoureiro_criador_aprovacao',
+            [self.grupo_tesoureiro],
+            [self.igreja],
+        )
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja)
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa'),
+            data={
+                'data': '2026-10-16',
+                'categoria': str(self.categoria.pk),
+                'descricao': 'Despesa tesoureiro pendente',
+                'valor': '50.00',
+                'conta_bancaria': str(self.conta_a.pk),
+                'evento': '',
+                'observacao': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesa = Despesas.objects.get(descricao='Despesa tesoureiro pendente')
+        self.assertEqual(despesa.criado_por, tesoureiro)
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+        self.assertIsNone(despesa.aprovado_em)
+
+    def test_pastor_local_cria_propria_despesa_com_aprovacao_obrigatoria_e_permanece_pendente(self):
+        pastor = self._criar_usuario(
+            'pastor_criador_aprovacao',
+            [self.grupo_pastor_local],
+            [self.igreja],
+        )
+        self._autenticar_com_igreja_ativa(pastor, self.igreja)
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa'),
+            data={
+                'data': '2026-10-16',
+                'categoria': str(self.categoria.pk),
+                'descricao': 'Despesa pastor pendente',
+                'valor': '50.00',
+                'conta_bancaria': str(self.conta_a.pk),
+                'evento': '',
+                'observacao': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesa = Despesas.objects.get(descricao='Despesa pastor pendente')
+        self.assertEqual(despesa.criado_por, pastor)
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+        self.assertIsNone(despesa.aprovado_em)
+
+    def test_pastor_local_nao_pode_aprovar_ou_reprovar_propria_despesa(self):
+        pastor = self._criar_usuario(
+            'pastor_auto_decisao_bloqueada',
+            [self.grupo_pastor_local],
+            [self.igreja],
+        )
+        despesa = self._criar_despesa_pendente(self.igreja, self.conta_a, criador=pastor)
+        self._autenticar_com_igreja_ativa(pastor, self.igreja)
+
+        response_aprovacao = self.client.post(
+            reverse('financeiro:aprovar_despesa', args=[despesa.pk]),
+        )
+        response_reprovacao = self.client.post(
+            reverse('financeiro:reprovar_despesa', args=[despesa.pk]),
+            data={'observacao_aprovacao': 'Tentativa indevida.'},
+        )
+
+        self.assertEqual(response_aprovacao.status_code, 403)
+        self.assertEqual(response_reprovacao.status_code, 403)
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+        self.assertIsNone(despesa.aprovado_em)
+
+    def test_aprovador_diferente_com_write_scope_pode_aprovar_e_autor_historico_nulo_permanece_nulo(self):
+        tesoureiro = self._criar_usuario(
+            'tesoureiro_autor_aprovacao',
+            [self.grupo_tesoureiro],
+            [self.igreja],
+        )
+        aprovador = self._criar_usuario(
+            'pastor_aprovador_aprovacao',
+            [self.grupo_pastor_local],
+            [self.igreja],
+        )
+        despesa = self._criar_despesa_pendente(self.igreja, self.conta_a, criador=tesoureiro)
+        despesa_historica = self._criar_despesa_pendente(self.igreja, self.conta_a, criador=None)
+        self._autenticar_com_igreja_ativa(aprovador, self.igreja)
+
+        response = self.client.post(reverse('financeiro:aprovar_despesa', args=[despesa.pk]))
+        response_historica = self.client.post(
+            reverse('financeiro:aprovar_despesa', args=[despesa_historica.pk]),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response_historica.status_code, 302)
+        despesa.refresh_from_db()
+        despesa_historica.refresh_from_db()
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_APROVADA)
+        self.assertEqual(despesa.aprovado_por, aprovador)
+        self.assertIsNotNone(despesa.aprovado_em)
+        self.assertIsNone(despesa_historica.criado_por)
+        self.assertEqual(despesa_historica.aprovado_por, aprovador)
+
+    def test_aprovador_elegivel_sem_write_scope_nao_acessa_despesa_de_outra_igreja(self):
+        aprovador = self._criar_usuario(
+            'pastor_sem_scope_aprovacao',
+            [self.grupo_pastor_local],
+            [self.igreja_b],
+        )
+        despesa = self._criar_despesa_pendente(self.igreja, self.conta_a)
+        self._autenticar_com_igreja_ativa(aprovador, self.igreja_b)
+
+        response = self.client.post(reverse('financeiro:aprovar_despesa', args=[despesa.pk]))
+
+        self.assertEqual(response.status_code, 404)
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+
+    def test_pastor_regional_nao_recebe_descendente_no_write_scope_de_aprovacao(self):
+        regional = self._criar_usuario(
+            'regional_sem_expansao_aprovacao',
+            [self.grupo_pastor_regional],
+            [self.igreja_b],
+        )
+        despesa = self._criar_despesa_pendente(self.igreja_c, self.conta_c)
+
+        allowed_churches = get_finance_write_scope(regional, self.ministerio)
+
+        self.assertFalse(allowed_churches.filter(pk=self.igreja_c.pk).exists())
+        self.assertFalse(Despesas.objects.filter(pk=despesa.pk, igreja__in=allowed_churches).exists())
+
+    def test_admin_ministerio_nao_recebe_bypass_para_igreja_fora_do_write_scope(self):
+        admin = self._criar_usuario(
+            'admin_sem_bypass_aprovacao',
+            [self.grupo_admin],
+            [self.igreja],
+        )
+        despesa = self._criar_despesa_pendente(self.igreja_b, self.conta_b)
+        self._autenticar_com_igreja_ativa(admin, self.igreja)
+
+        response = self.client.post(reverse('financeiro:aprovar_despesa', args=[despesa.pk]))
+
+        self.assertEqual(response.status_code, 404)
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa.aprovado_por)
+
+    def test_cross_ministry_e_escopo_vazio_falham_fechados_para_aprovacao_e_reprovacao(self):
+        aprovador = self._criar_usuario(
+            'pastor_cross_ministry_aprovacao',
+            [self.grupo_pastor_local],
+            [self.igreja],
+        )
+        sem_escopo = self._criar_usuario(
+            'pastor_scope_vazio_aprovacao',
+            [self.grupo_pastor_local],
+            [],
+        )
+        despesa_m2 = self._criar_despesa_pendente(
+            self.igreja_m2,
+            self.conta_m2,
+            categoria=self.categoria_m2,
+        )
+        despesa_a = self._criar_despesa_pendente(self.igreja, self.conta_a)
+
+        self._autenticar_com_igreja_ativa(aprovador, self.igreja)
+        response_cross = self.client.post(reverse('financeiro:aprovar_despesa', args=[despesa_m2.pk]))
+        self._autenticar_com_igreja_ativa(sem_escopo, self.igreja)
+        response_scope_vazio = self.client.post(
+            reverse('financeiro:reprovar_despesa', args=[despesa_a.pk]),
+            data={'observacao_aprovacao': 'Nao deve acessar.'},
+        )
+
+        self.assertEqual(response_cross.status_code, 404)
+        self.assertEqual(response_scope_vazio.status_code, 404)
+        despesa_m2.refresh_from_db()
+        despesa_a.refresh_from_db()
+        self.assertEqual(despesa_m2.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertEqual(despesa_a.aprovacao_status, Despesas.APROVACAO_PENDENTE)
+        self.assertIsNone(despesa_m2.aprovado_por)
+        self.assertIsNone(despesa_a.aprovado_por)
+
+    def test_politica_sem_aprovacao_obrigatoria_preserva_aprovacao_imediata_do_criador(self):
+        pastor = self._criar_usuario(
+            'pastor_sem_politica_aprovacao',
+            [self.grupo_pastor_local],
+            [self.igreja],
+        )
+        self.politica_local.exige_aprovacao_para_saida = False
+        self.politica_local.save(update_fields=['exige_aprovacao_para_saida'])
+        self._autenticar_com_igreja_ativa(pastor, self.igreja)
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa'),
+            data={
+                'data': '2026-10-16',
+                'categoria': str(self.categoria.pk),
+                'descricao': 'Despesa sem aprovacao obrigatoria',
+                'valor': '50.00',
+                'conta_bancaria': str(self.conta_a.pk),
+                'evento': '',
+                'observacao': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesa = Despesas.objects.get(descricao='Despesa sem aprovacao obrigatoria')
+        self.assertEqual(despesa.criado_por, pastor)
+        self.assertEqual(despesa.aprovacao_status, Despesas.APROVACAO_APROVADA)
+        self.assertEqual(despesa.aprovado_por, pastor)
+        self.assertIsNotNone(despesa.aprovado_em)
 
 
 class PainelFinanceiroViewTest(BaseFinanceiroTestCase):
