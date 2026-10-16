@@ -1208,6 +1208,46 @@ class ContaPagarPaymentAuthorizationHardeningTest(TestCase):
         self._assert_pagamento_nao_alterado(conta_individual, self.conta_b)
         self._assert_pagamento_nao_alterado(conta_lote, self.conta_b)
 
+    def test_segundo_pagamento_individual_nao_duplica_despesa_ou_debito(self):
+        tesoureiro = self._criar_usuario(
+            'tesoureiro-segundo-pagamento-bloqueado',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta = self._criar_conta_pagar(self.igreja_a, 'Conta Pagamento Unico')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_primeiro_pagamento = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta.pk]),
+            data=self._payload_individual(self.conta_a),
+        )
+
+        self.assertEqual(response_primeiro_pagamento.status_code, 302)
+        conta.refresh_from_db()
+        self.conta_a.refresh_from_db()
+        self.assertEqual(conta.status, 'PAG')
+        self.assertEqual(conta.valor_pago, Decimal('100.00'))
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=conta).count(), 1)
+        self.assertEqual(self.conta_a.saldo_atual, Decimal('400.00'))
+
+        response_segundo_pagamento = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta.pk]),
+            data={
+                **self._payload_individual(self.conta_a),
+                'data_pagamento': '2026-10-17',
+                'valor_pago': '99.00',
+            },
+        )
+
+        self.assertEqual(response_segundo_pagamento.status_code, 404)
+        conta.refresh_from_db()
+        self.conta_a.refresh_from_db()
+        self.assertEqual(conta.status, 'PAG')
+        self.assertEqual(conta.data_pagamento, date(2026, 10, 16))
+        self.assertEqual(conta.valor_pago, Decimal('100.00'))
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=conta).count(), 1)
+        self.assertEqual(self.conta_a.saldo_atual, Decimal('400.00'))
+
 
 class AlertaVencimentoContaPagarServiceTest(BaseFinanceiroTestCase):
     def setUp(self):

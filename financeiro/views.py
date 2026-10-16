@@ -3907,14 +3907,27 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
         if form.is_valid():
             try:
                 with transaction.atomic(): # Garante que ou tudo funciona ou nada é salvo
-                    conta_paga = form.save(commit=False) # O save do form já define status='PAG'
+                    conta_paga = get_object_or_404(
+                        ContaPagar.objects.select_for_update(),
+                        pk=pk,
+                        ministerio=ministerio,
+                        status__in=['PEN', 'VEN'],
+                        igreja__in=allowed_churches,
+                    )
+                    conta_paga.data_pagamento = form.cleaned_data['data_pagamento']
+                    conta_paga.valor_pago = form.cleaned_data['valor_pago']
+                    conta_paga.juros_multa = form.cleaned_data['juros_multa']
+                    conta_paga.desconto = form.cleaned_data['desconto']
+                    conta_paga.conta_debito = form.cleaned_data['conta_debito']
+                    conta_paga.forma_pagamento = form.cleaned_data['forma_pagamento']
+                    conta_paga.comprovante = form.cleaned_data['comprovante']
+                    conta_paga.status = 'PAG'
 
                     # Validação extra da conta de débito (form já deve ter filtrado)
                     if conta_paga.conta_debito and conta_paga.conta_debito.igreja.ministerio != ministerio:
                         raise ValidationError("Conta de débito selecionada inválida.")
 
                     # Salva a ContaPagar com status 'PAG' e dados do pagamento
-                    # O form já define o status para 'PAG' no seu método save
                     conta_paga.save()
 
                     _criar_despesa_por_conta_paga(conta_paga, request.user)
@@ -3923,6 +3936,8 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
                     messages.success(request, f"Pagamento da conta '{conta.descricao}' registrado com sucesso!")
                     return redirect('financeiro:lista_contas_pagar')
 
+            except Http404:
+                 raise
             except ValidationError as ve:
                  messages.error(request, f"Erro de validação: {ve}")
             except Exception as e:
@@ -4045,16 +4060,22 @@ def registrar_pagamento_lote_contas_pagar(request):
     for conta in contas:
         try:
             with transaction.atomic():
-                conta.data_pagamento = data_pagamento
-                conta.valor_pago = conta.valor
-                conta.juros_multa = Decimal('0.00')
-                conta.desconto = Decimal('0.00')
-                conta.conta_debito = conta_debito
-                conta.forma_pagamento = forma_pagamento
-                conta.status = 'PAG'
-                conta.save()
+                conta_paga = ContaPagar.objects.select_for_update().get(
+                    pk=conta.pk,
+                    ministerio=ministerio,
+                    igreja=request.igreja_ativa,
+                    status__in=['PEN', 'VEN'],
+                )
+                conta_paga.data_pagamento = data_pagamento
+                conta_paga.valor_pago = conta_paga.valor
+                conta_paga.juros_multa = Decimal('0.00')
+                conta_paga.desconto = Decimal('0.00')
+                conta_paga.conta_debito = conta_debito
+                conta_paga.forma_pagamento = forma_pagamento
+                conta_paga.status = 'PAG'
+                conta_paga.save()
 
-                _criar_despesa_por_conta_paga(conta, request.user)
+                _criar_despesa_por_conta_paga(conta_paga, request.user)
                 total_pagamentos += 1
         except Exception:
             total_erros += 1
