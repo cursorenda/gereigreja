@@ -701,6 +701,9 @@ class RecorrenciaFluxoPagamentoIntegracaoTest(BaseFinanceiroTestCase):
             self.perfil.save(update_fields=['ministerio'])
         self.perfil.igrejas_permitidas.set([self.igreja])
 
+        grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(grupo_tesoureiro)
+
         self.client.force_login(self.user)
         self.fornecedor = Fornecedor.objects.create(
             ministerio=self.ministerio,
@@ -885,6 +888,9 @@ class PagamentoLoteContasPagarViewTest(BaseFinanceiroTestCase):
             self.perfil.save(update_fields=['ministerio'])
         self.perfil.igrejas_permitidas.set([self.igreja])
 
+        grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(grupo_tesoureiro)
+
         self.client.force_login(self.user)
         session = self.client.session
         session['igreja_ativa_id'] = self.igreja.id
@@ -927,18 +933,15 @@ class PagamentoLoteContasPagarViewTest(BaseFinanceiroTestCase):
         )
 
     def test_pagamento_lote_processa_contas_selecionadas(self):
-        with patch('contas.page_permissions.user_can_access_page', return_value=True), patch(
-            'financeiro.views.has_finance_edit_permission', return_value=True
-        ):
-            response = self.client.post(
-                reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
-                data={
-                    'conta_ids': [str(self.conta_pendente.id), str(self.conta_vencida.id)],
-                    'data_pagamento_lote': '2026-06-12',
-                    'conta_debito_lote': str(self.conta_debito.id),
-                    'forma_pagamento_lote': 'PIX',
-                },
-            )
+        response = self.client.post(
+            reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
+            data={
+                'conta_ids': [str(self.conta_pendente.id), str(self.conta_vencida.id)],
+                'data_pagamento_lote': '2026-06-12',
+                'conta_debito_lote': str(self.conta_debito.id),
+                'forma_pagamento_lote': 'PIX',
+            },
+        )
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('financeiro:lista_contas_pagar'))
@@ -958,17 +961,14 @@ class PagamentoLoteContasPagarViewTest(BaseFinanceiroTestCase):
         self.assertTrue(all(despesa.criado_por_id == self.user.id for despesa in despesas_lote))
 
     def test_pagamento_lote_sem_contas_selecionadas_nao_processa(self):
-        with patch('contas.page_permissions.user_can_access_page', return_value=True), patch(
-            'financeiro.views.has_finance_edit_permission', return_value=True
-        ):
-            response = self.client.post(
-                reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
-                data={
-                    'data_pagamento_lote': '2026-06-12',
-                    'conta_debito_lote': str(self.conta_debito.id),
-                    'forma_pagamento_lote': 'PIX',
-                },
-            )
+        response = self.client.post(
+            reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
+            data={
+                'data_pagamento_lote': '2026-06-12',
+                'conta_debito_lote': str(self.conta_debito.id),
+                'forma_pagamento_lote': 'PIX',
+            },
+        )
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('financeiro:lista_contas_pagar'))
@@ -978,6 +978,235 @@ class PagamentoLoteContasPagarViewTest(BaseFinanceiroTestCase):
         self.assertEqual(self.conta_pendente.status, 'PEN')
         self.assertEqual(self.conta_vencida.status, 'VEN')
         self.assertEqual(Despesas.objects.filter(origem_conta_pagar__in=[self.conta_pendente, self.conta_vencida]).count(), 0)
+
+
+class ContaPagarPaymentAuthorizationHardeningTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin_principal = User.objects.create_user(
+            username='admin-principal-payment-hardening',
+            password='senha123',
+        )
+        self.ministerio = Ministerio.objects.create(
+            nome_fantasia='Ministerio Payment Hardening',
+            administrador_principal=self.admin_principal,
+            ativo=True,
+        )
+        self.igreja_a = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja A Payment Hardening',
+            tipo_igreja='sede',
+        )
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja B Payment Hardening',
+            tipo_igreja='independente',
+        )
+        self.igreja_c = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja C Descendente Payment Hardening',
+            tipo_igreja='congregacao',
+            igreja_superior=self.igreja_b,
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Payment Hardening',
+        )
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Payment Hardening',
+            ativo=True,
+        )
+        self.conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Caixa A Payment Hardening',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
+        self.conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja_b,
+            nome_identificacao='Caixa B Payment Hardening',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
+        for group_name in (ADMIN_MINISTERIO, PASTOR_LOCAL, PASTOR_REGIONAL, TESOUREIRO):
+            Group.objects.get_or_create(name=group_name)
+
+    def _criar_usuario(self, username, group_name, igrejas=()):
+        user = get_user_model().objects.create_user(username=username, password='senha123')
+        group = Group.objects.get(name=group_name)
+        user.groups.add(group)
+        perfil = PerfilUsuario.objects.create(user=user, ministerio=self.ministerio)
+        perfil.igrejas_permitidas.set(igrejas)
+        return user
+
+    def _autenticar_com_igreja_ativa(self, user, igreja):
+        self.client.force_login(user)
+        session = self.client.session
+        session['igreja_ativa_id'] = igreja.pk
+        session.save()
+
+    def _criar_conta_pagar(self, igreja, descricao):
+        return ContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao=descricao,
+            valor=Decimal('100.00'),
+            data_vencimento=date(2026, 10, 20),
+            status='PEN',
+        )
+
+    def _payload_individual(self, conta_bancaria):
+        return {
+            'data_pagamento': '2026-10-16',
+            'valor_pago': '100.00',
+            'juros_multa': '0.00',
+            'desconto': '0.00',
+            'conta_debito': str(conta_bancaria.pk),
+            'forma_pagamento': 'PIX',
+        }
+
+    def _payload_lote(self, conta, conta_bancaria):
+        return {
+            'conta_ids': [str(conta.pk)],
+            'data_pagamento_lote': '2026-10-16',
+            'conta_debito_lote': str(conta_bancaria.pk),
+            'forma_pagamento_lote': 'PIX',
+        }
+
+    def _assert_pagamento_nao_alterado(self, conta, conta_bancaria):
+        conta.refresh_from_db()
+        conta_bancaria.refresh_from_db()
+        self.assertEqual(conta.status, 'PEN')
+        self.assertIsNone(conta.data_pagamento)
+        self.assertIsNone(conta.valor_pago)
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta).exists())
+        self.assertEqual(conta_bancaria.saldo_atual, Decimal('500.00'))
+
+    def test_admin_sem_write_scope_falha_fechado_no_individual_e_lote(self):
+        admin = self._criar_usuario(
+            'admin-empty-scope-payment-hardening',
+            ADMIN_MINISTERIO,
+        )
+        conta_individual = self._criar_conta_pagar(self.igreja_a, 'Conta Admin Vazio Individual')
+        conta_lote = self._criar_conta_pagar(self.igreja_a, 'Conta Admin Vazio Lote')
+        self._autenticar_com_igreja_ativa(admin, self.igreja_a)
+
+        response_individual = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta_individual.pk]),
+            data=self._payload_individual(self.conta_a),
+        )
+        response_lote = self.client.post(
+            reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
+            data=self._payload_lote(conta_lote, self.conta_a),
+        )
+
+        self.assertEqual(response_individual.status_code, 404)
+        self.assertEqual(response_lote.status_code, 302)
+        self._assert_pagamento_nao_alterado(conta_individual, self.conta_a)
+        self._assert_pagamento_nao_alterado(conta_lote, self.conta_a)
+
+    def test_admin_com_write_scope_a_nao_paga_conta_da_igreja_b(self):
+        admin = self._criar_usuario(
+            'admin-scope-a-payment-hardening',
+            ADMIN_MINISTERIO,
+            [self.igreja_a],
+        )
+        conta_b = self._criar_conta_pagar(self.igreja_b, 'Conta B Fora do Escopo Admin')
+        self._autenticar_com_igreja_ativa(admin, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta_b.pk]),
+            data=self._payload_individual(self.conta_b),
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self._assert_pagamento_nao_alterado(conta_b, self.conta_b)
+
+    def test_regional_write_scope_nao_expande_para_igreja_descendente(self):
+        regional = self._criar_usuario(
+            'regional-payment-hardening',
+            PASTOR_REGIONAL,
+            [self.igreja_b],
+        )
+
+        scope_ids = set(get_finance_write_scope(regional, self.ministerio).values_list('pk', flat=True))
+
+        self.assertEqual(scope_ids, {self.igreja_b.pk})
+        self.assertNotIn(self.igreja_c.pk, scope_ids)
+
+    def test_pastor_local_no_write_scope_paga_conta_individual(self):
+        pastor = self._criar_usuario(
+            'pastor-local-payment-hardening',
+            PASTOR_LOCAL,
+            [self.igreja_a],
+        )
+        conta = self._criar_conta_pagar(self.igreja_a, 'Conta Pastor Local Autorizada')
+        self._autenticar_com_igreja_ativa(pastor, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta.pk]),
+            data=self._payload_individual(self.conta_a),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.status, 'PAG')
+        self.assertTrue(Despesas.objects.filter(origem_conta_pagar=conta).exists())
+
+    def test_tesoureiro_no_write_scope_paga_individual_e_lote(self):
+        tesoureiro = self._criar_usuario(
+            'tesoureiro-payment-hardening',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta_individual = self._criar_conta_pagar(self.igreja_a, 'Conta Tesoureiro Individual')
+        conta_lote = self._criar_conta_pagar(self.igreja_a, 'Conta Tesoureiro Lote')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_individual = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta_individual.pk]),
+            data=self._payload_individual(self.conta_a),
+        )
+        response_lote = self.client.post(
+            reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
+            data=self._payload_lote(conta_lote, self.conta_a),
+        )
+
+        self.assertEqual(response_individual.status_code, 302)
+        self.assertEqual(response_lote.status_code, 302)
+        conta_individual.refresh_from_db()
+        conta_lote.refresh_from_db()
+        self.assertEqual(conta_individual.status, 'PAG')
+        self.assertEqual(conta_lote.status, 'PAG')
+        self.assertTrue(Despesas.objects.filter(origem_conta_pagar=conta_individual).exists())
+        self.assertTrue(Despesas.objects.filter(origem_conta_pagar=conta_lote).exists())
+
+    def test_tesoureiro_na_igreja_a_nao_paga_conta_da_igreja_b_individual_ou_lote(self):
+        tesoureiro = self._criar_usuario(
+            'tesoureiro-cross-church-payment-hardening',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta_individual = self._criar_conta_pagar(self.igreja_b, 'Conta B Cross Church Individual')
+        conta_lote = self._criar_conta_pagar(self.igreja_b, 'Conta B Cross Church Lote')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_individual = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta_individual.pk]),
+            data=self._payload_individual(self.conta_b),
+        )
+        response_lote = self.client.post(
+            reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
+            data=self._payload_lote(conta_lote, self.conta_a),
+        )
+
+        self.assertEqual(response_individual.status_code, 404)
+        self.assertEqual(response_lote.status_code, 302)
+        self._assert_pagamento_nao_alterado(conta_individual, self.conta_b)
+        self._assert_pagamento_nao_alterado(conta_lote, self.conta_b)
 
 
 class AlertaVencimentoContaPagarServiceTest(BaseFinanceiroTestCase):

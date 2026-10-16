@@ -3892,7 +3892,10 @@ def criar_conta_pagar(request): # noqa: E302
 def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
     """ Registra o pagamento de uma conta a pagar específica. """
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para registrar pagamentos.')
+
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     # Permite pagar apenas contas Pendentes ou Vencidas E que pertençam às igrejas permitidas
     conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
 
@@ -3984,7 +3987,7 @@ def registrar_pagamento_lote_contas_pagar(request):
         raise PermissionDenied('Você não tem permissão para registrar pagamentos em lote.')
 
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
 
     if not request.igreja_ativa or request.igreja_ativa not in allowed_churches:
         messages.warning(request, 'Selecione uma igreja ativa para realizar pagamento em lote.')
