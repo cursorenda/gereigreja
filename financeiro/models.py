@@ -379,6 +379,14 @@ class Despesas(models.Model):
         related_name='despesas_aprovadas',
         verbose_name='Aprovado por',
     )
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despesas_criadas',
+        verbose_name='Criado por',
+    )
     aprovado_em = models.DateTimeField(null=True, blank=True, verbose_name='Aprovado em')
     observacao_aprovacao = models.TextField(blank=True, null=True, verbose_name='Observacao da Aprovacao')
     conta_bancaria = models.ForeignKey(

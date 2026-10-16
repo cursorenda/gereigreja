@@ -83,6 +83,43 @@ class BaseFinanceiroTestCase(TestCase):
         )
 
 
+class DespesaCriadorModelTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Criador Despesa',
+        )
+
+    def test_despesa_persiste_criador(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 15),
+            descricao='Despesa com criador',
+            valor=Decimal('10.00'),
+            criado_por=self.user,
+        )
+
+        despesa.refresh_from_db()
+
+        self.assertEqual(despesa.criado_por, self.user)
+
+    def test_despesa_historica_aceita_criador_nulo(self):
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 15),
+            descricao='Despesa historica sem criador conhecido',
+            valor=Decimal('10.00'),
+            criado_por=None,
+        )
+
+        despesa.refresh_from_db()
+
+        self.assertIsNone(despesa.criado_por)
+
+
 class FechamentoCaixaServiceTest(BaseFinanceiroTestCase):
     def setUp(self):
         super().setUp()
@@ -703,6 +740,10 @@ class RecorrenciaFluxoPagamentoIntegracaoTest(BaseFinanceiroTestCase):
         self.assertEqual(conta_pagar.status, 'PEN')
         self.assertTrue(conta_pagar.criado_automaticamente)
 
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja.pk
+        session.save()
+
         response = self.client.post(
             reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta_pagar.id]),
             data={
@@ -724,6 +765,8 @@ class RecorrenciaFluxoPagamentoIntegracaoTest(BaseFinanceiroTestCase):
         despesa = Despesas.objects.get(origem_conta_pagar=conta_pagar)
         self.assertEqual(despesa.igreja_id, self.igreja.id)
         self.assertEqual(despesa.categoria_id, self.categoria.id)
+        self.assertEqual(despesa.usuario_registro_pagamento, self.user)
+        self.assertEqual(despesa.criado_por, self.user)
         self.assertEqual(despesa.conta_bancaria_id, self.conta.id)
         self.assertEqual(despesa.valor, Decimal('195.00'))
         self.assertEqual(despesa.usuario_registro_pagamento_id, self.user.id)
@@ -910,6 +953,8 @@ class PagamentoLoteContasPagarViewTest(BaseFinanceiroTestCase):
 
         despesas_lote = Despesas.objects.filter(origem_conta_pagar__in=[self.conta_pendente, self.conta_vencida])
         self.assertEqual(despesas_lote.count(), 2)
+        self.assertTrue(all(despesa.usuario_registro_pagamento_id == self.user.id for despesa in despesas_lote))
+        self.assertTrue(all(despesa.criado_por_id == self.user.id for despesa in despesas_lote))
 
     def test_pagamento_lote_sem_contas_selecionadas_nao_processa(self):
         with patch('contas.page_permissions.user_can_access_page', return_value=True), patch(
@@ -2491,6 +2536,108 @@ class DespesasViewTest(BaseFinanceiroTestCase):
         self.assertTrue(all(conta.igreja_id == self.igreja.id for conta in response.context['contas_bancarias_painel']))
         self.assertTrue(all(despesa.igreja_id == self.igreja.id for despesa in response.context['despesas']))
 
+    def test_cadastrar_despesa_persiste_criador_e_ignora_post_adulterado(self):
+        outro_usuario = get_user_model().objects.create_user(
+            username='outro_usuario_criador_despesa',
+            password='senha123',
+        )
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa'),
+            data={
+                'igreja': str(self.igreja.pk),
+                'categoria': str(self.categoria.pk),
+                'data': '2026-10-15',
+                'valor': '25.00',
+                'descricao': 'Despesa criada pela view',
+                'conta_bancaria': str(self.conta.pk),
+                'observacao': '',
+                'criado_por': str(outro_usuario.pk),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesa = Despesas.objects.get(descricao='Despesa criada pela view')
+        self.assertEqual(despesa.criado_por, self.user)
+
+    def test_cadastro_lote_persiste_criador_para_todas_as_despesas(self):
+        session = self.client.session
+        session[f'financeiro_batch_despesas_{self.igreja.pk}'] = [
+            {
+                'id': 'despesa-lote-1',
+                'data': '2026-10-15',
+                'categoria': str(self.categoria.pk),
+                'valor': '11.00',
+                'descricao': 'Despesa lote criador 1',
+                'evento': '',
+                'conta_bancaria': str(self.conta.pk),
+                'observacao': '',
+            },
+            {
+                'id': 'despesa-lote-2',
+                'data': '2026-10-15',
+                'categoria': str(self.categoria.pk),
+                'valor': '12.00',
+                'descricao': 'Despesa lote criador 2',
+                'evento': '',
+                'conta_bancaria': str(self.conta.pk),
+                'observacao': '',
+            },
+        ]
+        session.save()
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa'),
+            data={'action': 'batch_save'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesas = Despesas.objects.filter(
+            descricao__in=['Despesa lote criador 1', 'Despesa lote criador 2'],
+        ).order_by('descricao')
+        self.assertEqual(despesas.count(), 2)
+        self.assertTrue(all(despesa.criado_por_id == self.user.id for despesa in despesas))
+
+    def test_editar_despesa_preserva_criador_e_ignora_post_adulterado(self):
+        editor = get_user_model().objects.create_user(
+            username='editor_despesa_criador',
+            password='senha123',
+        )
+        perfil_editor = PerfilUsuario.objects.create(user=editor, ministerio=self.ministerio)
+        perfil_editor.igrejas_permitidas.set([self.igreja])
+        grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        editor.groups.add(grupo_tesoureiro)
+        despesa = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 15),
+            descricao='Despesa com autor original',
+            valor=Decimal('15.00'),
+            conta_bancaria=self.conta,
+            criado_por=self.user,
+        )
+
+        self.client.force_login(editor)
+        response = self.client.post(
+            reverse('financeiro:editar_despesa', args=[despesa.pk]),
+            data={
+                'igreja': str(self.igreja.pk),
+                'evento': '',
+                'categoria': str(self.categoria.pk),
+                'data': '2026-10-15',
+                'valor': '20.00',
+                'descricao': 'Despesa editada por U2',
+                'conta_bancaria': str(self.conta.pk),
+                'observacao': 'edicao valida',
+                'criado_por': str(editor.pk),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.descricao, 'Despesa editada por U2')
+        self.assertEqual(despesa.criado_por, self.user)
+
 
 class PainelFinanceiroViewTest(BaseFinanceiroTestCase):
     def setUp(self):
@@ -2850,6 +2997,8 @@ class EventoFinanceiroSegregacaoTest(BaseFinanceiroTestCase):
         self.assertEqual(response_lista.status_code, 200)
         painel = response_lista.context['painel_financeiro_eventos']
         self.assertEqual(painel['total_saidas'], Decimal('77.50'))
+        despesa = Despesas.objects.get(descricao='saida sem evento específico')
+        self.assertEqual(despesa.criado_por, self.user)
 
     def test_cadastrar_despesa_caixa_eventos_restringe_categorias_para_contexto_eventos(self):
         response = self.client.get(reverse('financeiro:cadastrar_despesa_caixa_eventos'))
@@ -2861,6 +3010,31 @@ class EventoFinanceiroSegregacaoTest(BaseFinanceiroTestCase):
         for nome_categoria in categorias_despesa_padrao_eventos():
             self.assertIn(nome_categoria, categorias_renderizadas)
         self.assertNotIn(self.categoria.nome, categorias_renderizadas)
+
+    def test_cadastrar_despesa_caixa_eventos_define_criado_por(self):
+        self.igreja.conta_padrao_eventos = self.caixa_evento
+        self.igreja.save(update_fields=['conta_padrao_eventos'])
+
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa_caixa_eventos'),
+            data={
+                'data': '2026-08-10',
+                'categoria': str(self.categoria_evento.pk),
+                'descricao': 'Despesa caixa eventos com autor',
+                'valor': '55.00',
+                'conta_bancaria': str(self.caixa_evento.pk),
+                'evento': '',
+                'observacao': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesa = Despesas.objects.get(descricao='Despesa caixa eventos com autor')
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.criado_por, self.user)
+        self.assertEqual(despesa.igreja, self.igreja)
+        self.assertEqual(despesa.fundo_departamental.codigo, FundoDepartamental.CODIGO_EVENTOS)
+        self.assertEqual(despesa.conta_bancaria, self.caixa_evento)
 
     def test_cadastrar_receita_evento_forca_caixa_vinculado(self):
         response = self.client.post(
@@ -2897,6 +3071,28 @@ class EventoFinanceiroSegregacaoTest(BaseFinanceiroTestCase):
         despesa = Despesas.objects.filter(evento=self.evento).order_by('-id').first()
         self.assertIsNotNone(despesa)
         self.assertEqual(despesa.conta_bancaria_id, self.caixa_evento.pk)
+        self.assertEqual(despesa.criado_por, self.user)
+
+    def test_cadastrar_despesa_evento_define_criado_por(self):
+        response = self.client.post(
+            reverse('financeiro:cadastrar_despesa_evento', args=[self.evento.pk]),
+            data={
+                'data': '2026-08-10',
+                'categoria': str(self.categoria_evento.pk),
+                'descricao': 'Despesa evento com autor',
+                'valor': '60.00',
+                'conta_bancaria': str(self.caixa_tesouraria.pk),
+                'observacao': '',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        despesa = Despesas.objects.get(descricao='Despesa evento com autor')
+        despesa.refresh_from_db()
+        self.assertEqual(despesa.criado_por, self.user)
+        self.assertEqual(despesa.evento, self.evento)
+        self.assertEqual(despesa.igreja, self.evento.igreja)
+        self.assertEqual(despesa.conta_bancaria, self.caixa_evento)
 
     def test_evento_sem_caixa_permite_caixa_tesouraria(self):
         evento_sem_caixa = Evento.objects.create(

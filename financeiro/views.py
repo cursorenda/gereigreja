@@ -2103,6 +2103,7 @@ def cadastrar_despesa(request): # noqa: E302
 
                     nova_despesa = item_form.save(commit=False)
                     nova_despesa.igreja = igreja_padrao_para_form
+                    nova_despesa.criado_por = request.user
                     _aplicar_politica_aprovacao_saida(request, nova_despesa)
                     nova_despesa.save()
                     salvos += 1
@@ -2118,6 +2119,7 @@ def cadastrar_despesa(request): # noqa: E302
             try:
                 nova_despesa = form.save(commit=False)
                 nova_despesa.igreja = igreja_padrao_para_form
+                nova_despesa.criado_por = request.user
                 if not allowed_churches.filter(pk=nova_despesa.igreja_id).exists(): messages.error(request, "Erro: Igreja inválida.")
                 elif nova_despesa.categoria.ministerio != ministerio: messages.error(request, "Erro: Categoria inválida.")
                 # Adicionar validação de conta bancária se usar
@@ -2232,6 +2234,7 @@ def cadastrar_despesa_evento(request, evento_id):
                 despesa = form.save(commit=False)
                 despesa.igreja = evento.igreja
                 despesa.evento = evento
+                despesa.criado_por = request.user
                 if conta_evento_efetiva_id:
                     despesa.conta_bancaria_id = conta_evento_efetiva_id
                 mensagem_aprovacao = _aplicar_politica_aprovacao_saida(request, despesa)
@@ -2329,6 +2332,7 @@ def cadastrar_despesa_caixa_eventos(request):
             try:
                 despesa = form.save(commit=False)
                 despesa.igreja = igreja_padrao_para_form
+                despesa.criado_por = request.user
                 if not despesa.evento_id and _fundos_departamentais_disponivel():
                     fundo_eventos, _created = FundoDepartamental.objects.get_or_create(
                         igreja=igreja_padrao_para_form,
@@ -3955,6 +3959,7 @@ def _criar_despesa_por_conta_paga(conta_paga, user):
         conta_bancaria=conta_paga.conta_debito,
         origem_conta_pagar=conta_paga,
         usuario_registro_pagamento=user,
+        criado_por=user,
     )
     logger.info(f"Despesa criada automaticamente para a ContaPagar ID {conta_paga.pk}.")
 
