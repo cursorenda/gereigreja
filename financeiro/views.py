@@ -3819,10 +3819,12 @@ def criar_conta_pagar(request): # noqa: E302
     ministerio = get_ministerio_or_error(request)
     igreja_padrao_para_form = None # Inicializa
 
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para criar contas a pagar.')
 
-    # Se não for admin e não tiver igrejas permitidas, não pode criar
-    if not is_admin_org(request.user) and not allowed_churches.exists():
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
+
+    if not allowed_churches.exists():
         messages.error(request, "Você não tem permissão para adicionar contas a pagar ou não está associado a nenhuma igreja específica.")
         return redirect('financeiro:lista_contas_pagar')
 
@@ -3845,7 +3847,7 @@ def criar_conta_pagar(request): # noqa: E302
                 conta.status = 'PEN' # Garante que começa como Pendente
 
                 # Validações extras
-                if not is_admin_org(request.user) and conta.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
+                if conta.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
                 if conta.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
                 if conta.categoria and conta.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
 
@@ -4113,17 +4115,20 @@ def registrar_pagamento_lote_contas_pagar(request):
 def editar_conta_pagar(request, pk): # noqa: E302
     """ Edita uma conta a pagar existente (se ainda não estiver paga ou cancelada). """
     ministerio = get_ministerio_or_error(request)
-    allowed_churches = get_allowed_churches_for_user(request.user)
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para editar contas a pagar.')
+
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
     # Permite editar apenas contas Pendentes ou Vencidas E das igrejas permitidas
     conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
 
     if request.method == 'POST':
-        form = ContaPagarForm(request.POST, instance=conta, ministerio=ministerio, allowed_churches=allowed_churches)
+        form = ContaPagarForm(request.POST, instance=conta, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
         if form.is_valid():
             try:
                 conta_editada = form.save(commit=False)
                 # Validações extras (redundantes se o form filtra, mas seguro)
-                if not is_admin_org(request.user) and conta_editada.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
+                if conta_editada.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
                 if conta_editada.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
                 if conta_editada.categoria and conta_editada.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
 
@@ -4139,7 +4144,7 @@ def editar_conta_pagar(request, pk): # noqa: E302
             messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         # GET: Exibe o formulário preenchido
-        form = ContaPagarForm(instance=conta, ministerio=ministerio, allowed_churches=allowed_churches)
+        form = ContaPagarForm(instance=conta, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
 
     context = {
         'form': form,
@@ -4183,16 +4188,17 @@ def detalhe_conta_pagar(request, pk): # noqa: E302
 def cancelar_conta_pagar(request, pk): # noqa: E302
     """ Marca uma conta a pagar como Cancelada (requer POST). """
     ministerio = get_ministerio_or_error(request)
-    
-# --- Lógica para filtrar pela igreja ativa ou por todas permitidas ---
-    allowed_churches = get_allowed_churches_for_user(request.user)
-    if request.igreja_ativa and request.igreja_ativa in allowed_churches:
-        # Se uma igreja ativa está selecionada, garante que a conta pertence a ela
-        conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja=request.igreja_ativa)
-    else:
-        # Permite cancelar apenas contas Pendentes ou Vencidas E das igrejas permitidas
-        conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
-        # conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN']) # Linha duplicada removida
+    if not has_finance_edit_permission(request.user):
+        raise PermissionDenied('Você não tem permissão para cancelar contas a pagar.')
+
+    allowed_churches = get_finance_write_scope(request.user, ministerio)
+    conta = get_object_or_404(
+        ContaPagar,
+        pk=pk,
+        ministerio=ministerio,
+        status__in=['PEN', 'VEN'],
+        igreja__in=allowed_churches,
+    )
 
     if request.method == 'POST':
         try:

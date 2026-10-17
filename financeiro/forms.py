@@ -704,7 +704,7 @@ class ContaPagarForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # --- Lógica para filtrar o campo 'igreja' ---
 
-        if user and not is_admin_org(user) and allowed_churches is not None:
+        if allowed_churches is not None:
             # Este bloco filtra o campo 'igreja' pelas igrejas permitidas
             self.fields['igreja'].queryset = allowed_churches
         elif ministerio: # Este bloco agora APENAS filtra o campo 'igreja' se a condição do IF anterior for falsa

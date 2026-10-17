@@ -33,7 +33,7 @@ from financeiro.models import (
     Receitas,
     TransferenciaCaixa,
 )
-from financeiro.forms import RecorrenciaContaPagarForm
+from financeiro.forms import ContaPagarForm, RecorrenciaContaPagarForm
 from financeiro.forms import ContaBancariaForm, DespesaForm, ReceitaForm, TransferenciaCaixaForm
 from financeiro.services import (
     AlertaVencimentoContaPagarService,
@@ -1247,6 +1247,466 @@ class ContaPagarPaymentAuthorizationHardeningTest(TestCase):
         self.assertEqual(conta.valor_pago, Decimal('100.00'))
         self.assertEqual(Despesas.objects.filter(origem_conta_pagar=conta).count(), 1)
         self.assertEqual(self.conta_a.saldo_atual, Decimal('400.00'))
+
+
+class ContaPagarFormScopeHardeningTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username='admin-form-scope-payable-management',
+            password='senha123',
+        )
+        self.ministerio = Ministerio.objects.create(
+            nome_fantasia='Ministerio Form Scope Payable Management',
+            administrador_principal=self.admin,
+            ativo=True,
+        )
+        self.outro_admin = User.objects.create_user(
+            username='admin-outro-ministerio-form-scope-payable-management',
+            password='senha123',
+        )
+        self.outro_ministerio = Ministerio.objects.create(
+            nome_fantasia='Outro Ministerio Form Scope Payable Management',
+            administrador_principal=self.outro_admin,
+            ativo=True,
+        )
+        self.igreja_a = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja A Form Scope Payable Management',
+            tipo_igreja='sede',
+        )
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja B Form Scope Payable Management',
+            tipo_igreja='regional',
+        )
+        self.igreja_outro_ministerio = Igreja.objects.create(
+            ministerio=self.outro_ministerio,
+            nome_igreja='Igreja Outro Ministerio Form Scope Payable Management',
+            tipo_igreja='sede',
+        )
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Form Scope Payable Management',
+            ativo=True,
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Form Scope Payable Management',
+        )
+        Group.objects.get_or_create(name=ADMIN_MINISTERIO)
+        self.admin.groups.add(Group.objects.get(name=ADMIN_MINISTERIO))
+        self.perfil = PerfilUsuario.objects.create(user=self.admin, ministerio=self.ministerio)
+        self.perfil.igrejas_permitidas.set([self.igreja_a])
+
+    def _payload(self, igreja):
+        return {
+            'igreja': str(igreja.pk),
+            'fornecedor': str(self.fornecedor.pk),
+            'categoria': str(self.categoria.pk),
+            'descricao': 'Conta Form Scope',
+            'numero_documento': 'NF-FORM-123',
+            'valor': '100.00',
+            'data_emissao': '2026-10-10',
+            'data_vencimento': '2026-10-20',
+            'observacoes': 'Teste direto do escopo explícito do formulário.',
+        }
+
+    def _form(self, data=None):
+        return ContaPagarForm(
+            data=data,
+            ministerio=self.ministerio,
+            user=self.admin,
+            allowed_churches=get_finance_write_scope(self.admin, self.ministerio),
+        )
+
+    def test_admin_queryset_respeita_write_scope_explicito(self):
+        form = self._form()
+
+        queryset_ids = set(form.fields['igreja'].queryset.values_list('pk', flat=True))
+
+        self.assertIn(self.igreja_a.pk, queryset_ids)
+        self.assertNotIn(self.igreja_b.pk, queryset_ids)
+
+    def test_admin_post_igreja_fora_do_write_scope_e_invalido(self):
+        form = self._form(self._payload(self.igreja_b))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('igreja', form.errors)
+        self.assertEqual(ContaPagar.objects.count(), 0)
+
+    def test_admin_post_igreja_de_outro_ministerio_e_invalido(self):
+        form = self._form(self._payload(self.igreja_outro_ministerio))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('igreja', form.errors)
+        self.assertEqual(ContaPagar.objects.count(), 0)
+
+
+class ContaPagarManagementAuthorizationHardeningTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.admin_principal = User.objects.create_user(
+            username='admin-principal-payable-management',
+            password='senha123',
+        )
+        self.ministerio = Ministerio.objects.create(
+            nome_fantasia='Ministerio Payable Management Hardening',
+            administrador_principal=self.admin_principal,
+            ativo=True,
+        )
+        self.outro_admin_principal = User.objects.create_user(
+            username='admin-principal-outro-ministerio-payable-management',
+            password='senha123',
+        )
+        self.outro_ministerio = Ministerio.objects.create(
+            nome_fantasia='Outro Ministerio Payable Management Hardening',
+            administrador_principal=self.outro_admin_principal,
+            ativo=True,
+        )
+        self.igreja_a = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja A Payable Management',
+            tipo_igreja='sede',
+        )
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja B Payable Management',
+            tipo_igreja='regional',
+        )
+        self.igreja_c = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja C Descendente Payable Management',
+            tipo_igreja='congregacao',
+            igreja_superior=self.igreja_b,
+        )
+        self.igreja_outro_ministerio = Igreja.objects.create(
+            ministerio=self.outro_ministerio,
+            nome_igreja='Igreja Outro Ministerio Payable Management',
+            tipo_igreja='sede',
+        )
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Payable Management',
+            ativo=True,
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Payable Management',
+        )
+        self.fornecedor_outro_ministerio = Fornecedor.objects.create(
+            ministerio=self.outro_ministerio,
+            nome='Fornecedor Outro Ministerio Payable Management',
+            ativo=True,
+        )
+        self.categoria_outro_ministerio = CategoriaDespesa.objects.create(
+            ministerio=self.outro_ministerio,
+            nome='Categoria Outro Ministerio Payable Management',
+        )
+        for group_name in (ADMIN_MINISTERIO, PASTOR_LOCAL, PASTOR_REGIONAL, TESOUREIRO):
+            Group.objects.get_or_create(name=group_name)
+        Plano.objects.get_or_create(
+            nome='pioneiro',
+            defaults={
+                'codigo_plano': 'pioneiro',
+                'permite_modulo_financeiro': True,
+                'ativo': True,
+            },
+        )
+
+    def _criar_usuario(self, username, group_name, igrejas=()):
+        user = get_user_model().objects.create_user(username=username, password='senha123')
+        user.groups.add(Group.objects.get(name=group_name))
+        perfil = PerfilUsuario.objects.create(user=user, ministerio=self.ministerio)
+        perfil.igrejas_permitidas.set(igrejas)
+        return user, perfil
+
+    def _autenticar_com_igreja_ativa(self, user, igreja):
+        self.client.force_login(user)
+        session = self.client.session
+        session['igreja_ativa_id'] = igreja.pk
+        session.save()
+
+    def _payload(self, igreja, descricao, valor='100.00'):
+        return {
+            'igreja': str(igreja.pk),
+            'fornecedor': str(self.fornecedor.pk),
+            'categoria': str(self.categoria.pk),
+            'descricao': descricao,
+            'numero_documento': 'NF-123',
+            'valor': valor,
+            'data_emissao': '2026-10-10',
+            'data_vencimento': '2026-10-20',
+            'observacoes': 'Conta criada para teste de autorização.',
+        }
+
+    def _criar_conta(self, igreja, descricao='Conta existente', status='PEN', valor='100.00'):
+        return ContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao=descricao,
+            valor=Decimal(valor),
+            data_emissao=date(2026, 10, 10),
+            data_vencimento=date(2026, 10, 20),
+            status=status,
+        )
+
+    def _assert_conta_inalterada(self, conta, descricao, valor, igreja, status):
+        conta.refresh_from_db()
+        self.assertEqual(conta.descricao, descricao)
+        self.assertEqual(conta.valor, Decimal(valor))
+        self.assertEqual(conta.igreja_id, igreja.pk)
+        self.assertEqual(conta.status, status)
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta).exists())
+
+    def test_criacao_falha_fechado_com_escopo_vazio_e_nao_usa_igreja_ativa(self):
+        tesoureiro, perfil = self._criar_usuario(
+            'tesoureiro-criacao-escopo-vazio-payable-management',
+            TESOUREIRO,
+        )
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:criar_conta_pagar'),
+            data=self._payload(self.igreja_a, 'Conta Escopo Vazio'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ContaPagar.objects.filter(descricao='Conta Escopo Vazio').exists())
+        self.assertFalse(get_finance_write_scope(tesoureiro, self.ministerio).exists())
+        self.assertEqual(Despesas.objects.count(), 0)
+        perfil.refresh_from_db()
+        self.assertFalse(perfil.igrejas_permitidas.exists())
+
+    def test_criacao_rejeita_igreja_adulterada_fora_do_escopo_e_de_outro_ministerio(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-criacao-adulterada-payable-management',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        self.client.force_login(tesoureiro)
+
+        for igreja, descricao in (
+            (self.igreja_b, 'Conta Igreja B Adulterada'),
+            (self.igreja_outro_ministerio, 'Conta Outro Ministerio Adulterada'),
+        ):
+            response = self.client.post(
+                reverse('financeiro:criar_conta_pagar'),
+                data=self._payload(igreja, descricao),
+            )
+
+            self.assertEqual(response.status_code, 302)
+            self.assertFalse(
+                ContaPagar.objects.filter(
+                    igreja=igreja,
+                    descricao=descricao,
+                ).exists()
+            )
+
+        self.assertFalse(ContaPagar.objects.filter(igreja__in=[self.igreja_b, self.igreja_outro_ministerio]).exists())
+        self.assertEqual(Despesas.objects.count(), 0)
+
+    def test_pastor_local_no_escopo_cria_edita_e_cancela_conta(self):
+        pastor, _ = self._criar_usuario(
+            'pastor-local-gerencia-payable-management',
+            PASTOR_LOCAL,
+            [self.igreja_a],
+        )
+        self._autenticar_com_igreja_ativa(pastor, self.igreja_a)
+
+        response_criacao = self.client.post(
+            reverse('financeiro:criar_conta_pagar'),
+            data=self._payload(self.igreja_a, 'Conta Pastor Local'),
+        )
+        self.assertEqual(response_criacao.status_code, 302)
+        conta = ContaPagar.objects.get(descricao='Conta Pastor Local')
+        self.assertEqual(conta.igreja_id, self.igreja_a.pk)
+        self.assertEqual(conta.status, 'PEN')
+
+        response_edicao = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta.pk]),
+            data=self._payload(self.igreja_a, 'Conta Pastor Local Editada', valor='125.00'),
+        )
+        self.assertEqual(response_edicao.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.descricao, 'Conta Pastor Local Editada')
+        self.assertEqual(conta.valor, Decimal('125.00'))
+
+        response_cancelamento = self.client.post(
+            reverse('financeiro:cancelar_conta_pagar', args=[conta.pk]),
+        )
+        self.assertEqual(response_cancelamento.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.status, 'CAN')
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta).exists())
+
+    def test_tesoureiro_no_escopo_cria_conta(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-cria-payable-management',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:criar_conta_pagar'),
+            data=self._payload(self.igreja_a, 'Conta Tesoureiro'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(ContaPagar.objects.filter(igreja=self.igreja_a, descricao='Conta Tesoureiro').exists())
+
+    def test_edicao_e_cancelamento_falham_fechado_com_escopo_vazio(self):
+        tesoureiro, perfil = self._criar_usuario(
+            'tesoureiro-edicao-cancelamento-escopo-vazio-payable-management',
+            TESOUREIRO,
+        )
+        conta = self._criar_conta(self.igreja_a, 'Conta Escopo Vazio Existente')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_edicao = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta.pk]),
+            data=self._payload(self.igreja_a, 'Conta Não Deve Editar', valor='999.00'),
+        )
+        response_cancelamento = self.client.post(
+            reverse('financeiro:cancelar_conta_pagar', args=[conta.pk]),
+        )
+
+        self.assertEqual(response_edicao.status_code, 404)
+        self.assertEqual(response_cancelamento.status_code, 404)
+        self._assert_conta_inalterada(conta, 'Conta Escopo Vazio Existente', '100.00', self.igreja_a, 'PEN')
+        perfil.refresh_from_db()
+        self.assertFalse(perfil.igrejas_permitidas.exists())
+
+    def test_edicao_rejeita_objeto_fora_do_escopo_e_troca_adulterada_de_igreja(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-edicao-fora-escopo-payable-management',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta_a = self._criar_conta(self.igreja_a, 'Conta A Editavel')
+        conta_b = self._criar_conta(self.igreja_b, 'Conta B Fora do Escopo')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_troca_igreja = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta_a.pk]),
+            data=self._payload(self.igreja_b, 'Conta A Indevidamente Movida', valor='999.00'),
+        )
+        response_fora_escopo = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta_b.pk]),
+            data=self._payload(self.igreja_b, 'Conta B Indevidamente Editada', valor='999.00'),
+        )
+
+        self.assertEqual(response_troca_igreja.status_code, 200)
+        self.assertEqual(response_fora_escopo.status_code, 404)
+        self._assert_conta_inalterada(conta_a, 'Conta A Editavel', '100.00', self.igreja_a, 'PEN')
+        self._assert_conta_inalterada(conta_b, 'Conta B Fora do Escopo', '100.00', self.igreja_b, 'PEN')
+
+    def test_cancelamento_fora_do_escopo_nao_altera_status(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-cancelamento-fora-escopo-payable-management',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta_b = self._criar_conta(self.igreja_b, 'Conta B Cancelamento Fora do Escopo', status='VEN')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:cancelar_conta_pagar', args=[conta_b.pk]),
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self._assert_conta_inalterada(conta_b, 'Conta B Cancelamento Fora do Escopo', '100.00', self.igreja_b, 'VEN')
+
+    def test_edicao_e_cancelamento_cross_ministry_nao_alteram_conta(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-cross-ministry-payable-management',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta_outro_ministerio = ContaPagar.objects.create(
+            ministerio=self.outro_ministerio,
+            igreja=self.igreja_outro_ministerio,
+            fornecedor=self.fornecedor_outro_ministerio,
+            categoria=self.categoria_outro_ministerio,
+            descricao='Conta Outro Ministerio Existente',
+            valor=Decimal('100.00'),
+            data_emissao=date(2026, 10, 10),
+            data_vencimento=date(2026, 10, 20),
+            status='PEN',
+        )
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_edicao = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta_outro_ministerio.pk]),
+            data=self._payload(self.igreja_a, 'Conta Outro Ministerio Alterada', valor='999.00'),
+        )
+        response_cancelamento = self.client.post(
+            reverse('financeiro:cancelar_conta_pagar', args=[conta_outro_ministerio.pk]),
+        )
+
+        self.assertEqual(response_edicao.status_code, 404)
+        self.assertEqual(response_cancelamento.status_code, 404)
+        conta_outro_ministerio.refresh_from_db()
+        self.assertEqual(conta_outro_ministerio.descricao, 'Conta Outro Ministerio Existente')
+        self.assertEqual(conta_outro_ministerio.valor, Decimal('100.00'))
+        self.assertEqual(conta_outro_ministerio.igreja_id, self.igreja_outro_ministerio.pk)
+        self.assertEqual(conta_outro_ministerio.status, 'PEN')
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta_outro_ministerio).exists())
+
+    def test_admin_ministerio_sem_escopo_e_fora_do_escopo_nao_edita_nem_cancela(self):
+        admin_sem_escopo, perfil_sem_escopo = self._criar_usuario(
+            'admin-sem-escopo-payable-management',
+            ADMIN_MINISTERIO,
+        )
+        conta_a = self._criar_conta(self.igreja_a, 'Conta Admin Sem Escopo')
+        self._autenticar_com_igreja_ativa(admin_sem_escopo, self.igreja_a)
+
+        response_edicao_sem_escopo = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta_a.pk]),
+            data=self._payload(self.igreja_a, 'Conta Admin Alterada Sem Escopo', valor='999.00'),
+        )
+        response_cancelamento_sem_escopo = self.client.post(
+            reverse('financeiro:cancelar_conta_pagar', args=[conta_a.pk]),
+        )
+        self.assertEqual(response_edicao_sem_escopo.status_code, 404)
+        self.assertEqual(response_cancelamento_sem_escopo.status_code, 404)
+        self._assert_conta_inalterada(conta_a, 'Conta Admin Sem Escopo', '100.00', self.igreja_a, 'PEN')
+        perfil_sem_escopo.refresh_from_db()
+        self.assertFalse(perfil_sem_escopo.igrejas_permitidas.exists())
+
+        admin_escopo_a, _ = self._criar_usuario(
+            'admin-escopo-a-payable-management',
+            ADMIN_MINISTERIO,
+            [self.igreja_a],
+        )
+        conta_b = self._criar_conta(self.igreja_b, 'Conta Admin Fora do Escopo')
+        self._autenticar_com_igreja_ativa(admin_escopo_a, self.igreja_a)
+
+        response_edicao_fora_escopo = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta_b.pk]),
+            data=self._payload(self.igreja_b, 'Conta Admin Fora do Escopo Alterada', valor='999.00'),
+        )
+        response_cancelamento_fora_escopo = self.client.post(
+            reverse('financeiro:cancelar_conta_pagar', args=[conta_b.pk]),
+        )
+        self.assertEqual(response_edicao_fora_escopo.status_code, 404)
+        self.assertEqual(response_cancelamento_fora_escopo.status_code, 404)
+        self._assert_conta_inalterada(conta_b, 'Conta Admin Fora do Escopo', '100.00', self.igreja_b, 'PEN')
+
+    def test_regional_tem_apenas_escopo_explicito_sem_descendente(self):
+        regional, _ = self._criar_usuario(
+            'pastor-regional-escopo-payable-management',
+            PASTOR_REGIONAL,
+            [self.igreja_b],
+        )
+
+        scope_ids = set(get_finance_write_scope(regional, self.ministerio).values_list('pk', flat=True))
+
+        self.assertIn(self.igreja_b.pk, scope_ids)
+        self.assertNotIn(self.igreja_c.pk, scope_ids)
 
 
 class AlertaVencimentoContaPagarServiceTest(BaseFinanceiroTestCase):
