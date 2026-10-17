@@ -696,7 +696,7 @@ class ContaPagarForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         ministerio = kwargs.pop('ministerio', None)
         user = kwargs.pop('user', None)
-        allowed_churches = kwargs.pop('allowed_churches', Igreja.objects.none())
+        allowed_churches = kwargs.pop('allowed_churches', None)
         igreja_selecionada_inicial = kwargs.pop('igreja_selecionada_inicial', None)
 
         logger.info(f"[ContaPagarForm.__init__] Recebida ministerio: {ministerio}")

@@ -1342,6 +1342,27 @@ class ContaPagarFormScopeHardeningTest(TestCase):
         self.assertIn('igreja', form.errors)
         self.assertEqual(ContaPagar.objects.count(), 0)
 
+    def test_scope_omitido_preserva_fallback_do_ministerio(self):
+        form = ContaPagarForm(
+            ministerio=self.ministerio,
+            user=self.admin,
+        )
+
+        queryset_ids = set(form.fields['igreja'].queryset.values_list('pk', flat=True))
+
+        self.assertIn(self.igreja_a.pk, queryset_ids)
+        self.assertIn(self.igreja_b.pk, queryset_ids)
+        self.assertNotIn(self.igreja_outro_ministerio.pk, queryset_ids)
+
+    def test_scope_explicitamente_vazio_permanece_vazio(self):
+        form = ContaPagarForm(
+            ministerio=self.ministerio,
+            user=self.admin,
+            allowed_churches=Igreja.objects.none(),
+        )
+
+        self.assertFalse(form.fields['igreja'].queryset.exists())
+
 
 class ContaPagarManagementAuthorizationHardeningTest(TestCase):
     def setUp(self):
