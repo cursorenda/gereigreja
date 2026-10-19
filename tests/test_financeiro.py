@@ -2,6 +2,8 @@ import ast
 from datetime import date, datetime
 from decimal import Decimal
 import importlib
+import inspect
+import textwrap
 from types import SimpleNamespace
 from unittest import skipUnless
 from unittest.mock import patch
@@ -66,6 +68,7 @@ from financeiro.views import (
     lista_despesas,
     lista_receitas,
 )
+import financeiro.views as financeiro_views
 from financeiro.authorization import get_finance_write_scope
 from financeiro.utils import get_allowed_churches_for_user
 
@@ -1681,6 +1684,12 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
             ministerio=self.outro_ministerio,
             nome='Categoria Outro Ministerio Payable Management',
         )
+        self.conta_debito = ContaBancaria.objects.create(
+            igreja=self.igreja_a,
+            nome_identificacao='Conta Debito Payable Management',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
         for group_name in (ADMIN_MINISTERIO, PASTOR_LOCAL, PASTOR_REGIONAL, TESOUREIRO):
             Group.objects.get_or_create(name=group_name)
         Plano.objects.get_or_create(
@@ -1730,6 +1739,16 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
             data_vencimento=date(2026, 10, 20),
             status=status,
         )
+
+    def _payload_pagamento(self):
+        return {
+            'data_pagamento': '2026-10-16',
+            'valor_pago': '100.00',
+            'juros_multa': '0.00',
+            'desconto': '0.00',
+            'conta_debito': str(self.conta_debito.pk),
+            'forma_pagamento': 'PIX',
+        }
 
     def _assert_conta_inalterada(self, conta, descricao, valor, igreja, status):
         conta.refresh_from_db()
@@ -1985,6 +2004,97 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
 
         self.assertIn(self.igreja_b.pk, scope_ids)
         self.assertNotIn(self.igreja_c.pk, scope_ids)
+
+    def test_edicao_posterior_ao_pagamento_nao_sobrescreve_conta_paga(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-edicao-apos-pagamento-payable-management',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta = self._criar_conta(self.igreja_a, 'Conta Editar Apos Pagamento')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_pagamento = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta.pk]),
+            data=self._payload_pagamento(),
+        )
+        response_edicao = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta.pk]),
+            data=self._payload(self.igreja_a, 'Conta Indevidamente Editada', valor='999.00'),
+        )
+
+        self.assertEqual(response_pagamento.status_code, 302)
+        self.assertEqual(response_edicao.status_code, 404)
+        conta.refresh_from_db()
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(conta.status, 'PAG')
+        self.assertEqual(conta.descricao, 'Conta Editar Apos Pagamento')
+        self.assertEqual(conta.valor, Decimal('100.00'))
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=conta).count(), 1)
+        self.assertEqual(self.conta_debito.saldo_atual, Decimal('400.00'))
+
+    def test_cancelamento_posterior_ao_pagamento_nao_cancela_conta_paga(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-cancelamento-apos-pagamento-payable-management',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta = self._criar_conta(self.igreja_a, 'Conta Cancelar Apos Pagamento')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response_pagamento = self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[conta.pk]),
+            data=self._payload_pagamento(),
+        )
+        response_cancelamento = self.client.post(
+            reverse('financeiro:cancelar_conta_pagar', args=[conta.pk]),
+        )
+
+        self.assertEqual(response_pagamento.status_code, 302)
+        self.assertEqual(response_cancelamento.status_code, 404)
+        conta.refresh_from_db()
+        self.assertEqual(conta.status, 'PAG')
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=conta).count(), 1)
+
+    def test_edicao_post_usa_linha_bloqueada_para_validar_e_salvar(self):
+        source = textwrap.dedent(inspect.getsource(financeiro_views.editar_conta_pagar))
+        function = ast.parse(source).body[0]
+        post_branch = next(
+            statement
+            for statement in function.body
+            if isinstance(statement, ast.If)
+            and isinstance(statement.test, ast.Compare)
+            and isinstance(statement.test.left, ast.Attribute)
+            and statement.test.left.attr == 'method'
+        )
+
+        calls = [node for node in ast.walk(post_branch) if isinstance(node, ast.Call)]
+        self.assertTrue(any(isinstance(node.func, ast.Attribute) and node.func.attr == 'atomic' for node in calls))
+        self.assertTrue(any(isinstance(node.func, ast.Attribute) and node.func.attr == 'select_for_update' for node in calls))
+        form_call = next(
+            node
+            for node in calls
+            if isinstance(node.func, ast.Name) and node.func.id == 'ContaPagarForm'
+        )
+        instance_keyword = next(keyword for keyword in form_call.keywords if keyword.arg == 'instance')
+        self.assertIsInstance(instance_keyword.value, ast.Name)
+        self.assertEqual(instance_keyword.value.id, 'conta')
+
+    def test_cancelamento_post_usa_linha_bloqueada(self):
+        source = textwrap.dedent(inspect.getsource(financeiro_views.cancelar_conta_pagar))
+        function = ast.parse(source).body[0]
+        post_branch = next(
+            statement
+            for statement in function.body
+            if isinstance(statement, ast.If)
+            and isinstance(statement.test, ast.Compare)
+            and isinstance(statement.test.left, ast.Attribute)
+            and statement.test.left.attr == 'method'
+        )
+
+        calls = [node for node in ast.walk(post_branch) if isinstance(node, ast.Call)]
+        self.assertTrue(any(isinstance(node.func, ast.Attribute) and node.func.attr == 'atomic' for node in calls))
+        self.assertTrue(any(isinstance(node.func, ast.Attribute) and node.func.attr == 'select_for_update' for node in calls))
 
 
 class AlertaVencimentoContaPagarServiceTest(BaseFinanceiroTestCase):

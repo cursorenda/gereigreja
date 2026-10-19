@@ -4119,31 +4119,52 @@ def editar_conta_pagar(request, pk): # noqa: E302
         raise PermissionDenied('Você não tem permissão para editar contas a pagar.')
 
     allowed_churches = get_finance_write_scope(request.user, ministerio)
-    # Permite editar apenas contas Pendentes ou Vencidas E das igrejas permitidas
-    conta = get_object_or_404(ContaPagar, pk=pk, ministerio=ministerio, status__in=['PEN', 'VEN'], igreja__in=allowed_churches)
 
     if request.method == 'POST':
-        form = ContaPagarForm(request.POST, instance=conta, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
-        if form.is_valid():
-            try:
-                conta_editada = form.save(commit=False)
-                # Validações extras (redundantes se o form filtra, mas seguro)
-                if conta_editada.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
-                if conta_editada.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
-                if conta_editada.categoria and conta_editada.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
+        try:
+            with transaction.atomic():
+                conta = get_object_or_404(
+                    ContaPagar.objects.select_for_update(),
+                    pk=pk,
+                    ministerio=ministerio,
+                    status__in=['PEN', 'VEN'],
+                )
+                allowed_churches = get_finance_write_scope(request.user, ministerio)
+                get_object_or_404(allowed_churches, pk=conta.igreja_id)
+                form = ContaPagarForm(
+                    request.POST,
+                    instance=conta,
+                    ministerio=ministerio,
+                    user=request.user,
+                    allowed_churches=allowed_churches,
+                )
+                if form.is_valid():
+                    conta_editada = form.save(commit=False)
+                    # Validações extras (redundantes se o form filtra, mas seguro)
+                    if conta_editada.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
+                    if conta_editada.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
+                    if conta_editada.categoria and conta_editada.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
 
-                conta_editada.save()
-                messages.success(request, f'Conta a pagar "{conta.descricao}" atualizada com sucesso!')
-                return redirect('financeiro:lista_contas_pagar')
-            except ValidationError as ve:
-                 messages.error(request, f"Erro de validação: {ve}")
-            except Exception as e:
-                logger.exception(f"Erro ao editar conta a pagar {pk} para ministério {ministerio.id}")
-                messages.error(request, f'Erro ao salvar conta a pagar: {e}')
-        else:
-            messages.error(request, 'Por favor, corrija os erros no formulário.')
+                    conta_editada.save()
+                    messages.success(request, f'Conta a pagar "{conta.descricao}" atualizada com sucesso!')
+                    return redirect('financeiro:lista_contas_pagar')
+                messages.error(request, 'Por favor, corrija os erros no formulário.')
+        except Http404:
+            raise
+        except ValidationError as ve:
+            messages.error(request, f"Erro de validação: {ve}")
+        except Exception as e:
+            logger.exception(f"Erro ao editar conta a pagar {pk} para ministério {ministerio.id}")
+            messages.error(request, f'Erro ao salvar conta a pagar: {e}')
     else:
         # GET: Exibe o formulário preenchido
+        conta = get_object_or_404(
+            ContaPagar,
+            pk=pk,
+            ministerio=ministerio,
+            status__in=['PEN', 'VEN'],
+            igreja__in=allowed_churches,
+        )
         form = ContaPagarForm(instance=conta, ministerio=ministerio, user=request.user, allowed_churches=allowed_churches)
 
     context = {
@@ -4192,19 +4213,23 @@ def cancelar_conta_pagar(request, pk): # noqa: E302
         raise PermissionDenied('Você não tem permissão para cancelar contas a pagar.')
 
     allowed_churches = get_finance_write_scope(request.user, ministerio)
-    conta = get_object_or_404(
-        ContaPagar,
-        pk=pk,
-        ministerio=ministerio,
-        status__in=['PEN', 'VEN'],
-        igreja__in=allowed_churches,
-    )
 
     if request.method == 'POST':
         try:
-            conta.status = 'CAN'
-            conta.save(update_fields=['status', 'data_atualizacao']) # Atualiza só os campos necessários
+            with transaction.atomic():
+                conta = get_object_or_404(
+                    ContaPagar.objects.select_for_update(),
+                    pk=pk,
+                    ministerio=ministerio,
+                    status__in=['PEN', 'VEN'],
+                )
+                allowed_churches = get_finance_write_scope(request.user, ministerio)
+                get_object_or_404(allowed_churches, pk=conta.igreja_id)
+                conta.status = 'CAN'
+                conta.save(update_fields=['status', 'data_atualizacao']) # Atualiza só os campos necessários
             messages.success(request, f'Conta a pagar "{conta.descricao}" cancelada com sucesso.')
+        except Http404:
+            raise
         except Exception as e:
             logger.exception(f"Erro ao cancelar conta a pagar {pk} para ministério {ministerio.id}")
             messages.error(request, f'Erro ao cancelar a conta: {e}')
