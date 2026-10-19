@@ -1,17 +1,22 @@
 import re
+import hashlib
+import json
+import unicodedata
 from hashlib import sha256
 from datetime import datetime, timedelta
 from calendar import monthrange
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from xml.etree import ElementTree as ET
 
 from django.db import IntegrityError, connection, transaction
+from django.core.exceptions import ValidationError
 from django.db.models import Sum, Q
 from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
     ContaPagar,
+    ContaPagarAutorizacaoEvento,
     DepartamentoFinanceiro,
     Despesas,
     FechamentoCaixa,
@@ -19,6 +24,7 @@ from .models import (
     ImportacaoExtratoOFX,
     LancamentoExtratoOFX,
     PoliticaDepartamentoFinanceiro,
+    PoliticaFinanceiraIgreja,
     Receitas,
     RecorrenciaContaPagar,
 )
@@ -33,6 +39,180 @@ from .selectors import (
     obter_evento_no_escopo,
 )
 from .policies import FUNDO_EVENTOS, categoria_receita_padrao_por_fundo
+
+
+PAYABLE_FINGERPRINT_SCHEMA_VERSION = 1
+PAYABLE_FINGERPRINT_PREFIX = 'v1:sha256:'
+
+
+def build_payable_material_snapshot_v1(conta_pagar):
+    """Builds the v1 material snapshot byte-compatible with migration 0020."""
+    return {
+        'fingerprint_schema_version': PAYABLE_FINGERPRINT_SCHEMA_VERSION,
+        'igreja_id': int(conta_pagar.igreja_id),
+        'fornecedor_id': int(conta_pagar.fornecedor_id),
+        'valor': format(
+            Decimal(conta_pagar.valor).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
+            '.2f',
+        ),
+        'data_vencimento': conta_pagar.data_vencimento.isoformat(),
+        'descricao': unicodedata.normalize('NFC', conta_pagar.descricao or '')
+        .replace('\r\n', '\n')
+        .replace('\r', '\n')
+        .strip(),
+    }
+
+
+def compute_payable_material_fingerprint_v1(snapshot):
+    """Returns the stable v1 SHA-256 fingerprint for a material snapshot."""
+    canonical_json = json.dumps(
+        snapshot,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',', ':'),
+    )
+    return f'{PAYABLE_FINGERPRINT_PREFIX}{hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()}'
+
+
+def _resolve_payable_policy(igreja):
+    policy, _ = PoliticaFinanceiraIgreja.objects.get_or_create(
+        igreja=igreja,
+        defaults={
+            'approval_required': False,
+            'segregation_level': PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE,
+            'version': 1,
+        },
+    )
+    policy.full_clean()
+    return policy
+
+
+def _build_policy_snapshot(policy):
+    return {
+        'policy_id': policy.pk,
+        'policy_version': policy.version,
+        'approval_required': policy.approval_required,
+        'segregation_level': policy.segregation_level,
+    }
+
+
+def _build_actor_snapshot(actor):
+    if actor is None:
+        return None, None
+
+    return actor.pk, (actor.get_full_name() or actor.username)[:150]
+
+
+def _validate_payable_domain_integrity(payable):
+    """Ensures the payable relations belong to its ministry and church context."""
+    errors = {}
+
+    if payable.igreja.ministerio_id != payable.ministerio_id:
+        errors['igreja'] = 'A igreja deve pertencer ao mesmo ministério da conta a pagar.'
+    if payable.fornecedor.ministerio_id != payable.ministerio_id:
+        errors['fornecedor'] = 'O fornecedor deve pertencer ao mesmo ministério da conta a pagar.'
+    if payable.categoria_id and payable.categoria.ministerio_id != payable.ministerio_id:
+        errors['categoria'] = 'A categoria deve pertencer ao mesmo ministério da conta a pagar.'
+    if payable.conta_debito_id and payable.conta_debito.igreja_id != payable.igreja_id:
+        errors['conta_debito'] = 'A conta de débito deve pertencer à mesma igreja da conta a pagar.'
+    if payable.recorrencia_origem_id:
+        if payable.recorrencia_origem.ministerio_id != payable.ministerio_id:
+            errors['recorrencia_origem'] = 'A recorrência de origem deve pertencer ao mesmo ministério da conta a pagar.'
+        elif payable.recorrencia_origem.igreja_id != payable.igreja_id:
+            errors['recorrencia_origem'] = 'A recorrência de origem deve pertencer à mesma igreja da conta a pagar.'
+
+    if errors:
+        raise ValidationError(errors)
+
+
+def create_payable(
+    *,
+    ministerio,
+    igreja,
+    fornecedor,
+    descricao,
+    valor,
+    data_vencimento,
+    data_emissao=None,
+    categoria=None,
+    numero_documento=None,
+    conta_debito=None,
+    forma_pagamento=None,
+    recorrencia_origem=None,
+    competencia=None,
+    criado_automaticamente=False,
+    observacoes=None,
+    usuario_criacao=None,
+    actor=None,
+):
+    """Creates a payable with its initial authorization classification and audit event."""
+    with transaction.atomic():
+        policy = _resolve_payable_policy(igreja)
+        if policy.approval_required:
+            authorization_status = ContaPagar.AUTHORIZATION_PENDING
+            authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        else:
+            authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
+            authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
+
+        payable_fields = {
+            'ministerio': ministerio,
+            'igreja': igreja,
+            'fornecedor': fornecedor,
+            'categoria': categoria,
+            'descricao': descricao,
+            'numero_documento': numero_documento,
+            'valor': valor,
+            'data_vencimento': data_vencimento,
+            'status': 'PEN',
+            'conta_debito': conta_debito,
+            'forma_pagamento': forma_pagamento,
+            'recorrencia_origem': recorrencia_origem,
+            'competencia': competencia,
+            'criado_automaticamente': criado_automaticamente,
+            'authorization_status': authorization_status,
+            'authorization_origin': authorization_origin,
+            'authorization_policy_version': policy.version,
+            'approved_material_fingerprint': None,
+            'approved_by': None,
+            'approved_at': None,
+            'rejected_by': None,
+            'rejected_at': None,
+            'current_rejection_reason': None,
+            'observacoes': observacoes,
+            'usuario_criacao': usuario_criacao,
+        }
+        if data_emissao is not None:
+            payable_fields['data_emissao'] = data_emissao
+
+        payable = ContaPagar(
+            **payable_fields,
+        )
+        _validate_payable_domain_integrity(payable)
+        payable.full_clean()
+        material_snapshot = build_payable_material_snapshot_v1(payable)
+        fingerprint = compute_payable_material_fingerprint_v1(material_snapshot)
+        payable.current_material_fingerprint = fingerprint
+        payable.save()
+
+        actor_user_id_snapshot, actor_display_name_snapshot = _build_actor_snapshot(actor)
+        ContaPagarAutorizacaoEvento.objects.create(
+            conta_pagar=payable,
+            event_type=ContaPagarAutorizacaoEvento.EVENT_CREATED,
+            actor=actor,
+            actor_user_id_snapshot=actor_user_id_snapshot,
+            actor_display_name_snapshot=actor_display_name_snapshot,
+            authorization_status_before=None,
+            authorization_status_after=authorization_status,
+            financial_status_before=None,
+            financial_status_after=payable.status,
+            material_fingerprint=fingerprint,
+            material_snapshot=material_snapshot,
+            policy_snapshot=_build_policy_snapshot(policy),
+            reason=None,
+            correlation_id=None,
+        )
+        return payable
 
 
 class DepartamentoFinanceiroService:

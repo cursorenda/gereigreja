@@ -3,6 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 import importlib
 import inspect
+import json
 import textwrap
 from types import SimpleNamespace
 from unittest import skipUnless
@@ -49,6 +50,9 @@ from financeiro.forms import ContaPagarForm, RecorrenciaContaPagarForm
 from financeiro.forms import ContaBancariaForm, DespesaForm, ReceitaForm, TransferenciaCaixaForm
 from financeiro.services import (
     AlertaVencimentoContaPagarService,
+    build_payable_material_snapshot_v1,
+    compute_payable_material_fingerprint_v1,
+    create_payable,
     FechamentoCaixaService,
     OFXImportService,
     DepartamentoFinanceiroService,
@@ -265,6 +269,337 @@ class ContaPagarPrePaymentAuthorizationExpansiveSchemaTest(BaseFinanceiroTestCas
         self.assertFalse(ContaPagar._meta.get_field('authorization_status').has_default())
         self.assertTrue(ContaPagar._meta.get_field('authorization_origin').null)
         self.assertFalse(ContaPagar._meta.get_field('authorization_origin').has_default())
+
+
+class ContaPagarCreationAuthorizationServiceTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Service Authorization',
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Service Authorization',
+        )
+
+    def _create_payable(self, **overrides):
+        payload = {
+            'ministerio': self.ministerio,
+            'igreja': self.igreja,
+            'fornecedor': self.fornecedor,
+            'categoria': self.categoria,
+            'descricao': 'Conta de servico',
+            'valor': Decimal('10.00'),
+            'data_emissao': date(2026, 10, 13),
+            'data_vencimento': date(2026, 10, 20),
+            'usuario_criacao': self.user,
+        }
+        payload.update(overrides)
+        return create_payable(**payload)
+
+    def _create_other_ministry_context(self):
+        other_ministerio = Ministerio.objects.create(
+            nome_fantasia='Outro Ministerio Service Authorization',
+            administrador_principal=self.user,
+            ativo=True,
+            cnpj='98765432000199',
+        )
+        other_igreja = Igreja.objects.create(
+            nome_igreja='Outra Igreja Service Authorization',
+            ministerio=other_ministerio,
+            tipo_igreja='sede',
+        )
+        other_fornecedor = Fornecedor.objects.create(
+            ministerio=other_ministerio,
+            nome='Outro Fornecedor Service Authorization',
+        )
+        other_categoria = CategoriaDespesa.objects.create(
+            ministerio=other_ministerio,
+            nome='Outra Categoria Service Authorization',
+        )
+        other_conta_debito = ContaBancaria.objects.create(
+            igreja=other_igreja,
+            nome_identificacao='Outra Conta Service Authorization',
+            tipo='caixa_fisico',
+        )
+        other_recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=other_ministerio,
+            igreja=other_igreja,
+            fornecedor=other_fornecedor,
+            categoria=other_categoria,
+            descricao='Outra recorrencia Service Authorization',
+            valor=Decimal('10.00'),
+            dia_vencimento=10,
+        )
+        return {
+            'ministerio': other_ministerio,
+            'igreja': other_igreja,
+            'fornecedor': other_fornecedor,
+            'categoria': other_categoria,
+            'conta_debito': other_conta_debito,
+            'recorrencia': other_recorrencia,
+        }
+
+    def _assert_domain_integrity_failure(self, **overrides):
+        with self.assertRaises(ValidationError):
+            self._create_payable(**overrides)
+
+        self.assertEqual(ContaPagar.objects.count(), 0)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.count(), 0)
+
+    def test_rejects_church_from_other_ministry_before_persisting(self):
+        other = self._create_other_ministry_context()
+
+        self._assert_domain_integrity_failure(igreja=other['igreja'])
+
+    def test_rejects_supplier_from_other_ministry_before_persisting(self):
+        other = self._create_other_ministry_context()
+
+        self._assert_domain_integrity_failure(fornecedor=other['fornecedor'])
+
+    def test_rejects_category_from_other_ministry_before_persisting(self):
+        other = self._create_other_ministry_context()
+
+        self._assert_domain_integrity_failure(categoria=other['categoria'])
+
+    def test_rejects_debit_account_from_other_church_before_persisting(self):
+        other = self._create_other_ministry_context()
+
+        self._assert_domain_integrity_failure(conta_debito=other['conta_debito'])
+
+    def test_rejects_recurrence_from_other_context_before_persisting(self):
+        other = self._create_other_ministry_context()
+
+        self._assert_domain_integrity_failure(
+            recorrencia_origem=other['recorrencia'],
+            competencia='2026-10',
+            criado_automaticamente=True,
+        )
+
+    def test_creates_payable_with_coherent_debit_account_and_recurrence(self):
+        conta_debito = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Conta Coerente Service Authorization',
+            tipo='caixa_fisico',
+        )
+        recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Recorrencia Coerente Service Authorization',
+            valor=Decimal('10.00'),
+            dia_vencimento=10,
+        )
+
+        payable = self._create_payable(
+            conta_debito=conta_debito,
+            recorrencia_origem=recorrencia,
+            competencia='2026-10',
+            criado_automaticamente=True,
+        )
+
+        self.assertEqual(payable.conta_debito, conta_debito)
+        self.assertEqual(payable.recorrencia_origem, recorrencia)
+        self.assertTrue(payable.criado_automaticamente)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_fingerprint_v1_golden_vectors_are_canonical_and_case_preserving(self):
+        vector = SimpleNamespace(
+            igreja_id=7,
+            fornecedor_id=11,
+            valor=Decimal('10.005'),
+            data_vencimento=date(2026, 1, 2),
+            descricao='  Cafe\r\nCom\rLeite  ',
+        )
+        expected_snapshot = {
+            'fingerprint_schema_version': 1,
+            'igreja_id': 7,
+            'fornecedor_id': 11,
+            'valor': '10.01',
+            'data_vencimento': '2026-01-02',
+            'descricao': 'Cafe\nCom\nLeite',
+        }
+        expected_json = (
+            '{"data_vencimento":"2026-01-02","descricao":"Cafe\\nCom\\nLeite",'
+            '"fingerprint_schema_version":1,"fornecedor_id":11,"igreja_id":7,"valor":"10.01"}'
+        )
+        expected_fingerprint = 'v1:sha256:ea31b5d371e2b7974562211a4945f2572791d6b6d3a8ca104954610d98f774cd'
+
+        snapshot = build_payable_material_snapshot_v1(vector)
+
+        self.assertEqual(snapshot, expected_snapshot)
+        self.assertEqual(
+            json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(',', ':')),
+            expected_json,
+        )
+        self.assertEqual(compute_payable_material_fingerprint_v1(snapshot), expected_fingerprint)
+        second_vector = SimpleNamespace(
+            igreja_id=7,
+            fornecedor_id=11,
+            valor=Decimal('10'),
+            data_vencimento=date(2026, 1, 2),
+            descricao='  CaFe\r\nCafe\u0301  ',
+        )
+        second_expected_snapshot = {
+            'fingerprint_schema_version': 1,
+            'igreja_id': 7,
+            'fornecedor_id': 11,
+            'valor': '10.00',
+            'data_vencimento': '2026-01-02',
+            'descricao': 'CaFe\nCafé',
+        }
+        second_expected_json = (
+            '{"data_vencimento":"2026-01-02","descricao":"CaFe\\nCafé",'
+            '"fingerprint_schema_version":1,"fornecedor_id":11,"igreja_id":7,"valor":"10.00"}'
+        )
+        second_expected_fingerprint = 'v1:sha256:c5787373b3c805483cf025fc3d09fb8c7fa9a5e71ac19b1b66ce19e2dfd05268'
+
+        second_snapshot = build_payable_material_snapshot_v1(second_vector)
+        self.assertEqual(second_snapshot, second_expected_snapshot)
+        self.assertEqual(
+            json.dumps(second_snapshot, ensure_ascii=False, sort_keys=True, separators=(',', ':')),
+            second_expected_json,
+        )
+        self.assertEqual(
+            compute_payable_material_fingerprint_v1(second_snapshot),
+            second_expected_fingerprint,
+        )
+
+    def test_runtime_fingerprint_is_byte_compatible_with_migration_0020(self):
+        migration_module = importlib.import_module(
+            'financeiro.migrations.0020_prepayment_authorization_expansive',
+        )
+        payable = SimpleNamespace(
+            igreja_id=17,
+            fornecedor_id=23,
+            valor=Decimal('10.005'),
+            data_vencimento=date(2026, 2, 3),
+            descricao='  Café\r\nConta  ',
+        )
+
+        snapshot = build_payable_material_snapshot_v1(payable)
+
+        self.assertEqual(snapshot, migration_module._material_snapshot(payable))
+        self.assertEqual(
+            compute_payable_material_fingerprint_v1(snapshot),
+            migration_module._material_fingerprint(migration_module._material_snapshot(payable)),
+        )
+
+    def test_simple_policy_creates_not_required_payable_and_created_event_without_actor(self):
+        payable = self._create_payable(actor=None)
+
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=self.igreja)
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=payable)
+        snapshot = build_payable_material_snapshot_v1(payable)
+        self.assertEqual(payable.status, 'PEN')
+        self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(payable.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertEqual(payable.authorization_policy_version, policy.version)
+        self.assertEqual(payable.current_material_fingerprint, compute_payable_material_fingerprint_v1(snapshot))
+        self.assertIsNone(payable.approved_material_fingerprint)
+        self.assertIsNone(payable.approved_by)
+        self.assertIsNone(payable.approved_at)
+        self.assertIsNone(payable.rejected_by)
+        self.assertIsNone(payable.rejected_at)
+        self.assertIsNone(payable.current_rejection_reason)
+        self.assertEqual(event.event_type, ContaPagarAutorizacaoEvento.EVENT_CREATED)
+        self.assertIsNone(event.actor)
+        self.assertIsNone(event.actor_user_id_snapshot)
+        self.assertIsNone(event.actor_display_name_snapshot)
+        self.assertIsNone(event.authorization_status_before)
+        self.assertEqual(event.authorization_status_after, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertIsNone(event.financial_status_before)
+        self.assertEqual(event.financial_status_after, 'PEN')
+        self.assertEqual(event.material_fingerprint, payable.current_material_fingerprint)
+        self.assertEqual(event.material_snapshot, snapshot)
+        self.assertEqual(event.policy_snapshot, {
+            'policy_id': policy.pk,
+            'policy_version': policy.version,
+            'approval_required': False,
+            'segregation_level': PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE,
+        })
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_configured_policy_is_preserved_and_creates_pending_payable_with_actor_snapshot(self):
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=self.igreja)
+        policy.approval_required = True
+        policy.segregation_level = PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED
+        policy.version = 9
+        policy.save()
+        self.user.first_name = 'Ator'
+        self.user.last_name = 'Real'
+        self.user.save(update_fields=['first_name', 'last_name'])
+
+        payable = self._create_payable(actor=self.user)
+
+        policy.refresh_from_db()
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=payable)
+        self.assertTrue(policy.approval_required)
+        self.assertEqual(policy.segregation_level, PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED)
+        self.assertEqual(policy.version, 9)
+        self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(payable.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(payable.authorization_policy_version, 9)
+        self.assertEqual(event.actor, self.user)
+        self.assertEqual(event.actor_user_id_snapshot, self.user.pk)
+        self.assertEqual(event.actor_display_name_snapshot, 'Ator Real')
+        self.assertEqual(event.policy_snapshot['policy_id'], policy.pk)
+        self.assertEqual(event.policy_snapshot['policy_version'], 9)
+        self.assertTrue(event.policy_snapshot['approval_required'])
+        self.assertEqual(event.policy_snapshot['segregation_level'], PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED)
+
+    def test_missing_policy_is_recovered_with_default_and_classifies_payable(self):
+        PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja).delete()
+
+        payable = self._create_payable()
+
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=self.igreja)
+        self.assertFalse(policy.approval_required)
+        self.assertEqual(policy.segregation_level, PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE)
+        self.assertEqual(policy.version, 1)
+        self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_invalid_existing_policy_fails_closed_without_payable_or_event(self):
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=self.igreja)
+        PoliticaFinanceiraIgreja.objects.filter(pk=policy.pk).update(
+            approval_required=False,
+            segregation_level=PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED,
+        )
+
+        with self.assertRaises(ValidationError):
+            self._create_payable()
+
+        self.assertEqual(ContaPagar.objects.count(), 0)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.count(), 0)
+
+    def test_event_creation_failure_rolls_back_payable(self):
+        with patch(
+            'financeiro.services.ContaPagarAutorizacaoEvento.objects.create',
+            side_effect=RuntimeError('event failure'),
+        ):
+            with self.assertRaisesRegex(RuntimeError, 'event failure'):
+                self._create_payable()
+
+        self.assertEqual(ContaPagar.objects.count(), 0)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.count(), 0)
+
+    def test_direct_orm_creation_remains_transitionally_possible_with_null_authorization(self):
+        payable = ContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            descricao='Conta direta transitoria do service',
+            valor=Decimal('10.00'),
+            data_emissao=date(2026, 10, 13),
+            data_vencimento=date(2026, 10, 20),
+        )
+
+        self.assertIsNone(payable.authorization_status)
+        self.assertIsNone(payable.current_material_fingerprint)
+        self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).exists())
 
 
 @skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')
