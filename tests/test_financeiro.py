@@ -1,18 +1,26 @@
+import ast
 from datetime import date, datetime
 from decimal import Decimal
+import importlib
+from types import SimpleNamespace
+from unittest import skipUnless
 from unittest.mock import patch
 
+from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from contas.constants import ADMIN_MINISTERIO, PASTOR_LOCAL, PASTOR_REGIONAL, TESOUREIRO
 from configuracao.models import Departamento, DepartamentoCapacidade, Igreja, Ministerio, PerfilUsuario, Plano
+from configuracao.models import Ministerio as CurrentMinisterio
 from eventos.models import Evento
 from financeiro.models import (
     CategoriaDespesa,
@@ -27,6 +35,8 @@ from financeiro.models import (
     ImportacaoExtratoOFX,
     LancamentoExtratoOFX,
     LogTransacaoFinanceira,
+    ContaPagarAutorizacaoEvento,
+    PoliticaFinanceiraIgreja,
     PoliticaDepartamentoFinanceiro,
     PermissaoCaixa,
     RecorrenciaContaPagar,
@@ -119,6 +129,253 @@ class DespesaCriadorModelTest(BaseFinanceiroTestCase):
         despesa.refresh_from_db()
 
         self.assertIsNone(despesa.criado_por)
+
+
+class PoliticaFinanceiraIgrejaModelTest(BaseFinanceiroTestCase):
+    def test_one_to_one_defaults_and_valid_combinations(self):
+        politica = PoliticaFinanceiraIgreja.objects.create(igreja=self.igreja)
+
+        self.assertEqual(politica.igreja, self.igreja)
+        self.assertFalse(politica.approval_required)
+        self.assertEqual(politica.segregation_level, PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE)
+        self.assertEqual(politica.version, 1)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja).count(), 1)
+
+        for indice, approval_required, segregation_level in (
+            (1, False, PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE),
+            (2, True, PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED),
+            (3, True, PoliticaFinanceiraIgreja.LEVEL_3_STRONG),
+        ):
+            politica = PoliticaFinanceiraIgreja(
+                igreja=Igreja.objects.create(
+                    ministerio=self.ministerio,
+                    nome_igreja=f'Igreja Politica Valida {indice}',
+                    tipo_igreja='congregacao',
+                ),
+                approval_required=approval_required,
+                segregation_level=segregation_level,
+            )
+            politica.full_clean()
+
+    def test_clean_rejects_incoherent_approval_mode(self):
+        for indice, approval_required, segregation_level in (
+            (1, False, PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED),
+            (2, True, PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE),
+        ):
+            politica = PoliticaFinanceiraIgreja(
+                igreja=Igreja.objects.create(
+                    ministerio=self.ministerio,
+                    nome_igreja=f'Igreja Politica Invalida {indice}',
+                    tipo_igreja='congregacao',
+                ),
+                approval_required=approval_required,
+                segregation_level=segregation_level,
+            )
+            with self.assertRaises(ValidationError):
+                politica.full_clean()
+
+
+class ContaPagarPrePaymentAuthorizationExpansiveSchemaTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Schema Expansivo',
+        )
+
+    def test_direct_creation_keeps_transitional_authorization_fields_null(self):
+        conta = ContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            descricao='Conta direta transitoria',
+            valor=Decimal('15.00'),
+            data_emissao=date(2026, 10, 13),
+            data_vencimento=date(2026, 10, 20),
+        )
+
+        self.assertIsNone(conta.authorization_status)
+        self.assertIsNone(conta.authorization_origin)
+        self.assertIsNone(conta.authorization_policy_version)
+        self.assertIsNone(conta.current_material_fingerprint)
+        self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).exists())
+        self.assertTrue(ContaPagar._meta.get_field('authorization_status').null)
+        self.assertFalse(ContaPagar._meta.get_field('authorization_status').has_default())
+        self.assertTrue(ContaPagar._meta.get_field('authorization_origin').null)
+        self.assertFalse(ContaPagar._meta.get_field('authorization_origin').has_default())
+
+
+@skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')
+class ContaPagarPrePaymentAuthorizationMigrationTest(TransactionTestCase):
+    migrate_from = ('financeiro', '0019_despesas_criado_por')
+    migrate_to = ('financeiro', '0020_prepayment_authorization_expansive')
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.executor = MigrationExecutor(connection)
+        cls.executor.migrate([cls.migrate_from])
+        cls.old_apps = cls.executor.loader.project_state([cls.migrate_from]).apps
+
+        User = cls.old_apps.get_model('auth', 'User')
+        Ministerio = cls.old_apps.get_model('configuracao', 'Ministerio')
+        Igreja = cls.old_apps.get_model('configuracao', 'Igreja')
+        Fornecedor = cls.old_apps.get_model('financeiro', 'Fornecedor')
+        ContaPagar = cls.old_apps.get_model('financeiro', 'ContaPagar')
+        Despesas = cls.old_apps.get_model('financeiro', 'Despesas')
+
+        cls.user = User.objects.create(username='migration-prepayment-user')
+        cls.ministerio = CurrentMinisterio.objects.create(
+            nome_fantasia='Ministerio Migration Prepayment',
+            administrador_principal_id=cls.user.pk,
+            ativo=True,
+            cnpj='11111111000111',
+            is_demo=False,
+        )
+        cls.igrejas = [
+            Igreja.objects.create(ministerio_id=cls.ministerio.pk, nome_igreja=f'Igreja Migration {indice}', tipo_igreja='sede')
+            for indice in range(1, 3)
+        ]
+        cls.fornecedor = Fornecedor.objects.create(ministerio_id=cls.ministerio.pk, nome='Fornecedor Migration')
+        cls.pre_migration_despesa_count = Despesas.objects.count()
+        cls.legacy_payables = {}
+        for indice, status in enumerate(('PEN', 'VEN', 'PAG', 'CAN'), start=1):
+            conta = ContaPagar.objects.create(
+                ministerio_id=cls.ministerio.pk,
+                igreja_id=cls.igrejas[indice % 2].pk,
+                fornecedor_id=cls.fornecedor.pk,
+                descricao=f'  Conta legado {status}\r\nlinha {indice}  ',
+                numero_documento=f'NF-{indice}',
+                observacoes=f'Observacao {indice}',
+                valor=Decimal(f'{indice * 10}.50'),
+                data_emissao=date(2026, 9, indice),
+                data_vencimento=date(2026, 10, indice),
+                status=status,
+            )
+            cls.legacy_payables[status] = conta.pk
+
+        cls.executor = MigrationExecutor(connection)
+        cls.executor.migrate([cls.migrate_to])
+        cls.apps = cls.executor.loader.project_state([cls.migrate_to]).apps
+
+    def test_forward_backfills_policy_payables_events_and_preserves_financial_status(self):
+        Politica = self.apps.get_model('financeiro', 'PoliticaFinanceiraIgreja')
+        ContaPagar = self.apps.get_model('financeiro', 'ContaPagar')
+        Evento = self.apps.get_model('financeiro', 'ContaPagarAutorizacaoEvento')
+        Despesas = self.apps.get_model('financeiro', 'Despesas')
+
+        self.assertEqual(Politica.objects.filter(igreja_id__in=[igreja.pk for igreja in self.igrejas]).count(), 2)
+        for politica in Politica.objects.filter(igreja_id__in=[igreja.pk for igreja in self.igrejas]):
+            self.assertFalse(politica.approval_required)
+            self.assertEqual(politica.segregation_level, 'LEVEL_1_SIMPLE')
+            self.assertEqual(politica.version, 1)
+
+        for status, payable_id in self.legacy_payables.items():
+            conta = ContaPagar.objects.get(pk=payable_id)
+            self.assertEqual(conta.status, status)
+            self.assertEqual(conta.authorization_status, 'NOT_REQUIRED')
+            self.assertEqual(conta.authorization_origin, 'LEGACY_MIGRATION')
+            self.assertIsNone(conta.authorization_policy_version)
+            self.assertTrue(conta.current_material_fingerprint.startswith('v1:sha256:'))
+            self.assertIsNone(conta.approved_by_id)
+            self.assertIsNone(conta.approved_at)
+            self.assertIsNone(conta.rejected_by_id)
+            self.assertIsNone(conta.rejected_at)
+            self.assertIsNone(conta.current_rejection_reason)
+
+            eventos = Evento.objects.filter(conta_pagar_id=payable_id, event_type='LEGACY_MIGRATED')
+            self.assertEqual(eventos.count(), 1)
+            evento = eventos.get()
+            self.assertEqual(evento.authorization_status_after, 'NOT_REQUIRED')
+            self.assertEqual(evento.financial_status_after, status)
+            self.assertEqual(evento.material_fingerprint, conta.current_material_fingerprint)
+            self.assertEqual(evento.policy_snapshot['origin'], 'LEGACY_MIGRATION')
+            self.assertFalse(evento.policy_snapshot['historical_policy_known'])
+            self.assertIsNone(evento.policy_snapshot['policy_id'])
+            self.assertIsNone(evento.policy_snapshot['policy_version'])
+
+        self.assertEqual(Despesas.objects.count(), self.pre_migration_despesa_count)
+
+    def test_v1_fingerprint_is_deterministic_and_excludes_non_material_fields(self):
+        migration_module = importlib.import_module('financeiro.migrations.0020_prepayment_authorization_expansive')
+        conta = SimpleNamespace(
+            igreja_id=1,
+            fornecedor_id=2,
+            valor=Decimal('10.5'),
+            data_vencimento=date(2026, 10, 20),
+            descricao='  Descricao\r\nLegado  ',
+            numero_documento='NF-1',
+            observacoes='Observacao 1',
+        )
+        mesmo_material = SimpleNamespace(**vars(conta))
+        numero_documento_alterado = SimpleNamespace(**{**vars(conta), 'numero_documento': 'NF-2'})
+        observacoes_alteradas = SimpleNamespace(**{**vars(conta), 'observacoes': 'Outra observacao'})
+        valor_alterado = SimpleNamespace(**{**vars(conta), 'valor': Decimal('11.50')})
+        descricao_alterada = SimpleNamespace(**{**vars(conta), 'descricao': 'Descricao diferente'})
+
+        fingerprint = migration_module._material_fingerprint(migration_module._material_snapshot(conta))
+        self.assertEqual(fingerprint, migration_module._material_fingerprint(migration_module._material_snapshot(mesmo_material)))
+        self.assertEqual(fingerprint, migration_module._material_fingerprint(migration_module._material_snapshot(numero_documento_alterado)))
+        self.assertEqual(fingerprint, migration_module._material_fingerprint(migration_module._material_snapshot(observacoes_alteradas)))
+        self.assertNotEqual(fingerprint, migration_module._material_fingerprint(migration_module._material_snapshot(valor_alterado)))
+        self.assertNotEqual(fingerprint, migration_module._material_fingerprint(migration_module._material_snapshot(descricao_alterada)))
+
+    def test_post_migration_state_allows_new_payable_with_null_authorization_fields(self):
+        ContaPagar = self.apps.get_model('financeiro', 'ContaPagar')
+        Evento = self.apps.get_model('financeiro', 'ContaPagarAutorizacaoEvento')
+        user = get_user_model().objects.create(username='post-migration-prepayment-user')
+        ministerio = CurrentMinisterio.objects.create(
+            nome_fantasia='Ministerio criado apos migration 0020',
+            administrador_principal_id=user.pk,
+            ativo=True,
+            cnpj='22222222000122',
+            is_demo=False,
+        )
+        igreja = Igreja.objects.create(
+            ministerio=ministerio,
+            nome_igreja='Igreja criada apos migration 0020',
+            tipo_igreja='congregacao',
+        )
+        fornecedor = Fornecedor.objects.create(
+            ministerio=ministerio,
+            nome='Fornecedor criado apos migration 0020',
+        )
+
+        conta = ContaPagar.objects.create(
+            ministerio_id=ministerio.pk,
+            igreja_id=igreja.pk,
+            fornecedor_id=fornecedor.pk,
+            descricao='Conta criada apos migration 0020',
+            valor=Decimal('99.90'),
+            data_emissao=date(2026, 10, 21),
+            data_vencimento=date(2026, 10, 31),
+        )
+
+        self.assertIsNone(conta.authorization_status)
+        self.assertIsNone(conta.authorization_origin)
+        self.assertIsNone(conta.authorization_policy_version)
+        self.assertIsNone(conta.current_material_fingerprint)
+        self.assertFalse(Evento.objects.filter(conta_pagar_id=conta.pk, event_type='LEGACY_MIGRATED').exists())
+
+    def test_legacy_boundary_is_captured_before_policy_backfill(self):
+        migration_module = importlib.import_module('financeiro.migrations.0020_prepayment_authorization_expansive')
+        with open(migration_module.__file__, encoding='utf-8') as migration_file:
+            function = next(
+                node
+                for node in ast.parse(migration_file.read()).body
+                if isinstance(node, ast.FunctionDef) and node.name == 'backfill_prepayment_authorization'
+            )
+
+        legacy_max_pk_indexes = [
+            index
+            for index, statement in enumerate(function.body)
+            if isinstance(statement, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == 'legacy_max_pk' for target in statement.targets)
+        ]
+        policy_backfill_index = next(index for index, statement in enumerate(function.body) if isinstance(statement, ast.For))
+
+        self.assertEqual(len(legacy_max_pk_indexes), 1)
+        self.assertLess(legacy_max_pk_indexes[0], policy_backfill_index)
 
 
 class FechamentoCaixaServiceTest(BaseFinanceiroTestCase):

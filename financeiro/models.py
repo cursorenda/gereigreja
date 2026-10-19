@@ -288,6 +288,54 @@ class PoliticaDepartamentoFinanceiro(models.Model):
         return f"Politica - {self.departamento.nome_exibicao}"
 
 
+class PoliticaFinanceiraIgreja(models.Model):
+    """Politica local de autorizacao pre-pagamento por Igreja."""
+
+    LEVEL_1_SIMPLE = 'LEVEL_1_SIMPLE'
+    LEVEL_2_CONTROLLED = 'LEVEL_2_CONTROLLED'
+    LEVEL_3_STRONG = 'LEVEL_3_STRONG'
+    SEGREGATION_LEVEL_CHOICES = [
+        (LEVEL_1_SIMPLE, 'Nivel 1 - Simples'),
+        (LEVEL_2_CONTROLLED, 'Nivel 2 - Controlado'),
+        (LEVEL_3_STRONG, 'Nivel 3 - Forte'),
+    ]
+
+    igreja = models.OneToOneField(
+        Igreja,
+        on_delete=models.CASCADE,
+        related_name='politica_financeira',
+        verbose_name='Igreja',
+    )
+    approval_required = models.BooleanField(default=False, verbose_name='Exige Aprovacao Pre-Pagamento')
+    segregation_level = models.CharField(
+        max_length=20,
+        choices=SEGREGATION_LEVEL_CHOICES,
+        default=LEVEL_1_SIMPLE,
+        verbose_name='Nivel de Segregacao',
+    )
+    version = models.PositiveIntegerField(default=1, verbose_name='Versao da Politica')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+
+    class Meta:
+        verbose_name = 'Politica Financeira da Igreja'
+        verbose_name_plural = 'Politicas Financeiras das Igrejas'
+
+    def __str__(self):
+        return f"Politica Financeira - {self.igreja.nome_igreja} (v{self.version})"
+
+    def clean(self):
+        super().clean()
+        if not self.approval_required and self.segregation_level != self.LEVEL_1_SIMPLE:
+            raise ValidationError({
+                'segregation_level': 'Politica sem aprovacao obrigatoria deve usar LEVEL_1_SIMPLE.',
+            })
+        if self.approval_required and self.segregation_level == self.LEVEL_1_SIMPLE:
+            raise ValidationError({
+                'segregation_level': 'Politica com aprovacao obrigatoria deve usar LEVEL_2_CONTROLLED ou LEVEL_3_STRONG.',
+            })
+
+
 class DepartamentoCaixa(models.Model):
     """Vinculo entre departamento financeiro e caixas permitidos para movimentacao."""
 
@@ -1118,6 +1166,26 @@ class ContaPagar(models.Model):
         ('CRE', 'Cartão de Crédito'),
         ('OUT', 'Outro'),
     )
+    AUTHORIZATION_NOT_REQUIRED = 'NOT_REQUIRED'
+    AUTHORIZATION_PENDING = 'PENDING'
+    AUTHORIZATION_APPROVED = 'APPROVED'
+    AUTHORIZATION_REJECTED = 'REJECTED'
+    AUTHORIZATION_STATUS_CHOICES = (
+        (AUTHORIZATION_NOT_REQUIRED, 'Nao Requerida'),
+        (AUTHORIZATION_PENDING, 'Pendente'),
+        (AUTHORIZATION_APPROVED, 'Aprovada'),
+        (AUTHORIZATION_REJECTED, 'Rejeitada'),
+    )
+    AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED = 'POLICY_NOT_REQUIRED'
+    AUTHORIZATION_ORIGIN_POLICY_REQUIRED = 'POLICY_REQUIRED'
+    AUTHORIZATION_ORIGIN_USER_APPROVAL = 'USER_APPROVAL'
+    AUTHORIZATION_ORIGIN_LEGACY_MIGRATION = 'LEGACY_MIGRATION'
+    AUTHORIZATION_ORIGIN_CHOICES = (
+        (AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED, 'Politica sem Aprovacao'),
+        (AUTHORIZATION_ORIGIN_POLICY_REQUIRED, 'Politica com Aprovacao'),
+        (AUTHORIZATION_ORIGIN_USER_APPROVAL, 'Aprovacao de Usuario'),
+        (AUTHORIZATION_ORIGIN_LEGACY_MIGRATION, 'Migracao de Legado'),
+    )
 
     # Ligações principais
     ministerio = models.ForeignKey(Ministerio, on_delete=models.PROTECT, related_name='contas_a_pagar_financeiro') # related_name específico
@@ -1152,6 +1220,19 @@ class ContaPagar(models.Model):
     competencia = models.CharField(max_length=7, null=True, blank=True, db_index=True, verbose_name='Competência (AAAA-MM)')
     criado_automaticamente = models.BooleanField(default=False, verbose_name='Criado Automaticamente?')
 
+    # Campos expansivos: nullable ate que todos os produtores usem o servico
+    # de dominio de autorizacao pre-pagamento no patch 3B.2B2.
+    authorization_status = models.CharField(max_length=12, choices=AUTHORIZATION_STATUS_CHOICES, null=True, blank=True, verbose_name='Status de Autorizacao')
+    authorization_origin = models.CharField(max_length=24, choices=AUTHORIZATION_ORIGIN_CHOICES, null=True, blank=True, verbose_name='Origem da Autorizacao')
+    authorization_policy_version = models.PositiveIntegerField(null=True, blank=True, verbose_name='Versao da Politica de Autorizacao')
+    current_material_fingerprint = models.CharField(max_length=74, null=True, blank=True, verbose_name='Fingerprint Material Atual')
+    approved_material_fingerprint = models.CharField(max_length=74, null=True, blank=True, verbose_name='Fingerprint Material Aprovado')
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='contas_pagar_autorizadas', verbose_name='Aprovado por')
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name='Aprovado em')
+    rejected_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='contas_pagar_rejeitadas', verbose_name='Rejeitado por')
+    rejected_at = models.DateTimeField(null=True, blank=True, verbose_name='Rejeitado em')
+    current_rejection_reason = models.TextField(null=True, blank=True, verbose_name='Motivo Atual da Rejeicao')
+
     # Opcional: Campo para agrupar parcelas da mesma compra
     # compra_uuid = models.UUIDField(null=True, blank=True, editable=False, help_text="Identificador único para agrupar parcelas da mesma compra")
 
@@ -1180,6 +1261,55 @@ class ContaPagar(models.Model):
     def is_vencida(self):
         # Verifica se está vencida e ainda pendente
         return self.data_vencimento < timezone.now().date() and self.status == 'PEN'
+
+
+class ContaPagarAutorizacaoEvento(models.Model):
+    """Evidencia append-only das decisoes de autorizacao de ContaPagar."""
+
+    EVENT_CREATED = 'CREATED'
+    EVENT_EDITED = 'EDITED'
+    EVENT_APPROVAL_REQUESTED = 'APPROVAL_REQUESTED'
+    EVENT_APPROVED = 'APPROVED'
+    EVENT_REJECTED = 'REJECTED'
+    EVENT_APPROVAL_INVALIDATED = 'APPROVAL_INVALIDATED'
+    EVENT_CANCELLED = 'CANCELLED'
+    EVENT_PAID = 'PAID'
+    EVENT_LEGACY_MIGRATED = 'LEGACY_MIGRATED'
+    EVENT_TYPE_CHOICES = (
+        (EVENT_CREATED, 'Criado'),
+        (EVENT_EDITED, 'Editado'),
+        (EVENT_APPROVAL_REQUESTED, 'Aprovacao Solicitada'),
+        (EVENT_APPROVED, 'Aprovado'),
+        (EVENT_REJECTED, 'Rejeitado'),
+        (EVENT_APPROVAL_INVALIDATED, 'Aprovacao Invalidada'),
+        (EVENT_CANCELLED, 'Cancelado'),
+        (EVENT_PAID, 'Pago'),
+        (EVENT_LEGACY_MIGRATED, 'Legado Migrado'),
+    )
+
+    conta_pagar = models.ForeignKey(ContaPagar, on_delete=models.PROTECT, related_name='eventos_autorizacao', verbose_name='Conta a Pagar')
+    event_type = models.CharField(max_length=24, choices=EVENT_TYPE_CHOICES, verbose_name='Tipo de Evento')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='eventos_autorizacao_conta_pagar', verbose_name='Ator')
+    actor_user_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True, verbose_name='ID Historico do Ator')
+    actor_display_name_snapshot = models.CharField(max_length=150, null=True, blank=True, verbose_name='Nome Historico do Ator')
+    occurred_at = models.DateTimeField(auto_now_add=True, verbose_name='Ocorrido em')
+    authorization_status_before = models.CharField(max_length=12, choices=ContaPagar.AUTHORIZATION_STATUS_CHOICES, null=True, blank=True, verbose_name='Status de Autorizacao Anterior')
+    authorization_status_after = models.CharField(max_length=12, choices=ContaPagar.AUTHORIZATION_STATUS_CHOICES, verbose_name='Status de Autorizacao Posterior')
+    financial_status_before = models.CharField(max_length=3, choices=ContaPagar.STATUS_CHOICES, null=True, blank=True, verbose_name='Status Financeiro Anterior')
+    financial_status_after = models.CharField(max_length=3, choices=ContaPagar.STATUS_CHOICES, verbose_name='Status Financeiro Posterior')
+    material_fingerprint = models.CharField(max_length=74, null=True, blank=True, verbose_name='Fingerprint Material')
+    material_snapshot = models.JSONField(null=True, blank=True, verbose_name='Snapshot Material')
+    policy_snapshot = models.JSONField(null=True, blank=True, verbose_name='Snapshot da Politica')
+    reason = models.TextField(null=True, blank=True, verbose_name='Motivo')
+    correlation_id = models.UUIDField(null=True, blank=True, verbose_name='ID de Correlacao')
+
+    class Meta:
+        verbose_name = 'Evento de Autorizacao de Conta a Pagar'
+        verbose_name_plural = 'Eventos de Autorizacao de Contas a Pagar'
+        ordering = ['-occurred_at', '-id']
+
+    def __str__(self):
+        return f"{self.get_event_type_display()} - Conta #{self.conta_pagar_id}"
 
 # ==================================================
 # ========= FIM: NOVOS MODELOS PARA CONTAS A PAGAR =========
