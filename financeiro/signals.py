@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db import connection
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from configuracao.models import Igreja, Ministerio
@@ -8,6 +9,7 @@ from financeiro.models import (
     Despesas,
     FechamentoCaixa,
     LogTransacaoFinanceira,
+    PoliticaFinanceiraIgreja,
     Receitas,
     TransferenciaCaixa,
 )
@@ -40,6 +42,24 @@ def criar_departamentos_padrao_igreja(sender, instance, created, **kwargs):
     if not created:
         return
     DepartamentoFinanceiroService.garantir_departamentos_padrao_para_igreja(instance)
+
+
+@receiver(post_save, sender=Igreja)
+def garantir_politica_financeira_igreja(sender, instance, created, **kwargs):
+    if not created:
+        return
+
+    if PoliticaFinanceiraIgreja._meta.db_table not in connection.introspection.table_names():
+        return
+
+    PoliticaFinanceiraIgreja.objects.get_or_create(
+        igreja=instance,
+        defaults={
+            'approval_required': False,
+            'segregation_level': PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE,
+            'version': 1,
+        },
+    )
 
 
 def _extrair_igreja(instance):

@@ -136,7 +136,7 @@ class DespesaCriadorModelTest(BaseFinanceiroTestCase):
 
 class PoliticaFinanceiraIgrejaModelTest(BaseFinanceiroTestCase):
     def test_one_to_one_defaults_and_valid_combinations(self):
-        politica = PoliticaFinanceiraIgreja.objects.create(igreja=self.igreja)
+        politica = PoliticaFinanceiraIgreja.objects.get(igreja=self.igreja)
 
         self.assertEqual(politica.igreja, self.igreja)
         self.assertFalse(politica.approval_required)
@@ -149,15 +149,14 @@ class PoliticaFinanceiraIgrejaModelTest(BaseFinanceiroTestCase):
             (2, True, PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED),
             (3, True, PoliticaFinanceiraIgreja.LEVEL_3_STRONG),
         ):
-            politica = PoliticaFinanceiraIgreja(
-                igreja=Igreja.objects.create(
-                    ministerio=self.ministerio,
-                    nome_igreja=f'Igreja Politica Valida {indice}',
-                    tipo_igreja='congregacao',
-                ),
-                approval_required=approval_required,
-                segregation_level=segregation_level,
+            igreja = Igreja.objects.create(
+                ministerio=self.ministerio,
+                nome_igreja=f'Igreja Politica Valida {indice}',
+                tipo_igreja='congregacao',
             )
+            politica = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+            politica.approval_required = approval_required
+            politica.segregation_level = segregation_level
             politica.full_clean()
 
     def test_clean_rejects_incoherent_approval_mode(self):
@@ -165,17 +164,77 @@ class PoliticaFinanceiraIgrejaModelTest(BaseFinanceiroTestCase):
             (1, False, PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED),
             (2, True, PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE),
         ):
-            politica = PoliticaFinanceiraIgreja(
-                igreja=Igreja.objects.create(
-                    ministerio=self.ministerio,
-                    nome_igreja=f'Igreja Politica Invalida {indice}',
-                    tipo_igreja='congregacao',
-                ),
-                approval_required=approval_required,
-                segregation_level=segregation_level,
+            igreja = Igreja.objects.create(
+                ministerio=self.ministerio,
+                nome_igreja=f'Igreja Politica Invalida {indice}',
+                tipo_igreja='congregacao',
             )
+            politica = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+            politica.approval_required = approval_required
+            politica.segregation_level = segregation_level
             with self.assertRaises(ValidationError):
                 politica.full_clean()
+
+
+class PoliticaFinanceiraIgrejaProvisioningSignalTest(BaseFinanceiroTestCase):
+    def test_new_church_receives_exact_default_policy_once(self):
+        igreja = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja com Politica Provisionada',
+            tipo_igreja='congregacao',
+        )
+
+        politica = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+
+        self.assertFalse(politica.approval_required)
+        self.assertEqual(politica.segregation_level, PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE)
+        self.assertEqual(politica.version, 1)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja=igreja).count(), 1)
+
+    def test_repeated_church_saves_keep_a_single_policy(self):
+        igreja = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja com Signal Idempotente',
+            tipo_igreja='congregacao',
+        )
+
+        igreja.save()
+        igreja.save()
+
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja=igreja).count(), 1)
+
+    def test_existing_church_save_does_not_introspect_schema(self):
+        igreja = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja sem Introspeccao em Update',
+            tipo_igreja='congregacao',
+        )
+
+        with patch('financeiro.signals.connection.introspection.table_names') as table_names:
+            igreja.save()
+
+        table_names.assert_not_called()
+
+    def test_repeated_church_saves_preserve_configured_policy(self):
+        igreja = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja com Politica Configurada',
+            tipo_igreja='congregacao',
+        )
+        PoliticaFinanceiraIgreja.objects.filter(igreja=igreja).update(
+            approval_required=True,
+            segregation_level=PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED,
+            version=9,
+        )
+
+        igreja.save()
+        igreja.save()
+
+        politica = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+        self.assertTrue(politica.approval_required)
+        self.assertEqual(politica.segregation_level, PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED)
+        self.assertEqual(politica.version, 9)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja=igreja).count(), 1)
 
 
 class ContaPagarPrePaymentAuthorizationExpansiveSchemaTest(BaseFinanceiroTestCase):
@@ -379,6 +438,94 @@ class ContaPagarPrePaymentAuthorizationMigrationTest(TransactionTestCase):
 
         self.assertEqual(len(legacy_max_pk_indexes), 1)
         self.assertLess(legacy_max_pk_indexes[0], policy_backfill_index)
+
+
+@skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')
+class PoliticaFinanceiraIgrejaReconciliationMigrationTest(TransactionTestCase):
+    migrate_from = ('financeiro', '0020_prepayment_authorization_expansive')
+    migrate_to = ('financeiro', '0021_reconcile_financial_policies')
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.executor = MigrationExecutor(connection)
+        cls.executor.migrate([cls.migrate_from])
+        cls.old_apps = cls.executor.loader.project_state([cls.migrate_from]).apps
+
+        User = cls.old_apps.get_model('auth', 'User')
+        Igreja = cls.old_apps.get_model('configuracao', 'Igreja')
+        PoliticaFinanceiraIgreja = cls.old_apps.get_model('financeiro', 'PoliticaFinanceiraIgreja')
+
+        user = User.objects.create(username='policy-reconciliation-migration-user')
+        ministerio = CurrentMinisterio.objects.create(
+            nome_fantasia='Ministerio Reconciliacao de Politicas',
+            administrador_principal_id=user.pk,
+            ativo=True,
+            cnpj='33333333000133',
+            is_demo=False,
+        )
+        igreja_a = Igreja.objects.create(
+            ministerio_id=ministerio.pk,
+            nome_igreja='Igreja A Politica Configurada',
+            tipo_igreja='sede',
+        )
+        igreja_b = Igreja.objects.create(
+            ministerio_id=ministerio.pk,
+            nome_igreja='Igreja B Sem Politica',
+            tipo_igreja='congregacao',
+        )
+        igreja_c = Igreja.objects.create(
+            ministerio_id=ministerio.pk,
+            nome_igreja='Igreja C Sem Politica',
+            tipo_igreja='congregacao',
+        )
+        PoliticaFinanceiraIgreja.objects.create(
+            igreja_id=igreja_a.pk,
+            approval_required=True,
+            segregation_level='LEVEL_2_CONTROLLED',
+            version=9,
+        )
+
+        cls.igreja_a_id = igreja_a.pk
+        cls.igreja_b_id = igreja_b.pk
+        cls.igreja_c_id = igreja_c.pk
+
+        cls.executor = MigrationExecutor(connection)
+        cls.executor.migrate([cls.migrate_to])
+        cls.apps = cls.executor.loader.project_state([cls.migrate_to]).apps
+
+    def test_forward_reconciles_missing_policies_and_preserves_configured_policy(self):
+        PoliticaFinanceiraIgreja = self.apps.get_model('financeiro', 'PoliticaFinanceiraIgreja')
+
+        politica_a = PoliticaFinanceiraIgreja.objects.get(igreja_id=self.igreja_a_id)
+        politica_b = PoliticaFinanceiraIgreja.objects.get(igreja_id=self.igreja_b_id)
+        politica_c = PoliticaFinanceiraIgreja.objects.get(igreja_id=self.igreja_c_id)
+
+        self.assertTrue(politica_a.approval_required)
+        self.assertEqual(politica_a.segregation_level, 'LEVEL_2_CONTROLLED')
+        self.assertEqual(politica_a.version, 9)
+
+        for politica in (politica_b, politica_c):
+            self.assertFalse(politica.approval_required)
+            self.assertEqual(politica.segregation_level, 'LEVEL_1_SIMPLE')
+            self.assertEqual(politica.version, 1)
+
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja_id=self.igreja_a_id).count(), 1)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja_id=self.igreja_b_id).count(), 1)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja_id=self.igreja_c_id).count(), 1)
+
+        migration_module = importlib.import_module(
+            'financeiro.migrations.0021_reconcile_financial_policies',
+        )
+        migration_module.reconcile_financial_policies(self.apps, schema_editor=None)
+
+        politica_a = PoliticaFinanceiraIgreja.objects.get(igreja_id=self.igreja_a_id)
+        self.assertTrue(politica_a.approval_required)
+        self.assertEqual(politica_a.segregation_level, 'LEVEL_2_CONTROLLED')
+        self.assertEqual(politica_a.version, 9)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja_id=self.igreja_a_id).count(), 1)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja_id=self.igreja_b_id).count(), 1)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.filter(igreja_id=self.igreja_c_id).count(), 1)
 
 
 class FechamentoCaixaServiceTest(BaseFinanceiroTestCase):
