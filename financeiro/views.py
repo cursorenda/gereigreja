@@ -98,7 +98,13 @@ import json # Adicionar esta linha # noqa: E402
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from core.decorators import verificar_assinatura_valida # Ou o caminho correto
-from .services import DepartamentoFinanceiroService, OFXImportService, RecorrenciaContaPagarService, ReceitaFluxoService
+from .services import (
+    DepartamentoFinanceiroService,
+    OFXImportService,
+    RecorrenciaContaPagarService,
+    ReceitaFluxoService,
+    create_payable,
+)
 from contas.constants import PASTOR_LOCAL, user_has_permission_level_or_higher
 
 @login_required
@@ -3851,7 +3857,22 @@ def criar_conta_pagar(request): # noqa: E302
                 if conta.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
                 if conta.categoria and conta.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
 
-                conta.save()
+                create_payable(
+                    ministerio=conta.ministerio,
+                    igreja=conta.igreja,
+                    fornecedor=conta.fornecedor,
+                    categoria=conta.categoria,
+                    descricao=conta.descricao,
+                    numero_documento=conta.numero_documento,
+                    valor=conta.valor,
+                    data_emissao=conta.data_emissao,
+                    data_vencimento=conta.data_vencimento,
+                    conta_debito=conta.conta_debito,
+                    forma_pagamento=conta.forma_pagamento,
+                    observacoes=conta.observacoes,
+                    usuario_criacao=conta.usuario_criacao,
+                    actor=request.user,
+                )
                 messages.success(request, "Conta a pagar criada com sucesso!")
                 # Redirecionar para lista ou para adicionar outra? Por enquanto, lista.
                 return redirect('financeiro:lista_contas_pagar')

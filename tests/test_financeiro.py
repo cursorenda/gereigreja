@@ -7,7 +7,7 @@ import json
 import textwrap
 from types import SimpleNamespace
 from unittest import skipUnless
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
@@ -1304,7 +1304,156 @@ class RecorrenciaContaPagarServiceTest(BaseFinanceiroTestCase):
         self.assertEqual(primeiro['total_geradas'], 1)
         self.assertEqual(segundo['total_geradas'], 0)
         self.assertEqual(segundo['total_existentes'], 1)
+        conta = ContaPagar.objects.get(recorrencia_origem=recorrencia, competencia='2026-05')
         self.assertEqual(ContaPagar.objects.filter(recorrencia_origem=recorrencia, competencia='2026-05').count(), 1)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar=conta,
+                event_type=ContaPagarAutorizacaoEvento.EVENT_CREATED,
+            ).count(),
+            1,
+        )
+
+    def test_gerar_competencia_trata_validation_error_de_duplicidade_como_existente(self):
+        recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Duplicidade concorrente por validacao',
+            valor=Decimal('1500.00'),
+            dia_vencimento=10,
+            data_inicio=date(2026, 1, 1),
+            conta_debito_padrao=self.conta_principal,
+            usuario_criacao=self.user,
+        )
+
+        precheck = MagicMock()
+        precheck.exists.return_value = False
+        postcheck = MagicMock()
+        postcheck.exists.return_value = True
+
+        with patch(
+            'financeiro.services.ContaPagar.objects.filter',
+            side_effect=[precheck, postcheck],
+        ) as filter_mock:
+            with patch(
+                'financeiro.services.create_payable',
+                side_effect=ValidationError('Duplicidade concorrente simulada.'),
+            ):
+                resultado = self.service.gerar_competencia(competencia='2026-05')
+
+        self.assertEqual(filter_mock.call_count, 2)
+        filter_mock.assert_has_calls([
+            call(recorrencia_origem=recorrencia, competencia='2026-05'),
+            call(recorrencia_origem=recorrencia, competencia='2026-05'),
+        ])
+        self.assertEqual(resultado['total_geradas'], 0)
+        self.assertEqual(resultado['total_existentes'], 1)
+        self.assertEqual(resultado['total_erros'], 0)
+        self.assertEqual(ContaPagar.objects.count(), 0)
+
+    def test_gerar_competencia_propagates_non_duplicate_validation_error(self):
+        RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Erro de validacao real',
+            valor=Decimal('1500.00'),
+            dia_vencimento=10,
+            data_inicio=date(2026, 1, 1),
+            conta_debito_padrao=self.conta_principal,
+            usuario_criacao=self.user,
+        )
+
+        with patch(
+            'financeiro.services.create_payable',
+            side_effect=ValidationError('Erro de validacao real.'),
+        ):
+            with self.assertRaisesRegex(ValidationError, 'Erro de validacao real'):
+                self.service.gerar_competencia(competencia='2026-05')
+
+        self.assertEqual(ContaPagar.objects.count(), 0)
+
+    def test_gerar_competencia_classifica_com_policy_simples_e_evento_sem_ator(self):
+        recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Internet classificada simples',
+            valor=Decimal('199.90'),
+            dia_vencimento=10,
+            data_inicio=date(2026, 1, 1),
+            conta_debito_padrao=self.conta_principal,
+            usuario_criacao=self.user,
+        )
+
+        self.service.gerar_competencia(competencia='2026-06')
+
+        conta = ContaPagar.objects.get(recorrencia_origem=recorrencia, competencia='2026-06')
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=conta)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertTrue(conta.current_material_fingerprint)
+        self.assertEqual(event.event_type, ContaPagarAutorizacaoEvento.EVENT_CREATED)
+        self.assertIsNone(event.actor)
+
+    def test_gerar_competencia_classifica_com_policy_exigindo_aprovacao(self):
+        PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja).update(
+            approval_required=True,
+            segregation_level=PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED,
+        )
+        recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Internet classificada pendente',
+            valor=Decimal('199.90'),
+            dia_vencimento=10,
+            data_inicio=date(2026, 1, 1),
+            conta_debito_padrao=self.conta_principal,
+            usuario_criacao=self.user,
+        )
+
+        self.service.gerar_competencia(competencia='2026-07')
+
+        conta = ContaPagar.objects.get(recorrencia_origem=recorrencia, competencia='2026-07')
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=conta)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(event.event_type, ContaPagarAutorizacaoEvento.EVENT_CREATED)
+        self.assertIsNone(event.actor)
+
+    def test_gerar_competencia_usa_policy_vigente_sem_reclassificar_competencia_anterior(self):
+        recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Internet policy por competencia',
+            valor=Decimal('199.90'),
+            dia_vencimento=10,
+            data_inicio=date(2026, 1, 1),
+            conta_debito_padrao=self.conta_principal,
+            usuario_criacao=self.user,
+        )
+
+        self.service.gerar_competencia(competencia='2026-08')
+        primeira = ContaPagar.objects.get(recorrencia_origem=recorrencia, competencia='2026-08')
+        PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja).update(
+            approval_required=True,
+            segregation_level=PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED,
+        )
+
+        self.service.gerar_competencia(competencia='2026-09')
+
+        primeira.refresh_from_db()
+        segunda = ContaPagar.objects.get(recorrencia_origem=recorrencia, competencia='2026-09')
+        self.assertEqual(primeira.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(segunda.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
 
     def test_gerar_competencia_respeita_janela_de_inicio_e_fim(self):
         RecorrenciaContaPagar.objects.create(
@@ -1347,6 +1496,136 @@ class RecorrenciaContaPagarServiceTest(BaseFinanceiroTestCase):
         self.assertTrue(resultado['dry_run'])
         self.assertEqual(resultado['total_geradas'], 1)
         self.assertEqual(ContaPagar.objects.count(), 0)
+
+
+class ContaPagarAdminCreationIntegrationTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.user.is_staff = True
+        self.user.is_superuser = True
+        self.user.save(update_fields=['is_staff', 'is_superuser'])
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Admin Creation',
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Admin Creation',
+        )
+        self.client.force_login(self.user)
+
+    def _payload(self, descricao):
+        return {
+            'ministerio': str(self.ministerio.pk),
+            'igreja': str(self.igreja.pk),
+            'fornecedor': str(self.fornecedor.pk),
+            'categoria': str(self.categoria.pk),
+            'descricao': descricao,
+            'numero_documento': 'NF-ADMIN-123',
+            'valor': '100.00',
+            'data_emissao': '2026-10-10',
+            'data_vencimento': '2026-10-20',
+            'conta_debito': '',
+            'forma_pagamento': '',
+            'recorrencia_origem': '',
+            'competencia': '',
+            'criado_automaticamente': '',
+            'observacoes': 'Conta criada pelo Admin para teste.',
+            'usuario_criacao': '',
+        }
+
+    def test_admin_add_classifica_policy_simples_sem_criacao_duplicada(self):
+        response = self.client.post(
+            reverse('admin:financeiro_contapagar_add'),
+            data=self._payload('Conta Admin Simples'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta = ContaPagar.objects.get(descricao='Conta Admin Simples')
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=conta)
+        self.assertEqual(ContaPagar.objects.filter(descricao='Conta Admin Simples').count(), 1)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar=conta,
+                event_type=ContaPagarAutorizacaoEvento.EVENT_CREATED,
+            ).count(),
+            1,
+        )
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertTrue(conta.current_material_fingerprint)
+        self.assertEqual(event.actor, self.user)
+        self.assertIsNone(conta.usuario_criacao)
+
+    def test_admin_add_classifica_policy_exigindo_aprovacao(self):
+        PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja).update(
+            approval_required=True,
+            segregation_level=PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED,
+        )
+
+        response = self.client.post(
+            reverse('admin:financeiro_contapagar_add'),
+            data=self._payload('Conta Admin Pendente'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta = ContaPagar.objects.get(descricao='Conta Admin Pendente')
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=conta)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(event.actor, self.user)
+
+    def test_admin_change_nao_cria_nova_conta_nem_evento_created(self):
+        conta = create_payable(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Conta Admin Existente',
+            valor=Decimal('100.00'),
+            data_emissao=date(2026, 10, 10),
+            data_vencimento=date(2026, 10, 20),
+            actor=self.user,
+        )
+        payload = self._payload('Conta Admin Editada')
+        payload['usuario_criacao'] = ''
+        payload.update({
+            'status': conta.status,
+            'data_pagamento_0': '',
+            'data_pagamento_1': '',
+            'valor_pago': '',
+            'juros_multa': '0.00',
+            'desconto': '0.00',
+            'authorization_status': conta.authorization_status,
+            'authorization_origin': conta.authorization_origin,
+            'authorization_policy_version': str(conta.authorization_policy_version),
+            'current_material_fingerprint': conta.current_material_fingerprint,
+            'approved_material_fingerprint': '',
+            'approved_by': '',
+            'approved_at_0': '',
+            'approved_at_1': '',
+            'rejected_by': '',
+            'rejected_at_0': '',
+            'rejected_at_1': '',
+            'current_rejection_reason': '',
+        })
+
+        response = self.client.post(
+            reverse('admin:financeiro_contapagar_change', args=[conta.pk]),
+            data=payload,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.descricao, 'Conta Admin Editada')
+        self.assertEqual(ContaPagar.objects.count(), 1)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar=conta,
+                event_type=ContaPagarAutorizacaoEvento.EVENT_CREATED,
+            ).count(),
+            1,
+        )
 
 
 class RecorrenciaContaPagarFormTest(BaseFinanceiroTestCase):
@@ -2285,6 +2564,12 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
             )
 
         self.assertFalse(ContaPagar.objects.filter(igreja__in=[self.igreja_b, self.igreja_outro_ministerio]).exists())
+        self.assertFalse(
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar__igreja__in=[self.igreja_b, self.igreja_outro_ministerio],
+                event_type=ContaPagarAutorizacaoEvento.EVENT_CREATED,
+            ).exists()
+        )
         self.assertEqual(Despesas.objects.count(), 0)
 
     def test_pastor_local_no_escopo_cria_edita_e_cancela_conta(self):
@@ -2336,6 +2621,54 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertTrue(ContaPagar.objects.filter(igreja=self.igreja_a, descricao='Conta Tesoureiro').exists())
+
+    def test_criacao_manual_classifica_policy_simples_e_registra_evento_do_usuario(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-criacao-manual-simples',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:criar_conta_pagar'),
+            data=self._payload(self.igreja_a, 'Conta Manual Simples'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta = ContaPagar.objects.get(descricao='Conta Manual Simples')
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=conta)
+        self.assertEqual(ContaPagar.objects.filter(descricao='Conta Manual Simples').count(), 1)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertTrue(conta.current_material_fingerprint)
+        self.assertEqual(event.event_type, ContaPagarAutorizacaoEvento.EVENT_CREATED)
+        self.assertEqual(event.actor, tesoureiro)
+        self.assertEqual(conta.usuario_criacao, tesoureiro)
+
+    def test_criacao_manual_classifica_policy_exigindo_aprovacao(self):
+        PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja_a).update(
+            approval_required=True,
+            segregation_level=PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED,
+        )
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-criacao-manual-pendente',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:criar_conta_pagar'),
+            data=self._payload(self.igreja_a, 'Conta Manual Pendente'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta = ContaPagar.objects.get(descricao='Conta Manual Pendente')
+        event = ContaPagarAutorizacaoEvento.objects.get(conta_pagar=conta)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(event.actor, tesoureiro)
 
     def test_edicao_e_cancelamento_falham_fechado_com_escopo_vazio(self):
         tesoureiro, perfil = self._criar_usuario(

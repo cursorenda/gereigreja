@@ -990,9 +990,9 @@ class RecorrenciaContaPagarService:
                     total_geradas += 1
                     continue
 
-                with transaction.atomic():
-                    try:
-                        ContaPagar.objects.create(
+                try:
+                    with transaction.atomic():
+                        create_payable(
                             ministerio=recorrencia.ministerio,
                             igreja=recorrencia.igreja,
                             fornecedor=recorrencia.fornecedor,
@@ -1001,7 +1001,6 @@ class RecorrenciaContaPagarService:
                             valor=recorrencia.valor,
                             data_emissao=data_emissao,
                             data_vencimento=data_vencimento,
-                            status='PEN',
                             conta_debito=recorrencia.conta_debito_padrao,
                             forma_pagamento=recorrencia.forma_pagamento_padrao,
                             recorrencia_origem=recorrencia,
@@ -1009,12 +1008,23 @@ class RecorrenciaContaPagarService:
                             criado_automaticamente=True,
                             observacoes=recorrencia.observacoes,
                             usuario_criacao=recorrencia.usuario_criacao,
+                            actor=None,
                         )
                         recorrencia.ultima_competencia_gerada = competencia_str
                         recorrencia.save(update_fields=['ultima_competencia_gerada', 'data_atualizacao'])
                         total_geradas += 1
-                    except IntegrityError:
+                except ValidationError:
+                    if ContaPagar.objects.filter(
+                        recorrencia_origem=recorrencia,
+                        competencia=competencia_str,
+                    ).exists():
                         total_existentes += 1
+                    else:
+                        raise
+                except IntegrityError:
+                    total_existentes += 1
+            except ValidationError:
+                raise
             except Exception as exc:
                 erros.append(f"Recorrencia {recorrencia.id}: {exc}")
 

@@ -1,6 +1,7 @@
 """Admin para modelos de contas bancarias e permissoes."""
 from django.contrib import admin
 
+from .services import create_payable
 from .models import (
     ContaBancaria,
     ContaPagar,
@@ -30,6 +31,58 @@ class ContaPagarAdmin(admin.ModelAdmin):
     readonly_fields = ('data_criacao', 'data_atualizacao')
     autocomplete_fields = ['ministerio', 'igreja', 'fornecedor', 'categoria', 'conta_debito']
     date_hierarchy = 'data_vencimento'
+    add_exclude = (
+        'status',
+        'data_pagamento',
+        'valor_pago',
+        'juros_multa',
+        'desconto',
+        'comprovante',
+        'authorization_status',
+        'authorization_origin',
+        'authorization_policy_version',
+        'current_material_fingerprint',
+        'approved_material_fingerprint',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'current_rejection_reason',
+    )
+
+    def get_exclude(self, request, obj=None):
+        if obj is None:
+            return self.add_exclude
+        return super().get_exclude(request, obj)
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            super().save_model(request, obj, form, change)
+            return
+
+        payable = create_payable(
+            ministerio=obj.ministerio,
+            igreja=obj.igreja,
+            fornecedor=obj.fornecedor,
+            categoria=obj.categoria,
+            descricao=obj.descricao,
+            numero_documento=obj.numero_documento,
+            valor=obj.valor,
+            data_emissao=obj.data_emissao,
+            data_vencimento=obj.data_vencimento,
+            conta_debito=obj.conta_debito,
+            forma_pagamento=obj.forma_pagamento,
+            recorrencia_origem=obj.recorrencia_origem,
+            competencia=obj.competencia,
+            criado_automaticamente=obj.criado_automaticamente,
+            observacoes=obj.observacoes,
+            usuario_criacao=obj.usuario_criacao,
+            actor=request.user,
+        )
+        for field in obj._meta.concrete_fields:
+            setattr(obj, field.attname, getattr(payable, field.attname))
+        obj._state.adding = False
+        obj._state.db = payable._state.db
 
 
 @admin.register(PermissaoCaixa)
