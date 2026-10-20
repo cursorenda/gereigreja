@@ -104,6 +104,7 @@ from .services import (
     RecorrenciaContaPagarService,
     ReceitaFluxoService,
     create_payable,
+    refresh_payable_material_fingerprint,
 )
 from contas.constants import PASTOR_LOCAL, user_has_permission_level_or_higher
 
@@ -4166,6 +4167,7 @@ def editar_conta_pagar(request, pk): # noqa: E302
                     if conta_editada.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
                     if conta_editada.categoria and conta_editada.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
 
+                    refresh_payable_material_fingerprint(conta_editada)
                     conta_editada.save()
                     messages.success(request, f'Conta a pagar "{conta.descricao}" atualizada com sucesso!')
                     return redirect('financeiro:lista_contas_pagar')

@@ -74,6 +74,13 @@ def compute_payable_material_fingerprint_v1(snapshot):
     return f'{PAYABLE_FINGERPRINT_PREFIX}{hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()}'
 
 
+def refresh_payable_material_fingerprint(payable):
+    material_snapshot = build_payable_material_snapshot_v1(payable)
+    fingerprint = compute_payable_material_fingerprint_v1(material_snapshot)
+    payable.current_material_fingerprint = fingerprint
+    return fingerprint
+
+
 def _resolve_payable_policy(igreja):
     policy, _ = PoliticaFinanceiraIgreja.objects.get_or_create(
         igreja=igreja,

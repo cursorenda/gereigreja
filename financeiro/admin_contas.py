@@ -1,7 +1,7 @@
 """Admin para modelos de contas bancarias e permissoes."""
 from django.contrib import admin
 
-from .services import create_payable
+from .services import create_payable, refresh_payable_material_fingerprint
 from .models import (
     ContaBancaria,
     ContaPagar,
@@ -57,6 +57,7 @@ class ContaPagarAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if change:
+            refresh_payable_material_fingerprint(obj)
             super().save_model(request, obj, form, change)
             return
 
