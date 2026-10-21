@@ -51,7 +51,10 @@ from financeiro.forms import ContaBancariaForm, DespesaForm, ReceitaForm, Transf
 from financeiro.services import (
     AlertaVencimentoContaPagarService,
     build_payable_material_snapshot_v1,
+    build_payable_authorization_edit_snapshot,
     compute_payable_material_fingerprint_v1,
+    plan_payable_authorization_after_edit,
+    apply_payable_authorization_edit_plan,
     create_payable,
     approve_payable,
     reject_payable,
@@ -973,6 +976,300 @@ class ContaPagarFormalAuthorizationServiceTest(BaseFinanceiroTestCase):
             ).count(),
             1,
         )
+
+
+class ContaPagarAuthorizationEditReclassificationPlannerTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Reclassificação B3B1',
+        )
+        self.actor = get_user_model().objects.create_user(username='actor-reclassificacao-b3b1')
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja B Reclassificação',
+            tipo_igreja='congregacao',
+        )
+
+    def _configure_policy(self, igreja, *, required, version):
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+        policy.approval_required = required
+        policy.segregation_level = (
+            PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED
+            if required else PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE
+        )
+        policy.version = version
+        policy.save()
+        return policy
+
+    def _create_payable(self, *, igreja=None, descricao='Conta para reclassificação'):
+        return create_payable(
+            ministerio=self.ministerio,
+            igreja=igreja or self.igreja,
+            fornecedor=self.fornecedor,
+            descricao=descricao,
+            valor=Decimal('120.00'),
+            data_emissao=date(2026, 10, 13),
+            data_vencimento=date(2026, 10, 20),
+            usuario_criacao=self.actor,
+            actor=self.actor,
+        )
+
+    def _set_before_authorization(self, payable, status, *, origin=None):
+        payable.authorization_status = status
+        payable.authorization_origin = origin or (
+            ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+            if status in {
+                ContaPagar.AUTHORIZATION_PENDING,
+                ContaPagar.AUTHORIZATION_APPROVED,
+                ContaPagar.AUTHORIZATION_REJECTED,
+            }
+            else ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
+        )
+        payable.authorization_policy_version = 7
+        payable.current_material_fingerprint = 'v1:sha256:' + ('f' * 64)
+        payable.approved_material_fingerprint = 'v1:sha256:' + ('a' * 64)
+        payable.approved_by = self.actor
+        payable.approved_at = timezone.now()
+        payable.rejected_by = self.actor
+        payable.rejected_at = timezone.now()
+        payable.current_rejection_reason = 'Razão anterior'
+        return payable
+
+    def _materially_edit(self, payable):
+        payable.descricao = f'{payable.descricao} editada'
+        return payable
+
+    def _assert_evidence_cleared(self, payable):
+        self.assertIsNone(payable.approved_material_fingerprint)
+        self.assertIsNone(payable.approved_by)
+        self.assertIsNone(payable.approved_at)
+        self.assertIsNone(payable.rejected_by)
+        self.assertIsNone(payable.rejected_at)
+        self.assertIsNone(payable.current_rejection_reason)
+
+    def test_snapshot_is_pure_and_recomputes_material_fingerprint_despite_stale_storage(self):
+        policy = self._configure_policy(self.igreja, required=True, version=3)
+        payable = self._create_payable()
+        payable.current_material_fingerprint = 'v1:sha256:' + ('0' * 64)
+        persisted_before = ContaPagar.objects.get(pk=payable.pk)
+
+        before = build_payable_authorization_edit_snapshot(payable)
+        self._materially_edit(payable)
+        plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+
+        self.assertEqual(
+            before.material_fingerprint,
+            compute_payable_material_fingerprint_v1(before.material_snapshot),
+        )
+        self.assertNotEqual(before.material_fingerprint, payable.current_material_fingerprint)
+        self.assertTrue(plan.material_changed)
+        self.assertNotEqual(plan.after_material_fingerprint, before.material_fingerprint)
+        self.assertEqual(ContaPagar.objects.get(pk=payable.pk).pk, persisted_before.pk)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_non_material_edit_is_authorization_noop_and_apply_is_in_memory_only(self):
+        policy = self._configure_policy(self.igreja, required=True, version=4)
+        payable = self._set_before_authorization(
+            self._create_payable(),
+            ContaPagar.AUTHORIZATION_APPROVED,
+        )
+        before = build_payable_authorization_edit_snapshot(payable)
+        persisted = ContaPagar.objects.get(pk=payable.pk)
+        payable.observacoes = 'Alteração não material'
+
+        plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+        apply_payable_authorization_edit_plan(payable, plan)
+
+        self.assertFalse(plan.material_changed)
+        self.assertFalse(plan.church_changed)
+        self.assertEqual(plan.event_types, ())
+        self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(payable.approved_by, self.actor)
+        self.assertEqual(ContaPagar.objects.get(pk=payable.pk).authorization_status, persisted.authorization_status)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_material_edit_with_null_authorization_fails_closed(self):
+        policy = self._configure_policy(self.igreja, required=True, version=5)
+        payable = self._create_payable()
+        payable.authorization_status = None
+        before = build_payable_authorization_edit_snapshot(payable)
+        self._materially_edit(payable)
+
+        with self.assertRaises(ValidationError):
+            plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+
+    def test_material_edit_policy_false_reclassifies_all_authorization_states_and_clears_evidence(self):
+        policy = self._configure_policy(self.igreja, required=False, version=6)
+        for status in (
+            ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+            ContaPagar.AUTHORIZATION_PENDING,
+            ContaPagar.AUTHORIZATION_APPROVED,
+            ContaPagar.AUTHORIZATION_REJECTED,
+        ):
+            with self.subTest(status=status):
+                payable = self._set_before_authorization(self._create_payable(descricao=f'False {status}'), status)
+                before = build_payable_authorization_edit_snapshot(payable)
+                self._materially_edit(payable)
+
+                plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+                apply_payable_authorization_edit_plan(payable, plan)
+
+                self.assertEqual(plan.target_authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+                self.assertEqual(plan.target_authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+                self.assertEqual(plan.target_authorization_policy_version, 6)
+                self.assertEqual(plan.event_types, (ContaPagarAutorizacaoEvento.EVENT_EDITED,))
+                self.assertTrue(plan.clear_approval_evidence)
+                self.assertTrue(plan.clear_rejection_evidence)
+                self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+                self._assert_evidence_cleared(payable)
+
+    def test_material_edit_policy_true_reclassifies_matrix_with_deterministic_events(self):
+        policy = self._configure_policy(self.igreja, required=True, version=7)
+        expected_events = {
+            ContaPagar.AUTHORIZATION_NOT_REQUIRED: (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            ),
+            ContaPagar.AUTHORIZATION_PENDING: (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ),
+            ContaPagar.AUTHORIZATION_APPROVED: (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            ),
+            ContaPagar.AUTHORIZATION_REJECTED: (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            ),
+        }
+        for status, events in expected_events.items():
+            with self.subTest(status=status):
+                payable = self._set_before_authorization(self._create_payable(descricao=f'True {status}'), status)
+                before = build_payable_authorization_edit_snapshot(payable)
+                self._materially_edit(payable)
+
+                plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+                apply_payable_authorization_edit_plan(payable, plan)
+
+                self.assertEqual(plan.target_authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+                self.assertEqual(plan.target_authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+                self.assertEqual(plan.target_authorization_policy_version, 7)
+                self.assertEqual(plan.event_types, events)
+                self.assertTrue(plan.clear_approval_evidence)
+                self.assertTrue(plan.clear_rejection_evidence)
+                self._assert_evidence_cleared(payable)
+
+    def test_pending_material_edit_with_church_change_plans_new_request(self):
+        self._configure_policy(self.igreja, required=True, version=8)
+        target_policy = self._configure_policy(self.igreja_b, required=True, version=9)
+        payable = self._set_before_authorization(self._create_payable(), ContaPagar.AUTHORIZATION_PENDING)
+        before = build_payable_authorization_edit_snapshot(payable)
+        payable.igreja = self.igreja_b
+        self._materially_edit(payable)
+
+        plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=target_policy)
+
+        self.assertTrue(plan.material_changed)
+        self.assertTrue(plan.church_changed)
+        self.assertEqual(
+            plan.event_types,
+            (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            ),
+        )
+
+    def test_church_change_policy_matrix(self):
+        cases = (
+            (False, ContaPagar.AUTHORIZATION_NOT_REQUIRED, False, ContaPagar.AUTHORIZATION_NOT_REQUIRED, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            )),
+            (False, ContaPagar.AUTHORIZATION_NOT_REQUIRED, True, ContaPagar.AUTHORIZATION_PENDING, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            )),
+            (True, ContaPagar.AUTHORIZATION_APPROVED, False, ContaPagar.AUTHORIZATION_NOT_REQUIRED, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            )),
+            (True, ContaPagar.AUTHORIZATION_PENDING, False, ContaPagar.AUTHORIZATION_NOT_REQUIRED, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            )),
+            (True, ContaPagar.AUTHORIZATION_REJECTED, False, ContaPagar.AUTHORIZATION_NOT_REQUIRED, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            )),
+            (True, ContaPagar.AUTHORIZATION_NOT_REQUIRED, True, ContaPagar.AUTHORIZATION_PENDING, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            )),
+            (True, ContaPagar.AUTHORIZATION_PENDING, True, ContaPagar.AUTHORIZATION_PENDING, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            )),
+            (True, ContaPagar.AUTHORIZATION_APPROVED, True, ContaPagar.AUTHORIZATION_PENDING, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            )),
+            (True, ContaPagar.AUTHORIZATION_REJECTED, True, ContaPagar.AUTHORIZATION_PENDING, (
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            )),
+        )
+        for source_required, before_status, target_required, target_status, events in cases:
+            with self.subTest(source_required=source_required, target_required=target_required):
+                self._configure_policy(self.igreja, required=source_required, version=10)
+                target_policy = self._configure_policy(self.igreja_b, required=target_required, version=11)
+                payable = self._set_before_authorization(
+                    self._create_payable(descricao=f'Church {source_required}-{target_required}'),
+                    before_status,
+                )
+                before = build_payable_authorization_edit_snapshot(payable)
+                payable.igreja = self.igreja_b
+                self._materially_edit(payable)
+
+                plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=target_policy)
+
+                self.assertTrue(plan.church_changed)
+                self.assertEqual(plan.target_authorization_status, target_status)
+                self.assertEqual(plan.target_authorization_policy_version, 11)
+                self.assertEqual(plan.event_types, events)
+
+    def test_legacy_not_required_material_edit_uses_current_policy_and_apply_does_not_persist_or_create_events(self):
+        policy = self._configure_policy(self.igreja, required=False, version=12)
+        payable = self._set_before_authorization(
+            self._create_payable(),
+            ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+            origin=ContaPagar.AUTHORIZATION_ORIGIN_LEGACY_MIGRATION,
+        )
+        before = build_payable_authorization_edit_snapshot(payable)
+        persisted = ContaPagar.objects.get(pk=payable.pk)
+        self._materially_edit(payable)
+
+        plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+        apply_payable_authorization_edit_plan(payable, plan)
+
+        self.assertEqual(payable.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertEqual(payable.authorization_policy_version, 12)
+        self.assertEqual(ContaPagar.objects.get(pk=payable.pk).descricao, persisted.descricao)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_policy_must_be_valid_and_belong_to_resulting_church(self):
+        invalid_policy = PoliticaFinanceiraIgreja.objects.get(igreja=self.igreja)
+        invalid_policy.approval_required = True
+        invalid_policy.segregation_level = PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE
+        payable = self._create_payable()
+        before = build_payable_authorization_edit_snapshot(payable)
+        self._materially_edit(payable)
+
+        with self.assertRaises(ValidationError):
+            plan_payable_authorization_after_edit(payable=payable, before=before, policy=invalid_policy)
+
+        valid_other_policy = self._configure_policy(self.igreja_b, required=True, version=13)
+        with self.assertRaises(ValidationError):
+            plan_payable_authorization_after_edit(payable=payable, before=before, policy=valid_other_policy)
 
 
 @skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')

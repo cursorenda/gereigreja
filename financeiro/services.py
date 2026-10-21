@@ -2,6 +2,7 @@ import re
 import hashlib
 import json
 import unicodedata
+from dataclasses import dataclass
 from hashlib import sha256
 from datetime import datetime, timedelta
 from calendar import monthrange
@@ -46,6 +47,37 @@ PAYABLE_FINGERPRINT_SCHEMA_VERSION = 1
 PAYABLE_FINGERPRINT_PREFIX = 'v1:sha256:'
 
 
+@dataclass(frozen=True)
+class PayableAuthorizationEditSnapshot:
+    igreja_id: int
+    material_snapshot: dict
+    material_fingerprint: str
+    authorization_status: str | None
+    authorization_origin: str | None
+    authorization_policy_version: int | None
+    current_material_fingerprint: str | None
+    approved_material_fingerprint: str | None
+    approved_by_id: int | None
+    approved_at: object
+    rejected_by_id: int | None
+    rejected_at: object
+    current_rejection_reason: str | None
+
+
+@dataclass(frozen=True)
+class PayableAuthorizationEditPlan:
+    material_changed: bool
+    church_changed: bool
+    after_material_snapshot: dict
+    after_material_fingerprint: str
+    target_authorization_status: str | None
+    target_authorization_origin: str | None
+    target_authorization_policy_version: int | None
+    clear_approval_evidence: bool
+    clear_rejection_evidence: bool
+    event_types: tuple[str, ...]
+
+
 def build_payable_material_snapshot_v1(conta_pagar):
     """Builds the v1 material snapshot byte-compatible with migration 0020."""
     return {
@@ -80,6 +112,105 @@ def refresh_payable_material_fingerprint(payable):
     fingerprint = compute_payable_material_fingerprint_v1(material_snapshot)
     payable.current_material_fingerprint = fingerprint
     return fingerprint
+
+
+def build_payable_authorization_edit_snapshot(payable):
+    """Captura o estado de autorização antes de uma edição, sem efeitos colaterais."""
+    material_snapshot = build_payable_material_snapshot_v1(payable)
+    material_fingerprint = compute_payable_material_fingerprint_v1(material_snapshot)
+    return PayableAuthorizationEditSnapshot(
+        igreja_id=payable.igreja_id,
+        material_snapshot=material_snapshot,
+        material_fingerprint=material_fingerprint,
+        authorization_status=payable.authorization_status,
+        authorization_origin=payable.authorization_origin,
+        authorization_policy_version=payable.authorization_policy_version,
+        current_material_fingerprint=payable.current_material_fingerprint,
+        approved_material_fingerprint=payable.approved_material_fingerprint,
+        approved_by_id=payable.approved_by_id,
+        approved_at=payable.approved_at,
+        rejected_by_id=payable.rejected_by_id,
+        rejected_at=payable.rejected_at,
+        current_rejection_reason=payable.current_rejection_reason,
+    )
+
+
+def plan_payable_authorization_after_edit(*, payable, before, policy):
+    """Calcula a reclassificação de autorização após uma edição material/contextual.
+
+    O chamador B3B2 deverá fornecer a política vigente da igreja resultante sob lock,
+    persistir os campos e materializar os eventos declarados no plano.
+    """
+    after_material_snapshot = build_payable_material_snapshot_v1(payable)
+    after_material_fingerprint = compute_payable_material_fingerprint_v1(after_material_snapshot)
+    material_changed = before.material_fingerprint != after_material_fingerprint
+    church_changed = before.igreja_id != payable.igreja_id
+
+    if not material_changed:
+        return PayableAuthorizationEditPlan(
+            material_changed=False,
+            church_changed=church_changed,
+            after_material_snapshot=after_material_snapshot,
+            after_material_fingerprint=after_material_fingerprint,
+            target_authorization_status=before.authorization_status,
+            target_authorization_origin=before.authorization_origin,
+            target_authorization_policy_version=before.authorization_policy_version,
+            clear_approval_evidence=False,
+            clear_rejection_evidence=False,
+            event_types=(),
+        )
+
+    policy.full_clean()
+    if policy.igreja_id != payable.igreja_id:
+        raise ValidationError('A política informada deve pertencer à igreja resultante da conta a pagar.')
+
+    if before.authorization_status is None:
+        raise ValidationError('A edição material exige status de autorização pré-existente.')
+
+    event_types = [ContaPagarAutorizacaoEvento.EVENT_EDITED]
+    if policy.approval_required:
+        target_authorization_status = ContaPagar.AUTHORIZATION_PENDING
+        target_authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        if before.authorization_status == ContaPagar.AUTHORIZATION_APPROVED:
+            event_types.append(ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED)
+        if before.authorization_status != ContaPagar.AUTHORIZATION_PENDING or church_changed:
+            event_types.append(ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED)
+    else:
+        target_authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
+        target_authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
+
+    return PayableAuthorizationEditPlan(
+        material_changed=True,
+        church_changed=church_changed,
+        after_material_snapshot=after_material_snapshot,
+        after_material_fingerprint=after_material_fingerprint,
+        target_authorization_status=target_authorization_status,
+        target_authorization_origin=target_authorization_origin,
+        target_authorization_policy_version=policy.version,
+        clear_approval_evidence=True,
+        clear_rejection_evidence=True,
+        event_types=tuple(event_types),
+    )
+
+
+def apply_payable_authorization_edit_plan(payable, plan):
+    """Aplica em memória um plano B3B1; persistência e eventos pertencem ao B3B2."""
+    if not plan.material_changed:
+        return payable
+
+    payable.current_material_fingerprint = plan.after_material_fingerprint
+    payable.authorization_status = plan.target_authorization_status
+    payable.authorization_origin = plan.target_authorization_origin
+    payable.authorization_policy_version = plan.target_authorization_policy_version
+    if plan.clear_approval_evidence:
+        payable.approved_material_fingerprint = None
+        payable.approved_by = None
+        payable.approved_at = None
+    if plan.clear_rejection_evidence:
+        payable.rejected_by = None
+        payable.rejected_at = None
+        payable.current_rejection_reason = None
+    return payable
 
 
 def _resolve_payable_policy(igreja):
