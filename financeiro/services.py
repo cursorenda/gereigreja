@@ -213,6 +213,113 @@ def apply_payable_authorization_edit_plan(payable, plan):
     return payable
 
 
+def _create_payable_authorization_event(
+    *,
+    payable,
+    event_type,
+    actor,
+    authorization_status_before,
+    authorization_status_after,
+    financial_status_before,
+    financial_status_after,
+    material_fingerprint,
+    material_snapshot,
+    policy,
+    reason=None,
+    correlation_id=None,
+):
+    """Materializa um evento de autorização com os fatos fornecidos pelo orquestrador."""
+    valid_event_types = {event_type for event_type, _ in ContaPagarAutorizacaoEvento.EVENT_TYPE_CHOICES}
+    if event_type not in valid_event_types:
+        raise ValidationError('Tipo de evento de autorização inválido.')
+
+    actor_user_id_snapshot, actor_display_name_snapshot = _build_actor_snapshot(actor)
+    return ContaPagarAutorizacaoEvento.objects.create(
+        conta_pagar=payable,
+        event_type=event_type,
+        actor=actor,
+        actor_user_id_snapshot=actor_user_id_snapshot,
+        actor_display_name_snapshot=actor_display_name_snapshot,
+        authorization_status_before=authorization_status_before,
+        authorization_status_after=authorization_status_after,
+        financial_status_before=financial_status_before,
+        financial_status_after=financial_status_after,
+        material_fingerprint=material_fingerprint,
+        material_snapshot=material_snapshot,
+        policy_snapshot=_build_policy_snapshot(policy),
+        reason=reason,
+        correlation_id=correlation_id,
+    )
+
+
+def _materialize_payable_edit_authorization_events(
+    *,
+    payable,
+    before,
+    plan,
+    policy,
+    actor,
+    financial_status_before,
+    financial_status_after,
+):
+    """Materializa, na ordem do plano B3B1, os eventos de uma edição material."""
+    if not plan.material_changed:
+        return ()
+
+    created_events = []
+    for event_type in plan.event_types:
+        if event_type == ContaPagarAutorizacaoEvento.EVENT_EDITED:
+            event = _create_payable_authorization_event(
+                payable=payable,
+                event_type=event_type,
+                actor=actor,
+                authorization_status_before=before.authorization_status,
+                authorization_status_after=plan.target_authorization_status,
+                financial_status_before=financial_status_before,
+                financial_status_after=financial_status_after,
+                material_fingerprint=plan.after_material_fingerprint,
+                material_snapshot=plan.after_material_snapshot,
+                policy=policy,
+                reason=None,
+                correlation_id=None,
+            )
+        elif event_type == ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED:
+            event = _create_payable_authorization_event(
+                payable=payable,
+                event_type=event_type,
+                actor=actor,
+                authorization_status_before=ContaPagar.AUTHORIZATION_APPROVED,
+                authorization_status_after=ContaPagar.AUTHORIZATION_PENDING,
+                financial_status_before=financial_status_before,
+                financial_status_after=financial_status_after,
+                material_fingerprint=plan.after_material_fingerprint,
+                material_snapshot=plan.after_material_snapshot,
+                policy=policy,
+                reason='Aprovação invalidada por alteração material da conta.',
+                correlation_id=None,
+            )
+        elif event_type == ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED:
+            event = _create_payable_authorization_event(
+                payable=payable,
+                event_type=event_type,
+                actor=actor,
+                authorization_status_before=ContaPagar.AUTHORIZATION_PENDING,
+                authorization_status_after=ContaPagar.AUTHORIZATION_PENDING,
+                financial_status_before=financial_status_before,
+                financial_status_after=financial_status_after,
+                material_fingerprint=plan.after_material_fingerprint,
+                material_snapshot=plan.after_material_snapshot,
+                policy=policy,
+                reason=None,
+                correlation_id=None,
+            )
+        else:
+            raise ValidationError('Tipo de evento de edição de autorização não suportado.')
+        created_events.append(event)
+
+    return tuple(created_events)
+
+
 def _resolve_payable_policy(igreja):
     policy, _ = PoliticaFinanceiraIgreja.objects.get_or_create(
         igreja=igreja,

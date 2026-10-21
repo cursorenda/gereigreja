@@ -8,6 +8,7 @@ import textwrap
 from types import SimpleNamespace
 from unittest import skipUnless
 from unittest.mock import MagicMock, call, patch
+from uuid import uuid4
 
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
@@ -49,6 +50,8 @@ from financeiro.models import (
 from financeiro.forms import ContaPagarForm, RecorrenciaContaPagarForm
 from financeiro.forms import ContaBancariaForm, DespesaForm, ReceitaForm, TransferenciaCaixaForm
 from financeiro.services import (
+    _create_payable_authorization_event,
+    _materialize_payable_edit_authorization_events,
     AlertaVencimentoContaPagarService,
     build_payable_material_snapshot_v1,
     build_payable_authorization_edit_snapshot,
@@ -1270,6 +1273,370 @@ class ContaPagarAuthorizationEditReclassificationPlannerTest(BaseFinanceiroTestC
         valid_other_policy = self._configure_policy(self.igreja_b, required=True, version=13)
         with self.assertRaises(ValidationError):
             plan_payable_authorization_after_edit(payable=payable, before=before, policy=valid_other_policy)
+
+
+class ContaPagarAuthorizationEditEventMaterializationTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Materialização B3B2A',
+        )
+        self.actor = get_user_model().objects.create_user(
+            username='actor-materializacao-b3b2a',
+            first_name='Editor',
+            last_name='B3B2A',
+        )
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja B Materialização',
+            tipo_igreja='congregacao',
+        )
+
+    def _configure_policy(self, igreja, *, required, version):
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+        policy.approval_required = required
+        policy.segregation_level = (
+            PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED
+            if required else PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE
+        )
+        policy.version = version
+        policy.save()
+        return policy
+
+    def _create_payable(self, *, igreja=None, descricao='Conta para materialização'):
+        return create_payable(
+            ministerio=self.ministerio,
+            igreja=igreja or self.igreja,
+            fornecedor=self.fornecedor,
+            descricao=descricao,
+            valor=Decimal('120.00'),
+            data_emissao=date(2026, 10, 13),
+            data_vencimento=date(2026, 10, 20),
+            usuario_criacao=self.actor,
+            actor=self.actor,
+        )
+
+    def _set_before_authorization(self, payable, status):
+        payable.authorization_status = status
+        payable.authorization_origin = (
+            ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+            if status != ContaPagar.AUTHORIZATION_NOT_REQUIRED
+            else ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
+        )
+        payable.authorization_policy_version = 7
+        payable.current_material_fingerprint = 'v1:sha256:' + ('f' * 64)
+        payable.approved_material_fingerprint = 'v1:sha256:' + ('a' * 64)
+        payable.approved_by = self.actor
+        payable.approved_at = timezone.now()
+        payable.rejected_by = self.actor
+        payable.rejected_at = timezone.now()
+        payable.current_rejection_reason = 'Razão anterior'
+        return payable
+
+    def _material_plan(self, *, before_status, policy_required, church_changed=False):
+        payable = self._set_before_authorization(self._create_payable(), before_status)
+        before = build_payable_authorization_edit_snapshot(payable)
+        if church_changed:
+            payable.igreja = self.igreja_b
+            policy = self._configure_policy(self.igreja_b, required=policy_required, version=9)
+        else:
+            policy = self._configure_policy(self.igreja, required=policy_required, version=8)
+        payable.descricao = f'{payable.descricao} editada'
+        plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+        return payable, before, plan, policy
+
+    def _materialize(self, *, before_status, policy_required, church_changed=False):
+        payable, before, plan, policy = self._material_plan(
+            before_status=before_status,
+            policy_required=policy_required,
+            church_changed=church_changed,
+        )
+        events = _materialize_payable_edit_authorization_events(
+            payable=payable,
+            before=before,
+            plan=plan,
+            policy=policy,
+            actor=self.actor,
+            financial_status_before='PEN',
+            financial_status_after='VEN',
+        )
+        return payable, before, plan, policy, events
+
+    def _assert_common_payload(self, event, *, plan, policy):
+        self.assertEqual(event.actor, self.actor)
+        self.assertEqual(event.actor_user_id_snapshot, self.actor.pk)
+        self.assertEqual(event.actor_display_name_snapshot, 'Editor B3B2A')
+        self.assertEqual(event.financial_status_before, 'PEN')
+        self.assertEqual(event.financial_status_after, 'VEN')
+        self.assertEqual(event.material_fingerprint, plan.after_material_fingerprint)
+        self.assertEqual(event.material_snapshot, plan.after_material_snapshot)
+        self.assertEqual(event.policy_snapshot, {
+            'policy_id': policy.pk,
+            'policy_version': policy.version,
+            'approval_required': policy.approval_required,
+            'segregation_level': policy.segregation_level,
+        })
+        self.assertIsNone(event.correlation_id)
+
+    def test_generic_helper_persists_explicit_fields_and_snapshots(self):
+        payable = self._create_payable()
+        policy = self._configure_policy(self.igreja, required=True, version=21)
+        snapshot = {'fingerprint_schema_version': 1, 'descricao': 'material explícito'}
+
+        event = _create_payable_authorization_event(
+            payable=payable,
+            event_type=ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            actor=self.actor,
+            authorization_status_before=ContaPagar.AUTHORIZATION_REJECTED,
+            authorization_status_after=ContaPagar.AUTHORIZATION_PENDING,
+            financial_status_before='PEN',
+            financial_status_after='VEN',
+            material_fingerprint='v1:sha256:' + ('e' * 64),
+            material_snapshot=snapshot,
+            policy=policy,
+            reason='Motivo explícito',
+        )
+
+        self.assertEqual(event.authorization_status_before, ContaPagar.AUTHORIZATION_REJECTED)
+        self.assertEqual(event.authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(event.financial_status_before, 'PEN')
+        self.assertEqual(event.financial_status_after, 'VEN')
+        self.assertEqual(event.material_fingerprint, 'v1:sha256:' + ('e' * 64))
+        self.assertEqual(event.material_snapshot, snapshot)
+        self.assertEqual(event.reason, 'Motivo explícito')
+        self.assertEqual(event.actor, self.actor)
+        self.assertEqual(event.actor_user_id_snapshot, self.actor.pk)
+        self.assertEqual(event.actor_display_name_snapshot, 'Editor B3B2A')
+        self.assertEqual(event.policy_snapshot['policy_id'], policy.pk)
+        self.assertIsNone(event.correlation_id)
+
+    def test_generic_helper_preserves_none_actor_and_explicit_correlation_id(self):
+        payable = self._create_payable()
+        policy = self._configure_policy(self.igreja, required=False, version=22)
+        correlation_id = uuid4()
+
+        event = _create_payable_authorization_event(
+            payable=payable,
+            event_type=ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            actor=None,
+            authorization_status_before=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+            authorization_status_after=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+            financial_status_before='PEN',
+            financial_status_after='PEN',
+            material_fingerprint='v1:sha256:' + ('d' * 64),
+            material_snapshot={'fingerprint_schema_version': 1},
+            policy=policy,
+            correlation_id=correlation_id,
+        )
+
+        self.assertIsNone(event.actor)
+        self.assertIsNone(event.actor_user_id_snapshot)
+        self.assertIsNone(event.actor_display_name_snapshot)
+        self.assertEqual(event.correlation_id, correlation_id)
+
+    def test_non_material_plan_materializes_zero_events(self):
+        payable = self._set_before_authorization(
+            self._create_payable(),
+            ContaPagar.AUTHORIZATION_APPROVED,
+        )
+        before = build_payable_authorization_edit_snapshot(payable)
+        policy = self._configure_policy(self.igreja, required=True, version=23)
+        plan = plan_payable_authorization_after_edit(payable=payable, before=before, policy=policy)
+
+        events = _materialize_payable_edit_authorization_events(
+            payable=payable,
+            before=before,
+            plan=plan,
+            policy=policy,
+            actor=self.actor,
+            financial_status_before='PEN',
+            financial_status_after='PEN',
+        )
+
+        self.assertEqual(events, ())
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_not_required_material_policy_false_materializes_edited_only(self):
+        _, before, plan, policy, events = self._materialize(
+            before_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+            policy_required=False,
+        )
+
+        self.assertEqual([event.event_type for event in events], [ContaPagarAutorizacaoEvento.EVENT_EDITED])
+        edited = events[0]
+        self.assertEqual(edited.authorization_status_before, before.authorization_status)
+        self.assertEqual(edited.authorization_status_after, plan.target_authorization_status)
+        self.assertIsNone(edited.reason)
+        self._assert_common_payload(edited, plan=plan, policy=policy)
+
+    def test_not_required_material_policy_true_materializes_edited_and_requested(self):
+        _, before, plan, policy, events = self._materialize(
+            before_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+            policy_required=True,
+        )
+
+        self.assertEqual([event.event_type for event in events], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+        self.assertEqual(events[0].authorization_status_before, before.authorization_status)
+        self.assertEqual(events[0].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(events[1].authorization_status_before, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(events[1].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self._assert_common_payload(events[0], plan=plan, policy=policy)
+        self._assert_common_payload(events[1], plan=plan, policy=policy)
+
+    def test_pending_material_same_context_materializes_edited_only(self):
+        _, before, plan, policy, events = self._materialize(
+            before_status=ContaPagar.AUTHORIZATION_PENDING,
+            policy_required=True,
+        )
+
+        self.assertEqual([event.event_type for event in events], [ContaPagarAutorizacaoEvento.EVENT_EDITED])
+        self.assertEqual(events[0].authorization_status_before, before.authorization_status)
+        self.assertEqual(events[0].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self._assert_common_payload(events[0], plan=plan, policy=policy)
+
+    def test_pending_changed_church_materializes_edited_and_requested(self):
+        _, _, plan, policy, events = self._materialize(
+            before_status=ContaPagar.AUTHORIZATION_PENDING,
+            policy_required=True,
+            church_changed=True,
+        )
+
+        self.assertEqual([event.event_type for event in events], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+        self._assert_common_payload(events[0], plan=plan, policy=policy)
+        self._assert_common_payload(events[1], plan=plan, policy=policy)
+
+    def test_approved_material_persists_all_events_in_plan_order(self):
+        _, before, plan, policy, events = self._materialize(
+            before_status=ContaPagar.AUTHORIZATION_APPROVED,
+            policy_required=True,
+        )
+
+        self.assertEqual([event.event_type for event in events], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+        self.assertEqual([event.event_type for event in sorted(events, key=lambda event: event.id)], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+        self.assertEqual(events[0].authorization_status_before, before.authorization_status)
+        self.assertEqual(events[0].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertIsNone(events[0].reason)
+        self.assertIsNone(events[0].correlation_id)
+        self.assertEqual(events[1].authorization_status_before, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(events[1].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(events[1].reason, 'Aprovação invalidada por alteração material da conta.')
+        self.assertIsNone(events[1].correlation_id)
+        self.assertEqual(events[2].authorization_status_before, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(events[2].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertIsNone(events[2].reason)
+        self.assertIsNone(events[2].correlation_id)
+        for event in events:
+            self._assert_common_payload(event, plan=plan, policy=policy)
+
+    def test_rejected_material_materializes_edited_and_requested(self):
+        _, before, plan, policy, events = self._materialize(
+            before_status=ContaPagar.AUTHORIZATION_REJECTED,
+            policy_required=True,
+        )
+
+        self.assertEqual([event.event_type for event in events], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+        self.assertEqual(events[0].authorization_status_before, before.authorization_status)
+        self.assertEqual(events[0].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(events[1].authorization_status_before, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(events[1].authorization_status_after, ContaPagar.AUTHORIZATION_PENDING)
+        self._assert_common_payload(events[0], plan=plan, policy=policy)
+        self._assert_common_payload(events[1], plan=plan, policy=policy)
+
+    def test_materializer_does_not_mutate_or_save_payable(self):
+        payable, before, plan, policy = self._material_plan(
+            before_status=ContaPagar.AUTHORIZATION_APPROVED,
+            policy_required=True,
+        )
+        state_before = {
+            'authorization_status': payable.authorization_status,
+            'authorization_origin': payable.authorization_origin,
+            'authorization_policy_version': payable.authorization_policy_version,
+            'current_material_fingerprint': payable.current_material_fingerprint,
+            'approved_material_fingerprint': payable.approved_material_fingerprint,
+            'approved_by_id': payable.approved_by_id,
+            'approved_at': payable.approved_at,
+            'rejected_by_id': payable.rejected_by_id,
+            'rejected_at': payable.rejected_at,
+            'current_rejection_reason': payable.current_rejection_reason,
+            'status': payable.status,
+            'data_pagamento': payable.data_pagamento,
+            'valor_pago': payable.valor_pago,
+            'juros_multa': payable.juros_multa,
+            'desconto': payable.desconto,
+            'conta_debito_id': payable.conta_debito_id,
+            'forma_pagamento': payable.forma_pagamento,
+            'comprovante': payable.comprovante.name if payable.comprovante else None,
+        }
+        persisted_description = ContaPagar.objects.get(pk=payable.pk).descricao
+
+        _materialize_payable_edit_authorization_events(
+            payable=payable,
+            before=before,
+            plan=plan,
+            policy=policy,
+            actor=self.actor,
+            financial_status_before='PEN',
+            financial_status_after='PEN',
+        )
+
+        self.assertEqual(payable.authorization_status, state_before['authorization_status'])
+        self.assertEqual(payable.authorization_origin, state_before['authorization_origin'])
+        self.assertEqual(payable.authorization_policy_version, state_before['authorization_policy_version'])
+        self.assertEqual(payable.current_material_fingerprint, state_before['current_material_fingerprint'])
+        self.assertEqual(payable.approved_material_fingerprint, state_before['approved_material_fingerprint'])
+        self.assertEqual(payable.approved_by_id, state_before['approved_by_id'])
+        self.assertEqual(payable.approved_at, state_before['approved_at'])
+        self.assertEqual(payable.rejected_by_id, state_before['rejected_by_id'])
+        self.assertEqual(payable.rejected_at, state_before['rejected_at'])
+        self.assertEqual(payable.current_rejection_reason, state_before['current_rejection_reason'])
+        self.assertEqual(payable.status, state_before['status'])
+        self.assertEqual(payable.data_pagamento, state_before['data_pagamento'])
+        self.assertEqual(payable.valor_pago, state_before['valor_pago'])
+        self.assertEqual(payable.juros_multa, state_before['juros_multa'])
+        self.assertEqual(payable.desconto, state_before['desconto'])
+        self.assertEqual(payable.conta_debito_id, state_before['conta_debito_id'])
+        self.assertEqual(payable.forma_pagamento, state_before['forma_pagamento'])
+        self.assertEqual(payable.comprovante.name if payable.comprovante else None, state_before['comprovante'])
+        self.assertEqual(ContaPagar.objects.get(pk=payable.pk).descricao, persisted_description)
+
+    def test_materializer_propagates_event_creation_failure(self):
+        payable, before, plan, policy = self._material_plan(
+            before_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+            policy_required=False,
+        )
+
+        with patch(
+            'financeiro.services.ContaPagarAutorizacaoEvento.objects.create',
+            side_effect=RuntimeError('falha de persistência de evento'),
+        ):
+            with self.assertRaisesRegex(RuntimeError, 'falha de persistência de evento'):
+                _materialize_payable_edit_authorization_events(
+                    payable=payable,
+                    before=before,
+                    plan=plan,
+                    policy=policy,
+                    actor=self.actor,
+                    financial_status_before='PEN',
+                    financial_status_after='PEN',
+                )
 
 
 @skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')
