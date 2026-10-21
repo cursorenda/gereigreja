@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, call, patch
 
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.core.management import call_command
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection
@@ -53,6 +53,8 @@ from financeiro.services import (
     build_payable_material_snapshot_v1,
     compute_payable_material_fingerprint_v1,
     create_payable,
+    approve_payable,
+    reject_payable,
     refresh_payable_material_fingerprint,
     FechamentoCaixaService,
     OFXImportService,
@@ -74,7 +76,7 @@ from financeiro.views import (
     lista_receitas,
 )
 import financeiro.views as financeiro_views
-from financeiro.authorization import get_finance_write_scope
+from financeiro.authorization import can_approve_payable, get_finance_approval_scope, get_finance_write_scope
 from financeiro.utils import get_allowed_churches_for_user
 
 
@@ -601,6 +603,388 @@ class ContaPagarCreationAuthorizationServiceTest(BaseFinanceiroTestCase):
         self.assertIsNone(payable.authorization_status)
         self.assertIsNone(payable.current_material_fingerprint)
         self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).exists())
+
+
+class ContaPagarFormalAuthorizationServiceTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Formal Authorization',
+        )
+        self.creator = get_user_model().objects.create_user(username='creator-formal-authorization')
+        self.approver = get_user_model().objects.create_user(
+            username='approver-formal-authorization',
+            first_name='Aprovador',
+            last_name='Formal',
+        )
+        self._grant_approval_permission(self.approver)
+        self._set_explicit_scope(self.approver, [self.igreja])
+        self._configure_policy()
+
+    def _approval_permission(self):
+        return Permission.objects.get(
+            content_type__app_label='financeiro',
+            codename='approve_contapagar',
+        )
+
+    def _grant_approval_permission(self, user):
+        user.user_permissions.add(self._approval_permission())
+
+    def _set_explicit_scope(self, user, churches, ministerio=None):
+        perfil, _ = PerfilUsuario.objects.get_or_create(
+            user=user,
+            defaults={'ministerio': ministerio or self.ministerio},
+        )
+        if perfil.ministerio_id != (ministerio or self.ministerio).pk:
+            perfil.ministerio = ministerio or self.ministerio
+            perfil.save(update_fields=['ministerio'])
+        perfil.igrejas_permitidas.set(churches)
+        return perfil
+
+    def _configure_policy(self, *, required=True, level=None, version=1):
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=self.igreja)
+        policy.approval_required = required
+        policy.segregation_level = level or (
+            PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED
+            if required else PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE
+        )
+        policy.version = version
+        policy.save()
+        return policy
+
+    def _create_pending_payable(self, **overrides):
+        payload = {
+            'ministerio': self.ministerio,
+            'igreja': self.igreja,
+            'fornecedor': self.fornecedor,
+            'descricao': 'Conta pendente para decisão formal',
+            'valor': Decimal('123.45'),
+            'data_emissao': date(2026, 10, 13),
+            'data_vencimento': date(2026, 10, 20),
+            'usuario_criacao': self.creator,
+            'actor': self.creator,
+        }
+        payload.update(overrides)
+        return create_payable(**payload)
+
+    def _assert_unchanged_without_event(self, payable, before):
+        payable.refresh_from_db()
+        self.assertEqual(payable.authorization_status, before['authorization_status'])
+        self.assertEqual(payable.current_material_fingerprint, before['current_material_fingerprint'])
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(),
+            before['event_count'],
+        )
+
+    def _state_before_invalid_decision(self, payable):
+        return {
+            'authorization_status': payable.authorization_status,
+            'current_material_fingerprint': payable.current_material_fingerprint,
+            'event_count': ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(),
+        }
+
+    def test_custom_permission_is_declared_and_created_by_django(self):
+        permission = self._approval_permission()
+
+        self.assertEqual(ContaPagar._meta.app_label, 'financeiro')
+        self.assertIn(
+            ('approve_contapagar', 'Pode aprovar ou rejeitar contas a pagar'),
+            ContaPagar._meta.permissions,
+        )
+        self.assertEqual(permission.content_type.app_label, 'financeiro')
+        self.assertEqual(permission.codename, 'approve_contapagar')
+
+    def test_capability_and_approval_scope_are_independent_and_fail_closed(self):
+        no_capability = get_user_model().objects.create_user(username='no-capability-formal-authorization')
+        no_scope = get_user_model().objects.create_user(username='no-scope-formal-authorization')
+        self._set_explicit_scope(no_capability, [self.igreja])
+        self._grant_approval_permission(no_scope)
+        self._set_explicit_scope(no_scope, [])
+
+        self.assertTrue(can_approve_payable(self.approver))
+        self.assertFalse(can_approve_payable(no_capability))
+        self.assertTrue(can_approve_payable(no_scope))
+        self.assertEqual(
+            list(get_finance_approval_scope(no_scope, self.ministerio)),
+            [],
+        )
+
+    def test_approve_persists_current_policy_evidence_and_heals_stale_fingerprint(self):
+        payable = self._create_pending_payable()
+        payable.current_material_fingerprint = 'v1:sha256:' + ('0' * 64)
+        payable.rejected_by = self.creator
+        payable.rejected_at = timezone.now()
+        payable.current_rejection_reason = 'evidência corrente a limpar'
+        payable.save(update_fields=[
+            'current_material_fingerprint', 'rejected_by', 'rejected_at', 'current_rejection_reason',
+        ])
+        policy = self._configure_policy(version=2)
+
+        approved = approve_payable(payable_id=payable.pk, actor=self.approver)
+        event = ContaPagarAutorizacaoEvento.objects.get(
+            conta_pagar=payable,
+            event_type=ContaPagarAutorizacaoEvento.EVENT_APPROVED,
+        )
+        snapshot = build_payable_material_snapshot_v1(approved)
+        fingerprint = compute_payable_material_fingerprint_v1(snapshot)
+
+        self.assertEqual(approved.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(approved.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_USER_APPROVAL)
+        self.assertEqual(approved.authorization_policy_version, 2)
+        self.assertEqual(approved.current_material_fingerprint, fingerprint)
+        self.assertEqual(approved.approved_material_fingerprint, fingerprint)
+        self.assertEqual(approved.approved_by, self.approver)
+        self.assertIsNotNone(approved.approved_at)
+        self.assertIsNone(approved.rejected_by)
+        self.assertIsNone(approved.rejected_at)
+        self.assertIsNone(approved.current_rejection_reason)
+        self.assertEqual(approved.status, 'PEN')
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 2)
+        self.assertEqual(event.actor, self.approver)
+        self.assertEqual(event.actor_user_id_snapshot, self.approver.pk)
+        self.assertEqual(event.actor_display_name_snapshot, 'Aprovador Formal')
+        self.assertEqual(event.authorization_status_before, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(event.authorization_status_after, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(event.financial_status_before, 'PEN')
+        self.assertEqual(event.financial_status_after, 'PEN')
+        self.assertEqual(event.material_snapshot, snapshot)
+        self.assertEqual(event.material_fingerprint, fingerprint)
+        self.assertEqual(event.policy_snapshot, {
+            'policy_id': policy.pk,
+            'policy_version': 2,
+            'approval_required': True,
+            'segregation_level': PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED,
+        })
+        self.assertIsNone(event.reason)
+
+    def test_reject_persists_reason_event_and_heals_null_fingerprint(self):
+        payable = self._create_pending_payable()
+        payable.current_material_fingerprint = None
+        payable.approved_material_fingerprint = 'v1:sha256:' + ('1' * 64)
+        payable.approved_by = self.creator
+        payable.approved_at = timezone.now()
+        payable.save(update_fields=[
+            'current_material_fingerprint', 'approved_material_fingerprint', 'approved_by', 'approved_at',
+        ])
+
+        rejected = reject_payable(
+            payable_id=payable.pk,
+            actor=self.approver,
+            reason='  Documento fiscal insuficiente.  ',
+        )
+        event = ContaPagarAutorizacaoEvento.objects.get(
+            conta_pagar=payable,
+            event_type=ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+        )
+        snapshot = build_payable_material_snapshot_v1(rejected)
+        fingerprint = compute_payable_material_fingerprint_v1(snapshot)
+
+        self.assertEqual(rejected.authorization_status, ContaPagar.AUTHORIZATION_REJECTED)
+        self.assertEqual(rejected.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(rejected.current_material_fingerprint, fingerprint)
+        self.assertIsNone(rejected.approved_material_fingerprint)
+        self.assertIsNone(rejected.approved_by)
+        self.assertIsNone(rejected.approved_at)
+        self.assertEqual(rejected.rejected_by, self.approver)
+        self.assertIsNotNone(rejected.rejected_at)
+        self.assertEqual(rejected.current_rejection_reason, 'Documento fiscal insuficiente.')
+        self.assertEqual(rejected.status, 'PEN')
+        self.assertEqual(event.authorization_status_before, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(event.authorization_status_after, ContaPagar.AUTHORIZATION_REJECTED)
+        self.assertEqual(event.financial_status_before, 'PEN')
+        self.assertEqual(event.financial_status_after, 'PEN')
+        self.assertEqual(event.material_snapshot, snapshot)
+        self.assertEqual(event.material_fingerprint, fingerprint)
+        self.assertEqual(event.reason, 'Documento fiscal insuficiente.')
+
+    def test_reject_reason_validation_fails_before_mutation(self):
+        payable = self._create_pending_payable()
+        before = self._state_before_invalid_decision(payable)
+
+        for reason in ('   ', 'x' * 1001):
+            with self.assertRaises(ValidationError):
+                reject_payable(payable_id=payable.pk, actor=self.approver, reason=reason)
+            self._assert_unchanged_without_event(payable, before)
+
+    def test_creator_cannot_approve_or_reject_own_pending_payable(self):
+        self._grant_approval_permission(self.creator)
+        self._set_explicit_scope(self.creator, [self.igreja])
+        payable = self._create_pending_payable()
+        before = self._state_before_invalid_decision(payable)
+
+        with self.assertRaises(PermissionDenied):
+            approve_payable(payable_id=payable.pk, actor=self.creator)
+        self._assert_unchanged_without_event(payable, before)
+        with self.assertRaises(PermissionDenied):
+            reject_payable(payable_id=payable.pk, actor=self.creator, reason='Não pode auto-rejeitar')
+        self._assert_unchanged_without_event(payable, before)
+
+    def test_null_creator_does_not_block_both_formal_decisions(self):
+        payable_to_approve = self._create_pending_payable(usuario_criacao=None)
+        payable_to_reject = self._create_pending_payable(
+            usuario_criacao=None,
+            descricao='Conta sem criador para rejeição',
+        )
+
+        approve_payable(payable_id=payable_to_approve.pk, actor=self.approver)
+        reject_payable(payable_id=payable_to_reject.pk, actor=self.approver, reason='Rejeição válida')
+
+        payable_to_approve.refresh_from_db()
+        payable_to_reject.refresh_from_db()
+        self.assertEqual(payable_to_approve.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(payable_to_reject.authorization_status, ContaPagar.AUTHORIZATION_REJECTED)
+
+    def test_capability_scope_hierarchy_admin_and_active_church_do_not_bypass_guards(self):
+        payable = self._create_pending_payable()
+        no_scope = get_user_model().objects.create_user(username='capability-without-scope')
+        scope_only = get_user_model().objects.create_user(username='scope-without-capability')
+        admin_without_scope = get_user_model().objects.create_user(username='admin-without-scope')
+        hierarchy_without_capability = get_user_model().objects.create_user(username='hierarchy-without-capability')
+        active_church_without_scope = get_user_model().objects.create_user(username='active-church-without-scope')
+        self._grant_approval_permission(no_scope)
+        self._set_explicit_scope(no_scope, [])
+        self._set_explicit_scope(scope_only, [self.igreja])
+        Group.objects.get_or_create(name=ADMIN_MINISTERIO)
+        Group.objects.get_or_create(name=PASTOR_REGIONAL)
+        admin_without_scope.groups.add(Group.objects.get(name=ADMIN_MINISTERIO))
+        hierarchy_without_capability.groups.add(Group.objects.get(name=PASTOR_REGIONAL))
+        self._set_explicit_scope(admin_without_scope, [])
+        self._set_explicit_scope(hierarchy_without_capability, [self.igreja])
+        self._grant_approval_permission(active_church_without_scope)
+        self._set_explicit_scope(active_church_without_scope, [])
+        active_church_without_scope.igreja_ativa = self.igreja
+
+        for actor in (no_scope, scope_only, admin_without_scope, hierarchy_without_capability, active_church_without_scope):
+            with self.assertRaises(PermissionDenied):
+                approve_payable(payable_id=payable.pk, actor=actor)
+            with self.assertRaises(PermissionDenied):
+                reject_payable(payable_id=payable.pk, actor=actor, reason='Sem autoridade')
+
+        payable.refresh_from_db()
+        self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(), 1)
+
+    def test_null_not_required_legacy_and_financial_terminal_states_are_blocked(self):
+        payable = self._create_pending_payable()
+        cases = (
+            (None, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED, 'PEN'),
+            (ContaPagar.AUTHORIZATION_NOT_REQUIRED, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED, 'PEN'),
+            (ContaPagar.AUTHORIZATION_NOT_REQUIRED, ContaPagar.AUTHORIZATION_ORIGIN_LEGACY_MIGRATION, 'PEN'),
+            (ContaPagar.AUTHORIZATION_PENDING, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED, 'PAG'),
+            (ContaPagar.AUTHORIZATION_PENDING, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED, 'CAN'),
+        )
+
+        for authorization_status, origin, financial_status in cases:
+            payable.authorization_status = authorization_status
+            payable.authorization_origin = origin
+            payable.status = financial_status
+            payable.save(update_fields=['authorization_status', 'authorization_origin', 'status'])
+            before = self._state_before_invalid_decision(payable)
+            with self.assertRaises(ValidationError):
+                approve_payable(payable_id=payable.pk, actor=self.approver)
+            self._assert_unchanged_without_event(payable, before)
+            with self.assertRaises(ValidationError):
+                reject_payable(payable_id=payable.pk, actor=self.approver, reason='Estado bloqueado')
+            self._assert_unchanged_without_event(payable, before)
+
+    def test_pending_or_overdue_financial_statuses_support_formal_decisions(self):
+        overdue_to_approve = self._create_pending_payable()
+        overdue_to_reject = self._create_pending_payable(descricao='Conta vencida para rejeição')
+        ContaPagar.objects.filter(pk__in=[overdue_to_approve.pk, overdue_to_reject.pk]).update(status='VEN')
+
+        approve_payable(payable_id=overdue_to_approve.pk, actor=self.approver)
+        reject_payable(
+            payable_id=overdue_to_reject.pk,
+            actor=self.approver,
+            reason='Conta vencida rejeitada formalmente',
+        )
+
+        overdue_to_approve.refresh_from_db()
+        overdue_to_reject.refresh_from_db()
+        self.assertEqual(overdue_to_approve.status, 'VEN')
+        self.assertEqual(overdue_to_approve.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(overdue_to_reject.status, 'VEN')
+        self.assertEqual(overdue_to_reject.authorization_status, ContaPagar.AUTHORIZATION_REJECTED)
+
+    def test_policy_false_requires_b3b_reclassification_without_mutation(self):
+        payable = self._create_pending_payable()
+        self._configure_policy(required=False, version=2)
+        before = self._state_before_invalid_decision(payable)
+
+        with self.assertRaises(ValidationError):
+            approve_payable(payable_id=payable.pk, actor=self.approver)
+        self._assert_unchanged_without_event(payable, before)
+        with self.assertRaises(ValidationError):
+            reject_payable(payable_id=payable.pk, actor=self.approver, reason='Não reclassifica no B3A')
+        self._assert_unchanged_without_event(payable, before)
+
+    def test_level_2_and_level_3_use_the_same_b3a_transition_rules(self):
+        payable_level_2 = self._create_pending_payable()
+        approve_payable(payable_id=payable_level_2.pk, actor=self.approver)
+
+        self._configure_policy(level=PoliticaFinanceiraIgreja.LEVEL_3_STRONG, version=2)
+        payable_level_3 = self._create_pending_payable(descricao='Conta LEVEL 3')
+        reject_payable(payable_id=payable_level_3.pk, actor=self.approver, reason='LEVEL 3 usa B3A')
+
+        payable_level_2.refresh_from_db()
+        payable_level_3.refresh_from_db()
+        self.assertEqual(payable_level_2.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(payable_level_3.authorization_status, ContaPagar.AUTHORIZATION_REJECTED)
+
+    def test_second_decision_fails_after_first_transition_and_emits_no_second_event(self):
+        payable = self._create_pending_payable()
+
+        approve_payable(payable_id=payable.pk, actor=self.approver)
+        with self.assertRaises(ValidationError):
+            approve_payable(payable_id=payable.pk, actor=self.approver)
+        with self.assertRaises(ValidationError):
+            reject_payable(payable_id=payable.pk, actor=self.approver, reason='Não pode redecidir')
+
+        payable.refresh_from_db()
+        self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar=payable,
+                event_type=ContaPagarAutorizacaoEvento.EVENT_APPROVED,
+            ).count(),
+            1,
+        )
+        self.assertFalse(
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar=payable,
+                event_type=ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+            ).exists(),
+        )
+
+    def test_rejection_blocks_later_approval_and_emits_no_second_event(self):
+        payable = self._create_pending_payable()
+
+        reject_payable(payable_id=payable.pk, actor=self.approver, reason='Primeira decisão vence')
+        with self.assertRaises(ValidationError):
+            approve_payable(payable_id=payable.pk, actor=self.approver)
+
+        payable.refresh_from_db()
+        self.assertEqual(payable.authorization_status, ContaPagar.AUTHORIZATION_REJECTED)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar=payable,
+                event_type=ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+            ).count(),
+            1,
+        )
+
+
+@skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')
+class ContaPagarFormalDecisionPermissionMigrationTest(TestCase):
+    def test_post_migrate_creates_the_formal_payable_decision_permission(self):
+        permission = Permission.objects.get(
+            content_type__app_label='financeiro',
+            content_type__model='contapagar',
+            codename='approve_contapagar',
+        )
+
+        self.assertEqual(permission.name, 'Pode aprovar ou rejeitar contas a pagar')
 
 
 @skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')

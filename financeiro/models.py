@@ -1246,6 +1246,9 @@ class ContaPagar(models.Model):
         verbose_name = "Conta a Pagar"
         verbose_name_plural = "Contas a Pagar"
         ordering = ['data_vencimento', 'status'] # Ordenar por vencimento
+        permissions = [
+            ('approve_contapagar', 'Pode aprovar ou rejeitar contas a pagar'),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['recorrencia_origem', 'competencia'],

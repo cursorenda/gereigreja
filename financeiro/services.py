@@ -9,7 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from xml.etree import ElementTree as ET
 
 from django.db import IntegrityError, connection, transaction
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Sum, Q
 from django.urls import reverse
 from django.utils import timezone
@@ -39,6 +39,7 @@ from .selectors import (
     obter_evento_no_escopo,
 )
 from .policies import FUNDO_EVENTOS, categoria_receita_padrao_por_fundo
+from .authorization import can_approve_payable, get_finance_approval_scope
 
 
 PAYABLE_FINGERPRINT_SCHEMA_VERSION = 1
@@ -130,6 +131,165 @@ def _validate_payable_domain_integrity(payable):
 
     if errors:
         raise ValidationError(errors)
+
+
+def _resolve_locked_payable_policy(igreja):
+    """Resolve e bloqueia a política vigente usada em uma decisão formal."""
+    policy = _resolve_payable_policy(igreja)
+    return PoliticaFinanceiraIgreja.objects.select_for_update().get(pk=policy.pk)
+
+
+def _validate_formal_payable_decision(payable, actor, policy):
+    """Valida os guards comuns das decisões formais de autorização."""
+    if payable.authorization_status is None:
+        raise ValidationError('A conta a pagar não possui status de autorização para decisão formal.')
+    if not policy.approval_required:
+        raise ValidationError('A política vigente não exige aprovação; a conta requer reclassificação antes da decisão.')
+    if payable.authorization_status != ContaPagar.AUTHORIZATION_PENDING:
+        raise ValidationError('A decisão formal exige conta a pagar com autorização pendente.')
+    if payable.status not in {'PEN', 'VEN'}:
+        raise ValidationError('A decisão formal só é permitida para contas pendentes ou vencidas.')
+    if payable.usuario_criacao_id and payable.usuario_criacao_id == actor.pk:
+        raise PermissionDenied('O criador da conta a pagar não pode decidir sua própria submissão.')
+    _validate_payable_domain_integrity(payable)
+
+
+def _refresh_locked_payable_material_fingerprint(payable):
+    """Recalcula a evidência material usando exclusivamente os dados persistidos sob lock."""
+    material_snapshot = build_payable_material_snapshot_v1(payable)
+    fingerprint = compute_payable_material_fingerprint_v1(material_snapshot)
+    payable.current_material_fingerprint = fingerprint
+    return material_snapshot, fingerprint
+
+
+def _create_payable_decision_event(*, payable, event_type, actor, authorization_status_after,
+                                   material_snapshot, fingerprint, policy, reason):
+    actor_user_id_snapshot, actor_display_name_snapshot = _build_actor_snapshot(actor)
+    ContaPagarAutorizacaoEvento.objects.create(
+        conta_pagar=payable,
+        event_type=event_type,
+        actor=actor,
+        actor_user_id_snapshot=actor_user_id_snapshot,
+        actor_display_name_snapshot=actor_display_name_snapshot,
+        authorization_status_before=ContaPagar.AUTHORIZATION_PENDING,
+        authorization_status_after=authorization_status_after,
+        financial_status_before=payable.status,
+        financial_status_after=payable.status,
+        material_fingerprint=fingerprint,
+        material_snapshot=material_snapshot,
+        policy_snapshot=_build_policy_snapshot(policy),
+        reason=reason,
+        correlation_id=None,
+    )
+
+
+def approve_payable(*, payable_id: int, actor):
+    """Aprova uma ContaPagar pendente com capability, escopo local e evidência imutável."""
+    if not getattr(actor, 'is_authenticated', False):
+        raise PermissionDenied('A decisão formal exige um usuário autenticado.')
+    if not can_approve_payable(actor):
+        raise PermissionDenied('O usuário não possui permissão formal para decidir contas a pagar.')
+
+    with transaction.atomic():
+        payable = (
+            ContaPagar.objects
+            .select_for_update()
+            .select_related(
+                'igreja__ministerio', 'fornecedor', 'categoria', 'conta_debito',
+                'recorrencia_origem', 'recorrencia_origem__igreja',
+                'recorrencia_origem__ministerio',
+            )
+            .get(pk=payable_id)
+        )
+        if not get_finance_approval_scope(actor, payable.ministerio).filter(pk=payable.igreja_id).exists():
+            raise PermissionDenied('O usuário não possui escopo local explícito para decidir esta conta a pagar.')
+
+        policy = _resolve_locked_payable_policy(payable.igreja)
+        _validate_formal_payable_decision(payable, actor, policy)
+        material_snapshot, fingerprint = _refresh_locked_payable_material_fingerprint(payable)
+        payable.authorization_status = ContaPagar.AUTHORIZATION_APPROVED
+        payable.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_USER_APPROVAL
+        payable.authorization_policy_version = policy.version
+        payable.approved_material_fingerprint = fingerprint
+        payable.approved_by = actor
+        payable.approved_at = timezone.now()
+        payable.rejected_by = None
+        payable.rejected_at = None
+        payable.current_rejection_reason = None
+        payable.save(update_fields=[
+            'current_material_fingerprint', 'authorization_status', 'authorization_origin',
+            'authorization_policy_version', 'approved_material_fingerprint', 'approved_by',
+            'approved_at', 'rejected_by', 'rejected_at', 'current_rejection_reason',
+            'data_atualizacao',
+        ])
+        _create_payable_decision_event(
+            payable=payable,
+            event_type=ContaPagarAutorizacaoEvento.EVENT_APPROVED,
+            actor=actor,
+            authorization_status_after=ContaPagar.AUTHORIZATION_APPROVED,
+            material_snapshot=material_snapshot,
+            fingerprint=fingerprint,
+            policy=policy,
+            reason=None,
+        )
+        return payable
+
+
+def reject_payable(*, payable_id: int, actor, reason: str):
+    """Rejeita uma ContaPagar pendente com motivo e evidência material imutável."""
+    normalized_reason = (reason or '').strip()
+    if not normalized_reason:
+        raise ValidationError('O motivo da rejeição é obrigatório.')
+    if len(normalized_reason) > 1000:
+        raise ValidationError('O motivo da rejeição deve ter no máximo 1000 caracteres.')
+    if not getattr(actor, 'is_authenticated', False):
+        raise PermissionDenied('A decisão formal exige um usuário autenticado.')
+    if not can_approve_payable(actor):
+        raise PermissionDenied('O usuário não possui permissão formal para decidir contas a pagar.')
+
+    with transaction.atomic():
+        payable = (
+            ContaPagar.objects
+            .select_for_update()
+            .select_related(
+                'igreja__ministerio', 'fornecedor', 'categoria', 'conta_debito',
+                'recorrencia_origem', 'recorrencia_origem__igreja',
+                'recorrencia_origem__ministerio',
+            )
+            .get(pk=payable_id)
+        )
+        if not get_finance_approval_scope(actor, payable.ministerio).filter(pk=payable.igreja_id).exists():
+            raise PermissionDenied('O usuário não possui escopo local explícito para decidir esta conta a pagar.')
+
+        policy = _resolve_locked_payable_policy(payable.igreja)
+        _validate_formal_payable_decision(payable, actor, policy)
+        material_snapshot, fingerprint = _refresh_locked_payable_material_fingerprint(payable)
+        payable.authorization_status = ContaPagar.AUTHORIZATION_REJECTED
+        payable.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        payable.authorization_policy_version = policy.version
+        payable.approved_material_fingerprint = None
+        payable.approved_by = None
+        payable.approved_at = None
+        payable.rejected_by = actor
+        payable.rejected_at = timezone.now()
+        payable.current_rejection_reason = normalized_reason
+        payable.save(update_fields=[
+            'current_material_fingerprint', 'authorization_status', 'authorization_origin',
+            'authorization_policy_version', 'approved_material_fingerprint', 'approved_by',
+            'approved_at', 'rejected_by', 'rejected_at', 'current_rejection_reason',
+            'data_atualizacao',
+        ])
+        _create_payable_decision_event(
+            payable=payable,
+            event_type=ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+            actor=actor,
+            authorization_status_after=ContaPagar.AUTHORIZATION_REJECTED,
+            material_snapshot=material_snapshot,
+            fingerprint=fingerprint,
+            policy=policy,
+            reason=normalized_reason,
+        )
+        return payable
 
 
 def create_payable(
