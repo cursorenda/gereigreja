@@ -3676,9 +3676,55 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
         conta.save(update_fields=['current_material_fingerprint'])
         return fingerprint
 
-    def test_edicao_manual_material_atualiza_fingerprint_e_preserva_pending_sem_evento(self):
+    def _configurar_politica(self, igreja, *, approval_required, version):
+        politica = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+        politica.approval_required = approval_required
+        politica.segregation_level = (
+            PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED
+            if approval_required else PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE
+        )
+        politica.version = version
+        politica.full_clean()
+        politica.save()
+        return politica
+
+    def _registrar_evento_decisao_historico(self, conta, event_type, politica):
+        return _create_payable_authorization_event(
+            payable=conta,
+            event_type=event_type,
+            actor=self.admin_principal,
+            authorization_status_before=ContaPagar.AUTHORIZATION_PENDING,
+            authorization_status_after=conta.authorization_status,
+            financial_status_before=conta.status,
+            financial_status_after=conta.status,
+            material_fingerprint=conta.current_material_fingerprint,
+            material_snapshot=build_payable_material_snapshot_v1(conta),
+            policy=politica,
+            reason=conta.current_rejection_reason,
+        )
+
+    def _assert_edicao_manual_falhou_sem_persistencia(self, conta, *, descricao, valor, fingerprint,
+                                                       authorization_status, policy_version,
+                                                       event_count=0):
+        conta.refresh_from_db()
+        self.assertEqual(conta.descricao, descricao)
+        self.assertEqual(conta.valor, Decimal(valor))
+        self.assertEqual(conta.current_material_fingerprint, fingerprint)
+        self.assertEqual(conta.authorization_status, authorization_status)
+        self.assertEqual(conta.authorization_policy_version, policy_version)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count(),
+            event_count,
+        )
+
+    def test_edicao_manual_material_mantem_pending_e_atualiza_politica_vigente(self):
         conta = self._criar_conta(self.igreja_a, 'Conta Pendente Original')
         original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        politica = self._configurar_politica(
+            self.igreja_a,
+            approval_required=True,
+            version=8,
+        )
         conta.authorization_status = ContaPagar.AUTHORIZATION_PENDING
         conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
         conta.authorization_policy_version = 4
@@ -3702,46 +3748,68 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
         self.assertIsNone(conta.approved_material_fingerprint)
         self.assertIsNone(conta.approved_by)
         self.assertIsNone(conta.approved_at)
+        self.assertEqual(conta.authorization_policy_version, politica.version)
+        self.assertEqual(
+            list(
+                ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta)
+                .order_by('id')
+                .values_list('event_type', flat=True)
+            ),
+            [ContaPagarAutorizacaoEvento.EVENT_EDITED],
+        )
+
+    def test_edicao_manual_nao_material_repara_fingerprint_sem_reclassificar(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Legada Sem Fingerprint')
+        conta.authorization_status = ContaPagar.AUTHORIZATION_PENDING
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        conta.authorization_policy_version = 7
+        conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
+
+        response = self._editar_conta_manual(conta, conta.descricao)
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertTrue(conta.current_material_fingerprint)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(conta.authorization_policy_version, 7)
         self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).exists())
 
-    def test_edicao_manual_nao_material_mantem_fingerprint_e_not_required(self):
-        conta = self._criar_conta(self.igreja_a, 'Conta Nao Material')
+    def test_edicao_manual_nao_material_repara_fingerprint_nulo_sem_reclassificar(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Legada Fingerprint Nulo')
+        conta.authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
+        conta.authorization_policy_version = 3
+        conta.current_material_fingerprint = None
+        conta.save(update_fields=[
+            'authorization_status',
+            'authorization_origin',
+            'authorization_policy_version',
+            'current_material_fingerprint',
+        ])
+
+        response = self._editar_conta_manual(conta, 'Conta Legada Fingerprint Nulo')
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_policy_version, 3)
+        self.assertTrue(conta.current_material_fingerprint)
+        self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).exists())
+
+    def test_edicao_manual_material_mantem_not_required_e_atualiza_politica_vigente(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Not Required Original')
         original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        politica = self._configurar_politica(
+            self.igreja_a,
+            approval_required=False,
+            version=6,
+        )
         conta.authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
         conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
         conta.authorization_policy_version = 2
         conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
-
-        response = self._editar_conta_manual(
-            conta,
-            conta.descricao,
-            observacoes='Observacao alterada sem impacto material.',
-        )
-
-        self.assertEqual(response.status_code, 302)
-        conta.refresh_from_db()
-        self.assertEqual(conta.current_material_fingerprint, original_fingerprint)
-        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
-        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
-        self.assertEqual(conta.authorization_policy_version, 2)
-
-    def test_edicao_manual_material_not_required_atualiza_fingerprint_sem_transicao(self):
-        conta = self._criar_conta(self.igreja_a, 'Conta Not Required Original')
-        original_fingerprint = self._atribuir_fingerprint_atual(conta)
-        conta.authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
-        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
-        conta.authorization_policy_version = 6
-        conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
-
-        original_authorization_origin = conta.authorization_origin
-        original_authorization_policy_version = conta.authorization_policy_version
-        original_approved_material_fingerprint = conta.approved_material_fingerprint
-        original_approved_by_id = conta.approved_by_id
-        original_approved_at = conta.approved_at
-        original_rejected_by_id = conta.rejected_by_id
-        original_rejected_at = conta.rejected_at
-        original_current_rejection_reason = conta.current_rejection_reason
-        events_before = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count()
 
         response = self._editar_conta_manual(
             conta,
@@ -3756,25 +3824,99 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
             compute_payable_material_fingerprint_v1(build_payable_material_snapshot_v1(conta)),
         )
         self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
-        self.assertEqual(conta.authorization_origin, original_authorization_origin)
-        self.assertEqual(conta.authorization_policy_version, original_authorization_policy_version)
-        self.assertEqual(conta.approved_material_fingerprint, original_approved_material_fingerprint)
-        self.assertEqual(conta.approved_by_id, original_approved_by_id)
-        self.assertEqual(conta.approved_at, original_approved_at)
-        self.assertEqual(conta.rejected_by_id, original_rejected_by_id)
-        self.assertEqual(conta.rejected_at, original_rejected_at)
-        self.assertEqual(conta.current_rejection_reason, original_current_rejection_reason)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_policy_version, politica.version)
         self.assertEqual(
-            ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count(),
-            events_before,
+            list(
+                ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta)
+                .order_by('id')
+                .values_list('event_type', flat=True)
+            ),
+            [ContaPagarAutorizacaoEvento.EVENT_EDITED],
         )
 
-    def test_edicao_manual_approved_cria_mismatch_sem_forjar_reaprovacao(self):
+    def test_edicao_manual_material_reclassifica_not_required_para_pending_quando_policy_exige_aprovacao(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Sem Aprovacao Original')
+        self._atribuir_fingerprint_atual(conta)
+        politica = self._configurar_politica(
+            self.igreja_a,
+            approval_required=True,
+            version=12,
+        )
+        conta.authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED
+        conta.authorization_policy_version = 3
+        conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
+
+        response = self._editar_conta_manual(conta, 'Conta Agora Requer Aprovacao', valor='150.00')
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(conta.authorization_policy_version, politica.version)
+        self.assertEqual(
+            list(
+                ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta)
+                .order_by('id')
+                .values_list('event_type', flat=True)
+            ),
+            [
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            ],
+        )
+
+    def test_edicao_manual_pending_troca_igreja_usa_policy_resultante(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-b3b2b-troca-igreja',
+            TESOUREIRO,
+            [self.igreja_a, self.igreja_b],
+        )
+        conta = self._criar_conta(self.igreja_a, 'Conta Pendente Igreja A')
+        self._atribuir_fingerprint_atual(conta)
+        self._configurar_politica(self.igreja_a, approval_required=False, version=2)
+        politica_b = self._configurar_politica(self.igreja_b, approval_required=True, version=13)
+        conta.authorization_status = ContaPagar.AUTHORIZATION_PENDING
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        conta.authorization_policy_version = 4
+        conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta.pk]),
+            data=self._payload(self.igreja_b, 'Conta Pendente Igreja B', valor='150.00'),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.igreja_id, self.igreja_b.pk)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(conta.authorization_policy_version, politica_b.version)
+        self.assertEqual(
+            list(
+                ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta)
+                .order_by('id')
+                .values_list('event_type', flat=True)
+            ),
+            [
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            ],
+        )
+
+    def test_edicao_manual_material_invalida_aprovacao_com_evidencia_historica(self):
         conta = self._criar_conta(self.igreja_a, 'Conta Aprovada Original')
         original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        politica = self._configurar_politica(
+            self.igreja_a,
+            approval_required=True,
+            version=5,
+        )
         conta.authorization_status = ContaPagar.AUTHORIZATION_APPROVED
         conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_USER_APPROVAL
-        conta.authorization_policy_version = 5
+        conta.authorization_policy_version = 4
         conta.approved_material_fingerprint = original_fingerprint
         conta.approved_by = self.admin_principal
         conta.approved_at = timezone.now()
@@ -3786,55 +3928,320 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
             'approved_by',
             'approved_at',
         ])
+        self._registrar_evento_decisao_historico(
+            conta,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVED,
+            politica,
+        )
 
         response = self._editar_conta_manual(conta, 'Conta Aprovada Editada', valor='130.00')
 
         self.assertEqual(response.status_code, 302)
         conta.refresh_from_db()
-        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
+        self.assertEqual(conta.authorization_policy_version, politica.version)
         self.assertNotEqual(conta.current_material_fingerprint, original_fingerprint)
-        self.assertEqual(conta.approved_material_fingerprint, original_fingerprint)
-        self.assertNotEqual(conta.current_material_fingerprint, conta.approved_material_fingerprint)
+        self.assertIsNone(conta.approved_material_fingerprint)
+        self.assertIsNone(conta.approved_by)
+        self.assertIsNone(conta.approved_at)
+        self.assertEqual(
+            list(
+                ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta)
+                .order_by('id')
+                .values_list('event_type', flat=True)
+            ),
+            [
+                ContaPagarAutorizacaoEvento.EVENT_APPROVED,
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED,
+                ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+            ],
+        )
 
-    def test_edicao_manual_rejected_preserva_evidencias_de_rejeicao(self):
+    def test_edicao_manual_material_falha_fechado_com_evento_aprovado_antigo(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Aprovada Com Evento Antigo')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        politica = self._configurar_politica(self.igreja_a, approval_required=True, version=14)
+        conta.authorization_status = ContaPagar.AUTHORIZATION_APPROVED
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_USER_APPROVAL
+        conta.approved_material_fingerprint = original_fingerprint
+        conta.approved_by = self.admin_principal
+        conta.approved_at = timezone.now()
+        conta.save()
+        evento = self._registrar_evento_decisao_historico(
+            conta,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVED,
+            politica,
+        )
+        evento.material_fingerprint = 'v1:sha256:fingerprint-antigo'
+        evento.save(update_fields=['material_fingerprint'])
+
+        response = self._editar_conta_manual(conta, 'Conta Aprovada Com Evento Antigo Editada')
+
+        self.assertEqual(response.status_code, 200)
+        self._assert_edicao_manual_falhou_sem_persistencia(
+            conta,
+            descricao='Conta Aprovada Com Evento Antigo',
+            valor='100.00',
+            fingerprint=original_fingerprint,
+            authorization_status=ContaPagar.AUTHORIZATION_APPROVED,
+            policy_version=None,
+            event_count=1,
+        )
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count(), 1)
+
+    def test_edicao_manual_material_limpa_rejeicao_com_evidencia_historica(self):
         conta = self._criar_conta(self.igreja_a, 'Conta Rejeitada Original')
         self._atribuir_fingerprint_atual(conta)
-        rejected_at = timezone.now()
+        politica = self._configurar_politica(
+            self.igreja_a,
+            approval_required=False,
+            version=9,
+        )
         conta.authorization_status = ContaPagar.AUTHORIZATION_REJECTED
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        conta.authorization_policy_version = 4
         conta.rejected_by = self.admin_principal
-        conta.rejected_at = rejected_at
-        conta.current_rejection_reason = 'Evidencia de rejeicao preservada.'
+        conta.rejected_at = timezone.now()
+        conta.current_rejection_reason = 'Evidencia formal da rejeicao.'
         conta.save(update_fields=[
             'authorization_status',
+            'authorization_origin',
+            'authorization_policy_version',
             'rejected_by',
             'rejected_at',
             'current_rejection_reason',
         ])
+        self._registrar_evento_decisao_historico(
+            conta,
+            ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+            politica,
+        )
 
         response = self._editar_conta_manual(conta, 'Conta Rejeitada Editada', valor='140.00')
 
         self.assertEqual(response.status_code, 302)
         conta.refresh_from_db()
-        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_REJECTED)
-        self.assertEqual(conta.rejected_by_id, self.admin_principal.pk)
-        self.assertEqual(conta.rejected_at, rejected_at)
-        self.assertEqual(conta.current_rejection_reason, 'Evidencia de rejeicao preservada.')
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
+        self.assertEqual(conta.authorization_policy_version, politica.version)
+        self.assertIsNone(conta.rejected_by)
+        self.assertIsNone(conta.rejected_at)
+        self.assertIsNone(conta.current_rejection_reason)
+        self.assertEqual(
+            list(
+                ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta)
+                .order_by('id')
+                .values_list('event_type', flat=True)
+            ),
+            [
+                ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+                ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ],
+        )
 
-    def test_edicao_manual_heals_null_current_fingerprint_sem_mudar_status(self):
-        conta = self._criar_conta(self.igreja_a, 'Conta Legada Sem Fingerprint')
-        conta.authorization_status = ContaPagar.AUTHORIZATION_PENDING
+    def test_edicao_manual_material_falha_fechado_com_evento_rejeitado_antigo(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Rejeitada Com Evento Antigo')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        politica = self._configurar_politica(self.igreja_a, approval_required=True, version=15)
+        conta.authorization_status = ContaPagar.AUTHORIZATION_REJECTED
         conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
-        conta.authorization_policy_version = 7
+        conta.authorization_policy_version = 4
+        conta.rejected_by = self.admin_principal
+        conta.rejected_at = timezone.now()
+        conta.current_rejection_reason = 'Motivo atual da rejeicao'
+        conta.save()
+        evento = self._registrar_evento_decisao_historico(
+            conta,
+            ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+            politica,
+        )
+        evento.material_fingerprint = 'v1:sha256:fingerprint-antigo'
+        evento.save(update_fields=['material_fingerprint'])
+
+        response = self._editar_conta_manual(conta, 'Conta Rejeitada Com Evento Antigo Editada')
+
+        self.assertEqual(response.status_code, 200)
+        self._assert_edicao_manual_falhou_sem_persistencia(
+            conta,
+            descricao='Conta Rejeitada Com Evento Antigo',
+            valor='100.00',
+            fingerprint=original_fingerprint,
+            authorization_status=ContaPagar.AUTHORIZATION_REJECTED,
+            policy_version=4,
+            event_count=1,
+        )
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count(), 1)
+
+    def test_edicao_manual_material_falha_fechado_sem_evidencia_historica(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Aprovada Sem Evento')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        self._configurar_politica(self.igreja_a, approval_required=True, version=10)
+        conta.authorization_status = ContaPagar.AUTHORIZATION_APPROVED
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_USER_APPROVAL
+        conta.approved_material_fingerprint = original_fingerprint
+        conta.approved_by = self.admin_principal
+        conta.approved_at = timezone.now()
+        conta.save()
+
+        response = self._editar_conta_manual(conta, 'Conta Aprovada Sem Evento Editada')
+
+        self.assertEqual(response.status_code, 200)
+        conta.refresh_from_db()
+        self.assertEqual(conta.descricao, 'Conta Aprovada Sem Evento')
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_APPROVED)
+        self.assertEqual(conta.current_material_fingerprint, original_fingerprint)
+        self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).exists())
+
+    def test_edicao_manual_rejeitada_falha_fechado_sem_evidencia_historica(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Rejeitada Sem Evento')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        self._configurar_politica(self.igreja_a, approval_required=True, version=16)
+        conta.authorization_status = ContaPagar.AUTHORIZATION_REJECTED
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        conta.authorization_policy_version = 4
+        conta.rejected_by = self.admin_principal
+        conta.rejected_at = timezone.now()
+        conta.current_rejection_reason = 'Motivo sem evidencia formal'
+        conta.save()
+
+        response = self._editar_conta_manual(conta, 'Conta Rejeitada Sem Evento Editada')
+
+        self.assertEqual(response.status_code, 200)
+        self._assert_edicao_manual_falhou_sem_persistencia(
+            conta,
+            descricao='Conta Rejeitada Sem Evento',
+            valor='100.00',
+            fingerprint=original_fingerprint,
+            authorization_status=ContaPagar.AUTHORIZATION_REJECTED,
+            policy_version=4,
+        )
+
+    def test_edicao_manual_material_falha_fechado_sem_status_autorizacao(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Sem Status De Autorizacao')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        self._configurar_politica(self.igreja_a, approval_required=True, version=17)
+        conta.authorization_status = None
+        conta.authorization_origin = None
+        conta.authorization_policy_version = None
         conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
 
-        response = self._editar_conta_manual(conta, 'Conta Legada Editada')
+        response = self._editar_conta_manual(conta, 'Conta Sem Status Editada')
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self._assert_edicao_manual_falhou_sem_persistencia(
+            conta,
+            descricao='Conta Sem Status De Autorizacao',
+            valor='100.00',
+            fingerprint=original_fingerprint,
+            authorization_status=None,
+            policy_version=None,
+        )
+
+    def test_edicao_manual_formulario_invalido_nao_persiste_nem_cria_evento(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-b3b2b-formulario-invalido',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta = self._criar_conta(self.igreja_a, 'Conta Com Formulario Invalido')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        payload = self._payload(self.igreja_a, 'Conta Com Formulario Invalido Editada')
+        payload.pop('fornecedor')
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta.pk]),
+            data=payload,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self._assert_edicao_manual_falhou_sem_persistencia(
+            conta,
+            descricao='Conta Com Formulario Invalido',
+            valor='100.00',
+            fingerprint=original_fingerprint,
+            authorization_status=None,
+            policy_version=None,
+        )
+
+    def test_edicao_manual_categoria_de_outro_ministerio_nao_persiste_nem_cria_evento(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-b3b2b-categoria-outro-ministerio',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta = self._criar_conta(self.igreja_a, 'Conta Com Categoria De Outro Ministerio')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        payload = self._payload(self.igreja_a, 'Conta Com Categoria Indevida', valor='150.00')
+        payload['categoria'] = str(self.categoria_outro_ministerio.pk)
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta.pk]),
+            data=payload,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self._assert_edicao_manual_falhou_sem_persistencia(
+            conta,
+            descricao='Conta Com Categoria De Outro Ministerio',
+            valor='100.00',
+            fingerprint=original_fingerprint,
+            authorization_status=None,
+            policy_version=None,
+        )
+
+    def test_edicao_manual_igreja_resultante_fora_do_escopo_nao_persiste_nem_cria_evento(self):
+        tesoureiro, _ = self._criar_usuario(
+            'tesoureiro-b3b2b-resulting-scope',
+            TESOUREIRO,
+            [self.igreja_a],
+        )
+        conta = self._criar_conta(self.igreja_a, 'Conta Com Troca Fora Do Escopo')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
+
+        response = self.client.post(
+            reverse('financeiro:editar_conta_pagar', args=[conta.pk]),
+            data=self._payload(self.igreja_b, 'Conta Indevidamente Movida', valor='150.00'),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self._assert_edicao_manual_falhou_sem_persistencia(
+            conta,
+            descricao='Conta Com Troca Fora Do Escopo',
+            valor='100.00',
+            fingerprint=original_fingerprint,
+            authorization_status=None,
+            policy_version=None,
+        )
+
+    def test_edicao_manual_reverte_tudo_quando_materializacao_de_eventos_falha(self):
+        conta = self._criar_conta(self.igreja_a, 'Conta Com Falha De Evento')
+        original_fingerprint = self._atribuir_fingerprint_atual(conta)
+        self._configurar_politica(self.igreja_a, approval_required=True, version=11)
+        conta.authorization_status = ContaPagar.AUTHORIZATION_PENDING
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        conta.authorization_policy_version = 4
+        conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
+
+        with patch.object(
+            financeiro_views,
+            '_materialize_payable_edit_authorization_events',
+            side_effect=RuntimeError('falha intencional de materializacao'),
+        ):
+            response = self._editar_conta_manual(conta, 'Conta Com Falha Editada', valor='150.00')
+
+        self.assertEqual(response.status_code, 200)
         conta.refresh_from_db()
-        self.assertTrue(conta.current_material_fingerprint)
+        self.assertEqual(conta.descricao, 'Conta Com Falha De Evento')
+        self.assertEqual(conta.valor, Decimal('100.00'))
+        self.assertEqual(conta.current_material_fingerprint, original_fingerprint)
         self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
-        self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED)
-        self.assertEqual(conta.authorization_policy_version, 7)
+        self.assertEqual(conta.authorization_policy_version, 4)
+        self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).exists())
 
     def test_criacao_falha_fechado_com_escopo_vazio_e_nao_usa_igreja_ativa(self):
         tesoureiro, perfil = self._criar_usuario(

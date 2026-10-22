@@ -103,7 +103,16 @@ from .services import (
     OFXImportService,
     RecorrenciaContaPagarService,
     ReceitaFluxoService,
+    _materialize_payable_edit_authorization_events,
+    _resolve_locked_payable_policy,
+    _validate_payable_domain_integrity,
+    _validate_payable_historical_decision_evidence_before_edit,
+    apply_payable_authorization_edit_plan,
+    build_payable_authorization_edit_snapshot,
+    build_payable_material_snapshot_v1,
+    compute_payable_material_fingerprint_v1,
     create_payable,
+    plan_payable_authorization_after_edit,
     refresh_payable_material_fingerprint,
 )
 from contas.constants import PASTOR_LOCAL, user_has_permission_level_or_higher
@@ -4145,31 +4154,71 @@ def editar_conta_pagar(request, pk): # noqa: E302
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                conta = get_object_or_404(
+                locked_payable = get_object_or_404(
                     ContaPagar.objects.select_for_update(),
                     pk=pk,
                     ministerio=ministerio,
                     status__in=['PEN', 'VEN'],
                 )
+                conta = locked_payable
                 allowed_churches = get_finance_write_scope(request.user, ministerio)
-                get_object_or_404(allowed_churches, pk=conta.igreja_id)
+                get_object_or_404(allowed_churches, pk=locked_payable.igreja_id)
+                before = build_payable_authorization_edit_snapshot(locked_payable)
+                financial_status_before = locked_payable.status
                 form = ContaPagarForm(
                     request.POST,
-                    instance=conta,
+                    instance=locked_payable,
                     ministerio=ministerio,
                     user=request.user,
                     allowed_churches=allowed_churches,
                 )
                 if form.is_valid():
-                    conta_editada = form.save(commit=False)
-                    # Validações extras (redundantes se o form filtra, mas seguro)
-                    if conta_editada.igreja not in allowed_churches: raise ValidationError("Igreja inválida")
-                    if conta_editada.fornecedor.ministerio != ministerio: raise ValidationError("Fornecedor inválido")
-                    if conta_editada.categoria and conta_editada.categoria.ministerio != ministerio: raise ValidationError("Categoria inválida")
+                    payable = form.save(commit=False)
+                    if not allowed_churches.filter(pk=payable.igreja_id).exists():
+                        raise ValidationError('Igreja inválida')
+                    _validate_payable_domain_integrity(payable)
 
-                    refresh_payable_material_fingerprint(conta_editada)
-                    conta_editada.save()
-                    messages.success(request, f'Conta a pagar "{conta.descricao}" atualizada com sucesso!')
+                    after_material_fingerprint = compute_payable_material_fingerprint_v1(
+                        build_payable_material_snapshot_v1(payable),
+                    )
+                    material_changed = before.material_fingerprint != after_material_fingerprint
+
+                    if material_changed:
+                        policy = _resolve_locked_payable_policy(payable.igreja)
+                        plan = plan_payable_authorization_after_edit(
+                            payable=payable,
+                            before=before,
+                            policy=policy,
+                        )
+                        _validate_payable_historical_decision_evidence_before_edit(
+                            payable=payable,
+                            before=before,
+                            plan=plan,
+                        )
+                        apply_payable_authorization_edit_plan(payable, plan)
+                    else:
+                        policy = None
+                        plan = plan_payable_authorization_after_edit(
+                            payable=payable,
+                            before=before,
+                            policy=None,
+                        )
+                        refresh_payable_material_fingerprint(payable)
+
+                    payable.full_clean()
+                    payable.save()
+                    if plan.material_changed:
+                        _materialize_payable_edit_authorization_events(
+                            payable=payable,
+                            before=before,
+                            plan=plan,
+                            policy=policy,
+                            actor=request.user,
+                            financial_status_before=financial_status_before,
+                            financial_status_after=payable.status,
+                        )
+                    conta = payable
+                    messages.success(request, f'Conta a pagar \"{conta.descricao}\" atualizada com sucesso!')
                     return redirect('financeiro:lista_contas_pagar')
                 messages.error(request, 'Por favor, corrija os erros no formulário.')
         except Http404:

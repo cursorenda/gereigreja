@@ -213,6 +213,45 @@ def apply_payable_authorization_edit_plan(payable, plan):
     return payable
 
 
+def _validate_payable_historical_decision_evidence_before_edit(*, payable, before, plan):
+    """Fails closed before clearing formal decision evidence during a material edit."""
+    if not plan.material_changed:
+        return
+
+    decision_event_filters = None
+    if (
+        before.authorization_status == ContaPagar.AUTHORIZATION_APPROVED
+        and plan.clear_approval_evidence
+    ):
+        decision_event_filters = {
+            'event_type': ContaPagarAutorizacaoEvento.EVENT_APPROVED,
+            'authorization_status_after': ContaPagar.AUTHORIZATION_APPROVED,
+            'material_fingerprint': before.approved_material_fingerprint,
+        }
+        if before.approved_by_id is not None:
+            decision_event_filters['actor_user_id_snapshot'] = before.approved_by_id
+    elif (
+        before.authorization_status == ContaPagar.AUTHORIZATION_REJECTED
+        and plan.clear_rejection_evidence
+    ):
+        decision_event_filters = {
+            'event_type': ContaPagarAutorizacaoEvento.EVENT_REJECTED,
+            'authorization_status_after': ContaPagar.AUTHORIZATION_REJECTED,
+            'material_fingerprint': before.material_fingerprint,
+            'reason': before.current_rejection_reason,
+        }
+        if before.rejected_by_id is not None:
+            decision_event_filters['actor_user_id_snapshot'] = before.rejected_by_id
+
+    if decision_event_filters and not ContaPagarAutorizacaoEvento.objects.filter(
+        conta_pagar=payable,
+        **decision_event_filters,
+    ).exists():
+        raise ValidationError(
+            'A edição material exige evidência histórica da decisão formal atual.'
+        )
+
+
 def _create_payable_authorization_event(
     *,
     payable,
