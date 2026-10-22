@@ -1,5 +1,6 @@
 """Admin para modelos de contas bancarias e permissoes."""
 from django.contrib import admin
+from django.forms import ModelForm
 
 from .services import create_payable, refresh_payable_material_fingerprint
 from .models import (
@@ -14,6 +15,34 @@ from .models import (
 )
 
 
+class ContaPagarAdminForm(ModelForm):
+    class Meta:
+        model = ContaPagar
+        exclude = (
+            'status',
+            'data_pagamento',
+            'valor_pago',
+            'juros_multa',
+            'desconto',
+            'comprovante',
+            'forma_pagamento',
+            'conta_debito',
+            'authorization_status',
+            'authorization_origin',
+            'authorization_policy_version',
+            'current_material_fingerprint',
+            'approved_material_fingerprint',
+            'approved_by',
+            'approved_at',
+            'rejected_by',
+            'rejected_at',
+            'current_rejection_reason',
+            'usuario_criacao',
+            'criado_automaticamente',
+            'recorrencia_origem',
+        )
+
+
 @admin.register(ContaBancaria)
 class ContaBancariaAdmin(admin.ModelAdmin):
     list_display = ('nome_identificacao', 'igreja', 'tipo', 'saldo_atual', 'padrao_global')
@@ -25,35 +54,28 @@ class ContaBancariaAdmin(admin.ModelAdmin):
 
 @admin.register(ContaPagar)
 class ContaPagarAdmin(admin.ModelAdmin):
+    change_readonly_fields = (
+        'ministerio',
+        'igreja',
+        'fornecedor',
+        'categoria',
+        'descricao',
+        'valor',
+        'data_vencimento',
+        'competencia',
+    )
+    form = ContaPagarAdminForm
     list_display = ('descricao', 'fornecedor', 'igreja', 'valor', 'data_vencimento', 'status')
     list_filter = ('status', 'igreja__ministerio', 'igreja', 'data_vencimento')
     search_fields = ('descricao', 'fornecedor__nome', 'igreja__nome_igreja')
     readonly_fields = ('data_criacao', 'data_atualizacao')
     autocomplete_fields = ['ministerio', 'igreja', 'fornecedor', 'categoria', 'conta_debito']
     date_hierarchy = 'data_vencimento'
-    add_exclude = (
-        'status',
-        'data_pagamento',
-        'valor_pago',
-        'juros_multa',
-        'desconto',
-        'comprovante',
-        'authorization_status',
-        'authorization_origin',
-        'authorization_policy_version',
-        'current_material_fingerprint',
-        'approved_material_fingerprint',
-        'approved_by',
-        'approved_at',
-        'rejected_by',
-        'rejected_at',
-        'current_rejection_reason',
-    )
 
-    def get_exclude(self, request, obj=None):
-        if obj is None:
-            return self.add_exclude
-        return super().get_exclude(request, obj)
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return self.readonly_fields + self.change_readonly_fields
+        return self.readonly_fields
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -73,11 +95,11 @@ class ContaPagarAdmin(admin.ModelAdmin):
             data_vencimento=obj.data_vencimento,
             conta_debito=obj.conta_debito,
             forma_pagamento=obj.forma_pagamento,
-            recorrencia_origem=obj.recorrencia_origem,
+            recorrencia_origem=None,
             competencia=obj.competencia,
-            criado_automaticamente=obj.criado_automaticamente,
+            criado_automaticamente=False,
             observacoes=obj.observacoes,
-            usuario_criacao=obj.usuario_criacao,
+            usuario_criacao=request.user,
             actor=request.user,
         )
         for field in obj._meta.concrete_fields:

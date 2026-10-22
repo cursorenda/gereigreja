@@ -1,5 +1,5 @@
 import ast
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 import importlib
 import inspect
@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, call, patch
 from uuid import uuid4
 
 from django.conf import settings as django_settings
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.core.management import call_command
@@ -2634,7 +2635,7 @@ class ContaPagarAdminCreationIntegrationTest(BaseFinanceiroTestCase):
         self.assertEqual(conta.authorization_origin, ContaPagar.AUTHORIZATION_ORIGIN_POLICY_NOT_REQUIRED)
         self.assertTrue(conta.current_material_fingerprint)
         self.assertEqual(event.actor, self.user)
-        self.assertIsNone(conta.usuario_criacao)
+        self.assertEqual(conta.usuario_criacao, self.user)
 
     def test_admin_add_classifica_policy_exigindo_aprovacao(self):
         PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja).update(
@@ -2666,7 +2667,8 @@ class ContaPagarAdminCreationIntegrationTest(BaseFinanceiroTestCase):
             data_vencimento=date(2026, 10, 20),
             actor=self.user,
         )
-        payload = self._payload('Conta Admin Editada')
+        payload = self._payload('Conta Admin Existente')
+        payload['numero_documento'] = 'NF-ADMIN-EDITADA'
         payload['usuario_criacao'] = ''
         payload.update({
             'status': conta.status,
@@ -2696,7 +2698,8 @@ class ContaPagarAdminCreationIntegrationTest(BaseFinanceiroTestCase):
 
         self.assertEqual(response.status_code, 302)
         conta.refresh_from_db()
-        self.assertEqual(conta.descricao, 'Conta Admin Editada')
+        self.assertEqual(conta.descricao, 'Conta Admin Existente')
+        self.assertEqual(conta.numero_documento, 'NF-ADMIN-EDITADA')
         expected_fingerprint = compute_payable_material_fingerprint_v1(
             build_payable_material_snapshot_v1(conta),
         )
@@ -2764,6 +2767,362 @@ class ContaPagarAdminCreationIntegrationTest(BaseFinanceiroTestCase):
             compute_payable_material_fingerprint_v1(build_payable_material_snapshot_v1(conta)),
         )
         self.assertFalse(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).exists())
+
+
+class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
+    authorization_sensitive_fields = (
+        'authorization_status',
+        'authorization_origin',
+        'authorization_policy_version',
+        'current_material_fingerprint',
+        'approved_material_fingerprint',
+        'approved_by',
+        'approved_at',
+        'rejected_by',
+        'rejected_at',
+        'current_rejection_reason',
+    )
+    payment_sensitive_fields = (
+        'status',
+        'data_pagamento',
+        'valor_pago',
+        'juros_multa',
+        'desconto',
+        'comprovante',
+        'forma_pagamento',
+        'conta_debito',
+    )
+    provenance_fields = (
+        'usuario_criacao',
+        'criado_automaticamente',
+        'recorrencia_origem',
+    )
+    change_readonly_fields = (
+        'ministerio',
+        'igreja',
+        'fornecedor',
+        'categoria',
+        'descricao',
+        'valor',
+        'data_vencimento',
+        'competencia',
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.user.is_staff = True
+        self.user.is_superuser = True
+        self.user.save(update_fields=['is_staff', 'is_superuser'])
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Admin Sensitive Fields',
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Admin Sensitive Fields',
+        )
+        self.conta_debito = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Conta Debito Admin Sensitive Fields',
+            tipo='caixa_fisico',
+        )
+        self.other_user = get_user_model().objects.create_user(
+            username='outro_criador_admin_sensitive',
+            password='senha123',
+        )
+        self.other_ministerio = Ministerio.objects.create(
+            nome_fantasia='Outro Ministerio Admin Sensitive Fields',
+            administrador_principal=self.other_user,
+            ativo=True,
+            cnpj='98765432000199',
+        )
+        self.other_igreja = Igreja.objects.create(
+            nome_igreja='Outra Igreja Admin Sensitive Fields',
+            ministerio=self.other_ministerio,
+            tipo_igreja='sede',
+        )
+        self.other_fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Outro Fornecedor Admin Sensitive Fields',
+        )
+        self.other_categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Outra Categoria Admin Sensitive Fields',
+        )
+        self.recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Recorrencia Admin Sensitive Fields',
+            valor=Decimal('100.00'),
+            dia_vencimento=20,
+            usuario_criacao=self.other_user,
+        )
+        self.other_recorrencia = RecorrenciaContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.other_fornecedor,
+            categoria=self.other_categoria,
+            descricao='Outra Recorrencia Admin Sensitive Fields',
+            valor=Decimal('200.00'),
+            dia_vencimento=25,
+            usuario_criacao=self.other_user,
+        )
+        self.client.force_login(self.user)
+
+    def _admin(self):
+        return admin.site._registry[ContaPagar]
+
+    def _payload(self, descricao):
+        return {
+            'ministerio': str(self.ministerio.pk),
+            'igreja': str(self.igreja.pk),
+            'fornecedor': str(self.fornecedor.pk),
+            'categoria': str(self.categoria.pk),
+            'descricao': descricao,
+            'numero_documento': 'NF-ADMIN-SENSITIVE-123',
+            'valor': '100.00',
+            'data_emissao': '2026-10-10',
+            'data_vencimento': '2026-10-20',
+            'recorrencia_origem': '',
+            'competencia': '',
+            'criado_automaticamente': '',
+            'observacoes': 'Edicao administrativa normal.',
+            'usuario_criacao': '',
+        }
+
+    def _malicious_authorization_payload(self):
+        return {
+            'authorization_status': ContaPagar.AUTHORIZATION_REJECTED,
+            'authorization_origin': ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED,
+            'authorization_policy_version': '999',
+            'current_material_fingerprint': 'v1:sha256:' + ('0' * 64),
+            'approved_material_fingerprint': 'v1:sha256:' + ('1' * 64),
+            'approved_by': str(self.user.pk),
+            'approved_at_0': '2026-10-21',
+            'approved_at_1': '10:00:00',
+            'rejected_by': str(self.user.pk),
+            'rejected_at_0': '2026-10-21',
+            'rejected_at_1': '10:00:00',
+            'current_rejection_reason': 'Payload administrativo adulterado.',
+        }
+
+    def _malicious_payment_payload(self):
+        return {
+            'status': 'PAG',
+            'data_pagamento': '2026-10-21',
+            'valor_pago': '999.99',
+            'juros_multa': '12.34',
+            'desconto': '5.67',
+            'comprovante': 'comprovante-adulterado.pdf',
+            'forma_pagamento': 'PIX',
+            'conta_debito': str(self.conta_debito.pk),
+        }
+
+    def _create_payable(self, descricao='Conta Admin Sensitive Fields'):
+        return create_payable(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao=descricao,
+            valor=Decimal('100.00'),
+            data_emissao=date(2026, 10, 10),
+            data_vencimento=date(2026, 10, 20),
+            actor=self.user,
+        )
+
+    def _malicious_provenance_payload(self):
+        return {
+            'usuario_criacao': str(self.other_user.pk),
+            'criado_automaticamente': 'on',
+            'recorrencia_origem': str(self.other_recorrencia.pk),
+            'competencia': '2026-11',
+        }
+
+    def test_admin_forms_differentiate_add_and_change_safe_surfaces(self):
+        model_admin = self._admin()
+        request = self.factory.get('/admin/financeiro/contapagar/')
+        request.user = self.user
+        change_fields = model_admin.get_form(request, ContaPagar()).base_fields
+        add_fields = model_admin.get_form(request, None).base_fields
+
+        for field_name in self.authorization_sensitive_fields + self.payment_sensitive_fields + self.provenance_fields:
+            self.assertNotIn(field_name, change_fields)
+            self.assertNotIn(field_name, add_fields)
+
+        for field_name in (
+            'ministerio', 'igreja', 'fornecedor', 'categoria', 'descricao', 'numero_documento', 'valor',
+            'data_emissao', 'data_vencimento', 'competencia', 'observacoes',
+        ):
+            self.assertIn(field_name, add_fields)
+
+        for field_name in self.change_readonly_fields:
+            self.assertNotIn(field_name, change_fields)
+
+        for field_name in ('numero_documento', 'data_emissao', 'observacoes'):
+            self.assertIn(field_name, change_fields)
+
+    def test_admin_change_post_cannot_mutate_authorization_internals(self):
+        conta = self._create_payable()
+        approved_at = timezone.now()
+        rejected_at = approved_at + timedelta(minutes=1)
+        ContaPagar.objects.filter(pk=conta.pk).update(
+            authorization_status=ContaPagar.AUTHORIZATION_APPROVED,
+            authorization_origin=ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED,
+            authorization_policy_version=7,
+            approved_material_fingerprint='v1:sha256:' + ('a' * 64),
+            approved_by=self.user,
+            approved_at=approved_at,
+            rejected_by=self.user,
+            rejected_at=rejected_at,
+            current_rejection_reason='Motivo historico preservado.',
+        )
+        conta.refresh_from_db()
+        expected = {
+            field_name: getattr(conta, field_name)
+            for field_name in self.authorization_sensitive_fields
+            if field_name != 'current_material_fingerprint'
+        }
+        payload = self._payload('Conta Admin Authorization Preservada')
+        payload.update(self._malicious_authorization_payload())
+
+        response = self.client.post(
+            reverse('admin:financeiro_contapagar_change', args=[conta.pk]),
+            data=payload,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.descricao, 'Conta Admin Sensitive Fields')
+        for field_name, value in expected.items():
+            self.assertEqual(getattr(conta, field_name), value)
+        self.assertNotEqual(conta.current_material_fingerprint, payload['current_material_fingerprint'])
+        self.assertEqual(
+            conta.current_material_fingerprint,
+            compute_payable_material_fingerprint_v1(build_payable_material_snapshot_v1(conta)),
+        )
+
+    def test_admin_change_post_cannot_mutate_payment_internals_or_create_expense(self):
+        conta = self._create_payable()
+        expected = {
+            'status': conta.status,
+            'data_pagamento': conta.data_pagamento,
+            'valor_pago': conta.valor_pago,
+            'juros_multa': conta.juros_multa,
+            'desconto': conta.desconto,
+            'comprovante': conta.comprovante.name or '',
+            'forma_pagamento': conta.forma_pagamento,
+            'conta_debito_id': conta.conta_debito_id,
+        }
+        payload = self._payload('Conta Admin Payment Preservada')
+        payload.update(self._malicious_payment_payload())
+
+        response = self.client.post(
+            reverse('admin:financeiro_contapagar_change', args=[conta.pk]),
+            data=payload,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.descricao, 'Conta Admin Sensitive Fields')
+        self.assertEqual(conta.status, expected['status'])
+        self.assertEqual(conta.data_pagamento, expected['data_pagamento'])
+        self.assertEqual(conta.valor_pago, expected['valor_pago'])
+        self.assertEqual(conta.juros_multa, expected['juros_multa'])
+        self.assertEqual(conta.desconto, expected['desconto'])
+        self.assertEqual(conta.comprovante.name, expected['comprovante'])
+        self.assertEqual(conta.forma_pagamento, expected['forma_pagamento'])
+        self.assertEqual(conta.conta_debito_id, expected['conta_debito_id'])
+        self.assertNotEqual(conta.status, 'PAG')
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta).exists())
+
+    def test_admin_change_post_cannot_mutate_tenant_provenance_material_or_category_fields(self):
+        conta = self._create_payable()
+        conta.usuario_criacao = self.user
+        conta.recorrencia_origem = self.recorrencia
+        conta.competencia = '2026-10'
+        conta.criado_automaticamente = True
+        conta.save(update_fields=[
+            'usuario_criacao', 'recorrencia_origem', 'competencia', 'criado_automaticamente',
+        ])
+        expected = {
+            'ministerio_id': conta.ministerio_id,
+            'igreja_id': conta.igreja_id,
+            'fornecedor_id': conta.fornecedor_id,
+            'categoria_id': conta.categoria_id,
+            'descricao': conta.descricao,
+            'valor': conta.valor,
+            'data_vencimento': conta.data_vencimento,
+            'usuario_criacao_id': conta.usuario_criacao_id,
+            'criado_automaticamente': conta.criado_automaticamente,
+            'recorrencia_origem_id': conta.recorrencia_origem_id,
+            'competencia': conta.competencia,
+        }
+        payload = self._payload('Conta Admin Material Adulterada')
+        payload.update({
+            'ministerio': str(self.other_ministerio.pk),
+            'igreja': str(self.other_igreja.pk),
+            'fornecedor': str(self.other_fornecedor.pk),
+            'categoria': str(self.other_categoria.pk),
+            'valor': '999.99',
+            'data_vencimento': '2026-11-20',
+        })
+        payload.update(self._malicious_provenance_payload())
+
+        response = self.client.post(
+            reverse('admin:financeiro_contapagar_change', args=[conta.pk]),
+            data=payload,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        for field_name, value in expected.items():
+            self.assertEqual(getattr(conta, field_name), value)
+
+    def test_admin_change_keeps_safe_nonmaterial_edit_working(self):
+        conta = self._create_payable()
+        payload = self._payload(conta.descricao)
+        payload['numero_documento'] = 'NF-ADMIN-SAFE-EDIT-456'
+
+        response = self.client.post(
+            reverse('admin:financeiro_contapagar_change', args=[conta.pk]),
+            data=payload,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.numero_documento, 'NF-ADMIN-SAFE-EDIT-456')
+
+    def test_admin_add_ignores_sensitive_payload_and_uses_create_payable(self):
+        payload = self._payload('Conta Admin Add Protegida')
+        payload.update(self._malicious_authorization_payload())
+        payload.update(self._malicious_payment_payload())
+        payload.update(self._malicious_provenance_payload())
+
+        with patch('financeiro.admin_contas.create_payable', wraps=create_payable) as create_payable_mock:
+            response = self.client.post(
+                reverse('admin:financeiro_contapagar_add'),
+                data=payload,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        create_payable_mock.assert_called_once()
+        self.assertEqual(create_payable_mock.call_args.kwargs['usuario_criacao'], self.user)
+        self.assertFalse(create_payable_mock.call_args.kwargs['criado_automaticamente'])
+        self.assertIsNone(create_payable_mock.call_args.kwargs['recorrencia_origem'])
+        conta = ContaPagar.objects.get(descricao='Conta Admin Add Protegida')
+        self.assertNotEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_REJECTED)
+        self.assertNotEqual(conta.authorization_policy_version, 999)
+        self.assertNotEqual(conta.current_material_fingerprint, payload['current_material_fingerprint'])
+        self.assertNotEqual(conta.status, 'PAG')
+        self.assertIsNone(conta.data_pagamento)
+        self.assertIsNone(conta.valor_pago)
+        self.assertEqual(conta.usuario_criacao, self.user)
+        self.assertFalse(conta.criado_automaticamente)
+        self.assertIsNone(conta.recorrencia_origem)
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta).exists())
 
 
 class RecorrenciaContaPagarFormTest(BaseFinanceiroTestCase):
