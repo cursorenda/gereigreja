@@ -2592,6 +2592,13 @@ class ContaPagarAdminCreationIntegrationTest(BaseFinanceiroTestCase):
             ministerio=self.ministerio,
             nome='Categoria Admin Creation',
         )
+        perfil, _ = PerfilUsuario.objects.get_or_create(
+            user=self.user,
+            defaults={'ministerio': self.ministerio},
+        )
+        perfil.ministerio = self.ministerio
+        perfil.save(update_fields=['ministerio'])
+        perfil.igrejas_permitidas.set([self.igreja])
         self.client.force_login(self.user)
 
     def _payload(self, descricao):
@@ -2729,7 +2736,8 @@ class ContaPagarAdminCreationIntegrationTest(BaseFinanceiroTestCase):
             authorization_origin=ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED,
             authorization_policy_version=3,
         )
-        payload = self._payload('Conta Admin Legada Editada')
+        payload = self._payload(conta.descricao)
+        payload['numero_documento'] = 'NF-ADMIN-LEGADA-HEALED'
         payload['usuario_criacao'] = ''
         payload.update({
             'status': conta.status,
@@ -2799,12 +2807,6 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
     )
     change_readonly_fields = (
         'ministerio',
-        'igreja',
-        'fornecedor',
-        'categoria',
-        'descricao',
-        'valor',
-        'data_vencimento',
         'competencia',
     )
 
@@ -2869,6 +2871,13 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
             dia_vencimento=25,
             usuario_criacao=self.other_user,
         )
+        perfil, _ = PerfilUsuario.objects.get_or_create(
+            user=self.user,
+            defaults={'ministerio': self.ministerio},
+        )
+        perfil.ministerio = self.ministerio
+        perfil.save(update_fields=['ministerio'])
+        perfil.igrejas_permitidas.set([self.igreja])
         self.client.force_login(self.user)
 
     def _admin(self):
@@ -2964,6 +2973,11 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
         for field_name in ('numero_documento', 'data_emissao', 'observacoes'):
             self.assertIn(field_name, change_fields)
 
+        for field_name in (
+            'igreja', 'fornecedor', 'categoria', 'descricao', 'valor', 'data_vencimento',
+        ):
+            self.assertIn(field_name, change_fields)
+
     def test_admin_change_post_cannot_mutate_authorization_internals(self):
         conta = self._create_payable()
         approved_at = timezone.now()
@@ -2985,7 +2999,7 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
             for field_name in self.authorization_sensitive_fields
             if field_name != 'current_material_fingerprint'
         }
-        payload = self._payload('Conta Admin Authorization Preservada')
+        payload = self._payload(conta.descricao)
         payload.update(self._malicious_authorization_payload())
 
         response = self.client.post(
@@ -3016,7 +3030,7 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
             'forma_pagamento': conta.forma_pagamento,
             'conta_debito_id': conta.conta_debito_id,
         }
-        payload = self._payload('Conta Admin Payment Preservada')
+        payload = self._payload(conta.descricao)
         payload.update(self._malicious_payment_payload())
 
         response = self.client.post(
@@ -3038,7 +3052,7 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
         self.assertNotEqual(conta.status, 'PAG')
         self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta).exists())
 
-    def test_admin_change_post_cannot_mutate_tenant_provenance_material_or_category_fields(self):
+    def test_admin_change_post_cannot_mutate_tenant_or_provenance_boundaries(self):
         conta = self._create_payable()
         conta.usuario_criacao = self.user
         conta.recorrencia_origem = self.recorrencia
@@ -3049,12 +3063,6 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
         ])
         expected = {
             'ministerio_id': conta.ministerio_id,
-            'igreja_id': conta.igreja_id,
-            'fornecedor_id': conta.fornecedor_id,
-            'categoria_id': conta.categoria_id,
-            'descricao': conta.descricao,
-            'valor': conta.valor,
-            'data_vencimento': conta.data_vencimento,
             'usuario_criacao_id': conta.usuario_criacao_id,
             'criado_automaticamente': conta.criado_automaticamente,
             'recorrencia_origem_id': conta.recorrencia_origem_id,
@@ -3063,11 +3071,6 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
         payload = self._payload('Conta Admin Material Adulterada')
         payload.update({
             'ministerio': str(self.other_ministerio.pk),
-            'igreja': str(self.other_igreja.pk),
-            'fornecedor': str(self.other_fornecedor.pk),
-            'categoria': str(self.other_categoria.pk),
-            'valor': '999.99',
-            'data_vencimento': '2026-11-20',
         })
         payload.update(self._malicious_provenance_payload())
 
@@ -3123,6 +3126,377 @@ class ContaPagarAdminSensitiveFieldsHardeningTest(BaseFinanceiroTestCase):
         self.assertFalse(conta.criado_automaticamente)
         self.assertIsNone(conta.recorrencia_origem)
         self.assertFalse(Despesas.objects.filter(origem_conta_pagar=conta).exists())
+
+
+class ContaPagarAdminAuthorizationEditWiringTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.user.is_staff = True
+        self.user.is_superuser = True
+        self.user.save(update_fields=['is_staff', 'is_superuser'])
+        self.igreja_b = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja='Igreja B Admin B3B2D',
+            tipo_igreja='regional',
+        )
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Admin B3B2D',
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Admin B3B2D',
+        )
+        outro_ministerio = Ministerio.objects.create(
+            nome_fantasia='Outro Ministerio Admin B3B2D',
+            administrador_principal=self.user,
+            ativo=True,
+            cnpj='98765432000199',
+        )
+        self.fornecedor_invalido = Fornecedor.objects.create(
+            ministerio=outro_ministerio,
+            nome='Fornecedor Invalido Admin B3B2D',
+        )
+        perfil, _ = PerfilUsuario.objects.get_or_create(
+            user=self.user,
+            defaults={'ministerio': self.ministerio},
+        )
+        perfil.ministerio = self.ministerio
+        perfil.save(update_fields=['ministerio'])
+        perfil.igrejas_permitidas.set([self.igreja])
+        self.client.force_login(self.user)
+
+    def _set_scope(self, *igrejas):
+        self.user.perfil.igrejas_permitidas.set(igrejas)
+
+    def _configure_policy(self, igreja, *, approval_required, version):
+        policy = PoliticaFinanceiraIgreja.objects.get(igreja=igreja)
+        policy.approval_required = approval_required
+        policy.segregation_level = (
+            PoliticaFinanceiraIgreja.LEVEL_2_CONTROLLED
+            if approval_required else PoliticaFinanceiraIgreja.LEVEL_1_SIMPLE
+        )
+        policy.version = version
+        policy.full_clean()
+        policy.save()
+        return policy
+
+    def _create_payable(self, *, igreja=None, descricao='Conta Admin B3B2D', status='PEN'):
+        igreja = igreja or self.igreja
+        return create_payable(
+            ministerio=self.ministerio,
+            igreja=igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao=descricao,
+            valor=Decimal('100.00'),
+            data_emissao=date(2026, 10, 10),
+            data_vencimento=date(2026, 10, 20),
+            actor=self.user,
+        )
+
+    def _payload(self, conta, **overrides):
+        payload = {
+            'igreja': str(conta.igreja_id),
+            'fornecedor': str(conta.fornecedor_id),
+            'categoria': str(conta.categoria_id),
+            'descricao': conta.descricao,
+            'numero_documento': conta.numero_documento or '',
+            'valor': str(conta.valor),
+            'data_emissao': conta.data_emissao.isoformat(),
+            'data_vencimento': conta.data_vencimento.isoformat(),
+            'observacoes': conta.observacoes or '',
+        }
+        payload.update(overrides)
+        return payload
+
+    def _post(self, conta, **overrides):
+        return self.client.post(
+            reverse('admin:financeiro_contapagar_change', args=[conta.pk]),
+            data=self._payload(conta, **overrides),
+        )
+
+    def _assert_controlled_admin_error(self, conta, initial_events, **overrides):
+        change_url = reverse('admin:financeiro_contapagar_change', args=[conta.pk])
+        response = self._post(conta, **overrides)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], change_url)
+        response = self.client.get(response['Location'])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Não foi possível salvar a conta:')
+        conta.refresh_from_db()
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count(),
+            initial_events,
+        )
+
+    def _set_decision(self, conta, status, policy):
+        fingerprint = refresh_payable_material_fingerprint(conta)
+        conta.authorization_status = status
+        conta.authorization_origin = (
+            ContaPagar.AUTHORIZATION_ORIGIN_USER_APPROVAL
+            if status == ContaPagar.AUTHORIZATION_APPROVED
+            else ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        )
+        conta.authorization_policy_version = policy.version
+        if status == ContaPagar.AUTHORIZATION_APPROVED:
+            conta.approved_material_fingerprint = fingerprint
+            conta.approved_by = self.user
+            conta.approved_at = timezone.now()
+            event_type = ContaPagarAutorizacaoEvento.EVENT_APPROVED
+        else:
+            conta.rejected_by = self.user
+            conta.rejected_at = timezone.now()
+            conta.current_rejection_reason = 'Motivo de rejeicao B3B2D.'
+            event_type = ContaPagarAutorizacaoEvento.EVENT_REJECTED
+        conta.save()
+        _create_payable_authorization_event(
+            payable=conta,
+            event_type=event_type,
+            actor=self.user,
+            authorization_status_before=ContaPagar.AUTHORIZATION_PENDING,
+            authorization_status_after=status,
+            financial_status_before=conta.status,
+            financial_status_after=conta.status,
+            material_fingerprint=fingerprint,
+            material_snapshot=build_payable_material_snapshot_v1(conta),
+            policy=policy,
+            reason=conta.current_rejection_reason,
+        )
+        return fingerprint
+
+    def _event_types(self, conta):
+        return list(
+            ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta)
+            .order_by('id')
+            .values_list('event_type', flat=True)
+        )
+
+    def test_change_form_surface_is_exact(self):
+        model_admin = admin.site._registry[ContaPagar]
+        request = self.factory.get('/admin/financeiro/contapagar/')
+        request.user = self.user
+        fields = model_admin.get_form(request, ContaPagar()).base_fields
+
+        self.assertEqual(
+            set(fields),
+            {
+                'igreja', 'fornecedor', 'categoria', 'descricao', 'valor',
+                'data_vencimento', 'numero_documento', 'data_emissao', 'observacoes',
+            },
+        )
+
+    def test_approved_material_post_uses_locked_database_before_snapshot(self):
+        policy = self._configure_policy(self.igreja, approval_required=True, version=10)
+        conta = self._create_payable(descricao='Conta Aprovada Admin')
+        self._set_decision(conta, ContaPagar.AUTHORIZATION_APPROVED, policy)
+
+        response = self._post(conta, descricao='Conta Aprovada Admin Editada')
+
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertIsNone(conta.approved_by)
+        self.assertEqual(self._event_types(conta)[-3:], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_INVALIDATED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+
+    def test_material_policy_false_and_not_required_to_pending_flows(self):
+        conta = self._create_payable(descricao='Conta Policy False Admin')
+        self._configure_policy(self.igreja, approval_required=False, version=11)
+        response = self._post(conta, descricao='Conta Policy False Editada')
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self.assertEqual(self._event_types(conta)[-1:], [ContaPagarAutorizacaoEvento.EVENT_EDITED])
+
+        self._configure_policy(self.igreja, approval_required=True, version=12)
+        response = self._post(conta, descricao='Conta Agora Pendente')
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertEqual(self._event_types(conta)[-2:], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+
+    def test_pending_same_context_and_changed_church_follow_b3b1(self):
+        self._configure_policy(self.igreja, approval_required=True, version=13)
+        self._configure_policy(self.igreja_b, approval_required=True, version=14)
+        conta = self._create_payable(descricao='Conta Pendente Admin')
+        conta.authorization_status = ContaPagar.AUTHORIZATION_PENDING
+        conta.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        conta.authorization_policy_version = 13
+        conta.save(update_fields=['authorization_status', 'authorization_origin', 'authorization_policy_version'])
+
+        response = self._post(conta, descricao='Conta Pendente Mesmo Contexto')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self._event_types(conta)[-1:], [ContaPagarAutorizacaoEvento.EVENT_EDITED])
+
+        self._set_scope(self.igreja, self.igreja_b)
+        response = self._post(conta, igreja=str(self.igreja_b.pk), descricao='Conta Pendente Igreja B')
+        self.assertEqual(response.status_code, 302)
+        conta.refresh_from_db()
+        self.assertEqual(conta.igreja, self.igreja_b)
+        self.assertEqual(self._event_types(conta)[-2:], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+
+    def test_resulting_church_out_of_scope_and_invalid_domain_persist_nothing(self):
+        conta = self._create_payable(descricao='Conta Escopo Admin')
+        initial_events = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count()
+        response = self._post(conta, igreja=str(self.igreja_b.pk))
+        self.assertEqual(response.status_code, 403)
+        conta.refresh_from_db()
+        self.assertEqual(conta.igreja, self.igreja)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=conta).count(), initial_events)
+
+        self._assert_controlled_admin_error(
+            conta,
+            initial_events,
+            fornecedor=str(self.fornecedor_invalido.pk),
+        )
+        self.assertEqual(conta.fornecedor, self.fornecedor)
+
+    def test_historical_guards_and_null_authorization_fail_closed(self):
+        policy = self._configure_policy(self.igreja, approval_required=True, version=15)
+        approved = self._create_payable(descricao='Conta Aprovada Sem Evento Admin')
+        fingerprint = refresh_payable_material_fingerprint(approved)
+        approved.authorization_status = ContaPagar.AUTHORIZATION_APPROVED
+        approved.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_USER_APPROVAL
+        approved.authorization_policy_version = policy.version
+        approved.approved_material_fingerprint = fingerprint
+        approved.approved_by = self.user
+        approved.approved_at = timezone.now()
+        approved.save()
+        approved_events = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=approved).count()
+        self._assert_controlled_admin_error(
+            approved,
+            approved_events,
+            descricao='Nao Deve Persistir',
+        )
+        self.assertEqual(approved.descricao, 'Conta Aprovada Sem Evento Admin')
+
+        rejected = self._create_payable(descricao='Conta Rejeitada Sem Evento Admin')
+        refresh_payable_material_fingerprint(rejected)
+        rejected.authorization_status = ContaPagar.AUTHORIZATION_REJECTED
+        rejected.authorization_origin = ContaPagar.AUTHORIZATION_ORIGIN_POLICY_REQUIRED
+        rejected.authorization_policy_version = policy.version
+        rejected.rejected_by = self.user
+        rejected.rejected_at = timezone.now()
+        rejected.current_rejection_reason = 'Sem evento.'
+        rejected.save()
+        rejected_events = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=rejected).count()
+        self._assert_controlled_admin_error(
+            rejected,
+            rejected_events,
+            descricao='Nao Deve Persistir Rejeitada',
+        )
+        rejected.refresh_from_db()
+        self.assertEqual(rejected.descricao, 'Conta Rejeitada Sem Evento Admin')
+
+        null_auth = self._create_payable(descricao='Conta Null Auth Admin')
+        ContaPagar.objects.filter(pk=null_auth.pk).update(
+            authorization_status=None,
+            authorization_origin=None,
+            authorization_policy_version=None,
+        )
+        null_auth_events = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=null_auth).count()
+        self._assert_controlled_admin_error(
+            null_auth,
+            null_auth_events,
+            descricao='Nao Deve Persistir Null Auth',
+        )
+        self.assertEqual(null_auth.descricao, 'Conta Null Auth Admin')
+
+    def test_rejected_nonmaterial_healing_rollback_and_noneditable_status(self):
+        policy = self._configure_policy(self.igreja, approval_required=True, version=16)
+        rejected = self._create_payable(descricao='Conta Rejeitada Admin')
+        self._set_decision(rejected, ContaPagar.AUTHORIZATION_REJECTED, policy)
+        response = self._post(rejected, descricao='Conta Rejeitada Editada')
+        self.assertEqual(response.status_code, 302)
+        rejected.refresh_from_db()
+        self.assertEqual(rejected.authorization_status, ContaPagar.AUTHORIZATION_PENDING)
+        self.assertIsNone(rejected.rejected_by)
+        self.assertEqual(self._event_types(rejected)[-2:], [
+            ContaPagarAutorizacaoEvento.EVENT_EDITED,
+            ContaPagarAutorizacaoEvento.EVENT_APPROVAL_REQUESTED,
+        ])
+
+        nonmaterial = self._create_payable(descricao='Conta Nonmaterial Admin')
+        original_status = nonmaterial.authorization_status
+        ContaPagar.objects.filter(pk=nonmaterial.pk).update(current_material_fingerprint=None)
+        PoliticaFinanceiraIgreja.objects.filter(igreja=self.igreja_b).delete()
+        policy_count = PoliticaFinanceiraIgreja.objects.count()
+        event_count = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=nonmaterial).count()
+        response = self._post(nonmaterial, numero_documento='NF-HEALED')
+        self.assertEqual(response.status_code, 302)
+        nonmaterial.refresh_from_db()
+        self.assertEqual(nonmaterial.authorization_status, original_status)
+        self.assertIsNotNone(nonmaterial.current_material_fingerprint)
+        self.assertEqual(PoliticaFinanceiraIgreja.objects.count(), policy_count)
+        self.assertEqual(ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=nonmaterial).count(), event_count)
+
+        rollback = self._create_payable(descricao='Conta Rollback Admin')
+        rollback_before = {
+            'descricao': rollback.descricao,
+            'valor': rollback.valor,
+            'igreja_id': rollback.igreja_id,
+            'fornecedor_id': rollback.fornecedor_id,
+            'categoria_id': rollback.categoria_id,
+            'data_vencimento': rollback.data_vencimento,
+            'current_material_fingerprint': rollback.current_material_fingerprint,
+            'authorization_status': rollback.authorization_status,
+            'authorization_origin': rollback.authorization_origin,
+            'authorization_policy_version': rollback.authorization_policy_version,
+            'approved_material_fingerprint': rollback.approved_material_fingerprint,
+            'approved_by_id': rollback.approved_by_id,
+            'approved_at': rollback.approved_at,
+            'rejected_by_id': rollback.rejected_by_id,
+            'rejected_at': rollback.rejected_at,
+            'current_rejection_reason': rollback.current_rejection_reason,
+            'event_count': ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=rollback).count(),
+        }
+        with patch(
+            'financeiro.admin_contas._materialize_payable_edit_authorization_events',
+            side_effect=RuntimeError('falha de evento B3B2D'),
+        ):
+            with self.assertRaisesRegex(RuntimeError, 'falha de evento B3B2D'):
+                self._post(rollback, descricao='Conta Rollback Alterada')
+        rollback.refresh_from_db()
+        for field_name, expected_value in rollback_before.items():
+            if field_name == 'event_count':
+                self.assertEqual(
+                    ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=rollback).count(),
+                    expected_value,
+                )
+            else:
+                self.assertEqual(getattr(rollback, field_name), expected_value)
+
+        paid = self._create_payable(descricao='Conta Paga Admin')
+        paid.status = 'PAG'
+        paid.save(update_fields=['status'])
+        paid_events = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=paid).count()
+        self._assert_controlled_admin_error(
+            paid,
+            paid_events,
+            numero_documento='NF-NAO-EDITAVEL',
+        )
+        self.assertIsNone(paid.numero_documento)
+
+        cancelled = self._create_payable(descricao='Conta Cancelada Admin')
+        cancelled.status = 'CAN'
+        cancelled.save(update_fields=['status'])
+        cancelled_events = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=cancelled).count()
+        self._assert_controlled_admin_error(
+            cancelled,
+            cancelled_events,
+            numero_documento='NF-CANCELADA-NAO-EDITAVEL',
+        )
+        self.assertIsNone(cancelled.numero_documento)
 
 
 class RecorrenciaContaPagarFormTest(BaseFinanceiroTestCase):
