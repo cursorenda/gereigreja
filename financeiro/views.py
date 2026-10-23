@@ -113,6 +113,7 @@ from .services import (
     compute_payable_material_fingerprint_v1,
     create_payable,
     plan_payable_authorization_after_edit,
+    register_payable_payment,
     refresh_payable_material_fingerprint,
 )
 from contas.constants import PASTOR_LOCAL, user_has_permission_level_or_higher
@@ -3939,40 +3940,26 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
         form = RegistrarPagamentoContaPagarForm(request.POST, request.FILES, instance=conta, ministerio=ministerio) # Passa ministerio
         if form.is_valid():
             try:
-                with transaction.atomic(): # Garante que ou tudo funciona ou nada é salvo
-                    conta_paga = get_object_or_404(
-                        ContaPagar.objects.select_for_update(),
-                        pk=pk,
-                        ministerio=ministerio,
-                        status__in=['PEN', 'VEN'],
-                        igreja__in=allowed_churches,
-                    )
-                    conta_paga.data_pagamento = form.cleaned_data['data_pagamento']
-                    conta_paga.valor_pago = form.cleaned_data['valor_pago']
-                    conta_paga.juros_multa = form.cleaned_data['juros_multa']
-                    conta_paga.desconto = form.cleaned_data['desconto']
-                    conta_paga.conta_debito = form.cleaned_data['conta_debito']
-                    conta_paga.forma_pagamento = form.cleaned_data['forma_pagamento']
-                    conta_paga.comprovante = form.cleaned_data['comprovante']
-                    conta_paga.status = 'PAG'
-
-                    # Validação extra da conta de débito (form já deve ter filtrado)
-                    if conta_paga.conta_debito and conta_paga.conta_debito.igreja.ministerio != ministerio:
-                        raise ValidationError("Conta de débito selecionada inválida.")
-
-                    # Salva a ContaPagar com status 'PAG' e dados do pagamento
-                    conta_paga.save()
-
-                    _criar_despesa_por_conta_paga(conta_paga, request.user)
-    
-
-                    messages.success(request, f"Pagamento da conta '{conta.descricao}' registrado com sucesso!")
-                    return redirect('financeiro:lista_contas_pagar')
+                register_payable_payment(
+                    payable_id=pk,
+                    ministerio=ministerio,
+                    actor=request.user,
+                    data_pagamento=form.cleaned_data['data_pagamento'],
+                    valor_pago=form.cleaned_data['valor_pago'],
+                    juros_multa=form.cleaned_data['juros_multa'],
+                    desconto=form.cleaned_data['desconto'],
+                    conta_debito=form.cleaned_data['conta_debito'],
+                    forma_pagamento=form.cleaned_data['forma_pagamento'],
+                    comprovante=form.cleaned_data['comprovante'],
+                )
+                messages.success(request, f"Pagamento da conta '{conta.descricao}' registrado com sucesso!")
+                return redirect('financeiro:lista_contas_pagar')
 
             except Http404:
                  raise
             except ValidationError as ve:
                  messages.error(request, f"Erro de validação: {ve}")
+                 return redirect('financeiro:lista_contas_pagar')
             except Exception as e:
                  logger.exception(f"Erro ao registrar pagamento da conta {pk} para ministério {ministerio.id}")
                  logger.error(f"Erro ao registrar pagamento da conta {pk} para ministério {ministerio.id}: {e}\n{traceback.format_exc()}")
@@ -3995,35 +3982,6 @@ def registrar_pagamento_conta_pagar(request, pk): # noqa: E302
         'titulo_pagina': f"Registrar Pagamento: {conta.descricao}"
     }
     return render(request, 'financeiro/contas_pagar/form_registrar_pagamento.html', context)
-
-
-def _criar_despesa_por_conta_paga(conta_paga, user):
-    """Cria a despesa espelho para uma conta já marcada como paga."""
-    if conta_paga.status != 'PAG' or conta_paga.valor_pago is None:
-        return
-
-    valor_efetivo_despesa = conta_paga.valor_pago
-    if conta_paga.juros_multa:
-        valor_efetivo_despesa += conta_paga.juros_multa
-    if conta_paga.desconto:
-        valor_efetivo_despesa -= conta_paga.desconto
-
-    Despesas.objects.create(
-        igreja=conta_paga.igreja,
-        data=conta_paga.data_pagamento,
-        descricao=f"Pagamento: {conta_paga.descricao}",
-        valor=valor_efetivo_despesa,
-        categoria=conta_paga.categoria,
-        observacao=f"Pagamento referente à conta a pagar ID {conta_paga.pk}. {conta_paga.observacoes or ''}".strip(),
-        fechado=False,
-        conta_bancaria=conta_paga.conta_debito,
-        origem_conta_pagar=conta_paga,
-        usuario_registro_pagamento=user,
-        criado_por=user,
-    )
-    logger.info(f"Despesa criada automaticamente para a ContaPagar ID {conta_paga.pk}.")
-
-
 @page_access_required('financeiro')
 def registrar_pagamento_lote_contas_pagar(request):
     """Registra o pagamento em lote de contas pendentes/vencidas da igreja ativa."""
@@ -4092,24 +4050,18 @@ def registrar_pagamento_lote_contas_pagar(request):
 
     for conta in contas:
         try:
-            with transaction.atomic():
-                conta_paga = ContaPagar.objects.select_for_update().get(
-                    pk=conta.pk,
-                    ministerio=ministerio,
-                    igreja=request.igreja_ativa,
-                    status__in=['PEN', 'VEN'],
-                )
-                conta_paga.data_pagamento = data_pagamento
-                conta_paga.valor_pago = conta_paga.valor
-                conta_paga.juros_multa = Decimal('0.00')
-                conta_paga.desconto = Decimal('0.00')
-                conta_paga.conta_debito = conta_debito
-                conta_paga.forma_pagamento = forma_pagamento
-                conta_paga.status = 'PAG'
-                conta_paga.save()
-
-                _criar_despesa_por_conta_paga(conta_paga, request.user)
-                total_pagamentos += 1
+            register_payable_payment(
+                payable_id=conta.pk,
+                ministerio=ministerio,
+                actor=request.user,
+                data_pagamento=data_pagamento,
+                valor_pago=conta.valor,
+                juros_multa=Decimal('0.00'),
+                desconto=Decimal('0.00'),
+                conta_debito=conta_debito,
+                forma_pagamento=forma_pagamento,
+            )
+            total_pagamentos += 1
         except Exception:
             total_erros += 1
             logger.exception(

@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
+    ContaBancaria,
     ContaPagar,
     ContaPagarAutorizacaoEvento,
     DepartamentoFinanceiro,
@@ -40,7 +41,8 @@ from .selectors import (
     obter_evento_no_escopo,
 )
 from .policies import FUNDO_EVENTOS, categoria_receita_padrao_por_fundo
-from .authorization import can_approve_payable, get_finance_approval_scope
+from .authorization import can_approve_payable, get_finance_approval_scope, get_finance_write_scope
+from .utils import has_finance_edit_permission
 
 
 PAYABLE_FINGERPRINT_SCHEMA_VERSION = 1
@@ -112,6 +114,117 @@ def refresh_payable_material_fingerprint(payable):
     fingerprint = compute_payable_material_fingerprint_v1(material_snapshot)
     payable.current_material_fingerprint = fingerprint
     return fingerprint
+
+
+def validate_payable_payment_authorization(payable):
+    """Valida se a autorização material atual permite pagar a obrigação.
+
+    Esta validação deliberadamente consome somente o estado persistido da
+    obrigação. Não resolve nem reavalia a política atual da igreja, não grava
+    campos e não cria eventos de autorização.
+    """
+    authorization_status = payable.authorization_status
+    if authorization_status == ContaPagar.AUTHORIZATION_NOT_REQUIRED:
+        return
+
+    if authorization_status != ContaPagar.AUTHORIZATION_APPROVED:
+        raise ValidationError('A conta a pagar não está autorizada para pagamento.')
+
+    canonical_current_fingerprint = compute_payable_material_fingerprint_v1(
+        build_payable_material_snapshot_v1(payable)
+    )
+    if payable.approved_material_fingerprint != canonical_current_fingerprint:
+        raise ValidationError('A aprovação da conta a pagar não corresponde ao estado material atual.')
+
+
+def _create_expense_for_paid_payable(payable, actor):
+    """Cria a despesa espelho de uma conta já marcada como paga."""
+    if payable.status != 'PAG' or payable.valor_pago is None:
+        raise ValidationError('A despesa espelho exige uma conta a pagar efetivamente paga.')
+
+    expense_amount = payable.valor_pago
+    if payable.juros_multa:
+        expense_amount += payable.juros_multa
+    if payable.desconto:
+        expense_amount -= payable.desconto
+
+    Despesas.objects.create(
+        igreja=payable.igreja,
+        data=payable.data_pagamento,
+        descricao=f"Pagamento: {payable.descricao}",
+        valor=expense_amount,
+        categoria=payable.categoria,
+        observacao=f"Pagamento referente à conta a pagar ID {payable.pk}. {payable.observacoes or ''}".strip(),
+        fechado=False,
+        conta_bancaria=payable.conta_debito,
+        origem_conta_pagar=payable,
+        usuario_registro_pagamento=actor,
+        criado_por=actor,
+    )
+
+
+def register_payable_payment(
+    *,
+    payable_id: int,
+    ministerio,
+    actor,
+    data_pagamento,
+    valor_pago,
+    juros_multa,
+    desconto,
+    conta_debito,
+    forma_pagamento,
+    comprovante=None,
+):
+    """Efetiva uma conta autorizada, sob lock e escopo explícito de escrita."""
+    if not has_finance_edit_permission(actor):
+        raise PermissionDenied('Você não tem permissão para registrar pagamentos.')
+
+    with transaction.atomic():
+        payable = (
+            ContaPagar.objects
+            .select_for_update()
+            .select_related('igreja', 'fornecedor', 'categoria')
+            .get(pk=payable_id, ministerio=ministerio)
+        )
+        allowed_churches = get_finance_write_scope(actor, ministerio)
+        if not allowed_churches.filter(pk=payable.igreja_id).exists():
+            raise PermissionDenied('O usuário não possui escopo local explícito para pagar esta conta.')
+        if payable.status not in {'PEN', 'VEN'}:
+            raise ValidationError('Somente contas pendentes ou vencidas podem ser pagas.')
+
+        validate_payable_payment_authorization(payable)
+
+        if not data_pagamento:
+            raise ValidationError('A data do pagamento é obrigatória.')
+        if valor_pago is None or valor_pago <= 0:
+            raise ValidationError('O valor pago deve ser maior que zero.')
+        if forma_pagamento not in dict(ContaPagar.FORMA_PAGAMENTO_CHOICES):
+            raise ValidationError('Forma de pagamento inválida.')
+        if not conta_debito:
+            raise ValidationError('Informe a conta de débito do pagamento.')
+
+        conta_debito = ContaBancaria.objects.filter(
+            pk=conta_debito.pk,
+            igreja_id=payable.igreja_id,
+        ).first()
+        if conta_debito is None:
+            raise ValidationError('A conta de débito deve pertencer à igreja da conta a pagar.')
+        juros_multa = juros_multa or Decimal('0.00')
+        desconto = desconto or Decimal('0.00')
+
+        payable.data_pagamento = data_pagamento
+        payable.valor_pago = valor_pago
+        payable.juros_multa = juros_multa
+        payable.desconto = desconto
+        payable.conta_debito = conta_debito
+        payable.forma_pagamento = forma_pagamento
+        payable.comprovante = comprovante
+        payable.status = 'PAG'
+        payable.save()
+
+        _create_expense_for_paid_payable(payable, actor)
+        return payable
 
 
 def build_payable_authorization_edit_snapshot(payable):

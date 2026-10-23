@@ -48,7 +48,7 @@ from financeiro.models import (
     Receitas,
     TransferenciaCaixa,
 )
-from financeiro.forms import ContaPagarForm, RecorrenciaContaPagarForm
+from financeiro.forms import ContaPagarForm, RecorrenciaContaPagarForm, RegistrarPagamentoContaPagarForm
 from financeiro.forms import ContaBancariaForm, DespesaForm, ReceitaForm, TransferenciaCaixaForm
 from financeiro.services import (
     _create_payable_authorization_event,
@@ -60,9 +60,11 @@ from financeiro.services import (
     plan_payable_authorization_after_edit,
     apply_payable_authorization_edit_plan,
     create_payable,
+    register_payable_payment,
     approve_payable,
     reject_payable,
     refresh_payable_material_fingerprint,
+    validate_payable_payment_authorization,
     FechamentoCaixaService,
     OFXImportService,
     DepartamentoFinanceiroService,
@@ -3812,6 +3814,7 @@ class PagamentoLoteContasPagarViewTest(BaseFinanceiroTestCase):
             valor=Decimal('80.00'),
             data_vencimento=date(2026, 6, 10),
             status='PEN',
+            authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
         )
         self.conta_vencida = ContaPagar.objects.create(
             ministerio=self.ministerio,
@@ -3822,6 +3825,7 @@ class PagamentoLoteContasPagarViewTest(BaseFinanceiroTestCase):
             valor=Decimal('120.00'),
             data_vencimento=date(2026, 6, 5),
             status='VEN',
+            authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
         )
 
     def test_pagamento_lote_processa_contas_selecionadas(self):
@@ -3948,6 +3952,7 @@ class ContaPagarPaymentAuthorizationHardeningTest(TestCase):
             valor=Decimal('100.00'),
             data_vencimento=date(2026, 10, 20),
             status='PEN',
+            authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
         )
 
     def _payload_individual(self, conta_bancaria):
@@ -4139,6 +4144,348 @@ class ContaPagarPaymentAuthorizationHardeningTest(TestCase):
         self.assertEqual(conta.valor_pago, Decimal('100.00'))
         self.assertEqual(Despesas.objects.filter(origem_conta_pagar=conta).count(), 1)
         self.assertEqual(self.conta_a.saldo_atual, Decimal('400.00'))
+
+
+class _ContaPagarPaymentAuthorizationBaseTestCase(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.actor = User.objects.create_user(
+            username=f'payment-authorization-{uuid4().hex}',
+            password='senha123',
+        )
+        self.admin_principal = User.objects.create_user(
+            username=f'payment-authorization-admin-{uuid4().hex}',
+            password='senha123',
+        )
+        self.ministerio = Ministerio.objects.create(
+            nome_fantasia=f'Ministerio Payment Authorization {uuid4().hex}',
+            administrador_principal=self.admin_principal,
+            ativo=True,
+        )
+        self.igreja = Igreja.objects.create(
+            ministerio=self.ministerio,
+            nome_igreja=f'Igreja Payment Authorization {uuid4().hex}',
+            tipo_igreja='sede',
+        )
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome=f'Fornecedor Payment Authorization {uuid4().hex}',
+            ativo=True,
+        )
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome=f'Categoria Payment Authorization {uuid4().hex}',
+        )
+        self.conta_debito = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao=f'Caixa Payment Authorization {uuid4().hex}',
+            tipo='caixa_fisico',
+            saldo_inicial=Decimal('500.00'),
+        )
+        Group.objects.get_or_create(name=TESOUREIRO)
+        self.actor.groups.add(Group.objects.get(name=TESOUREIRO))
+        self.perfil = PerfilUsuario.objects.create(user=self.actor, ministerio=self.ministerio)
+        self.perfil.igrejas_permitidas.set([self.igreja])
+
+    def _create_payable(self, *, authorization_status, approved_material_fingerprint=None, status='PEN'):
+        return ContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao=f'Conta Payment Authorization {uuid4().hex}',
+            valor=Decimal('100.00'),
+            data_vencimento=date(2026, 10, 20),
+            status=status,
+            authorization_status=authorization_status,
+            approved_material_fingerprint=approved_material_fingerprint,
+        )
+
+    def _current_fingerprint(self, payable):
+        return compute_payable_material_fingerprint_v1(build_payable_material_snapshot_v1(payable))
+
+    def _payment_kwargs(self):
+        return {
+            'data_pagamento': date(2026, 10, 16),
+            'valor_pago': Decimal('100.00'),
+            'juros_multa': Decimal('0.00'),
+            'desconto': Decimal('0.00'),
+            'conta_debito': self.conta_debito,
+            'forma_pagamento': 'PIX',
+        }
+
+    def _assert_payment_unchanged(self, payable, *, authorization_event_count, expected_balance=Decimal('500.00')):
+        payable.refresh_from_db()
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(payable.status, 'PEN')
+        self.assertIsNone(payable.data_pagamento)
+        self.assertIsNone(payable.valor_pago)
+        self.assertEqual(payable.juros_multa, Decimal('0.00'))
+        self.assertEqual(payable.desconto, Decimal('0.00'))
+        self.assertIsNone(payable.forma_pagamento)
+        self.assertIsNone(payable.conta_debito_id)
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=payable).exists())
+        self.assertEqual(self.conta_debito.saldo_atual, expected_balance)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(),
+            authorization_event_count,
+        )
+
+
+class ContaPagarPaymentAuthorizationEnforcementServiceTest(_ContaPagarPaymentAuthorizationBaseTestCase):
+    def test_validator_allows_not_required(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+
+        self.assertIsNone(validate_payable_payment_authorization(payable))
+
+    def test_validator_allows_approved_with_current_canonical_fingerprint(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_APPROVED)
+        payable.approved_material_fingerprint = self._current_fingerprint(payable)
+        payable.save(update_fields=['approved_material_fingerprint'])
+
+        self.assertIsNone(validate_payable_payment_authorization(payable))
+
+    def test_validator_denies_pending_rejected_null_and_stale_approved(self):
+        pending = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_PENDING)
+        rejected = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_REJECTED)
+        missing = self._create_payable(authorization_status=None)
+        stale = self._create_payable(
+            authorization_status=ContaPagar.AUTHORIZATION_APPROVED,
+            approved_material_fingerprint='v1:sha256:' + ('0' * 64),
+        )
+
+        for payable in (pending, rejected, missing, stale):
+            with self.subTest(authorization_status=payable.authorization_status):
+                with self.assertRaises(ValidationError):
+                    validate_payable_payment_authorization(payable)
+
+    def test_service_rejects_unauthorized_payment_without_side_effects(self):
+        for authorization_status in (
+            ContaPagar.AUTHORIZATION_PENDING,
+            ContaPagar.AUTHORIZATION_REJECTED,
+            None,
+        ):
+            payable = self._create_payable(authorization_status=authorization_status)
+            events_before = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count()
+
+            with self.subTest(authorization_status=authorization_status):
+                with self.assertRaises(ValidationError):
+                    register_payable_payment(
+                        payable_id=payable.pk,
+                        ministerio=self.ministerio,
+                        actor=self.actor,
+                        **self._payment_kwargs(),
+                    )
+                self._assert_payment_unchanged(payable, authorization_event_count=events_before)
+
+    def test_service_rolls_back_payment_when_expense_creation_fails(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        events_before = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count()
+
+        with patch(
+            'financeiro.services._create_expense_for_paid_payable',
+            side_effect=RuntimeError('falha de despesa injetada'),
+        ):
+            with self.assertRaises(RuntimeError):
+                register_payable_payment(
+                    payable_id=payable.pk,
+                    ministerio=self.ministerio,
+                    actor=self.actor,
+                    **self._payment_kwargs(),
+                )
+
+        self._assert_payment_unchanged(payable, authorization_event_count=events_before)
+
+
+class ContaPagarPaymentAuthorizationHttpTest(_ContaPagarPaymentAuthorizationBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.actor)
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja.pk
+        session.save()
+
+    def _post_individual(self, payable):
+        payload = {
+            'data_pagamento': '2026-10-16',
+            'valor_pago': '100.00',
+            'juros_multa': '0.00',
+            'desconto': '0.00',
+            'conta_debito': str(self.conta_debito.pk),
+            'forma_pagamento': 'PIX',
+        }
+        return self.client.post(
+            reverse('financeiro:registrar_pagamento_conta_pagar', args=[payable.pk]),
+            data=payload,
+        )
+
+    def test_individual_allows_not_required_and_preserves_authorization_state(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        authorization_before = (
+            payable.authorization_status,
+            payable.authorization_origin,
+            payable.authorization_policy_version,
+            payable.approved_material_fingerprint,
+            payable.approved_by_id,
+            payable.approved_at,
+            payable.rejected_by_id,
+            payable.rejected_at,
+            payable.current_rejection_reason,
+        )
+
+        response = self._post_individual(payable)
+
+        self.assertEqual(response.status_code, 302)
+        payable.refresh_from_db()
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(payable.status, 'PAG')
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=payable).count(), 1)
+        self.assertEqual(self.conta_debito.saldo_atual, Decimal('400.00'))
+        self.assertEqual(
+            (
+                payable.authorization_status,
+                payable.authorization_origin,
+                payable.authorization_policy_version,
+                payable.approved_material_fingerprint,
+                payable.approved_by_id,
+                payable.approved_at,
+                payable.rejected_by_id,
+                payable.rejected_at,
+                payable.current_rejection_reason,
+            ),
+            authorization_before,
+        )
+
+    def test_individual_allows_current_approved(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_APPROVED)
+        payable.approved_material_fingerprint = self._current_fingerprint(payable)
+        payable.save(update_fields=['approved_material_fingerprint'])
+
+        response = self._post_individual(payable)
+
+        self.assertEqual(response.status_code, 302)
+        payable.refresh_from_db()
+        self.assertEqual(payable.status, 'PAG')
+        self.assertTrue(Despesas.objects.filter(origem_conta_pagar=payable).exists())
+
+    def test_individual_denies_pending_rejected_null_and_stale_without_side_effects(self):
+        cases = (
+            (ContaPagar.AUTHORIZATION_PENDING, None),
+            (ContaPagar.AUTHORIZATION_REJECTED, None),
+            (None, None),
+            (ContaPagar.AUTHORIZATION_APPROVED, 'v1:sha256:' + ('0' * 64)),
+        )
+        for authorization_status, fingerprint in cases:
+            payable = self._create_payable(
+                authorization_status=authorization_status,
+                approved_material_fingerprint=fingerprint,
+            )
+            events_before = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count()
+
+            with self.subTest(authorization_status=authorization_status):
+                response = self._post_individual(payable)
+                self.assertEqual(response.status_code, 302)
+                self._assert_payment_unchanged(payable, authorization_event_count=events_before)
+
+    def test_individual_double_submit_is_safe(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+
+        first_response = self._post_individual(payable)
+        second_response = self._post_individual(payable)
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 404)
+        payable.refresh_from_db()
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(payable.status, 'PAG')
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=payable).count(), 1)
+        self.assertEqual(self.conta_debito.saldo_atual, Decimal('400.00'))
+
+    def test_individual_expense_failure_rolls_back_payment(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+
+        with patch(
+            'financeiro.services._create_expense_for_paid_payable',
+            side_effect=RuntimeError('falha de despesa injetada'),
+        ):
+            response = self._post_individual(payable)
+
+        self.assertEqual(response.status_code, 200)
+        self._assert_payment_unchanged(payable, authorization_event_count=0)
+
+    def test_payment_form_save_cannot_set_paid_status_directly(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        form = RegistrarPagamentoContaPagarForm(
+            data={
+                'data_pagamento': '2026-10-16',
+                'valor_pago': '100.00',
+                'juros_multa': '0.00',
+                'desconto': '0.00',
+                'conta_debito': str(self.conta_debito.pk),
+                'forma_pagamento': 'PIX',
+            },
+            instance=payable,
+            ministerio=self.ministerio,
+        )
+
+        self.assertTrue(form.is_valid())
+        form.save()
+        payable.refresh_from_db()
+        self.assertEqual(payable.status, 'PEN')
+        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=payable).exists())
+
+
+class ContaPagarPaymentAuthorizationBatchTest(_ContaPagarPaymentAuthorizationBaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.actor)
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja.pk
+        session.save()
+
+    def _post_batch(self, payables):
+        return self.client.post(
+            reverse('financeiro:registrar_pagamento_lote_contas_pagar'),
+            data={
+                'conta_ids': [str(payable.pk) for payable in payables],
+                'data_pagamento_lote': '2026-10-16',
+                'conta_debito_lote': str(self.conta_debito.pk),
+                'forma_pagamento_lote': 'PIX',
+            },
+        )
+
+    def test_batch_processes_only_currently_authorized_payables(self):
+        not_required = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        pending = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_PENDING)
+        approved = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_APPROVED)
+        approved.approved_material_fingerprint = self._current_fingerprint(approved)
+        approved.save(update_fields=['approved_material_fingerprint'])
+        rejected = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_REJECTED)
+        missing = self._create_payable(authorization_status=None)
+        stale = self._create_payable(
+            authorization_status=ContaPagar.AUTHORIZATION_APPROVED,
+            approved_material_fingerprint='v1:sha256:' + ('0' * 64),
+        )
+
+        response = self._post_batch([not_required, pending, approved, rejected, missing, stale])
+
+        self.assertEqual(response.status_code, 302)
+        not_required.refresh_from_db()
+        approved.refresh_from_db()
+        self.assertEqual(not_required.status, 'PAG')
+        self.assertEqual(approved.status, 'PAG')
+        for payable in (pending, rejected, missing, stale):
+            self._assert_payment_unchanged(
+                payable,
+                authorization_event_count=0,
+                expected_balance=Decimal('300.00'),
+            )
+        self.assertEqual(
+            Despesas.objects.filter(origem_conta_pagar__in=[not_required, approved]).count(),
+            2,
+        )
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(self.conta_debito.saldo_atual, Decimal('300.00'))
 
 
 class ContaPagarFormScopeHardeningTest(TestCase):
@@ -5284,6 +5631,8 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
             [self.igreja_a],
         )
         conta = self._criar_conta(self.igreja_a, 'Conta Editar Apos Pagamento')
+        conta.authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
+        conta.save(update_fields=['authorization_status'])
         self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
 
         response_pagamento = self.client.post(
@@ -5312,6 +5661,8 @@ class ContaPagarManagementAuthorizationHardeningTest(TestCase):
             [self.igreja_a],
         )
         conta = self._criar_conta(self.igreja_a, 'Conta Cancelar Apos Pagamento')
+        conta.authorization_status = ContaPagar.AUTHORIZATION_NOT_REQUIRED
+        conta.save(update_fields=['authorization_status'])
         self._autenticar_com_igreja_ativa(tesoureiro, self.igreja_a)
 
         response_pagamento = self.client.post(

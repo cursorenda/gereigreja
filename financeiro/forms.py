@@ -804,12 +804,6 @@ class RegistrarPagamentoContaPagarForm(forms.ModelForm):
         #    raise forms.ValidationError("A data do pagamento não pode ser futura.")
         return data_pagamento
 
-    def save(self, commit=True):
-        conta = super().save(commit=False)
-        conta.status = 'PAG'
-        if commit:
-            conta.save()
-        return conta
 
 # ==================================================
 # ========= FIM: NOVOS FORMULÁRIOS PARA CONTAS A PAGAR =========
