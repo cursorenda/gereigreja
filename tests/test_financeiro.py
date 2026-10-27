@@ -14,6 +14,7 @@ from django.conf import settings as django_settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection
@@ -4429,10 +4430,86 @@ class ContaPagarPaymentAuthorizationHttpTest(_ContaPagarPaymentAuthorizationBase
         )
 
         self.assertTrue(form.is_valid())
-        form.save()
+        with self.assertRaises(RuntimeError):
+            form.save()
+        self._assert_payment_unchanged(payable, authorization_event_count=0)
+
+
+class RegistrarPagamentoContaPagarFormHardeningTest(_ContaPagarPaymentAuthorizationBaseTestCase):
+    def _form_data(self):
+        return {
+            'data_pagamento': '2026-10-16',
+            'valor_pago': '150.00',
+            'juros_multa': '10.00',
+            'desconto': '5.00',
+            'conta_debito': str(self.conta_debito.pk),
+            'forma_pagamento': 'PIX',
+        }
+
+    def _form(self, payable):
+        return RegistrarPagamentoContaPagarForm(
+            data=self._form_data(),
+            files={
+                'comprovante': SimpleUploadedFile(
+                    'comprovante-c1-h1.txt',
+                    b'comprovante-c1-h1',
+                    content_type='text/plain',
+                ),
+            },
+            instance=payable,
+            ministerio=self.ministerio,
+        )
+
+    def _assert_direct_save_blocked_without_side_effects(self, *, commit):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        authorization_event_count = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count()
+        authorization_state = (
+            payable.authorization_status,
+            payable.authorization_origin,
+            payable.authorization_policy_version,
+            payable.current_material_fingerprint,
+            payable.approved_material_fingerprint,
+            payable.approved_by_id,
+            payable.approved_at,
+            payable.rejected_by_id,
+            payable.rejected_at,
+            payable.current_rejection_reason,
+        )
+        form = self._form(payable)
+
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data['valor_pago'], Decimal('150.00'))
+        self.assertEqual(form.cleaned_data['juros_multa'], Decimal('10.00'))
+        self.assertEqual(form.cleaned_data['desconto'], Decimal('5.00'))
+        self.assertEqual(form.cleaned_data['conta_debito'], self.conta_debito)
+        self.assertEqual(form.cleaned_data['forma_pagamento'], 'PIX')
+        self.assertEqual(form.cleaned_data['comprovante'].name, 'comprovante-c1-h1.txt')
+
+        with self.assertRaises(RuntimeError):
+            form.save(commit=commit)
+
+        self._assert_payment_unchanged(payable, authorization_event_count=authorization_event_count)
         payable.refresh_from_db()
-        self.assertEqual(payable.status, 'PEN')
-        self.assertFalse(Despesas.objects.filter(origem_conta_pagar=payable).exists())
+        self.assertFalse(payable.comprovante)
+        current_authorization_state = (
+            payable.authorization_status,
+            payable.authorization_origin,
+            payable.authorization_policy_version,
+            payable.current_material_fingerprint,
+            payable.approved_material_fingerprint,
+            payable.approved_by_id,
+            payable.approved_at,
+            payable.rejected_by_id,
+            payable.rejected_at,
+            payable.current_rejection_reason,
+        )
+        self.assertEqual(current_authorization_state, authorization_state)
+
+    def test_valid_form_remains_valid_and_save_commit_true_is_blocked(self):
+        self._assert_direct_save_blocked_without_side_effects(commit=True)
+
+    def test_save_commit_false_is_blocked_without_side_effects(self):
+        self._assert_direct_save_blocked_without_side_effects(commit=False)
 
 
 class ContaPagarPaymentAuthorizationBatchTest(_ContaPagarPaymentAuthorizationBaseTestCase):

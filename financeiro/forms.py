@@ -804,6 +804,12 @@ class RegistrarPagamentoContaPagarForm(forms.ModelForm):
         #    raise forms.ValidationError("A data do pagamento não pode ser futura.")
         return data_pagamento
 
+    def save(self, commit=True):
+        """Bloqueia persistência direta; o serviço central efetiva pagamentos."""
+        raise RuntimeError(
+            'RegistrarPagamentoContaPagarForm valida dados, mas não persiste pagamentos diretamente.'
+        )
+
 
 # ==================================================
 # ========= FIM: NOVOS FORMULÁRIOS PARA CONTAS A PAGAR =========
