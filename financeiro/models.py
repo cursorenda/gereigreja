@@ -498,6 +498,12 @@ class Despesas(models.Model):
         verbose_name = "Despesa"
         verbose_name_plural = "Despesas"
         ordering = ['-data'] # Ordenar por data descendente
+        constraints = [
+            models.UniqueConstraint(
+                fields=['origem_conta_pagar'],
+                name='financeiro_unique_despesa_origem_conta_pagar',
+            ),
+        ]
 
     _original_valor = None
     _original_conta_bancaria_id = None

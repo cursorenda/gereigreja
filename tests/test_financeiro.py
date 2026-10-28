@@ -17,7 +17,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import connection
+from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, TransactionTestCase
@@ -4296,6 +4296,212 @@ class ContaPagarPaymentAuthorizationEnforcementServiceTest(_ContaPagarPaymentAut
                 )
 
         self._assert_payment_unchanged(payable, authorization_event_count=events_before)
+
+
+class ContaPagarExpenseMirrorUniquenessTest(_ContaPagarPaymentAuthorizationBaseTestCase):
+    def _create_expense(self, *, payable=None, conta_bancaria=None, descricao=None):
+        return Despesas.objects.create(
+            igreja=self.igreja,
+            data=date(2026, 10, 16),
+            descricao=descricao or f'Despesa espelho C2 {uuid4().hex}',
+            valor=Decimal('100.00'),
+            categoria=self.categoria,
+            conta_bancaria=conta_bancaria,
+            origem_conta_pagar=payable,
+        )
+
+    def test_first_expense_mirror_is_allowed(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+
+        expense = self._create_expense(payable=payable)
+
+        self.assertEqual(expense.origem_conta_pagar_id, payable.pk)
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=payable).count(), 1)
+
+    def test_second_expense_mirror_for_same_payable_is_rejected_by_database(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self._create_expense(payable=payable)
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_expense(payable=payable)
+
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=payable).count(), 1)
+
+    def test_multiple_manual_expenses_without_origin_are_allowed(self):
+        self._create_expense()
+        self._create_expense()
+
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar__isnull=True).count(), 2)
+
+    def test_different_payables_each_allow_one_expense_mirror(self):
+        payable_a = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        payable_b = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+
+        self._create_expense(payable=payable_a)
+        self._create_expense(payable=payable_b)
+
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar__in=[payable_a, payable_b]).count(), 2)
+
+    def test_constraint_violation_rolls_back_transaction_and_preserves_bank_balance(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self._create_expense(payable=payable)
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._create_expense(payable=payable, conta_bancaria=self.conta_debito)
+
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=payable).count(), 1)
+        self.assertEqual(self.conta_debito.saldo_atual, Decimal('500.00'))
+
+    def test_central_payment_still_creates_one_mirror_and_one_debit(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+
+        register_payable_payment(
+            payable_id=payable.pk,
+            ministerio=self.ministerio,
+            actor=self.actor,
+            **self._payment_kwargs(),
+        )
+
+        payable.refresh_from_db()
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(payable.status, 'PAG')
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=payable).count(), 1)
+        self.assertEqual(self.conta_debito.saldo_atual, Decimal('400.00'))
+
+    def test_double_payment_remains_safe_with_schema_constraint(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        payment_kwargs = self._payment_kwargs()
+        register_payable_payment(
+            payable_id=payable.pk,
+            ministerio=self.ministerio,
+            actor=self.actor,
+            **payment_kwargs,
+        )
+
+        with self.assertRaises(ValidationError):
+            register_payable_payment(
+                payable_id=payable.pk,
+                ministerio=self.ministerio,
+                actor=self.actor,
+                **payment_kwargs,
+            )
+
+        payable.refresh_from_db()
+        self.conta_debito.refresh_from_db()
+        self.assertEqual(payable.status, 'PAG')
+        self.assertEqual(Despesas.objects.filter(origem_conta_pagar=payable).count(), 1)
+        self.assertEqual(self.conta_debito.saldo_atual, Decimal('400.00'))
+
+    def test_payable_reverse_expense_api_remains_a_related_manager(self):
+        payable = self._create_payable(authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED)
+        self._create_expense(payable=payable)
+
+        reverse_manager = payable.despesa_gerada
+
+        self.assertTrue(hasattr(reverse_manager, 'all'))
+        self.assertEqual(reverse_manager.count(), 1)
+
+
+@skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')
+class ContaPagarExpenseMirrorMigrationTest(TransactionTestCase):
+    migrate_from = ('financeiro', '0022_contapagar_formal_decision_permission')
+    migrate_to_preflight = ('financeiro', '0023_preflight_despesa_origem_conta_pagar_uniqueness')
+    migrate_to_constraint = ('financeiro', '0024_add_despesa_origem_conta_pagar_unique_constraint')
+
+    def _migrate_to(self, target):
+        executor = MigrationExecutor(connection)
+        executor.migrate([target])
+        return executor.loader.project_state([target]).apps
+
+    def _create_historical_financial_data(self, apps):
+        User = apps.get_model('auth', 'User')
+        Igreja = apps.get_model('configuracao', 'Igreja')
+        CategoriaDespesa = apps.get_model('financeiro', 'CategoriaDespesa')
+        Fornecedor = apps.get_model('financeiro', 'Fornecedor')
+        ContaPagar = apps.get_model('financeiro', 'ContaPagar')
+
+        user = User.objects.create(username=f'c2-migration-user-{uuid4().hex}')
+        ministerio = CurrentMinisterio.objects.create(
+            nome_fantasia=f'Ministerio C2 Migration {uuid4().hex}',
+            administrador_principal_id=user.pk,
+            ativo=True,
+            cnpj=str(uuid4().int)[:14],
+            is_demo=False,
+        )
+        igreja = Igreja.objects.create(
+            ministerio_id=ministerio.pk,
+            nome_igreja=f'Igreja C2 Migration {uuid4().hex}',
+            tipo_igreja='sede',
+        )
+        categoria = CategoriaDespesa.objects.create(
+            ministerio_id=ministerio.pk,
+            nome=f'Categoria C2 Migration {uuid4().hex}',
+        )
+        fornecedor = Fornecedor.objects.create(
+            ministerio_id=ministerio.pk,
+            nome=f'Fornecedor C2 Migration {uuid4().hex}',
+        )
+        payable = ContaPagar.objects.create(
+            ministerio_id=ministerio.pk,
+            igreja_id=igreja.pk,
+            fornecedor_id=fornecedor.pk,
+            categoria_id=categoria.pk,
+            descricao='Conta C2 Migration',
+            valor=Decimal('100.00'),
+            data_vencimento=date(2026, 10, 20),
+            status='PEN',
+            authorization_status='NOT_REQUIRED',
+        )
+        return igreja, categoria, payable
+
+    def test_clean_preflight_path_succeeds_before_constraint(self):
+        try:
+            old_apps = self._migrate_to(self.migrate_from)
+            igreja, categoria, payable = self._create_historical_financial_data(old_apps)
+            Despesas = old_apps.get_model('financeiro', 'Despesas')
+            Despesas.objects.create(
+                igreja_id=igreja.pk,
+                categoria_id=categoria.pk,
+                data=date(2026, 10, 16),
+                descricao='Espelho historico sem duplicidade',
+                valor=Decimal('100.00'),
+                origem_conta_pagar_id=payable.pk,
+            )
+
+            self._migrate_to(self.migrate_to_preflight)
+            final_apps = self._migrate_to(self.migrate_to_constraint)
+            FinalDespesas = final_apps.get_model('financeiro', 'Despesas')
+            self.assertEqual(FinalDespesas.objects.filter(origem_conta_pagar_id=payable.pk).count(), 1)
+        finally:
+            self._migrate_to(self.migrate_to_constraint)
+
+    def test_historical_duplicate_preflight_aborts_and_restores_final_schema(self):
+        Despesas = None
+        duplicate_expense_ids = []
+        try:
+            old_apps = self._migrate_to(self.migrate_from)
+            igreja, categoria, payable = self._create_historical_financial_data(old_apps)
+            Despesas = old_apps.get_model('financeiro', 'Despesas')
+            for indice in (1, 2):
+                duplicate_expense = Despesas.objects.create(
+                    igreja_id=igreja.pk,
+                    categoria_id=categoria.pk,
+                    data=date(2026, 10, 16),
+                    descricao=f'Espelho historico duplicado {indice}',
+                    valor=Decimal('100.00'),
+                    origem_conta_pagar_id=payable.pk,
+                )
+                duplicate_expense_ids.append(duplicate_expense.pk)
+
+            with self.assertRaisesRegex(RuntimeError, 'investigação manual'):
+                self._migrate_to(self.migrate_to_preflight)
+        finally:
+            if Despesas is not None:
+                Despesas.objects.filter(pk__in=duplicate_expense_ids).delete()
+            self._migrate_to(self.migrate_to_constraint)
 
 
 class ContaPagarPaymentAuthorizationHttpTest(_ContaPagarPaymentAuthorizationBaseTestCase):
