@@ -20,8 +20,23 @@ class DespesasAdmin(MinisterioFilteredMixin, DataHierarchyMixin, admin.ModelAdmi
     list_display = ('descricao', 'igreja', 'evento', 'data', 'valor', 'categoria', 'fechado')
     list_filter = ('igreja__ministerio', 'igreja', 'evento', 'categoria', 'fechado', 'data')
     search_fields = ('descricao', 'observacao', 'igreja__nome_igreja')
-    autocomplete_fields = ['igreja', 'evento', 'categoria', 'conta_bancaria', 'origem_conta_pagar']
+    autocomplete_fields = ['igreja', 'evento', 'categoria', 'conta_bancaria']
     ordering = ('-data',)
+
+    readonly_fields = ('origem_conta_pagar',)
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.origem_conta_pagar_id is not None:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        actions.pop('delete_selected', None)
+        return actions
 
 
 @admin.register(FechamentoCaixa)

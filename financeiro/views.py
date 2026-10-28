@@ -2462,6 +2462,10 @@ def excluir_despesa(request, pk): # noqa: E302
         messages.error(request, "Não é possível excluir uma despesa fechada.")
         return redirect('financeiro:lista_despesas')
 
+    if despesa.origem_conta_pagar_id is not None:
+        messages.error(request, "Não é possível excluir uma despesa espelho de conta a pagar.")
+        return redirect('financeiro:lista_despesas')
+
     if request.method == 'POST':
         try:
             nome_despesa = despesa.descricao or f"Despesa ID {despesa.pk}"

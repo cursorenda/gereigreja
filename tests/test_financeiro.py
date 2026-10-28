@@ -4405,6 +4405,268 @@ class ContaPagarExpenseMirrorUniquenessTest(_ContaPagarPaymentAuthorizationBaseT
         self.assertEqual(reverse_manager.count(), 1)
 
 
+class DespesasAdminMirrorGovernanceTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.user.is_staff = True
+        self.user.is_superuser = True
+        self.user.save(update_fields=['is_staff', 'is_superuser'])
+        self.client.force_login(self.user)
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Governanca Admin Despesas',
+        )
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Governanca Admin Despesas',
+        )
+        self.conta_bancaria = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa Governanca Admin Despesas',
+            tipo='corrente',
+            saldo_inicial=Decimal('500.00'),
+        )
+        self.payable = ContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Conta paga com espelho protegido no Admin',
+            valor=Decimal('100.00'),
+            data_vencimento=date(2026, 10, 20),
+            status='PAG',
+            authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+        )
+        self.linked_expense = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 21),
+            descricao='Espelho protegido no Admin',
+            valor=Decimal('100.00'),
+            conta_bancaria=self.conta_bancaria,
+            origem_conta_pagar=self.payable,
+        )
+
+    def _admin_url(self, action, *args):
+        return reverse(f'admin:financeiro_despesas_{action}', args=args)
+
+    def _admin_form_payload(self, response, **overrides):
+        form = response.context['adminform'].form
+        payload = {}
+        for name, field in form.fields.items():
+            value = form.initial.get(name, field.initial)
+            if value is None:
+                value = ''
+            elif hasattr(value, 'pk'):
+                value = str(value.pk)
+            else:
+                value = str(value)
+            payload[name] = value
+        payload['_save'] = 'Salvar'
+        payload.update(overrides)
+        return payload
+
+    def test_admin_add_hides_origin_and_discards_malicious_origin_post(self):
+        response = self.client.get(self._admin_url('add'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Origem (Conta a Pagar)')
+        self.assertNotContains(response, 'name="origem_conta_pagar"')
+
+        response = self.client.post(
+            self._admin_url('add'),
+            self._admin_form_payload(
+                response,
+                igreja=str(self.igreja.pk),
+                categoria=str(self.categoria.pk),
+                data='2026-10-22',
+                valor='25.00',
+                descricao='Despesa manual pelo Admin',
+                conta_bancaria=str(self.conta_bancaria.pk),
+                observacao='Teste de governanca do Admin',
+                origem_conta_pagar=str(self.payable.pk),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        manual_expense = Despesas.objects.get(descricao='Despesa manual pelo Admin')
+        self.assertIsNone(manual_expense.origem_conta_pagar_id)
+
+    def test_admin_manual_expense_change_is_preserved_and_origin_is_readonly(self):
+        manual_expense = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 22),
+            descricao='Despesa manual editavel no Admin',
+            valor=Decimal('25.00'),
+            conta_bancaria=None,
+        )
+        url = self._admin_url('change', manual_expense.pk)
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Origem (Conta a Pagar)')
+        self.assertNotContains(response, 'name="origem_conta_pagar"')
+
+        response = self.client.post(
+            url,
+            self._admin_form_payload(
+                response,
+                descricao='Despesa manual alterada no Admin',
+                origem_conta_pagar=str(self.payable.pk),
+            ),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        manual_expense.refresh_from_db()
+        self.assertEqual(manual_expense.descricao, 'Despesa manual alterada no Admin')
+        self.assertIsNone(manual_expense.origem_conta_pagar_id)
+
+    def test_admin_linked_expense_is_viewable_but_change_post_has_zero_persistence(self):
+        url = self._admin_url('change', self.linked_expense.pk)
+        self.conta_bancaria.refresh_from_db()
+        saldo_antes = self.conta_bancaria.saldo_atual
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Espelho protegido no Admin')
+
+        response = self.client.post(
+            url,
+            self._admin_form_payload(
+                response,
+                descricao='Tentativa maliciosa de alterar espelho',
+                valor='999.00',
+                origem_conta_pagar='',
+            ),
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.linked_expense.refresh_from_db()
+        self.payable.refresh_from_db()
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.linked_expense.descricao, 'Espelho protegido no Admin')
+        self.assertEqual(self.linked_expense.valor, Decimal('100.00'))
+        self.assertEqual(self.linked_expense.origem_conta_pagar_id, self.payable.pk)
+        self.assertEqual(self.payable.status, 'PAG')
+        self.assertEqual(self.conta_bancaria.saldo_atual, saldo_antes)
+
+    def test_admin_disables_individual_delete_and_bulk_delete_for_manual_and_linked_expenses(self):
+        manual_expense = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 22),
+            descricao='Despesa manual sem delete no Admin',
+            valor=Decimal('25.00'),
+        )
+        model_admin = admin.site._registry[Despesas]
+
+        self.assertFalse(model_admin.has_delete_permission(self.client.request().wsgi_request))
+        self.assertNotIn('delete_selected', model_admin.get_actions(self.client.request().wsgi_request))
+
+        for expense in (manual_expense, self.linked_expense):
+            response = self.client.get(self._admin_url('delete', expense.pk))
+            self.assertEqual(response.status_code, 403)
+            self.assertTrue(Despesas.objects.filter(pk=expense.pk).exists())
+
+
+class DespesasMirrorHttpDeleteGovernanceTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.perfil = PerfilUsuario.objects.create(user=self.user, ministerio=self.ministerio)
+        self.perfil.igrejas_permitidas.add(self.igreja)
+        grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(grupo_tesoureiro)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja.pk
+        session.save()
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria Governanca HTTP Despesas',
+        )
+        self.fornecedor = Fornecedor.objects.create(
+            ministerio=self.ministerio,
+            nome='Fornecedor Governanca HTTP Despesas',
+        )
+        self.conta_bancaria = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa Governanca HTTP Despesas',
+            tipo='corrente',
+            saldo_inicial=Decimal('500.00'),
+        )
+
+    def _create_linked_expense(self):
+        payable = ContaPagar.objects.create(
+            ministerio=self.ministerio,
+            igreja=self.igreja,
+            fornecedor=self.fornecedor,
+            categoria=self.categoria,
+            descricao='Conta paga protegida da exclusao HTTP',
+            valor=Decimal('100.00'),
+            valor_pago=Decimal('100.00'),
+            data_pagamento=date(2026, 10, 23),
+            conta_debito=self.conta_bancaria,
+            data_vencimento=date(2026, 10, 23),
+            status='PAG',
+            authorization_status=ContaPagar.AUTHORIZATION_NOT_REQUIRED,
+        )
+        expense = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 23),
+            descricao='Espelho bloqueado na exclusao HTTP',
+            valor=Decimal('100.00'),
+            conta_bancaria=self.conta_bancaria,
+            origem_conta_pagar=payable,
+        )
+        return payable, expense
+
+    def test_http_delete_linked_expense_is_denied_without_side_effects(self):
+        payable, expense = self._create_linked_expense()
+        self.conta_bancaria.refresh_from_db()
+        saldo_apos_pagamento = self.conta_bancaria.saldo_atual
+        authorization_events_before = ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count()
+
+        response = self.client.post(reverse('financeiro:excluir_despesa', args=[expense.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('financeiro:lista_despesas'))
+        expense.refresh_from_db()
+        payable.refresh_from_db()
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(expense.origem_conta_pagar_id, payable.pk)
+        self.assertEqual(payable.status, 'PAG')
+        self.assertEqual(payable.valor_pago, Decimal('100.00'))
+        self.assertEqual(payable.data_pagamento, date(2026, 10, 23))
+        self.assertEqual(self.conta_bancaria.saldo_atual, saldo_apos_pagamento)
+        self.assertEqual(
+            ContaPagarAutorizacaoEvento.objects.filter(conta_pagar=payable).count(),
+            authorization_events_before,
+        )
+
+    def test_http_delete_manual_expense_still_deletes_and_restores_balance(self):
+        manual_expense = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 24),
+            descricao='Despesa manual excluivel pela view',
+            valor=Decimal('50.00'),
+            conta_bancaria=self.conta_bancaria,
+        )
+        self.conta_bancaria.refresh_from_db()
+        saldo_apos_despesa = self.conta_bancaria.saldo_atual
+
+        response = self.client.post(reverse('financeiro:excluir_despesa', args=[manual_expense.pk]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Despesas.objects.filter(pk=manual_expense.pk).exists())
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, saldo_apos_despesa + Decimal('50.00'))
+
+
 @skipUnless(django_settings.MIGRATION_MODULES == {}, 'Requer core.settings_test_migrations.')
 class ContaPagarExpenseMirrorMigrationTest(TransactionTestCase):
     migrate_from = ('financeiro', '0022_contapagar_formal_decision_permission')
