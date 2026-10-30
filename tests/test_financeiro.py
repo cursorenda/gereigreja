@@ -18,6 +18,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
+from django.db.models.signals import post_delete
 from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, TransactionTestCase
@@ -4570,6 +4571,214 @@ class DespesasAdminMirrorGovernanceTest(BaseFinanceiroTestCase):
             response = self.client.get(self._admin_url('delete', expense.pk))
             self.assertEqual(response.status_code, 403)
             self.assertTrue(Despesas.objects.filter(pk=expense.pk).exists())
+
+
+class DespesasDeleteAtomicityIdempotencyTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.perfil = PerfilUsuario.objects.create(user=self.user, ministerio=self.ministerio)
+        self.perfil.igrejas_permitidas.add(self.igreja)
+        grupo_tesoureiro, _ = Group.objects.get_or_create(name=TESOUREIRO)
+        self.user.groups.add(grupo_tesoureiro)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['igreja_ativa_id'] = self.igreja.pk
+        session.save()
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria atomicidade delete despesa',
+        )
+        self.conta_bancaria = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa atomicidade delete despesa',
+            tipo='corrente',
+            saldo_inicial=Decimal('500.00'),
+        )
+        self.conta_bancaria_secundaria = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa secundario atomicidade delete despesa',
+            tipo='corrente',
+            saldo_inicial=Decimal('500.00'),
+        )
+
+    def _create_expense(self, *, valor=Decimal('100.00'), conta_bancaria=None):
+        if conta_bancaria is None:
+            conta_bancaria = self.conta_bancaria
+        return Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 24),
+            descricao='Despesa de teste de atomicidade de exclusao',
+            valor=valor,
+            conta_bancaria=conta_bancaria,
+            fechado=False,
+        )
+
+    def test_valid_delete_restores_balance_returns_django_contract_and_clears_caller_pk(self):
+        expense = self._create_expense()
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('400.00'))
+
+        result = expense.delete()
+
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('500.00'))
+        self.assertFalse(Despesas.objects.filter(descricao='Despesa de teste de atomicidade de exclusao').exists())
+        self.assertIsNone(expense.pk)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+        self.assertGreaterEqual(result[0], 1)
+        self.assertGreaterEqual(result[1].get(Despesas._meta.label, 0), 1)
+
+    def test_physical_delete_failure_rolls_back_balance_credit(self):
+        expense = self._create_expense()
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('400.00'))
+
+        with patch('django.db.models.base.Model.delete', side_effect=RuntimeError('physical delete failure')):
+            with self.assertRaisesRegex(RuntimeError, 'physical delete failure'):
+                expense.delete()
+
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('400.00'))
+        self.assertTrue(Despesas.objects.filter(pk=expense.pk).exists())
+
+    def test_post_delete_failure_rolls_back_expense_and_balance(self):
+        expense = self._create_expense()
+
+        def raise_after_delete(**kwargs):
+            raise RuntimeError('post delete failure')
+
+        dispatch_uid = 'c2_h2_post_delete_failure'
+        post_delete.connect(raise_after_delete, sender=Despesas, dispatch_uid=dispatch_uid)
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'post delete failure'):
+                expense.delete()
+        finally:
+            post_delete.disconnect(sender=Despesas, dispatch_uid=dispatch_uid)
+
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('400.00'))
+        self.assertTrue(Despesas.objects.filter(pk=expense.pk).exists())
+
+    def test_stale_instance_returns_zero_without_double_credit_or_signal_and_clears_pk(self):
+        expense = self._create_expense()
+        obj1 = Despesas.objects.get(pk=expense.pk)
+        obj2 = Despesas.objects.get(pk=expense.pk)
+        received_post_delete_pks = []
+
+        def capture_post_delete(sender, instance, **kwargs):
+            received_post_delete_pks.append(instance.pk)
+
+        dispatch_uid = 'c2_h2_capture_stale_post_delete'
+        post_delete.connect(capture_post_delete, sender=Despesas, dispatch_uid=dispatch_uid)
+        try:
+            result1 = obj1.delete()
+            received_post_delete_pks.clear()
+            result2 = obj2.delete()
+        finally:
+            post_delete.disconnect(sender=Despesas, dispatch_uid=dispatch_uid)
+
+        self.conta_bancaria.refresh_from_db()
+        self.assertGreaterEqual(result1[0], 1)
+        self.assertEqual(result2, (0, {}))
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('500.00'))
+        self.assertFalse(Despesas.objects.filter(pk=expense.pk).exists())
+        self.assertEqual(received_post_delete_pks, [])
+        self.assertIsNone(obj1.pk)
+        self.assertIsNone(obj2.pk)
+
+    def test_sequential_http_delete_returns_302_then_404_and_credits_once(self):
+        expense = self._create_expense()
+        expense_pk = expense.pk
+        delete_url = reverse('financeiro:excluir_despesa', args=[expense_pk])
+
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('400.00'))
+
+        first_response = self.client.post(delete_url)
+
+        self.assertEqual(first_response.status_code, 302)
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('500.00'))
+
+        second_response = self.client.post(delete_url)
+
+        self.assertEqual(second_response.status_code, 404)
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('500.00'))
+        self.assertFalse(Despesas.objects.filter(pk=expense_pk).exists())
+
+    def test_save_tracks_current_account_after_switch_without_duplicate_debit(self):
+        expense = self._create_expense()
+        self.assertEqual(expense._original_conta_bancaria_id, self.conta_bancaria.pk)
+
+        expense.conta_bancaria = self.conta_bancaria_secundaria
+        expense.save()
+
+        self.conta_bancaria.refresh_from_db()
+        self.conta_bancaria_secundaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('500.00'))
+        self.assertEqual(self.conta_bancaria_secundaria.saldo_atual, Decimal('400.00'))
+        self.assertEqual(expense._original_conta_bancaria_id, self.conta_bancaria_secundaria.pk)
+
+        expense.save()
+
+        self.conta_bancaria.refresh_from_db()
+        self.conta_bancaria_secundaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, Decimal('500.00'))
+        self.assertEqual(self.conta_bancaria_secundaria.saldo_atual, Decimal('400.00'))
+
+    def test_delete_without_bank_account_does_not_change_existing_account(self):
+        self.conta_bancaria.refresh_from_db()
+        account_balance_before_create = self.conta_bancaria.saldo_atual
+        expense = Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 24),
+            descricao='Despesa sem conta bancaria',
+            valor=Decimal('100.00'),
+            conta_bancaria=None,
+            fechado=False,
+        )
+        expense_pk = expense.pk
+
+        self.assertIsNone(expense.conta_bancaria_id)
+        self.conta_bancaria.refresh_from_db()
+        self.assertEqual(self.conta_bancaria.saldo_atual, account_balance_before_create)
+
+        result = expense.delete()
+
+        self.conta_bancaria.refresh_from_db()
+        self.assertGreaterEqual(result[0], 1)
+        self.assertIsNone(expense.pk)
+        self.assertEqual(self.conta_bancaria.saldo_atual, account_balance_before_create)
+        self.assertFalse(Despesas.objects.filter(pk=expense_pk).exists())
+
+    def test_unsaved_instance_preserves_django_value_error_contract(self):
+        expense = Despesas(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 24),
+            descricao='Despesa nao salva',
+            valor=Decimal('100.00'),
+            conta_bancaria=self.conta_bancaria,
+        )
+
+        with self.assertRaisesRegex(ValueError, "Despesas object can't be deleted"):
+            expense.delete()
+
+    def test_zero_value_delete_removes_expense_without_material_balance_change(self):
+        expense = self._create_expense(valor=Decimal('0.00'))
+        self.conta_bancaria.refresh_from_db()
+        balance_before_delete = self.conta_bancaria.saldo_atual
+
+        result = expense.delete()
+
+        self.conta_bancaria.refresh_from_db()
+        self.assertGreaterEqual(result[0], 1)
+        self.assertEqual(self.conta_bancaria.saldo_atual, balance_before_delete)
+        self.assertIsNone(expense.pk)
 
 
 class DespesasMirrorHttpDeleteGovernanceTest(BaseFinanceiroTestCase):

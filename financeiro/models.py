@@ -568,16 +568,41 @@ class Despesas(models.Model):
         # Atualiza os valores originais para o próximo save
         self._original_valor = self.valor
         self._original_conta_bancaria_id = self.conta_bancaria_id
-     
-    def delete(self, *args, **kwargs):
-        from django.db import transaction # Import local
-        # Se a despesa tinha uma conta e valor, reverte o saldo ao excluir
-        if self.conta_bancaria and self.valor is not None:
-            with transaction.atomic():
-                conta_afetada = ContaBancaria.objects.select_for_update().get(pk=self.conta_bancaria_id)
-                conta_afetada.saldo_atual += self.valor # Adiciona o valor de volta
-                conta_afetada.save(update_fields=['saldo_atual'])
-        super().delete(*args, **kwargs) # Deleta a despesa
+    def delete(self, using=None, keep_parents=False):
+        from django.db import router, transaction
+
+        if not self._is_pk_set():
+            return super().delete(using=using, keep_parents=keep_parents)
+
+        using = using or router.db_for_write(self.__class__, instance=self)
+
+        with transaction.atomic(using=using):
+            locked = (
+                type(self)._base_manager.using(using)
+                .select_for_update()
+                .filter(pk=self.pk)
+                .first()
+            )
+
+            if locked is None:
+                setattr(self, self._meta.pk.attname, None)
+                return 0, {}
+
+            if locked.conta_bancaria_id and locked.valor is not None:
+                conta_afetada = (
+                    ContaBancaria.objects.using(using)
+                    .select_for_update()
+                    .get(pk=locked.conta_bancaria_id)
+                )
+                conta_afetada.saldo_atual += locked.valor
+                conta_afetada.save(using=using, update_fields=['saldo_atual'])
+
+            result = super(Despesas, locked).delete(
+                using=using,
+                keep_parents=keep_parents,
+            )
+            setattr(self, self._meta.pk.attname, getattr(locked, locked._meta.pk.attname))
+            return result
 
 
 class Receitas(models.Model):
