@@ -18,7 +18,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models.signals import post_delete
+from django.db.models.signals import post_delete, post_save
 from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, TransactionTestCase
@@ -87,6 +87,7 @@ from financeiro.views import (
     lista_receitas,
 )
 import financeiro.views as financeiro_views
+import financeiro.models as financeiro_models
 from financeiro.authorization import can_approve_payable, get_finance_approval_scope, get_finance_write_scope
 from financeiro.utils import get_allowed_churches_for_user
 
@@ -4571,6 +4572,410 @@ class DespesasAdminMirrorGovernanceTest(BaseFinanceiroTestCase):
             response = self.client.get(self._admin_url('delete', expense.pk))
             self.assertEqual(response.status_code, 403)
             self.assertTrue(Despesas.objects.filter(pk=expense.pk).exists())
+
+
+class ReceitaDespesaSaveAtomicityTest(BaseFinanceiroTestCase):
+    def setUp(self):
+        super().setUp()
+        self.categoria = CategoriaDespesa.objects.create(
+            ministerio=self.ministerio,
+            nome='Categoria atomicidade save receita despesa',
+        )
+        self.conta_a = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa A atomicidade save',
+            tipo='corrente',
+            saldo_inicial=Decimal('500.00'),
+        )
+        self.conta_b = ContaBancaria.objects.create(
+            igreja=self.igreja,
+            nome_identificacao='Caixa B atomicidade save',
+            tipo='corrente',
+            saldo_inicial=Decimal('500.00'),
+        )
+
+    def _create_despesa(self, *, valor=Decimal('100.00'), conta_bancaria=None):
+        return Despesas.objects.create(
+            igreja=self.igreja,
+            categoria=self.categoria,
+            data=date(2026, 10, 24),
+            descricao='Despesa atomicidade save',
+            valor=valor,
+            conta_bancaria=self.conta_a if conta_bancaria is None else conta_bancaria,
+        )
+
+    def _create_receita(self, *, valor=Decimal('100.00'), conta_bancaria=None):
+        return Receitas.objects.create(
+            igreja=self.igreja,
+            categoria='oferta',
+            data=date(2026, 10, 24),
+            valor=valor,
+            conta_bancaria=self.conta_a if conta_bancaria is None else conta_bancaria,
+        )
+
+    def _assert_balances(self, saldo_a, saldo_b):
+        self.conta_a.refresh_from_db()
+        self.conta_b.refresh_from_db()
+        self.assertEqual(self.conta_a.saldo_atual, saldo_a)
+        self.assertEqual(self.conta_b.saldo_atual, saldo_b)
+
+    def test_expense_create_balance_failure_rolls_back_insert(self):
+        with patch.object(ContaBancaria, 'save', side_effect=RuntimeError('saldo indisponivel')):
+            with self.assertRaisesRegex(RuntimeError, 'saldo indisponivel'):
+                self._create_despesa()
+
+        self.assertFalse(Despesas.objects.filter(descricao='Despesa atomicidade save').exists())
+        self._assert_balances(Decimal('500.00'), Decimal('500.00'))
+
+    def test_revenue_create_balance_failure_rolls_back_insert(self):
+        with patch.object(ContaBancaria, 'save', side_effect=RuntimeError('saldo indisponivel')):
+            with self.assertRaisesRegex(RuntimeError, 'saldo indisponivel'):
+                self._create_receita()
+
+        self.assertFalse(Receitas.objects.filter(data=date(2026, 10, 24)).exists())
+        self._assert_balances(Decimal('500.00'), Decimal('500.00'))
+
+    def test_expense_create_persists_row_before_locking_bank_account(self):
+        events = []
+        original_model_save = financeiro_models.models.Model.save
+        original_lock_accounts = financeiro_models._bloquear_contas_bancarias_em_ordem
+
+        def capture_model_save(instance, *args, **kwargs):
+            if isinstance(instance, Despesas):
+                events.append('expense_save')
+            return original_model_save(instance, *args, **kwargs)
+
+        def capture_lock_accounts(*args, **kwargs):
+            events.append('bank_lock')
+            return original_lock_accounts(*args, **kwargs)
+
+        with patch.object(financeiro_models.models.Model, 'save', new=capture_model_save), patch.object(
+            financeiro_models,
+            '_bloquear_contas_bancarias_em_ordem',
+            new=capture_lock_accounts,
+        ):
+            self._create_despesa()
+
+        self.assertEqual(events, ['expense_save', 'bank_lock'])
+
+    def test_revenue_create_persists_row_before_locking_bank_account(self):
+        events = []
+        original_model_save = financeiro_models.models.Model.save
+        original_lock_accounts = financeiro_models._bloquear_contas_bancarias_em_ordem
+
+        def capture_model_save(instance, *args, **kwargs):
+            if isinstance(instance, Receitas):
+                events.append('revenue_save')
+            return original_model_save(instance, *args, **kwargs)
+
+        def capture_lock_accounts(*args, **kwargs):
+            events.append('bank_lock')
+            return original_lock_accounts(*args, **kwargs)
+
+        with patch.object(financeiro_models.models.Model, 'save', new=capture_model_save), patch.object(
+            financeiro_models,
+            '_bloquear_contas_bancarias_em_ordem',
+            new=capture_lock_accounts,
+        ):
+            self._create_receita()
+
+        self.assertEqual(events, ['revenue_save', 'bank_lock'])
+
+    def test_expense_update_locks_financial_row_before_bank_accounts(self):
+        expense = self._create_despesa()
+        events = []
+        original_select_for_update = financeiro_models.models.QuerySet.select_for_update
+        original_lock_accounts = financeiro_models._bloquear_contas_bancarias_em_ordem
+
+        def capture_select_for_update(queryset, *args, **kwargs):
+            if queryset.model is Despesas:
+                events.append('expense_row_lock')
+            return original_select_for_update(queryset, *args, **kwargs)
+
+        def capture_lock_accounts(*args, **kwargs):
+            events.append('bank_lock')
+            return original_lock_accounts(*args, **kwargs)
+
+        expense.valor = Decimal('150.00')
+        with patch.object(
+            financeiro_models.models.QuerySet,
+            'select_for_update',
+            new=capture_select_for_update,
+        ), patch.object(
+            financeiro_models,
+            '_bloquear_contas_bancarias_em_ordem',
+            new=capture_lock_accounts,
+        ):
+            expense.save()
+
+        self.assertEqual(events, ['expense_row_lock', 'bank_lock'])
+
+    def test_revenue_update_locks_financial_row_before_bank_accounts(self):
+        revenue = self._create_receita()
+        events = []
+        original_select_for_update = financeiro_models.models.QuerySet.select_for_update
+        original_lock_accounts = financeiro_models._bloquear_contas_bancarias_em_ordem
+
+        def capture_select_for_update(queryset, *args, **kwargs):
+            if queryset.model is Receitas:
+                events.append('revenue_row_lock')
+            return original_select_for_update(queryset, *args, **kwargs)
+
+        def capture_lock_accounts(*args, **kwargs):
+            events.append('bank_lock')
+            return original_lock_accounts(*args, **kwargs)
+
+        revenue.valor = Decimal('150.00')
+        with patch.object(
+            financeiro_models.models.QuerySet,
+            'select_for_update',
+            new=capture_select_for_update,
+        ), patch.object(
+            financeiro_models,
+            '_bloquear_contas_bancarias_em_ordem',
+            new=capture_lock_accounts,
+        ):
+            revenue.save()
+
+        self.assertEqual(events, ['revenue_row_lock', 'bank_lock'])
+
+    def test_expense_post_save_failure_rolls_back_row_and_balance(self):
+        def fail_post_save(**kwargs):
+            raise RuntimeError('signal failure')
+
+        post_save.connect(fail_post_save, sender=Despesas, weak=False)
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'signal failure'):
+                self._create_despesa()
+        finally:
+            post_save.disconnect(fail_post_save, sender=Despesas)
+
+        self.assertFalse(Despesas.objects.filter(descricao='Despesa atomicidade save').exists())
+        self._assert_balances(Decimal('500.00'), Decimal('500.00'))
+
+    def test_revenue_post_save_failure_rolls_back_row_and_balance(self):
+        def fail_post_save(**kwargs):
+            raise RuntimeError('signal failure')
+
+        post_save.connect(fail_post_save, sender=Receitas, weak=False)
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'signal failure'):
+                self._create_receita()
+        finally:
+            post_save.disconnect(fail_post_save, sender=Receitas)
+
+        self.assertFalse(Receitas.objects.filter(data=date(2026, 10, 24)).exists())
+        self._assert_balances(Decimal('500.00'), Decimal('500.00'))
+
+    def test_expense_value_account_and_none_transitions_adjust_balances_once(self):
+        expense = self._create_despesa()
+        expense.valor = Decimal('150.00')
+        expense.save()
+        self._assert_balances(Decimal('350.00'), Decimal('500.00'))
+
+        expense.conta_bancaria = self.conta_b
+        expense.save()
+        self._assert_balances(Decimal('500.00'), Decimal('350.00'))
+
+        expense.conta_bancaria = None
+        expense.save()
+        self._assert_balances(Decimal('500.00'), Decimal('500.00'))
+
+        expense.conta_bancaria = self.conta_b
+        expense.save()
+        self._assert_balances(Decimal('500.00'), Decimal('350.00'))
+
+    def test_revenue_value_account_and_none_transitions_adjust_balances_once(self):
+        revenue = self._create_receita()
+        revenue.valor = Decimal('150.00')
+        revenue.save()
+        self._assert_balances(Decimal('650.00'), Decimal('500.00'))
+
+        revenue.conta_bancaria = self.conta_b
+        revenue.save()
+        self._assert_balances(Decimal('500.00'), Decimal('650.00'))
+
+        revenue.conta_bancaria = None
+        revenue.save()
+        self._assert_balances(Decimal('500.00'), Decimal('500.00'))
+
+        revenue.conta_bancaria = self.conta_b
+        revenue.save()
+        self._assert_balances(Decimal('500.00'), Decimal('650.00'))
+
+    def test_expense_account_switch_failure_rolls_back_row_and_both_balances(self):
+        expense = self._create_despesa()
+        expense.conta_bancaria = self.conta_b
+        original_save = ContaBancaria.save
+        calls = 0
+
+        def fail_second_balance_save(instance, *args, **kwargs):
+            nonlocal calls
+            if kwargs.get('update_fields') == ['saldo_atual']:
+                calls += 1
+                if calls == 2:
+                    raise RuntimeError('second balance failure')
+            return original_save(instance, *args, **kwargs)
+
+        with patch.object(ContaBancaria, 'save', new=fail_second_balance_save):
+            with self.assertRaisesRegex(RuntimeError, 'second balance failure'):
+                expense.save()
+
+        expense.refresh_from_db()
+        self.assertEqual(expense.conta_bancaria_id, self.conta_a.pk)
+        self._assert_balances(Decimal('400.00'), Decimal('500.00'))
+
+    def test_revenue_account_switch_failure_rolls_back_row_and_both_balances(self):
+        revenue = self._create_receita()
+        revenue.conta_bancaria = self.conta_b
+        original_save = ContaBancaria.save
+        calls = 0
+
+        def fail_second_balance_save(instance, *args, **kwargs):
+            nonlocal calls
+            if kwargs.get('update_fields') == ['saldo_atual']:
+                calls += 1
+                if calls == 2:
+                    raise RuntimeError('second balance failure')
+            return original_save(instance, *args, **kwargs)
+
+        with patch.object(ContaBancaria, 'save', new=fail_second_balance_save):
+            with self.assertRaisesRegex(RuntimeError, 'second balance failure'):
+                revenue.save()
+
+        revenue.refresh_from_db()
+        self.assertEqual(revenue.conta_bancaria_id, self.conta_a.pk)
+        self._assert_balances(Decimal('600.00'), Decimal('500.00'))
+
+    def test_stale_expense_instance_uses_database_old_state(self):
+        expense = self._create_despesa()
+        stale = Despesas.objects.get(pk=expense.pk)
+        expense.valor = Decimal('150.00')
+        expense.save()
+
+        stale.conta_bancaria = self.conta_b
+        stale.save()
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.valor, Decimal('100.00'))
+        self.assertEqual(stale.conta_bancaria_id, self.conta_b.pk)
+        self._assert_balances(Decimal('500.00'), Decimal('400.00'))
+
+    def test_stale_revenue_instance_uses_database_old_state(self):
+        revenue = self._create_receita()
+        stale = Receitas.objects.get(pk=revenue.pk)
+        revenue.valor = Decimal('150.00')
+        revenue.save()
+
+        stale.conta_bancaria = self.conta_b
+        stale.save()
+
+        stale.refresh_from_db()
+        self.assertEqual(stale.valor, Decimal('100.00'))
+        self.assertEqual(stale.conta_bancaria_id, self.conta_b.pk)
+        self._assert_balances(Decimal('500.00'), Decimal('600.00'))
+
+    def test_non_financial_update_fields_do_not_adjust_balance(self):
+        expense = self._create_despesa()
+        expense.descricao = 'Descricao nao financeira'
+        expense.valor = Decimal('999.00')
+        expense.conta_bancaria = self.conta_b
+        expense.save(update_fields=['descricao'])
+
+        expense.refresh_from_db()
+        self.assertEqual(expense.valor, Decimal('100.00'))
+        self.assertEqual(expense.conta_bancaria_id, self.conta_a.pk)
+        self._assert_balances(Decimal('400.00'), Decimal('500.00'))
+
+    def test_expense_update_fields_value_only_preserves_persisted_account(self):
+        expense = self._create_despesa()
+        expense.valor = Decimal('150.00')
+        expense.conta_bancaria = self.conta_b
+        expense.save(update_fields=['valor'])
+
+        expense.refresh_from_db()
+        self.assertEqual(expense.valor, Decimal('150.00'))
+        self.assertEqual(expense.conta_bancaria_id, self.conta_a.pk)
+        self._assert_balances(Decimal('350.00'), Decimal('500.00'))
+
+    def test_expense_update_fields_account_only_preserves_persisted_value(self):
+        expense = self._create_despesa()
+        expense.valor = Decimal('150.00')
+        expense.conta_bancaria = self.conta_b
+        expense.save(update_fields=['conta_bancaria'])
+
+        expense.refresh_from_db()
+        self.assertEqual(expense.valor, Decimal('100.00'))
+        self.assertEqual(expense.conta_bancaria_id, self.conta_b.pk)
+        self._assert_balances(Decimal('500.00'), Decimal('400.00'))
+
+    def test_expense_update_fields_account_attname_preserves_persisted_value(self):
+        expense = self._create_despesa()
+        expense.valor = Decimal('150.00')
+        expense.conta_bancaria_id = self.conta_b.pk
+        expense.save(update_fields=['conta_bancaria_id'])
+
+        expense.refresh_from_db()
+        self.assertEqual(expense.valor, Decimal('100.00'))
+        self.assertEqual(expense.conta_bancaria_id, self.conta_b.pk)
+        self._assert_balances(Decimal('500.00'), Decimal('400.00'))
+
+    def test_revenue_update_fields_value_only_preserves_persisted_account(self):
+        revenue = self._create_receita()
+        revenue.valor = Decimal('150.00')
+        revenue.conta_bancaria = self.conta_b
+        revenue.save(update_fields=['valor'])
+
+        revenue.refresh_from_db()
+        self.assertEqual(revenue.valor, Decimal('150.00'))
+        self.assertEqual(revenue.conta_bancaria_id, self.conta_a.pk)
+        self._assert_balances(Decimal('650.00'), Decimal('500.00'))
+
+    def test_revenue_update_fields_account_only_preserves_persisted_value(self):
+        revenue = self._create_receita()
+        revenue.valor = Decimal('150.00')
+        revenue.conta_bancaria = self.conta_b
+        revenue.save(update_fields=['conta_bancaria'])
+
+        revenue.refresh_from_db()
+        self.assertEqual(revenue.valor, Decimal('100.00'))
+        self.assertEqual(revenue.conta_bancaria_id, self.conta_b.pk)
+        self._assert_balances(Decimal('500.00'), Decimal('600.00'))
+
+    def test_expense_update_fields_value_and_account_persists_both(self):
+        expense = self._create_despesa()
+        expense.valor = Decimal('150.00')
+        expense.conta_bancaria = self.conta_b
+        expense.save(update_fields=['valor', 'conta_bancaria'])
+
+        expense.refresh_from_db()
+        self.assertEqual(expense.valor, Decimal('150.00'))
+        self.assertEqual(expense.conta_bancaria_id, self.conta_b.pk)
+        self._assert_balances(Decimal('500.00'), Decimal('350.00'))
+
+    def test_revenue_update_fields_value_and_account_persists_both(self):
+        revenue = self._create_receita()
+        revenue.valor = Decimal('150.00')
+        revenue.conta_bancaria = self.conta_b
+        revenue.save(update_fields=['valor', 'conta_bancaria'])
+
+        revenue.refresh_from_db()
+        self.assertEqual(revenue.valor, Decimal('150.00'))
+        self.assertEqual(revenue.conta_bancaria_id, self.conta_b.pk)
+        self._assert_balances(Decimal('500.00'), Decimal('650.00'))
+
+    def test_account_lock_helper_requests_primary_keys_in_canonical_order(self):
+        manager = MagicMock()
+        queryset = MagicMock()
+        manager.using.return_value.select_for_update.return_value = queryset
+
+        with patch.object(financeiro_models.ContaBancaria, 'objects', manager):
+            financeiro_models._bloquear_contas_bancarias_em_ordem('default', [self.conta_b.pk, self.conta_a.pk])
+
+        self.assertEqual(
+            queryset.get.call_args_list,
+            [call(pk=self.conta_a.pk), call(pk=self.conta_b.pk)],
+        )
 
 
 class DespesasDeleteAtomicityIdempotencyTest(BaseFinanceiroTestCase):

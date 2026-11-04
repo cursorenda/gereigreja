@@ -71,13 +71,16 @@ from .policies import categorias_receita_permitidas_por_fundo
 logger = logging.getLogger(__name__) # Adicione no topo do arquivo
 
 
-def _obter_ou_criar_fundo_departamental(igreja, evento=None):
+def _obter_ou_criar_fundo_departamental(igreja, evento=None, using=None):
     """Resolve o fundo padrão para lancamentos legados sem fundo explícito."""
-    from django.db import connection
+    from django.db import connections
     from django.db.utils import OperationalError, ProgrammingError
 
     if not igreja:
         return None
+
+    using = using or 'default'
+    connection = connections[using]
 
     # Compatibilidade com bases antigas sem a tabela de fundos departamentais.
     try:
@@ -95,7 +98,7 @@ def _obter_ou_criar_fundo_departamental(igreja, evento=None):
     }
 
     try:
-        fundo, _ = FundoDepartamental.objects.get_or_create(
+        fundo, _ = FundoDepartamental.objects.using(using).get_or_create(
             igreja=igreja,
             codigo=codigo,
             defaults={'nome_exibicao': nomes[codigo]},
@@ -107,6 +110,18 @@ def _obter_ou_criar_fundo_departamental(igreja, evento=None):
 
 def _categorias_receita_permitidas_por_fundo(codigo_fundo):
     return categorias_receita_permitidas_por_fundo(codigo_fundo)
+
+
+def _bloquear_contas_bancarias_em_ordem(using, conta_ids):
+    """Bloqueia as contas afetadas em ordem crescente de PK."""
+    contas = {}
+    for conta_id in sorted({conta_id for conta_id in conta_ids if conta_id is not None}):
+        contas[conta_id] = (
+            ContaBancaria.objects.using(using)
+            .select_for_update()
+            .get(pk=conta_id)
+        )
+    return contas
 
 
 class CategoriaDespesa(models.Model):
@@ -515,59 +530,69 @@ class Despesas(models.Model):
             self._original_conta_bancaria_id = self.conta_bancaria_id
 
     def save(self, *args, **kwargs):
-        from django.db import transaction # Import local para melhor ministério
+        from django.db import router, transaction
+
+        using = kwargs.get('using') or router.db_for_write(self.__class__, instance=self)
+        kwargs['using'] = using
         logger.info(f"Despesa SAVE - Despesa ID: {self.pk}, Valor: {self.valor}, ContaBancaria ID: {self.conta_bancaria_id}")
 
-        if self.igreja_id:
-            if self.evento_id:
-                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, self.evento)
-            elif not self.fundo_departamental_id:
-                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, None)
+        with transaction.atomic(using=using):
+            if self.igreja_id:
+                if self.evento_id:
+                    self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, self.evento, using=using)
+                elif not self.fundo_departamental_id:
+                    self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, None, using=using)
 
-        # 1. Lidar com a conta bancária ANTIGA (se estiver editando e a conta mudou ou foi removida)
-        if not self._state.adding and self._original_conta_bancaria_id:
-            if self._original_conta_bancaria_id != self.conta_bancaria_id or not self.conta_bancaria_id:
-                # Reverte o valor original na conta antiga
-                if self._original_valor is not None:
-                    try:
-                        with transaction.atomic():
-                            conta_antiga = ContaBancaria.objects.select_for_update().get(pk=self._original_conta_bancaria_id)
-                            conta_antiga.saldo_atual += self._original_valor # Adiciona de volta (despesa)
-                            conta_antiga.save(update_fields=['saldo_atual'])
-                    except ContaBancaria.DoesNotExist:
-                        pass # Conta antiga pode ter sido deletada, não há o que reverter
+            update_fields = kwargs.get('update_fields')
+            if update_fields is None:
+                valor_sera_salvo = True
+                conta_bancaria_sera_salva = True
+            else:
+                update_fields = set(update_fields)
+                valor_sera_salvo = 'valor' in update_fields
+                conta_bancaria_sera_salva = bool(
+                    {'conta_bancaria', 'conta_bancaria_id'}.intersection(update_fields)
+                )
+            alteracao_financeira_sera_salva = valor_sera_salvo or conta_bancaria_sera_salva
+            estado_anterior = None
 
-        super().save(*args, **kwargs) # 2. Salva o objeto Despesa (ou Receita)
+            if not self._state.adding:
+                estado_anterior = (
+                    type(self)._base_manager.using(using)
+                    .select_for_update()
+                    .get(pk=self.pk)
+                )
 
-        # 3. Lidar com a conta bancária NOVA (se nova despesa/receita, ou conta mudou, ou valor mudou na mesma conta)
-        if self.conta_bancaria_id:
-            if self._state.adding or \
-               self._original_conta_bancaria_id != self.conta_bancaria_id or \
-               (self._original_conta_bancaria_id == self.conta_bancaria_id and self._original_valor != self.valor):
-                
-                with transaction.atomic():
-                    # Usar select_for_update para bloquear a linha da conta durante a atualização
-                    conta_nova = ContaBancaria.objects.select_for_update().get(pk=self.conta_bancaria_id)
-                    logger.info(f"Despesa SAVE - ContaBancaria ID: {conta_nova.pk} - Saldo Atual ANTES da despesa: {conta_nova.saldo_atual}")
+            valor_anterior = estado_anterior.valor if estado_anterior else None
+            conta_anterior_id = estado_anterior.conta_bancaria_id if estado_anterior else None
+            valor_novo_efetivo = self.valor if valor_sera_salvo else valor_anterior
+            conta_nova_efetiva_id = (
+                self.conta_bancaria_id if conta_bancaria_sera_salva else conta_anterior_id
+            )
 
-                    if self._state.adding or self._original_conta_bancaria_id != self.conta_bancaria_id:
-                        # Nova despesa ou a conta bancária mudou: aplica o valor total da despesa
-                        if self.valor is not None:
-                            conta_nova.saldo_atual -= self.valor # Subtrai (despesa)
-                    elif self._original_valor != self.valor: # Mesma conta, mas o valor mudou
-                        # Calcula a diferença para aplicar ao saldo
-                        # Se o novo valor da despesa é menor, a diferença é positiva (aumenta o saldo)
-                        # Se o novo valor da despesa é maior, a diferença é negativa (diminui o saldo)
-                        diferenca = (self._original_valor or Decimal(0)) - (self.valor or Decimal(0))
-                        conta_nova.saldo_atual += diferenca
-                    logger.info(f"Despesa SAVE - ContaBancaria ID: {conta_nova.pk} - Saldo Atual DEPOIS da despesa: {conta_nova.saldo_atual}")
+            ajustes_por_conta = {}
+            if alteracao_financeira_sera_salva:
+                if conta_anterior_id and valor_anterior is not None:
+                    ajustes_por_conta[conta_anterior_id] = ajustes_por_conta.get(conta_anterior_id, Decimal(0)) + valor_anterior
+                if conta_nova_efetiva_id and valor_novo_efetivo is not None:
+                    ajustes_por_conta[conta_nova_efetiva_id] = ajustes_por_conta.get(conta_nova_efetiva_id, Decimal(0)) - valor_novo_efetivo
 
-                    conta_nova.save(update_fields=['saldo_atual'])
+            if self._state.adding:
+                super().save(*args, **kwargs)
+                contas_bloqueadas = _bloquear_contas_bancarias_em_ordem(using, ajustes_por_conta)
+            else:
+                contas_bloqueadas = _bloquear_contas_bancarias_em_ordem(using, ajustes_por_conta)
+                super().save(*args, **kwargs)
 
-             
-        # Atualiza os valores originais para o próximo save
-        self._original_valor = self.valor
-        self._original_conta_bancaria_id = self.conta_bancaria_id
+            for conta_id in sorted(ajustes_por_conta):
+                ajuste = ajustes_por_conta[conta_id]
+                if ajuste:
+                    conta = contas_bloqueadas[conta_id]
+                    conta.saldo_atual += ajuste
+                    conta.save(using=using, update_fields=['saldo_atual'])
+
+            self._original_valor = valor_novo_efetivo
+            self._original_conta_bancaria_id = conta_nova_efetiva_id
     def delete(self, using=None, keep_parents=False):
         from django.db import router, transaction
 
@@ -709,7 +734,6 @@ class Receitas(models.Model):
             if self.conta_bancaria_id != conta_evento_efetiva_id:
                 raise ValidationError({'conta_bancaria': 'Esta receita deve usar o caixa vinculado ao evento.'})
 
-    
     _original_valor_receita = None
     _original_conta_bancaria_id_receita = None
 
@@ -720,55 +744,69 @@ class Receitas(models.Model):
             self._original_conta_bancaria_id_receita = self.conta_bancaria_id
 
     def save(self, *args, **kwargs):
-       
-        from django.db import transaction # Import local
+        from django.db import router, transaction
 
-        if self.igreja_id:
-            if self.evento_id:
-                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, self.evento)
-            elif not self.fundo_departamental_id:
-                self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, None)
+        using = kwargs.get('using') or router.db_for_write(self.__class__, instance=self)
+        kwargs['using'] = using
 
-        # 1. Lidar com a conta bancária ANTIGA (se estiver editando e a conta mudou ou foi removida)
-        if not self._state.adding and self._original_conta_bancaria_id_receita:
-            if self._original_conta_bancaria_id_receita != self.conta_bancaria_id or not self.conta_bancaria_id:
-                # Reverte o valor original na conta antiga
-                if self._original_valor_receita is not None:
-                    try:
-                        with transaction.atomic():
-                            conta_antiga = ContaBancaria.objects.select_for_update().get(pk=self._original_conta_bancaria_id_receita)
-                            conta_antiga.saldo_atual -= self._original_valor_receita # Subtrai da antiga (receita)
-                            conta_antiga.save(update_fields=['saldo_atual'])
-                    except ContaBancaria.DoesNotExist:
-                        pass 
+        with transaction.atomic(using=using):
+            if self.igreja_id:
+                if self.evento_id:
+                    self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, self.evento, using=using)
+                elif not self.fundo_departamental_id:
+                    self.fundo_departamental = _obter_ou_criar_fundo_departamental(self.igreja, None, using=using)
 
-        super().save(*args, **kwargs) # 2. Salva o objeto Receita
+            update_fields = kwargs.get('update_fields')
+            if update_fields is None:
+                valor_sera_salvo = True
+                conta_bancaria_sera_salva = True
+            else:
+                update_fields = set(update_fields)
+                valor_sera_salvo = 'valor' in update_fields
+                conta_bancaria_sera_salva = bool(
+                    {'conta_bancaria', 'conta_bancaria_id'}.intersection(update_fields)
+                )
+            alteracao_financeira_sera_salva = valor_sera_salvo or conta_bancaria_sera_salva
+            estado_anterior = None
 
-        # 3. Lidar com a conta bancária NOVA
-        if self.conta_bancaria_id:
-            if self._state.adding or \
-               self._original_conta_bancaria_id_receita != self.conta_bancaria_id or \
-               (self._original_conta_bancaria_id_receita == self.conta_bancaria_id and self._original_valor_receita != self.valor):
-                
-                with transaction.atomic():
-                    conta_nova = ContaBancaria.objects.select_for_update().get(pk=self.conta_bancaria_id)
-                    
-                    if self._state.adding or self._original_conta_bancaria_id_receita != self.conta_bancaria_id:
-                        # Nova receita ou a conta bancária mudou: aplica o valor total da receita
-                        if self.valor is not None:
-                            conta_nova.saldo_atual += self.valor # Adiciona (receita)
-                    elif self._original_valor_receita != self.valor: # Mesma conta, mas o valor mudou
-                        # Calcula a diferença para aplicar ao saldo
-                        # Se o novo valor da receita é maior, a diferença é positiva (aumenta o saldo)
-                        diferenca = (self.valor or Decimal(0)) - (self._original_valor_receita or Decimal(0))
-                        conta_nova.saldo_atual += diferenca
-                    
-                    conta_nova.save(update_fields=['saldo_atual'])
-        
-      
-        self._original_valor_receita = self.valor
-        self._original_conta_bancaria_id_receita = self.conta_bancaria_id
-    
+            if not self._state.adding:
+                estado_anterior = (
+                    type(self)._base_manager.using(using)
+                    .select_for_update()
+                    .get(pk=self.pk)
+                )
+
+            valor_anterior = estado_anterior.valor if estado_anterior else None
+            conta_anterior_id = estado_anterior.conta_bancaria_id if estado_anterior else None
+            valor_novo_efetivo = self.valor if valor_sera_salvo else valor_anterior
+            conta_nova_efetiva_id = (
+                self.conta_bancaria_id if conta_bancaria_sera_salva else conta_anterior_id
+            )
+
+            ajustes_por_conta = {}
+            if alteracao_financeira_sera_salva:
+                if conta_anterior_id and valor_anterior is not None:
+                    ajustes_por_conta[conta_anterior_id] = ajustes_por_conta.get(conta_anterior_id, Decimal(0)) - valor_anterior
+                if conta_nova_efetiva_id and valor_novo_efetivo is not None:
+                    ajustes_por_conta[conta_nova_efetiva_id] = ajustes_por_conta.get(conta_nova_efetiva_id, Decimal(0)) + valor_novo_efetivo
+
+            if self._state.adding:
+                super().save(*args, **kwargs)
+                contas_bloqueadas = _bloquear_contas_bancarias_em_ordem(using, ajustes_por_conta)
+            else:
+                contas_bloqueadas = _bloquear_contas_bancarias_em_ordem(using, ajustes_por_conta)
+                super().save(*args, **kwargs)
+
+            for conta_id in sorted(ajustes_por_conta):
+                ajuste = ajustes_por_conta[conta_id]
+                if ajuste:
+                    conta = contas_bloqueadas[conta_id]
+                    conta.saldo_atual += ajuste
+                    conta.save(using=using, update_fields=['saldo_atual'])
+
+            self._original_valor_receita = valor_novo_efetivo
+            self._original_conta_bancaria_id_receita = conta_nova_efetiva_id
+
     def delete(self, *args, **kwargs):
         from django.db import transaction # Import local para melhor ministério
         # Se a receita tinha uma conta e valor, reverte o saldo ao excluir
