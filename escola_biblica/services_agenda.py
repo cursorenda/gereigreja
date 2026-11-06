@@ -1,6 +1,6 @@
 from datetime import datetime, time, timedelta
 
-from django.db import transaction
+from django.db import router, transaction
 from django.utils import timezone
 
 from configuracao.models import ConfiguracaoSistema, Igreja
@@ -87,9 +87,25 @@ def _get_faixa_horario_evento(data_aula, igreja):
     return inicio, fim
 
 
-def _upsert_evento_escola_dominical(igreja, data_aula):
+def set_licao_evento_agenda(licoes, *, evento_id, using):
+    """Set or clear the link for a scoped Licao queryset on its write alias."""
+    # QuerySet.db may resolve through a router; _db records an explicit .using() binding.
+    queryset_alias = licoes._db
+    if queryset_alias is not None and queryset_alias != using:
+        raise ValueError(f"Queryset alias {queryset_alias!r} conflicts with write alias {using!r}.")
+    with transaction.atomic(using=using):
+        return (
+            licoes.using(using)
+            .exclude(evento_agenda_id=evento_id)
+            .update(evento_agenda_id=evento_id)
+        )
+
+
+def _upsert_evento_escola_dominical(igreja, data_aula, *, using=None):
+    using = using or router.db_for_write(Evento, instance=igreja)
+    eventos = Evento.objects.using(using)
     candidatos = list(
-        Evento.objects.filter(
+        eventos.filter(
             igreja=igreja,
             tipo='escola_dominical',
             data_inicio__date=data_aula,
@@ -104,8 +120,11 @@ def _upsert_evento_escola_dominical(igreja, data_aula):
             duplicados = candidatos[1:]
             if duplicados:
                 duplicados_ids = [evento.id for evento in duplicados]
-                Licao.objects.filter(evento_agenda_id__in=duplicados_ids).update(evento_agenda=principal)
-                Evento.objects.filter(id__in=duplicados_ids).delete()
+                set_licao_evento_agenda(
+                    Licao.objects.filter(evento_agenda_id__in=duplicados_ids),
+                    evento_id=principal.pk, using=using,
+                )
+                eventos.filter(id__in=duplicados_ids).delete()
             return principal
 
         update_fields = []
@@ -137,12 +156,15 @@ def _upsert_evento_escola_dominical(igreja, data_aula):
         duplicados = candidatos[1:]
         if duplicados:
             duplicados_ids = [evento.id for evento in duplicados]
-            Licao.objects.filter(evento_agenda_id__in=duplicados_ids).update(evento_agenda=principal)
-            Evento.objects.filter(id__in=duplicados_ids).delete()
+            set_licao_evento_agenda(
+                Licao.objects.filter(evento_agenda_id__in=duplicados_ids),
+                evento_id=principal.pk, using=using,
+            )
+            eventos.filter(id__in=duplicados_ids).delete()
 
         return principal
 
-    return Evento.objects.create(
+    return eventos.create(
         igreja=igreja,
         titulo=TITULO_EVENTO_EBD,
         descricao=DESCRICAO_EVENTO_EBD,
@@ -165,9 +187,9 @@ def sync_licao_evento_agenda(licao):
     if igreja is None:
         return
 
-    evento = _upsert_evento_escola_dominical(igreja=igreja, data_aula=licao.data)
-    if licao.evento_agenda_id != evento.id:
-        Licao.objects.filter(pk=licao.pk).update(evento_agenda=evento)
+    using = router.db_for_write(Licao, instance=licao)
+    evento = _upsert_evento_escola_dominical(igreja=igreja, data_aula=licao.data, using=using)
+    set_licao_evento_agenda(Licao.objects.filter(pk=licao.pk), evento_id=evento.pk, using=using)
 
 
 @transaction.atomic

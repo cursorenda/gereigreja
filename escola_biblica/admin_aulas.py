@@ -10,6 +10,7 @@ from .models import Avaliacao, Licao
 class LicaoAdmin(DataHierarchyMixin, admin.ModelAdmin):
     list_display = ("tema", "turma", "data")
     list_filter = ("turma", "data")
+    readonly_fields = ("evento_agenda",)
 
 
 @admin.register(Avaliacao)
