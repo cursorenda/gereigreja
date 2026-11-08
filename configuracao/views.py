@@ -1698,12 +1698,17 @@ def excluir_programacao_padrao_igreja(request, igreja_id, programacao_id):
     if request.method == 'POST':
         from eventos.models import Evento
 
-        Evento.objects.filter(
-            igreja=igreja,
-            programacao_padrao=programacao,
-            data_inicio__date__gte=timezone.localdate(),
-            status_evento='ativo',
-        ).delete()
+        from eventos.services_mutations import delete_events
+
+        delete_events(
+            Evento.objects.filter(
+                igreja=igreja,
+                programacao_padrao=programacao,
+                data_inicio__date__gte=timezone.localdate(),
+                status_evento='ativo',
+            ),
+            using=programacao._state.db,
+        )
         programacao.delete()
         messages.success(request, 'Programação padrão removida com sucesso.')
 

@@ -1214,7 +1214,8 @@ from django.core.paginator import Paginator
 def excluir_evento_profissional(request, pk):
 	evento = get_object_or_404(Evento, pk=pk)
 	if request.method == 'POST':
-		evento.delete()
+		from .services_mutations import delete_event
+		delete_event(evento)
 		messages.success(request, 'Evento excluído com sucesso!')
 		return redirect(reverse('eventos:lista_eventos'))
 	return render(request, 'eventos/excluir_evento.html', {'evento': evento})
