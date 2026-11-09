@@ -22,19 +22,6 @@ def sincronizar_licao_na_agenda(sender, instance, **kwargs):
 
 
 @receiver(post_delete, sender=Licao)
-def limpar_referencia_evento_apos_exclusao(sender, instance, **kwargs):
-    transaction.on_commit(_bump_dashboard_cache_version)
-    evento = getattr(instance, 'evento_agenda', None)
-    if evento is None:
-        return
-
-    if Licao.objects.filter(evento_agenda=evento).exists():
-        return
-
-    if evento.tipo == 'escola_dominical' and evento.status_evento != 'cancelado':
-        transaction.on_commit(lambda: evento.delete())
-
-
 @receiver(post_save, sender=Frequencia)
 @receiver(post_delete, sender=Frequencia)
 @receiver(post_save, sender=OfertaClasse)

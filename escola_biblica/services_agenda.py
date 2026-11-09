@@ -124,7 +124,6 @@ def _upsert_evento_escola_dominical(igreja, data_aula, *, using=None):
                     Licao.objects.filter(evento_agenda_id__in=duplicados_ids),
                     evento_id=principal.pk, using=using,
                 )
-                eventos.filter(id__in=duplicados_ids).delete()
             return principal
 
         update_fields = []
@@ -160,7 +159,6 @@ def _upsert_evento_escola_dominical(igreja, data_aula, *, using=None):
                 Licao.objects.filter(evento_agenda_id__in=duplicados_ids),
                 evento_id=principal.pk, using=using,
             )
-            eventos.filter(id__in=duplicados_ids).delete()
 
         return principal
 
@@ -237,11 +235,18 @@ def sync_eventos_ebd_por_ministerio(ministerio):
         sync_evento_padrao_ebd_por_igreja(igreja)
 
     eventos = Evento.objects.filter(igreja_id__in=igrejas_ids, tipo='escola_dominical').order_by('id')
+    ocorrencias = set()
     for evento in eventos:
+        data_local = timezone.localdate(evento.data_inicio)
+        ocorrencia = (evento.igreja_id, data_local)
+        if ocorrencia in ocorrencias:
+            continue
+        # The lowest PK owns the occurrence, even when it is cancelled.
+        ocorrencias.add(ocorrencia)
         if evento.status_evento == 'cancelado':
             continue
 
-        inicio, fim = _get_faixa_horario_evento(evento.data_inicio.date(), evento.igreja)
+        inicio, fim = _get_faixa_horario_evento(data_local, evento.igreja)
         update_fields = []
         if evento.titulo != TITULO_EVENTO_EBD:
             evento.titulo = TITULO_EVENTO_EBD
