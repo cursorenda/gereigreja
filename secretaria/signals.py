@@ -59,7 +59,7 @@ import unicodedata, re
 
 # Cria evento ao cadastrar novo membro
 @receiver(post_save, sender=Membro)
-def cria_evento_entrada_membro(sender, instance, created, **kwargs):
+def cria_evento_entrada_membro(sender, instance, created, using, **kwargs):
     if created and instance.data_entrada:
         data_entrada = instance.data_entrada
         if data_entrada:
@@ -72,8 +72,8 @@ def cria_evento_entrada_membro(sender, instance, created, **kwargs):
                 data_entrada = make_aware(data_entrada, get_current_timezone())
 
         # Evita duplicidade
-        if not TimelineEvent.objects.filter(membro=instance, tipo_evento='entrada', data=data_entrada).exists():
-            TimelineEvent.objects.create(
+        if not TimelineEvent.objects.using(using).filter(membro=instance, tipo_evento='entrada', data=data_entrada).exists():
+            TimelineEvent.objects.using(using).create(
                 membro=instance,
                 data=data_entrada,
                 tipo_evento='entrada',
@@ -83,7 +83,7 @@ def cria_evento_entrada_membro(sender, instance, created, **kwargs):
 
 # Cria evento ao registrar histórico de status ou tipo
 @receiver(post_save, sender=StatusHistorico)
-def cria_evento_status_tipo_membro(sender, instance, created, **kwargs):
+def cria_evento_status_tipo_membro(sender, instance, created, using, **kwargs):
     if created:
         data_transicao = instance.data_transicao
         if data_transicao is None:
@@ -93,8 +93,8 @@ def cria_evento_status_tipo_membro(sender, instance, created, **kwargs):
             data_transicao = make_aware(data_transicao, get_current_timezone())
         # Mudança de status
         if instance.status_pessoa_anterior != instance.status_pessoa_novo and instance.status_pessoa_novo:
-            if not TimelineEvent.objects.filter(membro=instance.membro, tipo_evento='mudanca_status', data=data_transicao).exists():
-                TimelineEvent.objects.create(
+            if not TimelineEvent.objects.using(using).filter(membro=instance.membro, tipo_evento='mudanca_status', data=data_transicao).exists():
+                TimelineEvent.objects.using(using).create(
                     membro=instance.membro,
                     data=data_transicao,
                     tipo_evento='mudanca_status',
@@ -102,8 +102,8 @@ def cria_evento_status_tipo_membro(sender, instance, created, **kwargs):
                 )
         # Mudança de tipo
         if instance.tipo_pessoa_anterior != instance.tipo_pessoa_novo and instance.tipo_pessoa_novo:
-            if not TimelineEvent.objects.filter(membro=instance.membro, tipo_evento='mudanca_tipo', data=data_transicao).exists():
-                TimelineEvent.objects.create(
+            if not TimelineEvent.objects.using(using).filter(membro=instance.membro, tipo_evento='mudanca_tipo', data=data_transicao).exists():
+                TimelineEvent.objects.using(using).create(
                     membro=instance.membro,
                     data=data_transicao,
                     tipo_evento='mudanca_tipo',
@@ -127,20 +127,20 @@ def _normalize_text(s: str) -> str:
 
 
 @receiver(pre_save, sender=Membro)
-def _cache_prev_address(sender, instance, **kwargs):
+def _cache_prev_address(sender, instance, using, **kwargs):
     """Armazena os valores anteriores de endereço para detectar mudanças no post_save."""
     try:
         if not instance.pk:
             instance._prev_address = None
             return
-        prev = sender.objects.filter(pk=instance.pk).values('rua', 'numero_casa', 'complemento', 'cep', 'grupo_casa_id').first()
+        prev = sender.objects.using(using).filter(pk=instance.pk).values('rua', 'numero_casa', 'complemento', 'cep', 'grupo_casa_id').first()
         instance._prev_address = prev
     except Exception:
         instance._prev_address = None
 
 
 @receiver(post_save, sender=Membro)
-def associar_grupo_casa_por_endereco(sender, instance, created, **kwargs):
+def associar_grupo_casa_por_endereco(sender, instance, created, using, **kwargs):
     """Associa automaticamente a um GrupoCasa EXISTENTE quando o endereço do membro criar/alterar
     e existir um grupo com endereço normalizado igual. Não cria novos grupos. Atualiza via queryset
     para evitar recursão de sinais.
@@ -177,7 +177,7 @@ def associar_grupo_casa_por_endereco(sender, instance, created, **kwargs):
             return
 
         # Buscar GrupoCasa candidato(s) na mesma igreja (quando disponível)
-        candidates = GrupoCasa.objects.all()
+        candidates = GrupoCasa.objects.using(using).all()
         if instance.igreja_id:
             candidates = candidates.filter(igreja_id=instance.igreja_id)
         # otimização: filtrar por CEP quando disponível
@@ -204,7 +204,7 @@ def associar_grupo_casa_por_endereco(sender, instance, created, **kwargs):
                 n_rua = _normalize_text(rua)
                 n_num = _normalize_text(numero)
                 n_comp = _normalize_text(complemento)
-                qs = _Membro.objects.all()
+                qs = _Membro.objects.using(using).all()
                 if instance.igreja_id:
                     qs = qs.filter(igreja_id=instance.igreja_id)
                 # otimizar por CEP se disponível
@@ -222,10 +222,10 @@ def associar_grupo_casa_por_endereco(sender, instance, created, **kwargs):
                 # Se encontrarmos pelo menos 1 outro membro (total >=2), então criar GrupoCasa e associar
                 if n_matches >= 1:
                     from django.db import transaction as _transaction
-                    with _transaction.atomic():
+                    with _transaction.atomic(using=using):
                         # criar ou obter GrupoCasa (usar valores brutos, sem normalização)
                         group_defaults = {'nome': None, 'bairro': getattr(instance, 'bairro_distrito', None)}
-                        group, created_group = GrupoCasa.objects.get_or_create(
+                        group, created_group = GrupoCasa.objects.using(using).get_or_create(
                             igreja_id=instance.igreja_id if instance.igreja_id else None,
                             rua=rua or None,
                             numero=numero or None,
@@ -236,7 +236,7 @@ def associar_grupo_casa_por_endereco(sender, instance, created, **kwargs):
                         # Construir lista de pks a atualizar (inclui o instance)
                         to_update = matching_ids + [instance.pk]
                         # Atualizar via queryset para evitar recursão
-                        _Membro.objects.filter(pk__in=to_update).update(grupo_casa=group)
+                        _Membro.objects.using(using).filter(pk__in=to_update).update(grupo_casa=group)
                         target = group
                 else:
                     # não criar com apenas uma pessoa: segurança
@@ -251,7 +251,7 @@ def associar_grupo_casa_por_endereco(sender, instance, created, **kwargs):
             return
 
         # Atualiza via queryset para evitar disparar post_save recursivo
-        sender.objects.filter(pk=instance.pk).update(grupo_casa=target)
+        sender.objects.using(using).filter(pk=instance.pk).update(grupo_casa=target)
     except Exception:
         import logging
         logging.getLogger(__name__).exception('Erro no signal associar_grupo_casa_por_endereco')
