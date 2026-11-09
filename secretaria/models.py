@@ -1,5 +1,7 @@
 ﻿
 
+from dataclasses import dataclass
+
 from django.db import models, router
 from django.db.models import DEFERRED
 from django.utils import timezone
@@ -82,6 +84,30 @@ def get_membro_foto_upload_path(instance, filename):
     # Organiza em uma pasta pela igreja, se disponível.
     igreja_folder = f'igreja_{instance.igreja_id}' if instance.igreja_id else 'sem_igreja'
     return os.path.join('fotos_pessoas', igreja_folder, unique_filename)
+
+
+@dataclass(frozen=True)
+class _PessoaMutationPlan:
+    using: str
+    update_fields: frozenset | None
+    tipo_written: bool
+    status_written: bool
+    entrada_written: bool
+    is_new: bool
+    changed_tipo: bool
+    changed_status: bool
+    changed_entrada: bool
+    tipo_anterior_obj: TipoPessoa | None
+    status_anterior_obj: StatusPessoa | None
+    entrada_anterior: str | None
+    tipo_atual_obj: TipoPessoa | None
+    grau_na_entrada: object
+    grau_derivado: object
+    grau_derivado_alterado: bool
+
+    @property
+    def history_required(self):
+        return self.is_new or self.changed_tipo or self.changed_status or self.changed_entrada
 
 
 class Pessoa(models.Model):
@@ -308,18 +334,7 @@ class Pessoa(models.Model):
         if 'tipo_entrada' in refreshed and hasattr(self, '_original_tipo_entrada'):
             self._original_tipo_entrada = self.__dict__['tipo_entrada']
 
-    def save(self, *args, force_insert=False, force_update=False, using=None,
-             update_fields=None, **kwargs):
-        current_user = kwargs.pop('user', None) # Espera um 'user' opcional de kwargs
-        data_mudanca_tipo = kwargs.pop('data_mudanca_tipo', None) # Data customizada para mudança de tipo
-        data_mudanca_status = kwargs.pop('data_mudanca_status', None) # Data customizada para mudança de status
-        motivo_transicao = (kwargs.pop('motivo_transicao', '') or '').strip()
-
-        if args:
-            force_insert, force_update, using, update_fields = self._parse_save_params(
-                *args, method_name='save', force_insert=force_insert,
-                force_update=force_update, using=using, update_fields=update_fields,
-            )
+    def _build_mutation_plan(self, using, update_fields):
         is_new = self._state.adding
         tipo_anterior_id = self._original_tipo_pessoa_id
         status_anterior_id = self._original_status_pessoa_id
@@ -334,23 +349,30 @@ class Pessoa(models.Model):
         else:
             update_fields = frozenset(update_fields)
             if not update_fields:
-                return
+                return None
             tipo_written = bool({'tipo_pessoa', 'tipo_pessoa_id'} & update_fields)
             status_written = bool({'status_pessoa', 'status_pessoa_id'} & update_fields)
             entrada_written = 'tipo_entrada' in update_fields
 
         using = using or router.db_for_write(type(self), instance=self)
         persisted = type(self)._base_manager.using(using).filter(pk=self.pk)
+        grau_na_entrada = self.__dict__.get('grau_eclesiastico', DEFERRED)
+        grau_efetivo = grau_na_entrada
+        derivar_grau = tipo_written and tipo_id is not DEFERRED
+        comparar_grau = derivar_grau and update_fields is not None and 'grau_eclesiastico' not in update_fields
         if not is_new:
             needed = []
             if tipo_written and tipo_id is not DEFERRED and tipo_anterior_id is DEFERRED:
                 needed.append('tipo_pessoa_id')
             if status_written and status_id is not DEFERRED and status_anterior_id is DEFERRED:
                 needed.append('status_pessoa_id')
+            if comparar_grau and grau_efetivo is DEFERRED:
+                needed.append('grau_eclesiastico')
             if needed:
                 originals = persisted.values(*needed).get()
                 tipo_anterior_id = originals.get('tipo_pessoa_id', tipo_anterior_id)
                 status_anterior_id = originals.get('status_pessoa_id', status_anterior_id)
+                grau_efetivo = originals.get('grau_eclesiastico', grau_efetivo)
 
         changed_tipo = not is_new and tipo_written and tipo_id is not DEFERRED and tipo_id != tipo_anterior_id
         changed_status = not is_new and status_written and status_id is not DEFERRED and status_id != status_anterior_id
@@ -366,61 +388,100 @@ class Pessoa(models.Model):
         if changed_status and status_anterior_id:
             status_anterior_obj = StatusPessoa.objects.db_manager(using).filter(pk=status_anterior_id).first()
 
-        grau_na_entrada = self.__dict__.get('grau_eclesiastico', DEFERRED)
+        tipo_atual_obj = None
+        grau_derivado = DEFERRED
         grau_derivado_alterado = False
-        if tipo_written and tipo_id is not DEFERRED:
-            track_grade_change = update_fields is not None and 'grau_eclesiastico' not in update_fields
-            if track_grade_change:
-                grau_anterior = self.grau_eclesiastico
-
+        if derivar_grau:
             tipo_nome_normalizado = ''
             if tipo_id:
                 try:
-                    tipo_nome_normalizado = (self.tipo_pessoa.nome or '').strip().lower()
+                    tipo_atual_obj = self._state.fields_cache.get('tipo_pessoa')
+                    if tipo_atual_obj is None:
+                        tipo_atual_obj = TipoPessoa._base_manager.using(using).get(pk=tipo_id)
+                    tipo_nome_normalizado = (tipo_atual_obj.nome or '').strip().lower()
                 except Exception:
                     tipo_nome_normalizado = ''
 
             if tipo_nome_normalizado and tipo_nome_normalizado != 'membro':
-                grau_derivado_alterado = self.__dict__.get('grau_eclesiastico', DEFERRED) is not None
-                self.grau_eclesiastico = None
-            elif not self.grau_eclesiastico:
-                grau_derivado_alterado = True
-                self.grau_eclesiastico = 'membro_comum'
-
-            if track_grade_change and self.grau_eclesiastico != grau_anterior:
+                grau_derivado = None
+            else:
+                if grau_efetivo is DEFERRED:
+                    grau_efetivo = persisted.values_list('grau_eclesiastico', flat=True).get()
+                grau_derivado = grau_efetivo or 'membro_comum'
+            grau_derivado_alterado = grau_derivado != grau_efetivo
+            if comparar_grau and grau_derivado_alterado:
                 update_fields = update_fields | {'grau_eclesiastico'}
+
+        return _PessoaMutationPlan(
+            using=using,
+            update_fields=update_fields,
+            tipo_written=tipo_written,
+            status_written=status_written,
+            entrada_written=entrada_written,
+            is_new=is_new,
+            changed_tipo=changed_tipo,
+            changed_status=changed_status,
+            changed_entrada=changed_entrada,
+            tipo_anterior_obj=tipo_anterior_obj,
+            status_anterior_obj=status_anterior_obj,
+            entrada_anterior=entrada_anterior,
+            tipo_atual_obj=tipo_atual_obj,
+            grau_na_entrada=grau_na_entrada,
+            grau_derivado=grau_derivado,
+            grau_derivado_alterado=grau_derivado_alterado,
+        )
+
+    def save(self, *args, force_insert=False, force_update=False, using=None,
+             update_fields=None, **kwargs):
+        current_user = kwargs.pop('user', None) # Espera um 'user' opcional de kwargs
+        data_mudanca_tipo = kwargs.pop('data_mudanca_tipo', None) # Data customizada para mudança de tipo
+        data_mudanca_status = kwargs.pop('data_mudanca_status', None) # Data customizada para mudança de status
+        motivo_transicao = (kwargs.pop('motivo_transicao', '') or '').strip()
+
+        if args:
+            force_insert, force_update, using, update_fields = self._parse_save_params(
+                *args, method_name='save', force_insert=force_insert,
+                force_update=force_update, using=using, update_fields=update_fields,
+            )
+        plan = self._build_mutation_plan(using, update_fields)
+        if plan is None:
+            return
+        if plan.tipo_atual_obj is not None:
+            self._meta.get_field('tipo_pessoa').set_cached_value(self, plan.tipo_atual_obj)
+        if plan.grau_derivado is not DEFERRED:
+            self.grau_eclesiastico = plan.grau_derivado
 
         try:
             super().save(
-                force_insert=force_insert, force_update=force_update, using=using,
-                update_fields=update_fields, **kwargs,
+                force_insert=force_insert, force_update=force_update, using=plan.using,
+                update_fields=plan.update_fields, **kwargs,
             )
         except Exception:
-            if grau_na_entrada is DEFERRED:
+            if plan.grau_na_entrada is DEFERRED:
                 self.__dict__.pop('grau_eclesiastico', None)
-            elif grau_derivado_alterado:
-                self.grau_eclesiastico = grau_na_entrada
+            elif plan.grau_derivado_alterado:
+                self.grau_eclesiastico = plan.grau_na_entrada
             raise
 
         # --- ADICIONAR LÓGICA PARA CRIAR StatusHistorico ---
-        if is_new or changed_tipo or changed_status or changed_entrada:
+        if plan.history_required:
             observ_parts = []
-            if is_new:
+            if plan.is_new:
                 observ_parts.append("Registro inicial da pessoa.")
                 if self.tipo_pessoa: observ_parts.append(f"Tipo definido como '{self.tipo_pessoa.nome}'.")
                 if self.status_pessoa: observ_parts.append(f"Status definido como '{self.status_pessoa.nome}'.")
                 if self.tipo_entrada: observ_parts.append(f"Tipo de entrada: '{self.get_tipo_entrada_display()}'.")
             else:
-                if changed_tipo:
-                    old_tipo_name = tipo_anterior_obj.nome if tipo_anterior_obj else "Nenhum"
+                if plan.changed_tipo:
+                    old_tipo_name = plan.tipo_anterior_obj.nome if plan.tipo_anterior_obj else "Nenhum"
                     new_tipo_name = self.tipo_pessoa.nome if self.tipo_pessoa else "Nenhum"
                     observ_parts.append(f"Tipo alterado de '{old_tipo_name}' para '{new_tipo_name}'.")
-                if changed_status:
-                    old_status_name = status_anterior_obj.nome if status_anterior_obj else "Nenhum"
+                if plan.changed_status:
+                    old_status_name = plan.status_anterior_obj.nome if plan.status_anterior_obj else "Nenhum"
                     new_status_name = self.status_pessoa.nome if self.status_pessoa else "Nenhum"
                     observ_parts.append(f"Status alterado de '{old_status_name}' para '{new_status_name}'.")
-                if changed_entrada:
-                    old_entrada = dict(self.TIPO_ENTRADA_CHOICES).get(entrada_anterior, entrada_anterior) or "Nenhum"
+                if plan.changed_entrada:
+                    old_entrada = dict(self.TIPO_ENTRADA_CHOICES).get(plan.entrada_anterior, plan.entrada_anterior) or "Nenhum"
                     new_entrada = self.get_tipo_entrada_display() or "Nenhum"
                     observ_parts.append(f"Tipo de entrada alterado de '{old_entrada}' para '{new_entrada}'.")
 
@@ -442,16 +503,16 @@ class Pessoa(models.Model):
                     return value
                 return datetime.combine(value, time(12, 0))
 
-            dt_tipo = _to_datetime(data_mudanca_tipo) if changed_tipo else None
-            dt_status = _to_datetime(data_mudanca_status) if changed_status else None
+            dt_tipo = _to_datetime(data_mudanca_tipo) if plan.changed_tipo else None
+            dt_status = _to_datetime(data_mudanca_status) if plan.changed_status else None
 
             # Regra hibrida de governanca de datas:
             # - primeira mudanca pode ficar sem data
             # - apos existir data historica registrada, mudancas sem data assumem hoje
             has_tipo_date_registered = False
             has_status_date_registered = False
-            if changed_tipo and not dt_tipo:
-                has_tipo_date_registered = StatusHistorico.objects.db_manager(using).filter(
+            if plan.changed_tipo and not dt_tipo:
+                has_tipo_date_registered = StatusHistorico.objects.db_manager(plan.using).filter(
                     membro=self,
                     tipo_pessoa_anterior__isnull=False,
                     tipo_pessoa_novo__isnull=False,
@@ -460,8 +521,8 @@ class Pessoa(models.Model):
                 if has_tipo_date_registered:
                     dt_tipo = _to_datetime(timezone.localdate())
 
-            if changed_status and not dt_status:
-                has_status_date_registered = StatusHistorico.objects.db_manager(using).filter(
+            if plan.changed_status and not dt_status:
+                has_status_date_registered = StatusHistorico.objects.db_manager(plan.using).filter(
                     membro=self,
                     status_pessoa_anterior__isnull=False,
                     status_pessoa_novo__isnull=False,
@@ -481,20 +542,23 @@ class Pessoa(models.Model):
                 # O histórico registra os vínculos efetivamente persistidos.
                 excluded = [
                     field for field, written in (
-                        ('tipo_pessoa_id', tipo_written),
-                        ('status_pessoa_id', status_written),
+                        ('tipo_pessoa_id', plan.tipo_written),
+                        ('status_pessoa_id', plan.status_written),
                     ) if not written
                 ]
-                persisted_ids = persisted.values(*excluded).get() if excluded else {}
+                persisted_ids = (
+                    type(self)._base_manager.using(plan.using).filter(pk=self.pk)
+                    .values(*excluded).get() if excluded else {}
+                )
                 historico_kwargs = {
                     'membro': self,
-                    'tipo_pessoa_anterior': tipo_anterior_obj if not is_new else None,
+                    'tipo_pessoa_anterior': plan.tipo_anterior_obj if not plan.is_new else None,
                     'tipo_pessoa_novo_id': (
-                        self.tipo_pessoa_id if tipo_written else persisted_ids['tipo_pessoa_id']
+                        self.tipo_pessoa_id if plan.tipo_written else persisted_ids['tipo_pessoa_id']
                     ),
-                    'status_pessoa_anterior': status_anterior_obj if not is_new else None,
+                    'status_pessoa_anterior': plan.status_anterior_obj if not plan.is_new else None,
                     'status_pessoa_novo_id': (
-                        self.status_pessoa_id if status_written else persisted_ids['status_pessoa_id']
+                        self.status_pessoa_id if plan.status_written else persisted_ids['status_pessoa_id']
                     ),
                     'registrado_por': current_user,
                     'observacao': final_observacao
@@ -503,16 +567,16 @@ class Pessoa(models.Model):
                 if data_transicao_final:
                     historico_kwargs['data_transicao'] = data_transicao_final
                 
-                StatusHistorico.objects.db_manager(using).create(**historico_kwargs)
+                StatusHistorico.objects.db_manager(plan.using).create(**historico_kwargs)
             except Exception as e:
                 logger.error(f"  Error creating StatusHistorico for pessoa {self.pk} ({self.nome_completo}): {e}", exc_info=True)
 
         # Atualiza os valores originais para a próxima comparação de save
-        if tipo_written:
+        if plan.tipo_written:
             self._original_tipo_pessoa_id = self.__dict__.get('tipo_pessoa_id', DEFERRED)
-        if status_written:
+        if plan.status_written:
             self._original_status_pessoa_id = self.__dict__.get('status_pessoa_id', DEFERRED)
-        if entrada_written:
+        if plan.entrada_written:
             self._original_tipo_entrada = self.__dict__.get('tipo_entrada', DEFERRED)
 
 
