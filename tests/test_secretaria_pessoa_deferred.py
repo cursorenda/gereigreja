@@ -1,9 +1,12 @@
+import re
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.db.models import DEFERRED, ProtectedError
 from django.db.models.deletion import Collector
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 from configuracao.models import Igreja, Ministerio
 from secretaria.models import Pessoa, StatusHistorico, StatusPessoa, TipoPessoa
@@ -78,8 +81,22 @@ class PessoaDeferredTests(TestCase):
         pessoa = Pessoa.objects.get(pk=self.pessoa.pk)
         pessoa.tipo_pessoa = self.outro_tipo
         pessoa.grau_eclesiastico = "pastor"
-        with self.assertNumQueries(1), self.assertRaisesMessage(ValueError, "invalido"):
+        with CaptureQueriesContext(connection) as queries, self.assertRaisesMessage(ValueError, "invalido"):
             pessoa.save(update_fields=["tipo_pessoa", "grau_eclesiastico", "invalido"])
+        statements = [query["sql"].strip().removesuffix(";") for query in queries]
+        savepoint = r'(?:"[a-zA-Z0-9_]+"|[a-zA-Z0-9_]+)'
+        transaction_control = re.compile(
+            rf"(?:BEGIN(?: TRANSACTION)?|COMMIT|ROLLBACK|"
+            rf"(?:SAVEPOINT|ROLLBACK TO(?: SAVEPOINT)?|RELEASE(?: SAVEPOINT)?) {savepoint})",
+            re.IGNORECASE,
+        )
+        selects = [sql for sql in statements if re.match(r"SELECT\b", sql, re.IGNORECASE)]
+        self.assertEqual(len(selects), 1, statements)
+        self.assertEqual(
+            [sql for sql in statements if sql not in selects and not transaction_control.fullmatch(sql)],
+            [],
+            statements,
+        )
         self.assertEqual(pessoa.grau_eclesiastico, "pastor")
         self.assertEqual(Pessoa.objects.get(pk=pessoa.pk).grau_eclesiastico, "membro_comum")
 

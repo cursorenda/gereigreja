@@ -1,16 +1,16 @@
 ﻿
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 
-from django.db import models, router
+from django.db import models, router, transaction
 from django.db.models import DEFERRED
 from django.utils import timezone
 from django.conf import settings
 import uuid # Para nomes de arquivo únicos
 import os   # Para manipulação de caminhos
 from configuracao.models import Igreja
-import logging
-logger = logging.getLogger(__name__)
+from .pessoa_photo_storage import prepare_pessoa_photo
 
 # --- MODELO GLOBAL DE TAG ---
 class Tag(models.Model):
@@ -108,6 +108,46 @@ class _PessoaMutationPlan:
     @property
     def history_required(self):
         return self.is_new or self.changed_tipo or self.changed_status or self.changed_entrada
+
+
+@dataclass(frozen=True)
+class _PessoaSaveEntryState:
+    _missing = object()
+
+    adding: bool
+    db: str | None
+    attributes: dict
+    relations: dict
+
+    @classmethod
+    def capture(cls, pessoa):
+        names = pessoa.get_deferred_fields() - {'foto'}
+        names.update({
+            pessoa._meta.pk.attname, 'grau_eclesiastico', 'criado_em', 'atualizado_em',
+            '_original_tipo_pessoa_id', '_original_status_pessoa_id',
+            '_original_tipo_entrada', '_prev_address',
+        })
+        return cls(
+            pessoa._state.adding,
+            pessoa._state.db,
+            {name: pessoa.__dict__.get(name, cls._missing) for name in names},
+            dict(pessoa._state.fields_cache),
+        )
+
+    def restore(self, pessoa):
+        for name, value in self.attributes.items():
+            if value is self._missing:
+                pessoa.__dict__.pop(name, None)
+            else:
+                pessoa.__dict__[name] = value
+        cache = pessoa._state.fields_cache
+        for name in cache.keys() - self.relations.keys():
+            del cache[name]
+        for name, value in self.relations.items():
+            if cache.get(name, self._missing) is not value:
+                cache[name] = value
+        pessoa._state.adding = self.adding
+        pessoa._state.db = self.db
 
 
 class Pessoa(models.Model):
@@ -446,130 +486,36 @@ class Pessoa(models.Model):
         plan = self._build_mutation_plan(using, update_fields)
         if plan is None:
             return
-        if plan.tipo_atual_obj is not None:
-            self._meta.get_field('tipo_pessoa').set_cached_value(self, plan.tipo_atual_obj)
-        if plan.grau_derivado is not DEFERRED:
-            self.grau_eclesiastico = plan.grau_derivado
+        self._save_with_plan(
+            plan, force_insert, force_update, kwargs,
+            current_user, data_mudanca_tipo, data_mudanca_status, motivo_transicao,
+        )
 
+    def _save_with_plan(self, plan, force_insert, force_update, kwargs,
+                        current_user, data_mudanca_tipo, data_mudanca_status, motivo_transicao):
+        photo_participates = plan.update_fields is None or 'foto' in plan.update_fields
+        if photo_participates and 'foto' in self.__dict__ and not self.foto._committed:
+            prepare_pessoa_photo(self, using=plan.using)
+
+        entry = _PessoaSaveEntryState.capture(self)
+        core = transaction.atomic(using=plan.using) if plan.history_required else nullcontext()
         try:
-            super().save(
-                force_insert=force_insert, force_update=force_update, using=plan.using,
-                update_fields=plan.update_fields, **kwargs,
-            )
-        except Exception:
-            if plan.grau_na_entrada is DEFERRED:
-                self.__dict__.pop('grau_eclesiastico', None)
-            elif plan.grau_derivado_alterado:
-                self.grau_eclesiastico = plan.grau_na_entrada
-            raise
-
-        # --- ADICIONAR LÓGICA PARA CRIAR StatusHistorico ---
-        if plan.history_required:
-            observ_parts = []
-            if plan.is_new:
-                observ_parts.append("Registro inicial da pessoa.")
-                if self.tipo_pessoa: observ_parts.append(f"Tipo definido como '{self.tipo_pessoa.nome}'.")
-                if self.status_pessoa: observ_parts.append(f"Status definido como '{self.status_pessoa.nome}'.")
-                if self.tipo_entrada: observ_parts.append(f"Tipo de entrada: '{self.get_tipo_entrada_display()}'.")
-            else:
-                if plan.changed_tipo:
-                    old_tipo_name = plan.tipo_anterior_obj.nome if plan.tipo_anterior_obj else "Nenhum"
-                    new_tipo_name = self.tipo_pessoa.nome if self.tipo_pessoa else "Nenhum"
-                    observ_parts.append(f"Tipo alterado de '{old_tipo_name}' para '{new_tipo_name}'.")
-                if plan.changed_status:
-                    old_status_name = plan.status_anterior_obj.nome if plan.status_anterior_obj else "Nenhum"
-                    new_status_name = self.status_pessoa.nome if self.status_pessoa else "Nenhum"
-                    observ_parts.append(f"Status alterado de '{old_status_name}' para '{new_status_name}'.")
-                if plan.changed_entrada:
-                    old_entrada = dict(self.TIPO_ENTRADA_CHOICES).get(plan.entrada_anterior, plan.entrada_anterior) or "Nenhum"
-                    new_entrada = self.get_tipo_entrada_display() or "Nenhum"
-                    observ_parts.append(f"Tipo de entrada alterado de '{old_entrada}' para '{new_entrada}'.")
-
-            final_observacao = " ".join(observ_parts) if observ_parts else "Alteração registrada."
-            if motivo_transicao:
-                final_observacao = f"{final_observacao} Motivo informado: {motivo_transicao}"
-
-            # Determina a data da transição
-            # - Se houver apenas mudança de tipo: usa data_mudanca_tipo
-            # - Se houver apenas mudança de status: usa data_mudanca_status
-            # - Se houver ambas e as duas datas existirem: usa a mais recente
-            data_transicao_final = None
-            from datetime import datetime, time
-
-            def _to_datetime(value):
-                if not value:
-                    return None
-                if isinstance(value, datetime):
-                    return value
-                return datetime.combine(value, time(12, 0))
-
-            dt_tipo = _to_datetime(data_mudanca_tipo) if plan.changed_tipo else None
-            dt_status = _to_datetime(data_mudanca_status) if plan.changed_status else None
-
-            # Regra hibrida de governanca de datas:
-            # - primeira mudanca pode ficar sem data
-            # - apos existir data historica registrada, mudancas sem data assumem hoje
-            has_tipo_date_registered = False
-            has_status_date_registered = False
-            if plan.changed_tipo and not dt_tipo:
-                has_tipo_date_registered = StatusHistorico.objects.db_manager(plan.using).filter(
-                    membro=self,
-                    tipo_pessoa_anterior__isnull=False,
-                    tipo_pessoa_novo__isnull=False,
-                    data_transicao__isnull=False,
-                ).exists()
-                if has_tipo_date_registered:
-                    dt_tipo = _to_datetime(timezone.localdate())
-
-            if plan.changed_status and not dt_status:
-                has_status_date_registered = StatusHistorico.objects.db_manager(plan.using).filter(
-                    membro=self,
-                    status_pessoa_anterior__isnull=False,
-                    status_pessoa_novo__isnull=False,
-                    data_transicao__isnull=False,
-                ).exists()
-                if has_status_date_registered:
-                    dt_status = _to_datetime(timezone.localdate())
-
-            if dt_tipo and dt_status:
-                data_transicao_final = dt_tipo if dt_tipo >= dt_status else dt_status
-            elif dt_tipo:
-                data_transicao_final = dt_tipo
-            elif dt_status:
-                data_transicao_final = dt_status
-
-            try:
-                # O histórico registra os vínculos efetivamente persistidos.
-                excluded = [
-                    field for field, written in (
-                        ('tipo_pessoa_id', plan.tipo_written),
-                        ('status_pessoa_id', plan.status_written),
-                    ) if not written
-                ]
-                persisted_ids = (
-                    type(self)._base_manager.using(plan.using).filter(pk=self.pk)
-                    .values(*excluded).get() if excluded else {}
+            with core:
+                if plan.tipo_atual_obj is not None:
+                    self._meta.get_field('tipo_pessoa').set_cached_value(self, plan.tipo_atual_obj)
+                if plan.grau_derivado is not DEFERRED:
+                    self.grau_eclesiastico = plan.grau_derivado
+                super().save(
+                    force_insert=force_insert, force_update=force_update, using=plan.using,
+                    update_fields=plan.update_fields, **kwargs,
                 )
-                historico_kwargs = {
-                    'membro': self,
-                    'tipo_pessoa_anterior': plan.tipo_anterior_obj if not plan.is_new else None,
-                    'tipo_pessoa_novo_id': (
-                        self.tipo_pessoa_id if plan.tipo_written else persisted_ids['tipo_pessoa_id']
-                    ),
-                    'status_pessoa_anterior': plan.status_anterior_obj if not plan.is_new else None,
-                    'status_pessoa_novo_id': (
-                        self.status_pessoa_id if plan.status_written else persisted_ids['status_pessoa_id']
-                    ),
-                    'registrado_por': current_user,
-                    'observacao': final_observacao
-                }
-                # Adiciona data_transicao só se fornecida
-                if data_transicao_final:
-                    historico_kwargs['data_transicao'] = data_transicao_final
-                
-                StatusHistorico.objects.db_manager(plan.using).create(**historico_kwargs)
-            except Exception as e:
-                logger.error(f"  Error creating StatusHistorico for pessoa {self.pk} ({self.nome_completo}): {e}", exc_info=True)
+                if plan.history_required:
+                    self._write_automatic_history(
+                        plan, current_user, data_mudanca_tipo, data_mudanca_status, motivo_transicao,
+                    )
+        except Exception:
+            entry.restore(self)
+            raise
 
         # Atualiza os valores originais para a próxima comparação de save
         if plan.tipo_written:
@@ -578,7 +524,110 @@ class Pessoa(models.Model):
             self._original_status_pessoa_id = self.__dict__.get('status_pessoa_id', DEFERRED)
         if plan.entrada_written:
             self._original_tipo_entrada = self.__dict__.get('tipo_entrada', DEFERRED)
+    def _write_automatic_history(self, plan, current_user, data_mudanca_tipo,
+                                 data_mudanca_status, motivo_transicao):
+        observ_parts = []
+        if plan.is_new:
+            observ_parts.append("Registro inicial da pessoa.")
+            if self.tipo_pessoa: observ_parts.append(f"Tipo definido como '{self.tipo_pessoa.nome}'.")
+            if self.status_pessoa: observ_parts.append(f"Status definido como '{self.status_pessoa.nome}'.")
+            if self.tipo_entrada: observ_parts.append(f"Tipo de entrada: '{self.get_tipo_entrada_display()}'.")
+        else:
+            if plan.changed_tipo:
+                old_tipo_name = plan.tipo_anterior_obj.nome if plan.tipo_anterior_obj else "Nenhum"
+                new_tipo_name = self.tipo_pessoa.nome if self.tipo_pessoa else "Nenhum"
+                observ_parts.append(f"Tipo alterado de '{old_tipo_name}' para '{new_tipo_name}'.")
+            if plan.changed_status:
+                old_status_name = plan.status_anterior_obj.nome if plan.status_anterior_obj else "Nenhum"
+                new_status_name = self.status_pessoa.nome if self.status_pessoa else "Nenhum"
+                observ_parts.append(f"Status alterado de '{old_status_name}' para '{new_status_name}'.")
+            if plan.changed_entrada:
+                old_entrada = dict(self.TIPO_ENTRADA_CHOICES).get(plan.entrada_anterior, plan.entrada_anterior) or "Nenhum"
+                new_entrada = self.get_tipo_entrada_display() or "Nenhum"
+                observ_parts.append(f"Tipo de entrada alterado de '{old_entrada}' para '{new_entrada}'.")
 
+        final_observacao = " ".join(observ_parts) if observ_parts else "Alteração registrada."
+        if motivo_transicao:
+            final_observacao = f"{final_observacao} Motivo informado: {motivo_transicao}"
+
+        # Determina a data da transição
+        # - Se houver apenas mudança de tipo: usa data_mudanca_tipo
+        # - Se houver apenas mudança de status: usa data_mudanca_status
+        # - Se houver ambas e as duas datas existirem: usa a mais recente
+        data_transicao_final = None
+        from datetime import datetime, time
+
+        def _to_datetime(value):
+            if not value:
+                return None
+            if isinstance(value, datetime):
+                return value
+            return datetime.combine(value, time(12, 0))
+
+        dt_tipo = _to_datetime(data_mudanca_tipo) if plan.changed_tipo else None
+        dt_status = _to_datetime(data_mudanca_status) if plan.changed_status else None
+
+        # Regra hibrida de governanca de datas:
+        # - primeira mudanca pode ficar sem data
+        # - apos existir data historica registrada, mudancas sem data assumem hoje
+        has_tipo_date_registered = False
+        has_status_date_registered = False
+        if plan.changed_tipo and not dt_tipo:
+            has_tipo_date_registered = StatusHistorico.objects.db_manager(plan.using).filter(
+                membro=self,
+                tipo_pessoa_anterior__isnull=False,
+                tipo_pessoa_novo__isnull=False,
+                data_transicao__isnull=False,
+            ).exists()
+            if has_tipo_date_registered:
+                dt_tipo = _to_datetime(timezone.localdate())
+
+        if plan.changed_status and not dt_status:
+            has_status_date_registered = StatusHistorico.objects.db_manager(plan.using).filter(
+                membro=self,
+                status_pessoa_anterior__isnull=False,
+                status_pessoa_novo__isnull=False,
+                data_transicao__isnull=False,
+            ).exists()
+            if has_status_date_registered:
+                dt_status = _to_datetime(timezone.localdate())
+
+        if dt_tipo and dt_status:
+            data_transicao_final = dt_tipo if dt_tipo >= dt_status else dt_status
+        elif dt_tipo:
+            data_transicao_final = dt_tipo
+        elif dt_status:
+            data_transicao_final = dt_status
+
+        # O histórico registra os vínculos efetivamente persistidos.
+        excluded = [
+            field for field, written in (
+                ('tipo_pessoa_id', plan.tipo_written),
+                ('status_pessoa_id', plan.status_written),
+            ) if not written
+        ]
+        persisted_ids = (
+            type(self)._base_manager.using(plan.using).filter(pk=self.pk)
+            .values(*excluded).get() if excluded else {}
+        )
+        historico_kwargs = {
+            'membro': self,
+            'tipo_pessoa_anterior': plan.tipo_anterior_obj if not plan.is_new else None,
+            'tipo_pessoa_novo_id': (
+                self.tipo_pessoa_id if plan.tipo_written else persisted_ids['tipo_pessoa_id']
+            ),
+            'status_pessoa_anterior': plan.status_anterior_obj if not plan.is_new else None,
+            'status_pessoa_novo_id': (
+                self.status_pessoa_id if plan.status_written else persisted_ids['status_pessoa_id']
+            ),
+            'registrado_por': current_user,
+            'observacao': final_observacao
+        }
+        # Adiciona data_transicao só se fornecida
+        if data_transicao_final:
+            historico_kwargs['data_transicao'] = data_transicao_final
+        
+        StatusHistorico.objects.db_manager(plan.using).create(**historico_kwargs)
 
     def __str__(self):
         return self.nome
