@@ -33,6 +33,7 @@ class Evento(models.Model):
 	)
 	tipos_participantes = models.ManyToManyField(
 		'secretaria.TipoPessoa',
+		through='EventoTipoParticipante',
 		blank=True,
 		related_name='eventos_por_tipo',
 		verbose_name='Tipos de Pessoas Esperadas',
@@ -40,6 +41,7 @@ class Evento(models.Model):
 	)
 	status_participantes = models.ManyToManyField(
 		'secretaria.StatusPessoa',
+		through='EventoStatusParticipante',
 		blank=True,
 		related_name='eventos_por_status',
 		verbose_name='Status de Pessoas Esperadas',
@@ -243,6 +245,26 @@ class Evento(models.Model):
 
 	class Meta:
 		ordering = ['-data_inicio']
+
+
+class EventoTipoParticipante(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name='+')
+    tipopessoa = models.ForeignKey('secretaria.TipoPessoa', on_delete=models.PROTECT, related_name='+')
+
+    class Meta:
+        db_table = 'eventos_evento_tipos_participantes'
+        unique_together = (('evento', 'tipopessoa'),)
+
+
+class EventoStatusParticipante(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name='+')
+    statuspessoa = models.ForeignKey('secretaria.StatusPessoa', on_delete=models.PROTECT, related_name='+')
+
+    class Meta:
+        db_table = 'eventos_evento_status_participantes'
+        unique_together = (('evento', 'statuspessoa'),)
 
 
 class EventoAnexo(models.Model):
