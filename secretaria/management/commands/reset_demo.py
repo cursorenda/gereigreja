@@ -1,43 +1,79 @@
-from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
-from configuracao.models import Ministerio, Igreja
-from secretaria.models import Pessoa, TipoPessoa, StatusPessoa
-from financeiro.models import Despesas, Receitas
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
+from django.db.models import F, Q
+
+from configuracao.models import Igreja
+from eventos.models import Evento
+from financeiro.models import (
+    ContaBancaria,
+    ContaPagar,
+    ContaPagarAutorizacaoEvento,
+    Despesas,
+    FechamentoCaixa,
+    ImportacaoExtratoOFX,
+    Receitas,
+    RecorrenciaContaPagar,
+    TransferenciaCaixa,
+)
 
 class Command(BaseCommand):
-    help = 'Remove todos os dados de demonstração (modo demo) para resetar o ambiente.'
+    help = (
+        "Limpa os dados operacionais dos ministérios marcados como demo, "
+        "preservando Ministério, Igrejas, usuários, pessoas, configurações "
+        "estruturais e histórico de auditoria."
+    )
 
     def handle(self, *args, **options):
+        with transaction.atomic():
+            demo_churches = Igreja.objects.filter(ministerio__is_demo=True)
 
-        # Remove receitas/despesas demo PRIMEIRO para evitar ProtectedError
-        Receitas.objects.filter(observacao__icontains='Demo').delete()
-        Despesas.objects.filter(observacao__icontains='Demo').delete()
+            cross_tenant_transfers = TransferenciaCaixa.objects.filter(
+                Q(
+                    caixa_origem__igreja__ministerio__is_demo=True,
+                    caixa_destino__igreja__ministerio__is_demo=False,
+                )
+                | Q(
+                    caixa_origem__igreja__ministerio__is_demo=False,
+                    caixa_destino__igreja__ministerio__is_demo=True,
+                )
+            )
+            if cross_tenant_transfers.exists():
+                raise CommandError(
+                    "Foram encontradas transferências financeiras cross-tenant; "
+                    "reset demo abortado sem mutações."
+                )
 
-        # Remove participações e eventos demo antes de remover igrejas demo
-        try:
-            from eventos.models import Evento, ParticipacaoEvento
-            # Remove participações de eventos demo
-            ParticipacaoEvento.objects.filter(evento__titulo__icontains='DEMO').delete()
-            # Remove eventos demo
-            Evento.objects.filter(titulo__icontains='DEMO').delete()
-        except Exception as e:
-            self.stderr.write(f'Erro ao remover eventos demo: {e}')
+            demo_events = Evento.objects.filter(igreja__in=demo_churches)
+            if any(
+                model.objects.filter(evento__in=demo_events)
+                .exclude(igreja__in=demo_churches)
+                .exists()
+                for model in (Receitas, Despesas)
+            ):
+                raise CommandError(
+                    "Foram encontradas referências financeiras fora do escopo demo; "
+                    "reset demo abortado sem mutações."
+                )
 
-        # Remove membros demo
-        Pessoa.objects.filter(email__icontains='@demo.com').delete()
+            demo_events.delete()
+            ImportacaoExtratoOFX.objects.filter(igreja__in=demo_churches).delete()
+            FechamentoCaixa.objects.filter(igreja__in=demo_churches).delete()
+            TransferenciaCaixa.objects.filter(
+                caixa_origem__igreja__in=demo_churches
+            ).delete()
+            ContaPagarAutorizacaoEvento.objects.filter(
+                conta_pagar__igreja__in=demo_churches
+            ).delete()
+            ContaPagar.objects.filter(igreja__in=demo_churches).delete()
+            RecorrenciaContaPagar.objects.filter(igreja__in=demo_churches).delete()
+            Receitas.objects.filter(igreja__in=demo_churches).delete()
+            Despesas.objects.filter(igreja__in=demo_churches).delete()
+            ContaBancaria.objects.filter(igreja__in=demo_churches).update(
+                saldo_atual=F("saldo_inicial")
+            )
 
-        # Remove igrejas demo
-        Igreja.objects.filter(nome_igreja__icontains='DEMO').delete()
-
-        # Remove ministério demo
-        Ministerio.objects.filter(nome_fantasia='DEMONSTRAÇÃO').delete()
-
-        # Remove tipos/status demo criados
-        TipoPessoa.objects.filter(nome='Membro', descricao__icontains='demo').delete()
-        StatusPessoa.objects.filter(nome='Ativo', descricao__icontains='demo').delete()
-
-        # Remove usuários demo
-        User = get_user_model()
-        User.objects.filter(username__icontains='demo').delete()
-
-        self.stdout.write(self.style.SUCCESS('Dados demo removidos com sucesso!'))
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Dados operacionais dos ambientes demo resetados com sucesso."
+            )
+        )
