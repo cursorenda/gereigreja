@@ -1,267 +1,429 @@
-# Gereigreja 🙏
+# GereIgreja
 
-Sistema completo de gestão eclesiástica desenvolvido em Django, oferecendo soluções integradas para administração de igrejas e organizações religiosas.
+Plataforma web de gestão eclesiástica desenvolvida em Django, com suporte a múltiplas igrejas e módulos administrativos integrados.
 
-## 📋 Sobre o Sistema
+O GereIgreja centraliza rotinas de Secretaria, Financeiro, Escola Bíblica Dominical, Eventos, Comunicação, Departamentos, Usuários, Configurações e outras capacidades da plataforma.
 
-**Gereigreja** é uma plataforma web robusta que centraliza a gestão de todos os aspectos administrativos de uma igreja, desde o cadastro de membros até o controle financeiro, passando por eventos, comunicação e recursos educacionais.
+## Documentação oficial
 
-## ✨ Funcionalidades Principais
+A documentação técnica e funcional está centralizada em:
 
-- **👥 Secretaria**: Gestão completa de membros, famílias, visitantes e acompanhamento de visitas
-- **💰 Financeiro**: Controle de receitas, despesas, contas bancárias, categorias e relatórios
-- **📅 Eventos**: Organização de eventos, controle de participantes e inscrições
-- **📧 Comunicação**: Envio de e-mails, SMS e notificações para membros
-- **📚 Escola Bíblica**: Gestão de turmas, alunos e materiais didáticos
-- **⚙️ Configuração**: Administração de organizações, igrejas, usuários e permissões
-- **🚀 Deploy**: Sistema automatizado de versionamento e publicação de atualizações
+```text
+docs/
+```
 
-## � Sistema de Grupos e Permissões
+Pontos de entrada:
 
-O Gereigreja implementa um sistema robusto de controle de acesso baseado em **13 grupos hierárquicos**, cada um com permissões específicas para garantir que usuários acessem apenas as funcionalidades apropriadas aos seus cargos.
+```text
+docs/README.md
+→ apresentação da documentação
 
-### Grupos Disponíveis (Hierarquia)
+docs/00-Guia-de-Documentacao.md
+→ governança documental
 
-#### 🏛️ Nível Ministerial
-- **Admin Ministerio**: Controle total sobre todas as organizações e igrejas
-- **Pastor Regional**: Gestão de múltiplas igrejas dentro de uma organização
-- **Tesoureiro**: Acesso dedicado ao módulo financeiro em nível ministerial
+docs/INDEX.md
+→ mapa global de famílias e autoridades
+```
 
-#### ⛪ Nível Local (Igreja)
-- **Admin Org**: Administração completa da organização local
-- **Pastor Local**: Gestão pastoral da igreja local
-- **Secretario Local**: Gestão administrativa e de membros
-- **Tesoureiro Local**: Controle financeiro da igreja
-- **Regente**: Gestão do ministério de música e louvor
-- **Lider Eventos**: Organização e coordenação de eventos
+Para entender uma área específica, prefira o README da família correspondente em vez de links históricos isolados.
 
-#### 📚 Escola Bíblica Dominical (EBD)
-- **Superintendente EBD**: Gestão completa da escola bíblica
-- **Secretaria EBD**: Apoio administrativo EBD
-- **Professor**: Condução de turmas e classes
+## Princípio documental
 
-#### 👥 Membros
-- **Membro Comum**: Acesso básico ao sistema
+> Evoluir antes de criar. Consolidar antes de duplicar. Criar somente diante de uma lacuna demonstrável.
 
-### Configuração Inicial
+Documentos antigos, release notes e changelogs podem preservar caminhos históricos que já não existem na estrutura atual.
 
-Após instalar o sistema, execute o comando para configurar automaticamente todos os grupos com suas permissões:
+## Principais domínios funcionais
+
+A documentação funcional vigente está em:
+
+```text
+docs/apps/
+```
+
+Principais áreas documentadas:
+
+- Membros;
+- Secretaria;
+- Financeiro;
+- Comunicação;
+- Departamentos;
+- Escola Bíblica Dominical;
+- Eventos;
+- Usuários;
+- Configurações.
+
+A ausência de um documento numerado não significa automaticamente ausência funcional nem autoriza sua criação.
+
+## Arquitetura e engenharia
+
+### Arquitetura
+
+```text
+docs/arquitetura/
+```
+
+Descreve como a plataforma está organizada atualmente.
+
+### Backend
+
+```text
+docs/backend/
+```
+
+Define padrões de implementação Django, incluindo Core, Models, Services, Selectors, Views, Forms, Permissions, Middlewares, Tasks, Logging, Testing e Code Standards.
+
+### Frontend
+
+```text
+docs/frontend/
+```
+
+Documenta estrutura da interface, layouts, templates, assets, CSS, JavaScript, HTMX, Alpine.js e dashboards.
+
+### Design System
+
+```text
+docs/design-system/
+```
+
+É a fonte canônica da linguagem visual e dos padrões de UX.
+
+### APIs
+
+```text
+docs/api/
+```
+
+Concentra contratos, segurança, versionamento, integrações e ciclo de vida das APIs.
+
+## Segurança e multi-tenancy
+
+Segurança é uma preocupação transversal da plataforma.
+
+A documentação canônica está em:
+
+```text
+docs/frameworks/02-GAF-GereIgreja-Authentication-Framework.md
+docs/frameworks/03-GSF-GereIgreja-Security-Framework.md
+docs/seguranca/
+```
+
+Conceitos que devem permanecer distintos:
+
+```text
+Autenticação
+→ quem é o usuário
+
+Autorização
+→ o que pode fazer
+
+Tenant / igreja ativa
+→ sobre quais dados pode operar
+```
+
+Controle visual no frontend não substitui autorização no backend.
+
+## Infraestrutura e operação
+
+### Infraestrutura
+
+```text
+docs/infraestrutura/
+```
+
+Ambientes, banco, observabilidade, backup, disaster recovery, capacidade, custos e prontidão operacional.
+
+### Operações
+
+```text
+docs/operacoes/
+```
+
+Runbooks e procedimentos recorrentes.
+
+### Deploy
+
+```text
+docs/deploy/
+```
+
+Procedimentos de implantação e publicação.
+
+### Qualidade
+
+```text
+docs/qualidade/
+```
+
+Homologação, regressão, checklists, quality gates e critérios de aceite.
+
+### Automação
+
+```text
+docs/automacao/
+```
+
+Automações operacionais ou de negócio com ciclo de vida próprio.
+
+## Inteligência Artificial
+
+A engenharia e governança de IA estão documentadas em:
+
+```text
+docs/ai/
+```
+
+A família GAI possui baseline oficial:
+
+```text
+GAI-01 ... GAI-35
+```
+
+O framework 1.0 está estruturalmente congelado; novos documentos `GAI-36+` exigem análise formal de lacuna.
+
+## Usuário, produto e estratégia
+
+```text
+docs/usuario/
+→ guias destinados ao usuário final
+
+docs/produto/
+→ iniciativas e especificações de produto
+
+docs/estrategia-digital/
+→ posicionamento, SEO, conteúdo, conversão e métricas
+```
+
+## Decisões, auditorias e histórico
+
+```text
+docs/adr/
+→ decisões arquiteturais
+
+docs/auditoria/
+→ evidências de auditorias executadas
+
+docs/relatorios/
+→ análises e diagnósticos
+
+docs/release-notes/
+→ histórico de versões
+
+CHANGELOG.md
+→ histórico geral de mudanças
+```
+
+Registros históricos não substituem documentação canônica vigente.
+
+## Tecnologias principais
+
+O projeto utiliza, entre outras dependências:
+
+- Python;
+- Django 5.2;
+- PostgreSQL em ambientes que utilizam o backend PostgreSQL;
+- SQLite nos ambientes locais/testes configurados para esse fim;
+- Bootstrap;
+- JavaScript;
+- HTMX;
+- Alpine.js;
+- Cloudinary;
+- Render;
+- Git e GitHub.
+
+A lista exata de dependências deve ser consultada em:
+
+```text
+requirements.txt
+```
+
+## Ambiente local seguro
+
+As regras operacionais para agentes e automações estão em:
+
+```text
+AGENTS.md
+```
+
+Settings previstos para cada contexto:
+
+```text
+core.settings_local
+→ desenvolvimento e comandos locais
+
+core.settings_test
+→ testes Django
+
+core.settings_test_migrations
+→ testes reais de migrations
+```
+
+Não utilizar `core.settings` em comandos locais apenas por ausência de `--settings`.
+
+Não acessar `.env`, PostgreSQL remoto, Supabase ou ambiente produtivo sem autorização explícita e alvo inequívoco.
+
+## Instalação local
+
+Fluxo geral:
 
 ```bash
-python manage.py configurar_permissoes_grupos
+git clone <URL_DO_REPOSITORIO>
+cd Gereigreja
+
+python -m venv .venv
 ```
 
-**Opções disponíveis:**
-- `--reset`: Remove e recria todos os grupos
-- `--dry-run`: Simula a configuração sem fazer mudanças
+Ative o ambiente virtual.
 
-### Documentação Completa
+Windows:
 
-Para detalhes sobre cada grupo, permissões específicas e guias de uso, consulte:
-- **[docs/GRUPOS_PERMISSOES.md](docs/GRUPOS_PERMISSOES.md)** - Documentação completa do sistema de permissões
-
-## 🆕 Melhorias Recentes (v1.10.1 — 09/05/2026)
-
-- **WhatsApp Edição em Massa de Celulares:**
-  - Nova página `/comunicacao/whatsapp/massa/editar-celulares/` com filtros avançados
-  - Checkbox para mostrar apenas pessoas sem celular preenchido
-  - Máscara automática `(##) #####-####` e validação de 15 dígitos
-  - Correção crítica: suporte a locale-aware form serialization (POST keys com dots)
-  - Feedback simplificado na UI (logs em background apenas)
-- **Documentação Expandida:**
-  - Novo guia [docs/WHATSAPP_BULK_CELULAR_EDIT.md](docs/WHATSAPP_BULK_CELULAR_EDIT.md) com implementação técnica e casos de teste
-  - Novo guia de deploy [docs/DEPLOY_RELEASE_v1.10.1.md](docs/DEPLOY_RELEASE_v1.10.1.md)
-- **Versionamento:**
-   - CHANGELOG.md como fonte oficial da versão exibida no sistema
-   - Changelog sincronizado com releases
-
-Veja detalhes completos no [CHANGELOG.md](CHANGELOG.md), [docs/WHATSAPP_BULK_CELULAR_EDIT.md](docs/WHATSAPP_BULK_CELULAR_EDIT.md) e na documentação de permissões/grupos.
-
-##🛠️ Tecnologias
-
-- **Backend**: Python 3.x + Django Framework
-- **Frontend**: HTML5, CSS3 (Bootstrap), JavaScript (jQuery, Chart.js)
-- **Banco de Dados**: PostgreSQL (Supabase)
-- **Armazenamento**: Cloudinary (arquivos e mídia)
-- **Hospedagem**: Render (deploy automatizado)
-- **Controle de Versão**: Git + GitHub
-
-## 📖 Documentação Técnica
-
-### Arquitetura e Estrutura
-- **[docs/ARQUITETURA_TEMPLATES.md](docs/ARQUITETURA_TEMPLATES.md)** - Arquitetura de templates e convenções de uso
-- **[docs/GRUPOS_PERMISSOES.md](docs/GRUPOS_PERMISSOES.md)** - Sistema completo de permissões e grupos
-
-### Segurança e Conformidade
-- **[docs/LGPD_IMPLEMENTACAO.md](docs/LGPD_IMPLEMENTACAO.md)** - Implementação de conformidade LGPD
-- **[docs/DECORATORS_SEGURANCA.md](docs/DECORATORS_SEGURANCA.md)** - Decorators de segurança do sistema
-- **[docs/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md](docs/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md)** - Auditoria completa de permissões
-
-### Funcionalidades Específicas
-- **[docs/SELETOR_IGREJA.md](docs/SELETOR_IGREJA.md)** - Sistema de seleção de igreja ativa
-- **[docs/ANALISE_MENUS_BASEADOS_PERMISSOES.md](docs/ANALISE_MENUS_BASEADOS_PERMISSOES.md)** - Análise de menus e permissões
-
-### Guias de Desenvolvimento
-- **[CHAT_RESPOSTAS.md](CHAT_RESPOSTAS.md)** - Respostas detalhadas de análises e implementações
-- **[skills/](skills/)** - Instruções para agente IA por módulo
-
-## 📁 Estrutura do Projeto
-
-```
-Gereigreja/
-├── skills/                    # Instruções para agente IA
-│   ├── copilot-instructions.md
-│   ├── contexto_gereigreja.md
-│   ├── financeiro/
-│   ├── deploy/
-│   ├── backup/
-│   ├── eventos/
-│   ├── comunicacao/
-│   ├── secretaria/
-│   └── configuracao/
-├── docs/                      # Documentação
-│   └── release-notes/
-├── core/                      # Configurações principais
-├── financeiro/                # App de gestão financeira
-├── secretaria/                # App de gestão de membros
-├── eventos/                   # App de gestão de eventos
-├── comunicacao/               # App de comunicação
-├── escola_biblica/            # App de escola bíblica
-├── configuracao/              # App de configuração
-├── contas/                    # App de autenticação
-├── deploy/                    # App de versionamento
-├── templates/                 # Templates globais
-├── static/                    # Arquivos estáticos
-├── media/                     # Uploads de usuários
-├── backup/                    # Backups do banco
-├── logs/                      # Logs do sistema
-├── manage.py
-├── requirements.txt
-├── README.md
-├── CHANGELOG.md
-└── README_TESTS.md
+```powershell
+.venv\Scripts\Activate.ps1
 ```
 
-## 🚀 Como Começar
-
-### Pré-requisitos
-
-- Python 3.8+
-- PostgreSQL
-- Git
-
-### Instalação
-
-1. **Clone o repositório**:
-   ```bash
-   git clone https://github.com/seu-usuario/gereigreja.git
-   cd gereigreja
-   ```
-
-2. **Crie e ative o ambiente virtual**:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Linux/Mac
-   .venv\Scripts\activate     # Windows
-   ```
-
-3. **Instale as dependências**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure as variáveis de ambiente**:
-   - Copie `.env.example` para `.env`
-   - Configure as credenciais do banco, Cloudinary, e-mail, etc.
-
-5. **Execute as migrações**:
-   ```bash
-   python manage.py migrate
-   ```
-
-6. **Crie um superusuário**:
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-7. **Rode o servidor**:
-   ```bash
-   python manage.py runserver
-   ```
-
-8. Acesse: `http://localhost:8000`
-
-## 📚 Documentação
-
-### Skills (Instruções para IA)
-O diretório [`skills/`](skills/) contém instruções detalhadas por módulo para agentes de IA:
-- [`skills/README.md`](skills/README.md) - Índice de todas as skills
-- [`skills/copilot-instructions.md`](skills/copilot-instructions.md) - Instruções gerais
-- [`skills/contexto_gereigreja.md`](skills/contexto_gereigreja.md) - Contexto do projeto
-- [`skills/financeiro/SKILL.md`](skills/financeiro/SKILL.md) - Gestão financeira
-- [`skills/deploy/SKILL.md`](skills/deploy/SKILL.md) - Deploy e versionamento
-- [`skills/backup/SKILL.md`](skills/backup/SKILL.md) - Backup e restauração
-- E mais...
-
-### Documentação Adicional
-- [`README_TESTS.md`](README_TESTS.md) - Informações sobre testes
-- [`CHANGELOG.md`](CHANGELOG.md) - Histórico de mudanças
-- [`docs/release-notes/`](docs/release-notes/) - Notas de versão
-
-## 🔧 Comandos Úteis
+Linux/macOS:
 
 ```bash
-# Rodar servidor de desenvolvimento
-python manage.py runserver
-
-# Criar migrações
-python manage.py makemigrations
-
-# Aplicar migrações
-python manage.py migrate
-
-# Coletar arquivos estáticos
-python manage.py collectstatic
-
-# Executar testes
-python manage.py test
-
-# Criar superusuário
-python manage.py createsuperuser
+source .venv/bin/activate
 ```
 
-## 📦 Deploy
+Instale as dependências:
 
-O sistema usa deploy automatizado via Render com integração GitHub:
-1. Push para a branch `master`
-2. Render detecta mudanças
-3. Build e deploy automáticos
-4. Migrações e collectstatic executados
-
-Veja [`skills/deploy/SKILL.md`](skills/deploy/SKILL.md) para mais detalhes.
-
-## 🐛 Logs e Debugging
-
-- Logs de erro: `logs/django_errors.log`
-- Debug personalizado: `debug.log`
-- Logs de backup: `backup_log.txt`
-
-## 📈 Versão do Sistema
-
-O sistema exibe automaticamente a versão atual nos rodapés, lendo do `CHANGELOG.md`.
-
-**Template tag** disponível:
-```django
-{% load versao %}
-{% get_versao_gereigreja as versao_sistema %}
-Versão {{ versao_sistema }}
+```bash
+pip install -r requirements.txt
 ```
 
-## 🤝 Suporte
+Para desenvolvimento local, utilize os settings locais definidos pelo projeto.
 
-Para dúvidas e suporte, entre em contato através da plataforma ou consulte a documentação em [`skills/`](skills/).
+Exemplo:
 
----
+```bash
+python manage.py runserver --settings=core.settings_local
+```
 
-**Última atualização**: Março 2026  
-**Versão**: v1.3.1
+## Testes
+
+A referência operacional está em:
+
+```text
+docs/desenvolvimento/Como-Rodar-Testes.md
+```
+
+Execução Django:
+
+```bash
+python manage.py test --settings=core.settings_test
+```
+
+Quando aplicável, a suíte também pode ser executada com pytest conforme a configuração documentada do projeto.
+
+Não executar migrations como efeito colateral de uma tarefa genérica de teste.
+
+## Migrations
+
+Migrations exigem atenção ao ambiente.
+
+Antes de executar comandos relacionados a schema:
+
+- confirme os settings;
+- confirme o banco alvo;
+- não presuma que a ausência de `--settings` é segura;
+- não utilize produção sem autorização explícita;
+- siga `AGENTS.md` e a documentação de infraestrutura correspondente.
+
+## Estrutura documental resumida
+
+```text
+docs/
+├── adr/
+├── ai/
+├── api/
+├── apps/
+├── arquitetura/
+├── auditoria/
+├── automacao/
+├── backend/
+├── deploy/
+├── desenvolvimento/
+├── design-system/
+├── estrategia-digital/
+├── frameworks/
+├── frontend/
+├── governanca/
+├── infraestrutura/
+├── operacoes/
+├── produto/
+├── qualidade/
+├── relatorios/
+├── release-notes/
+├── seguranca/
+├── sistema/
+└── usuario/
+```
+
+Não fazem parte da árvore documental ativa:
+
+```text
+administrador/
+design/
+marketing/
+templates/
+ui/
+```
+
+## Famílias em consolidação
+
+### `docs/governanca/`
+
+Família válida, mas em consolidação. Alguns padrões técnicos antigos estão sendo absorvidos pelas famílias canônicas modernas.
+
+### `docs/sistema/`
+
+Família transitória.
+
+```text
+NOVOS DOCUMENTOS: NÃO
+```
+
+Seu conteúdo deve ser gradualmente consolidado nos domínios corretos.
+
+## Versão e mudanças
+
+Não mantenha uma versão fixa neste README.
+
+Consulte:
+
+```text
+CHANGELOG.md
+docs/release-notes/
+```
+
+para conhecer a evolução publicada e o histórico do sistema.
+
+## Contribuição e manutenção
+
+Antes de alterar o projeto:
+
+1. leia `AGENTS.md`;
+2. consulte `docs/README.md`;
+3. localize o domínio no `docs/INDEX.md`;
+4. leia a documentação canônica correspondente;
+5. valide se código e documentação continuam coerentes;
+6. atualize documentação quando a mudança alterar comportamento, arquitetura ou operação.
+
+## Regra final
+
+```text
+Código
++
+Documentação
++
+Testes
++
+Operação
+=
+Plataforma sustentável
+```
+
+A documentação oficial deve representar o sistema real, não uma versão idealizada ou histórica da plataforma.

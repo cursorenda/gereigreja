@@ -73,3 +73,4 @@ Será criada a entidade `DepartamentoVinculo`, subordinada ao `Departamento` loc
 - `docs/governanca/05-Padroes-de-Models.md`
 - `docs/governanca/10-Padroes-de-Permissoes.md`
 - `docs/seguranca/05-Seguranca-Multi-Tenant.md`
+

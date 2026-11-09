@@ -1,371 +1,192 @@
-Pasta:
-docs/design-system/
+# GereIgreja Design System — GDS
 
-Arquivo:
-README.md
+Design System  
+↓  
+Fonte canônica da linguagem visual, dos componentes e dos padrões de experiência do GereIgreja.
 
-Documento:
-GDS-README
+Esta pasta reúne a documentação oficial do GereIgreja Design System (GDS).
 
-Framework:
-GereIgreja Design System (GDS)
+O GDS define **como a interface deve parecer e se comportar visualmente**.  
+`docs/frontend/` define **como essa linguagem é implementada tecnicamente**.
 
-Versão:
-1.0
+## Finalidade
 
-Status:
-Oficial
+- identidade visual;
+- princípios de design;
+- cores, tipografia, espaçamento e grid;
+- iconografia;
+- botões, formulários, cards, tabelas, modais e feedback;
+- navegação;
+- dashboards;
+- acessibilidade;
+- animações;
+- boas práticas;
+- governança da evolução visual.
 
-Responsável:
-Equipe de Engenharia
+## Autoridade
 
-Última atualização:
-Agosto de 2026
+```text
+design-system/
+→ aparência, linguagem visual e UX
 
-# GereIgreja Design System (GDS)
+frontend/
+→ implementação em Templates, CSS, JS, HTMX e Alpine
 
-> *"O Design System do GereIgreja estabelece a identidade visual oficial da plataforma, definindo princípios, componentes, padrões de interface e diretrizes de experiência do usuário para garantir consistência, acessibilidade e escalabilidade em toda a aplicação."*
+apps/
+→ regras funcionais
 
----
-
-# Sumário
-
-1. O que é o GDS
-2. Objetivos
-3. Escopo
-4. Princípios
-5. Estrutura da Documentação
-6. Organização dos Componentes
-7. Relação com os demais Frameworks
-8. Roadmap
-9. Convenções
-10. Governança
-
----
-
-# 1. O que é o GDS
-
-O GereIgreja Design System (GDS) é o conjunto oficial de padrões visuais, componentes e diretrizes de interface utilizados em toda a plataforma GereIgreja.
-
-Seu propósito é garantir que todas as telas mantenham identidade visual consistente, comportamento previsível e alta qualidade de experiência para o usuário.
-
-O GDS não define regras de negócio.
-
-Sua responsabilidade limita-se à camada visual e de experiência do usuário.
-
----
-
-# 2. Objetivos
-
-O Design System possui os seguintes objetivos:
-
-- padronizar a identidade visual;
-- aumentar a reutilização de componentes;
-- reduzir inconsistências;
-- acelerar o desenvolvimento;
-- facilitar manutenção;
-- melhorar acessibilidade;
-- promover escalabilidade;
-- documentar padrões oficiais;
-- servir como referência para novos módulos.
-
----
-
-# 3. Escopo
-
-O GDS aplica-se a toda a camada de interface do GereIgreja.
-
-Inclui:
-
-- Área de Gestão;
-- Landing Pages;
-- Portais públicos;
-- Componentes compartilhados;
-- Dashboards;
-- Formulários;
-- Tabelas;
-- Cards;
-- Modais;
-- Alertas;
-- Navegação;
-- Widgets.
-
-Não inclui:
-
-- Backend;
-- APIs;
-- Banco de Dados;
-- Administração Técnica (Django Admin), salvo quando houver customizações visuais específicas.
-
----
-
-# 4. Princípios
-
-Toda interface do GereIgreja deverá respeitar os seguintes princípios.
-
-## Consistência
-
-Interfaces semelhantes deverão possuir aparência e comportamento semelhantes.
-
----
-
-## Simplicidade
-
-Cada tela deverá priorizar clareza e facilidade de utilização.
-
----
-
-## Reutilização
-
-Sempre reutilizar componentes existentes antes de criar novos.
-
----
-
-## Escalabilidade
-
-Os componentes deverão suportar evolução contínua sem quebrar compatibilidade.
-
----
-
-## Acessibilidade
-
-Todo componente deverá considerar boas práticas de acessibilidade.
-
----
-
-## Responsividade
-
-A experiência deverá permanecer consistente em diferentes dispositivos.
-
----
-
-# 5. Estrutura da Documentação
-
-O GDS está organizado em documentos independentes, cada um responsável por um aspecto específico da identidade visual.
-
+qualidade/
+→ critérios e gates de validação
 ```
-docs/design-system/
 
-README.md
+O GDS não define regra de negócio e não deve duplicar detalhes técnicos de implementação.
 
+## Inventário real atual
+
+```text
 01-Introducao.md
-
 02-Principios.md
-
 03-Cores.md
-
 04-Tipografia.md
-
 05-Espacamento.md
-
 06-Grid.md
-
 07-Iconografia.md
-
 08-Botoes.md
-
 09-Formularios.md
-
 10-Cards.md
-
-11-Tabelas.md
-
-12-Alertas.md
-
-13-Modais.md
-
+11-GDS-Tabelas-e-Listagens.md
+12-GDS-Modais-Dialogs-e-Confirmacoes.md
+13-GDS-Alertas-Toasts-e-Feedback.md
 14-Navegacao.md
-
 15-Dashboards.md
-
 16-Acessibilidade.md
-
 17-Animacoes.md
-
 18-Boas-Praticas.md
-
 19-Governanca.md
 ```
 
----
+O README anterior usava nomes simplificados e uma ordem antiga para alguns documentos. O índice deve refletir os **arquivos realmente existentes**.
 
-# 6. Organização dos Componentes
+## Relação com Frontend
 
-O Design System organiza os elementos da interface em diferentes níveis de abstração.
+```text
+GDS define
+→ padrão visual e comportamento esperado
 
+Frontend implementa
+→ templates, classes, CSS, JS e interação
 ```
-Princípios
 
+Detalhes como organização de templates, nomes de arquivos CSS, HTMX, Alpine.js e partials pertencem ao Frontend.
+
+## Formulários
+
+```text
+design-system/09-Formularios.md
+→ apresentação e UX
+
+backend/09-Forms.md
+→ Django Forms
+
+frontend/
+→ composição técnica da interface
+```
+
+Essas fontes são complementares, não concorrentes.
+
+## Dashboards
+
+```text
+design-system/15-Dashboards.md
+→ padrão visual e UX
+
+frontend/11-Dashboards.md
+→ implementação técnica
+
+apps/
+→ dados e comportamento funcional
+```
+
+Por isso, Dashboard não deve existir como app documental independente.
+
+## Acessibilidade
+
+Acessibilidade é parte do Design System.
+
+O GDS define requisitos de interface; `docs/qualidade/` pode concentrar checklists e evidências de validação.
+
+## Relação com o Framework GDS
+
+Existe também:
+
+```text
+docs/frameworks/01-GDS-GereIgreja-Design-System.md
+```
+
+A relação correta é:
+
+```text
+frameworks/01-GDS...
+→ referência institucional e transversal
+
+design-system/
+→ detalhamento operacional do sistema visual
+```
+
+O framework deve apontar para esta família, não competir com ela.
+
+## Relação com Governança antiga
+
+`docs/governanca/07-Padroes-de-Templates.md` se sobrepõe ao GDS em componentes, formulários, tabelas, CSS, acessibilidade e padrões visuais.
+
+A ação correta é:
+
+```text
+comparar com design-system/ e frontend/
 ↓
-
-Tokens Visuais
-
+absorver conteúdo exclusivo ainda válido
 ↓
-
-Componentes
-
+corrigir referências
 ↓
-
-Padrões
-
-↓
-
-Layouts
-
-↓
-
-Dashboards
-
-↓
-
-Páginas
+arquivar ou remover o legado
 ```
 
-Cada nível possui responsabilidades específicas e complementares.
+Não mover o arquivo inteiro para esta pasta.
 
----
+## Roadmap antigo
 
-# 7. Relação com os demais Frameworks
+O README anterior mencionava temas futuros como múltiplos temas, modo escuro, white-label e mobile.
 
-O GDS integra-se diretamente aos demais frameworks de documentação do GereIgreja.
+Esses itens não devem ser tratados como capacidades atuais nem como documentos obrigatórios.
 
-### GereIgreja Frontend Engineering (GFE)
+Planejamento só permanece como compromisso quando houver iniciativa formal correspondente.
 
-Define como implementar os componentes.
+## Regra para documento 20+
 
----
+A família já possui cobertura alta em `01–19`.
 
-### GereIgreja Backend Engineering (GBE)
+Antes de criar `20+`:
 
-Define como fornecer os dados utilizados pelos componentes.
+1. demonstrar lacuna real;
+2. verificar se o tema cabe em documento existente;
+3. comparar com Frontend e Qualidade;
+4. preferir evolução antes de criação;
+5. atualizar índices apenas quando necessário.
 
----
+A existência de `19-Governanca.md` não cria obrigação de `20`.
 
-### GereIgreja Documentation Framework (GDF)
+## Estado da família
 
-Define os padrões de documentação.
-
----
-
-### GereIgreja Quality Framework (GQF)
-
-Define critérios de qualidade e conformidade.
-
----
-
-# 8. Roadmap
-
-## Curto Prazo
-
-- documentação dos componentes principais;
-- definição de cores oficiais;
-- padronização tipográfica.
-
----
-
-## Médio Prazo
-
-- biblioteca completa de componentes;
-- diretrizes avançadas de dashboards;
-- expansão dos padrões de acessibilidade.
-
----
-
-## Longo Prazo
-
-- suporte oficial a múltiplos temas;
-- modo escuro;
-- white-label;
-- componentes específicos para aplicações móveis.
-
----
-
-# 9. Convenções
-
-Todos os documentos do GDS deverão:
-
-- possuir código identificador;
-- seguir estrutura padronizada;
-- utilizar nomenclatura consistente;
-- referenciar documentos relacionados;
-- manter linguagem técnica e objetiva.
-
----
-
-# 10. Governança
-
-Toda evolução do Design System deverá respeitar os seguintes princípios:
-
-- documentação antes da implementação;
-- reutilização antes da criação;
-- consistência antes da personalização;
-- simplicidade antes da complexidade;
-- compatibilidade com o Frontend Engineering.
-
-Mudanças que afetem componentes reutilizáveis deverão ser registradas oficialmente antes de sua adoção.
-
----
-
-# Documentos da Coleção
-
-- GDS-01 — Introdução
-- GDS-02 — Princípios de Design
-- GDS-03 — Cores
-- GDS-04 — Tipografia
-- GDS-05 — Espaçamento
-- GDS-06 — Grid
-- GDS-07 — Iconografia
-- GDS-08 — Botões
-- GDS-09 — Formulários
-- GDS-10 — Cards
-- GDS-11 — Tabelas
-- GDS-12 — Alertas
-- GDS-13 — Modais
-- GDS-14 — Navegação
-- GDS-15 — Dashboards
-- GDS-16 — Acessibilidade
-- GDS-17 — Animações
-- GDS-18 — Boas Práticas
-- GDS-19 — Governança
-
----
-
-# Conclusão
-
-O GereIgreja Design System constitui a referência oficial para toda a identidade visual da plataforma.
-
-Sua adoção garante consistência, reutilização, escalabilidade e qualidade da experiência do usuário, permitindo que novos módulos sejam desenvolvidos de forma uniforme e alinhada aos princípios arquiteturais do projeto.
-
----
-
-# Status
-
-**Pasta**
-
-```
-docs/design-system/
+```text
+Status: CANÔNICA
+Baseline real: 01–19
+Cobertura: ALTA
+Expansão automática: NÃO
+Prioridade: coerência visual e aderência ao Frontend
 ```
 
-**Arquivo**
+## Princípio de manutenção
 
-```
-README.md
-```
+O GDS deve reduzir variação, não aumentar catálogo.
 
-**Código**
-
-```
-GDS-README
-```
-
-**Versão**
-
-```
-1.0
-```
-
-**Status**
-
-```
-OFICIAL
-```
+**Reutilizar antes de criar. Consolidar antes de especializar.**

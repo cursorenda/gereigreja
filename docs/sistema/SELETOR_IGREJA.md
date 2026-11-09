@@ -749,6 +749,8 @@ endpoint de troca devem consumir esse mesmo escopo.
 - Perfis locais, inclusive Pastor Local e Secretário Local, não recebem igrejas
   subordinadas por expansão hierárquica.
 - Escopo ausente permanece vazio (fail-closed).
+- `DepartamentoVinculo`, Cargo e capacidades departamentais não autorizam a
+  seleção de igreja.
 
 Uma igreja selecionável não é, por si só, uma igreja autorizada em qualquer
 módulo. Cada módulo conserva sua política adicional; em especial, o Financeiro

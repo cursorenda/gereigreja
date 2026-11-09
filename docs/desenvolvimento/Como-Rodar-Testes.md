@@ -47,8 +47,9 @@ python scripts/automation/test_runner.py core
 
 ## Observações
 - O arquivo `core/settings_test.py` já está pronto para isso.
-- Se preferir, também pode usar `core/test_settings.py` (ambos usam SQLite em memória).
+- Testes que precisam executar migrations reais devem usar `core.settings_test_migrations`, também com SQLite em memória.
 - Sempre utilize o parâmetro `--settings` para evitar que os testes rodem no banco de produção.
+- Comandos locais que não sejam testes usam `core.settings_local` por padrão e nunca carregam o `.env`.
 
 ---
 

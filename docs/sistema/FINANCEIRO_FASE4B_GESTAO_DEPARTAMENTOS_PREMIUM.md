@@ -15,7 +15,7 @@ A fase formaliza tres pilares:
 ## Contexto e motivacao
 
 O sistema atual ja possui base por fundo (LOCAL, EVENTOS, MISSOES, ASSISTENCIA), com ganhos relevantes de segregacao. Contudo, grandes ministerios exigem:
-- criacao de departamentos adicionais pelo usuario (senhoras, jovens, kids, construcao, etc);
+- definicoes ministeriais adicionais (senhoras, jovens, kids, construcao, etc), provisionadas e ativadas pelas igrejas locais;
 - operacao com multiplos caixas por departamento;
 - regras diferentes de prestacao de contas por departamento;
 - trilha de auditoria e governanca documental para contabilidade.
@@ -57,7 +57,9 @@ Regra de continuidade:
 ### 1) Cadastro e gestao de departamentos
 
 Capacidades:
-- Criar departamento financeiro customizado por igreja.
+- Criar definicoes estruturais em `DepartamentoMinisterial`, pela Gestao Ministerial.
+- Provisionar e ativar/desativar a instancia `Departamento` na igreja local.
+- Nao permitir criacao local de nova definicao estrutural nesta fase.
 - Inativar departamento sem perda de historico.
 - Definir departamentos padrao do sistema na inicializacao:
   - Tesouraria Local
@@ -74,6 +76,12 @@ Campos minimos sugeridos:
 - ativo
 - ordem_exibicao
 - criado_em, atualizado_em
+
+Limite de dominio:
+- `DepartamentoVinculo` representa equipe local e nao concede acesso financeiro.
+- Cargo, capacidade ou participacao na equipe nao substituem a politica real do Financeiro.
+- O Financeiro continua validando usuario, igreja, departamento financeiro, fundo e acao com seus helpers canonicos.
+- Consulte `docs/apps/05-Departamentos.md` e `docs/adr/01-DepartamentoVinculo-Historico-e-Cargo.md`.
 
 ### 2) Integracao departamento x caixa
 
@@ -276,7 +284,7 @@ Evolucao futura:
 ## Criterios de aceite
 
 1. Funcionais
-- Usuario cria departamento customizado e vincula caixas.
+- Administracao ministerial cria a definicao; a igreja local provisiona/ativa o departamento e configura seus caixas permitidos.
 - Lancamentos respeitam departamento e caixa valido.
 - Politicas por departamento afetam o comportamento sem alteracao de codigo.
 

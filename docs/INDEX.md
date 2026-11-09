@@ -1,363 +1,595 @@
+Pasta: docs/
 
-# 📚 Índice de Documentação - Sistema Gereigreja
+Arquivo: INDEX.md
 
-**Última Atualização:** 02/06/2026
+Documento: GDF-INDEX
 
----
+Framework: GDF — GereIgreja Documentation Framework
 
+Versão: 3.0
 
-## 🎯 Documentação Principal
+Status: Oficial
 
-Regra de interpretação deste documento:
+Responsável: Equipe de Engenharia
 
-- `INDEX.md` é o mapa de navegação.
-- `README.md` de cada pasta é a apresentação daquele domínio.
+Última atualização: Setembro de 2026
 
-| Documento | Descrição | Última Atualização |
-|-----------|-----------|-------------------|
-| [../README.md](../README.md) | README principal do projeto | — |
-| [../CHANGELOG.md](../CHANGELOG.md) | Histórico de mudanças (todas as versões) | 02/06/2026 |
-| [README.md](README.md) | Diretriz oficial da documentação em `docs/` | — |
-| [arquitetura/README.md](arquitetura/README.md) | Guia da documentação arquitetural | — |
-| [backend/README.md](backend/README.md) | Guia dos padrões de engenharia do backend | — |
-| [apps/README.md](apps/README.md) | Guia da documentação por módulo de negócio | — |
-| [operacoes/README.md](operacoes/README.md) | Guia operacional (runbooks e checklists) | — |
-| [qualidade/README.md](qualidade/README.md) | Guia de qualidade e gates de release | — |
+# Índice Mestre da Documentação — GereIgreja
 
----
+Este arquivo é o **mapa geral de navegação e autoridade** da documentação do GereIgreja.
 
+Ele não substitui os READMEs das famílias nem deve reproduzir todos os arquivos existentes.
 
-## 📌 Consolidado v1.8.x
+## 1. Autoridade documental
 
-| Documento | Descrição | Última Atualização |
-|-----------|-----------|-------------------|
-| [sistema/MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](sistema/MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md) | Consolidação técnica do ciclo v1.8.0 até v1.8.67 | 12/04/2026 |
-| [usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md) | Consolidação funcional para usuários finais (v1.8.0-v1.8.67) | 12/04/2026 |
+A hierarquia geral é:
 
----
+```text
+00-Guia-de-Documentacao.md
+→ autoridade máxima de governança documental
 
+INDEX.md
+→ mapa global da documentação
 
-## 🏗️ Arquitetura & Estrutura
+README.md de cada família
+→ escopo, fronteiras e índice local
 
-| Documento | Descrição |
-|-----------|-----------|
-| [templates/ARQUITETURA_TEMPLATES.md](templates/ARQUITETURA_TEMPLATES.md) | Estrutura de templates do sistema |
-| [sistema/ARQUITETURA_ADMIN.md](sistema/ARQUITETURA_ADMIN.md) | **NOVO:** Arquitetura do admin Django (modularização, admin sites, convenções) |
-| [sistema/ADMIN_MIXINS.md](sistema/ADMIN_MIXINS.md) | **NOVO:** Referência dos admin mixins reutilizáveis (`core/admin_mixins.py`) |
-| [sistema/DECORATORS_SEGURANCA.md](sistema/DECORATORS_SEGURANCA.md) | Decorators de segurança e autenticação |
-| [sistema/IMPLEMENTACAO_DECORATOR_DASHBOARD.md](sistema/IMPLEMENTACAO_DECORATOR_DASHBOARD.md) | Implementação de decorators no dashboard |
-| [sistema/ANALISE_DECORATORS_SISTEMA.md](sistema/ANALISE_DECORATORS_SISTEMA.md) | Análise completa dos decorators |
+documentos canônicos
+→ regra vigente de cada domínio
 
----
-
-
-## 🔐 Segurança & Permissões
-
-| Documento | Descrição |
-|-----------|-----------|
-| [sistema/GRUPOS_PERMISSOES.md](sistema/GRUPOS_PERMISSOES.md) | Sistema de grupos e permissões |
-| [sistema/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md](sistema/AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md) | Auditoria completa de permissões |
-| [sistema/AUDITORIA_PERMISSOES_PROFESSOR_EBD.md](sistema/AUDITORIA_PERMISSOES_PROFESSOR_EBD.md) | Permissões específicas Escola Bíblica |
-| [sistema/ANALISE_MENUS_BASEADOS_PERMISSOES.md](sistema/ANALISE_MENUS_BASEADOS_PERMISSOES.md) | Sistema de menus baseado em permissões |
-| [deploy/LGPD_IMPLEMENTACAO.md](deploy/LGPD_IMPLEMENTACAO.md) | Implementação de conformidade LGPD |
-
----
-
-
-## ⚙️ Funcionalidades & Módulos
-
-### Cadastro de Pessoas
-| Documento | Descrição |
-|-----------|-----------|
-| [sistema/VALIDACOES_CADASTRO_PESSOAS.md](sistema/VALIDACOES_CADASTRO_PESSOAS.md) | **NOVO:** Sistema de validações (CPF, Email, Máscaras, ViaCEP) |
-| [sistema/ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](sistema/ANALISE_MELHORIAS_CADASTRO_PESSOAS.md) | Análise completa: 23 melhorias propostas |
-| [sistema/REGRAS_TIPOS_PESSOA_STATUS.md](sistema/REGRAS_TIPOS_PESSOA_STATUS.md) | Regras de negócio: Tipos e Status de Pessoas |
-
-### Cargos
-| Documento | Descrição |
-|-----------|-----------|
-| [sistema/CARGOS_USUARIOS.md](sistema/CARGOS_USUARIOS.md) | Guia operacional para secretaria e liderancas no uso da tela de cargos |
-| [sistema/CARGOS_SISTEMA.md](sistema/CARGOS_SISTEMA.md) | Regras tecnicas, sincronizacao de grupos e checklist pre-deploy |
-
-### Participantes & Eventos
-| Documento | Descrição |
-|-----------|-----------|
-| [sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md](sistema/SISTEMA_HIBRIDO_PARTICIPANTES.md) | Sistema híbrido de participantes (visitantes/membros) |
-
-### Escola Dominical (EBD)
-| Documento | Descrição |
-|-----------|-----------|
-| [sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md](sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md) | Governanca de periodo, auto-sync de licoes e validacoes de dominio da EBD |
-| [sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md](sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md) | Roadmap premium da EBD com fluxo operacional, decisoes de UX e plano por sprints |
-| [sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md) | Configuracao EBD local por igreja (church-first com fallback ministerial) e plano de rollout |
-| [sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md) | Checklist de homologacao para validar configuracao EBD local por igreja e fallback ministerial |
-
-### Seletor de Igreja
-| Documento | Descrição |
-|-----------|-----------|
-| [sistema/SELETOR_IGREJA.md](sistema/SELETOR_IGREJA.md) | Funcionalidade de seleção de igreja ativa |
-| [ai/AI_CONTEXT_CHURCH_SELECTOR.md](ai/AI_CONTEXT_CHURCH_SELECTOR.md) | Contexto AI: seletor de igreja |
-
-### Assinatura e Planos (v1.9.2)
-| Documento | Público | Descrição |
-|-----------|---------|-----------|
-| [usuario/MANUAL_ASSINATURA_PLANOS.md](usuario/MANUAL_ASSINATURA_PLANOS.md) | Usuário | Como usar a página de assinatura, planos, limites, trial, cortesia |
-| [sistema/ARQUITETURA_ASSINATURA_PLANOS.md](sistema/ARQUITETURA_ASSINATURA_PLANOS.md) | Desenvolvedor | Modelos, services, view gerenciar_assinatura, integração Stripe |
-| [sistema/FLUXO_ELEGIBILIDADE_ACESSO.md](sistema/FLUXO_ELEGIBILIDADE_ACESSO.md) | Desenvolvedor/IA | **NOVO:** Fluxo completo de elegibilidade — plano pioneiro grátis × cortesia × trial × status × BETA — ordem de verificação, inconsistências e correções |
-| [ai/AI_CONTEXT_SISTEMA_COMPLETO.md](ai/AI_CONTEXT_SISTEMA_COMPLETO.md) | IA | Contexto mestre do sistema: multi-tenant, permissões, padrões, anti-padrões |
-
-### Secretaria - Documentos e Certificados (v1.12.0)
-| Documento | Público | Descrição |
-|-----------|---------|-----------|
-| [sistema/ATUALIZACAO_v1.12.0.md](sistema/ATUALIZACAO_v1.12.0.md) | Desenvolvedor/Operação | Reorganização de menu, evolução de certificados, novo módulo de carta de recomendação e governança de templates por ministério |
-
----
-
-
-## 🧩 Apps (Módulos)
-
-| Documento | Descrição |
-|-----------|-----------|
-| [apps/README.md](apps/README.md) | Índice e padrão dos documentos por módulo |
-| [apps/04-Comunicacao.md](apps/04-Comunicacao.md) | Arquitetura e operação do módulo Comunicação |
-
----
-
-
-## 🚀 Deploy & Infraestrutura
-
-| Documento | Descrição |
-|-----------|-----------|
-| [deploy/ANALISE_SISTEMA_DEPLOY.md](deploy/ANALISE_SISTEMA_DEPLOY.md) | Análise completa do sistema de deploy |
-
----
-
-
-## 🛠️ Operações & Qualidade (Comunicação)
-
-| Documento | Descrição |
-|-----------|-----------|
-| [operacoes/COMUNICACAO_WAHA_RUNBOOK.md](operacoes/COMUNICACAO_WAHA_RUNBOOK.md) | Runbook operacional da integração WAHA no módulo Comunicação |
-| [qualidade/COMUNICACAO_CHECKLIST_RELEASE_WAHA.md](qualidade/COMUNICACAO_CHECKLIST_RELEASE_WAHA.md) | Checklist de release para mudanças de Comunicação com impacto em WAHA |
-
----
-
-
-## 🐛 Troubleshooting & UX
-
-| Documento | Descrição |
-|-----------|-----------|
-| [relatorios/PROBLEMA_UX_PAGINA_VAZIA.md](relatorios/PROBLEMA_UX_PAGINA_VAZIA.md) | Solução: problema de páginas vazias |
-
----
-
-
-## 📝 Release Notes
-
-### Versões Recentes
-- [release-notes/RELEASE_NOTES_v1.13.13.md](release-notes/RELEASE_NOTES_v1.13.13.md) - EBD com pontuacao configuravel, ranking de alunos e ajustes de preview social do blog
-- [release-notes/RELEASE_NOTES_v1.13.12.md](release-notes/RELEASE_NOTES_v1.13.12.md) - EBD church-first por igreja e chamada com selecao segura de aula
-- [release-notes/RELEASE_NOTES_v1.8.23.md](release-notes/RELEASE_NOTES_v1.8.23.md) - Ciclo v1.8.10 até v1.8.23
-- [release-notes/RELEASE_NOTES_v1.7.2.md](release-notes/RELEASE_NOTES_v1.7.2.md)
-
-### Histórico Completo
-Ver pasta [release-notes/](release-notes/) para histórico de versões.
-
----
-
-## 📊 Relatórios e Análises
-
-| Documento | Descrição |
-|-----------|-----------|
-| [relatorios/RESUMO_EXECUTIVO_CADASTROS.md](relatorios/RESUMO_EXECUTIVO_CADASTROS.md) | Resumo executivo dos cadastros |
-| [relatorios/README_ANALISE_CADASTROS.md](relatorios/README_ANALISE_CADASTROS.md) | README análise de cadastros |
-| [relatorios/INDICE_ANALISE_CADASTROS.md](relatorios/INDICE_ANALISE_CADASTROS.md) | Índice análise de cadastros |
-| [relatorios/ANTES_E_DEPOIS_CONSOLIDACAO.md](relatorios/ANTES_E_DEPOIS_CONSOLIDACAO.md) | Antes e depois da consolidação |
-| [relatorios/ANALISE_CADASTRO_PESSOA_ALUNO.md](relatorios/ANALISE_CADASTRO_PESSOA_ALUNO.md) | Análise cadastro pessoa/aluno |
-
----
-
-
-## 👤 Documentação do Usuário
-
-| Documento | Descrição |
-|-----------|-----------|
-| [usuario/USUARIO_MANUAL.md](usuario/USUARIO_MANUAL.md) | Manual do usuário |
-| [usuario/README_IGREJA_USER.md](usuario/README_IGREJA_USER.md) | Guia rápido - Página Igreja |
-| [usuario/MELHORIAS_USUARIOS_v1.7.2.md](usuario/MELHORIAS_USUARIOS_v1.7.2.md) | Novidades v1.7.2 |
-| [usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md) | Novidades v1.8.0 a v1.8.67 |
-| [usuario/MELHORIAS_USUARIOS_v1.8.75.md](usuario/MELHORIAS_USUARIOS_v1.8.75.md) | Novidades v1.8.75 |
-| [usuario/chat_respostas.md](usuario/chat_respostas.md) | Respostas rápidas/FAQ |
-
----
-
-## 📂 Estrutura de Diretórios
-
-```
-Gereigreja/
-├── docs/                          # 📚 Documentação técnica (VOCÊ ESTÁ AQUI)
-│   ├── INDEX.md                   # Este índice
-│   ├── release-notes/             # Release notes por versão
-│   │   ├── RELEASE_NOTES_v1.0.0.md
-│   │   ├── ...
-│   │   ├── RELEASE_NOTES_v1.3.1.md
-│   │   └── RELEASE_NOTES_v1.8.23.md
-│   ├── VALIDACOES_CADASTRO_PESSOAS.md
-│   ├── ANALISE_MELHORIAS_CADASTRO_PESSOAS.md
-│   ├── REGRAS_TIPOS_PESSOA_STATUS.md
-│   ├── SISTEMA_HIBRIDO_PARTICIPANTES.md
-│   ├── ARQUITETURA_TEMPLATES.md
-│   ├── DECORATORS_SEGURANCA.md
-│   ├── GRUPOS_PERMISSOES.md
-│   ├── LGPD_IMPLEMENTACAO.md
-│   ├── SELETOR_IGREJA.md
-│   └── ... (ver lista completa acima)
-│
-├── notes/                         # 📔 Notas e backups
-│   ├── ANALISE_GRUPOS_PERMISSOES.md
-│   ├── CHANGELOG_v1.2.0.md
-│   ├── FASE2_COMPLETA.md
-│   └── README_old_backup.md
-│
-├── README.md                      # 📖 README principal
-├── CHANGELOG.md                   # 📝 Changelog ativo
-└── CHANGELOG.md                   # 📝 Histórico consolidado de mudanças
+registros históricos
+→ evidência do que ocorreu, sem substituir regra vigente
 ```
 
----
+Princípio central:
 
-## 🆕 Documentações Recentes
+> **Evoluir antes de criar. Consolidar antes de duplicar. Criar somente diante de uma lacuna demonstrável.**
 
-### 02/06/2026 - Release Notes v1.13.13
-- **Arquivo:** [release-notes/RELEASE_NOTES_v1.13.13.md](release-notes/RELEASE_NOTES_v1.13.13.md)
-- **Conteúdo:**
-   - pontuacao EBD configuravel por igreja
-   - ranking de melhores alunos por pontos no dashboard
-   - correcoes de Open Graph/Twitter no blog para preview social
+A existência de número disponível, pasta existente ou documento antigo não autoriza expansão automática.
 
-### 01/06/2026 - Release Notes v1.13.12
-- **Arquivo:** [release-notes/RELEASE_NOTES_v1.13.12.md](release-notes/RELEASE_NOTES_v1.13.12.md)
-- **Conteúdo:**
-   - consolidacao do modelo EBD church-first por igreja
-   - melhorias operacionais da chamada com seletor seguro por licao valida
-   - validacoes, impacto e checklist operacional de deploy
+## 2. Estrutura ativa da raiz
 
-### 01/06/2026 - Escola Dominical: Checklist de Homologacao (Config Local por Igreja)
-- **Arquivo:** [sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md)
-- **Conteúdo:**
-   - cenarios de teste local x herdado
-   - validacao de dashboard, turmas, wizard e eventos
-   - validacao da mini-lista de classes na aba EBD da igreja
-   - criterio de Go/No-Go e rollback funcional rapido
+A árvore documental ativa é:
 
-### 01/06/2026 - Escola Dominical: Configuracao Local por Igreja (Fase 1)
-- **Arquivo:** [sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md](sistema/ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md)
-- **Conteúdo:**
-   - novos campos EBD na igreja com migration e backfill
-   - resolucao church-first com fallback ministerial
-   - auto-sync por sinais para mudancas de configuracao local
-   - ajuste do wizard, agenda macro e atalho no dashboard
+```text
+docs/
+├── 00-Guia-de-Documentacao.md
+├── INDEX.md
+├── README.md
+├── adr/
+├── ai/
+├── api/
+├── apps/
+├── arquitetura/
+├── auditoria/
+├── automacao/
+├── backend/
+├── deploy/
+├── desenvolvimento/
+├── design-system/
+├── estrategia-digital/
+├── frameworks/
+├── frontend/
+├── governanca/
+├── infraestrutura/
+├── operacoes/
+├── produto/
+├── qualidade/
+├── relatorios/
+├── release-notes/
+├── seguranca/
+├── sistema/
+└── usuario/
+```
 
-### 01/06/2026 - Escola Dominical: Roadmap Premium
-- **Arquivo:** [sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md](sistema/ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md)
-- **Conteúdo:**
-   - diretriz de produto para operacao semanal
-   - benchmark de fluxo (planejamento -> operacao -> engajamento -> governanca)
-   - decisao de UX: classe como configuracao, nao foco operacional
-   - plano de implementacao por sprints e metricas de sucesso
+Pastas removidas ou consolidadas não devem reaparecer sem nova lacuna comprovada.
 
-### 28/05/2026 - Escola Dominical: Governanca de Periodo e Automacao
-- **Arquivo:** [sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md](sistema/ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md)
-- **Conteúdo:**
-   - fonte de verdade do periodo EBD por ministerio
-   - auto-sync de periodos e licoes sem clique manual
-   - validacoes estritas para licao, frequencia e oferta por periodo
-   - constraint de unicidade de licoes por turma+data
+## 3. Frameworks internos
 
-### 13/05/2026 - Secretaria: Documentos, Certificados e Carta
-- **Arquivo:** [sistema/ATUALIZACAO_v1.12.0.md](sistema/ATUALIZACAO_v1.12.0.md)
-- **Conteúdo:**
-   - reorganização do menu da secretaria com foco em documentos
-   - evolução de certificados (apresentação e batismo) com impressão fiel por html2canvas
-   - novo módulo de carta de recomendação (A5)
-   - governança multi-ministério para modelos padrão/exclusivos
-   - melhorias de admin para prévia embutida e prévia em nova aba
+Pasta:
 
-### 12/04/2026 - Consolidação do ciclo v1.8.x
-- **Arquivo:** [MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md)
-- **Conteúdo:**
-   - consolidação técnica por blocos (segurança, transferências, auditoria, deploy e financeiro)
-   - resumo executivo e inventário por fase do ciclo v1.8.x
+```text
+frameworks/
+```
 
-- **Arquivo:** [MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md)
-- **Conteúdo:**
-   - visão para operação diária em linguagem de usuário
-   - principais ganhos por módulo e orientações práticas
+Baseline oficial:
 
-### 08/04/2026 - Modulo de Cargos
-- **Arquivo:** [CARGOS_USUARIOS.md](CARGOS_USUARIOS.md)
-- **Conteúdo:**
-   - Fluxo operacional de criar/editar cargo
-   - Vincular e encerrar ocupantes
-   - Regras de exclusao e FAQ rapido para usuarios
+```text
+01-GDS-GereIgreja-Design-System.md
+02-GAF-GereIgreja-Authentication-Framework.md
+03-GSF-GereIgreja-Security-Framework.md
+04-GQF-GereIgreja-Quality-Framework.md
+05-GDF-GereIgreja-Documentation-Framework.md
+06-GOC-GereIgreja-Operations-Center.md
+```
 
-- **Arquivo:** [CARGOS_SISTEMA.md](CARGOS_SISTEMA.md)
-- **Conteúdo:**
-   - Regra consolidada de grupos efetivos
-   - Arquitetura de sincronizacao (servico central + signals)
-   - Casos criticos, riscos e checklist tecnico pre-deploy
+A família está fechada em seis frameworks.
 
-### 12/03/2026 - Sistema de Validações
-- **Arquivo:** [VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md)
-- **Conteúdo:**
-  - ✅ Validação CPF (algoritmo dígito verificador)
-  - ✅ Validação Email (regex + normalização)
-  - ✅ Máscaras JavaScript (CPF, Telefone, CEP, RG)
-  - ✅ Integração API ViaCEP (busca automática endereço)
-  - ✅ Casos de teste completos
-  - ✅ Troubleshooting
+```text
+07+
+→ somente diante de lacuna transversal real
+```
 
-### 11/03/2026 - Análise de Melhorias
-- **Arquivo:** [ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](ANALISE_MELHORIAS_CADASTRO_PESSOAS.md)
-- **Conteúdo:**
-  - 23 melhorias propostas para cadastro de pessoas
-  - Divididas em 5 categorias (Layout, Profissionalismo, Funcionalidades, Performance, Documentação)
-  - Estimativas de esforço e priorização
-  - Roadmap sugerido (4 sprints)
+## 4. Arquitetura e engenharia
 
----
+### Arquitetura — `arquitetura/`
 
-## 📌 Como Usar Este Índice
+Fonte canônica da estrutura sistêmica vigente.
 
-1. **Localizar Documentação:**
-   - Use a tabela de conteúdo acima
-   - Ou busque por palavra-chave (Ctrl+F)
+Baseline:
 
-2. **Adicionar Nova Documentação:**
-   ```markdown
-   1. Criar arquivo em docs/
-   2. Adicionar entrada neste INDEX.md
-   3. Atualizar data de "Última Atualização"
-   ```
+```text
+01–09
+```
 
-3. **Organização:**
-   - Documentações técnicas → `docs/`
-   - Notas temporárias → `notes/`
-   - Release notes recentes → raiz
-   - Release notes antigas → `docs/release-notes/`
+Abrange plataforma, Backend, Frontend, banco de dados, APIs, Segurança, Multi-Tenancy e Core.
 
----
+```text
+adr/
+→ por que uma decisão foi tomada
 
-## ✅ Boas Práticas
+arquitetura/
+→ como a arquitetura está organizada hoje
+```
 
-- ✅ Manter documentações na pasta `docs/`
-- ✅ Nomear arquivos descritivamente (MAIUSCULAS_SEPARADAS.md)
-- ✅ Atualizar este índice ao adicionar nova documentação
-- ✅ Incluir data de criação/atualização nos documentos
-- ✅ Usar Markdown para formatação
-- ✅ Adicionar links internos entre documentações relacionadas
+### Backend — `backend/`
 
----
+Fonte canônica dos padrões de implementação backend.
 
-**Manutenção:** Atualizar este índice sempre que adicionar/remover documentação  
-**Contato:** Ver README principal do projeto para informações de contato
+Baseline:
+
+```text
+01–20
+```
+
+Abrange Core, Apps, Models, Services, Selectors, Managers, Views, Forms, Validators, Permissions, Middlewares, Signals, Tasks, Cache, Logging, Exceptions, Testing, Performance e Code Standards.
+
+### Frontend — `frontend/`
+
+Fonte canônica da engenharia da interface.
+
+Baseline real:
+
+```text
+01–11
+```
+
+Documento transitório adicional:
+
+```text
+Migracao-CSS.md
+```
+
+A expansão antiga planejada até `20` não constitui obrigação documental.
+
+### API — `api/`
+
+Fonte canônica dos contratos e padrões de APIs.
+
+Baseline:
+
+```text
+01–14
+```
+
+Abrange arquitetura, endpoints, autenticação/autorização/tenant, payloads, responses, filtros, versionamento, integrações, idempotência, rate limiting, segurança, observabilidade, testes, depreciação e mapa da família.
+
+## 5. Segurança, infraestrutura e IA
+
+### Segurança — `seguranca/`
+
+Família canônica de controles especializados alinhados ao GSF e ao GAF.
+
+Baseline:
+
+```text
+01–17
+```
+
+`14-Conformidade-e-LGPD.md` está restaurado e integra novamente a baseline.
+
+`17-Mapa-e-Indice-da-Seguranca.md` é o mapa detalhado da família.
+
+### Infraestrutura — `infraestrutura/`
+
+Família canônica e madura de ambientes, plataforma, banco, observabilidade, backup, disaster recovery, automação de infraestrutura, capacidade, custos, operação e prontidão.
+
+Baseline atual:
+
+```text
+01–21
+```
+
+`20` e `21` são registros históricos de correções de migrations e não devem ser usados como padrão para novas migrations.
+
+### Inteligência Artificial — `ai/`
+
+Família:
+
+```text
+GAI — GereIgreja Artificial Intelligence Engineering
+```
+
+Baseline oficial:
+
+```text
+GAI-01 ... GAI-35
+```
+
+Estado:
+
+```text
+GAI Framework 1.0
+FAMILY BASELINE 1.0
+FREEZE ESTRUTURAL
+```
+
+`35-Mapa-Mestre-Indice-e-Governanca-Documental-da-Familia-GAI.md` é o mapa documental oficial.
+
+```text
+GAI-36+
+→ exige Gap Analysis formal
+```
+
+## 6. Design e experiência
+
+### Design System — `design-system/`
+
+Fonte canônica da linguagem visual e UX.
+
+Baseline:
+
+```text
+01–19
+```
+
+A relação de autoridade é:
+
+```text
+frameworks/01-GDS...
+→ referência institucional
+
+design-system/
+→ especificação visual detalhada
+
+frontend/
+→ implementação técnica
+```
+
+### Pastas consolidadas
+
+Os antigos domínios abaixo foram consolidados e não fazem mais parte da árvore ativa:
+
+```text
+design/
+ui/
+templates/
+```
+
+Destino canônico de seus assuntos:
+
+```text
+design-system/
+frontend/
+```
+
+Não recriar essas pastas para preservar nomes históricos.
+
+## 7. Apps — documentação funcional
+
+Pasta:
+
+```text
+apps/
+```
+
+Esta é a camada canônica para o **comportamento funcional vigente dos módulos de negócio**.
+
+Documentos canônicos atuais:
+
+```text
+01-Membros.md
+02-Secretaria.md
+03-Financeiro.md
+04-Comunicacao.md
+05-Departamentos.md
+06-EBD.md
+07-Eventos.md
+09-Usuarios.md
+10-Configuracoes.md
+```
+
+Decisões importantes:
+
+```text
+08-Patrimonio.md
+→ NÃO criar enquanto a implementação funcional não estiver comprovada
+
+Dashboard
+→ não é app documental independente
+
+Core
+→ não é app documental independente
+```
+
+Dashboards são tratados em Design System, Frontend e nos Apps correspondentes.
+
+Core é tratado em Backend e Arquitetura.
+
+## 8. Qualidade, operações, automação e deploy
+
+### Qualidade — `qualidade/`
+
+Camada operacional do GQF.
+
+Responsável por checklists, homologação, regressão, critérios de aceite, quality gates e validação pré/pós-release.
+
+Não redefine a política global de qualidade.
+
+### Operações — `operacoes/`
+
+Runbooks e procedimentos executáveis recorrentes alinhados ao GOC.
+
+A pasta atualmente possui forte concentração em Comunicação/WAHA.
+
+### Automação — `automacao/`
+
+Documentação especializada de automações operacionais reais.
+
+Não utilizar para simples ações em lote de interface.
+
+### Deploy — `deploy/`
+
+Família destinada a publicação e implantação de versões.
+
+Contém também material histórico e alguns documentos ainda sujeitos a reclassificação.
+
+A fronteira é:
+
+```text
+deploy/
+→ como publicar uma versão
+
+operacoes/
+→ como operar continuamente
+
+qualidade/
+→ o que precisa ser validado
+
+infraestrutura/
+→ plataforma onde a versão executa
+```
+
+## 9. Usuário, produto e estratégia
+
+### Usuário — `usuario/`
+
+Documentação destinada ao usuário final.
+
+Inclui manuais, jornadas e guias operacionais.
+
+```text
+apps/
+→ o que o sistema faz
+
+usuario/
+→ como o usuário utiliza
+```
+
+Históricos de melhoria não devem competir com os manuais vigentes.
+
+### Produto — `produto/`
+
+Família válida, porém restrita.
+
+Atualmente concentrada principalmente na iniciativa do Hinário.
+
+```text
+produto/
+→ intenção e evolução da iniciativa
+
+apps/
+→ comportamento vigente após estabilização
+
+usuario/
+→ uso da funcionalidade entregue
+
+release-notes/
+→ versão em que foi entregue
+```
+
+### Estratégia Digital — `estrategia-digital/`
+
+Família estratégica ativa.
+
+Baseline atual:
+
+```text
+00–13
+```
+
+Abrange posicionamento, arquitetura informacional do site, páginas pilares, palavras-chave, conteúdo, clusters, links internos, SEO, conversão, roadmap, KPIs e autoridade.
+
+Natureza:
+
+```text
+VIVA / TEMPORAL
+```
+
+Documentos estratégicos precisam ser revisados periodicamente.
+
+### Marketing
+
+A antiga pasta:
+
+```text
+marketing/
+```
+
+foi consolidada em `estrategia-digital/` e não faz parte da árvore ativa.
+
+Campanhas operacionais futuras somente justificam uma nova família se houver volume e responsabilidade próprios que não caibam adequadamente em `estrategia-digital/`.
+
+## 10. Registros, evidências e histórico
+
+### ADR — `adr/`
+
+Registros de decisões arquiteturais.
+
+Um ADR explica contexto, decisão e consequências.
+
+ADRs aceitos não devem ser silenciosamente reescritos quando uma decisão muda.
+
+### Auditoria — `auditoria/`
+
+Evidências de verificações efetivamente realizadas.
+
+```text
+qualidade/
+→ procedimento reutilizável
+
+auditoria/
+→ resultado de uma execução
+```
+
+### Relatórios — `relatorios/`
+
+Análises, investigações, diagnósticos e relatórios executivos.
+
+Não constituem autoridade normativa por padrão.
+
+### Release Notes — `release-notes/`
+
+Histórico de versões e entregas.
+
+Release notes são registros históricos e devem ser efetivamente imutáveis, salvo correção factual ou de referência.
+
+Não manter neste INDEX uma lista manual de todas as versões.
+
+## 11. Famílias em consolidação
+
+### Governança — `governanca/`
+
+Status:
+
+```text
+VÁLIDA, EM CONSOLIDAÇÃO
+```
+
+Papel atual: princípios permanentes de engenharia, manifestos e governança transversal.
+
+Parte dos antigos padrões técnicos foi absorvida por famílias modernas.
+
+Documentos antigos sobre Models, Views, Templates, Permissões, Segurança, Testes e Arquitetura devem ser comparados com as fontes canônicas atuais e gradualmente consolidados.
+
+Não expandir a família como destino padrão para novos padrões especializados.
+
+### Sistema — `sistema/`
+
+Status:
+
+```text
+TRANSITÓRIA
+NOVOS DOCUMENTOS: NÃO
+```
+
+A pasta acumulou conteúdo técnico, funcional, operacional e histórico de diferentes períodos.
+
+Ela deve ser usada como fonte de consolidação, não como autoridade normativa.
+
+Possível destino final:
+
+```text
+redução gradual
+→ distribuição do conteúdo válido
+→ arquivamento/remoção do residual
+```
+
+### Desenvolvimento — `desenvolvimento/`
+
+Família pequena e válida para guias locais de desenvolvimento.
+
+Exemplo atual:
+
+```text
+Como-Rodar-Testes.md
+```
+
+Não duplicar padrões de Backend ou Qualidade.
+
+## 12. Estado das famílias
+
+| Família | Estado |
+|---|---|
+| `frameworks/` | Canônica — 01–06 |
+| `arquitetura/` | Canônica — 01–09 |
+| `backend/` | Canônica — 01–20 |
+| `frontend/` | Canônica — 01–11 |
+| `api/` | Canônica — 01–14 |
+| `seguranca/` | Canônica — 01–17 |
+| `infraestrutura/` | Canônica — 01–21 |
+| `ai/` | Canônica — GAI-01..35, baseline congelada |
+| `design-system/` | Canônica — 01–19 |
+| `apps/` | Canônica funcional |
+| `qualidade/` | Válida — camada operacional |
+| `operacoes/` | Válida — runbooks |
+| `automacao/` | Válida — especializada |
+| `deploy/` | Válida — com conteúdo ainda em saneamento |
+| `usuario/` | Válida — orientação ao usuário |
+| `produto/` | Válida, mas restrita |
+| `estrategia-digital/` | Válida e estratégica — 00–13 |
+| `adr/` | Válida — série decisória |
+| `auditoria/` | Válida — evidencial |
+| `relatorios/` | Válida — analítica/histórica |
+| `release-notes/` | Válida — histórica |
+| `governanca/` | Válida, em consolidação |
+| `sistema/` | Transitória |
+| `desenvolvimento/` | Válida, escopo pequeno |
+
+## 13. Caminhos retirados da árvore ativa
+
+Não são famílias ativas:
+
+```text
+administrador/
+design/
+marketing/
+templates/
+ui/
+```
+
+`administrador/` não foi encontrado na árvore documental vigente.
+
+Os demais foram removidos ou consolidados em famílias atuais.
+
+Referências históricas a esses caminhos podem permanecer em releases e changelogs quando necessário para preservar contexto, desde que não sejam apresentadas como caminhos vigentes.
+
+## 14. Prioridades documentais vigentes
+
+A prioridade não é criar novas famílias ou preencher numeração.
+
+A sequência recomendada é:
+
+1. manter `00-Guia-de-Documentacao.md`, `INDEX.md` e READMEs sincronizados;
+2. concluir a consolidação dos padrões técnicos antigos de `governanca/`;
+3. continuar a redução controlada de `sistema/`;
+4. reclassificar conteúdo residual de `deploy/`, `operacoes/`, `qualidade/` e `relatorios/` quando houver sobreposição comprovada;
+5. manter manuais de `usuario/` sincronizados com o produto real;
+6. revisar periodicamente `estrategia-digital/` por sua natureza temporal;
+7. auditar referências cruzadas das famílias maduras;
+8. não expandir baselines maduras sem Gap Analysis.
+
+## 15. Regra para manutenção deste índice
+
+O `INDEX.md` deve registrar famílias ativas, autoridade de cada domínio, baselines importantes, estado documental, pontos de entrada, famílias transitórias, caminhos consolidados e riscos relevantes.
+
+Listagens completas pertencem aos READMEs e mapas locais.
+
+Sempre que uma pasta for criada, removida, renomeada ou tiver sua autoridade alterada, este índice deve ser revisado.
+
+## Status
+
+**Arquivo:** `docs/INDEX.md`  
+**Documento:** `GDF-INDEX`  
+**Versão:** `3.0`  
+**Status:** **OFICIAL**

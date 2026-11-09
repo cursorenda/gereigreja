@@ -161,27 +161,27 @@ contas/page_permissions.py
 
 O decorator existente `@page_access_required('financeiro')` continua sendo a porta de proteção das páginas financeiras e não precisou ser alterado.
 
-## 6. Dispatcher contextual explícito
+## 6. Dispatcher contextual limitado
 
-O dispatcher `user_can_access_page()` deixou de usar `inspect.signature()` e passou a consultar um conjunto explícito e imutável de page keys contextuais.
+O dispatcher `user_can_access_page()` não foi tornado genérico ou reflexivo.
 
-As nove regras contextuais preexistentes de Secretaria/Recepção continuam recebendo:
+Somente a chave `financeiro` recebe o contexto adicional:
 
 ```python
 rule(user, request=request, igreja=igreja)
 ```
 
-A chave `financeiro` passa a integrar explicitamente esse conjunto como a décima key contextual. As regras que já eram user-only no `HEAD` continuam sendo invocadas como:
+As demais page keys continuam sendo invocadas como no comportamento anterior:
 
 ```python
 rule(user)
 ```
 
-Não há encaminhamento contextual reflexivo ou genérico no dispatcher final; o contrato contextual é declarado pelas page keys do conjunto explícito.
+Não há uso de `inspect.signature()` nem encaminhamento contextual genérico neste Commit 8.
 
-### Secretaria e Recepção
+### Secretaria
 
-Este Commit 8 não altera a policy de Secretaria nem o contrato contextual preexistente de Secretaria/Recepção. As nove page keys que já recebiam `request` e `igreja` no `HEAD` continuam recebendo ambos. Nenhuma nova capacidade de Secretaria é concedida por esta mudança.
+Este Commit 8 não altera a semântica de Secretaria por meio do dispatcher. As regras de Secretaria continuam recebendo somente `user` pelo dispatcher, sem `request` ou `igreja` encaminhados acidentalmente por esta mudança.
 
 ## 7. Contexto de sessão inválido
 
@@ -223,7 +223,7 @@ Os testes unitários em `contas/tests/test_page_permissions.py` comprovam, entre
 | Superuser sem papel funcional | Negado |
 | Chave Financeiro no dispatcher | Recebe `request` e `igreja` |
 | Regra comum no dispatcher | Recebe somente `user` |
-| Regras contextuais preexistentes de Secretaria/Recepção | Continuam recebendo `request` e `igreja` |
+| Regra de Secretaria no dispatcher | Não recebe contexto acidentalmente |
 | Chave desconhecida | Negada |
 | `TypeError` interno de regra comum | Propagado |
 
@@ -290,10 +290,9 @@ Não foram necessários ajustes em `core/decorators.py`, documentação transver
 7. Admin acessa Sede e Independente no escopo canônico.
 8. Admin é negado sem contexto, em Regional, Congregação e fora do escopo.
 9. Superuser não se torna papel financeiro implícito.
-10. Dispatcher contextual explícito preserva o contrato do `HEAD`.
-11. Secretaria/Recepção preservam `request` e `igreja` nas nove page keys contextuais preexistentes.
-12. Financeiro é adicionado explicitamente ao conjunto contextual.
-13. Testes unitários e de integração cobrem os cenários de entrada e troca de contexto documentados.
+10. Dispatcher contextual é limitado a Financeiro.
+11. Secretaria não recebe contexto por acidente no dispatcher.
+12. Testes unitários e de integração cobrem os cenários de entrada e troca de contexto documentados.
 ```
 
 ## 13. Decisão final

@@ -1,166 +1,294 @@
-# 📚 Documentação Técnica - Gereigreja
+# Sistema — Documentação Técnica Legada e em Reclassificação
 
-Esta pasta contém toda a documentação técnica do sistema Gereigreja.
+Sistema  
+↓  
+Conteúdo técnico histórico que ainda não foi completamente redistribuído para as famílias canônicas do GereIgreja.
 
-## 🗂️ Organização
+Esta pasta não deve ser usada como destino padrão para nova documentação.
 
-A documentação está organizada em categorias temáticas. Veja o **[INDEX.md](../INDEX.md)** para uma lista completa e navegável de todos os documentos.
+Ela reúne documentos técnicos acumulados ao longo da evolução do projeto, muitos deles criados antes da atual arquitetura documental.
 
-## 📖 Acesso Rápido
+Por isso, `docs/sistema/` deve ser tratada como uma área **transitória de consolidação e reclassificação**, não como uma família normativa.
 
-### Documentações Mais Acessadas
+## Finalidade atual da pasta
 
-1. **[MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md](MELHORIAS_SISTEMA_v1.8.0_a_v1.8.67.md)**  
-   Consolidação técnica do ciclo v1.8.x (segurança, permissões, auditoria, testes e deploy)
+- preservar documentação técnica histórica ainda útil;
+- impedir perda de contexto durante a reorganização documental;
+- permitir reclassificação gradual para famílias canônicas;
+- manter rastreabilidade de decisões e implementações antigas;
+- evitar movimentações em massa sem revisão de referências.
 
-2. **[MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md](../usuario/MELHORIAS_USUARIOS_v1.8.0_a_v1.8.67.md)**  
-   Consolidação funcional para usuários finais (o que mudou no uso diário)
+## Regra principal
 
-3. **[VALIDACOES_CADASTRO_PESSOAS.md](VALIDACOES_CADASTRO_PESSOAS.md)**  
-   Sistema completo de validações (CPF, Email, Máscaras, ViaCEP) - **NOVO 12/03/2026**
+Não criar novos documentos em:
 
-4. **[ANALISE_MELHORIAS_CADASTRO_PESSOAS.md](ANALISE_MELHORIAS_CADASTRO_PESSOAS.md)**  
-   23 melhorias propostas para o cadastro de pessoas
-
-5. **[GRUPOS_PERMISSOES.md](GRUPOS_PERMISSOES.md)**  
-   Sistema de grupos e permissões do sistema
-
-6. **[MODO_DEMO.md](MODO_DEMO.md)**  
-   App de demonstração: usuários, dados populados, URLs, segurança e comandos
-
-6. **[ARQUITETURA_TEMPLATES.md](../templates/ARQUITETURA_TEMPLATES.md)**  
-   Estrutura de templates e componentes reutilizáveis
-
-7. **[LGPD_IMPLEMENTACAO.md](../deploy/LGPD_IMPLEMENTACAO.md)**  
-   Conformidade com LGPD
-
-## 🔍 Encontrar Documentação
-
-**Método 1: Usar o Índice**
-- Abra [INDEX.md](../INDEX.md)
-- Navegue pelas categorias
-- Clique no link do documento desejado
-
-**Método 2: Busca por Palavra-Chave**
-- Use a busca do editor (Ctrl+Shift+F)
-- Busque na pasta `docs/`
-
-**Método 3: Listar Arquivos**
-```bash
-# PowerShell
-Get-ChildItem -Path docs/ -Filter *.md | Select-Object Name
-
-# Git Bash / Linux
-ls docs/*.md
+```text
+docs/sistema/
 ```
 
-## 📝 Adicionar Nova Documentação
+salvo decisão explícita de governança documental.
 
-1. **Criar arquivo nesta pasta:**
-   ```bash
-   # Padrão de nome: MAIUSCULAS_SEPARADAS_POR_UNDERLINE.md
-   touch docs/NOME_DA_DOCUMENTACAO.md
-   ```
+Novo conteúdo deve ser criado diretamente na família responsável.
 
-2. **Usar template padrão:**
-   ```markdown
-   # Título da Documentação
-   
-   **Data de Criação:** DD/MM/YYYY
-   **Última Atualização:** DD/MM/YYYY
-   **Autor:** Nome/Sistema
-   
-   ---
-   
-   ## Visão Geral
-   
-   [Descrição breve do que documenta]
-   
-   ## Conteúdo
-   
-   [Estrutura do documento]
-   ```
+Exemplos:
 
-3. **Atualizar o índice:**
-   - Abra [INDEX.md](../INDEX.md)
-   - Adicione entrada na categoria apropriada
-   - Atualize data de "Última Atualização"
-
-4. **Commit com mensagem descritiva:**
-   ```bash
-   git add docs/sistema/NOME_DA_DOCUMENTACAO.md docs/INDEX.md
-   git commit -m "docs: adiciona documentação sobre [assunto]"
-   ```
-
-## 📂 Estrutura de Pastas
-
-```
-docs/
-├── README.md                  # Este arquivo (introdução)
-├── INDEX.md                   # Índice navegável completo
-├── release-notes/             # Release notes de versões antigas
-│   ├── RELEASE_NOTES_v1.0.0.md
-│   ├── ...
-│   └── RELEASE_NOTES_v1.3.1.md
-└── [documentações técnicas]   # Arquivos .md organizados tematicamente
+```text
+apps/
+backend/
+frontend/
+arquitetura/
+seguranca/
+qualidade/
+operacoes/
+automacao/
+relatorios/
+auditoria/
+deploy/
+desenvolvimento/
 ```
 
-## 🎯 Tipos de Documentação
+## Por que a pasta não pode continuar como “documentação técnica geral”
 
-### 1. Análises Técnicas
-Prefixo: `ANALISE_`  
-Exemplo: `ANALISE_MENUS_BASEADOS_PERMISSOES.md`
+O README histórico declarava que esta pasta continha “toda a documentação técnica do sistema”.
 
-### 2. Implementações
-Prefixo: `IMPLEMENTACAO_`  
-Exemplo: `IMPLEMENTACAO_DECORATOR_DASHBOARD.md`
+Essa definição não é mais válida.
 
-### 3. Auditorias
-Prefixo: `AUDITORIA_`  
-Exemplo: `AUDITORIA_PERMISSOES_SISTEMA_COMPLETO.md`
+Hoje o GereIgreja possui famílias especializadas e canônicas.
 
-### 4. Regras de Negócio
-Prefixo: `REGRAS_`  
-Exemplo: `REGRAS_TIPOS_PESSOA_STATUS.md`
+Manter `sistema/` como repositório técnico geral recriaria uma pasta-curinga e provocaria:
 
-### 5. Sistemas/Módulos
-Sem prefixo específico  
-Exemplo: `VALIDACOES_CADASTRO_PESSOAS.md`
+- duplicação;
+- conflito entre fontes;
+- regras funcionais fora de `apps/`;
+- runbooks fora de `operacoes/`;
+- auditorias fora de `auditoria/`;
+- análises fora de `relatorios/`;
+- documentação de testes fora de `desenvolvimento/` e `qualidade/`;
+- decisões técnicas fora de arquitetura/backend.
 
-## ✅ Boas Práticas
+## Estado atual
 
-### Nomenclatura
-- ✅ Usar MAIÚSCULAS
-- ✅ Separar palavras com underline (_)
-- ✅ Nome descritivo e específico
-- ❌ Abreviações excessivas
-- ❌ Espaços ou caracteres especiais
+A pasta contém muitos documentos de naturezas diferentes.
 
-### Conteúdo
-- ✅ Incluir data de criação/atualização
-- ✅ Usar Markdown com formatação consistente
-- ✅ Incluir exemplos de código quando relevante
-- ✅ Adicionar tabelas de resumo
-- ✅ Criar índice interno para docs longos
-- ✅ Incluir links para arquivos relacionados
+Entre eles foram identificados exemplos como:
 
-### Manutenção
-- ✅ Atualizar INDEX.md ao adicionar documentação
-- ✅ Revisar e atualizar periodicamente
-- ✅ Arquivar documentações obsoletas (pasta archive/)
-- ✅ Manter versionamento via Git
+```text
+SELETOR_IGREJA.md
+CARGOS_SISTEMA.md
+FINANCEIRO_FASE3A_SELECTORS_SERVICES.md
+FINANCEIRO_FASE3B_POLITICA_CATEGORIAS.md
+FINANCEIRO_FASE3C_FLUXO_SERVICES.md
+FINANCEIRO_FASE4A_FILTRO_FUNDO_KPIS.md
+FINANCEIRO_FASE4B_GESTAO_DEPARTAMENTOS_PREMIUM.md
+FINANCEIRO_FUNDOS_DEPARTAMENTAIS_FASE1.md
+FINANCEIRO_FUNDOS_DEPARTAMENTAIS_FASE2.md
+ESCOLA_DOMINICAL_CONFIG_LOCAL_IGREJA.md
+ESCOLA_DOMINICAL_HOMOLOGACAO_CONFIG_LOCAL_IGREJA.md
+ESCOLA_DOMINICAL_GOVERNANCA_PERIODO.md
+ESCOLA_DOMINICAL_ROADMAP_PREMIUM.md
+EBD_RUNBOOK_FASE1.md
+EBD_RUNBOOK_OPERACAO_SUPORTE.md
+README_TESTS.md
+AUDITORIA_PERMISSOES_PROFESSOR_EBD.md
+```
 
-## 🔗 Links Úteis
+Isso demonstra que a pasta acumula:
 
-- **[README Principal](../README.md)** - Visão geral do projeto
-- **[CHANGELOG](../CHANGELOG.md)** - Histórico de mudanças
-- **[Release Notes Recentes](../RELEASE_NOTES_v1.6.0.md)** - Última versão
+- regras funcionais;
+- arquitetura técnica;
+- planejamento;
+- homologação;
+- operação;
+- auditoria;
+- testes;
+- histórico de implementação.
 
-## 📞 Suporte
+Esses conteúdos não pertencem à mesma família documental.
 
-Para dúvidas sobre documentação ou sugestões de melhorias, consulte o README principal do projeto.
+## Estratégia de saneamento
 
----
+A reorganização deve ser gradual.
 
-**Última Atualização:** 12/03/2026  
-**Mantenedor:** Sistema Gereigreja
+Para cada arquivo:
+
+1. identificar a natureza real;
+2. localizar a família canônica correspondente;
+3. verificar se o conteúdo já foi consolidado em documento atual;
+4. buscar referências ao caminho antigo;
+5. decidir entre:
+   - mover;
+   - consolidar;
+   - arquivar;
+   - remover por duplicação;
+6. atualizar links;
+7. somente então retirar o arquivo de `sistema/`.
+
+Não fazer movimentação em massa por nome de arquivo.
+
+## Critério de decisão
+
+### Mover
+
+Quando o documento continua útil e não existe equivalente canônico.
+
+### Consolidar
+
+Quando possui informação útil que deve ser incorporada a um documento canônico já existente.
+
+### Arquivar
+
+Quando seu valor é principalmente histórico.
+
+### Remover
+
+Quando o conteúdo está completamente duplicado, superado e sem valor histórico relevante.
+
+## Exemplos de classificação
+
+### `SELETOR_IGREJA.md`
+
+Trata de contexto de igreja/tenant e seleção ativa.
+
+Candidatos:
+
+```text
+arquitetura/
+backend/
+```
+
+dependendo de sua ênfase real.
+
+Não mover apenas pelo título.
+
+### `CARGOS_SISTEMA.md`
+
+Deve ser comparado com:
+
+```text
+docs/apps/09-Usuarios.md
+docs/apps/10-Configuracoes.md
+docs/seguranca/
+```
+
+antes de decidir seu destino.
+
+### Documentos `FINANCEIRO_*`
+
+Devem ser comparados primeiro com:
+
+```text
+docs/apps/03-Financeiro.md
+docs/backend/
+docs/relatorios/
+```
+
+Fases antigas podem ser históricas mesmo quando parte do conteúdo virou implementação atual.
+
+### Documentos `ESCOLA_DOMINICAL_*` e `EBD_*`
+
+Devem ser comparados com:
+
+```text
+docs/apps/06-EBD.md
+docs/operacoes/
+docs/qualidade/
+docs/relatorios/
+```
+
+Runbooks pertencem conceitualmente a `operacoes/`.
+
+Homologações recorrentes pertencem a `qualidade/`.
+
+Roadmaps e fases antigas tendem a histórico/relatórios.
+
+### `README_TESTS.md`
+
+Não deve competir com:
+
+```text
+docs/desenvolvimento/Como-Rodar-Testes.md
+```
+
+Se o conteúdo útil já estiver consolidado, o arquivo deve ser removido ou arquivado, não mantido como segunda fonte.
+
+## README histórico
+
+O antigo `docs/sistema/README.md` definia regras gerais de documentação, nomenclatura, criação de arquivos e estrutura global de `docs/`.
+
+Essa responsabilidade agora pertence a:
+
+```text
+docs/00-Guia-de-Documentacao.md
+docs/INDEX.md
+```
+
+Portanto, este README não deve repetir governança global.
+
+## Fonte de verdade documental
+
+A hierarquia correta é:
+
+```text
+00-Guia-de-Documentacao.md
+↓
+define governança documental
+
+INDEX.md
+↓
+mapeia as famílias
+
+família especializada
+↓
+mantém documentação canônica
+
+sistema/
+↓
+preserva temporariamente conteúdo legado ainda em saneamento
+```
+
+## Proibição de nova documentação genérica
+
+Não utilizar nomes como:
+
+```text
+NOVO_SISTEMA.md
+MELHORIAS_SISTEMA.md
+IMPLEMENTACAO_SISTEMA.md
+DOCUMENTACAO_GERAL.md
+```
+
+para novos conteúdos.
+
+O domínio e a finalidade devem ser identificados antes da criação.
+
+## Quando esta pasta poderá ser removida
+
+`docs/sistema/` poderá ser extinta quando:
+
+- todos os arquivos forem classificados;
+- conteúdos canônicos tiverem sido consolidados;
+- documentos históricos tiverem destino definido;
+- links tiverem sido atualizados;
+- não houver dependência documental legítima do caminho.
+
+Não há obrigação de manter a pasta permanentemente.
+
+## Estado de governança
+
+Classificação atual:
+
+```text
+Status: TRANSITÓRIA
+Novos documentos: NÃO
+Conteúdo existente: revisar gradualmente
+Autoridade normativa: NÃO
+Possível extinção futura: SIM
+```
+
+## Princípio de manutenção
+
+`docs/sistema/` não deve crescer.
+
+A métrica de sucesso desta pasta é diminuir de tamanho de forma segura até que cada documento tenha um destino coerente.
+
+**Consolidar antes de duplicar. Reclassificar antes de criar. Remover apenas depois de preservar o que ainda tem valor.**
