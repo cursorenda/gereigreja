@@ -1,4 +1,4 @@
-# v1.15.0 — 14/09/2026
+# v1.15.0 — 09/11/2026
 🚀 **Departamentos ministeriais, isolamento do tenant Demo, escopo canônico de igreja e ambientes locais seguros**
 
 ### Entregas
@@ -30,6 +30,12 @@
   - leitura da versão do `CHANGELOG.md` passa a reconhecer o formato canônico `# vX.Y.Z`, corrigindo o fallback indevido para `1.0.0`.
 - Reorganização documental:
   - consolidação das famílias de documentação, com retirada das famílias `design/`, `ui/`, `templates/` e `marketing/` e realocação de release notes para `docs/release-notes/`.
+
+### Financeiro, Eventos e Secretaria
+- Contas a pagar passam por autorização formal conforme a política da igreja. As operações respeitam a igreja selecionada e os controles contra pagamentos duplicados foram reforçados.
+- A sincronização de lições da EBD preserva eventos existentes. A gestão de Eventos protege critérios já associados a participações.
+- O cadastro de pessoas mantém o histórico automático consistente com as alterações gravadas. O rodapé passa a exibir a primeira versão oficial do changelog, incluindo títulos com um único #.
+- O reset operacional de demonstração preserva a estrutura e interrompe a limpeza se houver vínculos financeiros fora do ambiente demo.
 
 ### Impacto
 - Introduz camada departamental reutilizável para organização, eventos e financeiro.

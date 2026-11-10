@@ -4,7 +4,7 @@
 
 Publicar a versão v1.15.0: departamentos ministeriais, isolamento do tenant de demonstração, escopo canônico de igreja com revisão de permissões do Financeiro e separação segura dos ambientes local e de teste.
 
-Esta é uma release **MINOR**. Todas as migrations são aditivas.
+Esta é uma release **MINOR**. O intervalo inclui migrations de schema e de dados, além de ajustes na cadeia histórica.
 
 ## Tipo de Versão
 
@@ -57,13 +57,16 @@ Justificativa: introduz funcionalidade nova (departamentos ministeriais, campo `
 
 ### Migrations
 
-Novas (aditivas):
+Novas no intervalo de publicação:
 
 ```text
 configuracao.0040_departamento_capacidades_e_classificacao
 configuracao.0041_departamentoministerial_departamento_departamento_ministerial
 configuracao.0042_departamentovinculo
 configuracao.0043_ministerio_is_demo
+comunicacao.0011_alter_whatsappmensagemlog_status
+eventos.0019_protect_participation_criteria
+financeiro.0019 a 0024
 ```
 
 Históricas modificadas (isoladas para rastreabilidade; revisar antes de aplicar em produção):
@@ -160,7 +163,7 @@ python manage.py check --settings=core.settings_test
 
 ## Observações
 
-- **Migrations aditivas**: as migrations novas apenas acrescentam campos e modelos. Não há remoção de campo nem renomeação de coluna.
+- **Preflight financeiro**: conferir duplicidades de despesas espelho em ambiente autorizado antes da publicação. Financeiro 0023 interrompe a sequência ao detectar duplicidades e 0024 adiciona a restrição de unicidade.
 - **Migrations históricas modificadas**: `contas.0003`, `secretaria.0008` e `secretaria.0014` foram ajustadas. Revisar o conteúdo antes de aplicar em produção e confirmar que nenhum ambiente já as aplicou em versão anterior divergente.
 - **Poderes internos preservados**: a entrada de Administrador do Ministério no Financeiro não concede poderes equivalentes aos de Tesoureiro.
 - **Tenant Demo**: a neutralização de comunicação depende de marcação explícita em `Ministerio.is_demo`. Ministérios reais não são afetados.
@@ -192,4 +195,4 @@ Dúvidas sobre deploy? Verifique `docs/deploy/` e `skills/deploy/SKILL.md`.
 
 ---
 
-**Versão**: 1.15.0 | **Data**: 14/09/2026 | **Status**: Aguardando autorização para publicação
+**Versão**: 1.15.0 | **Data**: 09/11/2026 | **Status**: Aguardando autorização para publicação

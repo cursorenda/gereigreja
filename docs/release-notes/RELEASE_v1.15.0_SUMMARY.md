@@ -1,6 +1,6 @@
 # Release v1.15.0 — Departamentos ministeriais, tenant Demo isolado e escopo de igreja
 
-Data: 14/09/2026
+Data: 09/11/2026
 
 ## Destaques
 
@@ -10,6 +10,16 @@ Data: 14/09/2026
 - Administrador do Ministério passa a abrir o Centro Ministerial após o login, em vez do portal do membro.
 - Entrada no módulo Financeiro para Administrador do Ministério passa a depender de igreja ativa do tipo Sede ou Independente, sem conceder poderes internos equivalentes aos de Tesoureiro.
 - Ambientes local, teste e teste de migration ficam separados do fluxo produtivo legado.
+
+## Novidades do Sistema — texto para publicação
+
+**Título:** Departamentos, aprovações no Financeiro e melhorias no cadastro
+
+- Acesse seus departamentos e acompanhe suas equipes no novo espaço ministerial.
+- O Financeiro passa a respeitar a igreja selecionada e oferece um fluxo de autorização de contas a pagar conforme a política de cada igreja.
+- As atualizações do cadastro de pessoas preservam a consistência do histórico.
+- A sincronização de lições da Escola Bíblica preserva eventos existentes.
+- O ambiente de demonstração bloqueia o envio real de e-mails e WhatsApp e protege dados de igrejas fora da demonstração durante a limpeza.
 
 ## Validação
 
@@ -25,7 +35,7 @@ Data: 14/09/2026
 - `configuracao.0042_departamentovinculo`
 - `configuracao.0043_ministerio_is_demo`
 
-Todas são aditivas. Nenhuma remove campo ou altera contrato existente.
+Também entram no intervalo as migrations de Comunicação 0011, Eventos 0019 e Financeiro 0019 a 0024. O preflight Financeiro 0023 interrompe a publicação se houver despesas espelho duplicadas. A unicidade só é aplicada na 0024 após essa verificação.
 
 ## Riscos e observações
 

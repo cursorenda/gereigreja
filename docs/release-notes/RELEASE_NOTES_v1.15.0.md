@@ -1,6 +1,6 @@
 # Release notes — v1.15.0
 
-Data: 14/09/2026
+Data: 09/11/2026
 
 Tipo: MINOR
 
@@ -33,6 +33,13 @@ Esta versão entrega quatro frentes: estrutura de departamentos ministeriais, is
 - Cache por requisição para grupos do usuário, ministério do usuário e módulos permitidos, reduzindo consultas repetidas.
 - Nova função `contas.page_permissions.pode_acessar_financeiro()`, que restringe a entrada de Administrador do Ministério no módulo Financeiro a igreja ativa do tipo Sede ou Independente, dentro do escopo canônico.
 
+## Financeiro, Eventos e cadastro de pessoas
+
+- As contas a pagar seguem a autorização configurada para cada igreja, com proteções contra pagamentos repetidos e operações fora do escopo.
+- As lições da Escola Bíblica podem ser sincronizadas preservando eventos existentes.
+- O histórico de pessoas permanece consistente com as mudanças de cadastro e o rodapé exibe a versão oficial.
+- A limpeza do ambiente demo preserva a estrutura e é interrompida se detectar referências financeiras de fora do demo.
+
 ## Comportamento alterado
 
 - Administrador do Ministério passa a abrir o Centro Ministerial (`configuracao:centro_ministerial`) após o login, em vez do portal do membro.
@@ -60,7 +67,7 @@ configuracao.0042_departamentovinculo
 configuracao.0043_ministerio_is_demo
 ```
 
-Todas aditivas. Nenhuma remove campo, renomeia coluna ou altera contrato existente.
+O intervalo também inclui Comunicação 0011, Eventos 0019 e Financeiro 0019 a 0024. Verificar o preflight de duplicidade em Financeiro 0023 antes da aplicação da restrição de unicidade 0024.
 
 Migrations históricas modificadas nesta versão, isoladas para rastreabilidade:
 

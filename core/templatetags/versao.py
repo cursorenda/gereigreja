@@ -23,7 +23,7 @@ def get_versao_gereigreja():
                     if line.strip().lower().startswith('# changelog'):
                         continue
                     # Captura versão e data
-                    match = re.match(r"##\s+(v[0-9.]+)\s*[—-]?\s*(\d{2}/\d{2}/\d{4})?", line)
+                    match = re.match(r"#{1,6}\s+(v\d+\.\d+\.\d+)\b\s*[—-]?\s*(\d{2}/\d{2}/\d{4})?", line)
                     if match:
                         _versao_cache = match.group(1)
                         _data_cache = match.group(2)
