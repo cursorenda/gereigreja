@@ -6,9 +6,9 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    # Comandos locais sao seguros por padrao. Ambientes nao locais devem
+    # O build do Render usa este padrao. Ambiente local e testes devem
     # declarar o settings explicitamente no processo ou via --settings.
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings_local')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
